@@ -107,7 +107,7 @@
                         </a>
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', $installment->id) }}")'
+                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>
@@ -119,7 +119,7 @@
                         </a>
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', $installment->id) }}")'
+                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>

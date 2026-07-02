@@ -58,6 +58,11 @@ class VisaRenewalCategoryService
         return self::ensureDefaultExists();
     }
 
+    public static function visaExpenseHeadAccountId(): ?int
+    {
+        return GlobalAccounts::idOrNull('VISA_EXPENSE_ACCOUNT');
+    }
+
     public static function findActive(int $categoryId): ?VisaRenewalCategory
     {
         return VisaRenewalCategory::query()
@@ -89,11 +94,14 @@ class VisaRenewalCategoryService
         $query = visa_expenses::query()
             ->whereNull('deleted_at')
             ->where(function ($q) use ($expenseAccountId, $riderId) {
-                $q->where('expense_account_id', $expenseAccountId)
-                    ->orWhere(function ($q2) use ($riderId) {
-                        $q2->where('expense_account_id', GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'))
+                $q->where('expense_account_id', $expenseAccountId);
+                $headId = self::visaExpenseHeadAccountId();
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderId, $headId) {
+                        $q2->where('expense_account_id', $headId)
                             ->where('rider_id', $riderId);
                     });
+                }
             });
 
         if ($renewalCategoryId !== null) {

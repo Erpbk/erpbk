@@ -32,7 +32,7 @@ class AutoMarkInstallments extends Command
         $this->info('Starting auto-mark installments process...');
 
         $controller = app(InstallmentsController::class);
-        $updatedCount = $controller->autoMarkInstallmentsAsPaid($riderId);
+        $updatedCount = $controller->autoMarkInstallmentsAsPaid(null, $riderId);
 
         if ($updatedCount > 0) {
             $message = $riderId

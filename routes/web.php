@@ -291,7 +291,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('bike-maintenance/{maintenance}/sticker', [BikeMaintenanceController::class, 'sticker'])->name('bike-maintenance.sticker');
 
     Route::get('bikes/import-bikes', [BikesController::class, 'importbikes'])->name('bikes.importbikes');
-    Route::post('bikes/process-import', [BikesController::class, 'processImport'])->name('bikes.processImport');
+    Route::post('bikes/process-import', [BikesController::class, 'processImport'])->name('bikes.process-import');
 
     Route::resource('customers', CustomersController::class)->parameters(['customers' => 'id']);
     Route::get('customer/ledger/{id}', [CustomersController::class, 'ledger'])->name('customer.ledger');
@@ -311,9 +311,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::resource('rtaFines', RtaFinesController::class)->except(['show']);
     Route::get('rtaFines/invoice/{id}', [RtaFinesController::class, 'show'])->name('rtaFines.show');
-    Route::post('rtaFines/store', [RtaFinesController::class, 'store'])->name('rtaFines.store');
-    Route::get('rtaFines/edit/{id}', [RtaFinesController::class, 'edit'])->name('rtaFines.edit');
-    Route::post('rtaFines/update', [RtaFinesController::class, 'update'])->name('rtaFines.update');
+    Route::post('rtaFines/store', [RtaFinesController::class, 'store']);
+    Route::get('rtaFines/edit/{id}', [RtaFinesController::class, 'edit']);
+    Route::post('rtaFines/update', [RtaFinesController::class, 'update']);
     Route::get('rtaFines/create', [RtaFinesController::class, 'create'])->name('rtaFines.create');
     Route::any('rtaFines/attach_file/{id}', [RtaFinesController::class, 'fileUpload'])->name('rtaFines.fileupload');
 
@@ -360,7 +360,14 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('VisaExpense/viewvoucher/{id}', [VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
     Route::get('VisaExpense/getrider/{id}', [VisaexpenseController::class, 'getrider']);
 
-    Route::resource('VisaExpense', VisaexpenseController::class);
+    Route::resource('VisaExpense', VisaexpenseController::class)->except([
+        'create',
+        'edit',
+        'store',
+        'update',
+        'destroy',
+        'show',
+    ]);
 
     // Visa Status Management Routes
     Route::resource('visa-statuses', VisaStatusController::class);
@@ -385,7 +392,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('Installments/payInstallment', [InstallmentsController::class, 'payInstallment'])->name('Installments.payInstallment');
     Route::post('Installments/updateInstallmentField', [InstallmentsController::class, 'updateInstallmentField'])->name('Installments.updateInstallmentField');
     Route::post('Installments/finalizePayment', [InstallmentsController::class, 'finalizePayment'])->name('Installments.finalizePayment');
-    Route::get('Installments/deleteInstallment/{id}', [InstallmentsController::class, 'deleteInstallment'])->name('Installments.deleteInstallment');
+    Route::get('Installments/deleteInstallment/{id}', [InstallmentsController::class, 'deleteInstallment'])->name('Installments.deleteInstallment')->whereNumber('id');
     Route::get('Installments/generateInstallmentInvoice/{riderId}', [InstallmentsController::class, 'generateInstallmentInvoice'])->name('Installments.generateInstallmentInvoice');
     Route::get('Installments/autoMarkInstallments/{riderId?}', [InstallmentsController::class, 'autoMarkInstallmentsAsPaid'])->name('Installments.autoMarkInstallments');
     Route::post('Installments/recalculateInstallments', [InstallmentsController::class, 'recalculateInstallments'])->name('Installments.recalculateInstallments');
@@ -407,7 +414,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('LicenseExpense/viewvoucher/{id}', [LicenseexpenseController::class, 'viewvoucher'])->name('LicenseExpense.viewvoucher');
 
     Route::resource('LicenseExpense', LicenseexpenseController::class)->except([
-        'create', 'edit', 'store', 'update', 'destroy', 'show',
+        'create',
+        'edit',
+        'store',
+        'update',
+        'destroy',
+        'show',
     ]);
 
     Route::post('LicenseExpense/store', [LicenseexpenseController::class, 'store'])->name('LicenseExpense.store');

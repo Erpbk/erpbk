@@ -1097,7 +1097,7 @@ trait ManagesVisaInstallments
         }
     }
 
-    public function deleteInstallment($id)
+    public function deleteInstallment($company_slug, $id)
     {
         if (!auth()->user()->hasPermissionTo('installment_delete')) {
             abort(403, 'Unauthorized action.');
@@ -1641,7 +1641,7 @@ trait ManagesVisaInstallments
     /**
      * Automatically mark installments as paid when their date equals today
      */
-    public function autoMarkInstallmentsAsPaid($riderId = null)
+    public function autoMarkInstallmentsAsPaid($company_slug, $riderId = null)
     {
         $today = Carbon::today()->format('Y-m-d');
 
@@ -1714,7 +1714,7 @@ trait ManagesVisaInstallments
                 return 0;
             }
 
-            $updatedCount = $this->autoMarkInstallmentsAsPaid($riderId);
+            $updatedCount = $this->autoMarkInstallmentsAsPaid(null, $riderId);
 
             // Silent operation - no flash messages to user
             // Only log for admin/debugging purposes

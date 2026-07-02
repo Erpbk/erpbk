@@ -102,7 +102,7 @@ $homeLink = $isAdminSession
                 $image_name = 'default.png';
                 }
                 @endphp
-                <img src="{{ asset('uploads/'.$image_name)}}" alt class="h-auto rounded-circle">
+                <img src="{{ user_avatar_url($image_name) }}" alt class="h-auto rounded-circle">
               </div>
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
@@ -111,7 +111,7 @@ $homeLink = $isAdminSession
                   <div class="d-flex">
                     <div class="flex-shrink-0 me-3">
                       <div class="avatar avatar-online">
-                        <img src="{{ asset('uploads/'.$image_name)}}" alt class="h-auto rounded-circle">
+                        <img src="{{ user_avatar_url($image_name) }}" alt class="h-auto rounded-circle">
                       </div>
                     </div>
                     <div class="flex-grow-1">

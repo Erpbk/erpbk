@@ -34,14 +34,6 @@
                                 @endif
                             </div>
                         </div>
-
-                        @if(!empty($existingCurrentMonthPlan))
-                        <div class="alert alert-warning mt-2">
-                            <i class="fa fa-exclamation-triangle me-2"></i>
-                            <strong>Warning:</strong> An installment plan already exists for this rider in {{ \Carbon\Carbon::now()->format('F Y') }}.
-                            Please select a different starting month to avoid conflicts.
-                        </div>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -365,19 +357,6 @@
                 e.preventDefault();
                 alert('Number of installments must be between 1 and 12.');
                 return false;
-            }
-
-            // Check if there's already a plan for the current month
-            const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
-            if (billingMonth === currentMonth) {
-                @if($existingCurrentMonthPlan)
-                e.preventDefault();
-                alert('An installment plan already exists for this rider in ' + new Date().toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long'
-                }) + '. Please select a different starting month.');
-                return false;
-                @endif
             }
 
             // Validate that all installments sum to total amount.

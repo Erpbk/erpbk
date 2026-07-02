@@ -200,7 +200,7 @@
                     @endif
                     
                     @if($cheque->attachment)
-                    <a href="{{ url('storage/vouchers/' . $cheque->attachment) }}" 
+                    <a href="{{ storage_url('vouchers/' . $cheque->attachment) }}" 
                        class="btn btn-outline-success btn-sm d-flex align-items-center justify-content-between" 
                        target="_blank">
                         <span class="d-flex align-items-center">

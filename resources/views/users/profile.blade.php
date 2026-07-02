@@ -25,7 +25,7 @@
                             }
                         @endphp
                         <div class="avatar-container" style="position: relative; width: fit-content;">
-                            <img src='{{ asset("uploads/$image_name") }}'
+                            <img src='{{ user_avatar_url($image_name) }}'
                                  id="output" 
                                  class="rounded-circle img-thumbnail" 
                                  style="width: 130px; height: 130px; object-fit: cover; border: 4px solid #f0f2f5;"

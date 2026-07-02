@@ -1,200 +1,144 @@
-<?php 
+<?php
 
 namespace App\Services;
+
+use App\Support\PublicStorageDisk;
 use Intervention\Image\Facades\Image as ResizeImage;
 use Maestroerror\HeicToJpg;
 
-
 class ImageService
 {
-    public function uploadLogo($request){
+    public function uploadLogo($request)
+    {
+        ['name' => $name, 'file' => $imageFile, 'tmp' => $tmp] = $this->resolveSourceFile($request->file('image_name'));
 
-        $path = public_path('uploads/');
-        $path_thumbnail = public_path('uploads/thumbnail/');
-      
-        !is_dir($path) && mkdir($path, 0777, true);
-        !is_dir($path_thumbnail) && mkdir($path_thumbnail, 0777, true);
-
-        $name = time() . '.' . $request->image_name->extension();
-
-        $image_file = $request->file('image_name');
-
-        $fileIsHeic = HeicToJpg::isHeic($request->file('image_name'));
-        if ($fileIsHeic) {
-            $name = rand(1,20).time() . '.jpg';
-            HeicToJpg::convert($request->file('image_name'))->saveAs($path . $name);
-            $image_file = $path . $name;
-        }
-
-        ResizeImage::make($image_file)
-        ->resize(null , 120,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path . $name);
-        
-        ResizeImage::make($image_file)
-        ->resize(null , 75,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path_thumbnail . $name);
-
-       
-
-       return $name;
-    }
-
-    public function uploadWithSize($request,$width,$height){
-
-        $path = public_path('uploads/');
-        $path_thumbnail = public_path('uploads/thumbnail/');
-      
-        !is_dir($path) && mkdir($path, 0777, true);
-        !is_dir($path_thumbnail) && mkdir($path_thumbnail, 0777, true);
-
-        $name = time() . '.' . $request->image_name->extension();
-
-        $image_file = $request->file('image_name');
-
-        $fileIsHeic = HeicToJpg::isHeic($request->file('image_name'));
-
-        if ($fileIsHeic) {
-            $name = rand(1,20).time() . '.jpg';
-            HeicToJpg::convert($request->file('image_name'))->saveAs($path . $name);
-            $image_file = $path . $name;
-        }
-
-        ResizeImage::make($image_file)
-        ->resize($width ?? null, $height ?? null,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path . $name);
-        
-       /*  ResizeImage::make($image_file)
-        ->resize(null , 75,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path_thumbnail . $name); */
-
-       
-
-       return $name;
-    }
-
-    public function uploadEvent($request){
-
-        $path = public_path('uploads/');
-        $path_thumbnail = public_path('uploads/thumbnail/');
-      
-        !is_dir($path) && mkdir($path, 0777, true);
-        !is_dir($path_thumbnail) && mkdir($path_thumbnail, 0777, true);
-
-        $name = time() . '.' . $request->image_name->extension();
-        
-        $image_file = $request->file('image_name');
-
-        $fileIsHeic = HeicToJpg::isHeic($request->file('image_name'));
-        if ($fileIsHeic) {
-            $name = rand(1,20).time() . '.jpg';
-            HeicToJpg::convert($request->file('image_name'))->saveAs($path . $name);
-            $image_file = $path . $name;
-        }
-
-        ResizeImage::make($image_file)
-        ->resize(null ,500,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path . $name);
-        
-        ResizeImage::make($image_file)
-        ->resize(null ,355,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path_thumbnail . $name);
-
-       
-       return $name;
-    }
-    public function uploadImage($request){
-
-        $path = public_path('uploads/');
-      
-        !is_dir($path) && mkdir($path, 0777, true);
-
-        $name = time() . '.' . $request->image_name->extension();
-        
-
-        $image_file = $request->file('image_name');
-
-        $fileIsHeic = HeicToJpg::isHeic($request->file('image_name'));
-        if ($fileIsHeic) {
-            $name = rand(1,20).time() . '.jpg';
-            HeicToJpg::convert($request->file('image_name'))->saveAs($path . $name);
-            $image_file = $path . $name;
-        }
-
-        ResizeImage::make($image_file)
-        ->resize(null , 212,function($img){
-             $img->aspectRatio();
-            })
-        ->save($path . $name);
-
-        /* ResizeImage::make($request->file('image_name'))
-            ->resize(800, null,function($img){
-                 $img->aspectRatio();
-                })
-            ->save($path . $name); */
-
-       return $name;
-    }
-
-        public function uploadGallery($request,$type,$type_id){
-        
-            //Images::where('type',$type)->where('type_id',$type_id)->delete();
-
-            foreach($request->images as $image){
-
-            $path = public_path('uploads/');
-        
-            !is_dir($path) && mkdir($path, 0777, true);
-
-            $name = rand(1,20).time() . '.' . $image->extension();
-            
-            $image_file = $image;
-            $fileIsHeic = HeicToJpg::isHeic($image);
-            if ($fileIsHeic) {
-                $name = rand(1,20).time() . '.jpg';
-                HeicToJpg::convert($image)->saveAs($path . $name);
-                $image_file = $path . $name;
-            }
-  
-                ResizeImage::make($image_file)
-                ->resize(null, 500,function($img){
-                    $img->aspectRatio();
-                    })
-                ->save($path . $name);
-                       
-
-         /*  ResizeImage::make($request->file('image_name'))
-            ->resize(350 , null,function($img){
+        $this->saveToPublicDisk(
+            ResizeImage::make($imageFile)->resize(null, 120, function ($img) {
                 $img->aspectRatio();
-                })
-            ->save($path.'thumbnail/' . $name); */
+            }),
+            'uploads/' . $name
+        );
 
-            
-            
-        
-            $image_data = [
-                'type'=>$type,
-                'type_id'=>$type_id,
-                'image_name'=>$name
-            ];
+        $this->saveToPublicDisk(
+            ResizeImage::make($imageFile)->resize(null, 75, function ($img) {
+                $img->aspectRatio();
+            }),
+            'uploads/thumbnail/' . $name
+        );
 
-            Images::create($image_data);
-            
-          }
+        $this->cleanupTmp($tmp);
+
+        return $name;
+    }
+
+    public function uploadWithSize($request, $width, $height)
+    {
+        ['name' => $name, 'file' => $imageFile, 'tmp' => $tmp] = $this->resolveSourceFile($request->file('image_name'));
+
+        $this->saveToPublicDisk(
+            ResizeImage::make($imageFile)->resize($width ?? null, $height ?? null, function ($img) {
+                $img->aspectRatio();
+            }),
+            'uploads/' . $name
+        );
+
+        $this->cleanupTmp($tmp);
+
+        return $name;
+    }
+
+    public function uploadEvent($request)
+    {
+        ['name' => $name, 'file' => $imageFile, 'tmp' => $tmp] = $this->resolveSourceFile($request->file('image_name'));
+
+        $this->saveToPublicDisk(
+            ResizeImage::make($imageFile)->resize(null, 500, function ($img) {
+                $img->aspectRatio();
+            }),
+            'uploads/' . $name
+        );
+
+        $this->saveToPublicDisk(
+            ResizeImage::make($imageFile)->resize(null, 355, function ($img) {
+                $img->aspectRatio();
+            }),
+            'uploads/thumbnail/' . $name
+        );
+
+        $this->cleanupTmp($tmp);
+
+        return $name;
+    }
+
+    public function uploadImage($request)
+    {
+        ['name' => $name, 'file' => $imageFile, 'tmp' => $tmp] = $this->resolveSourceFile($request->file('image_name'));
+
+        $this->saveToPublicDisk(
+            ResizeImage::make($imageFile)->resize(null, 212, function ($img) {
+                $img->aspectRatio();
+            }),
+            'uploads/' . $name
+        );
+
+        $this->cleanupTmp($tmp);
+
+        return $name;
+    }
+
+    public function uploadGallery($request, $type, $type_id)
+    {
+        foreach ($request->images as $image) {
+            ['name' => $name, 'file' => $imageFile, 'tmp' => $tmp] = $this->resolveSourceFile($image);
+
+            $this->saveToPublicDisk(
+                ResizeImage::make($imageFile)->resize(null, 500, function ($img) {
+                    $img->aspectRatio();
+                }),
+                'uploads/' . $name
+            );
+
+            $this->cleanupTmp($tmp);
+
+            Images::create([
+                'type' => $type,
+                'type_id' => $type_id,
+                'image_name' => $name,
+            ]);
+        }
+
         return true;
-      }
+    }
+
+    /**
+     * @return array{name: string, file: mixed, tmp: ?string}
+     */
+    private function resolveSourceFile($uploadedFile): array
+    {
+        $name = time() . '.' . $uploadedFile->extension();
+        $imageFile = $uploadedFile;
+        $tmp = null;
+
+        if (HeicToJpg::isHeic($uploadedFile)) {
+            $name = rand(1, 20) . time() . '.jpg';
+            $tmp = tempnam(sys_get_temp_dir(), 'heic_');
+            HeicToJpg::convert($uploadedFile)->saveAs($tmp);
+            $imageFile = $tmp;
+        }
+
+        return compact('name', 'imageFile', 'tmp');
+    }
+
+    private function saveToPublicDisk($image, string $relativePath): void
+    {
+        $extension = pathinfo($relativePath, PATHINFO_EXTENSION) ?: 'jpg';
+        PublicStorageDisk::put($relativePath, (string) $image->encode($extension));
+    }
+
+    private function cleanupTmp(?string $tmp): void
+    {
+        if ($tmp && is_file($tmp)) {
+            @unlink($tmp);
+        }
+    }
 }
-
-
-?>

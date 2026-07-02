@@ -14,6 +14,7 @@ use App\Models\ChequeTopCategory;
 use App\Models\ChequeTopOption;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\Cheques\ChequeTopDateFilterService;
+use App\Support\PublicStorageDisk;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -141,7 +142,7 @@ class ChequesController extends Controller
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $filename = time() . '_' . $file->getClientOriginalName();
-                $file->storeAs('public/vouchers', $filename);
+                PublicStorageDisk::storeUploadedFile($file, 'vouchers', $filename);
                 $chequeData['attachment'] = $filename;
             }
 
@@ -295,13 +296,13 @@ class ChequesController extends Controller
             if ($request->hasFile('attachment')) {
                 // Delete old file
                 if ($cheque->attachment) {
-                    Storage::delete('public/vouchers/' . $cheque->attachment);
+                    PublicStorageDisk::delete('vouchers/' . $cheque->attachment);
                 }
 
                 // Store new file
                 $file = $request->file('attachment');
                 $filename = time() . '_' . $file->getClientOriginalName();
-                $file->storeAs('public/vouchers', $filename);
+                PublicStorageDisk::storeUploadedFile($file, 'vouchers', $filename);
                 $updateData['attachment'] = $filename;
             }
 
@@ -336,7 +337,6 @@ class ChequesController extends Controller
     public function destroy($comapny_slug, $id)
     {
         $cheque = Cheques::find($id);
-        $path = 'public/vouchers/' . $cheque->attachment;
         if ($cheque) {
 
             DB::beginTransaction();
@@ -352,8 +352,9 @@ class ChequesController extends Controller
                 }
                 $cheque->delete();
                 DB::commit();
-                // Delete attachment file if exists
-                Storage::delete($path);
+                if ($cheque->attachment) {
+                    PublicStorageDisk::delete('vouchers/' . $cheque->attachment);
+                }
 
                 return response()->json([
                     'success' => true,

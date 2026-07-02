@@ -126,24 +126,16 @@ class BikeRentCompaniesController extends AppBaseController
 
         $input = $request->all();
         if($input['customer_type'] == 'bike_rental') {
-            $customersAsset = Accounts::where('name', 'Customers (Vehicle Rental)')->where('account_type', 'Asset')->first();
+            $customersAsset = \App\Models\GlobalAccount::id('VEHICLE_RENTAL_CUSTOMERS');
             if (!$customersAsset) {
-                $message = 'Chart of accounts is missing a "Customers (Vehicle Rental)" (Asset) head under Assets. Add it in Chart of Accounts.';
-                if ($request->ajax()) {
-                    return response()->json(['message' => $message], 422);
-                }
-                Flash::error($message);
-                return redirect()->back();
+                Flash::error('Chart of accounts is missing the Customers (Vehicle Rental) (Asset) head. Contact ERP Team to Configure it.');
+                return redirect(route('bikeRentCompanies.index'));
             }
         }else {
-            $customersAsset = Accounts::where('name', 'Customers (Garage)')->where('account_type', 'Asset')->first();
+            $customersAsset = \App\Models\GlobalAccount::id('GARAGE_CUSTOMERS');
             if (!$customersAsset) {
-                $message = 'Chart of accounts is missing a "Customers (Garage)" (Asset) head under Assets. Add it in Chart of Accounts first.';
-                if ($request->ajax()) {
-                    return response()->json(['message' => $message], 422);
-                }
-                Flash::error($message);
-                return redirect()->back();
+                Flash::error('Chart of accounts is missing the Customers (Garage) (Asset) head. Contact ERP Team to Configure it.');
+                return redirect(route('bikeRentCompanies.index'));
             }
         }
         try {
@@ -160,7 +152,7 @@ class BikeRentCompaniesController extends AppBaseController
             $account->ref_name = 'BikeRentCompany';
             $account->account_type = 'Asset';
             $account->name = $bikeRentCompany->name;
-            $account->parent_id = $customersAsset->id;
+            $account->parent_id = $customersAsset;
             $account->ref_id = $bikeRentCompany->id;
             $account->status = (int) $bikeRentCompany->status;
             $account->branch_id = $bikeRentCompany->branch_id;

@@ -129,7 +129,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
                         $itemTaxRate = isset($request['tax_rate'][$key]) && $request['tax_rate'][$key] > 0
                             ? (float) $request['tax_rate'][$key]
-                            : $vatPercentage;
+                            : 0;
                         $taxAmount = $proratedAmount * ($itemTaxRate / 100);
                         $totalAmount = $proratedAmount + $taxAmount;
 

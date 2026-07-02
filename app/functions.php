@@ -33,3 +33,13 @@ if (! function_exists('ga_id')) {
         return \App\Support\GlobalAccounts::id($code);
     }
 }
+
+if (! function_exists('ga_name')) {
+    /**
+     * Resolve a global account name by code from the global_accounts registry.
+     */
+    function ga_name(string $code): string
+    {
+        return \App\Support\GlobalAccounts::account($code)->name;
+    }
+}

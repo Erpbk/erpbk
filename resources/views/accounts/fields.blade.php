@@ -1,22 +1,26 @@
+@if(!($hideBranch ?? false))
 <div class="alert alert-warning"> Select <b>'All'</b> option in Branch list if this account will be used by all or multiple branches</div>
+@endif
 
 <!-- Account Type Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('account_type', 'Account Type:') !!}
   {!! Form::select('account_type', App\Helpers\Accounts::AccountTypes(),null, ['class' => 'form-control form-select select2']) !!}
 </div>
+@if(!($hideBranch ?? false))
 <!-- Branch Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
     {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
 </div>
+@endif
 <!-- Account Name Field -->
 <div class="form-group col-sm-6">
   {!! Form::label('name', 'Account Name:') !!}
   {!! Form::text('name', null, ['class' => 'form-control', 'required', 'maxlength' => 100, 'maxlength' => 100]) !!}
 </div>
 <!-- Account Code Field -->
-@if(Route::currentRouteName() == 'accounts.edit' && isset($accounts->id))
+@if((Route::currentRouteName() == 'accounts.edit' || ($showAccountCode ?? false)) && isset($accounts->id))
 <div class="form-group col-sm-6">
   {!! Form::label('account_code', 'Account Code:') !!}
   {!! Form::text('account_code', $accounts->account_code, ['class' => 'form-control']) !!}

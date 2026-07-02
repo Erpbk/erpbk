@@ -102,14 +102,14 @@ class CustomersController extends AppBaseController
       Flash::error('Customer already exists.');
       return redirect()->back();
     }
-    $parentAccount = Accounts::where('name', 'Customer')->where('account_type', 'Asset')->first();
-    if (!$parentAccount) {
+    $parentAccount = \App\Models\GlobalAccount::id('CUSTOMER_PARENT');
+    if (! $parentAccount) {
       if ($request->ajax()) {
         return response()->json([
-          'message' => 'Parent account "Customer" not found.',
+          'message' => 'Chart of accounts is missing the Customer (Asset) head. Contact ERP Team to Configure it.',
         ], 500);
       }
-      Flash::error('Parent account "Customer" not found.');
+      Flash::error('Chart of accounts is missing the Customer (Asset) head. Contact ERP Team to Configure it.');
       return redirect(route('customers.index'));
     }
     try {
@@ -118,7 +118,7 @@ class CustomersController extends AppBaseController
       $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
       $account->account_type = 'Asset';
       $account->name = $customers->name;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentAccount;
       $account->ref_name = 'Customer';
       $account->ref_id = $customers->id;
       $account->status = $customers->status;
@@ -198,6 +198,7 @@ class CustomersController extends AppBaseController
     if ($account) {
       $account->status = $customers->status;
       $account->branch_id = $customers->branch_id;
+      $account->name = $customers->name;
       $account->save();
     }
 

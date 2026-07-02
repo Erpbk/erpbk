@@ -4,7 +4,7 @@
 <input type="hidden" name="branch_id" value="{{ $rider->branch_id }}">
 
 <div class="row">
-    @include('vouchers.incentive_fields', ['bank_accounts' => $bank_accounts])
+    @include('vouchers.incentive_fields', ['rider' => $rider])
 </div>
 @include('vouchers._custom_fields_section')
 

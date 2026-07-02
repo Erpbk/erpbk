@@ -96,14 +96,8 @@ class SupplierController extends AppBaseController
       'status' => 'nullable|string',
     ]);
 
-
-    // Create or get parent "Supplier" account
-    $parentId = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->first()->id;
-    if (!$parentId) {
-      Flash::error('Parent account "Supplier" not found.');
-    }
-
     try {
+      $parentId = \App\Models\GlobalAccount::id('SUPPLIER_ACCOUNT');
       DB::beginTransaction();
       $supplier = Supplier::create($validated);
       // Create linked account in chart of accounts

@@ -100,14 +100,8 @@ class LeasingCompaniesController extends AppBaseController
     public function store(CreateLeasingCompaniesRequest $request)
     {
         $input = $request->all();
-
-        // Adding Account and setting reference
-        $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->first();
-        if (! $parentAccount) {
-            Flash::error('Parent account "Leasing Companies" not found.');
-        }
-
         try {
+            $parentAccount = \App\Models\GlobalAccount::account('LEASING_COMPANIES');
             DB::beginTransaction();
             $leasingCompanies = $this->leasingCompaniesRepository->create($input);
             $account = new Accounts;
@@ -554,7 +548,7 @@ class LeasingCompaniesController extends AppBaseController
                 $filteredBikeIds[] = $bikeId;
                 $filteredRentalAmounts[] = $request->rental_amount[$key] ?? 0;
                 $filteredDays[] = $request->days[$key] ?? null;
-                $filteredTaxRates[] = $request->tax_rate[$key] ?? Common::getSetting('vat_percentage') ?? 5;
+                $filteredTaxRates[] = $request->tax_rate[$key] ?? 0;
 
                 // $bike = Bikes::withTrashed()->find($bikeId);
                 // if (!$bike || $bike->trashed() || (int) $bike->status !== 1 || in_array($bike->warehouse ?? '', $inactiveWarehouses, true)) {

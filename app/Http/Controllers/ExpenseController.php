@@ -37,23 +37,7 @@ class ExpenseController extends AppBaseController
      */
     private function getExpenseAccountIds(): array
     {
-        return Accounts::where('account_type', 'Expense')->pluck('id')->all();
-    }
-
-    /**
-     * Build children collection for a parent from a keyed collection of all accounts.
-     * Only includes accounts that are in the expense account IDs set.
-     */
-    private function buildExpenseChildren($parentId, $all, array $expenseIds): \Illuminate\Support\Collection
-    {
-        return $all->where('parent_id', $parentId)
-            ->filter(fn($a) => in_array($a->id, $expenseIds, true))
-            ->sortBy('account_code')
-            ->values()
-            ->map(function ($child) use ($all, $expenseIds) {
-                $child->setRelation('children', $this->buildExpenseChildren($child->id, $all, $expenseIds));
-                return $child;
-            });
+        return Accounts::where('parent_id', GlobalAccounts::id('OTHER_EXPENSES'))->pluck('id')->all();
     }
 
     /**
@@ -185,7 +169,7 @@ class ExpenseController extends AppBaseController
         if (!auth()->user()->can('expenses_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $parent = Accounts::find(GlobalAccounts::id('OTHER_EXPENSES'));
+        $parent = GlobalAccounts::account('OTHER_EXPENSES');
         $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
         $accounts = null;
 

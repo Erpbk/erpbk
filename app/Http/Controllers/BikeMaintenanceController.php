@@ -500,7 +500,7 @@ class BikeMaintenanceController extends Controller
         if ($companyItems->isNotEmpty()) {
 
             $companyTotal = $companyItems->sum('total_amount');
-            $acc = Accounts::find(GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT'));
+            $acc = GlobalAccounts::account('BIKE_MAINTENANCE_ACCOUNT');
             if (! $acc) {
                 $missing[] = 'Company Bike Maintennace Account not found ID:'.GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT');
             } else {
@@ -588,7 +588,7 @@ class BikeMaintenanceController extends Controller
             'narration' => $data['description'],
         ]);
         if ($data['profit'] > 0) {
-            $profitAcc = Accounts::find(GlobalAccounts::id('GARAGE_INCOME_ACCOUNT'));
+            $profitAcc = GlobalAccounts::account('GARAGE_INCOME_ACCOUNT');
             if (! $profitAcc) {
                 throw new \Exception('Garage Income Account not find');
             }

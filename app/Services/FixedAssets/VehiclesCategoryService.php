@@ -41,12 +41,14 @@ class VehiclesCategoryService
             $category->salvage_value_percent = 0;
             $category->is_active = true;
             $category->is_system = true;
-            $category->save();
 
-            if (!$category->asset_account_id) {
-                $this->accountService->createAccountsForCategory($category);
+            if (!$category->asset_account_id || !$category->accumulated_depreciation_account_id || !$category->depreciation_expense_account_id) {
+                $category->asset_account_id = \App\Models\GlobalAccount::id('VEHICLES_ASSET');
+                $category->accumulated_depreciation_account_id = \App\Models\GlobalAccount::id('VEHICLES_ACCUMULATED_DEPRECIATION');
+                $category->depreciation_expense_account_id = \App\Models\GlobalAccount::id('VEHICLES_DEPRECIATION_EXPENSE');
             }
-
+            
+            $category->save();
             return $category->fresh();
         });
     }
@@ -70,15 +72,17 @@ class VehiclesCategoryService
             $dirty = true;
         }
 
+        if (!$category->asset_account_id || !$category->accumulated_depreciation_account_id || !$category->depreciation_expense_account_id) {
+           $category->asset_account_id = \App\Models\GlobalAccount::id('VEHICLES_ASSET');
+           $category->accumulated_depreciation_account_id = \App\Models\GlobalAccount::id('VEHICLES_ACCUMULATED_DEPRECIATION');
+           $category->depreciation_expense_account_id = \App\Models\GlobalAccount::id('VEHICLES_DEPRECIATION_EXPENSE');
+           $dirty = true;
+        }
+
         if ($dirty) {
             $category->save();
         }
-
-        if (!$category->asset_account_id) {
-            $this->accountService->createAccountsForCategory($category);
-            $category->refresh();
-        }
-
+        $category->refresh();
         return $category;
     }
 }

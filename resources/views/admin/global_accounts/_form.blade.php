@@ -10,7 +10,7 @@
             <input type="text" class="form-control" value="{{ $globalAccount->code }}" readonly>
             <div class="form-text">{{ __('Code cannot be changed after creation.') }}</div>
         @else
-            <input type="text" name="code" class="form-control text-uppercase" value="{{ old('code') }}" placeholder="VAT_ON_SALES" required pattern="[A-Z][A-Z0-9_]*">
+            <input type="text" name="code" class="form-control" value="{{ old('code') }}" placeholder="VAT_ON_SALES" required pattern="[A-Z][A-Z0-9_]*">
             @error('code')
                 <div class="text-danger small mt-1">{{ $message }}</div>
             @enderror

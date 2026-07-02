@@ -198,6 +198,8 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 
     // Global accounts (system-wide chart account registry)
     Route::get('global-accounts/accounts-by-type/{type}', [AdminGlobalAccountsController::class, 'accountsByType'])->name('global-accounts.accounts-by-type');
+    Route::get('global-accounts/{globalAccount}/linked-account/edit', [AdminGlobalAccountsController::class, 'editLinkedAccount'])->name('global-accounts.linked-account.edit');
+    Route::patch('global-accounts/{globalAccount}/linked-account', [AdminGlobalAccountsController::class, 'updateLinkedAccount'])->name('global-accounts.linked-account.update');
     Route::resource('global-accounts', AdminGlobalAccountsController::class)->except(['show']);
 
     // Legacy Account Fixing URLs → Global Accounts

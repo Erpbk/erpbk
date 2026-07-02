@@ -2666,12 +2666,12 @@ class RidersController extends AppBaseController
 
   public function penalty($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
-    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
-    $accounts = Accounts::dropdown(null);
-    $bank_accounts = Accounts::bankAccountsDropdown();
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
+    }
 
-    return view('riders.penalty-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
+    return view('riders.penalty-modal', compact('rider'))->render();
   }
 
   public function storecod(Request $request)
@@ -2856,10 +2856,10 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'PN', // Penalty
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('PENALTY_ACCOUNT'),
+        'payment_from' => $riderAccountId,
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
-        'remarks' => 'Penalty Amount to Rider',
+        'remarks' => 'Penalty Charged to Rider: ' . $riderAccount->name ,
         'ref_id' => $riderAccount->ref_id, // Rider ID
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
@@ -2943,11 +2943,8 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
-    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
-    $accounts = Accounts::dropdown(null);
-    $bank_accounts = Accounts::bankAccountsDropdown();
 
-    return view('riders.incentive-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
+    return view('riders.incentive-modal', compact('rider'));
   }
 
   public function payment($company_slug, $rider_id)
@@ -3242,12 +3239,12 @@ class RidersController extends AppBaseController
 
   public function vendorcharges($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
-    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
-    $accounts = Accounts::dropdown(null);
-    $bank_accounts = Accounts::bankAccountsDropdown();
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
+    }
 
-    return view('riders.vendorcharges-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
+    return view('riders.vendorcharges-modal', compact('rider'))->render();
   }
 
   /**

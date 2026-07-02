@@ -30,8 +30,9 @@ $isGlobalLinked = isset($globalLinkedAccountIds[$account->id]);
       <span class="tree-lock me-1" style="width:20px;display:inline-block;"></span>
       @endif
       <a href="javascript:void(0);" class="view-ledger text-primary text-decoration-none fw-medium" data-id="{{ $account->id }}">{{ $account->name }}</a>
-      @if($isGlobalLinked)
-      <span class="badge bg-label-primary ms-1" title="Managed from Admin → Global Accounts">Global</span>
+      
+      @if($isGlobalLinked || $account->is_fixed)
+      <span class="badge bg-label-primary me-1">Fixed</span>
       @endif
     </div>
   </td>

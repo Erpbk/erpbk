@@ -22,6 +22,7 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Repositories\PaymentsRepository;
 use App\Traits\GlobalPagination;
+use App\Support\PublicStorageDisk;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -497,7 +498,7 @@ class PaymentController extends Controller
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
                 $fileName = time().'_'.$file->getClientOriginalName();
-                $file->storeAs('public/vouchers', $fileName);
+                PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
                 $voucherData['attach_file'] = $fileName;
             }
 
@@ -971,7 +972,7 @@ class PaymentController extends Controller
             if ($hasNewAttachment) {
                 $file = $request->file('attachment');
                 $fileName = time().'_'.$file->getClientOriginalName();
-                $file->storeAs('public/vouchers', $fileName);
+                PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
 
                 $payment->update(['attachment' => $fileName]);
 

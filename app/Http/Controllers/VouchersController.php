@@ -26,6 +26,7 @@ use App\Services\VoucherService;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
+use App\Support\PublicStorageDisk;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -805,7 +806,7 @@ class VouchersController extends Controller
       if (in_array($voucher->voucher_type, ['LV', 'LE'])) {
         $fileName = $photo->store('vouchers', 'public');
       } else {
-        $photo->storeAs('public/vouchers', $fileName);
+        PublicStorageDisk::storeUploadedFile($photo, 'vouchers', $fileName);
       }
       $voucher->attach_file = $fileName;
       $voucher->updated_by = auth()->id();

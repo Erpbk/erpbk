@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\FuelCards;
 use App\Models\FuelCardHistory;
+use App\Support\PublicStorageDisk;
 use Flash;
 use Illuminate\Support\Facades\DB;
 
@@ -148,7 +149,7 @@ class FuelCardHistoryController extends Controller
             ]);
             $file = $request->file('attachment');
             $filename = time() . '_' . $file->getClientOriginalName();
-            $path = $file->storeAs('public/fuelcards', $filename);
+            $path = PublicStorageDisk::storeUploadedFile($file, 'fuelcards', $filename);
             $fuelCard->attachment = $path;
             $fuelCard->bike_no = $fuelCard->rider->bikes->plate;
             $fuelCard->save();

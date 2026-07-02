@@ -1,6 +1,7 @@
 @push('third_party_stylesheets')
 @endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+<div id="visa-installments-inline-edit-scope">
+<table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
     <thead class="text-center">
         <tr role="row">
             <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
@@ -18,21 +19,21 @@
         @forelse($data as $installment)
         <tr class="text-center" data-status="{{ $installment->status }}">
             <td>
-                <span id="date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
+                <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
                 @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
                 @endcanany
                 <input type="date"
-                    id="date_input_{{ $installment->id }}"
+                    id="inst_date_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
                     class="form-control form-control-sm d-none"
                     onblur="saveDate({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }})">
             </td>
             <td>
-                <span id="voucher_ids_display_{{ $installment->id }}">
+                <span id="inst_voucher_ids_display_{{ $installment->id }}">
                     @if($installment->vouchers->isNotEmpty())
                     @foreach($installment->vouchers as $voucher)
                     <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>@if(!$loop->last), @endif
@@ -43,21 +44,21 @@
                 </span>
             </td>
             <td>
-                <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
+                <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
                 @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
                 @endcanany
                 <input type="month"
-                    id="billing_input_{{ $installment->id }}"
+                    id="inst_billing_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
                     class="form-control form-control-sm d-none"
                     onblur="saveBillingMonth({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
             </td>
             <td>
-                <span id="amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
+                <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
                 @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
@@ -65,21 +66,21 @@
                 @endcanany
                 <input type="number"
                     step="0.01"
-                    id="amount_input_{{ $installment->id }}"
+                    id="inst_amount_input_{{ $installment->id }}"
                     value="{{ $installment->amount }}"
                     class="form-control form-control-sm d-none"
                     onblur="saveAmount({{ $installment->id }})"
                     onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
             </td>
             <td class="text-start" style="min-width: 260px;">
-                <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
+                <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
                 @canany(['installment_edit', 'visaloan_edit'])
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
                 @endcanany
                 <textarea
-                    id="narration_input_{{ $installment->id }}"
+                    id="inst_narration_input_{{ $installment->id }}"
                     rows="2"
                     data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
                     class="form-control form-control-sm d-none"
@@ -87,10 +88,10 @@
             </td>
             <td>{!! $installment->status_badge !!}</td>
             <td>
-                <span id="created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
+                <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
             </td>
             <td>
-                <span id="updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
+                <span id="inst_updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
             </td>
             <td>
                 <div class="dropdown">
@@ -167,8 +168,18 @@
     @endif
 </table>
 {!! $data->links('pagination') !!}
+</div>
 
 <script>
+    function installmentInlineScope() {
+        return document.getElementById('visa-installments-inline-edit-scope');
+    }
+
+    function installmentFieldEl(field, installmentId) {
+        const scope = installmentInlineScope();
+        return scope ? scope.querySelector('#inst_' + field + '_' + installmentId) : null;
+    }
+
     // Track unsaved amount changes locally until user finalizes
     let INSTALLMENT_AMOUNT_CHANGES = {};
     let INSTALLMENT_DELETIONS = {};
@@ -240,37 +251,50 @@
 
     // Edit functions - show input field
     function editDate(installmentId) {
-        document.getElementById('date_display_' + installmentId).classList.add('d-none');
-        document.getElementById('date_input_' + installmentId).classList.remove('d-none');
-        document.getElementById('date_input_' + installmentId).focus();
+        const dateDisplay = installmentFieldEl('date_display', installmentId);
+        const dateInput = installmentFieldEl('date_input', installmentId);
+        if (!dateDisplay || !dateInput) return;
+        dateDisplay.classList.add('d-none');
+        dateInput.classList.remove('d-none');
+        dateInput.focus();
     }
 
     function editBillingMonth(installmentId) {
-        document.getElementById('billing_display_' + installmentId).classList.add('d-none');
-        document.getElementById('billing_input_' + installmentId).classList.remove('d-none');
-        document.getElementById('billing_input_' + installmentId).focus();
+        const billingDisplay = installmentFieldEl('billing_display', installmentId);
+        const billingInput = installmentFieldEl('billing_input', installmentId);
+        if (!billingDisplay || !billingInput) return;
+        billingDisplay.classList.add('d-none');
+        billingInput.classList.remove('d-none');
+        billingInput.focus();
     }
 
     function editAmount(installmentId) {
-        document.getElementById('amount_display_' + installmentId).classList.add('d-none');
-        document.getElementById('amount_input_' + installmentId).classList.remove('d-none');
-        document.getElementById('amount_input_' + installmentId).focus();
-        document.getElementById('amount_input_' + installmentId).select();
+        const amountDisplay = installmentFieldEl('amount_display', installmentId);
+        const amountInput = installmentFieldEl('amount_input', installmentId);
+        if (!amountDisplay || !amountInput) return;
+        amountDisplay.classList.add('d-none');
+        amountInput.classList.remove('d-none');
+        amountInput.focus();
+        amountInput.select();
     }
 
     function editNarration(installmentId) {
-        document.getElementById('narration_display_' + installmentId).classList.add('d-none');
-        document.getElementById('narration_input_' + installmentId).classList.remove('d-none');
-        document.getElementById('narration_input_' + installmentId).focus();
-        document.getElementById('narration_input_' + installmentId).select();
+        const narrationDisplay = installmentFieldEl('narration_display', installmentId);
+        const narrationInput = installmentFieldEl('narration_input', installmentId);
+        if (!narrationDisplay || !narrationInput) return;
+        narrationDisplay.classList.add('d-none');
+        narrationInput.classList.remove('d-none');
+        narrationInput.focus();
+        narrationInput.select();
     }
 
     // Save functions - hide input and save data
     function saveDate(installmentId) {
-        const newValue = document.getElementById('date_input_' + installmentId).value;
-        const originalValue = document.getElementById('date_input_' + installmentId).getAttribute('data-original') || '';
-        const dateInput = document.getElementById('date_input_' + installmentId);
-        const dateDisplay = document.getElementById('date_display_' + installmentId);
+        const dateInput = installmentFieldEl('date_input', installmentId);
+        const dateDisplay = installmentFieldEl('date_display', installmentId);
+        if (!dateInput || !dateDisplay) return;
+        const newValue = dateInput.value;
+        const originalValue = dateInput.getAttribute('data-original') || '';
         const row = dateInput.closest('tr');
         const isPaid = row && row.getAttribute('data-status') === 'paid';
 
@@ -348,33 +372,13 @@
     }
 
     function saveBillingMonth(installmentId) {
-        const newValue = document.getElementById('billing_input_' + installmentId).value;
-        const originalValue = document.getElementById('billing_input_' + installmentId).getAttribute('data-original') || '';
-        const billingInput = document.getElementById('billing_input_' + installmentId);
-        const billingDisplay = document.getElementById('billing_display_' + installmentId);
-        const row = billingInput.closest('tr');
-        const isPaid = row && row.getAttribute('data-status') === 'paid';
+        const billingInput = installmentFieldEl('billing_input', installmentId);
+        const billingDisplay = installmentFieldEl('billing_display', installmentId);
+        if (!billingInput || !billingDisplay) return;
+        const newValue = billingInput.value;
+        const originalValue = billingInput.getAttribute('data-original') || '';
 
         if (newValue && newValue !== originalValue) {
-            // Only validate month is not in past for pending installments
-            if (!isPaid) {
-                const selectedDate = new Date(newValue + '-01');
-                const today = new Date();
-                const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-
-                if (selectedDate < currentMonth) {
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Invalid Billing Month',
-                        text: 'You cannot select a billing month in the past for pending installments.',
-                        confirmButtonText: 'OK',
-                        confirmButtonColor: '#dc3545'
-                    });
-                    billingInput.value = originalValue;
-                    return;
-                }
-            }
-
             // Same flow for both paid and pending: confirm and submit directly
             Swal.fire({
                 title: 'Update Billing Month?',
@@ -409,10 +413,11 @@
     }
 
     function saveAmount(installmentId) {
-        const newValue = document.getElementById('amount_input_' + installmentId).value;
-        const originalValue = document.getElementById('amount_input_' + installmentId).getAttribute('data-original') || '';
-        const amountInput = document.getElementById('amount_input_' + installmentId);
-        const amountDisplay = document.getElementById('amount_display_' + installmentId);
+        const amountInput = installmentFieldEl('amount_input', installmentId);
+        const amountDisplay = installmentFieldEl('amount_display', installmentId);
+        if (!amountInput || !amountDisplay) return;
+        const newValue = amountInput.value;
+        const originalValue = amountInput.getAttribute('data-original') || '';
         const row = amountInput.closest('tr');
         const isPaid = row && row.getAttribute('data-status') === 'paid';
 
@@ -469,8 +474,9 @@
     }
 
     function saveNarration(installmentId) {
-        const narrationInput = document.getElementById('narration_input_' + installmentId);
-        const narrationDisplay = document.getElementById('narration_display_' + installmentId);
+        const narrationInput = installmentFieldEl('narration_input', installmentId);
+        const narrationDisplay = installmentFieldEl('narration_display', installmentId);
+        if (!narrationInput || !narrationDisplay) return;
         const newValue = narrationInput.value.trim();
         const originalValue = (narrationInput.getAttribute('data-original') || narrationInput.defaultValue || '').trim();
 
@@ -586,10 +592,13 @@
 
     // Store original values when page loads
     document.addEventListener('DOMContentLoaded', function() {
-        const dateInputs = document.querySelectorAll('[id^="date_input_"]');
-        const billingInputs = document.querySelectorAll('[id^="billing_input_"]');
-        const amountInputs = document.querySelectorAll('[id^="amount_input_"]');
-        const narrationInputs = document.querySelectorAll('[id^="narration_input_"]');
+        const scope = installmentInlineScope();
+        if (!scope) return;
+
+        const dateInputs = scope.querySelectorAll('[id^="inst_date_input_"]');
+        const billingInputs = scope.querySelectorAll('[id^="inst_billing_input_"]');
+        const amountInputs = scope.querySelectorAll('[id^="inst_amount_input_"]');
+        const narrationInputs = scope.querySelectorAll('[id^="inst_narration_input_"]');
 
         dateInputs.forEach(input => {
             input.setAttribute('data-original', input.value);
@@ -644,22 +653,16 @@
     }
 
     function validateBillingMonthInput(input) {
-        const selectedDate = new Date(input.value + '-01');
-        const today = new Date();
-        const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        const row = input.closest('tr');
-        const isPaid = row && row.getAttribute('data-status') === 'paid';
-
-        // Only validate month is not in past for pending installments
-        if (!isPaid && selectedDate < currentMonth) {
-            input.style.borderColor = '#dc3545';
-            input.style.backgroundColor = '#f8d7da';
-            input.title = 'Cannot select a billing month in the past for pending installments';
-        } else {
-            input.style.borderColor = '#28a745';
-            input.style.backgroundColor = '#d4edda';
+        if (!input.value) {
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
             input.title = '';
+            return;
         }
+
+        input.style.borderColor = '#28a745';
+        input.style.backgroundColor = '#d4edda';
+        input.title = '';
     }
 
     function validateAmountInput(input) {

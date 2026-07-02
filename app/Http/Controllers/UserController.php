@@ -11,6 +11,7 @@ use App\Models\Departments;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Repositories\UserRepository;
+use App\Support\PublicStorageDisk;
 use App\Services\ImageService;
 use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
@@ -332,10 +333,7 @@ class UserController extends AppBaseController
     if ($request->hasFile('image_name')) {
       // Delete old image if exists and not default
       if ($user->image_name && $user->image_name != 'default.png') {
-        $oldImagePath = public_path('uploads/' . $user->image_name);
-        if (file_exists($oldImagePath)) {
-          unlink($oldImagePath);
-        }
+        PublicStorageDisk::delete('uploads/' . $user->image_name);
       }
       $imageService = new ImageService();
       $file_name = $imageService->uploadImage($request);

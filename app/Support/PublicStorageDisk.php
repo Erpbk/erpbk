@@ -90,4 +90,41 @@ class PublicStorageDisk
 
         return StorageUrl::normalizePath($path);
     }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function putOptions(): array
+    {
+        return self::isCloud() ? ['visibility' => 'public'] : [];
+    }
+
+    public static function put(string $path, string $contents): bool
+    {
+        $path = self::normalize($path);
+        if ($path === '') {
+            return false;
+        }
+
+        return self::disk()->put($path, $contents, self::putOptions());
+    }
+
+    public static function storeUploadedFile(
+        \Illuminate\Http\UploadedFile $file,
+        string $directory,
+        ?string $name = null
+    ): string {
+        $directory = trim($directory, '/');
+        $storedName = $name ?? $file->hashName();
+
+        return $file->storeAs($directory, $storedName, 'public');
+    }
+
+    public static function delete(?string $path): void
+    {
+        $path = self::normalize($path);
+        if ($path !== '' && self::disk()->exists($path)) {
+            self::disk()->delete($path);
+        }
+    }
 }

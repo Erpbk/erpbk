@@ -102,19 +102,6 @@ trait ManagesVisaInstallments
         // Auto-mark installments silently in the background
         $this->checkAndAutoMarkInstallments($account->rider_id);
 
-        // Check if there's already an installment plan for this rider in the current month
-        $currentMonth = Carbon::now()->format('Y-m');
-        $existingCurrentMonthPlan = visa_installment_plan::query()
-            ->where('billing_month', $currentMonth)
-            ->where(function ($q) use ($account) {
-                $this->applyInstallmentRiderScope($q, $account);
-            })
-            ->exists();
-
-        if ($existingCurrentMonthPlan) {
-            Flash::warning('An installment plan already exists for this rider in ' . Carbon::now()->format('F Y') . '. You can still create a new plan, but please select a different starting month.');
-        }
-
         $account->loadMissing('rider.branch');
         $rider = $account->rider ?? Riders::find($account->rider_id);
         if (!$rider) {
@@ -133,8 +120,7 @@ trait ManagesVisaInstallments
             'rider',
             'branch',
             'branchId',
-            'branches',
-            'existingCurrentMonthPlan'
+            'branches'
         ));
     }
 
@@ -161,20 +147,6 @@ trait ManagesVisaInstallments
             // Resolve rider account context (expense_accounts.id, riders.id, or legacy accounts.id).
             $expenseAccount = $this->resolveExpenseAccountContext((int) $validated['rider_id']);
             $riderAccount = (int) $expenseAccount->rider_id;
-
-            // Check if there's already an installment plan for this rider in the current month
-            $currentMonth = Carbon::parse($validated['billing_month'] . '-01')->format('Y-m');
-            $existingCurrentMonthPlan = visa_installment_plan::query()
-                ->where('billing_month', $currentMonth)
-                ->where(function ($q) use ($expenseAccount) {
-                    $this->applyInstallmentRiderScope($q, $expenseAccount);
-                })
-                ->exists();
-
-            if ($existingCurrentMonthPlan) {
-                Flash::error('Cannot create installment plan. An installment plan already exists for this rider in ' . Carbon::parse($validated['billing_month'] . '-01')->format('F Y') . '.');
-                return redirect()->back();
-            }
 
             // Validate that installment amounts sum to total amount.
             // Allow tiny rounding drift (e.g. 833.33 x 6 = 4999.98 for 5000.00 total),
@@ -340,7 +312,7 @@ trait ManagesVisaInstallments
 
     public function payInstallment(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('installment_edit')) {
+        if (!auth()->user()->hasAnyPermission(['installment_edit', 'visaloan_edit'])) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -382,7 +354,7 @@ trait ManagesVisaInstallments
 
     public function updateInstallmentField(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('installment_edit')) {
+        if (!auth()->user()->hasAnyPermission(['installment_edit', 'visaloan_edit'])) {
             abort(403, 'Unauthorized action.');
         }
 

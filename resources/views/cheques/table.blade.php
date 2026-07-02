@@ -67,7 +67,7 @@
             </td>
             <td>
                 @if($cheque->attachment)
-                    <a href="{{ url('storage/vouchers/' . $cheque->attachment) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                    <a href="{{ storage_url('vouchers/' . $cheque->attachment) }}" class="btn btn-sm btn-outline-primary" target="_blank">
                         <i class="fa fa-file"></i> View
                     </a>
                 @else

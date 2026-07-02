@@ -58,11 +58,18 @@ class StorageUrl
     private static function bareFilenamePrefixes(): array
     {
         return [
+            'uploads/',
+            'uploads/thumbnail/',
             'vouchers/',
             'fines/',
             'fines/files/',
             'salik/files/',
             'profile/',
+            'contract/',
+            'rider/',
+            'supplier/',
+            'bike/',
+            'fuelcards/',
         ];
     }
 
@@ -76,6 +83,10 @@ class StorageUrl
 
         if (str_starts_with($path, 'app/')) {
             $path = substr($path, 4);
+        }
+
+        if (str_starts_with($path, 'public/')) {
+            $path = substr($path, 7);
         }
 
         return $path;

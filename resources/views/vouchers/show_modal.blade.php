@@ -6,6 +6,21 @@ $totalC = 0;
 $i = 0;
 $fin_detail = $voucher->voucher_type === 'RFV' ? company_table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
 $settings = company_table('settings')->pluck('value', 'name')->toArray();
+$__companySlug = \App\Support\CompanyRouteContext::slug();
+$voucherRouteParams = static function ($voucherKey) use ($__companySlug): array {
+  $params = ['voucher' => $voucherKey];
+  if (!empty($__companySlug)) {
+    $params['company_slug'] = $__companySlug;
+  }
+  return $params;
+};
+$voucherCloneParams = static function ($transCode) use ($__companySlug): array {
+  $params = ['id' => $transCode];
+  if (!empty($__companySlug)) {
+    $params['company_slug'] = $__companySlug;
+  }
+  return $params;
+};
 @endphp
 <div class="voucher-modal-content">
   {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. (hidden when embedded e.g. visa expense payment-account edit) --}}
@@ -17,17 +32,17 @@ $settings = company_table('settings')->pluck('value', 'name')->toArray();
     <div class="d-flex flex-wrap align-items-center gap-2">
       @can('voucher_edit')
       @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
-      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
       @endcan
       @can('voucher_create')
         @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
-          <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucher->trans_code) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
+          <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucherCloneParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
         @endif
       @endcan
       @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
         <li>
-          <form action="{{ route('vouchers.destroy',$voucher->trans_code) }}" id="formajax" >
+          <form action="{{ route('vouchers.destroy', $voucherRouteParams($voucher->trans_code)) }}" id="formajax" >
               @csrf
               @method('Delete')
               <button onclick="submit()" class='btn btn-sm btn-outline-danger'>
@@ -36,7 +51,7 @@ $settings = company_table('settings')->pluck('value', 'name')->toArray();
           </form>
         </li>
       @endif
-      <a href="{{ route('vouchers.show', $voucher->id) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      <a href="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
     </div>
   </div>

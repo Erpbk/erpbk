@@ -19,6 +19,21 @@
       $__companySlug = \App\Support\CompanyRouteContext::slug();
       $editDeleteFlags = $editDeleteFlags ?? [];
       $voucherTypes = \App\Helpers\General::VoucherType();
+      $voucherRouteParams = static function ($voucherKey) use ($__companySlug): array {
+        $params = ['voucher' => $voucherKey];
+        if (!empty($__companySlug)) {
+          $params['company_slug'] = $__companySlug;
+        }
+        return $params;
+      };
+      $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
+        $params = ['id' => $transCode];
+        if (!empty($__companySlug)) {
+          $params['company_slug'] = $__companySlug;
+        }
+        return $params;
+      };
+      $listSidebarParams = !empty($__companySlug) ? ['company_slug' => $__companySlug] : [];
     @endphp
 @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
@@ -27,7 +42,7 @@
         @php
         $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
         @endphp
-        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">{{ $voucherId }}</a>
+        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">{{ $voucherId }}</a>
       </td>
       <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
       <td>{{ $voucher->trans_code }}</td>
@@ -73,7 +88,7 @@
               @endif
             @endcan
             @can('voucher_view')
-            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">
+            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                 <i class="fa fa-eye my-1"></i> View
               </a></li>
             @endcan
@@ -81,7 +96,7 @@
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
-                data-action="{{ route('vouchers.edit', $voucher->trans_code) }}"
+                data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}"
                 class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-edit my-1"></i> Edit
               </a></li>
@@ -122,14 +137,18 @@
   function deleteVoucher(transCode) {
     if (confirm('Are you sure you want to delete this voucher?')) {
       $.ajax({
-        url: '/vouchers/' + transCode,
+        url: @json(route('vouchers.destroy', $voucherRouteParams('___TC___'))).replace('___TC___', encodeURIComponent(transCode)),
         type: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        },
         data: {
           _token: '{{ csrf_token() }}'
         },
         success: function(result) {
           if (typeof toastr !== 'undefined') {
-            toastr.success('Voucher deleted successfully');
+            toastr.success(result.message || 'Voucher deleted successfully');
           } else {
             alert('Voucher deleted successfully');
           }
@@ -137,7 +156,7 @@
         },
         error: function(xhr) {
           if (typeof toastr !== 'undefined') {
-            toastr.error('Error deleting voucher');
+            toastr.error((xhr.responseJSON && (xhr.responseJSON.message || (xhr.responseJSON.errors && xhr.responseJSON.errors.error))) || 'Error deleting voucher');
           } else {
             alert('Error deleting voucher');
           }

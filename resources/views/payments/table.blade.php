@@ -15,6 +15,16 @@
             </tr>
         </thead>
         <tbody>
+            @php
+              $__companySlug = \App\Support\CompanyRouteContext::slug();
+              $voucherShowParams = static function ($voucherId) use ($__companySlug): array {
+                $params = ['voucher' => $voucherId];
+                if (!empty($__companySlug)) {
+                  $params['company_slug'] = $__companySlug;
+                }
+                return $params;
+              };
+            @endphp
             @foreach($data as $payment)
             <tr>
                 <td>{{ $payment->reference ?? '-' }}</td>
@@ -22,7 +32,7 @@
                 <td>{{ $payment->payeeAccount->account_code .'-'.  $payment->payeeAccount->name}} </td>
                 <td>{{ \App\Helpers\Currency::format($payment->amount) }}</td>
                 <td>
-                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $payment->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Payment Voucher" data-collapse-sidebar="1">
+                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($payment->voucher_id)) }}" class="text-primary show-voucher-panel" data-title="Payment Voucher" data-collapse-sidebar="1">
                         {{ $payment->voucher->voucher_type . '-'. $payment->voucher_id }}
                     </a>
                 </td>

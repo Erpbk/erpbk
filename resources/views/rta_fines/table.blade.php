@@ -73,6 +73,7 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                  @can('rtafine_edit')
                   <a href="javascript:void(0);" data-size="md" data-title="Upload Document" data-action="{{route('rtaFines.fileupload', $r->id) }}" class='dropdown-item waves-effect show-modal'>
                      Update Fine File
                   </a>
@@ -84,9 +85,12 @@
                      Edit
                   </a>
                   @endif
+                  @endcan
+                  @can('rtafine_delete')
                   <a href="javascript:void(0);" onclick='confirmDelete("{{route('rtaFines.destroy', $r->id) }}")' class='dropdown-item'>
                      delete
                   </a>
+                  @endcan
                </div>
             </div>
          </td>
@@ -105,7 +109,7 @@
 @endif
 
 <script>
-    function confirmDelete(url) {
+   function confirmDelete(url) {
       Swal.fire({
          title: 'Are you sure?',
          text: "You won't be able to revert this!",
@@ -115,31 +119,31 @@
          cancelButtonColor: '#d33',
          confirmButtonText: 'Yes, delete it!'
       }).then((result) => {
-            if (result.isConfirmed) {
-               $.ajax({
-                  url: url,
-                  type: 'DELETE',
-                  data: {
-                        _token: '{{ csrf_token() }}'
-                  },
-                  success: function(response) {
-                        Swal.fire(
-                           'Deleted!',
-                           'Fine has been deleted.',
-                           'success'
-                        ).then(() => {
-                           location.reload();
-                        });
-                  },
-                  error: function(xhr) {
-                        Swal.fire(
-                           'Error!',
-                           'Failed to delete Receipt. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
-                           'error'
-                        );
-                  }
-               });
-            }
-         });
-      };
+         if (result.isConfirmed) {
+            $.ajax({
+               url: url,
+               type: 'DELETE',
+               data: {
+                  _token: '{{ csrf_token() }}'
+               },
+               success: function(response) {
+                  Swal.fire(
+                     'Deleted!',
+                     'Fine has been deleted.',
+                     'success'
+                  ).then(() => {
+                     location.reload();
+                  });
+               },
+               error: function(xhr) {
+                  Swal.fire(
+                     'Error!',
+                     'Failed to delete Receipt. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
+                     'error'
+                  );
+               }
+            });
+         }
+      });
+   };
 </script>

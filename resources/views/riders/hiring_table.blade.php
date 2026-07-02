@@ -57,14 +57,15 @@
             <td>{{ optional($users)->first_name }} {{ optional($users)->last_name }}</td>
             <td>
                <div class="btn-group">
+                  @can('leads_edit')
                      <a  href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#editnote{{ $r->id }}" class='btn  waves-effect'>
                         <i class="fa fa-edit my-1"></i> Edit Note
                      </a>
-                  @can('leads_edit')
                      <a  href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#createaccount{{ $r->id }}" class='btn text-primary  waves-effect'>
                         <i class="fa fa-edit my-1"></i> Edit
                      </a>
                   @endcan
+                  @can('leads_delete')
                   <form action="{{ route('riderleads.destroy', $r->id) }}" method="POST" style="display: inline-block;" onsubmit="return confirm('Are you sure?');">
                       @csrf
                       @method('DELETE')
@@ -72,6 +73,7 @@
                           <i class="fa fa-trash my-1"></i> Delete
                       </button>
                   </form>
+                  @endcan
                </div>
             </td>
             <td></td>

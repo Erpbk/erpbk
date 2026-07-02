@@ -20,7 +20,16 @@
     </tr>
   </thead>
   <tbody>
-    @php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
+    @php
+      $__companySlug = \App\Support\CompanyRouteContext::slug();
+      $expenseVoucherRouteParams = static function (int $id) use ($__companySlug): array {
+        $params = ['id' => $id];
+        if (!empty($__companySlug)) {
+          $params['company_slug'] = $__companySlug;
+        }
+        return $params;
+      };
+    @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
     <tr class="text-center">
@@ -28,7 +37,7 @@
         @php
         $voucherId = 'EXP-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
         @endphp
-        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('expenses.voucher.show', ['company_slug' => $__companySlug, 'id' => $voucher->id]) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', ['company_slug' => $__companySlug]) }}">{{ $voucherId }}</a>
+        <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">{{ $voucherId }}</a>
       </td>
       <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
       <td>{{ $voucher->trans_code }}</td>
@@ -59,14 +68,14 @@
               </a></li>
             @endcan
             @can('expenses_view')
-            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', ['company_slug' => $__companySlug, 'id' => $voucher->id]) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', ['company_slug' => $__companySlug]) }}">
+            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">
                 <i class="fa fa-eye my-1"></i> View
               </a></li>
             @endcan
             @can('expenses_edit')
             <li><a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Expense Voucher {{ $voucherId }}"
-                data-action="{{ route('expenses.voucher.edit', $voucher->id) }}"
+                data-action="{{ route('expenses.voucher.edit', $expenseVoucherRouteParams($voucher->id)) }}"
                 class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-edit my-1"></i> Edit
               </a></li>
@@ -106,14 +115,18 @@
   function deleteExpenseVoucher(voucherId) {
     if (confirm('Are you sure you want to delete this expense voucher?')) {
       $.ajax({
-        url: '/expenses/voucher/' + voucherId,
+        url: @json(route('expenses.voucher.destroy', $expenseVoucherRouteParams(0))).replace(/\/0$/, '/' + voucherId),
         type: 'DELETE',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          Accept: 'application/json'
+        },
         data: {
           _token: '{{ csrf_token() }}'
         },
         success: function(result) {
           if (typeof toastr !== 'undefined') {
-            toastr.success('Expense voucher deleted successfully');
+            toastr.success(result.message || 'Expense voucher deleted successfully');
           } else {
             alert('Expense voucher deleted successfully');
           }
@@ -121,7 +134,7 @@
         },
         error: function(xhr) {
           if (typeof toastr !== 'undefined') {
-            toastr.error('Error deleting expense voucher');
+            toastr.error((xhr.responseJSON && xhr.responseJSON.message) || 'Error deleting expense voucher');
           } else {
             alert('Error deleting expense voucher');
           }

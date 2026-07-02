@@ -1,4 +1,11 @@
-<form id="expenseVoucherForm" action="{{ route('expenses.voucher.update', $voucher->id) }}" method="POST">
+@php
+  $__companySlug = \App\Support\CompanyRouteContext::slug();
+  $expenseVoucherUpdateParams = ['id' => $voucher->id];
+  if (!empty($__companySlug)) {
+    $expenseVoucherUpdateParams['company_slug'] = $__companySlug;
+  }
+@endphp
+<form id="expenseVoucherForm" action="{{ route('expenses.voucher.update', $expenseVoucherUpdateParams) }}" method="POST">
     @csrf
     @method('PUT')
     @include('expenses.voucher_edit_fields')

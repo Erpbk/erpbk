@@ -9,27 +9,33 @@
     <i class="fa fa-eye"></i>
     </a> --}}
 
+    @can('bike_assign_edit')
     <a href="javascript:void(0);" data-size="lg" data-title="Assign Rider to Bike # {{$plate}}" data-action="{{ route('bikes.assign_rider', $id) }}" class='dropdown-item waves-effect btn-sm show-modal'>
       <i class="fa fa-biking"></i>Assign Rider
     </a>
+    @endcan
+    @can('bike_assign_view')
     <a href="{{ route('bikeHistories.index', ['bike_id'=>$id]) }}" class='dropdown-item waves-effect'>
       <i class="fa fa-list-check"></i>History
     </a>
+    @endcan
     @can('bike_document')
     <a href="javascript:void(0);" data-size="sm" data-title="Upload file for Bike # {{$plate}}" data-action="{{ route('files.create',['type_id'=>$id,'type'=>'bike']) }}" class='dropdown-item waves-effect btn-sm show-modal'>
       <i class="fa fa-file-upload"></i>Upload File
     </a>
     @endcan
+    @can('files_view')
     <a href="{{ route('files.index',['type_id'=>$id,'type'=>'bike']) }}" class='dropdown-item waves-effect'>
       <i class="fa fa-file-lines"></i>Files
     </a>
-    @can('item_edit')
+    @endcan
+    @can('bike_edit')
     <a href="javascript:void(0);" data-size="xl" data-title="Update Bike" data-action="{{ route('bikes.edit', $id) }}" class='dropdown-item waves-effect show-modal'>
       <i class="fa fa-edit"></i>Edit
     </a>
     @endcan
 
-    @can('item_delete')
+    @can('bike_delete')
     {!! Form::button('<i class="fa fa-trash"></i> Delete', [
     'type' => 'submit',
     'class' => 'dropdown-item waves-effect',

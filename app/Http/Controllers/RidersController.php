@@ -54,6 +54,7 @@ use App\Services\Email\UserEmailService;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
+use App\Support\CompanyRouteContext;
 use App\Support\CompanyScope;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
@@ -176,6 +177,25 @@ class RidersController extends AppBaseController
     $this->applyCompanyScope($query);
 
     return $query->first();
+  }
+
+  private function riderIndexUrl(): string
+  {
+    $slug = CompanyRouteContext::slug();
+    if ($slug !== null && $slug !== '') {
+      return route('riders.index', ['company_slug' => $slug]);
+    }
+
+    return route('riders.index');
+  }
+
+  private function riderUpdateJsonResponse(string $message, int $status = 200)
+  {
+    return response()->json([
+      'success' => $status < 400,
+      'message' => $message,
+      'redirect_url' => $this->riderIndexUrl(),
+    ], $status);
   }
 
   /**
@@ -715,20 +735,18 @@ class RidersController extends AppBaseController
   {
     $request->validate($this->riderValidationRules((int) $id));
     $riders = $this->findAccessibleRider((int) $id);
-    // $items = $riders->items;
-    $items = $request->get('items');
+    $wantsJson = $request->wantsJson() || $request->ajax();
+
     if (empty($riders)) {
-      if (request()->ajax()) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Rider not found.',
-        ], 404);
+      if ($wantsJson) {
+        return $this->riderUpdateJsonResponse('Rider not found.', 404);
       }
       Flash::error('Riders not found');
 
-      return redirect(route('riders.index'));
+      return redirect($this->riderIndexUrl());
     }
-    $data = $request->except(['_token', 'items']);
+
+    $data = $request->except(['_token', 'items', '_method']);
     if (Schema::hasColumn('riders', 'company_id')) {
       $data['company_id'] = auth()->user()->company_id;
     }
@@ -738,41 +756,51 @@ class RidersController extends AppBaseController
     $prevFleetSupervisor = $riders->fleet_supervisor;
 
     $riders->update($data);
-    if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
-      RiderHistoryLogger::projectChange(
-        (int) $riders->id,
-        $prevCustomerId !== null && $prevCustomerId !== '' ? (string) $prevCustomerId : null,
-        (string) ($riders->customer_id ?? ''),
-        $prevCustomerId ? optional(Customers::find($prevCustomerId))->name : null,
-        optional(Customers::find($riders->customer_id))->name,
-        now()->toDateString(),
-        'rider_profile',
-        RiderHistoryLogger::resolveBranchId($riders),
-        $riders->fresh()
-      );
-    }
-    if (array_key_exists('fleet_supervisor', $data)) {
-      RiderHistoryLogger::fleetSupervisorChange(
-        $riders->fresh(),
-        $prevFleetSupervisor,
-        $riders->fleet_supervisor,
-        now()->toDateString(),
-        Bikes::where('rider_id', $riders->id)->first()
-      );
-    } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
-      Riders::syncDisplayStatus($riders->fresh());
-    }
-    if ($riders) {
 
-      $riders->account->name = $riders->name;
-      $riders->account->account_code = 'RD' . str_pad($riders->rider_id, 4, '0', STR_PAD_LEFT);
-      $riders->account->save();
+    try {
+      if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
+        RiderHistoryLogger::projectChange(
+          (int) $riders->id,
+          $prevCustomerId !== null && $prevCustomerId !== '' ? (string) $prevCustomerId : null,
+          (string) ($riders->customer_id ?? ''),
+          $prevCustomerId ? optional(Customers::find($prevCustomerId))->name : null,
+          optional(Customers::find($riders->customer_id))->name,
+          now()->toDateString(),
+          'rider_profile',
+          RiderHistoryLogger::resolveBranchId($riders),
+          $riders->fresh()
+        );
+      }
+      if (array_key_exists('fleet_supervisor', $data)) {
+        RiderHistoryLogger::fleetSupervisorChange(
+          $riders->fresh(),
+          $prevFleetSupervisor,
+          $riders->fleet_supervisor,
+          now()->toDateString(),
+          Bikes::where('rider_id', $riders->id)->first()
+        );
+      } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
+        Riders::syncDisplayStatus($riders->fresh());
+      }
+    } catch (\Throwable $e) {
+      Log::warning('Rider history logging failed after update', [
+        'rider_id' => $riders->id,
+        'error' => $e->getMessage(),
+      ]);
+    }
+
+    try {
+      $account = $riders->account;
+      if ($account) {
+        $account->name = $riders->name;
+        $account->account_code = 'RD' . str_pad((string) $riders->rider_id, 4, '0', STR_PAD_LEFT);
+        $account->save();
+      }
 
       if ($request->items) {
         RiderItemPrice::where('RID', $id)->delete();
         $items = $request->items;
         foreach ($items['id'] as $key => $val) {
-
           $riderItemPrice = new RiderItemPrice;
           $riderItemPrice->item_id = $items['id'][$key];
           $riderItemPrice->price = $items['price'][$key] ?? 0;
@@ -780,19 +808,18 @@ class RidersController extends AppBaseController
           $riderItemPrice->save();
         }
       }
-    }
-    // Check if request is AJAX
-    if (request()->ajax()) {
-      return response()->json([
-        'success' => true,
-        'message' => 'Rider information updated successfully!',
-        'redirect_url' => route('riders.index'),
+    } catch (\Throwable $e) {
+      Log::warning('Rider account/items sync failed after update', [
+        'rider_id' => $riders->id,
+        'error' => $e->getMessage(),
       ]);
     }
 
-    /*     Flash::success('Riders updated successfully.');
-         */
-    return redirect(route('riders.index'));
+    if ($wantsJson) {
+      return $this->riderUpdateJsonResponse('Rider information updated successfully!');
+    }
+
+    return redirect($this->riderIndexUrl());
   }
 
   /**

@@ -79,7 +79,7 @@
     }
 </style>
 
-{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch','id'=>'formajax', 'class' => 'form-with-fixed-footer']) !!}
+{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch', 'id' => 'rider-edit-form', 'class' => 'form-with-fixed-footer', 'data-reload-table' => '0']) !!}
 <input type="hidden" id="redirect_url" value="{{route('riders.index')}}" />
 <div class="card-body card-body-with-footer">
     @include('riders.fields')
@@ -107,16 +107,20 @@
 <script>
     $(document).ready(function() {
         // Intercept form submission for fast AJAX processing
-        $('#formajax').off('submit.riderEdit').on('submit.riderEdit', function(e) {
+        const $form = $('#rider-edit-form');
+        if (!$form.length) {
+            return;
+        }
+
+        $form.off('submit.riderEdit').on('submit.riderEdit', function(e) {
             e.preventDefault();
             e.stopImmediatePropagation();
 
-            const form = $(this);
-            if (form.data('submitting')) {
+            if ($form.data('submitting')) {
                 return false;
             }
-            form.data('submitting', true);
-            const submitButton = form.find('button[type="submit"]');
+            $form.data('submitting', true);
+            const submitButton = $form.find('button[type="submit"]');
             const originalText = submitButton.html();
 
             submitButton.html('<i class="fa fa-spinner fa-spin me-2"></i>Saving...').prop('disabled', true);
@@ -124,9 +128,10 @@
             const formData = new FormData(this);
 
             $.ajax({
-                url: form.attr('action'),
+                url: $form.attr('action'),
                 type: 'POST',
                 data: formData,
+                dataType: 'json',
                 processData: false,
                 contentType: false,
                 headers: {
@@ -136,7 +141,7 @@
                 },
                 success: function(response) {
                     if (response && response.success === false) {
-                        form.data('submitting', false);
+                        $form.data('submitting', false);
                         submitButton.html(originalText).prop('disabled', false);
                         showQuickNotification(response.message || 'Failed to update rider. Please try again.', 'error');
                         return;
@@ -147,15 +152,15 @@
                         : 'Rider information updated successfully!';
                     showQuickNotification(message, 'success');
 
-                    const redirectUrl = (response && response.redirect_url)
-                        ? response.redirect_url
+                    const redirectUrl = (response && (response.redirect_url || response.redirect))
+                        ? (response.redirect_url || response.redirect)
                         : $('#redirect_url').val();
                     setTimeout(function() {
                         window.location.href = redirectUrl;
                     }, 800);
                 },
                 error: function(xhr) {
-                    form.data('submitting', false);
+                    $form.data('submitting', false);
                     submitButton.html(originalText).prop('disabled', false);
 
                     $('.form-control').removeClass('is-invalid');
@@ -208,7 +213,7 @@
                 timeout: 30000,
                 complete: function() {
                     if (!submitButton.prop('disabled')) {
-                        form.data('submitting', false);
+                        $form.data('submitting', false);
                     }
                 }
             });

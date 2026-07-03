@@ -178,6 +178,40 @@ class RidersController extends AppBaseController
     return $query->first();
   }
 
+  /**
+   * Route resource parameter may be a numeric id or a bound Riders model.
+   */
+  private function resolveRiderRouteId(mixed $routeRider): int
+  {
+    if ($routeRider instanceof Riders) {
+      return (int) $routeRider->id;
+    }
+
+    return (int) $routeRider;
+  }
+
+  /**
+   * Strip unique validators from a rule string or token list.
+   *
+   * @param  array<int, mixed>|string  $rule
+   * @return array<int, mixed>|string
+   */
+  private function stripUniqueValidationRules(array|string $rule): array|string
+  {
+    if (is_array($rule)) {
+      return array_values(array_filter($rule, function ($token) {
+        return ! (is_string($token) && str_starts_with($token, 'unique:'))
+          && ! ($token instanceof \Illuminate\Validation\Rules\Unique);
+      }));
+    }
+
+    $tokens = array_values(array_filter(explode('|', (string) $rule), function ($token) {
+      return $token !== '' && ! str_starts_with($token, 'unique:');
+    }));
+
+    return $tokens === [] ? 'nullable|string|max:191' : implode('|', $tokens);
+  }
+
   private function riderIndexUrl(): string
   {
     $slug = CompanyRouteContext::slug();
@@ -265,13 +299,22 @@ class RidersController extends AppBaseController
   /**
    * Build rider create/update validation rules from settings + rider table columns.
    */
-  private function riderValidationRules(?int $ignoreRiderId = null): array
+  private function riderValidationRules(?int $ignoreRiderId = null, ?Riders $existingRider = null, ?array $input = null): array
   {
     $rules = Riders::$rules;
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
     $assignmentTable = (new RiderFieldCategoryAssignment)->getTable();
     $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
     $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
+    $input = $input ?? [];
+
+    $fieldValueUnchanged = function (string $field) use ($existingRider, $input): bool {
+      if ($existingRider === null || ! array_key_exists($field, $input)) {
+        return false;
+      }
+
+      return trim((string) $input[$field]) === trim((string) ($existingRider->{$field} ?? ''));
+    };
 
     $normalizePresenceRule = function ($rule, bool $required) {
       if (is_array($rule)) {
@@ -320,6 +363,11 @@ class RidersController extends AppBaseController
         continue;
       }
       $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+      if ($fieldValueUnchanged($uniqueKey)) {
+        $rules[$uniqueKey] = $this->stripUniqueValidationRules($baseRule);
+
+        continue;
+      }
       $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
       $tokens = array_values(array_filter($tokens, function ($token) {
         return ! (is_string($token) && str_starts_with($token, 'unique:'))
@@ -755,8 +803,14 @@ class RidersController extends AppBaseController
    */
   public function update($company_slug, $id, Request $request)
   {
-    $request->validate($this->riderValidationRules((int) $id));
-    $riders = $this->findAccessibleRider((int) $id);
+    $riderId = $this->resolveRiderRouteId($id);
+    $existingRider = $this->findAccessibleRider($riderId);
+    $request->validate($this->riderValidationRules(
+      $riderId,
+      $existingRider,
+      $request->except(['_token', 'items', '_method'])
+    ));
+    $riders = $existingRider;
     $wantsJson = $request->wantsJson() || $request->ajax();
 
     if (empty($riders)) {

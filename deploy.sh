@@ -74,6 +74,8 @@ fi
 # Ensure storage subdirectories exist (not tracked by git)
 echo ""
 echo "Creating storage directories..."
+mkdir -p storage/app/public/company-logos
+mkdir -p storage/app/public/auth-branding
 mkdir -p storage/framework/sessions
 mkdir -p storage/framework/views
 mkdir -p storage/framework/cache/data

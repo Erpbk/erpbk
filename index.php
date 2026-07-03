@@ -15,6 +15,40 @@ $uri = urldecode(
 // Remove leading slash
 $uri = ltrim($uri, '/');
 
+// Serve public-disk uploads when public/storage symlink is missing (shared hosting)
+if (str_starts_with($uri, 'storage/')) {
+    $storageRelative = substr($uri, 8);
+    if ($storageRelative !== '' && !str_contains($storageRelative, '..')) {
+        $storagePath = __DIR__ . '/storage/app/public/' . $storageRelative;
+        if (is_file($storagePath)) {
+            $extension = pathinfo($storagePath, PATHINFO_EXTENSION);
+            $mimeTypes = [
+                'css' => 'text/css',
+                'js' => 'application/javascript',
+                'json' => 'application/json',
+                'xml' => 'application/xml',
+                'jpg' => 'image/jpeg',
+                'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'gif' => 'image/gif',
+                'svg' => 'image/svg+xml',
+                'webp' => 'image/webp',
+                'ico' => 'image/x-icon',
+                'woff' => 'font/woff',
+                'woff2' => 'font/woff2',
+                'ttf' => 'font/ttf',
+                'eot' => 'application/vnd.ms-fontobject',
+                'pdf' => 'application/pdf',
+            ];
+            if (isset($mimeTypes[$extension])) {
+                header('Content-Type: ' . $mimeTypes[$extension]);
+            }
+            readfile($storagePath);
+            exit;
+        }
+    }
+}
+
 // Check if the requested file exists in public directory
 $publicPath = __DIR__ . '/public/' . $uri;
 

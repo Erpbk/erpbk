@@ -190,6 +190,7 @@ class RidersController extends AppBaseController
     return (int) $routeRider;
   }
 
+
   /**
    * Strip unique validators from a rule string or token list.
    *
@@ -1926,11 +1927,11 @@ class RidersController extends AppBaseController
     }
     $riders = $rider;
     $assignments = RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
-            ->where('rider_id', $rider_id)
-            ->orderByDesc('assigned_date')
-            ->orderByDesc('id')
-            ->get();
+      ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+      ->where('rider_id', $rider_id)
+      ->orderByDesc('assigned_date')
+      ->orderByDesc('id')
+      ->get();
     $availableItems = Items::availableForAssignment();
 
     return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
@@ -2972,7 +2973,7 @@ class RidersController extends AppBaseController
         'payment_from' => $riderAccountId,
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
-        'remarks' => 'Penalty Charged to Rider: ' . $riderAccount->name ,
+        'remarks' => 'Penalty Charged to Rider: ' . $riderAccount->name,
         'ref_id' => $riderAccount->ref_id, // Rider ID
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,

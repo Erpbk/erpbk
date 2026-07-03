@@ -696,71 +696,13 @@ class RtaFinesController extends AppBaseController
             }
         } else {
             try {
-                $rtaFines->load(['voucher.transactions']);
+                $rtaFines->load(['transactions']);
                 $billingMonth = $rtaFines->billing_month;
                 $ticketIdentifier = $rtaFines->ticket_no;
                 $path = $rtaFines->attachment_path;
 
                 // Get related transactions before deletion for cascade tracking
-                $relatedTransactions = $rtaFines->voucher?->transactions;
-
-                // Get related vouchers before deletion for cascade tracking
-                $relatedVoucher = $rtaFines->voucher;
-
-                // Soft delete related transactions and track cascade
-                if ($relatedTransactions) {
-                    foreach ($relatedTransactions as $transaction) {
-                        $transaction->delete(); // Soft delete
-
-                        // Track cascade deletion
-                        try {
-                            $cascadeRecord = $this->trackCascadeDeletion(
-                                RtaFines::class,
-                                $rtaFines->id,
-                                $ticketIdentifier,
-                                Transactions::class,
-                                $transaction->id,
-                                "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
-                                'hasMany',
-                                'transactions',
-                                'soft',
-                                'Cascade deletion from RTA Fine ticket deletion'
-                            );
-                            \Log::info("Cascade deletion tracked for transaction {$transaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
-                        } catch (\Exception $e) {
-                            \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-                            \Log::error("Stack trace: " . $e->getTraceAsString());
-                        }
-                    }
-                }
-
-                // Soft delete related voucher and track cascade
-                if ($relatedVoucher) {
-                    $relatedVoucher->delete(); // Soft delete
-
-                    // Track cascade deletion
-                    try {
-                        $cascadeRecord = $this->trackCascadeDeletion(
-                            RtaFines::class,
-                            $rtaFines->id,
-                            $ticketIdentifier,
-                            Vouchers::class,
-                            $relatedVoucher->id,
-                            "Voucher #{$relatedVoucher->id} (Type: {$relatedVoucher->voucher_type})",
-                            'hasMany',
-                            'vouchers',
-                            'soft',
-                            'Cascade deletion from RTA Fine ticket deletion'
-                        );
-                        \Log::info("Cascade deletion tracked for voucher {$relatedVoucher->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
-                    } catch (\Exception $e) {
-                        \Log::error("Failed to track cascade deletion for voucher {$relatedVoucher->id}: " . $e->getMessage());
-                        \Log::error("Stack trace: " . $e->getTraceAsString());
-                    }
-                }
-
-                // Soft delete the RTA fine record
-                $rtaFines->delete();
+                $relatedTransactions = $rtaFines->transactions;
 
                 // Track the primary RTA Fine deletion itself
                 try {
@@ -785,6 +727,34 @@ class RtaFinesController extends AppBaseController
                             'total_amount' => $rtaFines->total_amount,
                         ],
                     ]);
+                    foreach ($relatedTransactions as $transaction) {
+                        \App\Models\DeletionCascade::create([
+                            'primary_model' => RtaFines::class,
+                            'primary_id' => $rtaFines->id,
+                            'primary_name' => $ticketIdentifier,
+                            'related_model' => Transactions::class,
+                            'related_id' => $transaction->id,
+                            'related_name' => $transaction->trans_code,
+                            'relationship_type' => 'hasMany',
+                            'relationship_name' => 'transactions',
+                            'deletion_type' => 'soft',
+                            'deleted_by' => auth()->id(),
+                            'deletion_reason' => 'RTA Fine ticket deleted',
+                            'metadata' => [
+                                'ip_address' => request()->ip(),
+                                'user_agent' => request()->userAgent(),
+                                'timestamp' => now()->toIso8601String(),
+                                'status' => $rtaFines->status,
+                                'amount' => $rtaFines->amount,
+                                'total_amount' => $rtaFines->total_amount,
+                            ],
+                        ]);
+                        $transaction->delete();
+                        \Log::info("Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}) deleted");
+                        \Log::info("Cascade deletion tracked for transaction {$transaction->id}, cascade record ID: " . ($cascadeRecord->id ?? 'N/A'));
+                    }
+                    // Soft delete the RTA fine record
+                    $rtaFines->delete();
                     \Log::info("Primary RTA Fine deletion tracked, cascade record ID: " . ($primaryCascadeRecord->id ?? 'N/A'));
                 } catch (\Exception $e) {
                     \Log::error("Failed to track RTA Fine deletion: " . $e->getMessage());

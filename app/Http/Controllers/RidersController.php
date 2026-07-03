@@ -69,7 +69,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderCategory;
@@ -316,16 +315,39 @@ class RidersController extends AppBaseController
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
     }
 
-    if ($ignoreRiderId !== null) {
-      $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
-      $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
-      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
-      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
-      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
-        return ! (is_string($token) && str_starts_with($token, 'unique:'));
+    foreach (['rider_id', 'name', 'passport'] as $uniqueKey) {
+      if (! isset($riderColumns[$uniqueKey])) {
+        continue;
+      }
+      $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+      $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+      $tokens = array_values(array_filter($tokens, function ($token) {
+        return ! (is_string($token) && str_starts_with($token, 'unique:'))
+          && ! ($token instanceof \Illuminate\Validation\Rules\Unique);
       }));
-      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
-      $rules['passport'] = $passportTokens;
+      $tokens[] = CompanyScope::unique('riders', $uniqueKey, $ignoreRiderId);
+      $rules[$uniqueKey] = $tokens;
+    }
+
+    if ($ignoreRiderId !== null) {
+      foreach (['rider_id', 'name'] as $requiredKey) {
+        if (! isset($rules[$requiredKey])) {
+          continue;
+        }
+        $rule = $rules[$requiredKey];
+        if (is_array($rule)) {
+          $rule = array_values(array_filter($rule, function ($token) {
+            return $token !== 'nullable' && $token !== 'required';
+          }));
+          array_unshift($rule, 'required');
+        } else {
+          $rule = array_values(array_filter(explode('|', (string) $rule), function ($token) {
+            return $token !== '' && $token !== 'nullable' && $token !== 'required';
+          }));
+          array_unshift($rule, 'required');
+        }
+        $rules[$requiredKey] = $rule;
+      }
     }
 
     return array_merge($rules, $this->dynamicFieldRules());

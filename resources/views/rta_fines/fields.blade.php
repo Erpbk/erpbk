@@ -95,8 +95,12 @@
                         <span class="upload-text">Click to upload</span>
                     </div>
                     <img id="imagePreview" class="preview-image" style="display: none;" alt="Preview">
+                    <div id="pdfPreview" class="preview-pdf" style="display: none;">
+                        <i class="fa fa-file-pdf-o pdf-icon"></i>
+                        <span class="pdf-text">PDF File</span>
+                    </div>
                 </div>
-                {!! Form::file('attachment_path', ['class' => 'form-control d-none', 'id' => 'attachmentInput', 'accept' => 'image/*']) !!}
+                {!! Form::file('attachment_path', ['class' => 'form-control d-none', 'id' => 'attachmentInput', 'accept' => 'image/*,.pdf,application/pdf']) !!}
             </div>
         </div>
     </div>
@@ -337,29 +341,65 @@
         // ========== ATTACHMENT SQUARE BOX WITH IMAGE PREVIEW ==========
         const attachmentInput = document.getElementById('attachmentInput');
         const imagePreview = document.getElementById('imagePreview');
+        const pdfPreview = document.getElementById('pdfPreview');
         const previewContent = document.getElementById('previewContent');
         const squarePreviewBox = document.getElementById('squarePreviewBox');
+
+        function isPdfFile(file) {
+            return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+        }
+
+        function isPdfUrl(url) {
+            return url.toLowerCase().split('?')[0].endsWith('.pdf');
+        }
+
+        function showUploadPlaceholder() {
+            imagePreview.style.display = 'none';
+            imagePreview.src = '';
+            pdfPreview.style.display = 'none';
+            previewContent.style.display = 'flex';
+        }
+
+        function showImagePreview(src) {
+            imagePreview.src = src;
+            imagePreview.style.display = 'block';
+            pdfPreview.style.display = 'none';
+            previewContent.style.display = 'none';
+        }
+
+        function showPdfPreview() {
+            imagePreview.style.display = 'none';
+            imagePreview.src = '';
+            pdfPreview.style.display = 'flex';
+            previewContent.style.display = 'none';
+        }
+
+        function hasActivePreview() {
+            return imagePreview.style.display === 'block' || pdfPreview.style.display === 'flex';
+        }
         
-        // Function to display preview from file or existing image
+        // Function to display preview from file or existing attachment
         function displayPreview(fileOrUrl, isFile = true) {
             if (isFile && fileOrUrl) {
-                // Handle file object
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    imagePreview.src = e.target.result;
-                    imagePreview.style.display = 'block';
-                    previewContent.style.display = 'none';
-                };
-                reader.readAsDataURL(fileOrUrl);
+                if (isPdfFile(fileOrUrl)) {
+                    showPdfPreview();
+                } else if (fileOrUrl.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        showImagePreview(e.target.result);
+                    };
+                    reader.readAsDataURL(fileOrUrl);
+                } else {
+                    showUploadPlaceholder();
+                }
             } else if (!isFile && fileOrUrl) {
-                // Handle existing image URL from edit mode
-                imagePreview.src = fileOrUrl;
-                imagePreview.style.display = 'block';
-                previewContent.style.display = 'none';
+                if (isPdfUrl(fileOrUrl)) {
+                    showPdfPreview();
+                } else {
+                    showImagePreview(fileOrUrl);
+                }
             } else {
-                // No image, show upload placeholder
-                imagePreview.style.display = 'none';
-                previewContent.style.display = 'flex';
+                showUploadPlaceholder();
             }
         }
         
@@ -367,10 +407,10 @@
         if (attachmentInput) {
             attachmentInput.addEventListener('change', function(event) {
                 const file = event.target.files[0];
-                if (file && file.type.startsWith('image/')) {
+                if (file && (file.type.startsWith('image/') || isPdfFile(file))) {
                     displayPreview(file, true);
                 } else if (file) {
-                    alert('Please select a valid image file (JPG, PNG, GIF).');
+                    alert('Please select a valid image file (JPG, PNG, GIF) or PDF.');
                     attachmentInput.value = '';
                     displayPreview(null, false);
                 } else {
@@ -379,15 +419,18 @@
             });
         }
         
-        // Load existing image in edit mode
+        // Load existing attachment in edit mode
         @isset($rtaFines)
             @if($rtaFines->attachment_path)
-                // If attachment is a path/URL, display it
                 let existingAttachmentPath = '{{ storage_url($rtaFines->attachment_path) }}';
+                let existingIsPdf = {{ \Illuminate\Support\Str::endsWith(strtolower($rtaFines->attachment_path), '.pdf') ? 'true' : 'false' }};
                 if (existingAttachmentPath) {
-                    // Wait a moment for DOM to be ready
                     setTimeout(function() {
-                        displayPreview(existingAttachmentPath, false);
+                        if (existingIsPdf) {
+                            showPdfPreview();
+                        } else {
+                            displayPreview(existingAttachmentPath, false);
+                        }
                     }, 100);
                 }
             @endif
@@ -448,6 +491,25 @@
                     height: 100%;
                     object-fit: cover;
                     display: block;
+                }
+                .preview-pdf {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    height: 100%;
+                    color: #dc3545;
+                    text-align: center;
+                }
+                .preview-pdf .pdf-icon {
+                    font-size: 64px;
+                    margin-bottom: 8px;
+                }
+                .preview-pdf .pdf-text {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: #6c757d;
                 }
                 .square-preview-box .remove-image-btn {
                     position: absolute;
@@ -543,35 +605,35 @@
                 removeBtn.on('click', function(e) {
                     e.stopPropagation();
                     attachmentInput.value = '';
-                    imagePreview.style.display = 'none';
-                    previewContent.style.display = 'flex';
-                    imagePreview.src = '';
+                    showUploadPlaceholder();
                     $(this).remove();
                 });
                 $('.square-preview-box').append(removeBtn);
             }
         }
         
-        // Observe changes to image preview display
+        // Observe changes to image/pdf preview display
         const observer = new MutationObserver(function(mutations) {
             mutations.forEach(function(mutation) {
-                if (mutation.attributeName === 'style' && imagePreview.style.display === 'block') {
-                    addRemoveButtonToPreview();
-                } else if (mutation.attributeName === 'style' && imagePreview.style.display === 'none') {
-                    $('.square-preview-box .remove-image-btn').remove();
+                if (mutation.attributeName === 'style') {
+                    if (hasActivePreview()) {
+                        addRemoveButtonToPreview();
+                    } else {
+                        $('.square-preview-box .remove-image-btn').remove();
+                    }
                 }
             });
         });
         
         if (imagePreview) {
             observer.observe(imagePreview, { attributes: true });
-            if (imagePreview.style.display === 'block') {
-                addRemoveButtonToPreview();
-            }
+        }
+        if (pdfPreview) {
+            observer.observe(pdfPreview, { attributes: true });
         }
         
         setTimeout(function() {
-            if (imagePreview.style.display === 'block') {
+            if (hasActivePreview()) {
                 addRemoveButtonToPreview();
             }
         }, 200);

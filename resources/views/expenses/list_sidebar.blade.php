@@ -1,4 +1,14 @@
-@php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
+@php
+  $__companySlug = \App\Support\CompanyRouteContext::slug();
+  $expenseVoucherRouteParams = static function (int $id) use ($__companySlug): array {
+    $params = ['id' => $id];
+    if (!empty($__companySlug)) {
+      $params['company_slug'] = $__companySlug;
+    }
+    return $params;
+  };
+  $listSidebarParams = !empty($__companySlug) ? ['company_slug' => $__companySlug] : [];
+@endphp
 <div class="voucher-list-sidebar h-100 d-flex flex-column">
   <div class="voucher-list-sidebar-header d-flex align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-light flex-shrink-0">
     <div class="d-flex align-items-center gap-1 flex-grow-1 min-width-0">
@@ -7,7 +17,7 @@
     </div>
     <div class="d-flex align-items-center gap-1 flex-shrink-0">
       @can('expenses_create')
-        <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Expense Voucher" data-action="{{ route('expenses.voucher.create', ['company_slug' => $__companySlug]) }}" title="Add"><i class="ti ti-plus"></i></a>
+        <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Expense Voucher" data-action="{{ route('expenses.voucher.create', $listSidebarParams) }}" title="Add"><i class="ti ti-plus"></i></a>
       @endcan
       <span class="badge bg-label-secondary">{{ $data->total() }}</span>
     </div>
@@ -21,7 +31,7 @@
         @php
           $voucherId = 'EXP-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
         @endphp
-        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('expenses.voucher.show', ['company_slug' => $__companySlug, 'id' => $voucher->id]) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', ['company_slug' => $__companySlug]) }}">
+        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', $listSidebarParams) }}">
           <div class="d-flex align-items-start pt-1">
             <input type="checkbox" class="form-check-input mt-0" onclick="event.preventDefault(); event.stopPropagation();" aria-label="Select">
           </div>

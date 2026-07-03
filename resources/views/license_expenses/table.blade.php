@@ -119,15 +119,21 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
+                     @can('licenseexpense_view')
                      <a href="{{ route('LicenseExpense.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
                         View Expense Detail
                      </a>
+                     @endcan
+                     @can('licenseexpense_edit')
                      <a href="javascript:void(0);" data-action="{{ route('LicenseExpense.edit' , $r->id) }}" data-size="lg" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
+                     @endcan
+                     @can('licenseexpense_delete')
                      <a href="javascript:void(0);" data-delete-url="{{ route('LicenseExpense.delete', $r->id) }}" class='dropdown-item confirm-modal js-delete-visa-expense' data-size="lg" data-title="Delete Sim">
                         delete
                      </a>
+                     @endcan
                   </div>
                </div>
             </td>

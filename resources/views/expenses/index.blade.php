@@ -79,6 +79,10 @@
 @endpush
 
 @section('content')
+@php
+  $__companySlug = \App\Support\CompanyRouteContext::slug();
+  $expenseModuleRouteParams = !empty($__companySlug) ? ['company_slug' => $__companySlug] : [];
+@endphp
 <div class="content-wrapper">
   <section class="content-header">
     <div class="container-fluid">
@@ -97,7 +101,7 @@
               </button>
               <div class="action-dropdown-menu" id="addBikeDropdown">
                 @can('expense_voucher_create')
-                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Expense Voucher" data-action="{{ route('expenses.voucher.create') }}">
+                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Expense Voucher" data-action="{{ route('expenses.voucher.create', $expenseModuleRouteParams) }}">
                   <i class="ti ti-file-invoice"></i>
                   <div>
                     <div class="action-dropdown-item-text">New Expense Voucher</div>

@@ -24,24 +24,30 @@
                 <td>{{ Str::limit($cod->description, 50) }}</td>
                 <td>
                     <div class="btn-group" role="group">
+                        @can('cod_view')
                         <a href="{{ route('cod.show', $cod->id) }}" class="btn btn-info btn-sm" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
-                        <a href="{{ route('cod.edit', $cod->id) }}" class="btn btn-warning btn-sm" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
                         <a href="{{ route('cod.viewvoucher', $cod->id) }}" class="btn btn-success btn-sm" title="View Voucher">
                             <i class="fas fa-receipt"></i>
+                        </a>
+                        @endcan
+                        @can('cod_edit')
+                        <a href="{{ route('cod.edit', $cod->id) }}" class="btn btn-warning btn-sm" title="Edit">
+                            <i class="fas fa-edit"></i>
                         </a>
                         @if($cod->status != 'paid')
                         <button class="btn btn-primary btn-sm mark-paid-btn" data-id="{{ $cod->id }}" title="Mark as Paid">
                             <i class="fas fa-check"></i>
                         </button>
                         @endif
+                        @endcan
+                        @can('cod_delete')
                         <a href="{{ route('cod.delete', $cod->id) }}" class="btn btn-danger btn-sm"
                             onclick="return confirm('Are you sure you want to delete this COD entry?')" title="Delete">
                             <i class="fas fa-trash"></i>
                         </a>
+                        @endcan
                     </div>
                 </td>
             </tr>

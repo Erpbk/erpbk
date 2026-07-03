@@ -39,15 +39,21 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                  @can('rtafine_view')
                   <a href="{{ route('rtaFines.tickets') }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye"></i>View
                   </a>
+                  @endcan
+                  @can('rtafine_edit')
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit"></i>Edit
                   </a>
+                  @endcan
+                  @can('rtafine_delete')
                   <a href="javascript:void(0);" data-delete-url="{{ route('rtaFines.deleteaccount', $r->id) }}" onclick="confirmDelete(this.dataset.deleteUrl)" class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Account">
                      <i class="fa fa-trash"></i>Delete
                   </a>
+                  @endcan
                </div>
             </div>
          </td>

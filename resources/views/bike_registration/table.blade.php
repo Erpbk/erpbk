@@ -119,15 +119,21 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
+                     @can('bike_registration_view')
                      <a href="{{ route('BikeRegistration.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
                         View Expense Detail
                      </a>
+                     @endcan
+                     @can('bike_registration_edit')
                      <a href="javascript:void(0);" data-action="{{ route('BikeRegistration.edit' , $r->id) }}" data-size="lg" data-title="Edit registration expense" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
+                     @endcan
+                     @can('bike_registration_delete')
                      <a href="javascript:void(0);" data-delete-url="{{ route('BikeRegistration.delete', $r->id) }}" class='dropdown-item confirm-modal js-delete-bike-registration' data-size="lg" data-title="Delete entry">
                         delete
                      </a>
+                     @endcan
                   </div>
                </div>
             </td>

@@ -16,6 +16,16 @@
         </tr>
     </thead>
     <tbody>
+        @php
+          $__companySlug = \App\Support\CompanyRouteContext::slug();
+          $voucherShowParams = static function ($voucherId) use ($__companySlug): array {
+            $params = ['voucher' => $voucherId];
+            if (!empty($__companySlug)) {
+              $params['company_slug'] = $__companySlug;
+            }
+            return $params;
+          };
+        @endphp
         @foreach($data as $cheque)
         <tr>
             <td>{{ $cheque->reference ?? '-' }}</td>
@@ -58,7 +68,7 @@
             <td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>
             <td>
                 @if($cheque->voucher_id)
-                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $cheque->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
+                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($cheque->voucher_id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
                         {{ $cheque->voucher->voucher_type . '-'. $cheque->voucher_id }}
                     </a>
                 @else

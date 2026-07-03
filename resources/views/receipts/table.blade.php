@@ -15,6 +15,16 @@
             </tr>
         </thead>
         <tbody>
+            @php
+              $__companySlug = \App\Support\CompanyRouteContext::slug();
+              $voucherShowParams = static function ($voucherId) use ($__companySlug): array {
+                $params = ['voucher' => $voucherId];
+                if (!empty($__companySlug)) {
+                  $params['company_slug'] = $__companySlug;
+                }
+                return $params;
+              };
+            @endphp
             @foreach($data as $receipt)
             <tr>
                 <td>{{ $receipt->reference?? '-' }}</td>
@@ -22,7 +32,7 @@
                 <td>{{ $receipt->payeeAccount->account_code . '-' .  $receipt->payeeAccount->name}}</td>
                 <td>{{ \App\Helpers\Currency::format($receipt->amount) }}</td>
                 <td>
-                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $receipt->voucher_id) }}" class="text-primary show-voucher-panel" data-title="Receipt Voucher" data-collapse-sidebar="1">
+                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($receipt->voucher_id)) }}" class="text-primary show-voucher-panel" data-title="Receipt Voucher" data-collapse-sidebar="1">
                         {{ $receipt->voucher->voucher_type . '-'. $receipt->voucher_id }}
                     </a>
                 </td>

@@ -4,6 +4,13 @@
   $totalC = 0;
   $i = 0;
   $settings = company_table('settings')->pluck('value', 'name')->toArray();
+  $__companySlug = \App\Support\CompanyRouteContext::slug();
+  $expenseVoucherRouteParams = ['id' => $voucher->id];
+  $voucherShowParams = ['voucher' => $voucher->id];
+  if (!empty($__companySlug)) {
+    $expenseVoucherRouteParams['company_slug'] = $__companySlug;
+    $voucherShowParams['company_slug'] = $__companySlug;
+  }
 @endphp
 <div class="voucher-modal-content">
   {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. --}}
@@ -13,9 +20,9 @@
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
       @can('expenses_edit')
-        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Expense Voucher {{ $voucher_number }}" data-action="{{ route('expenses.voucher.edit', $voucher->id) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
+        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Expense Voucher {{ $voucher_number }}" data-action="{{ route('expenses.voucher.edit', $expenseVoucherRouteParams) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endcan
-      <a href="{{ route('vouchers.show', $voucher->id) }}?print=1" target="_blank" class="btn btn-sm btn-outline-secondary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
+      <a href="{{ route('vouchers.show', $voucherShowParams) }}?print=1" target="_blank" class="btn btn-sm btn-outline-secondary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
     </div>
   </div>
 

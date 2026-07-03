@@ -34,24 +34,30 @@
                 <td>{{ Str::limit($penalty->description, 50) }}</td>
                 <td>
                     <div class="btn-group" role="group">
+                        @can('penality_view')
                         <a href="{{ route('penalties.show', $penalty->id) }}" class="btn btn-info btn-sm" title="View">
                             <i class="fas fa-eye"></i>
                         </a>
-                        <a href="{{ route('penalties.edit', $penalty->id) }}" class="btn btn-warning btn-sm" title="Edit">
-                            <i class="fas fa-edit"></i>
-                        </a>
                         <a href="{{ route('penalties.viewvoucher', $penalty->id) }}" class="btn btn-success btn-sm" title="View Voucher">
                             <i class="fas fa-receipt"></i>
+                        </a>
+                        @endcan
+                        @can('penalty_edit')
+                        <a href="{{ route('penalties.edit', $penalty->id) }}" class="btn btn-warning btn-sm" title="Edit">
+                            <i class="fas fa-edit"></i>
                         </a>
                         @if($penalty->status != 'paid')
                         <button class="btn btn-primary btn-sm mark-paid-btn" data-id="{{ $penalty->id }}" title="Mark as Paid">
                             <i class="fas fa-check"></i>
                         </button>
                         @endif
+                        @endcan
+                        @can('penalty_delete')
                         <a href="{{ route('penalties.delete', $penalty->id) }}" class="btn btn-danger btn-sm"
                             onclick="return confirm('Are you sure you want to delete this penalty entry?')" title="Delete">
                             <i class="fas fa-trash"></i>
                         </a>
+                        @endcan
                     </div>
                 </td>
             </tr>

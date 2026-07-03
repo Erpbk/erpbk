@@ -6,6 +6,7 @@ use App\Helpers\Common;
 use App\Helpers\General;
 use App\Models\Vouchers;
 use App\Models\VoucherType;
+use App\Support\CompanyRouteContext;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 use Illuminate\Support\Facades\DB;
@@ -25,7 +26,12 @@ class VouchersDataTable extends DataTable
 
     $dataTable->addColumn('id', function (Vouchers $row) {
       $voucherId = $row->voucher_type . '-' . str_pad($row->id, '4', '0', STR_PAD_LEFT);
-      return '<a href="' . route('vouchers.show', $row->id) . '" class="text-primary" target="_blank">' . $voucherId . '</a>';
+      $companySlug = CompanyRouteContext::slug();
+      $params = ['voucher' => $row->id];
+      if (!empty($companySlug)) {
+        $params['company_slug'] = $companySlug;
+      }
+      return '<a href="' . route('vouchers.show', $params) . '" class="text-primary" target="_blank">' . $voucherId . '</a>';
     })->filterColumn('id', function ($query, $keyword) {
       $query->whereRaw("CONCAT(voucher_type, '-', LPAD(id, 4, '0')) LIKE ?", ["%{$keyword}%"]);
     })->toJson();

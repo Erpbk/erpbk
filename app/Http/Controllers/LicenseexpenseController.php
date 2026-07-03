@@ -157,16 +157,19 @@ class LicenseexpenseController extends AppBaseController
                         $sub->whereRaw('1 = 1');
                     });
                     $query->whereNotExists(function ($sub) {
+                        $headId = $this->licenseExpenseHeadAccountId();
                         $sub->select(DB::raw(1))
                             ->from('license_expenses as ve')
                             ->whereNull('ve.deleted_at')
                             ->where('ve.payment_status', 'unpaid')
-                            ->where(function ($link) {
-                                $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
-                                    ->orWhere(function ($l2) {
-                                        $l2->where('ve.expense_account_id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))
+                            ->where(function ($link) use ($headId) {
+                                $link->whereColumn('ve.expense_account_id', 'expense_accounts.id');
+                                if ($headId !== null) {
+                                    $link->orWhere(function ($l2) use ($headId) {
+                                        $l2->where('ve.expense_account_id', $headId)
                                             ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
                                     });
+                                }
                             });
                         $this->applyLicenseExpenseCompanyScopeForVeAlias($sub);
                     });
@@ -247,16 +250,18 @@ class LicenseexpenseController extends AppBaseController
             }
         }
 
-        $headId = (int) GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT');
+        $headId = $this->licenseExpenseHeadAccountId();
 
         $unpaidRows = license_expenses::query()
             ->where('payment_status', 'unpaid')
             ->where(function ($q) use ($ids, $riderToEaId, $headId) {
-                $q->whereIn('expense_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                $q->whereIn('expense_account_id', $ids);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderToEaId, $headId) {
                         $q2->where('expense_account_id', $headId)
                             ->whereIn('rider_id', array_keys($riderToEaId));
                     });
+                }
             })
             ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('date', 'asc')
@@ -270,7 +275,7 @@ class LicenseexpenseController extends AppBaseController
             $veEa = (int) $ve->expense_account_id;
             if (in_array($veEa, $ids, true)) {
                 $eaId = $veEa;
-            } elseif ($veEa === $headId && $ve->rider_id !== null) {
+            } elseif ($headId !== null && $veEa === $headId && $ve->rider_id !== null) {
                 $rid = (int) $ve->rider_id;
                 if (isset($riderToEaId[$rid])) {
                     $eaId = $riderToEaId[$rid];
@@ -314,18 +319,20 @@ class LicenseexpenseController extends AppBaseController
             }
         }
 
-        $headId = (int) GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT');
+        $headId = $this->licenseExpenseHeadAccountId();
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = license_expenses::query()
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', $threshold)
             ->where(function ($q) use ($ids, $riderToEaId, $headId) {
-                $q->whereIn('expense_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                $q->whereIn('expense_account_id', $ids);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderToEaId, $headId) {
                         $q2->where('expense_account_id', $headId)
                             ->whereIn('rider_id', array_keys($riderToEaId));
                     });
+                }
             })
             ->orderBy('expiry_date', 'asc')
             ->orderBy('id', 'asc')
@@ -337,7 +344,7 @@ class LicenseexpenseController extends AppBaseController
             $veEa = (int) $ve->expense_account_id;
             if (in_array($veEa, $ids, true)) {
                 $eaId = $veEa;
-            } elseif ($veEa === $headId && $ve->rider_id !== null) {
+            } elseif ($headId !== null && $veEa === $headId && $ve->rider_id !== null) {
                 $rid = (int) $ve->rider_id;
                 if (isset($riderToEaId[$rid])) {
                     $eaId = $riderToEaId[$rid];
@@ -352,23 +359,30 @@ class LicenseexpenseController extends AppBaseController
         return $byEaId;
     }
 
+    private function licenseExpenseHeadAccountId(): ?int
+    {
+        return GlobalAccounts::idOrNull('LICENSE_EXPENSE_ACCOUNT');
+    }
+
     /**
      * Correlate license_expenses to expense_accounts the same way as generatentries:
      * direct expense_account_id = expense_accounts.id, or legacy head-account id + rider match.
      */
     private function applyExpenseAccountMatchesLicenseExpense($expenseAccountQuery, callable $constraintsOnVeSubquery): void
     {
-        $headId = GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT');
+        $headId = $this->licenseExpenseHeadAccountId();
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnVeSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('license_expenses as ve')
                 ->whereNull('ve.deleted_at')
                 ->where(function ($link) use ($headId) {
-                    $link->whereColumn('ve.expense_account_id', 'expense_accounts.id')
-                        ->orWhere(function ($l2) use ($headId) {
+                    $link->whereColumn('ve.expense_account_id', 'expense_accounts.id');
+                    if ($headId !== null) {
+                        $link->orWhere(function ($l2) use ($headId) {
                             $l2->where('ve.expense_account_id', $headId)
                                 ->whereColumn('ve.rider_id', 'expense_accounts.rider_id');
                         });
+                    }
                 });
             $constraintsOnVeSubquery($sub);
             $this->applyLicenseExpenseCompanyScopeForVeAlias($sub);
@@ -527,19 +541,22 @@ class LicenseexpenseController extends AppBaseController
         if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $account = ExpenseAccount::with('rider')->where('id', $id)->first();
+        $account = ExpenseAccount::with('rider')->where('id', $id)->firstOrFail();
         $riderId = $account->rider_id;
         // Use global pagination traits
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        $headId = $this->licenseExpenseHeadAccountId();
         $query = license_expenses::query()
             ->with('vouchers')
             ->orderBy('id', 'asc')
-            ->where(function ($q) use ($id, $riderId) {
-                $q->where('expense_account_id', $id)
-                    ->orWhere(function ($q2) use ($riderId) {
-                        $q2->where('expense_account_id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))
+            ->where(function ($q) use ($id, $riderId, $headId) {
+                $q->where('expense_account_id', $id);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderId, $headId) {
+                        $q2->where('expense_account_id', $headId)
                             ->where('rider_id', $riderId);
                     });
+                }
             });
         if ($request->has('trans_date') && !empty($request->trans_date)) {
             $fromDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->trans_date);

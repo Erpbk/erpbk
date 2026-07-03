@@ -89,7 +89,7 @@
          <th>Renewal Category</th>
          <th>Rider Status</th>
          <th>Next Unpaid Document</th>
-         <th>Expiry Document</th>s
+         <th>Expiry Document</th>
          <th>Person Code</th>
          <th>Labour Card #</th>
          <th>Policy Number</th>

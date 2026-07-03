@@ -59,7 +59,7 @@ class LedgerDataTable extends DataTable
             $voucher_ID = '';
             $voucher_text = '';
             if (isset($row->voucher->attach_file)) {
-                if ($row->reference_type == 'RTA') {
+                if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE') {
                     $view_file = '  <a href="' . url('storage/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                 } elseif (in_array($row->reference_type, ['LV', 'LE'], true)) {
                     $view_file = '  <a href="' . url('storage/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
@@ -84,6 +84,10 @@ class LedgerDataTable extends DataTable
                 } else {
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
+            }
+            if ($row->reference_type == 'RTA FINE') {
+                $voucher_ID = 'RTA FINE';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('rtaFines.show', $row->reference_id) . '" class="show-modal-right" >' . $voucher_ID . '</a>';
             }
             if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV', 'BL'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
@@ -305,7 +309,7 @@ class LedgerDataTable extends DataTable
                 $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Billing Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" class="no-print show-modal">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . '</span>';
-            if ($row->reference_type == 'RTA') {
+            if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE') {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
 
                 if ($vouchers) {

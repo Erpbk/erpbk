@@ -718,6 +718,12 @@ class RidersController extends AppBaseController
     // $items = $riders->items;
     $items = $request->get('items');
     if (empty($riders)) {
+      if (request()->ajax()) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Rider not found.',
+        ], 404);
+      }
       Flash::error('Riders not found');
 
       return redirect(route('riders.index'));

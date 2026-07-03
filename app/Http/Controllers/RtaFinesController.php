@@ -412,7 +412,7 @@ class RtaFinesController extends AppBaseController
             $TransactionService->recordTransaction([
                 'account_id'     => $rider_account,
                 'reference_id'   => $rtaFines->id,
-                'reference_type' => 'RTA',
+                'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
                 'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
@@ -424,7 +424,7 @@ class RtaFinesController extends AppBaseController
             $TransactionService->recordTransaction([
                 'account_id'     => $rta_account,
                 'reference_id'   => $rtaFines->id,
-                'reference_type' => 'RTA',
+                'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
                 'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
@@ -437,7 +437,7 @@ class RtaFinesController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id'     => $vat_account,
                     'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
+                    'reference_type' => 'RTA FINE',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => 'Service Charges Vat. ',
@@ -446,27 +446,6 @@ class RtaFinesController extends AppBaseController
                     'branch_id'      => $bike->branch_id,
                 ]);
             }
-            // --- Voucher ---
-            $voucher = Vouchers::create([
-                'rider_id'      => $rtaFines->rider_id ?? null,
-                'trans_date'    => $rtaFines->trans_date,
-                'trans_code'    => $rtaFines->trans_code,
-                'trip_date'     => $rtaFines->trip_date,
-                'billing_month' => $billingMonth,
-                'payment_type'  => 1,
-                'voucher_type'  => 'RFV',
-                'reference_number' => $rtaFines->reference_number ?? '',
-                'remarks'       => 'RTA Fine Voucher',
-                'amount'        => $rtaFines->total_amount,
-                'Created_By'    => auth()->id(),
-                'attach_file'   => $path,
-                'payment_from'   => $rider_account,
-                'payment_to'    => $rta_account,
-                'ref_id'        => $rtaFines->id,
-                'branch_id'     => $bike->branch_id,
-                'custom_field_values' => $request->input('voucher_custom_fields', []),
-            ]);
-            $rtaFines->update(['voucher_id' => $voucher->id]);
 
             DB::commit();
             if ($request->ajax()) {
@@ -479,6 +458,9 @@ class RtaFinesController extends AppBaseController
             report($e);
             if ($path) {
                 \Storage::delete($path);
+            }
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 500);
             }
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
@@ -527,6 +509,8 @@ class RtaFinesController extends AppBaseController
             return redirect()->back();
         }
 
+        $rtaFine->load(['transactions.account']);
+
         return view('rta_fines.show', compact('rtaFine'));
     }
 
@@ -556,18 +540,17 @@ class RtaFinesController extends AppBaseController
     /**
      * Update the specified RtaFines in storage.
      */
-    public function update(Request $request)
+    public function update(Request $request, $company_slug, $id)
     {
         // Check if same ticket_no exists on any other record
         $exists = \App\Support\CompanyQuery::table('rta_fines')
             ->where('ticket_no', $request->ticket_no)
-            ->where('id', '!=', $request->id)
+            ->where('id', '!=', $id)
             ->exists();
 
         if ($exists) {
             return response()->json(['errors' => ['error' => 'This Ticket No is already used in another fine.']], 422);
         }
-        $id = $request->id;
         $rtaFines = RtaFines::findOrFail($id);
         $vat_account = GlobalAccounts::id('VAT_ON_SALES');
         $rta_account = GlobalAccounts::id('RTA_FINE');
@@ -610,7 +593,7 @@ class RtaFinesController extends AppBaseController
             $TransactionService->recordTransaction([
                 'account_id'     => $rider_account,
                 'reference_id'   => $rtaFines->id,
-                'reference_type' => 'RTA',
+                'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
                 'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
@@ -622,7 +605,7 @@ class RtaFinesController extends AppBaseController
             $TransactionService->recordTransaction([
                 'account_id'     => $rta_account,
                 'reference_id'   => $rtaFines->id,
-                'reference_type' => 'RTA',
+                'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
                 'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
@@ -635,7 +618,7 @@ class RtaFinesController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id'     => $vat_account,
                     'reference_id'   => $rtaFines->id,
-                    'reference_type' => 'RTA',
+                    'reference_type' => 'RTA FINE',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
                     'narration'      => 'Service Charges Vat. ',
@@ -644,30 +627,6 @@ class RtaFinesController extends AppBaseController
                     'branch_id'      => $bike->branch_id,
                 ]);
             }
-            /*
-            |--------------------------------------------------------------------------
-            | Voucher (update instead of insert)
-            | Update all vouchers related to this fine (both unpaid RFV and paid RFV/JV)
-            |--------------------------------------------------------------------------
-            */
-            // Update voucher (RFV type created during fine creation)
-
-            $rtaFines->voucher()->update([
-                'rider_id'      => $rtaFines->rider_id,
-                'trans_date'    => $rtaFines->trans_date,
-                'trans_code'    => $trans_code,
-                'trip_date'     => $rtaFines->trip_date,
-                'billing_month' => $billingMonth,
-                'payment_type'  => 1,
-                'reference_number' => $rtaFines->reference_number,
-                'remarks'       => 'RTA Fine Voucher',
-                'amount'        => $rtaFines->total_amount,
-                'attach_file'   => $newPath ?? $path,
-                'paymen_from'   => $rider_account,
-                'payment_to'   => $rta_account,
-                'branch_id'      => $rtaFines->branch_id,
-                'Updated_By'    => auth()->id(),
-            ]);
 
             DB::commit();
             \Storage::delete($path);
@@ -683,6 +642,9 @@ class RtaFinesController extends AppBaseController
                 \Storage::delete($newPath);
             }
             report($e);
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 500);
+            }
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back()->withInput();
         }

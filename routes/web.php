@@ -315,7 +315,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('rtaFines/invoice/{id}', [RtaFinesController::class, 'show'])->name('rtaFines.show');
     Route::post('rtaFines/store', [RtaFinesController::class, 'store']);
     Route::get('rtaFines/edit/{id}', [RtaFinesController::class, 'edit']);
-    Route::post('rtaFines/update', [RtaFinesController::class, 'update']);
+    Route::post('rtaFines/update/{id}', [RtaFinesController::class, 'update'])->name('rtaFines.update');
     Route::get('rtaFines/create', [RtaFinesController::class, 'create'])->name('rtaFines.create');
     Route::any('rtaFines/attach_file/{id}', [RtaFinesController::class, 'fileUpload'])->name('rtaFines.fileupload');
 

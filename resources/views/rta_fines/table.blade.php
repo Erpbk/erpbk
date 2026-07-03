@@ -9,7 +9,7 @@
          <th title="Ticket No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ticket No: activate to sort column ascending" aria-sort="descending">Ticket No</th>
          <th title="impound" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ticket No: activate to sort column ascending" aria-sort="descending">Impound</th>
          <th title="Attachment" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending" aria-sort="descending">Attachment</th>
-         <th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher No: activate to sort column ascending">Voucher No</th>
+         @if(Route::is('rtaFines.paid'))<th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher No: activate to sort column ascending">Voucher No</th>@endif
          <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Rider Id</th>
          <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Name</th>
          <th title="Plate No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Plate No: activate to sort column ascending">Plate No</th>
@@ -30,8 +30,6 @@
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
          $fileUrl = $r->paid_voucher_id ? asset('storage/' . $r->attachment) : asset('storage/' . $r->attachment_path);
-         $voucher = $r->paid_voucher_id ? $r->paidVoucher : $r->voucher;
-         $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
          @endphp
          <td><a data-action="{{ route('rtaFines.show',$r->id) }}" href="javascript:void(0);" class="show-modal-right">{{$r->ticket_no}}</a></td>
          <td>
@@ -43,7 +41,13 @@
             @endif
          </td>
          <td><a href="{{ $fileUrl }}" target="_blank"><i class="fa fa-file"></i></a></td>
+         @if($r->paid_voucher_id)
+         @php
+            $voucher = $r->paidVoucher;
+            $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
+         @endphp
          <td><a href="{{ route('vouchers.show', $voucher?->id ?? 0) }}" target="_blank">{{ $voucherNumber }}</a></td>
+         @endif
          <td>{{ $r->rider?->rider_id ?? '' }}</td>
          <td>
             @if ($r->rider)

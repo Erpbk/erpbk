@@ -116,11 +116,6 @@ class RtaFines extends BaseModel
     return $this->belongsTo(BikeRentCompany::class, 'rental_company_id');
   }
 
-  public function voucher()
-  {
-    return $this->belongsTo(Vouchers::class, 'voucher_id');
-  }
-
   public function paidVoucher()
   {
     return $this->belongsTo(Vouchers::class, 'paid_voucher_id');

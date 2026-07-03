@@ -10,14 +10,6 @@ if ($bike && $bike->rental_company_id) {
     $company = $bike->rentalCompany;
 }
 
-$selectedDesignation = '';
-if (strpos($vehicleTypeName, 'bike') !== false) {
-    $selectedDesignation = 'Rider';
-} elseif (strpos($vehicleTypeName, 'car') !== false || strpos($vehicleTypeName, 'van') !== false) {
-    $selectedDesignation = 'Driver';
-} elseif (strpos($vehicleTypeName, 'cyclist') !== false) {
-    $selectedDesignation = 'Cyclist';
-}
 
 $assignFields = $assignFields ?? \App\Models\BikeCustomField::assignModalFields('change');
 $inlineFields = $assignFields->filter(function ($f) {
@@ -52,10 +44,6 @@ $wideFields = $assignFields->filter(function ($f) {
         <div class="col-md-3 form-group">
             <label>Rider</label>
             <input type="text" name="rider" class="form-control" readonly value="{{ $rider->rider_id . '-' . $rider->name }}">
-        </div>
-        <div class="col-md-3 form-group">
-            <label>Designation</label>
-            <input type="text" name="designation" class="form-control" readonly value="{{ $selectedDesignation }}">
         </div>
         <div class="col-md-3 form-group">
             <label>Project</label>

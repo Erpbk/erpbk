@@ -782,7 +782,6 @@ class BikesController extends AppBaseController
                 $riderBefore = $rider ? RiderHistoryLogger::riderSnapshot($rider) : null;
                 $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
                 $company = $bike->rentalCompany;
-                $designation = $request->designation;
                 $message = "*Bike* 🏍️\n";
                 $message .= "────────────────\n";
                 $message .= "*Bike No:* {$bike->plate}\n";

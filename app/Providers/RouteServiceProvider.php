@@ -29,6 +29,14 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         $this->routes(function () {
+            // Public uploads: no web/session middleware (prevents 500 on Hostinger when sessions dir is broken)
+            Route::get('/storage/{path}', [\App\Http\Controllers\FileController::class, 'show'])
+                ->where('path', '.+')
+                ->middleware([]);
+            Route::get('/storage2/{path}', [\App\Http\Controllers\FileController::class, 'root'])
+                ->where('path', '.+')
+                ->middleware([]);
+
             Route::middleware('api')
                 ->prefix('api')
                 ->namespace($this->namespace)

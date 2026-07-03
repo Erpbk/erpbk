@@ -88,7 +88,7 @@
          <th style="width: 220px;">Account Name</th>
          <th>Rider Status</th>
          <th>Next Unpaid Document</th>
-         <th>Expiry Document</th>s
+         <th>Expiry Document</th>
          <th>Person Code</th>
          <th>Labour Card #</th>
          <th>Policy Number</th>

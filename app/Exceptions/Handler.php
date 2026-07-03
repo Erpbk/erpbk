@@ -82,6 +82,14 @@ class Handler extends ExceptionHandler
                 return response()->json(['message' => $e->getMessage()], 422);
             }
 
+            if ($request->routeIs('LicenseExpense.*')) {
+                $slug = $request->route('company_slug') ?? session('company_slug');
+
+                return redirect()
+                    ->route('LicenseExpense.index', ['company_slug' => $slug])
+                    ->with('error', $e->getMessage());
+            }
+
             if ($request->routeIs('VisaExpense.*', 'Installments.*')) {
                 return redirect()
                     ->route('VisaExpense.index')

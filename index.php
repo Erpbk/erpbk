@@ -15,6 +15,13 @@ $uri = urldecode(
 // Remove leading slash
 $uri = ltrim($uri, '/');
 
+// Serve public-disk uploads when public/storage symlink is missing (shared hosting)
+if (str_starts_with($uri, 'storage/')) {
+    $_GET['path'] = substr($uri, 8);
+    require __DIR__ . '/public/serve-storage.php';
+    exit;
+}
+
 // Check if the requested file exists in public directory
 $publicPath = __DIR__ . '/public/' . $uri;
 

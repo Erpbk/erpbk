@@ -69,7 +69,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderCategory;
@@ -179,6 +178,42 @@ class RidersController extends AppBaseController
     return $query->first();
   }
 
+  /**
+   * Route resource parameter may be a numeric id or a bound Riders model.
+   */
+  private function resolveRiderRouteId(mixed $routeRider): int
+  {
+    if ($routeRider instanceof Riders) {
+      return (int) $routeRider->id;
+    }
+
+    return (int) $routeRider;
+  }
+
+
+
+  /**
+   * Strip unique validators from a rule string or token list.
+   *
+   * @param  array<int, mixed>|string  $rule
+   * @return array<int, mixed>|string
+   */
+  private function stripUniqueValidationRules(array|string $rule): array|string
+  {
+    if (is_array($rule)) {
+      return array_values(array_filter($rule, function ($token) {
+        return ! (is_string($token) && str_starts_with($token, 'unique:'))
+          && ! ($token instanceof \Illuminate\Validation\Rules\Unique);
+      }));
+    }
+
+    $tokens = array_values(array_filter(explode('|', (string) $rule), function ($token) {
+      return $token !== '' && ! str_starts_with($token, 'unique:');
+    }));
+
+    return $tokens === [] ? 'nullable|string|max:191' : implode('|', $tokens);
+  }
+
   private function riderIndexUrl(): string
   {
     $slug = CompanyRouteContext::slug();
@@ -266,13 +301,22 @@ class RidersController extends AppBaseController
   /**
    * Build rider create/update validation rules from settings + rider table columns.
    */
-  private function riderValidationRules(?int $ignoreRiderId = null): array
+  private function riderValidationRules(?int $ignoreRiderId = null, ?Riders $existingRider = null, ?array $input = null): array
   {
     $rules = Riders::$rules;
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
     $assignmentTable = (new RiderFieldCategoryAssignment)->getTable();
     $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
     $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
+    $input = $input ?? [];
+
+    $fieldValueUnchanged = function (string $field) use ($existingRider, $input): bool {
+      if ($existingRider === null || ! array_key_exists($field, $input)) {
+        return false;
+      }
+
+      return trim((string) $input[$field]) === trim((string) ($existingRider->{$field} ?? ''));
+    };
 
     $normalizePresenceRule = function ($rule, bool $required) {
       if (is_array($rule)) {
@@ -316,16 +360,44 @@ class RidersController extends AppBaseController
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
     }
 
-    if ($ignoreRiderId !== null) {
-      $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
-      $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
-      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
-      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
-      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
-        return ! (is_string($token) && str_starts_with($token, 'unique:'));
+    foreach (['rider_id', 'name', 'passport'] as $uniqueKey) {
+      if (! isset($riderColumns[$uniqueKey])) {
+        continue;
+      }
+      $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+      if ($fieldValueUnchanged($uniqueKey)) {
+        $rules[$uniqueKey] = $this->stripUniqueValidationRules($baseRule);
+
+        continue;
+      }
+      $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+      $tokens = array_values(array_filter($tokens, function ($token) {
+        return ! (is_string($token) && str_starts_with($token, 'unique:'))
+          && ! ($token instanceof \Illuminate\Validation\Rules\Unique);
       }));
-      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
-      $rules['passport'] = $passportTokens;
+      $tokens[] = CompanyScope::unique('riders', $uniqueKey, $ignoreRiderId);
+      $rules[$uniqueKey] = $tokens;
+    }
+
+    if ($ignoreRiderId !== null) {
+      foreach (['rider_id', 'name'] as $requiredKey) {
+        if (! isset($rules[$requiredKey])) {
+          continue;
+        }
+        $rule = $rules[$requiredKey];
+        if (is_array($rule)) {
+          $rule = array_values(array_filter($rule, function ($token) {
+            return $token !== 'nullable' && $token !== 'required';
+          }));
+          array_unshift($rule, 'required');
+        } else {
+          $rule = array_values(array_filter(explode('|', (string) $rule), function ($token) {
+            return $token !== '' && $token !== 'nullable' && $token !== 'required';
+          }));
+          array_unshift($rule, 'required');
+        }
+        $rules[$requiredKey] = $rule;
+      }
     }
 
     return array_merge($rules, $this->dynamicFieldRules());
@@ -733,8 +805,14 @@ class RidersController extends AppBaseController
    */
   public function update($company_slug, $id, Request $request)
   {
-    $request->validate($this->riderValidationRules((int) $id));
-    $riders = $this->findAccessibleRider((int) $id);
+    $riderId = $this->resolveRiderRouteId($id);
+    $existingRider = $this->findAccessibleRider($riderId);
+    $request->validate($this->riderValidationRules(
+      $riderId,
+      $existingRider,
+      $request->except(['_token', 'items', '_method'])
+    ));
+    $riders = $existingRider;
     $wantsJson = $request->wantsJson() || $request->ajax();
 
     if (empty($riders)) {
@@ -1850,11 +1928,11 @@ class RidersController extends AppBaseController
     }
     $riders = $rider;
     $assignments = RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
-            ->where('rider_id', $rider_id)
-            ->orderByDesc('assigned_date')
-            ->orderByDesc('id')
-            ->get();
+      ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+      ->where('rider_id', $rider_id)
+      ->orderByDesc('assigned_date')
+      ->orderByDesc('id')
+      ->get();
     $availableItems = Items::availableForAssignment();
 
     return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
@@ -2896,7 +2974,7 @@ class RidersController extends AppBaseController
         'payment_from' => $riderAccountId,
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
-        'remarks' => 'Penalty Charged to Rider: ' . $riderAccount->name ,
+        'remarks' => 'Penalty Charged to Rider: ' . $riderAccount->name,
         'ref_id' => $riderAccount->ref_id, // Rider ID
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,

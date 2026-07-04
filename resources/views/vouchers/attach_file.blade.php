@@ -11,7 +11,8 @@
   </a>
 @endif
 
-<form action="{{url('voucher/attach_file/'.$id)}}" method="POST" enctype="multipart/form-data" id="formajax">
+<form action="{{ route('voucher.fileupload', $id) }}" method="POST" enctype="multipart/form-data" id="formajax">
+@csrf
 <div class="row">
     <div class="col-12 mt-3 mb-3">
         <label class="mb-3 pl-2">Upload Document related to the voucher</label>

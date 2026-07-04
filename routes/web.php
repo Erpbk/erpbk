@@ -34,7 +34,6 @@ use App\Http\Controllers\ErpSettingsController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FixedAssetController;
-use App\Http\Controllers\FileController;
 use App\Http\Controllers\FilesController;
 use App\Http\Controllers\FuelCardController;
 use App\Http\Controllers\FuelCardHistoryController;
@@ -903,9 +902,6 @@ Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']
 /* Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']], function () {
   Lfm::routes();
 }); */
-
-Route::get('/storage/{path}', [FileController::class, 'show'])->where('path', '.+');
-Route::get('/storage2/{path}', [FileController::class, 'root'])->where('path', '.+');
 
 Route::get('/artisan-cache', function () {
     Artisan::call('cache:clear');

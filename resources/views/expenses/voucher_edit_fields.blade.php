@@ -265,25 +265,25 @@
             });
     }
 
-    function calculateRowVat($entry) {
-        var amount = parseFloat($entry.find('.expense-amount').val()) || 0;
-        var vatPercent = parseFloat($entry.find('.vat-percent').val()) || 0;
-        var vatAmount = (amount * vatPercent) / 100;
-        $entry.find('.vat-amount').val(vatAmount > 0 ? vatAmount.toFixed(2) : '');
-    }
+        function calculateRowVat($entry) {
+            var amount = parseFloat($entry.find('.expense-amount').val()) || 0;
+            var vatPercent = parseFloat($entry.find('.vat-percent').val()) || 0;
+            var vatAmount = (amount * vatPercent) / 100;
+            $entry.find('.vat-amount').val(vatAmount > 0 ? vatAmount.toFixed(2) : '');
+        }
 
-    window.calculateTotals = function() {
-        var subtotal = 0;
-        var totalVat = 0;
+        window.calculateTotals = function() {
+            var subtotal = 0;
+            var totalVat = 0;
 
-        $('.expense-voucher-entry').each(function() {
-            var amount = parseFloat($(this).find('.expense-amount').val()) || 0;
-            var vatAmount = parseFloat($(this).find('.vat-amount').val()) || 0;
-            subtotal += amount;
-            totalVat += vatAmount;
-        });
+            $('.expense-voucher-entry').each(function() {
+                var amount = parseFloat($(this).find('.expense-amount').val()) || 0;
+                var vatAmount = parseFloat($(this).find('.vat-amount').val()) || 0;
+                subtotal += amount;
+                totalVat += vatAmount;
+            });
 
-        var grandTotal = subtotal + totalVat;
+            var grandTotal = subtotal + totalVat;
 
         $('#subtotal_amount').val(subtotal.toFixed(2));
         $('#total_vat_amount').val(totalVat.toFixed(2));

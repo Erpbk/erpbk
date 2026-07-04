@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Serve uploads without Laravel (avoids session 500 on shared hosting)
+    RewriteCond %{REQUEST_URI} ^/storage/(.+)$ [NC]
+    RewriteRule ^storage/(.+)$ public/serve-storage.php?path=$1 [L,QSA]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

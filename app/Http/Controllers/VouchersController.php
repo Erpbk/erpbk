@@ -800,7 +800,19 @@ class VouchersController extends Controller
   {
     $voucher = Vouchers::find($id);
 
-    if ($request->hasFile('attach_file')) {
+    if (!$voucher) {
+      if ($request->expectsJson() || $request->ajax()) {
+        return response()->json(['message' => 'Voucher not found'], 404);
+      }
+
+      abort(404);
+    }
+
+    if ($request->isMethod('post')) {
+      if (!$request->hasFile('attach_file')) {
+        return response()->json(['message' => 'Please select a file to upload.'], 422);
+      }
+
       $photo = $request->file('attach_file');
       $fileName = $photo->getClientOriginalName();
       if (in_array($voucher->voucher_type, ['LV', 'LE'])) {
@@ -811,7 +823,10 @@ class VouchersController extends Controller
       $voucher->attach_file = $fileName;
       $voucher->updated_by = auth()->id();
       $voucher->save();
+
+      return response()->json(['message' => 'File uploaded successfully', 'reload' => true], 200);
     }
+
     return view('vouchers.attach_file', compact('id', 'voucher'));
   }
 

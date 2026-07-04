@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Serve uploads without Laravel (avoids session 500 on shared hosting)
+    RewriteCond %{REQUEST_URI} ^/storage/(.+)$ [NC]
+    RewriteRule ^storage/(.+)$ serve-storage.php?path=$1 [L,QSA]
+
     # Cloudways HTTPS Fix - preserve method/body with 307
     # Only enable this if you're using Cloudways hosting
     RewriteCond %{HTTP:X-Forwarded-Proto} !https

@@ -71,8 +71,18 @@ else
     echo -e "${YELLOW}⚠ Composer not found. Please install dependencies manually.${NC}"
 fi
 
-# Set permissions
+# Ensure storage subdirectories exist (not tracked by git)
 echo ""
+echo "Creating storage directories..."
+mkdir -p storage/app/public/company-logos
+mkdir -p storage/app/public/auth-branding
+mkdir -p storage/framework/sessions
+mkdir -p storage/framework/views
+mkdir -p storage/framework/cache/data
+mkdir -p storage/logs
+mkdir -p bootstrap/cache
+
+# Set permissions
 echo "Setting file permissions..."
 chmod -R 755 storage bootstrap/cache 2>/dev/null || chmod -R 777 storage bootstrap/cache
 echo -e "${GREEN}✓ Permissions set${NC}"

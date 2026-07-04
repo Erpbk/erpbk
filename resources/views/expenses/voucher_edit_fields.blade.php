@@ -23,9 +23,9 @@
         <select name="credit_account_id" id="credit_account_id" class="form-control form-select select2" required>
             <option value="">Select Bank/Cash Account</option>
             @foreach($bankCashAccounts as $id => $name)
-                @if($id !== '')
-                <option value="{{ $id }}" {{ isset($creditEntry) && $creditEntry['account_id'] == $id ? 'selected' : '' }}>{{ $name }}</option>
-                @endif
+            @if($id !== '')
+            <option value="{{ $id }}" {{ isset($creditEntry) && $creditEntry['account_id'] == $id ? 'selected' : '' }}>{{ $name }}</option>
+            @endif
             @endforeach
         </select>
     </div>
@@ -133,101 +133,101 @@
 </div>
 
 <script>
-(function() {
-    if (typeof jQuery === 'undefined') {
-        setTimeout(arguments.callee, 50);
-        return;
-    }
-
-    function initSelect2($container) {
-        var $modal = $container.closest('.modal');
-        var options = {
-            width: '100%',
-            placeholder: 'Select...',
-            allowClear: true
-        };
-        if ($modal.length) {
-            options.dropdownParent = $modal;
+    (function() {
+        if (typeof jQuery === 'undefined') {
+            setTimeout(arguments.callee, 50);
+            return;
         }
-        $container.find('select.select2').each(function() {
-            if (!$(this).hasClass('select2-hidden-accessible')) {
-                $(this).select2(options);
+
+        function initSelect2($container) {
+            var $modal = $container.closest('.modal');
+            var options = {
+                width: '100%',
+                placeholder: 'Select...',
+                allowClear: true
+            };
+            if ($modal.length) {
+                options.dropdownParent = $modal;
             }
-        });
-    }
-
-    $(document).ready(function() {
-        initSelect2($('#expense-voucher-rows'));
-        initSelect2($('.row').first());
-        calculateTotals();
-
-        $('#add-expense-row').on('click', function() {
-            var $firstEntry = $('.expense-voucher-entry:first');
-
-            $firstEntry.find('select.select2').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2('destroy');
+            $container.find('select.select2').each(function() {
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2(options);
                 }
             });
+        }
 
-            var $newEntry = $firstEntry.clone();
+        $(document).ready(function() {
+            initSelect2($('#expense-voucher-rows'));
+            initSelect2($('.row').first());
+            calculateTotals();
 
-            $newEntry.find('.select2-container').remove();
-            $newEntry.find('select').val('').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
-            $newEntry.find('input[type="number"]').val('');
-            $newEntry.find('input[type="text"]').val('');
-            $newEntry.find('.vat-percent').val('0');
-            $newEntry.find('[data-select2-id]').removeAttr('data-select2-id');
+            $('#add-expense-row').on('click', function() {
+                var $firstEntry = $('.expense-voucher-entry:first');
 
-            $('#expense-voucher-rows').append($newEntry);
-
-            initSelect2($firstEntry);
-            initSelect2($newEntry);
-        });
-
-        $(document).on('click', '.btn-remove-expense-entry', function() {
-            if ($('.expense-voucher-entry').length > 1) {
-                var $entry = $(this).closest('.expense-voucher-entry');
-                $entry.find('select.select2').each(function() {
+                $firstEntry.find('select.select2').each(function() {
                     if ($(this).hasClass('select2-hidden-accessible')) {
                         $(this).select2('destroy');
                     }
                 });
-                $entry.remove();
+
+                var $newEntry = $firstEntry.clone();
+
+                $newEntry.find('.select2-container').remove();
+                $newEntry.find('select').val('').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
+                $newEntry.find('input[type="number"]').val('');
+                $newEntry.find('input[type="text"]').val('');
+                $newEntry.find('.vat-percent').val('0');
+                $newEntry.find('[data-select2-id]').removeAttr('data-select2-id');
+
+                $('#expense-voucher-rows').append($newEntry);
+
+                initSelect2($firstEntry);
+                initSelect2($newEntry);
+            });
+
+            $(document).on('click', '.btn-remove-expense-entry', function() {
+                if ($('.expense-voucher-entry').length > 1) {
+                    var $entry = $(this).closest('.expense-voucher-entry');
+                    $entry.find('select.select2').each(function() {
+                        if ($(this).hasClass('select2-hidden-accessible')) {
+                            $(this).select2('destroy');
+                        }
+                    });
+                    $entry.remove();
+                    calculateTotals();
+                }
+            });
+
+            $(document).on('change keyup', '.expense-amount, .vat-percent', function() {
+                var $entry = $(this).closest('.expense-voucher-entry');
+                calculateRowVat($entry);
                 calculateTotals();
-            }
+            });
         });
 
-        $(document).on('change keyup', '.expense-amount, .vat-percent', function() {
-            var $entry = $(this).closest('.expense-voucher-entry');
-            calculateRowVat($entry);
-            calculateTotals();
-        });
-    });
+        function calculateRowVat($entry) {
+            var amount = parseFloat($entry.find('.expense-amount').val()) || 0;
+            var vatPercent = parseFloat($entry.find('.vat-percent').val()) || 0;
+            var vatAmount = (amount * vatPercent) / 100;
+            $entry.find('.vat-amount').val(vatAmount > 0 ? vatAmount.toFixed(2) : '');
+        }
 
-    function calculateRowVat($entry) {
-        var amount = parseFloat($entry.find('.expense-amount').val()) || 0;
-        var vatPercent = parseFloat($entry.find('.vat-percent').val()) || 0;
-        var vatAmount = (amount * vatPercent) / 100;
-        $entry.find('.vat-amount').val(vatAmount > 0 ? vatAmount.toFixed(2) : '');
-    }
+        window.calculateTotals = function() {
+            var subtotal = 0;
+            var totalVat = 0;
 
-    window.calculateTotals = function() {
-        var subtotal = 0;
-        var totalVat = 0;
+            $('.expense-voucher-entry').each(function() {
+                var amount = parseFloat($(this).find('.expense-amount').val()) || 0;
+                var vatAmount = parseFloat($(this).find('.vat-amount').val()) || 0;
+                subtotal += amount;
+                totalVat += vatAmount;
+            });
 
-        $('.expense-voucher-entry').each(function() {
-            var amount = parseFloat($(this).find('.expense-amount').val()) || 0;
-            var vatAmount = parseFloat($(this).find('.vat-amount').val()) || 0;
-            subtotal += amount;
-            totalVat += vatAmount;
-        });
+            var grandTotal = subtotal + totalVat;
 
-        var grandTotal = subtotal + totalVat;
-
-        $('#subtotal_amount').val(subtotal.toFixed(2));
-        $('#total_vat_amount').val(totalVat.toFixed(2));
-        $('#expense_total').val(grandTotal.toFixed(2));
-    };
-})();
+            $('#subtotal_amount').val(subtotal.toFixed(2));
+            $('#total_vat_amount').val(totalVat.toFixed(2));
+            $('#expense_total').val(grandTotal.toFixed(2));
+        };
+    })();
 </script>

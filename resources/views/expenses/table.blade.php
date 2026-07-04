@@ -21,14 +21,14 @@
   </thead>
   <tbody>
     @php
-      $__companySlug = \App\Support\CompanyRouteContext::slug();
-      $expenseVoucherRouteParams = static function (int $id) use ($__companySlug): array {
-        $params = ['id' => $id];
-        if (!empty($__companySlug)) {
-          $params['company_slug'] = $__companySlug;
-        }
-        return $params;
-      };
+    $__companySlug = \App\Support\CompanyRouteContext::slug();
+    $expenseVoucherRouteParams = static function (int $id) use ($__companySlug): array {
+    $params = ['id' => $id];
+    if (!empty($__companySlug)) {
+    $params['company_slug'] = $__companySlug;
+    }
+    return $params;
+    };
     @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)

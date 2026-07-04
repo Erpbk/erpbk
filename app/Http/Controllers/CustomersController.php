@@ -102,7 +102,7 @@ class CustomersController extends AppBaseController
       Flash::error('Customer already exists.');
       return redirect()->back();
     }
-    $parentAccount = \App\Models\GlobalAccount::id('CUSTOMER_PARENT');
+    $parentAccount = \App\Support\GlobalAccounts::id('CUSTOMER_PARENT');
     if (! $parentAccount) {
       if ($request->ajax()) {
         return response()->json([

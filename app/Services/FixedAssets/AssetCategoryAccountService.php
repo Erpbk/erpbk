@@ -12,11 +12,11 @@ class AssetCategoryAccountService
     public function createAccountsForCategory(AssetCategory $category): void
     {
 
-        $fixedAssetsHead = \App\Models\GlobalAccount::id('FIXED_ASSETS');
+        $fixedAssetsHead = \App\Support\GlobalAccounts::id('FIXED_ASSETS');
 
-        $accumulatedDepreciationHead = \App\Models\GlobalAccount::id('ACCUMULATED_DEPRECIATION');
+        $accumulatedDepreciationHead = \App\Support\GlobalAccounts::id('ACCUMULATED_DEPRECIATION');
 
-        $depreciationExpenseHead = \App\Models\GlobalAccount::id('DEPRECIATION_EXPENSE');
+        $depreciationExpenseHead = \App\Support\GlobalAccounts::id('DEPRECIATION_EXPENSE');
 
         $assetAccount = $this->createAccount(
             name: $category->name,

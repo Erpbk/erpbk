@@ -102,7 +102,7 @@ class FixedAssetVoucherService
             throw new \RuntimeException('Opening accumulated depreciation cannot exceed acquisition cost.');
         }
 
-        $equityAccount = \App\Models\GlobalAccount::id('OPENING_BALANCE_EQUITY');
+        $equityAccount = \App\Support\GlobalAccounts::id('OPENING_BALANCE_EQUITY');
         if (! $equityAccount) {
             throw new \RuntimeException('Equity account is not configured. Contact ERP Team to Configure it.');
         }

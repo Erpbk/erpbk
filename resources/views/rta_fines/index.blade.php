@@ -361,13 +361,11 @@
         <form id="filterForm" action="{{ route($ticketsRouteName ?? 'rtaFines.tickets') }}" method="GET">
             <div class="row">
                 <div class="form-group col-md-12">
-                    <label for="rta_account_id" class="required">Filter by Account</label>
-                    <select class="form-control" id="rta_account_id" name="rta_account_id" required>
-                        <option value="">Select Account</option>
-                        @foreach(($rtaAccounts ?? collect()) as $rtaAccount)
-                        <option value="{{ $rtaAccount->id }}" {{ (string) optional($account)->id === (string) $rtaAccount->id ? 'selected' : '' }}>
-                            {{ $rtaAccount->name }}
-                        </option>
+                    <label for="rta_account_id" class="required">Filter by Company</label>
+                    <select class="form-control " id="company_id" name="company_id" required>
+                        <option value="">Select</option>
+                        @foreach($leasingCompanies as $company)
+                        <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -533,10 +531,10 @@
             allowClear: true,
             placeholder: "Filter By Branch",
         });
-        $('#rta_account_id').select2({
+        $('#company_id').select2({
             dropdownParent: $('#searchTopbody'),
             allowClear: false,
-            placeholder: "Select Account",
+            placeholder: "Select Company",
         });
     });
 </script>
@@ -560,16 +558,6 @@
         });
 
         $('#closeSidebar, #filterOverlay').on('click', function() {
-            $('#filterSidebar').removeClass('open');
-            $('#filterOverlay').removeClass('show');
-        });
-
-        $('#filterForm').on('submit', function(e) {
-            const selectedAccountId = $('#rta_account_id').val();
-            if (!selectedAccountId) {
-                e.preventDefault();
-                return;
-            }
             $('#filterSidebar').removeClass('open');
             $('#filterOverlay').removeClass('show');
         });

@@ -159,9 +159,9 @@ class RidersController extends AppBaseController
         'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
       ];
     }
-
     return array_merge($columns, [
       ['data' => 'bike', 'title' => 'Bike'],
+      ['data' => 'contact_number', 'title' => 'Contact Number'],
       ['data' => 'orders_sum', 'title' => 'Orders'],
       ['data' => 'days', 'title' => 'Days'],
       ['data' => 'balance', 'title' => 'Balance'],
@@ -371,7 +371,7 @@ class RidersController extends AppBaseController
       $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('fleet_supervisor') && ! empty($request->fleet_supervisor)) {
-      $query->where('fleet_supervisor', $request->fleet_supervisor);
+      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
     }
     if ($request->has('hub') && ! empty($request->hub)) {
       $query->where('hub', $request->hub);
@@ -480,7 +480,7 @@ class RidersController extends AppBaseController
       $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('fleet_supervisor') && ! empty($request->fleet_supervisor)) {
-      $query->where('fleet_supervisor', $request->fleet_supervisor);
+      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
     }
     if ($request->has('hub') && ! empty($request->hub)) {
       $query->where('hub', $request->hub);

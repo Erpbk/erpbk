@@ -41,7 +41,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                         <p class="text-muted small mb-3">Create a new role with custom permissions</p>
                         <button data-action="{{ route($rolesRoute . '.create') }}"
                             data-title="Create New Role"
-                            data-size="lg"
+                            data-size="xl"
                             class="btn btn-primary btn-sm show-modal">
                             <i class="ti ti-plus me-1"></i>New Role
                         </button>

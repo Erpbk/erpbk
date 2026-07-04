@@ -81,53 +81,44 @@ class RtaFinesController extends AppBaseController
 
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $parentId = Accounts::where('name', 'Current Liabilities')->where('account_type', 'Liability')->first()->id;
-        $defaultAccount = Accounts::query()
-            ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
-            ->orderBy('id', 'asc')
-            ->first();
-        $selectedAccountId = $request->input('rta_account_id')
-            ?? session('rta_selected_account_id')
-            ?? $defaultAccount?->id;
-        \Log::info('selectedAccountId: ' . $selectedAccountId);
         $query = RtaFines::query()
+            ->select(
+                'rta_fines.*',
+                'leasing_companies.name as company'
+            )
+            ->leftJoin('bikes', 'bikes.id', '=', 'rta_fines.bike_id')
+            ->leftJoin('leasing_companies', 'leasing_companies.id', '=', 'bikes.company')
             ->with('branch')
             ->orderBy('trip_date', 'desc');
 
-        $query->where('status', $status);
-
-        if ($selectedAccountId) {
-            $query->where('rta_account_id', $selectedAccountId);
-            session(['rta_selected_account_id' => $selectedAccountId]);
-        } else {
-            // Keep module accessible when no account exists yet.
-            $query->whereRaw('1 = 0');
-        }
+        $query->where('rta_fines.status', $status);
 
         if ($request->filled('ticket_no')) {
-            $query->where('ticket_no', 'like', '%' . $request->ticket_no . '%');
+            $query->where('rta_fines.ticket_no', 'like', '%' . $request->ticket_no . '%');
         }
         if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
+            $query->where('rta_fines.branch_id', $request->branch_id);
         }
         if ($request->filled('billing_month')) {
             $billingMonth = \Carbon\Carbon::parse($request->billing_month);
-            $query->whereYear('billing_month', $billingMonth->year)
-                ->whereMonth('billing_month', $billingMonth->month);
+            $query->whereYear('rta_fines.billing_month', $billingMonth->year)
+                ->whereMonth('rta_fines.billing_month', $billingMonth->month);
         }
         if ($request->filled('trans_code')) {
-            $query->where('trans_code', $request->trans_code);
+            $query->where('rta_fines.trans_code', $request->trans_code);
         }
         if ($request->filled('rider_id')) {
-            $query->where('rider_id', $request->rider_id);
+            $query->where('rta_fines.rider_id', $request->rider_id);
         }
         if ($request->filled('bike_id')) {
-            $query->where('bike_id', $request->bike_id);
+            $query->where('rta_fines.bike_id', $request->bike_id);
         }
-
+        if ($request->filled('company_id')) {
+            $query->where('bikes.company', $request->company_id);
+        }
         $topBarModuleKey = $status === 'paid' ? 'rta_fines_paid' : 'rta_fines_unpaid';
         $this->applyModuleTopBarFilters($query, $request, $topBarModuleKey);
-
+        $leasingCompanies = \App\Models\LeasingCompanies::orderBy('name')->get();
         // Paginated data
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -143,16 +134,10 @@ class RtaFinesController extends AppBaseController
         $totalAmount = $filteredData->sum('amount');
         $serviceCharges = $filteredData->sum('service_charges');
         $adminFee = $filteredData->sum('admin_fee');
-        $account = Accounts::find($selectedAccountId);
-        $rtaAccounts = Accounts::query()
-            ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
-            ->orderBy('name', 'asc')
-            ->get();
         $total_Amount =  $totalAmount + $serviceCharges + $adminFee;
         if ($request->ajax()) {
             $tableData = view('rta_fines.table', [
                 'data' => $data,
-                'account' => $account,
             ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
@@ -168,16 +153,15 @@ class RtaFinesController extends AppBaseController
                     'serviceCharges' => $serviceCharges,
                     'adminFee' => $adminFee,
                     'total_Amount' => $total_Amount,
+                    'leasingCompanies' => $leasingCompanies,
                 ]
             ]);
         }
         return view('rta_fines.index', array_merge([
             'data' => $data,
-            'account' => $account,
             'ticketsRouteName' => $ticketsRouteName,
             'listingStatus' => $status,
             'pageTitle' => $pageTitle,
-            'rtaAccounts' => $rtaAccounts,
             'paidAmount' => $paidAmount,
             'unpaidAmount' => $unpaidAmount,
             'totalAmount' => $totalAmount,
@@ -187,6 +171,7 @@ class RtaFinesController extends AppBaseController
             'serviceCharges' => $serviceCharges,
             'adminFee' => $adminFee,
             'total_Amount' => $total_Amount,
+            'leasingCompanies' => $leasingCompanies,
         ], $this->moduleTopBarListingData($request, $topBarModuleKey)));
     }
 

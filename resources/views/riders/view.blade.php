@@ -405,19 +405,20 @@ $companySlug = request()->route('company_slug');
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
 
-                    @isset($result['company_contact'])
-                    @php
-                    $phone = preg_replace('/[^0-9]/', '', $result['company_contact']);
-                    $whatsappNumber = '+971' . ltrim($phone, '0');
-                    @endphp
-                    <a href="https://wa.me/{{ $whatsappNumber }}"
-                      target="_blank"
-                      class="text-success">
-                      {{ $result['company_contact'] }}
-                    </a>
+                    @if($rider->sim?->number)
+                      @php
+                      $phone = preg_replace('/[^0-9]/', '', $rider->sim?->number ?? '');
+                      if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
+                      else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
+                      @endphp
+                      <a href="https://wa.me/{{ $whatsappNumber }}"
+                        target="_blank"
+                        class="text-success">
+                        {{ $displayNumber }}
+                      </a>
                     @else
                     N/A
-                    @endisset
+                    @endif
 
                   </b>
                 </div>

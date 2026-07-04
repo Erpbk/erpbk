@@ -98,7 +98,7 @@ class SupplierController extends AppBaseController
     ]);
 
     try {
-      $parentId = \App\Models\GlobalAccount::id('SUPPLIER_ACCOUNT');
+      $parentId = \App\Support\GlobalAccounts::id('SUPPLIER_ACCOUNT');
       DB::beginTransaction();
       $supplier = Supplier::create($validated);
       // Create linked account in chart of accounts

@@ -31,14 +31,14 @@
          @case('name')
          <td class="text-start"><a href="{{ route('riders.show', $r->id) }}">{{ $r->name }}</a><br /></td>
          @break
-         @case('company_contact')
+         @case('contact_number')
          @php
-         $phone = preg_replace('/[^0-9]/', '', $r->company_contact);
+         $phone = preg_replace('/[^0-9]/', '', $r->sim?->number ?? '');
          if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
          else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
          @endphp
          <td>
-            @if ($r->company_contact)
+            @if ($phone)
             <a href="https://wa.me/{{ $whatsappNumber }}" target="_blank" class="text-success">{{ $displayNumber }}</a>
             @else N/A @endif
          </td>

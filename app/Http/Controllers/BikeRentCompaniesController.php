@@ -126,13 +126,13 @@ class BikeRentCompaniesController extends AppBaseController
 
         $input = $request->all();
         if($input['customer_type'] == 'bike_rental') {
-            $customersAsset = \App\Models\GlobalAccount::id('VEHICLE_RENTAL_CUSTOMERS');
+            $customersAsset = \App\Support\GlobalAccounts::id('VEHICLE_RENTAL_CUSTOMERS');
             if (!$customersAsset) {
                 Flash::error('Chart of accounts is missing the Customers (Vehicle Rental) (Asset) head. Contact ERP Team to Configure it.');
                 return redirect(route('bikeRentCompanies.index'));
             }
         }else {
-            $customersAsset = \App\Models\GlobalAccount::id('GARAGE_CUSTOMERS');
+            $customersAsset = \App\Support\GlobalAccounts::id('GARAGE_CUSTOMERS');
             if (!$customersAsset) {
                 Flash::error('Chart of accounts is missing the Customers (Garage) (Asset) head. Contact ERP Team to Configure it.');
                 return redirect(route('bikeRentCompanies.index'));

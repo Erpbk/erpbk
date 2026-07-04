@@ -77,7 +77,7 @@ class FuelCompaniesController extends AppBaseController
         }
 
         $input = $request->all();
-        $parentAccount = \App\Models\GlobalAccount::id('FUEL_COMPANIES_PARENT');
+        $parentAccount = \App\Support\GlobalAccounts::id('FUEL_COMPANIES_PARENT');
         if (!$parentAccount) {
             if ($request->ajax()) {
                 return response()->json([

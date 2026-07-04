@@ -43,9 +43,9 @@ class VehiclesCategoryService
             $category->is_system = true;
 
             if (!$category->asset_account_id || !$category->accumulated_depreciation_account_id || !$category->depreciation_expense_account_id) {
-                $category->asset_account_id = \App\Models\GlobalAccount::id('VEHICLES_ASSET');
-                $category->accumulated_depreciation_account_id = \App\Models\GlobalAccount::id('VEHICLES_ACCUMULATED_DEPRECIATION');
-                $category->depreciation_expense_account_id = \App\Models\GlobalAccount::id('VEHICLES_DEPRECIATION_EXPENSE');
+                $category->asset_account_id = \App\Support\GlobalAccounts::id('VEHICLES_ASSET');
+                $category->accumulated_depreciation_account_id = \App\Support\GlobalAccounts::id('VEHICLES_ACCUMULATED_DEPRECIATION');
+                $category->depreciation_expense_account_id = \App\Support\GlobalAccounts::id('VEHICLES_DEPRECIATION_EXPENSE');
             }
             
             $category->save();
@@ -73,9 +73,9 @@ class VehiclesCategoryService
         }
 
         if (!$category->asset_account_id || !$category->accumulated_depreciation_account_id || !$category->depreciation_expense_account_id) {
-           $category->asset_account_id = \App\Models\GlobalAccount::id('VEHICLES_ASSET');
-           $category->accumulated_depreciation_account_id = \App\Models\GlobalAccount::id('VEHICLES_ACCUMULATED_DEPRECIATION');
-           $category->depreciation_expense_account_id = \App\Models\GlobalAccount::id('VEHICLES_DEPRECIATION_EXPENSE');
+           $category->asset_account_id = \App\Support\GlobalAccounts::id('VEHICLES_ASSET');
+           $category->accumulated_depreciation_account_id = \App\Support\GlobalAccounts::id('VEHICLES_ACCUMULATED_DEPRECIATION');
+           $category->depreciation_expense_account_id = \App\Support\GlobalAccounts::id('VEHICLES_DEPRECIATION_EXPENSE');
            $dirty = true;
         }
 

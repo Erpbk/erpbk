@@ -193,6 +193,18 @@
                                 <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
                             </select>
                         </div>
+                        <div class="form-group col-md-12">
+                            <label for="fleet_supervisor">Filter by Supervisor</label>
+                            <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
+                                @php
+                                    $supervisors = company_table('riders')->select('fleet_supervisor')->distinct()->pluck('fleet_supervisor')->toArray();
+                                @endphp
+                                <option value="" selected>Select</option>
+                                @foreach($supervisors as $supervisor)
+                                <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                         <div class="col-md-12 form-group text-center">
                             <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                         </div>
@@ -268,6 +280,11 @@
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Attandence",
             allowClear: true, // ✅ cross icon enable
+        });
+        $('#fleet_supervisor').select2({
+            dropdownParent: $('#searchTopbody'),
+            allowClear: true, // ✅ cross icon enable
+            placeholder: "Filter By Supervisor",
         });
     });
 </script>

@@ -13,6 +13,7 @@
          <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Rider Id</th>
          <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Name</th>
          <th title="Plate No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Plate No: activate to sort column ascending">Plate No</th>
+         <th title="Company" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Company: activate to sort column ascending">Company</th>
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Service Charges</th>
          <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Admin Fee</th>
@@ -41,7 +42,7 @@
             @endif
          </td>
          <td><a href="{{ $fileUrl }}" target="_blank"><i class="fa fa-file"></i></a></td>
-         @if($r->paid_voucher_id)
+         @if(Route::is('rtaFines.paid'))
          @php
             $voucher = $r->paidVoucher;
             $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
@@ -59,6 +60,7 @@
             @endif
          </td>
          <td>{{ $r->plate_no }}</td>
+         <td>{{ $r->company ?? 'Own Bike' }}</td>
          <td>{{ \App\Helpers\Currency::format($r->amount, 2) }}</td>
          <td>{{ \App\Helpers\Currency::format($r->service_charges, 2) }}</td>
          <td>{{ \App\Helpers\Currency::format($r->admin_fee, 2) }}</td>

@@ -481,7 +481,7 @@ class ExpenseController extends AppBaseController
                 'account_id' => $creditAccountId,
                 'debit' => 0,
                 'credit' => $grandTotal,
-                'narration' => 'Expense Payment',
+                'narration' => $request->input('credit_narration', 'Expense Payment'),
                 'reference_id' => $voucher->id,
                 'reference_type' => 'Voucher',
                 'billing_month' => $request->input('billing_month') . '-01',
@@ -543,6 +543,7 @@ class ExpenseController extends AppBaseController
             } elseif ($trans->credit > 0) {
                 $creditEntry = [
                     'account_id' => $trans->account_id,
+                    'narration' => $trans->narration,
                     'amount' => $trans->credit,
                 ];
             }
@@ -649,7 +650,7 @@ class ExpenseController extends AppBaseController
                 'account_id' => $creditAccountId,
                 'debit' => 0,
                 'credit' => $grandTotal,
-                'narration' => 'Expense Payment',
+                'narration' => $request->input('credit_narration', 'Expense Payment'),
                 'reference_id' => $voucher->id,
                 'reference_type' => 'Voucher',
                 'billing_month' => $request->input('billing_month') . '-01',

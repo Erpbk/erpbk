@@ -80,7 +80,7 @@ class SimCompaniesController extends AppBaseController
 
         try {
             
-            $currentLiabilities = \App\Models\GlobalAccount::account('SIM_COMPANIES');
+            $currentLiabilities = \App\Support\GlobalAccounts::account('SIM_COMPANIES');
             DB::beginTransaction();
             $input['created_by'] = auth()->id();
             $simCompany = $this->simCompaniesRepository->create($input);

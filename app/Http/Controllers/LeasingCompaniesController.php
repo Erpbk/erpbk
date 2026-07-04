@@ -101,7 +101,7 @@ class LeasingCompaniesController extends AppBaseController
     {
         $input = $request->all();
         try {
-            $parentAccount = \App\Models\GlobalAccount::account('LEASING_COMPANIES');
+            $parentAccount = \App\Support\GlobalAccounts::account('LEASING_COMPANIES');
             DB::beginTransaction();
             $leasingCompanies = $this->leasingCompaniesRepository->create($input);
             $account = new Accounts;

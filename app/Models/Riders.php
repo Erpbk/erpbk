@@ -338,7 +338,7 @@ class Riders extends BaseModel
   }
   function sim()
   {
-    return $this->hasOne(Sims::class, 'id', 'assign_to');
+    return $this->hasOne(Sims::class, 'assign_to', 'id');
   }
   function country()
   {

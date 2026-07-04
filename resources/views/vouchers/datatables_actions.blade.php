@@ -10,12 +10,19 @@
     }
     return $params;
   };
+  $attachFileRouteParams = static function ($voucherId) use ($__companySlug): array {
+    $params = ['id' => $voucherId];
+    if (!empty($__companySlug)) {
+      $params['company_slug'] = $__companySlug;
+    }
+    return $params;
+  };
 @endphp
 {!! Form::open(['route' => ['vouchers.destroy', $trans_code], 'method' => 'delete','id'=>'formajax']) !!}
 <div class='btn-group'>
     @can('voucher_document')
     <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-        data-action="{{ url('voucher/attach_file/'.$id) }}" class='btn btn-success btn-sm show-modal'>
+        data-action="{{ route('voucher.fileupload', $attachFileRouteParams($id)) }}" class='btn btn-success btn-sm show-modal'>
         <i class="fa fa-file"></i>
     </a>
     @endcan

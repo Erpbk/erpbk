@@ -175,7 +175,7 @@ class UserEmailService
     if (!$this->settingHasPassword($setting)) {
       return [
         'ready' => false,
-        'message' => 'SMTP is not configured for this company. An administrator must open Settings → Email Settings and save a Gmail app password first.',
+        'message' => 'SMTP is not configured for this company. An administrator must create an email account under Settings → Email Accounts and assign it to users.',
         'status' => 422,
       ];
     }

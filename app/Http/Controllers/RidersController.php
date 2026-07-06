@@ -50,7 +50,9 @@ use App\Models\VoucherType;
 use App\Repositories\RidersRepository;
 use App\Services\BikeHistoryLogger;
 use App\Services\Email\CompanyEmailBrandingService;
+use App\Services\Email\EmailAccountService;
 use App\Services\Email\UserEmailService;
+use App\Http\Requests\SendRiderEmailRequest;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
@@ -1955,8 +1957,23 @@ class RidersController extends AppBaseController
 
     if ($request->isMethod('post')) {
       $user = Auth::user();
+      $emailAccountService = app(EmailAccountService::class);
       $emailService = app(UserEmailService::class);
-      $smtpPrep = $emailService->prepareCompanySmtp($user);
+
+      try {
+        $formRequest = SendRiderEmailRequest::createFrom($request);
+        $formRequest->setContainer(app());
+        $formRequest->validateResolved();
+        $validated = $formRequest->validated();
+      } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+          'success' => false,
+          'message' => collect($e->errors())->flatten()->first() ?: 'Validation failed.',
+          'errors' => $e->errors(),
+        ], 422);
+      }
+
+      $smtpPrep = $emailAccountService->prepareAccountSmtp($user, (int) $validated['email_account_id']);
       if (! $smtpPrep['ready']) {
         return response()->json([
           'success' => false,
@@ -1966,37 +1983,34 @@ class RidersController extends AppBaseController
       $fromEmail = $smtpPrep['from_email'];
       $fromName = $smtpPrep['from_name'];
 
-      $toEmail = $request->input('email_to');
-      if (! is_string($toEmail) || trim($toEmail) === '') {
-        return response()->json([
-          'success' => false,
-          'message' => 'Rider email address is missing.',
-        ], 422);
-      }
-      $toEmail = trim($toEmail);
+      $toEmail = trim($validated['email_to']);
 
-      $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
-        ? trim($request->input('email_subject'))
-        : 'Warning for Attendance and Performance - ' . $rider->name . ' (Rider ID: ' . $rider->rider_id . ')';
+      $subject = trim($validated['email_subject']);
 
       $emailHeading = is_string($request->input('email_heading')) && trim($request->input('email_heading')) !== ''
         ? trim($request->input('email_heading'))
         : 'Warning for Attendance and Performance  Rider I,D ' . $rider->rider_id;
 
+      $ccEmails = $emailAccountService->normalizeCcEmails($validated['email_cc'] ?? []);
+
       $brandingService = app(CompanyEmailBrandingService::class);
       $data = $brandingService->mergeIntoMailData([
-        'html' => $request->input('email_message'),
+        'html' => $validated['email_message'],
         'email_heading' => $emailHeading,
         'rider_name' => $rider->name,
         'rider_id' => $rider->rider_id,
       ]);
 
       try {
-        $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
+        $month = $validated['month'] ?? date('Y-m');
+        $fileName = $id . "_monthly_activity_{$month}.xlsx";
         $filePath = storage_path("app/public/{$fileName}");
-        Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
-        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName) {
+        Excel::store(new MonthlyActivityExport($id, $month), "public/{$fileName}");
+        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
           $message->to([$toEmail]);
+          if (! empty($ccEmails)) {
+            $message->cc($ccEmails);
+          }
           $message->from($fromEmail, $fromName);
           $message->replyTo($fromEmail, $fromName);
           $message->subject($subject);
@@ -2007,7 +2021,7 @@ class RidersController extends AppBaseController
           'rider_id' => $id,
           'mail_to' => $toEmail,
           'subject' => $subject,
-          'message' => $request->email_message,
+          'message' => $validated['email_message'],
         ]);
       } catch (\Throwable $e) {
         report($e);
@@ -2025,8 +2039,11 @@ class RidersController extends AppBaseController
     }
 
     $emailBranding = app(CompanyEmailBrandingService::class)->resolveForEmail();
+    $emailAccountService = app(EmailAccountService::class);
+    $assignedEmailAccounts = $emailAccountService->getActiveAssignedAccounts(Auth::user());
+    $defaultCcEmails = app(UserEmailService::class)->getCcRecipientEmails(Auth::user());
 
-    return view('riders.send_email', compact('rider', 'emailBranding'));
+    return view('riders.send_email', compact('rider', 'emailBranding', 'assignedEmailAccounts', 'defaultCcEmails'));
   }
 
   public function exportRiders()

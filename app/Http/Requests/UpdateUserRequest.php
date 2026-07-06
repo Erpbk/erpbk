@@ -44,6 +44,8 @@ class UpdateUserRequest extends FormRequest
 
     // Password is optional on update
     $rules['password'] = 'nullable|string|min:6|confirmed';
+    $rules['email_account_ids'] = 'nullable|array';
+    $rules['email_account_ids.*'] = 'integer|distinct|exists:email_accounts,id';
     return $rules;
   }
 }

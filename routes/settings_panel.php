@@ -33,6 +33,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::any('/profile', [\App\Http\Controllers\UserController::class, 'profile'])->name('settings-panel.profile');
     Route::get('/email-settings', [\App\Http\Controllers\UserEmailSettingsController::class, 'edit'])->name('settings-panel.email-settings.edit');
     Route::post('/email-settings', [\App\Http\Controllers\UserEmailSettingsController::class, 'update'])->name('settings-panel.email-settings.update');
+    Route::resource('email-accounts', \App\Http\Controllers\EmailAccountController::class)->names('settings-panel.email-accounts');
 
     Route::get('vat-settings', [App\Http\Controllers\VatSettingsController::class, 'index'])->name('settings-panel.vat-settings.index');
     Route::post('vat-settings/module-label', [App\Http\Controllers\VatSettingsController::class, 'storeModuleLabel'])->name('settings-panel.vat-settings.store-module-label');

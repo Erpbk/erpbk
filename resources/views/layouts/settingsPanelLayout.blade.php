@@ -88,10 +88,19 @@ $containerNav = 'container-fluid';
           </a>
         </li>
 
+        @if($settingsIsCompanyAdmin)
+        <li class="menu-item {{ Request::is('settings-panel/email-accounts*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.email-accounts.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-mailbox"></i>
+            <div>Email Accounts</div>
+          </a>
+        </li>
+        @endif
+
         <li class="menu-item {{ Request::is('settings-panel/email-settings*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.email-settings.edit', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-mail"></i>
-            <div>Email Settings</div>
+            <div>Email Preferences</div>
           </a>
         </li>
         @can('role_view')

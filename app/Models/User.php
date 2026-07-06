@@ -93,6 +93,17 @@ class User extends Authenticatable
     return $this->belongsTo(Employee::class, 'employee_id', 'id');
   }
 
+  public function emailAccounts()
+  {
+    return $this->belongsToMany(EmailAccount::class, 'email_account_user')
+      ->withTimestamps();
+  }
+
+  public function activeEmailAccounts()
+  {
+    return $this->emailAccounts()->where('email_accounts.status', EmailAccount::STATUS_ACTIVE);
+  }
+
   public function getBranchesAttribute()
   {
     $branchIds = $this->branch_ids;

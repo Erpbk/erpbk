@@ -69,7 +69,6 @@
          <td class="text-center">
             @include('riders._status_badges', [
             'employmentStatus' => data_get($r, 'status'),
-            'optionText' => data_get($r, 'rider_status', ''),
             ])
          </td>
          @break

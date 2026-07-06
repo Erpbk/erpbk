@@ -55,6 +55,7 @@
             <form method="GET" action="{{ route('attendance.summary') }}" class="row g-3" id="summaryFilter">
                 <input type="hidden" name="view_mode" id="view_mode" value="{{ $viewMode }}">
                 <input type="hidden" name="view_start" id="view_start" value="{{ $viewStart }}">
+                <input type="hidden" name="user_type" value="{{ $userType }}">
                 <div class="col-md-3">
                     <label class="form-label fw-semibold">
                         <i class="fas fa-calendar me-1"></i>Month
@@ -64,19 +65,10 @@
                         onchange="this.form.submit()">
                 </div>
 
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-users me-1"></i>Rider or Employees
-                    </label>
-                    <select name="user_type" class="form-select summarySelect" onchange="loadUsers(this.value)">
-                        <option value="employee" {{ $userType == 'employee' ? 'selected' : '' }}>Employees Only</option>
-                        <option value="rider" {{ $userType == 'rider' ? 'selected' : '' }}>Riders Only</option>
-                    </select>
-                </div>
                 <!-- User Selection -->
-                <div class="col-md-3">
+                <div class="col-md-6">
                     <label for="ref_id" class="form-label fw-semibold required">
-                        <i class="fas fa-user me-1"></i>Select Rider or Employees
+                        <i class="fas fa-user me-1"></i>Select {{ $userType === 'rider' ? 'Rider' : 'Employee' }}
                     </label>
                     <select class="form-select summarySelect" onchange="this.form.submit()"
                         id="user_id" name="user_id" required>
@@ -189,8 +181,13 @@
                 <tr>
                     <td class="text-start">
                         <div>
-                            <span class="fw-semibold"><a target="_blank" href="@if($user->type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($user->type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name }}</a></span>
+                            <span class="fw-semibold d-flex align-items-center gap-2"><a target="_blank" href="@if($user->type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($user->type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name }}</a> @if($user->type == 'rider')
+                                <span class="text-muted">
+                                    @include('riders._status_badges', ['employmentStatus' => $user->status])
+                                </span>
+                                @endif</span>
                             <br><span class="text-muted" style="white-space: nowrap;">{{ ($user->designation ?? '') . '-' . $user->branch?->name}}</span>
+
                         </div>
                     </td>
                     <td class="text-center align-middle">

@@ -44,7 +44,7 @@ class Attendance extends BaseModel
         return $query->whereDate('date', $date);
     }
 
-    public function scopeForUser($query, $refId ,$refType)
+    public function scopeForUser($query, $refId, $refType)
     {
         return $query->where('ref_id', $refId)->where('ref_type', $refType);
     }
@@ -62,6 +62,6 @@ class Attendance extends BaseModel
     public function scopeCurrentMonth($query)
     {
         return $query->whereYear('date', now()->year)
-                     ->whereMonth('date', now()->month);
+            ->whereMonth('date', now()->month);
     }
 }

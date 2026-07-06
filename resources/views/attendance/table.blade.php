@@ -57,7 +57,18 @@
                     {{ ucfirst($attendance->ref_type) }}
                 </span>
             </td>
-            <td style="text-align: center;"> <a target="_blank" href="@if($attendance->ref_type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($attendance->ref_type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name ?? 'N/A' }}</a> </td>
+            <td style="text-align: center;">
+                @if($user)
+                <a target="_blank" href="@if($attendance->ref_type === 'employee'){{ route('employees.show', $user->id) }}@elseif($attendance->ref_type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
+                @if($attendance->ref_type === 'rider')
+                <div class="mt-1">
+                    @include('riders._status_badges', ['employmentStatus' => $user->status])
+                </div>
+                @endif
+                @else
+                <span class="text-muted">N/A</span>
+                @endif
+            </td>
             <td style="white-space: nowrap">{{ $attendance->date->format('d M Y') }}</td>
             <td>
                 @if($checkInTime)

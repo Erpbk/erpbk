@@ -133,7 +133,7 @@ class Riders extends BaseModel
 
   /**
    * Human label + Bootstrap badge class for riders.status (bike assign/return lifecycle).
-   * 1 = active on fleet, 3 = inactive/off bike, 4 = vacation hold, 5 = absconded (see BikesController::assignrider).
+   * 1 = active on fleet, 0/2/3 = inactive/off bike, 4 = vacation hold, 5 = absconded (see BikesController::assignrider).
    *
    * @param  int|string|null  $status
    * @return array{label: string, badge: string}
@@ -144,7 +144,7 @@ class Riders extends BaseModel
 
     return match ($code) {
       1 => ['label' => 'Active', 'badge' => 'bg-label-success'],
-      3 => ['label' => 'Inactive', 'badge' => 'bg-label-secondary'],
+      0, 2, 3 => ['label' => 'Inactive', 'badge' => 'bg-label-secondary'],
       4 => ['label' => 'Vacation', 'badge' => 'bg-label-warning'],
       5 => ['label' => 'Absconded', 'badge' => 'bg-label-danger'],
       default => [

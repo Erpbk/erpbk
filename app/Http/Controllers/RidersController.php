@@ -2149,78 +2149,143 @@ class RidersController extends AppBaseController
 
   public function setRiderTopOption(Request $request, $company_slug, $id)
   {
-    $rider = $this->ridersRepository->find($id);
+    $rider = $this->findAccessibleRider((int) $id);
     if (empty($rider)) {
       return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
     }
 
+    $isClear = $request->filled('clear_option_id');
     $rules = [
       'option_id' => 'nullable|integer|exists:rider_top_options,id',
+      'clear_option_id' => 'nullable|integer|exists:rider_top_options,id',
     ];
-    if ($request->filled('option_id')) {
+    if ($request->filled('option_id') && ! $isClear) {
       $rules['effective_date'] = ['required', 'date', 'before_or_equal:' . now()->toDateString()];
     } else {
       $rules['effective_date'] = ['nullable', 'date', 'before_or_equal:' . now()->toDateString()];
     }
     $validated = $request->validate($rules);
 
-    $optionId = $validated['option_id'] ?? null;
+    $targetOptionId = $isClear
+      ? (int) $validated['clear_option_id']
+      : (int) ($validated['option_id'] ?? 0);
+
+    if ($targetOptionId <= 0) {
+      return response()->json(['success' => false, 'message' => 'Option is required.'], 422);
+    }
+
+    $optionQuery = CompanyQuery::table('rider_top_options as o')
+      ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
+      ->where('o.id', $targetOptionId)
+      ->where('c.show_in_view_cards', 1);
+    if (CompanyContext::shouldApplyScope() && ($companyId = CompanyContext::id())) {
+      $optionQuery->where('c.company_id', $companyId);
+    }
+    $option = $optionQuery
+      ->select('o.id', 'o.name', 'o.category_id', 'c.rider_column', 'c.name as category_name')
+      ->first();
+
+    if (! $option) {
+      return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
+    }
+
+    $column = trim((string) ($option->rider_column ?? ''));
+    if ($column === '' || ! Schema::hasColumn('riders', $column)) {
+      return response()->json(['success' => false, 'message' => 'Invalid rider column for this option.'], 422);
+    }
+
     $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
+    $bike = Bikes::where('rider_id', $rider->id)->first();
+    $before = RiderHistoryLogger::riderSnapshot($rider);
+    $previousColumnValue = $rider->{$column};
 
-    $option = null;
-    if (! empty($optionId)) {
-      $optionQuery = CompanyQuery::table('rider_top_options as o')
-        ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
-        ->where('o.id', $optionId)
-        ->where('c.show_in_view_cards', 1);
-      if (CompanyContext::shouldApplyScope() && ($companyId = CompanyContext::id())) {
-        $optionQuery->where('c.company_id', $companyId);
+    if ($isClear) {
+      $currentValue = trim((string) ($rider->{$column} ?? ''));
+      $optionName = trim((string) $option->name);
+      $valueMatches = $currentValue !== '' && strcasecmp($currentValue, $optionName) === 0;
+      $fkMatches = (int) ($rider->rider_top_option_id ?? 0) === (int) $option->id;
+
+      if (! $valueMatches && ! $fkMatches) {
+        $employment = Riders::employmentStatusDisplay($rider->status);
+
+        return response()->json([
+          'success' => true,
+          'message' => 'Rider option already cleared.',
+          'column' => $column,
+          'value' => $rider->{$column},
+          'option_id' => $rider->rider_top_option_id,
+          'rider_status' => $rider->rider_status,
+          'employment_status' => $rider->status,
+          'employment_label' => $employment['label'],
+          'employment_badge' => $employment['badge'],
+        ]);
       }
-      $option = $optionQuery
-        ->select('o.id', 'o.name', 'c.rider_column')
-        ->first();
-      if (! $option) {
-        return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
+
+      if ($valueMatches) {
+        $rider->{$column} = null;
       }
+      if ($fkMatches) {
+        $rider->rider_top_option_id = null;
+      }
+      if ($column === 'rider_status' && $valueMatches) {
+        $rider->status = $bike ? 1 : 3;
+      }
+      $title = 'View card cleared: ' . $option->name;
+      $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: —';
+    } else {
+      $rider->{$column} = (string) $option->name;
+      $rider->rider_top_option_id = (int) $option->id;
+      if ($column === 'rider_status') {
+        $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
+        $rider->status = in_array((string) $option->name, $inactiveStatuses, true) ? 3 : 1;
+      }
+      $title = 'View card: ' . $option->name;
+      $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: ' . $option->name;
     }
 
-    $prevOptionId = $rider->rider_top_option_id;
-    $prevRiderStatus = $rider->rider_status;
-    $prevEmployment = $rider->status;
-
-    $rider->rider_top_option_id = $option?->id;
-    $rider->rider_status = $option ? (string) $option->name : null;
-    if ($rider->rider_status !== null) {
-      $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
-      $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
-    }
     $rider->save();
+    $rider = $rider->fresh();
+    $after = RiderHistoryLogger::riderSnapshot($rider);
 
-    RiderHistoryLogger::record(
+    RiderHistoryLogger::bikeAssignStatusChange(
       (int) $rider->id,
-      'status_change',
-      $option ? ('View card: ' . $option->name) : 'View card cleared',
-      null,
-      [
-        'previous_rider_status' => $prevRiderStatus,
-        'new_rider_status' => $rider->rider_status,
-        'previous_option_id' => $prevOptionId,
-        'new_option_id' => $rider->rider_top_option_id,
-        'previous_employment_status' => $prevEmployment,
-        'new_employment_status' => $rider->status,
-      ],
+      $title,
+      $details,
+      $before,
+      $after,
       $effectiveDate,
-      RiderHistoryLogger::resolveBranchId($rider)
+      'rider_view_card',
+      RiderHistoryLogger::resolveBranchId($rider, $bike),
+      [
+        'column' => $column,
+        'category_name' => $option->category_name,
+        'option_id' => (int) $option->id,
+        'option_name' => $option->name,
+        'cleared' => $isClear,
+        'rider_status_option' => $column === 'rider_status' ? $rider->rider_status : null,
+        'employment_status' => $rider->status,
+        'display_status' => Riders::historyStatusLabel($rider),
+      ],
+      Riders::historyStatusLabel($rider),
+      $rider,
+      $bike
     );
 
-    Riders::syncDisplayStatus($rider->fresh());
+    Riders::syncDisplayStatus($rider);
+
+    $employment = Riders::employmentStatusDisplay($rider->status);
 
     return response()->json([
       'success' => true,
-      'message' => 'Rider view card option and status updated successfully.',
-      'option_id' => $option?->id,
-      'option_label' => $option?->name,
+      'message' => $isClear ? 'Rider option cleared successfully.' : 'Rider view card option updated successfully.',
+      'column' => $column,
+      'value' => $rider->{$column},
+      'option_id' => $rider->rider_top_option_id,
+      'option_label' => $column === 'rider_status' ? $rider->rider_status : $rider->{$column},
       'rider_status' => $rider->rider_status,
+      'employment_status' => $rider->status,
+      'employment_label' => $employment['label'],
+      'employment_badge' => $employment['badge'],
     ]);
   }
 

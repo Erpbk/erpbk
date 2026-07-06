@@ -261,6 +261,37 @@ class Riders extends BaseModel
     }
   }
 
+  /**
+   * Extra SELECT columns for riders index: last employment status change + day count.
+   *
+   * @return list<\Illuminate\Contracts\Database\Query\Expression|string>
+   */
+  public static function employmentStatusDaysSelectColumns(): array
+  {
+    if (!Schema::hasTable('rider_histories')) {
+      return [
+        DB::raw('NULL as last_employment_status_change_date'),
+        DB::raw('NULL as employment_status_days'),
+      ];
+    }
+
+    $matchedDate = "(SELECT MAX(rh.effective_date) FROM rider_histories rh
+      WHERE rh.rider_id = riders.id
+      AND rh.event_type = 'status_change'
+      AND CAST(JSON_UNQUOTE(JSON_EXTRACT(rh.meta, '$.new_employment_status')) AS UNSIGNED) = riders.status)";
+
+    $fallbackDate = "(SELECT MAX(rh.effective_date) FROM rider_histories rh
+      WHERE rh.rider_id = riders.id
+      AND rh.event_type = 'status_change')";
+
+    $lastDate = "COALESCE({$matchedDate}, {$fallbackDate}, DATE(riders.updated_at))";
+
+    return [
+      DB::raw("{$lastDate} as last_employment_status_change_date"),
+      DB::raw("DATEDIFF(CURDATE(), {$lastDate}) as employment_status_days"),
+    ];
+  }
+
   public function scopeActive($query)
   {
     return $query->where('status', 1);

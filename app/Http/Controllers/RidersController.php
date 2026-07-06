@@ -512,6 +512,8 @@ class RidersController extends AppBaseController
       $query->select('riders.*');
     }
 
+    $query->addSelect(Riders::employmentStatusDaysSelectColumns());
+
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
 
@@ -605,6 +607,8 @@ class RidersController extends AppBaseController
         });
       $query->select('riders.*');
     }
+
+    $query->addSelect(Riders::employmentStatusDaysSelectColumns());
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);

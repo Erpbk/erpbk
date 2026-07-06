@@ -69,6 +69,8 @@
          <td class="text-center">
             @include('riders._status_badges', [
             'employmentStatus' => data_get($r, 'status'),
+            'statusDays' => data_get($r, 'employment_status_days'),
+            'statusChangedAt' => data_get($r, 'last_employment_status_change_date'),
             ])
          </td>
          @break

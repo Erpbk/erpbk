@@ -666,7 +666,7 @@ class AttendanceController extends Controller
 
         if ($userType === 'employee') {
             if ($userId === 'all') {
-                $users = Employee::active()->with('branch')->select('id', 'name', 'employee_id', 'branch_id', 'designation')
+                $users = Employee::active()->with('branch')->select('id', 'name', 'employee_id', 'branch_id', 'designation', 'status')
                     ->get()
                     ->map(function ($item) {
                         $item->type = 'employee';
@@ -688,7 +688,7 @@ class AttendanceController extends Controller
 
         if ($userType === 'rider') {
             if ($userId === 'all') {
-                $users = Riders::active()->select('id', 'name', 'rider_id')
+                $users = Riders::active()->select('id', 'name', 'rider_id', 'status')
                     ->get()
                     ->map(function ($item) {
                         $item->type = 'rider';

@@ -181,11 +181,14 @@
                 <tr>
                     <td class="text-start">
                         <div>
-                            <span class="fw-semibold d-flex align-items-center gap-2"><a target="_blank" href="@if($user->type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($user->type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name }}</a> @if($user->type == 'rider')
-                                <span class="text-muted">
-                                    @include('riders._status_badges', ['employmentStatus' => $user->status])
-                                </span>
-                                @endif</span>
+                            <span class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
+                                <a target="_blank" href="@if($user->type === 'employee'){{ route('employees.show', $user->id) }}@elseif($user->type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
+                                @if($user->type === 'rider')
+                                @include('riders._status_badges', ['employmentStatus' => $user->status])
+                                @elseif($user->type === 'employee')
+                                @include('employees._status_badges', ['status' => $user->status])
+                                @endif
+                            </span>
                             <br><span class="text-muted" style="white-space: nowrap;">{{ ($user->designation ?? '') . '-' . $user->branch?->name}}</span>
 
                         </div>

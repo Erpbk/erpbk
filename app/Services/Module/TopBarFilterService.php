@@ -45,7 +45,9 @@ class TopBarFilterService
         }
 
         $strategy = (string) ($config['filter_strategy'] ?? 'column');
-        if ($strategy === 'option_fk') {
+        if ($strategy === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
+            $this->applyColumnFilter($query, $config, $option, $request);
+        } elseif ($strategy === 'option_fk') {
             $this->applyOptionFkFilter($query, $config, $option, $request);
         } else {
             $this->applyColumnFilter($query, $config, $option, $request);
@@ -152,7 +154,9 @@ class TopBarFilterService
         $req = $request ?? new Request();
         $req->merge([(string) ($config['request']['option_id'] ?? 'top_option_id') => $option->getKey()]);
 
-        if (($config['filter_strategy'] ?? '') === 'option_fk') {
+        if (($config['filter_strategy'] ?? '') === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
+            $this->applyColumnFilter($query, $config, $option, $req);
+        } elseif (($config['filter_strategy'] ?? '') === 'option_fk') {
             $this->applyOptionFkFilter($query, $config, $option, $req);
         } else {
             $this->applyColumnFilter($query, $config, $option, $req);
@@ -270,6 +274,22 @@ class TopBarFilterService
         }
 
         return $optionClass::query()->with('category')->find($optionId);
+    }
+
+    /**
+     * Riders (and similar modules) store some categories on scalar columns (fleet_supervisor, rider_status)
+     * while others use the FK column (rider_top_option_id).
+     */
+    protected function shouldUseColumnFilterInsteadOfFk(array $config, Model $option): bool
+    {
+        $fkColumn = trim((string) ($config['fk_column'] ?? ''));
+        $categoryColumn = $this->resolveColumn($config, $option);
+
+        if ($categoryColumn === null) {
+            return false;
+        }
+
+        return $categoryColumn !== $fkColumn;
     }
 
     protected function resolveColumn(array $config, Model $option): ?string

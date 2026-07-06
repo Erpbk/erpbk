@@ -320,7 +320,7 @@ $companySlug = request()->route('company_slug');
         }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
         $riderStatusLabel = trim((string)($result['rider_status'] ?? ''));
         $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
-        $displayStatusLabel = $riderStatusLabel !== '' ? $riderStatusLabel : $employmentBadge['label'];
+        $displayStatusLabel = $employmentBadge['label'];
         @endphp
         @endisset
         <div class="user-avatar-section">
@@ -486,8 +486,8 @@ $companySlug = request()->route('company_slug');
             @foreach($category->options as $option)
             @php
             $isSelected = $riderTopColumn !== ''
-              && array_key_exists($riderTopColumn, $result)
-              && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
+            && array_key_exists($riderTopColumn, $result)
+            && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
             $cardKey = 'rider_top_option_' . $option->id;
             $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
             @endphp
@@ -1027,7 +1027,7 @@ $companySlug = request()->route('company_slug');
         }
       }
       if (statusValueBadge) {
-        const label = data.rider_status || data.employment_label || 'Inactive';
+        const label = data.employment_label || 'Inactive';
         statusValueBadge.textContent = label;
         statusValueBadge.className = 'badge ' + (data.employment_badge || 'bg-label-danger');
       }
@@ -1047,9 +1047,14 @@ $companySlug = request()->route('company_slug');
 
       const setOptionUrlTemplate = "{{ route('riders.setRiderTopOption', ['id' => '__RID__']) }}";
       const setOptionUrl = setOptionUrlTemplate.replace('__RID__', riderId);
-      const body = isClear
-        ? { clear_option_id: requestOptionId }
-        : { option_id: requestOptionId, effective_date: effectiveDate };
+      const body = isClear ?
+        {
+          clear_option_id: requestOptionId
+        } :
+        {
+          option_id: requestOptionId,
+          effective_date: effectiveDate
+        };
 
       return fetch(setOptionUrl, {
           method: 'POST',

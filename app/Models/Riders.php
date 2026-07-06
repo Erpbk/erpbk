@@ -155,6 +155,38 @@ class Riders extends BaseModel
   }
 
   /**
+   * Whether a view-card option should update riders.status (bike assignment column).
+   */
+  public static function topOptionAffectsEmploymentStatus(?string $optionName): bool
+  {
+    $name = strtolower(trim((string) $optionName));
+
+    return in_array($name, ['active', 'vacation', 'absconder', 'absconded', 'cancel', 'inactive'], true);
+  }
+
+  /**
+   * Map rider view-card option to riders.status (bike assign / return lifecycle).
+   */
+  public static function employmentStatusCodeForTopOption(?string $optionName, ?Bikes $bike = null, bool $cleared = false): int
+  {
+    if ($cleared || $optionName === null || trim($optionName) === '') {
+      $hasActiveBike = $bike && strcasecmp((string) ($bike->warehouse ?? ''), 'Active') === 0;
+
+      return $hasActiveBike ? 1 : 3;
+    }
+
+    $name = strtolower(trim($optionName));
+
+    return match ($name) {
+      'active' => 1,
+      'vacation' => 4,
+      'absconder', 'absconded' => 5,
+      'cancel', 'inactive' => 3,
+      default => ($bike && strcasecmp((string) ($bike->warehouse ?? ''), 'Active') === 0) ? 1 : 3,
+    };
+  }
+
+  /**
    * Rider option / flag badge (matches riders/table.blade.php).
    */
   public static function riderOptionStatusBadge(?string $optionText): ?array

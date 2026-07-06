@@ -2227,17 +2227,22 @@ class RidersController extends AppBaseController
       if ($fkMatches) {
         $rider->rider_top_option_id = null;
       }
-      if ($column === 'rider_status' && $valueMatches) {
-        $rider->status = $bike ? 1 : 3;
+      if ($column === 'rider_status' && $valueMatches && Riders::topOptionAffectsEmploymentStatus($option->name)) {
+        $rider->status = Riders::employmentStatusCodeForTopOption(null, $bike, true);
+      } elseif ($column === 'status' && $valueMatches) {
+        $rider->status = Riders::employmentStatusCodeForTopOption(null, $bike, true);
       }
       $title = 'View card cleared: ' . $option->name;
       $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: —';
     } else {
-      $rider->{$column} = (string) $option->name;
+      if ($column === 'status') {
+        $rider->status = Riders::employmentStatusCodeForTopOption((string) $option->name, $bike, false);
+      } elseif ($column !== 'status') {
+        $rider->{$column} = (string) $option->name;
+      }
       $rider->rider_top_option_id = (int) $option->id;
-      if ($column === 'rider_status') {
-        $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
-        $rider->status = in_array((string) $option->name, $inactiveStatuses, true) ? 3 : 1;
+      if ($column === 'rider_status' && Riders::topOptionAffectsEmploymentStatus($option->name)) {
+        $rider->status = Riders::employmentStatusCodeForTopOption((string) $option->name, $bike, false);
       }
       $title = 'View card: ' . $option->name;
       $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: ' . $option->name;

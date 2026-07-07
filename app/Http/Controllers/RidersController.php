@@ -572,7 +572,7 @@ class RidersController extends AppBaseController
     // Filter by rider status (active = 1, inactive = 0 or 2)
     $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
     if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'status', $riderStatusKeys);
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
 
     if ($request->filled('quick_search')) {
@@ -1292,12 +1292,30 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function job_status($company_slug, $id, Request $request)
+  public function job_status(Request $request, $company_slug = null, $id = null)
   {
+    $postedRiderId = $request->input('rider_id');
+    if ($id === null && is_numeric($postedRiderId)) {
+      $id = (int) $postedRiderId;
+    }
+
+    if ($id === null && is_numeric($company_slug)) {
+      $id = (int) $company_slug;
+    }
+
+    if (! is_numeric($id)) {
+      return response('Rider not found.', 404);
+    }
+
+    $id = (int) $id;
     $riders = Riders::find($id);
+    if (! $riders) {
+      return response('Rider not found.', 404);
+    }
 
     if ($request->isMethod('post')) {
       $input = $request->all();
+      unset($input['rider_id']);
       $input['RID'] = $id;
       $input['status_by'] = auth()->user()->id;
       JobStatus::create($input);
@@ -1305,7 +1323,10 @@ class RidersController extends AppBaseController
       /*  $rider = Riders::find($id);
              $rider->job_status = $input['job_status'];
              $rider->save(); */
-      return 'Timeline added successfully';
+      return response()->json([
+        'success' => true,
+        'message' => 'Timeline added successfully.',
+      ]);
     }
 
     return view('riders.job_status-modal', compact('riders'));

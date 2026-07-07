@@ -60,6 +60,8 @@ class SettingsPanelMenuRegistry
             'legal_case' => 'settings-panel.legal-case-statuses.index',
             'rider_inventory_items' => 'settings-panel.rider-inventory-items.index',
             'rider_invoice_templates' => 'settings-panel.rider-invoice-templates.index',
+            'activities' => 'settings-panel.rider-activity-import-settings.index',
+            'live_activities' => 'settings-panel.rider-activity-import-settings.index',
             'bike_registration' => 'settings-panel.bike-registration-statuses.index',
             'bike_list' => 'settings-panel.module-settings.index',
             'dashboard' => 'settings-panel.module-settings.index',
@@ -79,6 +81,14 @@ class SettingsPanelMenuRegistry
                 $params['module'] = $settingsModuleKey === 'dashboard'
                     ? 'dashboard'
                     : $settingsModuleKey;
+            }
+
+            if ($routeName === 'settings-panel.rider-activity-import-settings.index') {
+                if ($settingsModuleKey === 'live_activities' && !isset($params['import_type'])) {
+                    $params['import_type'] = 'live';
+                } elseif ($settingsModuleKey === 'activities' && !isset($params['import_type'])) {
+                    $params['import_type'] = 'rider';
+                }
             }
 
             return route($routeName, $params);
@@ -106,6 +116,8 @@ class SettingsPanelMenuRegistry
             'visa_expense' => ['settings-panel/visa-statuses*', 'settings-panel/visa-renewal-categories*', 'settings-panel/module-settings/visa_expense*'],
             'rider_inventory_items' => ['settings-panel/rider-inventory-items*'],
             'rider_invoice_templates' => ['settings-panel/rider-invoice-templates*'],
+            'activities' => ['settings-panel/rider-activity-import-settings*', 'settings-panel/module-settings/activities*'],
+            'live_activities' => ['settings-panel/rider-activity-import-settings*', 'settings-panel/module-settings/live_activities*'],
             'bike_registration' => ['settings-panel/bike-registration-statuses*', 'settings-panel/module-settings/bike_registration*'],
             'bike_list' => ['settings-panel/module-settings/bike_list*'],
             'dashboard' => ['settings-panel/module-settings/dashboard*'],

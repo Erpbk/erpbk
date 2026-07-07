@@ -5,6 +5,11 @@ $importSummary = session('activities_import_summary');
 $validationErrors = $errors ? $errors->all() : [];
 $formAction = $formAction ?? route('rider.activities_import');
 $errorsRoute = $errorsRoute ?? route('rider.activities_import_errors', ['type' => 'noon']);
+$customers = $customers ?? collect();
+$configuredCustomerIds = $configuredCustomerIds ?? [];
+$defaultCustomerId = $defaultCustomerId ?? \App\Services\RiderActivities\RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID;
+$importSettingsUrl = $importSettingsUrl ?? null;
+$selectedCustomerId = (int) old('customer_id', $defaultCustomerId);
 @endphp
 
 <form
@@ -25,8 +30,15 @@ $errorsRoute = $errorsRoute ?? route('rider.activities_import_errors', ['type' =
       </a>
       @endif
       <p class="text-muted mt-2">
-        <small>Note: The file should have headers with date, rider_id, payout_type, and other activity fields. See sample file for format.</small>
+        <small>Select the project, then upload the Excel file. Column mappings are loaded from import settings for that project.</small>
       </p>
+      @if($importSettingsUrl)
+      <p class="mb-0">
+        <a href="{{ $importSettingsUrl }}" target="_blank" class="text-primary small">
+          <i class="fa fa-cog"></i> Configure import mappings per project
+        </a>
+      </p>
+      @endif
     </div>
     <div class="row">
       <div class="col-12">
@@ -36,6 +48,22 @@ $errorsRoute = $errorsRoute ?? route('rider.activities_import_errors', ['type' =
           </a>
         </div>
       </div>
+    </div>
+    <div class="col-12 mt-3 mb-3">
+      <label class="mb-2 pl-2">Project</label>
+      <select name="customer_id" class="form-control mb-3" required>
+        @forelse($customers as $customer)
+        @php
+        $isReady = in_array((int) $customer->id, $configuredCustomerIds, true)
+          || (int) $customer->id === (int) $defaultCustomerId;
+        @endphp
+        <option value="{{ $customer->id }}" @selected((int) $customer->id === $selectedCustomerId) @disabled(!$isReady)>
+          {{ $customer->name }}@if((int) $customer->id === (int) $defaultCustomerId) (Noon — default)@endif@if(!$isReady) — configure in settings @endif
+        </option>
+        @empty
+        <option value="{{ $defaultCustomerId }}" selected>Default Project (ID: {{ $defaultCustomerId }})</option>
+        @endforelse
+      </select>
     </div>
     <div class="col-12 mt-3 mb-3">
       <label class="mb-3 pl-2">Select file</label>

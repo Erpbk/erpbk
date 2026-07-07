@@ -23,7 +23,7 @@
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      @forelse($data as $r)
       <tr class="text-center">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
@@ -155,7 +155,20 @@
          @endforeach
          <td></td>
       </tr>
-      @endforeach
+      @empty
+      @php
+      $hasSupervisorOrStatusFilter = request()->filled('fleet_supervisor')
+      || request()->filled('rider_status')
+      || request()->filled('status');
+      @endphp
+      <tr>
+         <td colspan="{{ count($dataColumns) + 1 }}" class="text-center text-danger py-3">
+            {{ $hasSupervisorOrStatusFilter
+            ? 'This rider does not belong to this supervisor or status.'
+            : 'No riders found for the selected filters.' }}
+         </td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
 @if(method_exists($data, 'links'))

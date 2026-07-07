@@ -330,7 +330,7 @@ $companySlug = request()->route('company_slug');
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
                     <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $riderStatusLabel !== '' ? $riderStatusLabel : ($result['designation'] ?? 'not-set') }}@endisset</span>
-                    <span class="badge {{ $employmentBadge['badge'] }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
+                    <span class="badge {{ $employmentBadge['badge'] ?? 'bg-label-danger   ' }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
                   </div>
                   <span>{{ $result['rider_id'] ?? 'not-set' }}</span>
                   <h6>
@@ -1047,14 +1047,12 @@ $companySlug = request()->route('company_slug');
 
       const setOptionUrlTemplate = "{{ route('riders.setRiderTopOption', ['id' => '__RID__']) }}";
       const setOptionUrl = setOptionUrlTemplate.replace('__RID__', riderId);
-      const body = isClear ?
-        {
-          clear_option_id: requestOptionId
-        } :
-        {
-          option_id: requestOptionId,
-          effective_date: effectiveDate
-        };
+      const body = isClear ? {
+        clear_option_id: requestOptionId
+      } : {
+        option_id: requestOptionId,
+        effective_date: effectiveDate
+      };
 
       return fetch(setOptionUrl, {
           method: 'POST',

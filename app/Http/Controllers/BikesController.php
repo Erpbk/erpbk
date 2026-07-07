@@ -803,6 +803,9 @@ class BikesController extends AppBaseController
                     $message .= "*Project:* {$bike->customer->name}\n";
                 }
                 $message .= "*Emirates:* {$bike->emirates}\n";
+                if ($request->note) {
+                    $message .= "*Note:* {$request->note}\n";
+                }
                 $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
 
                 // Status handling

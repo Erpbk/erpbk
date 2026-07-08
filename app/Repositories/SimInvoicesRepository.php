@@ -95,7 +95,7 @@ class SimInvoicesRepository extends BaseRepository
                     if (!empty($simId) && isset($request['rental_amount'][$key]) && $request['rental_amount'][$key] > 0) {
                         $sim = Sims::withTrashed()
                             ->where('id', $simId)
-                            ->where('vendor', $input['vendor_id'])
+                            ->where('company', $input['vendor_id'])
                             ->first();
 
                         if (!$sim) {

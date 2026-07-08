@@ -99,7 +99,12 @@ class SimInvoicesRepository extends BaseRepository
                             ->first();
 
                         if (!$sim) {
-                            throw new \Exception('SIM ID ' . $simId . ' does not belong to this vendor.');
+                            $sim = Sims::withTrashed()->find($simId);
+                            if ($sim && $sim->trashed()) {
+                                throw new \Exception('SIM ID ' . $sim->number . ' is deleted.');
+                            } else {
+                                throw new \Exception('SIM ID ' . $simId . ' does not belong to this vendor.');
+                            }
                         }
 
                         $monthlyRate = (float) $request['rental_amount'][$key];

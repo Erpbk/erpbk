@@ -101,9 +101,9 @@ class SimInvoicesRepository extends BaseRepository
                         if (!$sim) {
                             $sim = Sims::withTrashed()->find($simId);
                             if ($sim && $sim->trashed()) {
-                                throw new \Exception('SIM ID ' . $sim->number . ' is deleted.');
+                                throw new \Exception('SIM ' . $sim->number . ' is deleted.');
                             } else {
-                                throw new \Exception('SIM ID ' . $sim->number . ' does not belong to this vendor.');
+                                throw new \Exception('SIM ' . $sim->number . ' does not belong to this vendor.');
                             }
                         }
 

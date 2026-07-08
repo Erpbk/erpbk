@@ -944,6 +944,10 @@ $(document).ready(function () {
 
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
+    // SIM invoices use a dedicated add-row handler.
+    if ($('#sim-add-new-row').length || $('#rows-container .invoice-item-row').length) {
+      return;
+    }
     event.preventDefault();
     // Clone the first row
     const newRow = $('#rows-container .row:first').clone();
@@ -989,6 +993,10 @@ $(document).ready(function () {
 
   // Remove a row
   $(document).on('click', '.btn-remove-row', function () {
+    // SIM invoices use a dedicated remove-row handler.
+    if ($(this).closest('.invoice-item-row').length) {
+      return;
+    }
     if ($('#rows-container .row').length > 1) {
       $(this).closest('.row').remove();
       // Recalculate total after removing row
@@ -1002,6 +1010,9 @@ $(document).ready(function () {
 
   $(document).on('input change', '.item', function () {
     const row = $(this).closest('.row');
+    if (row.hasClass('invoice-item-row')) {
+      return;
+    }
     const selectedOption = $(this).find('option:selected');
     const itemPrice = parseFloat(selectedOption.data('price')) || 0;
     const itemVat = parseFloat(selectedOption.data('vat')) || 0;
@@ -1013,6 +1024,10 @@ $(document).ready(function () {
 
   $(document).on('input change', '.qty, .rate, .discount, .vat', function () {
     const row = $(this).closest('.row');
+    // Skip SIM invoice rows (they use days/tax prorating).
+    if (row.hasClass('invoice-item-row')) {
+      return;
+    }
     setItemTotal(row);
     setTotal();
   });

@@ -184,7 +184,8 @@ class RiderAttendanceActivitySync
             str_contains($value, 'absent') => 'absent',
             str_contains($value, 'late') => 'late',
             str_contains($value, 'half') => 'half day',
-            str_contains($value, 'holiday') => 'holiday',
+            str_contains($value, 'weekend') => 'weekend',
+            str_contains($value, 'holiday') => 'weekend',
             str_contains($value, 'leave') => 'on leave',
             default => 'present',
         };

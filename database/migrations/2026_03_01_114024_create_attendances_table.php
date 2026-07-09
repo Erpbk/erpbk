@@ -16,7 +16,7 @@ return new class extends Migration
                 $table->date('date');
                 $table->time('check_in')->nullable();
                 $table->time('check_out')->nullable();
-                $table->enum('status', ['present', 'absent', 'late', 'half day','on leave','holiday'])->default('absent');
+                $table->enum('status', ['present', 'absent', 'late', 'half day','on leave','weekend'])->default('absent');
                 $table->text('notes')->nullable();
                 $table->timestamps();
                 

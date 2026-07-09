@@ -185,7 +185,7 @@ class AttendanceController extends Controller
             'ref_id' => 'required|integer',
             'date' => 'required|date',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half day,weekend, on leave',
+            'status' => 'required|in:present,absent,late,half day,weekend,on leave',
             'notes' => 'nullable|string|max:500'
         ];
         if ($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
@@ -287,7 +287,7 @@ class AttendanceController extends Controller
                 'attendances' => 'required|array|min:1',
                 'attendances.*.ref_id' => 'required|integer',
                 'attendances.*.ref_type' => 'required|in:employee,rider',
-                'attendances.*.status' => 'required|in:present,absent,late,half day, on leave, weekend',
+                'attendances.*.status' => 'required|in:present,absent,late,half day,on leave,weekend',
                 'attendances.*.check_in' => 'nullable',
                 'attendances.*.check_out' => 'nullable',
                 'attendances.*.notes' => 'nullable|string|max:500',
@@ -590,7 +590,7 @@ class AttendanceController extends Controller
             $user->total_absent = 0;
             $user->total_late = 0;
             $user->total_halfday = 0;
-            $user->total_holiday = 0;
+            $user->total_weekend = 0;
             $user->total_leave = 0;
             $user->total_unmarked = 0;
 
@@ -629,8 +629,8 @@ class AttendanceController extends Controller
                             $user->total_halfday++;
                             $user->total_present++;
                             break;
-                        case 'holiday':
-                            $user->total_holiday++;
+                        case 'weekend':
+                            $user->total_weekend++;
                             break;
                         case 'on leave':
                             $user->total_leave++;
@@ -653,7 +653,7 @@ class AttendanceController extends Controller
             'total_absent' => $users->sum('total_absent'),
             'total_late' => $users->sum('total_late'),
             'total_halfday' => $users->sum('total_halfday'),
-            'total_holiday' => $users->sum('total_holiday'),
+            'total_weekend' => $users->sum('total_weekend'),
             'total_leave' => $users->sum('total_leave'),
             'total_unmarked' => $users->sum('total_unmarked')
         ];
@@ -874,8 +874,8 @@ class AttendanceController extends Controller
                                 $totalHalfday++;
                                 break;
 
-                            case 'holiday':
-                                $row[] = 'Holiday';
+                            case 'weekend':
+                                $row[] = 'Weekend';
                                 break;
 
                             case 'on leave':

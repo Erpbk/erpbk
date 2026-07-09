@@ -136,8 +136,8 @@
                 <div class="value" id="total_hours">{{ $attendances->where('status', 'half day')->count() ?? 0 }}</div>
             </div>
             <div class="total-card total-3">
-                <div class="label"><i class="fa fa-user-secret"></i>Holiday</div>
-                <div class="value" id="total_hours">{{ $attendances->where('status', 'holiday')->count() ?? 0 }}</div>
+                <div class="label"><i class="fa fa-user-secret"></i>Weekend</div>
+                <div class="value" id="total_hours">{{ $attendances->where('status', 'weekend')->count() ?? 0 }}</div>
             </div>
         </div>
         <div class="card-body table-responsive py-0 px-2" id="table-data">
@@ -195,7 +195,7 @@
                                 <option value="absent">Absent</option>
                                 <option value="late">Late</option>
                                 <option value="half-day">Half Day</option>
-                                <option value="holiday">Holiday</option>
+                                <option value="weekend">Weekend</option>
                             </select>
                         </div>
                     </div>
@@ -482,7 +482,7 @@
                             <option value="absent" ${user.status === 'absent' ? 'selected' : ''}>Absent</option>
                             <option value="late" ${user.status === 'late' ? 'selected' : ''}>Late</option>
                             <option value="half-day" ${user.status === 'half-day' ? 'selected' : ''}>Half Day</option>
-                            <option value="holiday" ${user.status === 'holiday' ? 'selected' : ''}>Holiday</option>
+                            <option value="weekend" ${user.status === 'weekend' ? 'selected' : ''}>Weekend</option>
                         </select>
                     </td>
                     <td class="align-middle">

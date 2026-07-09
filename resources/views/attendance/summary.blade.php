@@ -168,7 +168,7 @@
 <div class="total-card total-3">
     <div class="label"><i class="fa fa-user-secret"></i>Weekends Marked</div>
     <div class="value"><i class="fas fa-umbrella-beach " style="color: #17a2b8;"></i></div>
-    <div class="value"><small>{{ $summary['total_holiday'] .'/'. $totalAttendances }}</small></div>
+    <div class="value"><small>{{ $summary['total_weekend'] .'/'. $totalAttendances }}</small></div>
 </div>
 </div> --}}
 

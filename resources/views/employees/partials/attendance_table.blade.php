@@ -28,7 +28,7 @@
         'late' => 'warning',
         'half day' => 'info',
         'on leave' => 'primary',
-        'holiday' => 'secondary',
+        'weekend' => 'secondary',
       ];
       $statusColor = $statusColors[$attendance->status] ?? 'secondary';
       @endphp

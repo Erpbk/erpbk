@@ -25,6 +25,11 @@ $fields = [
 'value' => $rejected_orders ?? old($namePrefix . 'rejected_orders', ''),
 'step' => '1',
 ],
+'ontime_orders_percentage' => [
+'label' => 'On-Time Performance (%)',
+'value' => $ontime_orders_percentage ?? old($namePrefix . 'ontime_orders_percentage', ''),
+'step' => '0.01',
+],
 ];
 @endphp
 
@@ -33,7 +38,7 @@ $fields = [
     <div class="card border-info">
         <div class="card-header bg-light py-2">
             <h6 class="mb-0 text-info">
-                <i class="fas fa-chart-line me-2"></i>Rider Activity / Orders
+                <i class="fas fa-chart-line me-2"></i>Rider Activity / Performance
             </h6>
         </div>
         <div class="card-body">

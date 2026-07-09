@@ -32,6 +32,15 @@
     .attendance-table th {
         vertical-align: middle;
     }
+
+    .ontime-percent-value {
+        font-weight: 600;
+    }
+
+    .ontime-percent-symbol {
+        color: #9ca3af;
+        font-weight: 400;
+    }
 </style>
 <div class="container-fluid m-0 p-0">
     <!-- Header Section with Navigation -->
@@ -56,7 +65,7 @@
                 <input type="hidden" name="view_mode" id="view_mode" value="{{ $viewMode }}">
                 <input type="hidden" name="view_start" id="view_start" value="{{ $viewStart }}">
                 <input type="hidden" name="user_type" value="{{ $userType }}">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label fw-semibold">
                         <i class="fas fa-calendar me-1"></i>Month
                     </label>
@@ -66,7 +75,7 @@
                 </div>
 
                 <!-- User Selection -->
-                <div class="col-md-6">
+                <div class="col-md-3">
                     <label for="ref_id" class="form-label fw-semibold required">
                         <i class="fas fa-user me-1"></i>Select {{ $userType === 'rider' ? 'Rider' : 'Employee' }}
                     </label>
@@ -75,10 +84,48 @@
                     </select>
                 </div>
 
-                <div class="col-md-3 text-end">
+                <div class="col-md-2">
+                    <label for="project_id" class="form-label fw-semibold">
+                        <i class="fas fa-building me-1"></i>Project
+                    </label>
+                    <select class="form-select summarySelect" onchange="this.form.submit()"
+                        id="project_id" name="project_id" {{ $userType !== 'rider' ? 'disabled' : '' }}>
+                        @if($userType !== 'rider')
+                        <option value="">Only for riders</option>
+                        @else
+                        <option value="">All Projects</option>
+                        @foreach($projects as $project)
+                        <option value="{{ $project->id }}" {{ (string) $projectId === (string) $project->id ? 'selected' : '' }}>
+                            {{ $project->name }}
+                        </option>
+                        @endforeach
+                        @endif
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="fleet_supervisor" class="form-label fw-semibold">
+                        <i class="fas fa-user-tie me-1"></i>Fleet Supervisor
+                    </label>
+                    <select class="form-select summarySelect" onchange="this.form.submit()"
+                        id="fleet_supervisor" name="fleet_supervisor" {{ $userType !== 'rider' ? 'disabled' : '' }}>
+                        @if($userType !== 'rider')
+                        <option value="">Only for riders</option>
+                        @else
+                        <option value="">All Supervisors</option>
+                        @foreach($fleetSupervisors as $supervisor)
+                        <option value="{{ $supervisor }}" {{ (string) $fleetSupervisor === (string) $supervisor ? 'selected' : '' }}>
+                            {{ $supervisor }}
+                        </option>
+                        @endforeach
+                        @endif
+                    </select>
+                </div>
+
+                <div class="col-md-2 text-end">
                     <label class="form-label fw-semibold">&nbsp;</label>
                     <div>
-                        <a href="{{ route('attendance.summary.export') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}"
+                        <a href="{{ route('attendance.summary.export') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&project_id={{ $projectId }}&fleet_supervisor={{ urlencode((string) $fleetSupervisor) }}"
                             class="btn btn-success" target="_blank">
                             <i class="fas fa-file-excel me-2"></i>Export to Excel
                         </a>
@@ -125,24 +172,29 @@
 </div>
 </div> --}}
 
+@php
+$projectQuery = $projectId ? '&project_id=' . urlencode((string) $projectId) : '';
+$fleetSupervisorQuery = $fleetSupervisor ? '&fleet_supervisor=' . urlencode((string) $fleetSupervisor) : '';
+@endphp
+
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 m-3 p-2">
     <div class="btn-group mode-toggle" role="group" aria-label="Summary view modes">
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode=week&view_start=1"
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode=week&view_start=1"
             class="btn {{ $viewMode === 'week' ? 'btn-primary' : 'btn-outline-primary' }}">
             <i class="fas fa-calendar-week me-1"></i>1 Week
         </a>
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode=ten_days&view_start=1"
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode=ten_days&view_start=1"
             class="btn {{ $viewMode === 'ten_days' ? 'btn-primary' : 'btn-outline-primary' }}">
             <i class="fas fa-calendar-day me-1"></i>10 Days
         </a>
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode=month&view_start=1"
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode=month&view_start=1"
             class="btn {{ $viewMode === 'month' ? 'btn-primary' : 'btn-outline-primary' }}">
             <i class="fas fa-calendar-alt me-1"></i>Full Month
         </a>
     </div>
 
     <div class="d-flex align-items-center gap-2">
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode={{ $viewMode }}&view_start={{ $prevStart }}"
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode={{ $viewMode }}&view_start={{ $prevStart }}"
             class="btn btn-outline-secondary {{ !$hasPrevWindow ? 'disabled' : '' }}"
             aria-disabled="{{ !$hasPrevWindow ? 'true' : 'false' }}">
             <i class="fas fa-chevron-left"></i>
@@ -150,7 +202,7 @@
         <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
             {{ $days[0]['number'] ?? 0 }} - {{ end($days)['number'] ?? 0 }} of {{ $monthTotalDays }} Days
         </span>
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&view_mode={{ $viewMode }}&view_start={{ $nextStart }}"
+        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode={{ $viewMode }}&view_start={{ $nextStart }}"
             class="btn btn-outline-secondary {{ !$hasNextWindow ? 'disabled' : '' }}"
             aria-disabled="{{ !$hasNextWindow ? 'true' : 'false' }}">
             <i class="fas fa-chevron-right"></i>
@@ -234,6 +286,9 @@
                     $badgeClass = 'bg-light text-black border';
                     $statusText = '+';
                     }
+                    $ontimeDisplay = \App\Services\Attendance\RiderAttendanceActivitySync::formatOntimePercentageDisplay(
+                    $attendance['ontime_orders_percentage'] ?? null
+                    );
                     @endphp
 
                     <td class="text-center align-middle p-1">
@@ -243,19 +298,35 @@
                             @endif>
                             @if($attendance && $attendance['exists'])
                             <span class="badge {{ $badgeClass }} rounded px-3 py-2"
-                                style="cursor: pointer; min-width: 115px;height: 55px; font-size: 13px;"
+                                style="cursor: pointer; min-width: 115px; min-height: 55px; font-size: 13px;"
                                 data-bs-toggle="tooltip"
                                 title="{{ 
                                                     $attendance && $attendance['exists'] ? (
                                                         ($attendance['check_in'] ? 'In: ' . $attendance['check_in'] : '' )
                                                         . ($attendance['check_out'] ? ' | Out: ' . $attendance['check_out'] :'' )
                                                         . ((!$attendance['check_in'] && !$attendance['check_out']) ? 'Click to edit' : '')
+                                                        . ($ontimeDisplay !== null ? ' | Ontime: ' . $ontimeDisplay . '%' : '')
                                                         . ($attendance['notes'] ? ' Note: ' . $attendance['notes'] : '')
                                                         ) 
                                                     : 'Click to mark attendance' }}">
+                                @if($statusText === 'Present')
+                                @if($attendance['check_in'] && $attendance['check_out'])
+                                {{ $attendance['check_in'] }} - {{ $attendance['check_out'] }}
+                                @elseif($attendance['check_in'])
+                                {{ $attendance['check_in'] }}
+                                @elseif($attendance['check_out'])
+                                {{ $attendance['check_out'] }}
+                                @else
+                                Present
+                                @endif
+                                @if($ontimeDisplay !== null)
+                                <br><small><span class="ontime-percent-value">{{ $ontimeDisplay }}</span><span class="ontime-percent-symbol text-white">%</span></small>
+                                @endif
+                                @else
                                 {{ $statusText }}
                                 @if ($attendance['exists'] && !($statusText === 'Absent') && !($statusText === 'On Leave') && !($statusText === 'Holiday') )
                                 <br>{{ 'In: '.($attendance['check_in'] ?? '') }}<br>{{ 'Out: '.($attendance['check_out'] ?? '') }}
+                                @endif
                                 @endif
                             </span>
                             @else
@@ -313,8 +384,8 @@
 
 @section('page-script')
 <script>
-    const prevWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . '&view_mode=' . $viewMode . '&view_start=' . $prevStart }}";
-    const nextWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . '&view_mode=' . $viewMode . '&view_start=' . $nextStart }}";
+    const prevWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . $projectQuery . $fleetSupervisorQuery . '&view_mode=' . $viewMode . '&view_start=' . $prevStart }}";
+    const nextWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . $projectQuery . $fleetSupervisorQuery . '&view_mode=' . $viewMode . '&view_start=' . $nextStart }}";
 
     $(document).ready(function() {
         loadUsers('{{ $userType }}');

@@ -283,6 +283,7 @@
         'working_hours' => old('working_hours'),
         'cancelled_orders' => old('cancelled_orders'),
         'rejected_orders' => old('rejected_orders'),
+        'ontime_orders_percentage' => old('ontime_orders_percentage'),
     ])
 
     <!-- Form Actions -->

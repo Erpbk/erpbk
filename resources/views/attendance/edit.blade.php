@@ -185,6 +185,12 @@
         'working_hours' => old('working_hours', $attendance->working_hours),
         'cancelled_orders' => old('cancelled_orders', $attendance->cancelled_orders),
         'rejected_orders' => old('rejected_orders', $attendance->rejected_orders),
+        'ontime_orders_percentage' => old(
+            'ontime_orders_percentage',
+            \App\Services\Attendance\RiderAttendanceActivitySync::formatOntimePercentageDisplay(
+                $riderActivity?->ontime_orders_percentage
+            )
+        ),
     ])
 
     <!-- Form Actions -->

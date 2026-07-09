@@ -187,7 +187,7 @@
             </td>
             <td>{{ $r->delivered_orders }}</td>
             <td>{{ $r->login_hr }}</td>
-            <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
+            <td>@if($r->ontime_orders_percentage){{ number_format($r->ontime_orders_percentage * 100, 2) }}% @else - @endif</td>
             <td>{{ $r->rejected_orders }}</td>
             <td>
               @php

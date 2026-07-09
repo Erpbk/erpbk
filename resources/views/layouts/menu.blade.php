@@ -95,12 +95,12 @@ $homeLink = $isAdminLogin
       </a>
     </li>
 
-    <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'employee' ? 'active' : '' }}">
+    <!-- <li class="menu-item {{ Route::is('attendance.index') && request('ref_type') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_records'])
         {{ $menuLabels['attendance_records'] ?? 'Attendance Records' }}
       </a>
-    </li>
+    </li> -->
     <li class="menu-item {{ Route::is('attendance.summary') && request('user_type', 'employee') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.summary', ['user_type' => 'employee']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])

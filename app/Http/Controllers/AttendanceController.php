@@ -84,7 +84,7 @@ class AttendanceController extends Controller
             'date' => 'required|date',
             'check_in' => 'nullable',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half day,holiday,on leave',
+            'status' => 'required|in:present,absent,late,half day,weekend,on leave',
             'notes' => 'nullable|string|max:500'
         ];
         if ($request->ref_type === 'employee') {
@@ -185,7 +185,7 @@ class AttendanceController extends Controller
             'ref_id' => 'required|integer',
             'date' => 'required|date',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half day, holiday, on leave',
+            'status' => 'required|in:present,absent,late,half day,weekend, on leave',
             'notes' => 'nullable|string|max:500'
         ];
         if ($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
@@ -287,7 +287,7 @@ class AttendanceController extends Controller
                 'attendances' => 'required|array|min:1',
                 'attendances.*.ref_id' => 'required|integer',
                 'attendances.*.ref_type' => 'required|in:employee,rider',
-                'attendances.*.status' => 'required|in:present,absent,late,half day, on leave, holiday',
+                'attendances.*.status' => 'required|in:present,absent,late,half day, on leave, weekend',
                 'attendances.*.check_in' => 'nullable',
                 'attendances.*.check_out' => 'nullable',
                 'attendances.*.notes' => 'nullable|string|max:500',

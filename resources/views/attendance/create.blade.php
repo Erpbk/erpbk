@@ -212,7 +212,7 @@
                 <option value="late" {{ old('status') == 'late' ? 'selected' : '' }}>Late</option>
                 <option value="half day" {{ old('status') == 'half day' ? 'selected' : '' }}>Half Day</option>
                 <option value="on leave" {{ old('status') == 'on leave' ? 'selected' : '' }}>On Leave</option>
-                <option value="holiday" {{ old('status') == 'holiday' ? 'selected' : '' }}>Holiday</option>
+                <option value="weekend" {{ old('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
             </select>
         </div>
     </div>
@@ -278,12 +278,12 @@
     </div>
 
     @include('attendance.partials.rider_activity_fields', [
-        'refType' => $refTypes ?? old('ref_type', 'employee'),
-        'total_orders' => old('total_orders'),
-        'working_hours' => old('working_hours'),
-        'cancelled_orders' => old('cancelled_orders'),
-        'rejected_orders' => old('rejected_orders'),
-        'ontime_orders_percentage' => old('ontime_orders_percentage'),
+    'refType' => $refTypes ?? old('ref_type', 'employee'),
+    'total_orders' => old('total_orders'),
+    'working_hours' => old('working_hours'),
+    'cancelled_orders' => old('cancelled_orders'),
+    'rejected_orders' => old('rejected_orders'),
+    'ontime_orders_percentage' => old('ontime_orders_percentage'),
     ])
 
     <!-- Form Actions -->
@@ -481,7 +481,7 @@
         // If present status, ensure at least check-in is provided
         if ((status === 'present' || status === 'half day' || status === 'late') && !checkIn) {
             toastr.error('Check-in time is required for Present status!');
-        } else if ((status === 'absent' || status === 'holiday') && checkIn) {
+        } else if ((status === 'absent' || status === 'weekend') && checkIn) {
             toastr.warning('Check-in time is not allowed for Absent status!');
         }
     }

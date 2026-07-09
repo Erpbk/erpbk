@@ -166,7 +166,7 @@
     <div class="value"><small>{{ $summary['total_halfday'] .'/'. $totalAttendances }}</small></div>
 </div>
 <div class="total-card total-3">
-    <div class="label"><i class="fa fa-user-secret"></i>Holidays Marked</div>
+    <div class="label"><i class="fa fa-user-secret"></i>Weekends Marked</div>
     <div class="value"><i class="fas fa-umbrella-beach " style="color: #17a2b8;"></i></div>
     <div class="value"><small>{{ $summary['total_holiday'] .'/'. $totalAttendances }}</small></div>
 </div>
@@ -273,9 +273,9 @@ $fleetSupervisorQuery = $fleetSupervisor ? '&fleet_supervisor=' . urlencode((str
                     $badgeClass = 'bg-info';
                     $statusText = 'Half Day';
                     break;
-                    case 'holiday':
+                    case 'weekend':
                     $badgeClass = 'bg-secondary';
-                    $statusText = 'Holiday';
+                    $statusText = 'Weekend';
                     break;
                     case 'on leave':
                     $badgeClass = 'bg-dark';
@@ -324,7 +324,7 @@ $fleetSupervisorQuery = $fleetSupervisor ? '&fleet_supervisor=' . urlencode((str
                                 @endif
                                 @else
                                 {{ $statusText }}
-                                @if ($attendance['exists'] && !($statusText === 'Absent') && !($statusText === 'On Leave') && !($statusText === 'Holiday') )
+                                @if ($attendance['exists'] && !($statusText === 'Absent') && !($statusText === 'On Leave') && !($statusText === 'Weekend') )
                                 <br>{{ 'In: '.($attendance['check_in'] ?? '') }}<br>{{ 'Out: '.($attendance['check_out'] ?? '') }}
                                 @endif
                                 @endif

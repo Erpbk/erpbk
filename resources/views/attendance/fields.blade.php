@@ -83,7 +83,7 @@ default => '-- Select employee or rider first --',
             <option value="absent" {{ old('status') == 'absent' ? 'selected' : '' }}>Absent</option>
             <option value="late" {{ old('status') == 'late' ? 'selected' : '' }}>Late</option>
             <option value="half day" {{ old('status') == 'half-day' ? 'selected' : '' }}>Half Day</option>
-            <option value="holiday" {{ old('status') == 'holiday' ? 'selected' : '' }}>Holiday</option>
+            <option value="weekend" {{ old('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
         </select>
     </div>
 </div>
@@ -149,12 +149,12 @@ default => '-- Select employee or rider first --',
 </div>
 
 @include('attendance.partials.rider_activity_fields', [
-    'refType' => old('ref_type', ''),
-    'total_orders' => old('total_orders'),
-    'working_hours' => old('working_hours'),
-    'cancelled_orders' => old('cancelled_orders'),
-    'rejected_orders' => old('rejected_orders'),
-    'ontime_orders_percentage' => old('ontime_orders_percentage'),
+'refType' => old('ref_type', ''),
+'total_orders' => old('total_orders'),
+'working_hours' => old('working_hours'),
+'cancelled_orders' => old('cancelled_orders'),
+'rejected_orders' => old('rejected_orders'),
+'ontime_orders_percentage' => old('ontime_orders_percentage'),
 ])
 
 <script>

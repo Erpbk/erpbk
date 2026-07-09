@@ -86,7 +86,7 @@
                             <option value="absent" {{ request('status') == 'absent' ? 'selected' : '' }}>Absent</option>
                             <option value="late" {{ request('status') == 'late' ? 'selected' : '' }}>Late</option>
                             <option value="half-day" {{ request('status') == 'half-day' ? 'selected' : '' }}>Half Day</option>
-                            <option value="holiday" {{ request('status') == 'holiday' ? 'selected' : '' }}>Holiday</option>
+                            <option value="weekend" {{ request('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
                         </select>
                     </div>
                     <div class="form-group col-md-12">
@@ -453,7 +453,7 @@
                     </td>
                 </tr>
             `);
-            toggleBulkRiderOrderColumns();
+                toggleBulkRiderOrderColumns();
                 $('#selectedUsersCount').text('0');
                 $('#totalSelectedCount').text('0');
                 $('#presentCount').text('0');

@@ -4,7 +4,7 @@ return [
   "creatorName" => "LimeCircles",
   "creatorUrl" => "https://limecircles.com",
   "templateName" => "Tenant",
-  "templateSuffix" => "SkyPathWorld",
+  "templateSuffix" => "FleetValu",
   "templateVersion" => "1.0.0",
   "templateFree" => false,
   "templateDescription" => "Express Fast",

@@ -148,7 +148,7 @@
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="customer_id">Filter by Customer</label>
+                            <label for="customer_id">Filter by Project</label>
                             <select class="form-control " id="customer_id" name="customer_id">
                                 @php
                                 $customerIds = company_table('riders')
@@ -268,7 +268,7 @@
     $(document).ready(function() {
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Customer",
+            placeholder: "Filter By Project",
             allowClear: true, // ✅ cross icon enable
         });
         $('#bike_assignment_status').select2({

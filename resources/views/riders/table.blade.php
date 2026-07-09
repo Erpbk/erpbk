@@ -44,7 +44,7 @@
          </td>
          @break
          @case('customer_id')
-         <td>{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
+         <td>{{ $r->customer?->name ?? '-' }}</td>
          @break
          @case('branch_id')
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>

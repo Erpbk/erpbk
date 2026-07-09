@@ -1292,7 +1292,8 @@
     window.refreshEmployeeCustomFieldsCategory = function(categoryId) {
       var tbody = document.getElementById('employee-custom-fields-tbody-' + categoryId);
       if (!tbody) return;
-      var url = "{{ url('settings-panel/employee-settings/fields/table-body') }}/" + categoryId;
+      var tableBodyCategoryUrlTemplate = "{{ route('settings-panel.employee-settings.table-body-category', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'categoryId' => '__ID__']) }}";
+      var url = tableBodyCategoryUrlTemplate.replace('__ID__', String(categoryId));
       fetch(url, {
           headers: {
             'X-Requested-With': 'XMLHttpRequest'

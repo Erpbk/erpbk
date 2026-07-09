@@ -442,6 +442,24 @@ class TopBarFilterService
         }
 
         $columnForSchema = $rawColumn ?? $qualifiedColumn;
+
+        if ($table !== null && $columnForSchema === 'customer_id' && Schema::hasTable('customers')) {
+            if (is_numeric($value)) {
+                $query->where($qualifiedColumn, (int) $value);
+
+                return;
+            }
+
+            $customerId = \App\Models\Customers::query()
+                ->where('name', $value)
+                ->value('id');
+            if ($customerId !== null) {
+                $query->where($qualifiedColumn, $customerId);
+
+                return;
+            }
+        }
+
         if ($table !== null && TopBarNumericStatus::isNumericStatusColumn($table, $columnForSchema)) {
             $mapped = TopBarNumericStatus::valueForLabel($value);
             if ($mapped !== null) {

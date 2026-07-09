@@ -139,7 +139,12 @@ class RiderSettingsController extends Controller
             $options[$fieldKey] = RiderCustomField::humanizeFieldKey($fieldKey);
         }
 
+        if (Schema::hasColumn('riders', 'customer_id')) {
+            $options['customer_id'] = 'Project';
+        }
+
         asort($options);
+
         return $options;
     }
 
@@ -1089,12 +1094,20 @@ class RiderSettingsController extends Controller
                 ->values();
         }
 
-        $tableValues = Riders::query()
-            ->whereNotNull($column)
-            ->where($column, '!=', '')
-            ->distinct()
-            ->orderBy($column)
-            ->pluck($column)
+        $tableValues = collect($column === 'customer_id'
+            ? Riders::query()
+                ->join('customers', 'riders.customer_id', '=', 'customers.id')
+                ->whereNotNull('riders.customer_id')
+                ->where('riders.customer_id', '!=', '')
+                ->distinct()
+                ->orderBy('customers.name')
+                ->pluck('customers.name')
+            : Riders::query()
+                ->whereNotNull($column)
+                ->where($column, '!=', '')
+                ->distinct()
+                ->orderBy($column)
+                ->pluck($column))
             ->map(fn($v) => trim((string) $v))
             ->filter(fn($v) => $v !== '')
             ->unique()

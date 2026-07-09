@@ -173,6 +173,21 @@ class TopBarListingService
 
         $base = Riders::query();
 
+        if ($column === 'customer_id') {
+            if (is_numeric($option->name)) {
+                return $base->where($column, (int) $option->name);
+            }
+
+            $customerId = \App\Models\Customers::query()
+                ->where('name', (string) $option->name)
+                ->value('id');
+            if ($customerId !== null) {
+                return $base->where($column, $customerId);
+            }
+
+            return null;
+        }
+
         if (TopBarNumericStatus::isNumericStatusColumn('riders', $column)) {
             $mapped = TopBarNumericStatus::valueForLabel((string) $option->name);
             if ($mapped !== null) {

@@ -111,7 +111,8 @@ class RidersController extends AppBaseController
 
     $dbColumns = array_values(array_unique(array_merge(
       $assignedFixedColumns,
-      Schema::hasColumn('riders', 'status') ? ['status'] : []
+      Schema::hasColumn('riders', 'status') ? ['status'] : [],
+      Schema::hasColumn('riders', 'customer_id') ? ['customer_id'] : []
     )));
 
     $assignedCustomFields = RiderCustomField::query()
@@ -135,6 +136,7 @@ class RidersController extends AppBaseController
       $customTitles = [
         'doj' => 'Date of Joining',
         'recruiter_id' => 'Recruiter',
+        'customer_id' => 'Project',
       ];
 
       return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
@@ -433,7 +435,7 @@ class RidersController extends AppBaseController
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'asc')
-      ->with('branch');
+      ->with(['branch', 'customer']);
     $this->applyCompanyScope($query);
     if ($request->has('rider_id') && ! empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
@@ -546,7 +548,8 @@ class RidersController extends AppBaseController
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'desc')
-      ->orderBy('riders.id', 'desc');
+      ->orderBy('riders.id', 'desc')
+      ->with(['customer']);
     $this->applyCompanyScope($query);
 
     if ($request->has('rider_id') && ! empty($request->rider_id)) {
@@ -640,7 +643,7 @@ class RidersController extends AppBaseController
   public function create()
   {
     $riderCategories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
 
     return view('riders.create', compact('riderCategories', 'fieldsByCategory'));
   }
@@ -774,7 +777,7 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
 
     // Get dropdown data for edit forms
     $countries = Countries::pluck('name', 'id')->prepend('Select', '');
@@ -801,7 +804,7 @@ class RidersController extends AppBaseController
     }
 
     $riderCategories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
 
     return view('riders.edit', compact('riders', 'riderCategories', 'fieldsByCategory'));
   }

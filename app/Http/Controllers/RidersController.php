@@ -36,6 +36,8 @@ use App\Models\RiderAttendance;
 use App\Models\RiderEmails;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderCustomField;
+use App\Models\RiderTopCategory;
+use App\Models\RiderTopOption;
 use App\Models\RiderInvoices;
 use App\Models\RiderItemPrice;
 use App\Models\Riders;
@@ -172,6 +174,112 @@ class RidersController extends AppBaseController
       ['data' => 'search', 'title' => 'Search'],
       ['data' => 'control', 'title' => 'Control'],
     ]);
+  }
+
+  /**
+   * Build dynamic filter options from Rider Top cards shown on view page.
+   */
+  private function riderTopStatusFilterOptions(): array
+  {
+    return RiderTopCategory::query()
+      ->where('is_active', true)
+      ->where('show_in_view_cards', true)
+      ->whereNotNull('rider_column')
+      ->where('rider_column', '!=', '')
+      ->where('rider_column', '!=', 'status')
+      ->with(['options' => function ($q) {
+        $q->where('is_active', true)
+          ->where('show_in_view_cards', true)
+          ->orderBy('display_order')
+          ->orderBy('id');
+      }])
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get()
+      ->flatMap(function ($category) {
+        $column = trim((string) ($category->rider_column ?? ''));
+        if ($column === '' || !Schema::hasColumn('riders', $column)) {
+          return collect();
+        }
+
+        return $category->options->map(function ($option) use ($category, $column) {
+          return [
+            'value' => 'top:' . $option->id,
+            'label' => (string) $option->name,
+            'category' => (string) ($category->name ?? RiderCustomField::humanizeFieldKey($column)),
+          ];
+        });
+      })
+      ->values()
+      ->all();
+  }
+
+  private function applyBikeAssignmentOrTopStatusFilter($query, ?string $selected): void
+  {
+    $selected = trim((string) $selected);
+    if ($selected === '') {
+      return;
+    }
+
+    if ($selected === 'Active') {
+      $query->whereHas('bikes', function ($q) {
+        $q->where('warehouse', 'Active');
+      });
+
+      return;
+    }
+
+    if ($selected === 'Inactive') {
+      $query->whereDoesntHave('bikes', function ($q) {
+        $q->where('warehouse', 'Active');
+      });
+
+      return;
+    }
+
+    if (!str_starts_with($selected, 'top:')) {
+      return;
+    }
+
+    $optionId = (int) substr($selected, 4);
+    if ($optionId <= 0) {
+      return;
+    }
+
+    $option = RiderTopOption::query()->with('category')->find($optionId);
+    if (!$option || !$option->category) {
+      return;
+    }
+
+    $column = trim((string) ($option->category->rider_column ?? ''));
+    if ($column === '' || !Schema::hasColumn('riders', $column)) {
+      return;
+    }
+
+    $value = trim((string) $option->name);
+    if ($value === '') {
+      return;
+    }
+
+    if ($column === 'customer_id') {
+      $customerId = Customers::query()->where('name', $value)->value('id');
+      if ($customerId !== null) {
+        $query->where('riders.customer_id', $customerId);
+      }
+
+      return;
+    }
+
+    if (TopBarNumericStatus::isNumericStatusColumn('riders', $column)) {
+      $mapped = TopBarNumericStatus::valueForLabel($value);
+      if ($mapped !== null) {
+        $query->where('riders.' . $column, $mapped);
+
+        return;
+      }
+    }
+
+    $query->where('riders.' . $column, $value);
   }
 
   private function findAccessibleRider(int $id): ?Riders
@@ -467,20 +575,8 @@ class RidersController extends AppBaseController
     // if ($request->has('status') && !empty($request->status)) {
     //   $query->where('status', $request->status);
     // }
-    // Filter by bike assignment status (Active/Inactive based on bike assignment)
-    if ($request->has('bike_assignment_status') && ! empty($request->bike_assignment_status)) {
-      if ($request->bike_assignment_status === 'Active') {
-        // Riders who have an active bike assigned
-        $query->whereHas('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      } elseif ($request->bike_assignment_status === 'Inactive') {
-        // Riders who don't have an active bike assigned
-        $query->whereDoesntHave('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      }
-    }
+    // Filter by bike assignment or Rider Top status option selected in the same dropdown.
+    $this->applyBikeAssignmentOrTopStatusFilter($query, $request->input('bike_assignment_status'));
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -522,6 +618,7 @@ class RidersController extends AppBaseController
     return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
+      'riderTopStatusFilterOptions' => $this->riderTopStatusFilterOptions(),
     ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
@@ -577,6 +674,9 @@ class RidersController extends AppBaseController
     if ($riderStatusKeys !== []) {
       TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
+
+    // Filter by bike assignment or Rider Top status option selected in the same dropdown.
+    $this->applyBikeAssignmentOrTopStatusFilter($query, $request->input('bike_assignment_status'));
 
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');

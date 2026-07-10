@@ -3,37 +3,93 @@
 @section('title','Rider Activities')
 
 @php
-  $isAllTab = $isAllTab ?? false;
-  $isConsolidated = $isConsolidated ?? false;
-  $projects = $projects ?? collect();
+$isAllTab = $isAllTab ?? false;
+$isConsolidated = $isConsolidated ?? false;
+$projects = $projects ?? collect();
 @endphp
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<style>
-  .rider-activities-tabs .nav-link {
-    color: #6b7280;
-    font-weight: 600;
-  }
-  .rider-activities-tabs .nav-link.active {
-    color: #0d6efd;
-    border-bottom-color: #0d6efd;
-  }
-  .all-activities-filters .form-group {
-    margin-bottom: 0.75rem;
-  }
-</style>
 @endpush
 
 @section('content')
 <div class="row mb-2">
-  @unless($isAllTab)
   <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
-      <h5>Filter Rider Activities</h5>
+      <h5>{{ $isAllTab ? 'Filter Rider Summary' : 'Filter Rider Activities' }}</h5>
       <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
+      @if($isAllTab)
+      <form id="allFilterForm" action="{{ route('riderActivities.index') }}" method="GET">
+        <input type="hidden" name="tab" value="all">
+        <div class="row">
+          <div class="form-group col-md-12">
+            <label for="all_from_date">From Date</label>
+            <input type="date" name="from_date" id="all_from_date" class="form-control" value="{{ request('from_date') }}">
+          </div>
+          <div class="form-group col-md-12">
+            <label for="all_to_date">To Date</label>
+            <input type="date" name="to_date" id="all_to_date" class="form-control" value="{{ request('to_date') }}">
+          </div>
+          <div class="form-group col-md-12">
+            <label for="all_billing_month">Billing Month</label>
+            <input type="month" name="billing_month" id="all_billing_month" class="form-control" value="{{ request('billing_month') }}">
+          </div>
+          <div class="form-group col-md-12">
+            <label for="all_customer_id">Project</label>
+            <select class="form-control" id="all_customer_id" name="customer_id">
+              <option value="">Select</option>
+              @foreach($projects as $project)
+              <option value="{{ $project->id }}" {{ (string) request('customer_id') === (string) $project->id ? 'selected' : '' }}>
+                {{ $project->name }}
+              </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="form-group col-md-12">
+            <label for="all_fleet_supervisor">Fleet Supervisor</label>
+            <select class="form-control" id="all_fleet_supervisor" name="fleet_supervisor">
+              <option value="">Select</option>
+              @foreach($fleetSupervisors as $supervisor)
+              <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
+                {{ $supervisor }}
+              </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="form-group col-md-12">
+            <label for="all_rider_status">Rider Status</label>
+            <select class="form-control" id="all_rider_status" name="rider_status">
+              <option value="">All</option>
+              <option value="active" {{ request('rider_status') == 'active' ? 'selected' : '' }}>Active</option>
+              <option value="inactive" {{ request('rider_status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+              <option value="vacation" {{ request('rider_status') == 'vacation' ? 'selected' : '' }}>Vacation</option>
+              <option value="absconded" {{ request('rider_status') == 'absconded' ? 'selected' : '' }}>Absconded</option>
+            </select>
+          </div>
+          <div class="form-group col-md-12">
+            <label for="all_rider_id">Rider</label>
+            <select class="form-control" id="all_rider_id" name="rider_id">
+              <option value="">Select</option>
+              @foreach($riders as $rider)
+              @php
+              $riderStatusLabel = \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)['label'] ?? 'Active';
+              $isInactiveRider = (int) ($rider->status ?? 1) !== 1;
+              @endphp
+              <option value="{{ $rider->id }}" {{ (string) request('rider_id') === (string) $rider->id ? 'selected' : '' }}>
+                {{ $rider->name }}@if($isInactiveRider) ({{ $riderStatusLabel }})@endif
+              </option>
+              @endforeach
+            </select>
+          </div>
+          <div class="col-md-12 form-group text-center">
+            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+            <a href="{{ route('riderActivities.index', ['tab' => 'all']) }}" class="btn btn-outline-secondary pull-right mt-3 mx-2">Reset</a>
+          </div>
+        </div>
+      </form>
+      @else
       <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
         <div class="row">
           <div class="form-group col-md-12">
@@ -53,8 +109,12 @@
             <select class="form-control" id="rider_id" name="rider_id">
               <option value="" selected>Select</option>
               @foreach($riders as $rider)
+              @php
+              $riderStatusLabel = \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)['label'] ?? 'Active';
+              $isInactiveRider = (int) ($rider->status ?? 1) !== 1;
+              @endphp
               <option value="{{ $rider->id }}" {{ request('rider_id') == $rider->id ? 'selected' : '' }}>
-                {{ $rider->name }}
+                {{ $rider->name }}@if($isInactiveRider) ({{ $riderStatusLabel }})@endif
               </option>
               @endforeach
             </select>
@@ -70,7 +130,6 @@
               <option value="Last 90 Days" {{ request('from_date_range') == 'Last 90 Days' ? 'selected' : '' }}>Last 90 Days</option>
             </select>
           </div>
-          {{-- NEW DATE RANGE FILTER --}}
           <div class="form-group col-md-12">
             <label for="from_date">From Date</label>
             <input type="date" name="from_date" class="form-control" value="{{ request('from_date') }}">
@@ -81,7 +140,6 @@
             <input type="date" name="to_date" class="form-control" value="{{ request('to_date') }}">
           </div>
 
-          {{-- BILLING MONTH FILTER --}}
           <div class="form-group col-md-12">
             <label for="billing_month">Billing Month</label>
             <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') ?? date('Y-m') }}">
@@ -121,105 +179,43 @@
           </div>
         </div>
       </form>
+      @endif
     </div>
   </div>
-  <!-- Filter Overlay -->
   <div id="filterOverlay" class="filter-overlay"></div>
-  @endunless
 </div>
 
-<div class="content mb-2">
-  <ul class="nav nav-tabs rider-activities-tabs" role="tablist">
-    <li class="nav-item" role="presentation">
-      <a class="nav-link {{ !$isAllTab ? 'active' : '' }}" href="{{ route('riderActivities.index') }}">
-        Rider Activities
-      </a>
-    </li>
-    <li class="nav-item" role="presentation">
-      <a class="nav-link {{ $isAllTab ? 'active' : '' }}" href="{{ route('riderActivities.index', ['tab' => 'all']) }}">
-        All Rider Activities
-      </a>
-    </li>
-  </ul>
-</div>
+@include('rider_activities.partials.tabs_and_operations', [
+  'activeActivitiesTab' => $isAllTab ? 'summary' : 'activities'
+])
 
 @if($isAllTab)
 <section class="content">
   <div class="card h-100" style="border-radius: 0px !important;">
     <div class="card-header d-flex justify-content-between align-items-center">
-      <h5 class="card-title mb-0"><b>All Rider Activities</b></h5>
-      <small class="text-body-secondary">
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}"> <i class="ti ti-activity"></i> Import Activities</a>
-      </small>
+      <h5 class="card-title mb-0"><b>Rider Summary</b></h5>
     </div>
     <div class="card-body">
-      <form id="allFilterForm" action="{{ route('riderActivities.index') }}" method="GET" class="all-activities-filters mb-3">
-        <input type="hidden" name="tab" value="all">
-        <div class="row g-2 align-items-end">
-          <div class="form-group col-md-2">
-            <label for="all_from_date">From Date</label>
-            <input type="date" name="from_date" id="all_from_date" class="form-control" value="{{ request('from_date') }}">
-          </div>
-          <div class="form-group col-md-2">
-            <label for="all_to_date">To Date</label>
-            <input type="date" name="to_date" id="all_to_date" class="form-control" value="{{ request('to_date') }}">
-          </div>
-          <div class="form-group col-md-2">
-            <label for="all_customer_id">Project</label>
-            <select class="form-control" id="all_customer_id" name="customer_id">
-              <option value="">Select</option>
-              @foreach($projects as $project)
-              <option value="{{ $project->id }}" {{ (string) request('customer_id') === (string) $project->id ? 'selected' : '' }}>
-                {{ $project->name }}
-              </option>
-              @endforeach
-            </select>
-          </div>
-          <div class="form-group col-md-2">
-            <label for="all_fleet_supervisor">Fleet Supervisor</label>
-            <select class="form-control" id="all_fleet_supervisor" name="fleet_supervisor">
-              <option value="">Select</option>
-              @foreach($fleetSupervisors as $supervisor)
-              <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>
-                {{ $supervisor }}
-              </option>
-              @endforeach
-            </select>
-          </div>
-          <div class="form-group col-md-2">
-            <label for="all_rider_id">Rider</label>
-            <select class="form-control" id="all_rider_id" name="rider_id">
-              <option value="">Select</option>
-              @foreach($riders as $rider)
-              <option value="{{ $rider->id }}" {{ (string) request('rider_id') === (string) $rider->id ? 'selected' : '' }}>
-                {{ $rider->name }}
-              </option>
-              @endforeach
-            </select>
-          </div>
-          <div class="form-group col-md-2 d-flex gap-2">
-            <button type="submit" class="btn btn-primary flex-grow-1"><i class="fa fa-filter mx-1"></i> Filter</button>
-            <a href="{{ route('riderActivities.index', ['tab' => 'all']) }}" class="btn btn-outline-secondary">Reset</a>
-          </div>
-        </div>
-        @if($isConsolidated)
-        <div class="alert alert-info mt-3 mb-0 py-2">
-          Showing consolidated summary for the selected rider
-          @if(request('from_date') && request('to_date'))
-            between
-            <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
-            and
-            <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
-          @elseif(request('from_date'))
-            from <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
-          @elseif(request('to_date'))
-            up to <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
-          @else
-            across all activity records
-          @endif.
-        </div>
-        @endif
-      </form>
+      @if($isConsolidated)
+      <div class="alert alert-info mb-3 py-2">
+        Showing consolidated summary for the selected rider
+        @if(request('from_date') && request('to_date'))
+        between
+        <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
+        and
+        <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
+        @elseif(request('from_date'))
+        from <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
+        @elseif(request('to_date'))
+        up to <strong>{{ \Carbon\Carbon::parse(request('to_date'))->format('d M Y') }}</strong>
+        @elseif(request('billing_month'))
+        for billing month
+        <strong>{{ \Carbon\Carbon::parse(request('billing_month') . '-01')->format('M Y') }}</strong>
+        @else
+        across all activity records
+        @endif.
+      </div>
+      @endif
 
       <div id="totalsBar" class="mb-2">
         <div class="totals-cards">
@@ -251,36 +247,19 @@
 
   <div class="card" style="border-radius: 0px !important;">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => $isConsolidated])
+      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => $isConsolidated, 'isAllTab' => true])
     </div>
   </div>
 </div>
 @else
 <section class="content">
-  @php
-  $activity = new App\Models\RiderActivities();
-  $result = $activity->select('*');
-  if(request('month')){
-  $result->where(\DB::raw('DATE_FORMAT(date, "%Y-%m")'), '=', request('month') ?? date('Y-m'));
-  }
-  if(request('rider_id')){
-  $result->where('rider_id',request('rider_id'));
-  }
-
-  //$activity->get();
-  @endphp
   <div class="card h-100" style="border-radius: 0px !important;">
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Activities</b> (Statistics)</h5>
-      <small class="text-body-secondary">
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}"> <i class="ti ti-activity"></i> Import Activities</a>
-        <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-      </small>
     </div>
     <div class="card-body">
       <div id="totalsBar" class="mb-2">
         <div class="totals-cards">
-
           <div class="total-card total-valid-days">
             <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
             <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
@@ -309,7 +288,7 @@
 
   <div class="card" style="border-radius: 0px !important;">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => false])
+      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => false, 'isAllTab' => false])
     </div>
   </div>
 </div>
@@ -387,17 +366,26 @@
     });
     @else
     $('#all_fleet_supervisor').select2({
+      dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Fleet SuperVisor",
       allowClear: true,
       width: '100%',
     });
     $('#all_rider_id').select2({
+      dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Rider",
       allowClear: true,
       width: '100%',
     });
     $('#all_customer_id').select2({
+      dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Project",
+      allowClear: true,
+      width: '100%',
+    });
+    $('#all_rider_status').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Rider Status",
       allowClear: true,
       width: '100%',
     });
@@ -407,7 +395,29 @@
 
 <script type="text/javascript">
   $(document).ready(function() {
-    @unless($isAllTab)
+    // Operations dropdown
+    $('#riderActivitiesOpsBtn').on('click', function(e) {
+      e.stopPropagation();
+      const dropdown = $('#riderActivitiesOpsMenu');
+      const btn = $(this);
+      if (dropdown.hasClass('show')) {
+        dropdown.removeClass('show');
+        btn.removeClass('open');
+      } else {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+        dropdown.addClass('show');
+        btn.addClass('open');
+      }
+    });
+
+    $(document).on('click', function(e) {
+      if (!$(e.target).closest('.action-dropdown-container').length) {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+      }
+    });
+
     // Filter sidebar functionality - open on hover
     $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
       e.preventDefault();
@@ -429,6 +439,7 @@
       $('#filterOverlay').removeClass('show');
     });
 
+    @unless($isAllTab)
     $('#filterForm').on('submit', function(e) {
       e.preventDefault();
 
@@ -486,6 +497,8 @@
       e.preventDefault();
 
       $('#loading-overlay').show();
+      $('#filterSidebar').removeClass('open');
+      $('#filterOverlay').removeClass('show');
       const loaderStartTime = Date.now();
 
       let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && String(field.value).trim() !== '');
@@ -495,7 +508,9 @@
         url: "{{ route('riderActivities.index') }}",
         type: "GET",
         data: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
         success: function(data) {
           $('#table-data').html(data.tableData);
 
@@ -634,7 +649,7 @@
     if (errorMessage) {
       // Check if error message contains multiple errors (separated by |)
       const errorParts = errorMessage.split(' | ');
-      
+
       if (errorParts.length > 1) {
         // Multiple errors - show in a list
         let errorList = '<ul style="text-align: left; margin: 0; padding-left: 20px; max-height: 400px; overflow-y: auto;">';

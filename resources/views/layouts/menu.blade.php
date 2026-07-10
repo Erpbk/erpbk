@@ -296,16 +296,10 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
-    <li class="menu-item {{ Route::is('riderActivities*') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('riderActivities*') || Route::is('rider.liveactivities*') ? 'active' : '' }}">
       <a href="{{ route('riderActivities.index') }}" class="menu-link ">
         @include('layouts.partials.module_menu_icon', ['key' => 'activities'])
         <div>{{ $menuLabels['activities'] ?? 'Activities' }}</div>
-      </a>
-    </li>
-    <li class="menu-item {{ Route::is('rider.liveactivities*') ? 'active' : '' }}">
-      <a href="{{ route('rider.liveactivities') }}" class="menu-link ">
-        @include('layouts.partials.module_menu_icon', ['key' => 'live_activities'])
-        <div>{{ $menuLabels['live_activities'] ?? 'Live Activities' }}</div>
       </a>
     </li>
     <li class="menu-item {{ Route::is('reports*') ? 'active' : '' }}">

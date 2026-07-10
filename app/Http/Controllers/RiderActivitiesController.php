@@ -46,11 +46,15 @@ class RiderActivitiesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = RiderActivities::query()
-            ->with('rider')
+            ->with(['rider' => function ($q) {
+                $q->withTrashed();
+            }])
             ->orderByDesc('date');
-        $query->whereHas('rider');
+        $query->whereHas('rider', function ($riderQuery) {
+            $riderQuery->withTrashed();
+        });
         if ($request->filled('id')) {
-            $rider = Riders::where('rider_id', (int) $request->id)->first();
+            $rider = Riders::withTrashed()->where('rider_id', (int) $request->id)->first();
             if ($rider) {
                 $query->where('rider_id', $rider->id);
             } else {
@@ -58,7 +62,7 @@ class RiderActivitiesController extends AppBaseController
             }
         }
         if ($request->filled('rider_id')) {
-            $rider = Riders::where('id', trim($request->rider_id))->first();
+            $rider = Riders::withTrashed()->where('id', trim($request->rider_id))->first();
             if ($rider) {
                 $query->where('rider_id', $rider->id);
             } else {
@@ -136,7 +140,7 @@ class RiderActivitiesController extends AppBaseController
 
         if ($request->filled('fleet_supervisor')) {
             $query->whereHas('rider', function ($q) use ($request) {
-                $q->where('fleet_supervisor', $request->fleet_supervisor);
+                $q->withTrashed()->where('fleet_supervisor', $request->fleet_supervisor);
             });
         }
 
@@ -146,6 +150,7 @@ class RiderActivitiesController extends AppBaseController
 
         if ($request->filled('bike_assignment_status')) {
             $query->whereHas('rider', function ($q) use ($request) {
+                $q->withTrashed();
                 if ($request->bike_assignment_status === 'Active') {
                     $q->whereHas('bikes', function ($q) {
                         $q->where('warehouse', 'Active');
@@ -184,11 +189,12 @@ class RiderActivitiesController extends AppBaseController
             $data->appends($request->query());
         }
 
-        $riders = Riders::select('id', 'name', 'rider_id')
+        $riders = Riders::withTrashed()
+            ->select('id', 'name', 'rider_id', 'status')
             ->orderBy('name')
             ->get();
 
-        $fleetSupervisors = Riders::query()
+        $fleetSupervisors = Riders::withTrashed()
             ->whereNotNull('fleet_supervisor')
             ->where('fleet_supervisor', '!=', '')
             ->distinct()
@@ -211,6 +217,7 @@ class RiderActivitiesController extends AppBaseController
                 'data' => $data,
                 'totals' => $totals,
                 'isConsolidated' => false,
+                'isAllTab' => false,
             ])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()
@@ -245,12 +252,17 @@ class RiderActivitiesController extends AppBaseController
         $isConsolidated = $request->filled('rider_id');
 
         $query = RiderActivities::query()
-            ->with(['rider.customer'])
+            ->with(['rider' => function ($q) {
+                $q->withTrashed()->with('customer');
+            }])
             ->orderByDesc('date')
-            ->whereHas('rider');
+            ->whereHas('rider', function ($riderQuery) {
+                // Include active and inactive riders (soft-deleted included).
+                $riderQuery->withTrashed();
+            });
 
         if ($request->filled('rider_id')) {
-            $rider = Riders::where('id', trim($request->rider_id))->first();
+            $rider = Riders::withTrashed()->where('id', trim($request->rider_id))->first();
             if ($rider) {
                 $query->where('rider_id', $rider->id);
             } else {
@@ -266,15 +278,45 @@ class RiderActivitiesController extends AppBaseController
             $query->whereDate('date', '<=', $request->to_date);
         }
 
+        if ($request->filled('billing_month')) {
+            try {
+                $month = $request->billing_month;
+                $year = date('Y', strtotime($month . '-01'));
+                $monthNum = date('m', strtotime($month . '-01'));
+                $query->whereYear('date', $year)->whereMonth('date', $monthNum);
+            } catch (\Throwable $th) {
+                Log::warning('Invalid billing_month supplied for rider summary filter', [
+                    'value' => $request->billing_month,
+                    'error' => $th->getMessage(),
+                ]);
+            }
+        }
+
         if ($request->filled('fleet_supervisor')) {
             $query->whereHas('rider', function ($q) use ($request) {
-                $q->where('fleet_supervisor', $request->fleet_supervisor);
+                $q->withTrashed()->where('fleet_supervisor', $request->fleet_supervisor);
             });
         }
 
         if ($request->filled('customer_id')) {
             $query->whereHas('rider', function ($q) use ($request) {
-                $q->where('customer_id', $request->customer_id);
+                $q->withTrashed()->where('customer_id', $request->customer_id);
+            });
+        }
+
+        if ($request->filled('rider_status')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                $q->withTrashed();
+                $status = strtolower(trim((string) $request->rider_status));
+                if ($status === 'active') {
+                    $q->where('status', 1);
+                } elseif ($status === 'inactive') {
+                    $q->whereIn('status', [0, 2, 3]);
+                } elseif ($status === 'vacation') {
+                    $q->where('status', 4);
+                } elseif ($status === 'absconded') {
+                    $q->where('status', 5);
+                }
             });
         }
 
@@ -306,18 +348,19 @@ class RiderActivitiesController extends AppBaseController
             }
         }
 
-        $riders = Riders::select('id', 'name', 'rider_id')
+        $riders = Riders::withTrashed()
+            ->select('id', 'name', 'rider_id', 'status')
             ->orderBy('name')
             ->get();
 
-        $fleetSupervisors = Riders::query()
+        $fleetSupervisors = Riders::withTrashed()
             ->whereNotNull('fleet_supervisor')
             ->where('fleet_supervisor', '!=', '')
             ->distinct()
             ->orderBy('fleet_supervisor')
             ->pluck('fleet_supervisor');
 
-        $customerIds = Riders::query()
+        $customerIds = Riders::withTrashed()
             ->whereNotNull('customer_id')
             ->where('customer_id', '!=', '')
             ->distinct()
@@ -336,6 +379,7 @@ class RiderActivitiesController extends AppBaseController
                 'data' => $data,
                 'totals' => $totals,
                 'isConsolidated' => $isConsolidated,
+                'isAllTab' => true,
             ])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()

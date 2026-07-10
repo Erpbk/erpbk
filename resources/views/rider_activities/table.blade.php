@@ -98,11 +98,17 @@
 @endpush
 
 
+@php
+$isConsolidated = $isConsolidated ?? false;
+$isAllTab = !empty($isAllTab);
+@endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
+         @unless($isAllTab)
          <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
          <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
+         @endunless
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
@@ -113,11 +119,9 @@
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
          <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
-         <th title="Total Days" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Total Days: activate to sort column ascending">Total Days</th>
       </tr>
    </thead>
    <tbody>
-      @php $isConsolidated = $isConsolidated ?? false; @endphp
       @foreach($data as $r)
       @php
       $isRowConsolidated = !empty($r->is_consolidated);
@@ -131,6 +135,7 @@
          data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
          data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
          data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
+         @unless($isAllTab)
          <td>
             @if($isRowConsolidated && !empty($r->date_from) && !empty($r->date_to))
             {{ \Carbon\Carbon::parse($r->date_from)->format('d M Y') }}
@@ -147,6 +152,7 @@
             {{ \Carbon\Carbon::parse($r->date)->format('l') }}
             @endif
          </td>
+         @endunless
          <td>{{ $r->d_rider_id }}</td>
          <td>
             @if($rider)
@@ -166,8 +172,16 @@
          @php
          $hasActiveBike = $rider ? company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists() : false;
          $isWalker = $rider && $rider->designation === 'Walker';
+         $employmentStatus = $rider
+         ? \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)
+         : ['label' => 'Inactive', 'badge' => 'bg-label-secondary'];
+         $isEmploymentInactive = $rider && (int) ($rider->status ?? 1) !== 1;
 
-         if ($isWalker) {
+         if ($isEmploymentInactive) {
+         // Show employment inactive/vacation/absconded even when bike status differs
+         $statusText = $employmentStatus['label'];
+         $badgeClass = $employmentStatus['badge'];
+         } elseif ($isWalker) {
          $statusText = 'Active';
          $badgeClass = 'bg-label-success';
          } else {
@@ -205,14 +219,6 @@
             }
             @endphp
             <span class="badge {{ $badgeClass }}">{{ $status }}</span>
-            @endif
-         </td>
-
-         <td>
-            @if($isRowConsolidated)
-            {{ $r->activity_days ?? 0 }}
-            @else
-            1
             @endif
          </td>
       </tr>

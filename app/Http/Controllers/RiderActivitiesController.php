@@ -243,13 +243,12 @@ class RiderActivitiesController extends AppBaseController
     }
 
     /**
-     * All Rider Activities tab: filtered list with optional consolidated rider summary.
+     * All Rider Activities tab: one consolidated row per rider.
      */
     protected function allRiderActivities(Request $request)
     {
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        // Consolidate whenever a specific rider is selected (optionally narrowed by date range).
-        $isConsolidated = $request->filled('rider_id');
+        $isConsolidated = true;
 
         $query = RiderActivities::query()
             ->with(['rider' => function ($q) {
@@ -339,14 +338,7 @@ class RiderActivitiesController extends AppBaseController
             'avg_ontime' => ($allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0) * 100,
         ];
 
-        if ($isConsolidated) {
-            $data = $this->buildConsolidatedRiderActivity($allData, $request);
-        } else {
-            $data = $this->applyPagination($query, $paginationParams);
-            if (method_exists($data, 'appends')) {
-                $data->appends($request->query());
-            }
-        }
+        $data = $this->buildConsolidatedRiderActivities($allData, $request, $paginationParams);
 
         $riders = Riders::withTrashed()
             ->select('id', 'name', 'rider_id', 'status')
@@ -406,16 +398,22 @@ class RiderActivitiesController extends AppBaseController
     }
 
     /**
-     * Build a single consolidated activity row for a rider within a date range.
+     * Build one consolidated activity row per rider, then paginate.
      */
-    protected function buildConsolidatedRiderActivity($activities, Request $request)
+    protected function buildConsolidatedRiderActivities($activities, Request $request, array $paginationParams = [])
     {
+        $perPage = (int) ($paginationParams['per_page_numeric'] ?? $paginationParams['per_page'] ?? $this->getDefaultPerPage());
+        if ($perPage < 1) {
+            $perPage = $this->getDefaultPerPage();
+        }
+        $page = max(1, (int) $request->get('page', 1));
+
         if ($activities->isEmpty()) {
             return new LengthAwarePaginator(
                 [],
                 0,
-                $this->getDefaultPerPage(),
-                1,
+                $perPage,
+                $page,
                 [
                     'path' => $request->url(),
                     'query' => $request->query(),
@@ -423,63 +421,77 @@ class RiderActivitiesController extends AppBaseController
             );
         }
 
-        $first = $activities->first();
-        $validDays = 0;
-        $invalidDays = 0;
-        $offDays = 0;
+        $dateFromFilter = $request->filled('from_date')
+            ? Carbon::parse($request->from_date)->toDateString()
+            : null;
+        $dateToFilter = $request->filled('to_date')
+            ? Carbon::parse($request->to_date)->toDateString()
+            : null;
 
-        foreach ($activities as $activity) {
-            $status = $this->resolveActivityDayStatus($activity);
-            if ($status === 'Valid') {
-                $validDays++;
-            } elseif ($status === 'Invalid') {
-                $invalidDays++;
-            } else {
-                $offDays++;
-            }
-        }
+        $consolidatedRows = $activities
+            ->groupBy('rider_id')
+            ->map(function ($riderActivities) use ($dateFromFilter, $dateToFilter) {
+                $first = $riderActivities->first();
+                $validDays = 0;
+                $invalidDays = 0;
+                $offDays = 0;
 
-        $avgOntime = $activities->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage');
+                foreach ($riderActivities as $activity) {
+                    $status = $this->resolveActivityDayStatus($activity);
+                    if ($status === 'Valid') {
+                        $validDays++;
+                    } elseif ($status === 'Invalid') {
+                        $invalidDays++;
+                    } else {
+                        $offDays++;
+                    }
+                }
 
-        $dateFrom = $request->filled('from_date')
-            ? $request->from_date
-            : $activities->min('date');
-        $dateTo = $request->filled('to_date')
-            ? $request->to_date
-            : $activities->max('date');
+                $avgOntime = $riderActivities->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage');
+                $dateFrom = $dateFromFilter ?: $riderActivities->min('date');
+                $dateTo = $dateToFilter ?: $riderActivities->max('date');
 
-        if ($dateFrom) {
-            $dateFrom = Carbon::parse($dateFrom)->toDateString();
-        }
-        if ($dateTo) {
-            $dateTo = Carbon::parse($dateTo)->toDateString();
-        }
+                if ($dateFrom) {
+                    $dateFrom = Carbon::parse($dateFrom)->toDateString();
+                }
+                if ($dateTo) {
+                    $dateTo = Carbon::parse($dateTo)->toDateString();
+                }
 
-        $consolidated = (object) [
-            'id' => $first->id,
-            'rider_id' => $first->rider_id,
-            'd_rider_id' => $first->d_rider_id,
-            'date' => $dateFrom ?: $first->date,
-            'date_from' => $dateFrom,
-            'date_to' => $dateTo,
-            'is_consolidated' => true,
-            'activity_days' => $activities->count(),
-            'delivered_orders' => $activities->sum('delivered_orders'),
-            'rejected_orders' => $activities->sum('rejected_orders'),
-            'login_hr' => round((float) $activities->sum('login_hr'), 2),
-            'ontime_orders_percentage' => $avgOntime ? round((float) $avgOntime, 2) : null,
-            'delivery_rating' => null,
-            'valid_days_count' => $validDays,
-            'invalid_days_count' => $invalidDays,
-            'off_days_count' => $offDays,
-            'rider' => $first->rider,
-        ];
+                $riderName = optional($first->rider)->name ?? '';
+
+                return (object) [
+                    'id' => $first->id,
+                    'rider_id' => $first->rider_id,
+                    'd_rider_id' => $first->d_rider_id,
+                    'date' => $dateFrom ?: $first->date,
+                    'date_from' => $dateFrom,
+                    'date_to' => $dateTo,
+                    'is_consolidated' => true,
+                    'activity_days' => $riderActivities->count(),
+                    'delivered_orders' => $riderActivities->sum('delivered_orders'),
+                    'rejected_orders' => $riderActivities->sum('rejected_orders'),
+                    'login_hr' => round((float) $riderActivities->sum('login_hr'), 2),
+                    'ontime_orders_percentage' => $avgOntime ? round((float) $avgOntime, 2) : null,
+                    'delivery_rating' => null,
+                    'valid_days_count' => $validDays,
+                    'invalid_days_count' => $invalidDays,
+                    'off_days_count' => $offDays,
+                    'rider' => $first->rider,
+                    'rider_name' => $riderName,
+                ];
+            })
+            ->sortBy('rider_name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        $total = $consolidatedRows->count();
+        $items = $consolidatedRows->forPage($page, $perPage)->values();
 
         return new LengthAwarePaginator(
-            collect([$consolidated]),
-            1,
-            $this->getDefaultPerPage(),
-            1,
+            $items,
+            $total,
+            $perPage,
+            $page,
             [
                 'path' => $request->url(),
                 'query' => $request->query(),

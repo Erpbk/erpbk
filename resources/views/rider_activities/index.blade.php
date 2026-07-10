@@ -198,7 +198,10 @@ $projects = $projects ?? collect();
     <div class="card-body">
       @if($isConsolidated)
       <div class="alert alert-info mb-3 py-2">
-        Showing consolidated summary for the selected rider
+        Showing one consolidated row per rider
+        @if(request('rider_id'))
+        for the selected rider
+        @endif
         @if(request('from_date') && request('to_date'))
         between
         <strong>{{ \Carbon\Carbon::parse(request('from_date'))->format('d M Y') }}</strong>
@@ -219,6 +222,10 @@ $projects = $projects ?? collect();
 
       <div id="totalsBar" class="mb-2">
         <div class="totals-cards">
+          <div class="total-card total-delivered">
+            <div class="label"><i class="fa fa-calendar"></i>Total Days</div>
+            <div class="value" id="working_days">{{ number_format($totals['working_days'] ?? 0) }}</div>
+          </div>
           <div class="total-card total-valid-days">
             <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
             <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
@@ -515,6 +522,7 @@ $projects = $projects ?? collect();
           $('#table-data').html(data.tableData);
 
           if (data.totals) {
+            $('#working_days').text(parseInt(data.totals.working_days || 0).toLocaleString());
             $('#total_orders').text(parseInt(data.totals.total_orders || 0).toLocaleString());
             $('#avg_ontime').text(parseFloat(data.totals.avg_ontime || 0).toFixed(2) + '%');
             $('#total_rejected').text(parseInt(data.totals.total_rejected || 0).toLocaleString());

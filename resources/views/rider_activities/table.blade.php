@@ -118,7 +118,11 @@ $isAllTab = !empty($isAllTab);
          <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
+         @if($isAllTab)
+         <th title="Total Days" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Total Days: activate to sort column ascending">Total Days</th>
+         @else
          <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
+         @endif
       </tr>
    </thead>
    <tbody>
@@ -196,6 +200,9 @@ $isAllTab = !empty($isAllTab);
          <td>{{ $r->login_hr }}</td>
          <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
          <td>{{ $r->rejected_orders }}</td>
+         @if($isAllTab)
+         <td>{{ $r->activity_days ?? 0 }}</td>
+         @else
          <td>
             @if($isRowConsolidated)
             <span class="badge bg-success" title="Valid days">{{ $r->valid_days_count ?? 0 }} Valid</span>
@@ -221,6 +228,7 @@ $isAllTab = !empty($isAllTab);
             <span class="badge {{ $badgeClass }}">{{ $status }}</span>
             @endif
          </td>
+         @endif
       </tr>
       @endforeach
    </tbody>
@@ -258,12 +266,16 @@ $isAllTab = !empty($isAllTab);
 <script>
    $(document).ready(function() {
       // Recalculate totals when table is updated (for AJAX filtering)
+      @unless($isAllTab)
       calculateTotals();
+      @endunless
 
       // Recalculate when DataTable is redrawn (if using DataTables)
       if ($.fn.DataTable) {
          $('#dataTableBuilder').on('draw.dt', function() {
+            @unless($isAllTab)
             calculateTotals();
+            @endunless
          });
       }
    });

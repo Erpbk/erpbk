@@ -635,6 +635,8 @@ class LeasingCompaniesController extends AppBaseController
             return redirect(route('leasingCompanyInvoices.index'));
         }
 
+        $invoice->load(['leasingCompany', 'items.bike']);
+
         return view('leasing_company_invoices.show')->with('invoice', $invoice);
     }
 

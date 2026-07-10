@@ -10,6 +10,7 @@ use App\Models\Customers;
 use App\Models\RiderActivities;
 use App\Models\liveactivities;
 use App\Models\Riders;
+use Illuminate\Pagination\LengthAwarePaginator;
 use App\Services\RiderActivities\RiderActivityImportMappingService;
 use App\Repositories\RiderActivitiesRepository;
 use App\Traits\GlobalPagination;
@@ -36,6 +37,12 @@ class RiderActivitiesController extends AppBaseController
      */
     public function index(Request $request)
     {
+        $isAllTab = $request->input('tab') === 'all';
+
+        if ($isAllTab) {
+            return $this->allRiderActivities($request);
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = RiderActivities::query()
@@ -71,6 +78,10 @@ class RiderActivitiesController extends AppBaseController
             } else if ($request->from_date_range === 'Last 90 Days') {
                 $query->whereDate('date', '>=', Carbon::today()->subDays(90));
             }
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('date', '>=', $request->from_date);
         }
 
         if ($request->filled('to_date')) {
@@ -191,8 +202,16 @@ class RiderActivitiesController extends AppBaseController
             ->orderBy('payout_type')
             ->pluck('payout_type');
 
+        $projects = collect();
+        $isAllTab = false;
+        $isConsolidated = false;
+
         if ($request->ajax()) {
-            $tableData = view('rider_activities.table', ['data' => $data, 'totals' => $totals])->render();
+            $tableData = view('rider_activities.table', [
+                'data' => $data,
+                'totals' => $totals,
+                'isConsolidated' => false,
+            ])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()
                 : '';
@@ -204,7 +223,243 @@ class RiderActivitiesController extends AppBaseController
             ]);
         }
 
-        return view('rider_activities.index', compact('data', 'riders', 'fleetSupervisors', 'payoutTypes', 'totals'));
+        return view('rider_activities.index', compact(
+            'data',
+            'riders',
+            'fleetSupervisors',
+            'payoutTypes',
+            'totals',
+            'projects',
+            'isAllTab',
+            'isConsolidated'
+        ));
+    }
+
+    /**
+     * All Rider Activities tab: filtered list with optional consolidated rider summary.
+     */
+    protected function allRiderActivities(Request $request)
+    {
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        // Consolidate whenever a specific rider is selected (optionally narrowed by date range).
+        $isConsolidated = $request->filled('rider_id');
+
+        $query = RiderActivities::query()
+            ->with(['rider.customer'])
+            ->orderByDesc('date')
+            ->whereHas('rider');
+
+        if ($request->filled('rider_id')) {
+            $rider = Riders::where('id', trim($request->rider_id))->first();
+            if ($rider) {
+                $query->where('rider_id', $rider->id);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('date', '>=', $request->from_date);
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('date', '<=', $request->to_date);
+        }
+
+        if ($request->filled('fleet_supervisor')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                $q->where('fleet_supervisor', $request->fleet_supervisor);
+            });
+        }
+
+        if ($request->filled('customer_id')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                $q->where('customer_id', $request->customer_id);
+            });
+        }
+
+        $allData = (clone $query)->get();
+
+        $totals = [
+            'working_days' => $allData->count(),
+            'valid_days' => $allData->filter(function ($item) {
+                return $this->resolveActivityDayStatus($item) === 'Valid';
+            })->count(),
+            'invalid_days' => $allData->filter(function ($item) {
+                return $this->resolveActivityDayStatus($item) === 'Invalid';
+            })->count(),
+            'off_days' => $allData->filter(function ($item) {
+                return $this->resolveActivityDayStatus($item) === 'Off';
+            })->count(),
+            'total_orders' => $allData->sum('delivered_orders'),
+            'total_rejected' => $allData->sum('rejected_orders'),
+            'total_hours' => $allData->sum('login_hr'),
+            'avg_ontime' => ($allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0) * 100,
+        ];
+
+        if ($isConsolidated) {
+            $data = $this->buildConsolidatedRiderActivity($allData, $request);
+        } else {
+            $data = $this->applyPagination($query, $paginationParams);
+            if (method_exists($data, 'appends')) {
+                $data->appends($request->query());
+            }
+        }
+
+        $riders = Riders::select('id', 'name', 'rider_id')
+            ->orderBy('name')
+            ->get();
+
+        $fleetSupervisors = Riders::query()
+            ->whereNotNull('fleet_supervisor')
+            ->where('fleet_supervisor', '!=', '')
+            ->distinct()
+            ->orderBy('fleet_supervisor')
+            ->pluck('fleet_supervisor');
+
+        $customerIds = Riders::query()
+            ->whereNotNull('customer_id')
+            ->where('customer_id', '!=', '')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $projects = Customers::query()
+            ->whereIn('id', $customerIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $payoutTypes = collect();
+        $isAllTab = true;
+
+        if ($request->ajax()) {
+            $tableData = view('rider_activities.table', [
+                'data' => $data,
+                'totals' => $totals,
+                'isConsolidated' => $isConsolidated,
+            ])->render();
+            $paginationLinks = method_exists($data, 'links')
+                ? $data->links('components.global-pagination')->render()
+                : '';
+
+            return response()->json([
+                'tableData' => $tableData,
+                'paginationLinks' => $paginationLinks,
+                'totals' => $totals,
+                'isConsolidated' => $isConsolidated,
+            ]);
+        }
+
+        return view('rider_activities.index', compact(
+            'data',
+            'riders',
+            'fleetSupervisors',
+            'payoutTypes',
+            'totals',
+            'projects',
+            'isAllTab',
+            'isConsolidated'
+        ));
+    }
+
+    /**
+     * Build a single consolidated activity row for a rider within a date range.
+     */
+    protected function buildConsolidatedRiderActivity($activities, Request $request)
+    {
+        if ($activities->isEmpty()) {
+            return new LengthAwarePaginator(
+                [],
+                0,
+                $this->getDefaultPerPage(),
+                1,
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ]
+            );
+        }
+
+        $first = $activities->first();
+        $validDays = 0;
+        $invalidDays = 0;
+        $offDays = 0;
+
+        foreach ($activities as $activity) {
+            $status = $this->resolveActivityDayStatus($activity);
+            if ($status === 'Valid') {
+                $validDays++;
+            } elseif ($status === 'Invalid') {
+                $invalidDays++;
+            } else {
+                $offDays++;
+            }
+        }
+
+        $avgOntime = $activities->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage');
+
+        $dateFrom = $request->filled('from_date')
+            ? $request->from_date
+            : $activities->min('date');
+        $dateTo = $request->filled('to_date')
+            ? $request->to_date
+            : $activities->max('date');
+
+        if ($dateFrom) {
+            $dateFrom = Carbon::parse($dateFrom)->toDateString();
+        }
+        if ($dateTo) {
+            $dateTo = Carbon::parse($dateTo)->toDateString();
+        }
+
+        $consolidated = (object) [
+            'id' => $first->id,
+            'rider_id' => $first->rider_id,
+            'd_rider_id' => $first->d_rider_id,
+            'date' => $dateFrom ?: $first->date,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'is_consolidated' => true,
+            'activity_days' => $activities->count(),
+            'delivered_orders' => $activities->sum('delivered_orders'),
+            'rejected_orders' => $activities->sum('rejected_orders'),
+            'login_hr' => round((float) $activities->sum('login_hr'), 2),
+            'ontime_orders_percentage' => $avgOntime ? round((float) $avgOntime, 2) : null,
+            'delivery_rating' => null,
+            'valid_days_count' => $validDays,
+            'invalid_days_count' => $invalidDays,
+            'off_days_count' => $offDays,
+            'rider' => $first->rider,
+        ];
+
+        return new LengthAwarePaginator(
+            collect([$consolidated]),
+            1,
+            $this->getDefaultPerPage(),
+            1,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+    }
+
+    /**
+     * Resolve Valid / Invalid / Off status for an activity day.
+     */
+    protected function resolveActivityDayStatus($activity): string
+    {
+        $orders = (float) ($activity->delivered_orders ?? 0);
+        $hours = (float) ($activity->login_hr ?? 0);
+
+        if ($hours == 0) {
+            return 'Off';
+        }
+
+        if (($orders >= 5 && $hours >= 10) || $orders >= 10) {
+            return 'Valid';
+        }
+
+        return 'Invalid';
     }
 
     /**

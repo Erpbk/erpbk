@@ -113,10 +113,16 @@
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
          <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
+         <th title="Total Days" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Total Days: activate to sort column ascending">Total Days</th>
       </tr>
    </thead>
    <tbody>
+      @php $isConsolidated = $isConsolidated ?? false; @endphp
       @foreach($data as $r)
+      @php
+      $isRowConsolidated = !empty($r->is_consolidated);
+      $rider = $r->rider ?? company_table('riders')->where('id', $r->rider_id)->first();
+      @endphp
       <tr class="text-center"
          data-delivered="{{ $r->delivered_orders ?? 0 }}"
          data-rejected="{{ $r->rejected_orders ?? 0 }}"
@@ -125,18 +131,41 @@
          data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
          data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
          data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
-         <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
-         <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
+         <td>
+            @if($isRowConsolidated && !empty($r->date_from) && !empty($r->date_to))
+            {{ \Carbon\Carbon::parse($r->date_from)->format('d M Y') }}
+            –
+            {{ \Carbon\Carbon::parse($r->date_to)->format('d M Y') }}
+            @else
+            {{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}
+            @endif
+         </td>
+         <td>
+            @if($isRowConsolidated)
+            -
+            @else
+            {{ \Carbon\Carbon::parse($r->date)->format('l') }}
+            @endif
+         </td>
          <td>{{ $r->d_rider_id }}</td>
+         <td>
+            @if($rider)
+            <a href="{{ route('rider.activities', $r->rider_id) }}">{{ $rider->name }}</a>
+            @else
+            -
+            @endif
+         </td>
+         <td>{{ $rider->fleet_supervisor ?? '-' }}</td>
+         <td>
+            @if($rider)
+            {{ optional($rider->customer)->name ?? (company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-') }}
+            @else
+            -
+            @endif
+         </td>
          @php
-         $rider = company_table('riders')->where('id' , $r->rider_id)->first();
-         @endphp
-         <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
-         <td>{{ $rider->fleet_supervisor }}</td>
-         <td>{{ company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
-         @php
-         $hasActiveBike = company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
-         $isWalker = $rider->designation === 'Walker';
+         $hasActiveBike = $rider ? company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists() : false;
+         $isWalker = $rider && $rider->designation === 'Walker';
 
          if ($isWalker) {
          $statusText = 'Active';
@@ -154,6 +183,11 @@
          <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
          <td>{{ $r->rejected_orders }}</td>
          <td>
+            @if($isRowConsolidated)
+            <span class="badge bg-success" title="Valid days">{{ $r->valid_days_count ?? 0 }} Valid</span>
+            <span class="badge bg-warning" title="Invalid days">{{ $r->invalid_days_count ?? 0 }} Invalid</span>
+            <span class="badge bg-danger" title="Off days">{{ $r->off_days_count ?? 0 }} Off</span>
+            @else
             @php
             $orders = $r->delivered_orders ?? 0;
             $hours = $r->login_hr ?? 0;
@@ -171,6 +205,15 @@
             }
             @endphp
             <span class="badge {{ $badgeClass }}">{{ $status }}</span>
+            @endif
+         </td>
+
+         <td>
+            @if($isRowConsolidated)
+            {{ $r->activity_days ?? 0 }}
+            @else
+            1
+            @endif
          </td>
       </tr>
       @endforeach

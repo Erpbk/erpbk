@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Attendance Summary - ' . $date->format('F Y'))
+@section('title', 'Attendance - ' . $date->format('F Y'))
 
 @section('content')
 @can('attendance_view')
@@ -42,21 +42,13 @@
         font-weight: 400;
     }
 </style>
-<div class="container-fluid m-0 p-0">
-    <!-- Header Section with Navigation -->
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4 p-4 bg-white rounded-4 shadow-sm">
-        <div>
-            <h3 class="mb-1">
-                <i class="fas fa-calendar-check text-primary me-2"></i>
-                Attendance Summary
-            </h3>
-            <p class="text-muted mb-0">Track status by day with quick week, 10-day, and month views.</p>
-        </div>
-        <div class="badge bg-primary-subtle text-primary-emphasis border border-primary-subtle rounded-pill px-3 py-2 text-black">
-            <i class="fas fa-calendar-alt me-1"></i>{{ $date->format('F Y') }}
-        </div>
-    </div>
 
+@include('attendance.partials.tabs', [
+    'activeAttendanceTab' => 'attendance',
+    'attendanceUserType' => $userType ?? request('user_type', 'employee'),
+])
+
+<div class="container-fluid m-0 p-0">
     <!-- Summary Table -->
     <div class="card shadow-sm border-0 attendance-summary-card">
 

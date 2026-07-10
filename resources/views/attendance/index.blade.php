@@ -1,10 +1,15 @@
 @extends('layouts.app')
 
-@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Records' : 'All Attendance Records')
+@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Report' : 'Attendance Report')
 
 @section('content')
 <div class="">
     @can('attendance_view')
+    @include('attendance.partials.tabs', [
+        'activeAttendanceTab' => 'report',
+        'attendanceUserType' => request('ref_type', 'employee'),
+    ])
+
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -39,10 +44,6 @@
                                 <div class="action-dropdown-item-text">Export Attendance</div>
                                 <div class="action-dropdown-item-desc">Last Three Months</div>
                             </div>
-                        </a>
-                        <a class="action-dropdown-item" href="{{ route('attendance.summary', request('ref_type') ? ['user_type' => request('ref_type')] : []) }}">
-                            <i class="ti ti-file"></i>
-                            <span>View Summary</span>
                         </a>
                         @endcan
                     </div>
@@ -108,7 +109,7 @@
     <!-- Attendance Table -->
     <div class="card shadow mb-4">
         <div class="card-header d-flex justify-content-between">
-            <h4>Attendance Records</h4>
+            <h4>Attendance Report</h4>
             <div>
                 <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i> Export</a>
                 <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>

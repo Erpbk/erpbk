@@ -321,21 +321,23 @@ class RiderActivitiesController extends AppBaseController
 
         $allData = (clone $query)->get();
 
+        $validActivities = $allData->filter(function ($item) {
+            return $this->resolveActivityDayStatus($item) === 'Valid';
+        });
+
         $totals = [
-            'working_days' => $allData->count(),
-            'valid_days' => $allData->filter(function ($item) {
-                return $this->resolveActivityDayStatus($item) === 'Valid';
-            })->count(),
+            'working_days' => $validActivities->count(),
+            'valid_days' => $validActivities->count(),
             'invalid_days' => $allData->filter(function ($item) {
                 return $this->resolveActivityDayStatus($item) === 'Invalid';
             })->count(),
             'off_days' => $allData->filter(function ($item) {
                 return $this->resolveActivityDayStatus($item) === 'Off';
             })->count(),
-            'total_orders' => $allData->sum('delivered_orders'),
-            'total_rejected' => $allData->sum('rejected_orders'),
-            'total_hours' => $allData->sum('login_hr'),
-            'avg_ontime' => ($allData->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0) * 100,
+            'total_orders' => $validActivities->sum('delivered_orders'),
+            'total_rejected' => $validActivities->sum('rejected_orders'),
+            'total_hours' => $validActivities->sum('login_hr'),
+            'avg_ontime' => ($validActivities->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage') ?? 0) * 100,
         ];
 
         $data = $this->buildConsolidatedRiderActivities($allData, $request, $paginationParams);
@@ -435,11 +437,13 @@ class RiderActivitiesController extends AppBaseController
                 $validDays = 0;
                 $invalidDays = 0;
                 $offDays = 0;
+                $validActivities = collect();
 
                 foreach ($riderActivities as $activity) {
                     $status = $this->resolveActivityDayStatus($activity);
                     if ($status === 'Valid') {
                         $validDays++;
+                        $validActivities->push($activity);
                     } elseif ($status === 'Invalid') {
                         $invalidDays++;
                     } else {
@@ -447,7 +451,8 @@ class RiderActivitiesController extends AppBaseController
                     }
                 }
 
-                $avgOntime = $riderActivities->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage');
+                // Aggregate metrics from valid days only
+                $avgOntime = $validActivities->where('ontime_orders_percentage', '>', 0)->avg('ontime_orders_percentage');
                 $dateFrom = $dateFromFilter ?: $riderActivities->min('date');
                 $dateTo = $dateToFilter ?: $riderActivities->max('date');
 
@@ -468,10 +473,10 @@ class RiderActivitiesController extends AppBaseController
                     'date_from' => $dateFrom,
                     'date_to' => $dateTo,
                     'is_consolidated' => true,
-                    'activity_days' => $riderActivities->count(),
-                    'delivered_orders' => $riderActivities->sum('delivered_orders'),
-                    'rejected_orders' => $riderActivities->sum('rejected_orders'),
-                    'login_hr' => round((float) $riderActivities->sum('login_hr'), 2),
+                    'activity_days' => $validDays,
+                    'delivered_orders' => $validActivities->sum('delivered_orders'),
+                    'rejected_orders' => $validActivities->sum('rejected_orders'),
+                    'login_hr' => round((float) $validActivities->sum('login_hr'), 2),
                     'ontime_orders_percentage' => $avgOntime ? round((float) $avgOntime, 2) : null,
                     'delivery_rating' => null,
                     'valid_days_count' => $validDays,

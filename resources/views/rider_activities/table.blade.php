@@ -201,7 +201,7 @@ $isAllTab = !empty($isAllTab);
          <td>{{ $r->rejected_orders }}</td>
          <td>{{ $r->delivered_orders }}</td>
          @if($isAllTab)
-         <td>{{ $r->activity_days ?? 0 }}</td>
+         <td>{{ $r->valid_days_count ?? 0 }}</td>
          @else
          <td>
             @if($isRowConsolidated)

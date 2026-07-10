@@ -224,7 +224,7 @@ $projects = $projects ?? collect();
         <div class="totals-cards">
           <div class="total-card total-delivered">
             <div class="label"><i class="fa fa-calendar"></i>Total Days</div>
-            <div class="value" id="working_days">{{ number_format($totals['working_days'] ?? 0) }}</div>
+            <div class="value" id="working_days">{{ number_format($totals['valid_days'] ?? 0) }}</div>
           </div>
           <div class="total-card total-valid-days">
             <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
@@ -522,7 +522,7 @@ $projects = $projects ?? collect();
           $('#table-data').html(data.tableData);
 
           if (data.totals) {
-            $('#working_days').text(parseInt(data.totals.working_days || 0).toLocaleString());
+            $('#working_days').text(parseInt(data.totals.valid_days || 0).toLocaleString());
             $('#total_orders').text(parseInt(data.totals.total_orders || 0).toLocaleString());
             $('#avg_ontime').text(parseFloat(data.totals.avg_ontime || 0).toFixed(2) + '%');
             $('#total_rejected').text(parseInt(data.totals.total_rejected || 0).toLocaleString());

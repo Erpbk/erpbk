@@ -13,30 +13,30 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div class="">
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
                 @can('leasing_company_invoice_create')
-                    <div class="action-buttons d-flex justify-content-end">
-                        <div class="action-dropdown-container">
-                            <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                <div class="action-buttons d-flex justify-content-end">
+                    <div class="action-dropdown-container">
+                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
+                            <i class="ti ti-plus"></i>
+                            <span>Add New</span>
+                            <i class="ti ti-chevron-down"></i>
+                        </button>
+                        <div class="action-dropdown-menu" id="addBikeDropdown">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Leasing Company Invoice" data-action="{{ route('leasingCompanyInvoices.create') }}">
                                 <i class="ti ti-plus"></i>
-                                <span>Add New</span>
-                                <i class="ti ti-chevron-down"></i>
-                            </button>
-                            <div class="action-dropdown-menu" id="addBikeDropdown">
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Leasing Company Invoice" data-action="{{ route('leasingCompanyInvoices.create') }}">
-                                    <i class="ti ti-plus"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Invoice</div>
-                                        <div class="action-dropdown-item-desc">Add a new Leasing Company Invoice</div>
-                                    </div>
-                                </a>
-                            </div>
+                                <div>
+                                    <div class="action-dropdown-item-text">Invoice</div>
+                                    <div class="action-dropdown-item-desc">Add a new Leasing Company Invoice</div>
+                                </div>
+                            </a>
                         </div>
                     </div>
+                </div>
                 @endcan
             </div>
         </div>

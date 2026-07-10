@@ -114,10 +114,10 @@ $isAllTab = !empty($isAllTab);
          <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
          <th title="Project" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Project">Project</th>
          <th title="Status" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
-         <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
-         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
+         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
+         <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
          @if($isAllTab)
          <th title="Total Days" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Total Days: activate to sort column ascending">Total Days</th>
          @else
@@ -196,10 +196,10 @@ $isAllTab = !empty($isAllTab);
          <td>
             <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
          </td>
-         <td>{{ $r->delivered_orders }}</td>
-         <td>{{ $r->login_hr }}</td>
          <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
+         <td>{{ $r->login_hr }}</td>
          <td>{{ $r->rejected_orders }}</td>
+         <td>{{ $r->delivered_orders }}</td>
          @if($isAllTab)
          <td>{{ $r->activity_days ?? 0 }}</td>
          @else

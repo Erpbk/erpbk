@@ -1024,27 +1024,6 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    // Check if rider account has any transactions (like Banks does)
-    if ($riders->account_id) {
-      $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
-      if ($accountTransactions > 0) {
-        Flash::error('Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.');
-
-        return redirect(route('riders.index'));
-      }
-    }
-
-    // Check if rider has any vouchers (by ref_id or rider_id)
-    $vouchersCount = Vouchers::where(function ($query) use ($id) {
-      $query->where('ref_id', $id);
-    })->count();
-
-    if ($vouchersCount > 0) {
-      Flash::error('Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.');
-
-      return redirect(route('riders.index'));
-    }
-
     // Check for other related records
     $relatedRecords = [];
 
@@ -1140,39 +1119,162 @@ class RidersController extends AppBaseController
     // Store rider data BEFORE deleting (important!)
     $riderId = $riders->id;
     $riderName = $riders->name . ' (' . $riders->rider_id . ')';
-    $relatedAccount = $riders->account;
+    $relatedAccounts = collect();
 
-    // Set deleted_by if column exists
-    if (Schema::hasColumn('riders', 'deleted_by')) {
-      $riders->deleted_by = Auth::id();
-      $riders->save();
+    if ($riders->account) {
+      $relatedAccounts->push($riders->account);
     }
 
-    // Soft delete the rider
-    $riders->delete();
+    // Also pick up any rider ledger accounts linked by ref
+    Accounts::where('ref_id', $riderId)
+      ->where('ref_name', 'Rider')
+      ->get()
+      ->each(function ($account) use ($relatedAccounts) {
+        if (! $relatedAccounts->contains('id', $account->id)) {
+          $relatedAccounts->push($account);
+        }
+      });
 
-    // Also soft delete the related account if exists and track it
-    if ($relatedAccount) {
-      $cascadedItems[] = [
-        'model' => 'Accounts',
-        'id' => $relatedAccount->id,
-        'name' => $relatedAccount->name,
-      ];
+    DB::beginTransaction();
+    try {
+      // Soft-delete rider vouchers and their transactions (instead of blocking delete)
+      $relatedVouchers = Vouchers::where(function ($query) use ($riderId) {
+        $query->where('rider_id', $riderId)
+          ->orWhere('ref_id', $riderId);
+      })->get();
 
-      $relatedAccount->delete();
+      foreach ($relatedVouchers as $voucher) {
+        $voucherIdentifier = ($voucher->voucher_type ?? 'V') . '-' . str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
+        $relatedTransactions = Transactions::where('trans_code', $voucher->trans_code)->get();
 
-      // Log the cascade
-      $this->trackCascadeDeletion(
-        'App\Models\Riders',
-        $riderId,
-        $riderName,
-        'App\Models\Accounts',
-        $relatedAccount->id,
-        $relatedAccount->name,
-        'hasOne',
-        'account',
-        'soft'
-      );
+        foreach ($relatedTransactions as $transaction) {
+          try {
+            $this->trackCascadeDeletion(
+              'App\Models\Riders',
+              $riderId,
+              $riderName,
+              'App\Models\Transactions',
+              $transaction->id,
+              "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
+              'hasMany',
+              'transactions',
+              'soft',
+              'Cascade deletion from Rider deletion'
+            );
+          } catch (\Exception $e) {
+            Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+          }
+
+          if (in_array('deleted_by', $transaction->getFillable(), true)) {
+            $transaction->deleted_by = Auth::id();
+            $transaction->save();
+          }
+
+          $transaction->delete();
+        }
+
+        try {
+          $this->trackCascadeDeletion(
+            'App\Models\Riders',
+            $riderId,
+            $riderName,
+            'App\Models\Vouchers',
+            $voucher->id,
+            $voucherIdentifier,
+            'hasMany',
+            'vouchers',
+            'soft',
+            'Cascade deletion from Rider deletion'
+          );
+        } catch (\Exception $e) {
+          Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
+        }
+
+        if (in_array('deleted_by', $voucher->getFillable(), true)) {
+          $voucher->deleted_by = Auth::id();
+          $voucher->save();
+        }
+
+        $voucher->delete();
+        $cascadedItems[] = [
+          'model' => 'Vouchers',
+          'id' => $voucher->id,
+          'name' => $voucherIdentifier,
+        ];
+      }
+
+      // Soft-delete any remaining transactions on rider accounts
+      foreach ($relatedAccounts as $account) {
+        $remainingTransactions = Transactions::where('account_id', $account->id)->get();
+        foreach ($remainingTransactions as $transaction) {
+          try {
+            $this->trackCascadeDeletion(
+              'App\Models\Riders',
+              $riderId,
+              $riderName,
+              'App\Models\Transactions',
+              $transaction->id,
+              "Transaction #{$transaction->id} (Account: {$account->name})",
+              'hasMany',
+              'transactions',
+              'soft',
+              'Cascade deletion from Rider deletion'
+            );
+          } catch (\Exception $e) {
+            Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+          }
+
+          if (in_array('deleted_by', $transaction->getFillable(), true)) {
+            $transaction->deleted_by = Auth::id();
+            $transaction->save();
+          }
+
+          $transaction->delete();
+        }
+      }
+
+      // Set deleted_by if column exists
+      if (Schema::hasColumn('riders', 'deleted_by')) {
+        $riders->deleted_by = Auth::id();
+        $riders->save();
+      }
+
+      // Soft delete the rider
+      $riders->delete();
+
+      // Soft delete all related rider accounts
+      foreach ($relatedAccounts as $relatedAccount) {
+        $cascadedItems[] = [
+          'model' => 'Accounts',
+          'id' => $relatedAccount->id,
+          'name' => $relatedAccount->name,
+        ];
+
+        $relatedAccount->delete();
+
+        $this->trackCascadeDeletion(
+          'App\Models\Riders',
+          $riderId,
+          $riderName,
+          'App\Models\Accounts',
+          $relatedAccount->id,
+          $relatedAccount->name,
+          'hasOne',
+          'account',
+          'soft'
+        );
+      }
+
+      DB::commit();
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      Log::error('Failed to delete rider', [
+        'rider_id' => $riderId,
+        'error' => $e->getMessage(),
+      ]);
+      Flash::error('Failed to delete rider: ' . $e->getMessage());
+
+      return redirect(route('riders.index'));
     }
 
     // Build cascade message

@@ -1,4 +1,4 @@
-{!! Form::open(['route' => 'admin.permissions.store', 'id' => 'formajax']) !!}
+{!! Form::open(['route' => 'admin.permissions.store', 'id' => 'formajax', 'class' => 'form-ajax-submit', 'data-reload-table' => '0']) !!}
 
     @include('permissions.fields')
 

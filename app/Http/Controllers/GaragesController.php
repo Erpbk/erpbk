@@ -24,6 +24,10 @@ class GaragesController extends AppBaseController
   public function __construct(GaragesRepository $garagesRepo)
   {
     $this->garagesRepository = $garagesRepo;
+    $this->middleware('permission:garages_garage_view')->only('index', 'show');
+    $this->middleware('permission:garages_garage_create')->only('create', 'store');
+    $this->middleware('permission:garages_garage_edit')->only('edit', 'update');
+    $this->middleware('permission:garages_garage_delete')->only('destroy');
   }
 
   /**
@@ -31,10 +35,6 @@ class GaragesController extends AppBaseController
    */
   public function index(Request $request)
   {
-
-    if (!auth()->user()->hasPermissionTo('garage_view')) {
-      abort(403, 'Unauthorized action.');
-    }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Garages::query()

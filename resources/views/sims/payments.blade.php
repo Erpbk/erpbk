@@ -18,6 +18,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
+                        @can('sims_payments_create')
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New SIM Payment" data-action="{{ route('payments.create') }}?invoice_type=sim">
                             <i class="ti ti-plus"></i>
                             <div>
@@ -25,6 +26,7 @@
                                 <div class="action-dropdown-item-desc">Add a new SIM Payment</div>
                             </div>
                         </a>
+                        @endcan
                     </div>
                 </div>
             </div>

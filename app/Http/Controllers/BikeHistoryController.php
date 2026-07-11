@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\BikeHistoryDataTable;
 use App\Http\Requests\CreateBikeHistoryRequest;
 use App\Http\Requests\UpdateBikeHistoryRequest;
 use App\Http\Controllers\AppBaseController;
@@ -22,6 +21,10 @@ class BikeHistoryController extends AppBaseController
   public function __construct(BikeHistoryRepository $bikeHistoryRepo)
   {
     $this->bikeHistoryRepository = $bikeHistoryRepo;
+    $this->middleware('permission:bikes_assign_view')->only('index', 'show');
+    $this->middleware('permission:bikes_assign_create')->only('create', 'store');
+    $this->middleware('permission:bikes_assign_edit')->only('edit', 'update');
+    $this->middleware('permission:bikes_assign_delete')->only('destroy');
   }
 
   /**

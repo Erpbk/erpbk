@@ -11,13 +11,14 @@ use Illuminate\Support\Facades\DB;
 
 class FuelCardHistoryController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:fuel_cards_assign_create|fuel_cards_assign_edit')->only('assign', 'return', 'update_assignment');
+    }
 
     public function assign(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         if ($request->isMethod('get')) {
 
             $fuelCard = FuelCards::find($id);
@@ -72,10 +73,6 @@ class FuelCardHistoryController extends Controller
 
     public function return(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         if ($request->isMethod('get')) {
 
             $fuelCard = FuelCards::find($id);
@@ -132,10 +129,6 @@ class FuelCardHistoryController extends Controller
 
     public function updateAssignment(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $fuelCard = FuelCards::find($id);
         if (!$fuelCard) {
             return response()->json(['message' => 'Card Not Found']);

@@ -339,6 +339,7 @@
 @endpush
 
 @section('content')
+@can('bikes_bike_view')
 <section class="content-header">
     @include('flash::message')
     <div>
@@ -355,7 +356,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('bike_create')
+                            @can('bikes_bike_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Vehicle" data-action="{{ route('bikes.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -363,21 +364,17 @@
                                     <div class="action-dropdown-item-desc">Add a new vehicle to the system</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('bike_create')
                             <a class="action-dropdown-item" href="{{ route('bikes.import') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Vehicles</span>
                             </a>
                             @endcan
-                            @can('bike_view')
+                            @can('bikes_export_data_create')
                             <a class="action-dropdown-item" href="{{ route('bikes.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Vehicles</span>
                             </a>
                             @endcan
-
-                            @can('bike_create')
                             <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
                                 <i class="ti ti-columns"></i>
                                 <div>
@@ -385,7 +382,6 @@
                                     <div class="action-dropdown-item-desc">Open column control modal</div>
                                 </div>
                             </a>
-                            @endcan
                         </div>
                     </div>
                 </div>
@@ -613,7 +609,13 @@
         </div>
     </div>
 </div>
-
+@else
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">You are not authorized to access this page</h5>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

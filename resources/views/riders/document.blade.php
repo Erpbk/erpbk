@@ -2,7 +2,7 @@
 
 @section('page_content')
 <div class="card-action mb-0">
-    @can('rider_document')
+    @can('riders_documents_view')
     <!-- FILES SECTION -->
     <div class="card mb-4 border-warning">
         <div class="table-responsive my-3">
@@ -33,13 +33,15 @@
                                 </div>
 
                                 <!-- Upload Button -->
+                                @can('riders_documents_create')
                                 <a class="btn btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
-                                    data-action="{{ route('files.create',['type_id'=>request()->segment(5),'type'=>'rider']) }}"
+                                    data-action="{{ route('files.create',['type_id'=>$riders->id,'type'=>'rider']) }}"
                                     data-size="sm"
                                     data-title="Upload File">
                                     <i class="ti ti-upload me-1"></i>Upload File
                                 </a>
+                                @endcan
                             </div>
                         </div>
                     </tr>
@@ -60,12 +62,14 @@
                             </a>
                         </td>
                         <td class="text-end">
+                            @can('riders_documents_delete')
                             <a href="javascript:void(0);"
                                 data-url="{{ route('files.destroy', $riderFile->id) }}"
                                 target="_blank"
                                 class='btn btn-danger btn-sm delete-file'>
-                                <i class="fa fa-trash my-1"></i>
-                            </a>
+                                    <i class="fa fa-trash my-1"></i>
+                                </a>
+                            @endcan
                         </td>
                     </tr>
                     @endforeach
@@ -75,10 +79,11 @@
                         <td class="row-counter">{{ $counter++ }}</td>
                         <td class="text-start">{{ $fileName }}</td>
                         <td class="text-end">
+                            @can('riders_documents_create')
                             <a class="btn btn-sm btn-primary show-modal action-btn"
                                 href="javascript:void(0);"
                                 data-action="{{ route('files.create', [
-                                                'type_id' => request()->segment(5),
+                                                'type_id' => $riders->id,
                                                 'type' => 'rider',
                                                 'suggested_name' => $fileName
                                             ]) }}"
@@ -86,6 +91,7 @@
                                 data-title="Upload {{ $fileName }}">
                                 <i class="ti ti-upload"></i>
                             </a>
+                            @endcan
                         </td>
                     </tr>
                     @endforeach
@@ -104,12 +110,13 @@
             </table>
         </div>
     </div>
-    @endcan
-    @cannot('rider_document')
-    <div class="alert alert-warning text-center m-3">
-        <i class="fa fa-warning"></i> You don't have permission.
+    @else
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
     </div>
-    @endcannot
+    @endcan
 </div>
 @endsection
 

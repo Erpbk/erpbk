@@ -13,14 +13,14 @@ class AssetCategoryController extends Controller
     public function __construct(
         private readonly AssetCategoryAccountService $accountService
     ) {
+        $this->middleware('permission:assets_view')->only('index');
+        $this->middleware('permission:assets_create')->only('create', 'store');
+        $this->middleware('permission:assets_edit')->only('edit', 'update');
+        $this->middleware('permission:assets_delete')->only('destroy');
     }
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('asset_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $categories = AssetCategory::query()->orderBy('name')->get();
 
         if ($request->ajax()) {
@@ -34,10 +34,6 @@ class AssetCategoryController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('asset_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         return view('asset_categories.create', [
             'depreciationMethods' => AssetCategory::depreciationMethods(),
             'depreciationFrequencies' => AssetCategory::depreciationFrequencies(),
@@ -46,10 +42,6 @@ class AssetCategoryController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('asset_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'code' => 'nullable|string|max:50',
@@ -103,10 +95,6 @@ class AssetCategoryController extends Controller
 
     public function edit(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $category = AssetCategory::findOrFail($id);
 
         return view('asset_categories.edit', [
@@ -118,10 +106,6 @@ class AssetCategoryController extends Controller
 
     public function update(Request $request, string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $category = AssetCategory::findOrFail($id);
         $oldName = $category->name;
 
@@ -192,10 +176,6 @@ class AssetCategoryController extends Controller
 
     public function destroy(Request $request, string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $category = AssetCategory::findOrFail($id);
 
         if ($category->isSystemLocked()) {

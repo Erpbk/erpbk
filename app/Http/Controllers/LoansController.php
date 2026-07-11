@@ -31,13 +31,15 @@ class LoansController extends AppBaseController
         protected LoanRepository $loanRepository,
         protected LoanAmortizationService $amortizationService,
         protected LoanVoucherService $loanVoucherService
-    ) {}
+    ) {
+            $this->middleware('permission:loans_view')->only('index', 'upcomingInstallments', 'interestSummary', 'show', 'installments', 'files', 'ledger');
+            $this->middleware('permission:loans_create')->only('create', 'store', 'disburse', 'payInstallment', 'regenerateScheduleAction');
+            $this->middleware('permission:loans_edit')->only('edit', 'update', 'disburse', 'payInstallment', 'regenerateScheduleAction');
+            $this->middleware('permission:loans_delete')->only('destroy');
+        }
 
     public function index(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $this->markOverdueInstallments();
 
@@ -85,9 +87,6 @@ class LoansController extends AppBaseController
 
     public function upcomingInstallments(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_installment_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $this->markOverdueInstallments();
 
@@ -115,9 +114,6 @@ class LoansController extends AppBaseController
 
     public function interestSummary(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $from = $request->get('from_date', Carbon::now()->startOfYear()->format('Y-m-d'));
         $to = $request->get('to_date', Carbon::now()->format('Y-m-d'));
@@ -140,9 +136,6 @@ class LoansController extends AppBaseController
 
     public function store(CreateLoanRequest $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_create')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $input = $request->all();
 
@@ -176,9 +169,6 @@ class LoansController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $loan = $this->loanRepository->find($id);
         if (empty($loan)) {
@@ -221,9 +211,6 @@ class LoansController extends AppBaseController
 
     public function update($company_slug, $id, UpdateLoanRequest $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $loan = $this->loanRepository->find($id);
         if (empty($loan)) {
@@ -257,9 +244,6 @@ class LoansController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $loan = $this->loanRepository->find($id);
         if (empty($loan)) {
@@ -279,9 +263,6 @@ class LoansController extends AppBaseController
 
     public function disburse(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_disburse')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $loan = $this->loanRepository->find($id);
         if (empty($loan)) {
@@ -334,9 +315,6 @@ class LoansController extends AppBaseController
 
     public function installments(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_installment_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $loan = $this->loanRepository->find($id);
         if (empty($loan)) {
@@ -366,10 +344,6 @@ class LoansController extends AppBaseController
 
     public function payInstallmentForm($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_repay')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $installment = LoanInstallment::with(['loan.bank', 'loan.account'])->findOrFail($id);
 
         if (! $installment->canBePaid()) {
@@ -412,10 +386,6 @@ class LoansController extends AppBaseController
 
     public function payInstallment(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_repay')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $installment = LoanInstallment::with('loan')->findOrFail($id);
 
         if (! $installment->canBePaid()) {
@@ -488,10 +458,6 @@ class LoansController extends AppBaseController
 
     public function regenerateScheduleAction(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $loan = $this->loanRepository->find($id);
         if (! $loan || ! $loan->isEditable()) {
             Flash::error('Schedule cannot be regenerated for this loan.');

@@ -515,7 +515,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                   </a>
                 </li>
                 @if(isset($employee))
-                @can('employee_document')
+                @can('employees_document_view')
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(request()->segment(5) == 'files') active @endif"
                     href="{{ route('employee.files', $employee->id) }}">
@@ -524,7 +524,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </li>
                 @endcan
 
-                @can('employees_view')
+                @can('employees_ledger_view')
                 <li class="nav-item nav-priority-3">
                   <a class="nav-link @if(request()->routeIs('employee.ledger')) active @endif"
                     href="{{ route('employee.ledger', $employee->id) }}">
@@ -533,16 +533,14 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </li>
                 @endcan
 
-                @can('employee_salary')
                 <li class="nav-item nav-priority-4">
                   <a class="nav-link @if(request()->segment(5) == 'salary') active @endif"
                     href="{{ route('employee.salary', $employee->id) }}">
                     <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
                   </a>
                 </li>
-                @endcan
 
-                @can('employee_attendance')
+                @can('employees_attendance_view')
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(request()->segment(5) == 'attendance') active @endif"
                     href="{{ route('employee.attendance', $employee->id) }}">
@@ -561,7 +559,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                 </li>
 
                 <!-- Action items -->
-                @canany(['employee_voucher_create'])
+                @can('employees_voucher_view')
                 <li class="nav-item nav-priority-8 nav-action-item">
                   <a href="javascript:void(0);"
                     data-action="{{ route('employees.voucher', $employee->id) }}"
@@ -570,7 +568,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
                   </a>
                 </li>
-                @endcanany
+                @endcan
                 @endif
               </ul>
             </div>

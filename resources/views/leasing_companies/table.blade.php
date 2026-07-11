@@ -19,7 +19,7 @@
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td><a href="{{ route('leasingCompany.files', $r->id) }}">{{$r->name}}</a></td>
+         <td><a href="{{ route('leasingCompany.bikes', $r->id) }}">{{$r->name}}</a></td>
          <td>{{$r->contact_person}}</td>
          <td>{{$r->contact_number}}</td>
          <td>{{$r->trn_number}}</td>
@@ -36,17 +36,17 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('leasing_view')
+                  @can('leasing_companies_company_view')
                   <a href="{{ route('leasingCompany.files', $r->id) }}" target="_blank" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye my-1"></i> View
                   </a>
                   @endcan
-                  @can('leasing_edit')
+                  @can('leasing_companies_company_edit')
                   <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Leasing Company" data-action="{{ route('leasingCompanies.edit', $r->id) }}">
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
                   @endcan
-                  @can('leasing_delete')
+                  @can('leasing_companies_company_delete')
                   <a href="javascript:void(0);" class='dropdown-item waves-effect'
                      onclick="confirmDelete('{{route('leasingCompanies.delete', $r->id) }}')">
                      <i class="fa fa-trash my-1"></i> Delete

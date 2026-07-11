@@ -31,12 +31,12 @@
                <!-- <a href="javascript:void(0);" data-action="{{ route('items.show', $r->id) }}" class='btn btn-default btn-sm show-modal' data-size="lg" data-title="View">
                   <i class="fa fa-eye"></i>
                   </a> -->
-               @can('vendor_edit')
+               @can('vendors_edit')
                <a href="javascript:void(0);" data-action="{{ route('vendors.edit', $r->id) }}" class='btn btn-info btn-sm show-modal' data-size="lg" data-title="Update Vendors">
                   <i class="fa fa-edit"></i>
                </a>
                @endcan
-               @can('vendor_delete')
+               @can('vendors_delete')
                <a href="javascript:void(0);" data-delete-url="{{ route('vendors.destroy', $r->id) }}" onclick="confirmDelete(this.dataset.deleteUrl)" class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Item">
                   <i class="fa fa-trash"></i>
                </a>

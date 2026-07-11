@@ -31,7 +31,7 @@ $companySlug = request()->route('company_slug') ?? session('company_slug');
                 <td>{{ $item->display_order }}</td>
                 <td>
                     <div class="btn-group">
-                        @can('riderinventory_edit')
+                        @can('riders_inventory_edit')
                         @if($embeddedInventoryItemManager)
                         <button type="button"
                             class="btn btn-sm btn-primary js-inventory-item-edit-btn"
@@ -53,7 +53,7 @@ $companySlug = request()->route('company_slug') ?? session('company_slug');
                             <i class="fas fa-{{ $item->is_active ? 'ban' : 'check' }}"></i>
                         </a>
                         @endcan
-                        @can('riderinventory_delete')
+                        @can('riders_inventory_delete')
                         <button type="button" class="btn btn-sm btn-danger js-inventory-item-delete-btn" data-delete-form-id="delete-inventory-item-{{ $item->id }}">
                             <i class="fas fa-trash"></i>
                         </button>

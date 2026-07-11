@@ -5,7 +5,7 @@ $isEmployeeEditPage = request()->routeIs('employees.edit');
 @if(!$isEmployeeEditPage && isset($result))
 <div class="card-footer border-top fixed-footer mt-3" style="padding-top: 25px;">
     <div class="d-flex justify-content-start gap-2 flex-wrap">
-        @can('employees_edit')
+        @can('employees_employee_edit')
         <a href="{{ route('employees.edit', ['company_slug' => $companySlug, 'employee' => $result['id']]) }}" class="btn btn-outline-primary btn-sm waves-effect waves-light">
             <i class="fa fa-edit"></i>&nbsp;Edit
         </a>

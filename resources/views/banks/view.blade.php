@@ -34,6 +34,7 @@
               <span class="fw-semibold">Bank Info</span>
             </a>
           </li>
+          @can('cash_&_banks_banks_view')
           <li class="nav-item" role="presentation">
             <a class="nav-link @if(request()->segment(2) == 'files') active @endif d-flex align-items-center justify-content-center py-3" 
                href="{{ route('bank.files', $banks->id) }}">
@@ -41,6 +42,7 @@
               <span class="fw-semibold">Documents</span>
             </a>
           </li>
+          @endcan
           <li class="nav-item" role="presentation">
             <a class="nav-link @if(request()->segment(2) == 'ledger') active @endif d-flex align-items-center justify-content-center py-3" 
                href="{{ route('bank.ledger', $banks->id) }}">

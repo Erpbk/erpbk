@@ -27,6 +27,10 @@ class ExpenseController extends AppBaseController
     public function __construct(AccountsRepository $accountsRepo)
     {
         $this->accountsRepository = $accountsRepo;
+        $this->middleware('permission:expenses_view')->only('index', 'listSidebar', 'showVoucher', 'accountDetail', 'ledgerEntries');
+        $this->middleware('permission:expenses_create')->only('createVoucher', 'storeVoucher', 'create', 'store', 'toggleLock', 'toggleStatus');
+        $this->middleware('permission:expenses_edit')->only('editVoucher', 'updateVoucher', 'destroyVoucher', 'edit', 'update', 'toggleLock', 'toggleStatus');
+        $this->middleware('permission:expenses_delete')->only('destroyVoucher', 'destroy');
     }
 
     /** @var AccountsRepository */
@@ -65,10 +69,6 @@ class ExpenseController extends AppBaseController
      */
     public function index(Request $request)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = Vouchers::where('voucher_type', 'EXP')->orderBy('id', 'desc');
@@ -124,10 +124,6 @@ class ExpenseController extends AppBaseController
      */
     public function listSidebar(Request $request)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $query = Vouchers::where('voucher_type', 'EXP')->orderBy('id', 'desc');
 
         if ($request->filled('quick_search')) {
@@ -149,9 +145,6 @@ class ExpenseController extends AppBaseController
      */
     public function showVoucher($company_slug, $id)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $voucher = Vouchers::where('voucher_type', 'EXP')
             ->with(['transactions.account'])
@@ -181,9 +174,6 @@ class ExpenseController extends AppBaseController
      */
     public function store(CreateAccountsRequest $request)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         $input = $request->except(['custom_field_values']);
         $input['account_type'] = 'Expense';
 
@@ -202,9 +192,6 @@ class ExpenseController extends AppBaseController
      */
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         $accounts = $this->accountsRepository->find($id);
         if (empty($accounts) || !$accounts->account_type == 'Expense') {
             Flash::error('Expense Account not found.');
@@ -222,9 +209,6 @@ class ExpenseController extends AppBaseController
      */
     public function update($company_slug, $id, UpdateAccountsRequest $request)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
             return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
@@ -256,9 +240,6 @@ class ExpenseController extends AppBaseController
      */
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->can('expenses_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         $expenseIds = $this->getExpenseAccountIds();
         if (!in_array((int) $id, $expenseIds, true)) {
             return response()->json(['errors' => ['error' => 'Expense account not found.']], 422);
@@ -355,10 +336,6 @@ class ExpenseController extends AppBaseController
      */
     public function createVoucher()
     {
-        if (!auth()->user()->can('expenses_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $expenseIds = $this->getExpenseAccountIds();
         $accounts = Accounts::whereIn('id', $expenseIds)
             ->get(['id', 'name', 'parent_id']);
@@ -385,10 +362,6 @@ class ExpenseController extends AppBaseController
      */
     public function storeVoucher(Request $request)
     {
-        if (!auth()->user()->can('expenses_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $request->validate([
             'trans_date' => 'required|date',
             'billing_month' => 'required',
@@ -502,10 +475,6 @@ class ExpenseController extends AppBaseController
      */
     public function editVoucher($company_slug, $id)
     {
-        if (!auth()->user()->can('expenses_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $voucher = Vouchers::where('voucher_type', 'EXP')->findOrFail($id);
         $transactions = Transactions::where('trans_code', $voucher->trans_code)->get();
 

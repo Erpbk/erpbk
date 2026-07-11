@@ -404,7 +404,11 @@ $companySlug = request()->route('company_slug');
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
-
+                    @isset($riders)
+                      @php
+                      $rider = $riders;
+                      @endphp
+                    @endisset
                     @if($rider->sim?->number)
                       @php
                       $phone = preg_replace('/[^0-9]/', '', $rider->sim?->number ?? '');
@@ -558,7 +562,7 @@ $companySlug = request()->route('company_slug');
                 </li>
 
                 @isset($result)
-                @can('timeline_view')
+                @can('riders_timeline_view')
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
                     href="{{route('rider.timeline',$result['id'])}}">
@@ -573,7 +577,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('rider_document')
+                @can('riders_documents_view')
                 <li class="nav-item nav-priority-3">
                   <a class="nav-link @if(Route::is('rider.files')) active @endif"
                     href="{{route('rider.files',$result['id'])}}">
@@ -582,7 +586,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('riderinvoice_view')
+                @can('riders_invoices_view')
                 <li class="nav-item nav-priority-4">
                   <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
                     href="{{route('rider.invoices',$result['id'])}}">
@@ -593,6 +597,7 @@ $companySlug = request()->route('company_slug');
 
                 @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
                 @if(!empty($riders))
+                @can('visa_expense_view')
                 @php
                 $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
                 @endphp
@@ -604,11 +609,13 @@ $companySlug = request()->route('company_slug');
                   </a>
                 </li>
                 @endif
+                @endcan
                 @endif
                 @endif
 
-                @can('licenseexpense_view')
+                
                 @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
+                @can('license_expense_view')
                 @if(!empty($riders))
                 @php
                 $licenseExpenseAccount = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
@@ -622,10 +629,10 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endif
                 @endif
-                @endif
                 @endcan
+                @endif
 
-                @can('riderinventory_view')
+                @can('riders_inventory_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
@@ -636,7 +643,7 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
 
-                @can('legalcase_view')
+                @can('legal_case_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
                 @php
                 $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
@@ -652,7 +659,7 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
 
-                @can('item_view')
+                @can('riders_rider_view')
                 <li class="nav-item nav-priority-6">
                   <a class="nav-link @if(Route::is('rider.items')) active @endif"
                     href="{{route('rider.items',$result['id'])}}">
@@ -661,7 +668,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('gn_ledger')
+                @can('riders_ledger_view')
                 <li class="nav-item nav-priority-7">
                   <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
                     href="{{route('rider.ledger',$result['id'])}}">
@@ -670,7 +677,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('activity_view')
+                @can('riders_activities_view')
                 <li class="nav-item nav-priority-8">
                   <a class="nav-link @if(Route::is('rider.activities')) active @endif"
                     href="{{route('rider.activities',$result['id'])}}">
@@ -689,7 +696,7 @@ $companySlug = request()->route('company_slug');
                 @endcan
 
                 <!-- Action items with lower priority -->
-                @canany(['advanceloan_create','cod_create','penality_create','payment_create','vendorcharges_create'])
+                @can('riders_voucher_create')
                 <li class="nav-item nav-priority-10">
                   <a href="javascript:void(0);"
                     data-action="{{ route('riders.voucher', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
@@ -698,9 +705,9 @@ $companySlug = request()->route('company_slug');
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
                   </a>
                 </li>
-                @endcanany
+                @endcan
 
-                @can('incentives_create')
+                @can('riders_voucher_create')
                 <li class="nav-item nav-priority-11">
                   <a href="javascript:void(0);"
                     data-action="{{ route('riders.incentive', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"

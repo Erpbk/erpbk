@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\RtaFinesDataTable;
 use App\Helpers\Account;
 use App\Helpers\Common;
 use App\Http\Requests\CreateRtaFinesRequest;
@@ -40,6 +39,13 @@ class RtaFinesController extends AppBaseController
     public function __construct(RtaFinesRepository $rtaFinesRepo)
     {
         $this->rtaFinesRepository = $rtaFinesRepo;
+        $this->middleware('auth');
+        $this->middleware('permission:rta_fines_unpaid_view')->only('index', 'tickets', 'show');
+        $this->middleware('permission:rta_fines_paid_view')->only('paid', 'show');
+        $this->middleware('permission:rta_fines_unpaid_create')->only('create', 'store', 'fileUpload', 'importForm', 'import');
+        $this->middleware('permission:rta_fines_paid_create')->only('payfine', 'payForm', 'fileUpload');
+        $this->middleware('permission:rta_fines_unpaid_edit')->only('edit', 'update', 'fileUpload');
+        $this->middleware('permission:rta_fines_unpaid_delete|rta_fines_paid_delete')->only('destroy');
     }
 
     /**
@@ -49,27 +55,15 @@ class RtaFinesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('rtafine_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         return $this->renderTicketsListing($request, 'unpaid');
     }
     public function tickets(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('rtafine_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         return $this->renderTicketsListing($request, 'unpaid');
     }
 
     public function paid(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('rtafine_paid_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         return $this->renderTicketsListing($request, 'paid');
     }
 

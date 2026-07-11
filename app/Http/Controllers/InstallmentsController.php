@@ -15,18 +15,15 @@ class InstallmentsController extends AppBaseController
 {
     use GlobalPagination, TracksCascadingDeletions, ManagesVisaInstallments;
 
+    public function __construct()
+    {
+        $this->middleware('permission:visa_expense_view')->only('index');
+    }
     /**
      * List expense accounts with installment activity (main module index).
      */
     public function index(Request $request)
     {
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('installment_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');

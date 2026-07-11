@@ -39,7 +39,7 @@ $bikeRegistrationRoute = $bikeRegistrationRoute ?? ((View::shared('settings_pane
                 <td>{{ $status->display_order }}</td>
                 <td>
                     <div class='btn-group'>
-                        @can('bike_registration_edit')
+                        @can('bikes_registration_edit')
                         <a href="{{ route($bikeRegistrationRoute . '.edit', $status->id) }}" class='btn btn-sm btn-primary'>
                             <i class="fas fa-edit"></i>
                         </a>
@@ -47,7 +47,7 @@ $bikeRegistrationRoute = $bikeRegistrationRoute ?? ((View::shared('settings_pane
                             <i class="fas fa-{{ $status->is_active ? 'ban' : 'check' }}"></i>
                         </a>
                         @endcan
-                        @can('bike_registration_delete')
+                        @can('bikes_registration_delete')
                         <form action="{{ route($bikeRegistrationRoute . '.destroy', $status->id) }}" method="POST" style="display:inline" onsubmit="return confirm('Delete this status?');">
                             @csrf
                             @method('DELETE')

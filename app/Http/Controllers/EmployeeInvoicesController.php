@@ -26,6 +26,10 @@ class EmployeeInvoicesController extends AppBaseController
     public function __construct(EmployeeInvoicesRepository $employeeInvoicesRepo)
     {
         $this->employeeInvoicesRepository = $employeeInvoicesRepo;
+        $this->middleware('permission:employees_invoice_view')->only('index', 'show');
+        $this->middleware('permission:employees_invoice_create')->only('create', 'store');
+        $this->middleware('permission:employees_invoice_edit')->only('edit', 'update');
+        $this->middleware('permission:employees_invoice_delete')->only('destroy', 'bulkDelete');
     }
 
     public function index(Request $request)

@@ -34,6 +34,11 @@ class RolesController extends AppBaseController
   public function __construct(RolesRepository $rolesRepo)
   {
     $this->rolesRepository = $rolesRepo;
+    $this->middleware('auth');
+    $this->middleware('permission:settings_roles_view')->only('index', 'show');
+    $this->middleware('permission:settings_roles_create')->only('create', 'store', 'get_permissions');
+    $this->middleware('permission:settings_roles_edit')->only('edit', 'update', 'get_permissions');
+    $this->middleware('permission:settings_roles_delete')->only('destroy');
   }
 
   /**
@@ -41,19 +46,6 @@ class RolesController extends AppBaseController
    */
   public function index(RolesDataTable $rolesDataTable)
   {
-    /* if (
-      !auth()
-        ->user()
-        ->hasRole(IConstants::ROLE_SUPER_ADMIN)
-    ) {
-      if (
-        !auth()
-          ->user()
-          ->hasPermissionTo('role_view')
-      ) {
-        abort(404);
-      }
-    } */
     return $this->redirectToUserManagement();
   }
 

@@ -4,7 +4,7 @@
 
 @section('content')
 <div class="">
-    @can('attendance_view')
+    @canany(['employees_attendance_view', 'riders_attendance_view'])
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -18,7 +18,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('attendance_create')
+                        @canany(['employees_attendance_create', 'riders_attendance_create'])
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Attendance Record" data-action="{{ route('attendance.create', request('ref_type')) }}">
                             <i class="ti ti-plus"></i>
                             <span>Add New Record</span>
@@ -32,7 +32,7 @@
                             <span>Import Attendance</span>
                         </a>
                         @endcan
-                        @can('attendance_view')
+                        @canany(['employees_attendance_view', 'riders_attendance_view'])
                         <a class="action-dropdown-item" href="{{ route('attendance.export')}}?from_date={{ \Carbon\Carbon::today()->subMonths(3)->format('Y-m-d') }}&to_date={{ \Carbon\Carbon::today()->format('Y-m-d') }}" data-size="xl" data-title="Export Attendance" data-action="{{ route('attendance.export') }}">
                             <i class="ti ti-file-export"></i>
                             <div>
@@ -44,7 +44,7 @@
                             <i class="ti ti-file"></i>
                             <span>View Summary</span>
                         </a>
-                        @endcan
+                        @endcanany
                     </div>
                 </div>
             </div>
@@ -144,6 +144,12 @@
             @include('attendance.table')
         </div>
     </div>
+    @endcanany
+    @if(!auth()->user()->canany(['employees_attendance_view', 'riders_attendance_view']))
+    <div class="alert alert-danger mt-4" role="alert">
+        You do not have permission to view attendance records.
+    </div>
+    @endif
 </div>
 
 <!-- Bulk Attendance Modal - NEW APPROACH -->
@@ -269,12 +275,6 @@
             </form>
         </div>
     </div>
-    @endcan
-    @cannot('attendance_view')
-    <div class="alert alert-danger" role="alert">
-        You do not have permission to view attendance records.
-    </div>
-    @endcannot
 </div>
 
 @endsection

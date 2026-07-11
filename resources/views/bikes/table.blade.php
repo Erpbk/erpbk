@@ -241,12 +241,12 @@
                   <a href="{{ route('bikes.show', $r->id) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye my-1"></i>Show Bike
                   </a>
-                  @can('bike_edit')
+                  @can('bikes_bike_edit')
                   <a href="{{ route('bikes.edit', $r->id) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i>Edit
                   </a>
                   @endcan
-                  @can('bike_delete')
+                  @can('bikes_bike_delete')
                   <a href="javascript:void(0);" data-url="{{ route('bikes.delete', $r->id) }}" class='dropdown-item waves-effect delete-bike'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>

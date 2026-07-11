@@ -52,22 +52,22 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
-                  @can('billing_invoice_view')
+                  @can('bike_on_rent_invoices_view')
                   <a href="{{ route('leasingCompanyBillingInvoices.show', $invoice->id) }}" class='dropdown-item waves-effect' target="_blank">
                      <i class="fa fa-eye mx-1"></i> View
                   </a>
                   @endcan
-                  @can('billing_invoice_edit')
+                  @can('bike_on_rent_invoices_edit')
                   <a href="javascript:void(0);" data-action="{{ route('leasingCompanyBillingInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Billing Invoice">
                      <i class="fa fa-edit mx-1"></i> Edit
                   </a>
                   @endcan
-                  @can('billing_invoice_create')
+                  @can('bike_on_rent_invoices_create')
                   <a href="javascript:void(0);" data-action="{{ route('leasingCompanyBillingInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Billing Invoice (Next Month)">
                      <i class="fa fa-copy mx-1 text-primary"></i> Clone (Next Month)
                   </a>
                   @endcan
-                  @can('billing_invoice_delete')
+                  @can('bike_on_rent_invoices_delete')
                   {!! Form::open(['route' => ['leasingCompanyBillingInvoices.destroy', $invoice->id], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
                   {!! Form::button('<i class="fa fa-trash mx-1"></i> Delete', [
                   'type' => 'submit',

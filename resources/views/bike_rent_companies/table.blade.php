@@ -16,9 +16,9 @@
       <tr class="text-center">
           <td>
               <a @if($row->customer_type == 'bike_rental')
-                    href="{{ route('bikeRentCompanies.files', $row->id) }}" 
+                    href="{{ route('bikeRentCompanies.bikes', $row->id) }}" 
                     @else
-                    href="{{ route('garage_customer.files', $row->id) }}"@endif>
+                    href="{{ route('garage_customer.bikes', $row->id) }}"@endif>
                  {{ $row->name }}
               </a>
           </td>
@@ -44,16 +44,16 @@
                       <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $row->id }}" style="z-index: 1050;">
-                      @can('bike_edit')
+                      @canany(['bike_on_rent_customers_edit', 'garages_customers_edit'])
                           <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Update customer" data-action="{{ route('bikeRentCompanies.edit', $row->id) }}">
                               <i class="fa fa-edit my-1"></i> Edit
                           </a>
-                      @endcan
-                      @can('bike_delete')
+                      @endcanany
+                      @canany(['bike_on_rent_customers_delete', 'garages_customers_delete'])
                           <a href="javascript:void(0);" onclick="confirmDelete('{{ route('bikeRentCompanies.delete', $row->id) }}')" class="dropdown-item waves-effect">
                               <i class="fa fa-trash"></i> Delete
                           </a>
-                      @endcan
+                      @endcanany
                   </div>
               </div>
           </td>

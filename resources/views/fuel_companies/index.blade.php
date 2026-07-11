@@ -12,7 +12,7 @@
                 <h3>Fuel Companies</h3>
             </div>
             <div class="col-sm-6">
-                @can('fuel_create')
+                @can('fuel_cards_companies_create')
                 <a class="btn btn-primary float-right show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('fuelCompanies.create') }}" data-title="Add fuel company" data-size="lg">
                     Add New

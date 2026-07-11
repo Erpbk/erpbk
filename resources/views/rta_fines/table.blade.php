@@ -79,20 +79,24 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
-                  @can('rtafine_edit')
+                  @canany(['rta_fines_unpaid_create', 'rta_fines_paid_create', 'rta_fines_unpaid_edit'])
                   <a href="javascript:void(0);" data-size="md" data-title="Upload Document" data-action="{{route('rtaFines.fileupload', $r->id) }}" class='dropdown-item waves-effect show-modal'>
                      Update Fine File
                   </a>
                   @if(!$r->paid_voucher_id)
+                    <a href="javascript:void(0);" data-action="{{ route('rtaFines.edit' , $r->id) }}" data-size="xl" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
+                       Edit
+                    </a>
+                  @endif
+                  @endcanany
+                  @can('rta_fines_paid_create')
+                  @if(!$r->paid_voucher_id)
                   <a href="javascript:void(0);" data-action="{{ route('rtaFines.viewvoucher', $r->id) }}" data-size="lg" data-title="Pay Fine:  {{ $r->ticket_no }}" class='dropdown-item waves-effect show-modal'>
                      Pay Fine
                   </a>
-                  <a href="javascript:void(0);" data-action="{{ route('rtaFines.edit' , $r->id) }}" data-size="xl" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
-                     Edit
-                  </a>
                   @endif
                   @endcan
-                  @can('rtafine_delete')
+                  @canany(['rta_fines_unpaid_delete', 'rta_fines_paid_delete'])
                   <a href="javascript:void(0);" onclick='confirmDelete("{{route('rtaFines.destroy', $r->id) }}")' class='dropdown-item'>
                      delete
                   </a>

@@ -128,7 +128,7 @@
         <h3>Chart of Accounts</h3>
       </div>
       <div class="col-sm-6">
-        @can('account_create')
+        @can('accounts_coa_create')
         <a class="btn btn-primary float-end action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> Add New</a>
         @endcan
         @can('trash_view')
@@ -160,7 +160,7 @@
               <button type="submit" class="btn btn-outline-secondary d-none d-md-inline">Search</button>
             </div>
           </form>
-          @can('account_create')
+          @can('accounts_coa_create')
           <a class="btn btn-primary btn-sm action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> New</a>
           @endcan
           <div class="dropdown">
@@ -233,7 +233,7 @@
                 <div class="dropdown">
                   <button type="button" class="btn btn-sm btn-icon btn-outline-secondary btn-actions dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" onclick="event.stopPropagation();"><i class="fa fa-cog"></i></button>
                   <ul class="dropdown-menu dropdown-menu-end">
-                    @can('account_edit')
+                    @can('accounts_coa_edit')
                     @if(!$isGlobalLinked)
                     <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
                     <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
@@ -241,7 +241,7 @@
                     @endif
                     @endcan
                     <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
-                    @can('account_delete')
+                    @can('accounts_coa_delete')
                     @if(!$isMainParent && !$isGlobalLinked)
                     <li>
                       <hr class="dropdown-divider">

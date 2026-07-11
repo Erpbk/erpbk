@@ -11,6 +11,7 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('riders_invoices_view')
 <section class="content-header ">
     @include('flash::message')
     <div>
@@ -24,7 +25,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('riderinvoice_create')
+                        @can('riders_invoices_create')
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Rider Invoice" data-action="{{ route('riderInvoices.create') }}">
                             <i class="ti ti-plus"></i>
                             <div>
@@ -151,6 +152,13 @@
     </div>
 
 </div>
+@else
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">You are not authorized to access this page</h5>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

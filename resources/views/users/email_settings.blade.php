@@ -15,7 +15,7 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
       <div class="card-header">
         <h4 class="card-title mb-0">Email Settings</h4>
       </div>
-
+      @canany(['settings_email_edit','settings_email_create'])
       <div class="card-body">
         <form method="POST" action="{{ route($updateRoute) }}">
           @csrf
@@ -94,6 +94,13 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
           </div>
         </form>
       </div>
+      @else
+      <div class="card-body">
+        <div class="alert alert-info">
+          You are not authorized to edit email settings.
+        </div>
+      </div>
+      @endcanany
     </div>
   </div>
 </div>

@@ -32,11 +32,25 @@ class DocumentExpiry
         }
 
         $types = DocumentExpiryDashboard::allowedFileTypesForUser($user);
-        if ($types === []) {
+        $includeGeneral = DocumentExpiryDashboard::userCanAccessSource($user, 'documents');
+
+        if ($types === [] && ! $includeGeneral) {
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereIn('type', $types);
+        return $query->where(function ($q) use ($types, $includeGeneral) {
+            if ($types !== []) {
+                $q->whereIn('type', $types);
+            }
+            if ($includeGeneral) {
+                $method = $types !== [] ? 'orWhere' : 'where';
+                $q->{$method}(function ($inner) {
+                    $inner->whereNull('type')
+                        ->orWhere('type', '')
+                        ->orWhere('type', 'documents');
+                });
+            }
+        });
     }
 
     public static function expiringCount(?int $days = null, ?\App\Models\User $user = null): int

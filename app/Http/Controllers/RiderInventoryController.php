@@ -26,15 +26,18 @@ class RiderInventoryController extends AppBaseController
 {
     use GlobalPagination, TracksCascadingDeletions;
 
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:riders_inventory_view')->only('index', 'show', 'returnContractForm', 'returnContractDocument');
+        $this->middleware('permission:riders_inventory_create')->only('assignForm', 'assignStore', 'assignmentContract', 'returnToCustomerAssignments', 'returnToCustomerStore');
+        $this->middleware('permission:riders_inventory_edit')->only('returnForm', 'returnStore', 'lostForm', 'markLost', 'changeStatusForm', 'changeStatusStore', 'assignmentContract', 'returnToCustomerAssignments', 'returnToCustomerStore');
+        $this->middleware('permission:riders_inventory_delete')->only('destroyAssignment');
+        $this->middleware('permission:customers_inventory_edit')->only('returnToCustomerAssignments', 'returnToCustomerStore');
+    }
+
     public function index(Request $request)
     {
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $statusFilter = $request->input('status_filter', '');
@@ -102,9 +105,6 @@ class RiderInventoryController extends AppBaseController
 
     public function show(Request $request, string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $rider = Riders::findOrFail($riderId);
         $assignments = RiderInventoryAssignment::query()
@@ -130,9 +130,6 @@ class RiderInventoryController extends AppBaseController
 
     public function assignForm(string $company_slug, ?int $riderId = null)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $rider = $riderId ? Riders::findOrFail($riderId) : null;
         $showRiderSelect = $rider === null;
@@ -150,9 +147,6 @@ class RiderInventoryController extends AppBaseController
 
     public function assignStore(Request $request, string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $validated = $request->validate([
             'rider_id' => 'required|integer|exists:riders,id',
@@ -247,9 +241,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnForm(string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = $this->findAssignedRecord($assignmentId);
 
@@ -258,9 +249,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnStore(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = $this->findAssignedRecord($assignmentId);
 
@@ -323,9 +311,6 @@ class RiderInventoryController extends AppBaseController
 
     public function lostForm(string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = $this->findAssignedRecord($assignmentId);
         $assignment->load(['rider', 'inventoryItem']);
@@ -335,9 +320,6 @@ class RiderInventoryController extends AppBaseController
 
     public function markLost(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = $this->findAssignedRecord($assignmentId);
 
@@ -387,9 +369,6 @@ class RiderInventoryController extends AppBaseController
 
     public function changeStatusForm(string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = $this->findChangeableRecord($assignmentId);
         $availableStatuses = $this->availableStatusTransitions($assignment->status);
@@ -399,9 +378,6 @@ class RiderInventoryController extends AppBaseController
 
     public function changeStatusStore(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = $this->findChangeableRecord($assignmentId);
 
@@ -473,9 +449,6 @@ class RiderInventoryController extends AppBaseController
 
     public function assignmentContract(string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $rider = Riders::findOrFail($riderId);
         $assignments = $this->assignedItemsForRider($riderId);
@@ -528,9 +501,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnContractForm(string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $rider = Riders::findOrFail($riderId);
         $assignments = $this->assignedItemsForRider($riderId);
@@ -549,9 +519,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnContractProcess(Request $request, string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $rider = Riders::findOrFail($riderId);
         $assignments = $this->assignedItemsForRider($riderId);
@@ -684,9 +651,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnContractDocument(string $company_slug, int $contractId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $contract = RiderInventoryContract::with(['rider', 'generatedByUser'])->findOrFail($contractId);
 
@@ -714,9 +678,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnToCustomerForm(string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         return view('rider_inventory.return_to_customer_form', [
             'customers' => $this->customersForInventory(activeOnly: false),
@@ -725,9 +686,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnToCustomerAssignments(Request $request, string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $validated = $request->validate([
             'customer_id' => 'required|integer|exists:customers,id',
@@ -755,9 +713,6 @@ class RiderInventoryController extends AppBaseController
 
     public function returnToCustomerStore(Request $request, string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $validated = $request->validate([
             'customer_id' => 'required|integer|exists:customers,id',
@@ -818,9 +773,6 @@ class RiderInventoryController extends AppBaseController
 
     public function destroyAssignment(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $assignment = RiderInventoryAssignment::with(['rider', 'inventoryItem'])->findOrFail($assignmentId);
 

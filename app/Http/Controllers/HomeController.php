@@ -48,17 +48,17 @@ class HomeController extends Controller
   public function settings(Request $request)
   {
 
-    /*   if (!auth()->user()->hasPermissionTo('setting_view')) {
+    if (!auth()->user()->hasPermissionTo('settings_company_setting_view')) {
         abort(403, 'Unauthorized action.');
-      } */
-    /*    if (\Gate::check("isUser", \Auth::user())) {
-         abort(404);
-       } */
+      }
 
     $isSettingsPanel = (bool) (View::shared('settings_panel') ?? false);
     $currentCompany = $request->attributes->get('company');
 
     if ($isSettingsPanel && $currentCompany instanceof Company && $request->isMethod('post')) {
+      if (!auth()->user()->hasPermissionTo('settings_company_setting_create') || !auth()->user()->hasPermissionTo('settings_company_setting_edit')) {
+        return back()->with('error', 'You are not authorized to create or edit company details.');
+      }
       $validated = $request->validate([
         'company_name' => [
           'required',

@@ -1,7 +1,7 @@
 {{-- resources/views/branches/actions.blade.php --}}
 @php $branchRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.branches' : 'branches'; @endphp
 <div class="d-flex gap-1 justify-content-center">
-    @can('branches_view')
+    @can('settings_branches_view')
     <a href="{{ route($branchRoute . '.show', $branch->id) }}"
        class="btn btn-sm btn-icon btn-info action-btn"
        data-bs-toggle="tooltip"
@@ -10,7 +10,7 @@
     </a>
     @endcan
 
-    @can('branches_edit')
+    @can('settings_branches_edit')
     <a href="javascript:void(0)" data-action="{{ route($branchRoute . '.edit', $branch->id) }}"
        class="btn btn-sm btn-icon btn-primary action-btn show-modal"
        data-bs-toggle="tooltip"
@@ -20,7 +20,7 @@
     </a>
     @endcan
 
-    @can('branches_edit')
+    @can('settings_branches_edit')
     <button type="button"
             class="btn btn-sm btn-icon btn-warning action-btn toggle-status"
             {{-- data-url="{{ route($branchRoute . '.toggle-status', $branch->id) }}" --}}
@@ -31,7 +31,7 @@
     </button>
     @endcan
 
-    @can('branches_delete')
+    @can('settings_branches_delete')
     <button type="button"
             class="btn btn-sm btn-icon btn-danger action-btn delete-branch"
             data-url="{{ route($branchRoute . '.destroy', $branch->id) }}"

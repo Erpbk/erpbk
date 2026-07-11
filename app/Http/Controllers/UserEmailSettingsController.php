@@ -17,6 +17,8 @@ class UserEmailSettingsController extends Controller
   public function __construct()
   {
     $this->middleware('auth');
+    $this->middleware('permission:settings_email_view|settings_email_create')->only('edit');
+    $this->middleware('permission:settings_email_edit|settings_email_create')->only('update');
   }
 
   public function edit()

@@ -9,9 +9,9 @@
                 <h3>{{ $bikeRentCompany->name }}</h3>
             </div>
             <div class="col-sm-6 text-end">
-                @can('bike_rent_edit')
+                @canany(['bike_on_rent_customers_edit', 'garages_customers_edit'])
                 <a href="javascript:void(0);" class="btn btn-primary show-modal" data-action="{{ route('bikeRentCompanies.edit', $bikeRentCompany->id) }}" data-title="Edit customer" data-size="lg">Edit</a>
-                @endcan
+                @endcanany
                 <a href="{{ route('bikeRentCompanies.index') }}" class="btn btn-secondary">Back to list</a>
             </div>
         </div>

@@ -11,6 +11,7 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('riders_rider_view')
 <section class="content-header">
     <div>
         <!-- Enhanced Fleet Supervisor Accordion Section -->
@@ -79,7 +80,7 @@
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addRiderDropdown">
-                                @can('rider_create')
+                                @can('riders_rider_create')
                                 <a class="action-dropdown-item" href="{{ route('riders.create') }}">
                                     <i class="ti ti-user-plus"></i>
                                     <div>
@@ -88,6 +89,7 @@
                                     </div>
                                 </a>
                                 @endcan
+                                @can('riders_attendance_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Today Attendance" data-action="{{ route('rider.attendance_import') }}">
                                     <i class="ti ti-calendar-check"></i>
                                     <div>
@@ -95,6 +97,7 @@
                                         <div class="action-dropdown-item-desc">Import attendance data for today</div>
                                     </div>
                                 </a>
+                                @endcan
                                 <!-- <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Keeta Rider Activities" data-action="{{ route('rider.keeta_activities_import') }}">
                                     <i class="ti ti-activity"></i>
                                     <div>
@@ -102,6 +105,7 @@
                                         <div class="action-dropdown-item-desc">Import Keeta rider activity data</div>
                                     </div>
                                 </a> -->
+                                @can('riders_export_data_create')
                                 <a class="action-dropdown-item" href="{{ route('rider.exportRiders') }}">
                                     <i class="ti ti-file-export"></i>
                                     <div>
@@ -109,6 +113,8 @@
                                         <div class="action-dropdown-item-desc">Export rider data to Excel</div>
                                     </div>
                                 </a>
+                                @endcan
+                                @can('riders_voucher_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Rider Vouchers" data-action="{{ route('riders.import_rider_vouchers', ['modal' => 1]) }}">
                                     <i class="ti ti-file-spreadsheet"></i>
                                     <div>
@@ -116,6 +122,7 @@
                                         <div class="action-dropdown-item-desc">Open import modal</div>
                                     </div>
                                 </a>
+                                @endcan
                                 <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
                                     <i class="ti ti-columns"></i>
                                     <div>
@@ -245,6 +252,13 @@
         </div>
     </div>
 </div>
+@else
+<div class="card">
+    <div class="card-body">
+        <h5>You are not authorized to access this page</h5>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>

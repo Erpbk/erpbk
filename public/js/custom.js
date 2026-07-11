@@ -442,6 +442,9 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initBikeFormSelect2 === 'function') {
       window.initBikeFormSelect2(document.getElementById('formajax') || this);
     }
+    if (typeof window.initPermissionRoleMatrix === 'function') {
+      window.initPermissionRoleMatrix();
+    }
   });
 
   if (table) {

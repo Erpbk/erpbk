@@ -16,6 +16,7 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
           <span class="fw-semibold">Company Info</span>
         </a>
       </li>
+      @can('customers_documents_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('customer.files')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.files', $customer->id) }}">
@@ -23,6 +24,8 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
           <span class="fw-semibold">Documents</span>
         </a>
       </li>
+      @endcan
+      @can('customers_payments_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('customers.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customers.receipts', $customer->id) }}">
@@ -37,6 +40,8 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
           <span class="fw-semibold">Payments</span>
         </a>
       </li>
+      @endcan
+      @can('customers_invoices_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is(('customer.invoices'))) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.invoices', $customer->id) }}">
@@ -44,6 +49,7 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
           <span class="fw-semibold">Invoices</span>
         </a>
       </li>
+      @endcan
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('customer.inventory')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('customer.inventory', $customer->id) }}">

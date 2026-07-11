@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\CustomersDataTable;
 use App\DataTables\FilesDataTable;
 use App\DataTables\LedgerDataTable;
 use App\Helpers\Account;
@@ -35,6 +34,15 @@ class CustomersController extends AppBaseController
   public function __construct(CustomersRepository $customersRepo)
   {
     $this->customersRepository = $customersRepo;
+    $this->middleware('permission:customers_customer_view')->only('index', 'show', 'ledger');
+    $this->middleware('permission:customers_customer_create')->only('create', 'store');
+    $this->middleware('permission:customers_customer_edit')->only('edit', 'update');
+    $this->middleware('permission:customers_customer_delete')->only('destroy');
+    $this->middleware('permission:customers_invoices_view')->only('invoices');
+    $this->middleware('permission:customers_payments_view')->only('payments', 'receipts', 'cReceipts');
+    $this->middleware('permission:customers_documents_view')->only('files');
+    $this->middleware('permission:customers_inventory_view')->only('inventory');
+
   }
 
   /**
@@ -42,10 +50,6 @@ class CustomersController extends AppBaseController
    */
   public function index(Request $request)
   {
-
-    if (!auth()->user()->hasPermissionTo('customer_view')) {
-      abort(403, 'Unauthorized action.');
-    }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Customers::query()
@@ -103,15 +107,6 @@ class CustomersController extends AppBaseController
       return redirect()->back();
     }
     $parentAccount = \App\Support\GlobalAccounts::id('CUSTOMER_PARENT');
-    if (! $parentAccount) {
-      if ($request->ajax()) {
-        return response()->json([
-          'message' => 'Chart of accounts is missing the Customer (Asset) head. Contact ERP Team to Configure it.',
-        ], 500);
-      }
-      Flash::error('Chart of accounts is missing the Customer (Asset) head. Contact ERP Team to Configure it.');
-      return redirect(route('customers.index'));
-    }
     try {
       $customers = $this->customersRepository->create($input);
       $account = new Accounts();
@@ -369,9 +364,6 @@ class CustomersController extends AppBaseController
 
   public function inventory($company_slug, $id)
   {
-    if (!auth()->user()->hasPermissionTo('riderinventory_view') && !auth()->user()->hasPermissionTo('customer_view')) {
-      abort(403, 'Unauthorized action.');
-    }
 
     $customer = Customers::find($id);
     if (!$customer) {

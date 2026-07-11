@@ -160,27 +160,27 @@
                     'recordId' => $employee->id,
                     'recordLabel' => $employee->name . ' (' . $employee->employee_id . ') — Contracts',
                   ])
-                  @can('employees_view')
+                  @can('employees_employee_view')
                   <a href="{{ route('employees.show', $employee->id) }}" class="dropdown-item waves-effect">
                      <i class="fa fa-eye my-1"></i> View
                   </a>
                   @endcan
-                  @can('employees_edit')
+                  @can('employees_employee_edit')
                   <a href="{{ route('employees.edit', $employee) }}" class="dropdown-item waves-effect">
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
                   @endcan
-                  @can('employees_documents')
+                  @can('employees_document_view')
                   <a href="javascript:void(0);" data-action="{{ route('employee.files', $employee->id) }}" data-size="xl" data-title="Documents - {{ $employee->name }}" class="dropdown-item waves-effect show-modal">
                      <i class="fa fa-file my-1"></i> Documents
                   </a>
                   @endcan
-                  @can('employees_view')
+                  @can('employees_ledger_view')
                   <a href="{{ route('employee.ledger', $employee->id) }}" class="dropdown-item waves-effect">
                      <i class="fa fa-book my-1"></i> Ledger
                   </a>
                   @endcan
-                  @can('employees_delete')
+                  @can('employees_employee_delete')
                   <a href="javascript:void(0);" onclick="confirmDeleteEmployee('{{ route('employees.destroy', $employee) }}')" class="dropdown-item waves-effect">
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>

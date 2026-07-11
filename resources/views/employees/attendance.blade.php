@@ -13,7 +13,7 @@
         <input type="month" id="attendance-month" name="month" class="form-control form-control-sm"
           value="{{ $month ?? date('Y-m') }}" onchange="this.form.submit()">
       </form>
-      @can('attendance_create')
+      @can('employees_attendance_create')
       <a href="javascript:void(0);" class="btn btn-primary btn-sm show-modal"
         data-size="md" data-title="Add Attendance — {{ $employee->name }}"
         data-action="{{ route('attendance.create', ['refType' => 'employee']) }}?ref_id={{ $employee->id }}&date={{ date('Y-m-d') }}">

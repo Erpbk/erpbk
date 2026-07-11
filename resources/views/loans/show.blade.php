@@ -47,18 +47,18 @@
             <h5 class="mb-0">Loan Details</h5>
             <div>
                 @if($loan->status === 'draft')
-                @can('loan_disburse')
+                @canany(['loans_create', 'loans_edit'])
                 <form action="{{ route('loans.disburse', $loan->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Disburse this loan and post GL entries?');">
                     @csrf
                     <button type="submit" class="btn btn-success btn-sm">Disburse Loan</button>
                 </form>
-                @endcan
-                @can('loan_edit')
+                @endcanany
+                @canany(['loans_create', 'loans_edit'])
                 <form action="{{ route('loans.regenerateSchedule', $loan->id) }}" method="POST" class="d-inline">
                     @csrf
                     <button type="submit" class="btn btn-outline-secondary btn-sm">Regenerate Schedule</button>
                 </form>
-                @endcan
+                @endcanany
                 @endif
             </div>
         </div>

@@ -14,6 +14,13 @@ use DB;
 class riderhiringController extends Controller
 {
     use GlobalPagination;
+    public function __construct()
+    {
+        $this->middleware('permission:leads_view')->only('index');
+        $this->middleware('permission:leads_create')->only('create', 'store');
+        $this->middleware('permission:leads_edit')->only('edit', 'update');
+        $this->middleware('permission:leads_delete')->only('destroy');
+    }
     /**
      * Display a listing of the resource.
      */

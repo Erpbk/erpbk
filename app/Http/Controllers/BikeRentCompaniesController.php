@@ -31,13 +31,23 @@ class BikeRentCompaniesController extends AppBaseController
     public function __construct(BikeRentCompaniesRepository $bikeRentCompaniesRepository)
     {
         $this->bikeRentCompaniesRepository = $bikeRentCompaniesRepository;
+        $this->middleware('permission:bike_on_rent_customers_view')->only('index', 'show', 'bikes');
+        $this->middleware('permission:bike_on_rent_customers_create')->only('create', 'store');
+        $this->middleware('permission:bike_on_rent_customers_edit')->only('edit', 'update');
+        $this->middleware('permission:bike_on_rent_customers_delete')->only('destroy');
+        $this->middleware('permission:garages_customers_view')->only('garageIndex', 'show');
+        $this->middleware('permission:garages_customers_create')->only('create', 'store');
+        $this->middleware('permission:garages_customers_edit')->only('edit', 'update');
+        $this->middleware('permission:garages_customers_delete')->only('destroy');
+        $this->middleware('permission:bike_on_rent_documents_view|garages_documents_view')->only('files');
+        $this->middleware('permission:bike_on_rent_ledger_view|garages_ledger_view')->only('ledger');
+        $this->middleware('permission:bike_on_rent_payments_view|garages_payments_view')->only('receipts', 'allReceipts');
+        $this->middleware('permission:bike_on_rent_invoices_view')->only('invoices');
+        $this->middleware('permission:bike_on_rent_maintenance_view|garages_maintenance_view')->only('maintenances');
     }
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = BikeRentCompany::query()
@@ -73,9 +83,6 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function garageIndex(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = BikeRentCompany::query()
@@ -111,32 +118,18 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('bike_create')) {
-            abort(403, 'Unauthorized action.');
-        }
         $type = request()->input('type');
         return view('bike_rent_companies.create', compact('type'));
     }
 
     public function store(CreateBikeRentCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_create')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $input = $request->all();
         if($input['customer_type'] == 'bike_rental') {
             $customersAsset = \App\Support\GlobalAccounts::id('VEHICLE_RENTAL_CUSTOMERS');
-            if (!$customersAsset) {
-                Flash::error('Chart of accounts is missing the Customers (Vehicle Rental) (Asset) head. Contact ERP Team to Configure it.');
-                return redirect(route('bikeRentCompanies.index'));
-            }
         }else {
             $customersAsset = \App\Support\GlobalAccounts::id('GARAGE_CUSTOMERS');
-            if (!$customersAsset) {
-                Flash::error('Chart of accounts is missing the Customers (Garage) (Asset) head. Contact ERP Team to Configure it.');
-                return redirect(route('bikeRentCompanies.index'));
-            }
         }
         try {
             DB::beginTransaction();
@@ -146,10 +139,11 @@ class BikeRentCompaniesController extends AppBaseController
             $account = new Accounts();
             if($bikeRentCompany->customer_type == 'bike_rental') {
                 $account->account_code = 'BR' . str_pad((string) $bikeRentCompany->id, 4, '0', STR_PAD_LEFT);
+                $account->ref_name = 'BikeRentCompany';
             }else {
                 $account->account_code = 'GC' . str_pad((string) $bikeRentCompany->id, 4, '0', STR_PAD_LEFT);
+                $account->ref_name = 'GarageCustomer';
             }
-            $account->ref_name = 'BikeRentCompany';
             $account->account_type = 'Asset';
             $account->name = $bikeRentCompany->name;
             $account->parent_id = $customersAsset;
@@ -181,10 +175,6 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
             Flash::error('Record not found');
@@ -198,9 +188,6 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
@@ -213,10 +200,6 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateBikeRentCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
             return response()->json(['errors' => ['error' => 'Record not found!']], 422);
@@ -239,9 +222,6 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
@@ -344,7 +324,7 @@ class BikeRentCompaniesController extends AppBaseController
   {
     $customer = BikeRentCompany::find($id);
     if (!$customer) {
-      Flash::error('Customer not found');
+      Flash::error('Bike on rent customer not found');
       return redirect()->back();
     }
     $files = Files::where(['type' => 'rentCompany', 'type_id' => $id])->latest('id')->get();
@@ -357,7 +337,7 @@ class BikeRentCompaniesController extends AppBaseController
     $customer = BikeRentCompany::find($id);
 
     if (empty($customer)) {
-      Flash::error('Customer not found');
+      Flash::error('Bike on rent customer not found');
       return redirect()->back();
     }
 
@@ -386,7 +366,7 @@ class BikeRentCompaniesController extends AppBaseController
   {
     $customer = BikeRentCompany::find($id);
     if (!$customer) {
-      Flash::error('Vehicle rental Company not found');
+      Flash::error('Bike on rent customer not found');
       return redirect()->back();
     }
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
@@ -400,7 +380,7 @@ class BikeRentCompaniesController extends AppBaseController
   {
     $customer = BikeRentCompany::find($id);
     if (!$customer) {
-      Flash::error('Customer not found');
+      Flash::error('Bike on rent customer not found');
       return redirect()->back();
     }
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
@@ -424,7 +404,7 @@ class BikeRentCompaniesController extends AppBaseController
   {
     $customer = BikeRentCompany::find($id);
     if (!$customer) {
-      Flash::error('Customer not found');
+      Flash::error('Bike on rent customer not found');
       return redirect()->back();
     }
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());

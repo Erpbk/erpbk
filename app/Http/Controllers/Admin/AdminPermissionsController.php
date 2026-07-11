@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdminPermission;
 use App\Models\AdminRole;
+use App\Support\AdminPermissionTreeBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AdminPermissionsController extends Controller
 {
@@ -14,9 +16,10 @@ class AdminPermissionsController extends Controller
     {
         $this->middleware(function ($request, $next) {
             $admin = auth('admin')->user();
-            if (!$admin || !$admin->hasRole('Super Admin')) {
+            if (! $admin || ! $admin->hasRole('Super Admin')) {
                 abort(403, 'Only Super Admin can manage permissions.');
             }
+
             return $next($request);
         });
     }
@@ -25,7 +28,6 @@ class AdminPermissionsController extends Controller
     {
         $permissions = AdminPermission::query()
             ->whereNull('parent_id')
-            ->with('children')
             ->orderBy('name')
             ->get();
 
@@ -34,54 +36,44 @@ class AdminPermissionsController extends Controller
 
     public function create()
     {
-        return view('admin.permissions.create');
+        return view('admin.permissions.create', [
+            'submodules' => [],
+            'customPermissions' => [],
+        ]);
     }
 
     public function store(Request $request)
     {
-        $rules = [
-            'name' => 'required|string|max:255',
-            'extra' => 'nullable|array',
-            'extra.*' => 'string|distinct',
-        ];
+        $this->validate($request, $this->rules(), $this->messages());
 
-        $messages = [
-            'name.required' => 'Name Required',
-            'extra.*.distinct' => 'Duplicate custom permissions are not allowed',
-        ];
+        $moduleName = trim((string) $request->input('name'));
+        $moduleSlug = AdminPermissionTreeBuilder::slugify($moduleName);
+        $submodules = $this->normalizedSubmodules($request);
+        $extras = $submodules === [] ? $this->normalizedExtras($request) : [];
 
-        $this->validate($request, $rules, $messages);
+        DB::connection('mysql_admin')->beginTransaction();
 
-        $prefix = str_replace(' ', '_', strtolower(trim($request->name)));
+        try {
+            $module = AdminPermission::query()->firstOrCreate(
+                ['name' => $moduleName, 'parent_id' => null],
+                []
+            );
 
-        $parent = AdminPermission::create([
-            'name' => $request->name,
-            'parent_id' => null,
-        ]);
+            AdminPermissionTreeBuilder::syncModuleTree($module, $moduleSlug, $submodules, $extras);
 
-        foreach (['view', 'create', 'edit', 'delete'] as $perm) {
-            AdminPermission::create([
-                'name' => $prefix . '_' . $perm,
-                'parent_id' => $parent->id,
-            ]);
+            DB::connection('mysql_admin')->commit();
+        } catch (\Throwable $e) {
+            DB::connection('mysql_admin')->rollBack();
+            Log::error('Error creating admin permission module: ' . $e->getMessage());
+
+            return $this->ajaxErrorResponse($request, __('Failed to create permission module: :error', ['error' => $e->getMessage()]));
         }
 
-        if ($request->has('extra') && !empty($request->extra)) {
-            $extras = array_filter($request->extra, fn ($v) => !empty(trim($v)));
-            foreach ($extras as $customPerm) {
-                $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
-                if (!empty($customPerm)) {
-                    AdminPermission::create([
-                        'name' => $prefix . '_' . $customPerm,
-                        'parent_id' => $parent->id,
-                    ]);
-                }
-            }
-        }
-
-        return redirect()
-            ->route('admin.permissions.index')
-            ->with('success', __('Permission module created successfully.'));
+        return $this->ajaxSuccessResponse(
+            $request,
+            __('Permission module created successfully.'),
+            'admin.permissions.index'
+        );
     }
 
     public function edit(AdminPermission $permission)
@@ -90,24 +82,13 @@ class AdminPermissionsController extends Controller
             $permission = AdminPermission::query()->findOrFail($permission->parent_id);
         }
 
-        $prefix = str_replace(' ', '_', strtolower($permission->name));
+        $moduleSlug = AdminPermissionTreeBuilder::slugify($permission->name);
+        $submodules = AdminPermissionTreeBuilder::submoduleNamesForModule($permission);
+        $customPermissions = $submodules === []
+            ? AdminPermissionTreeBuilder::customLeafNamesForModule($permission, $moduleSlug)
+            : [];
 
-        $customPermissions = AdminPermission::query()
-            ->where('parent_id', $permission->id)
-            ->whereNotIn('name', [
-                $prefix . '_view',
-                $prefix . '_create',
-                $prefix . '_edit',
-                $prefix . '_delete',
-            ])
-            ->pluck('name')
-            ->map(function ($name) use ($prefix) {
-                return str_replace('_', ' ', str_replace($prefix . '_', '', $name));
-            })
-            ->values()
-            ->toArray();
-
-        return view('admin.permissions.edit', compact('permission', 'customPermissions'));
+        return view('admin.permissions.edit', compact('permission', 'customPermissions', 'submodules'));
     }
 
     public function update(Request $request, AdminPermission $permission)
@@ -116,49 +97,33 @@ class AdminPermissionsController extends Controller
             $permission = AdminPermission::query()->findOrFail($permission->parent_id);
         }
 
-        $rules = [
-            'name' => 'required|string|max:255',
-            'extra' => 'nullable|array',
-            'extra.*' => 'string|distinct',
-        ];
+        $this->validate($request, $this->rules(), $this->messages());
 
-        $messages = [
-            'name.required' => 'Name Required',
-            'extra.*.distinct' => 'Duplicate custom permissions are not allowed',
-        ];
+        $moduleName = trim((string) $request->input('name'));
+        $moduleSlug = AdminPermissionTreeBuilder::slugify($moduleName);
+        $submodules = $this->normalizedSubmodules($request);
+        $extras = $submodules === [] ? $this->normalizedExtras($request) : [];
 
-        $this->validate($request, $rules, $messages);
+        DB::connection('mysql_admin')->beginTransaction();
 
-        $prefix = str_replace(' ', '_', strtolower(trim($request->name)));
+        try {
+            $permission->update(['name' => $moduleName]);
 
-        $permission->update(['name' => $request->name]);
+            AdminPermissionTreeBuilder::syncModuleTree($permission, $moduleSlug, $submodules, $extras);
 
-        // Rebuild generated child permissions for this module.
-        AdminPermission::query()->where('parent_id', $permission->id)->delete();
+            DB::connection('mysql_admin')->commit();
+        } catch (\Throwable $e) {
+            DB::connection('mysql_admin')->rollBack();
+            Log::error('Error updating admin permission module: ' . $e->getMessage());
 
-        foreach (['view', 'create', 'edit', 'delete'] as $perm) {
-            AdminPermission::create([
-                'name' => $prefix . '_' . $perm,
-                'parent_id' => $permission->id,
-            ]);
+            return $this->ajaxErrorResponse($request, __('Failed to update permission module: :error', ['error' => $e->getMessage()]));
         }
 
-        if ($request->has('extra') && !empty($request->extra)) {
-            $extras = array_filter($request->extra, fn ($v) => !empty(trim($v)));
-            foreach ($extras as $customPerm) {
-                $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
-                if (!empty($customPerm)) {
-                    AdminPermission::create([
-                        'name' => $prefix . '_' . $customPerm,
-                        'parent_id' => $permission->id,
-                    ]);
-                }
-            }
-        }
-
-        return redirect()
-            ->route('admin.permissions.index')
-            ->with('success', __('Permission module updated successfully.'));
+        return $this->ajaxSuccessResponse(
+            $request,
+            __('Permission module updated successfully.'),
+            'admin.permissions.index'
+        );
     }
 
     public function updateRolePermissions(Request $request, AdminRole $role)
@@ -177,31 +142,102 @@ class AdminPermissionsController extends Controller
 
     public function destroy(AdminPermission $permission)
     {
-        DB::connection('mysql_admin')->transaction(function () use ($permission) {
-            $childIds = AdminPermission::query()
-                ->where('parent_id', $permission->id)
-                ->pluck('id')
-                ->toArray();
+        if ($permission->parent_id) {
+            $permission = AdminPermission::query()->findOrFail($permission->parent_id);
+        }
 
-            $allIds = array_merge([$permission->id], $childIds);
-
-            // Remove permission mappings first to avoid orphan pivot rows.
-            DB::connection('mysql_admin')
-                ->table('admin_role_has_permissions')
-                ->whereIn('admin_permission_id', $allIds)
-                ->delete();
-
-            DB::connection('mysql_admin')
-                ->table('admin_model_has_permissions')
-                ->whereIn('admin_permission_id', $allIds)
-                ->delete();
-
-            AdminPermission::query()->whereIn('id', $allIds)->delete();
-        });
+        AdminPermissionTreeBuilder::deleteTree((int) $permission->id);
 
         return redirect()
             ->route('admin.permissions.index')
             ->with('success', __('Permission deleted successfully.'));
     }
-}
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:255',
+            'submodules' => 'nullable|array',
+            'submodules.*' => 'nullable|string|max:255',
+            'extra' => 'nullable|array',
+            'extra.*' => 'string|distinct',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function messages(): array
+    {
+        return [
+            'name.required' => 'Name Required',
+            'extra.*.distinct' => 'Duplicate custom permissions are not allowed',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedSubmodules(Request $request): array
+    {
+        if (! $request->boolean('use_submodules')) {
+            return [];
+        }
+
+        $submodules = $request->input('submodules', []);
+        if (! is_array($submodules)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($name) => trim((string) $name),
+            $submodules
+        ))));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedExtras(Request $request): array
+    {
+        $extras = $request->input('extra', []);
+        if (! is_array($extras)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $extras
+        )));
+    }
+
+    /**
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    private function ajaxErrorResponse(Request $request, string $message)
+    {
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json(['message' => $message], 422);
+        }
+
+        return redirect()->back()->withInput()->with('error', $message);
+    }
+
+    /**
+     * @return \Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
+     */
+    private function ajaxSuccessResponse(Request $request, string $message, string $redirectRoute)
+    {
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'message' => $message,
+                'reload' => true,
+            ]);
+        }
+
+        return redirect()->route($redirectRoute)->with('success', $message);
+    }
+}

@@ -61,12 +61,12 @@
                             <a class="dropdown-item show-modal-right" href="javascript:void(0);" data-size="xl" data-title="Asset Details" data-action="{{ route('fixed-assets.show', $asset->id) }}">
                                 <i class="fa fa-eye"></i> View
                             </a>
-                            @can('asset_edit')
+                            @can('assets_edit')
                             <a class="dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Edit Asset" data-action="{{ route('fixed-assets.edit', $asset->id) }}">
                                 <i class="fa fa-edit"></i> Edit
                             </a>
                             @endcan
-                            @can('asset_delete')
+                            @can('assets_delete')
                             <a class="dropdown-item" href="javascript:void(0);" onclick="confirmDelete('{{ route('fixed-assets.delete', $asset->id) }}')">
                                 <i class="fa fa-trash"></i> Delete
                             </a>

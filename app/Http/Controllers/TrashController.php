@@ -41,6 +41,14 @@ class TrashController extends Controller
 {
     use TracksCascadingDeletions;
 
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:settings_recycle_bin_view')->only('index', 'show');
+        $this->middleware('permission:settings_recycle_bin_edit')->only('restore');
+        $this->middleware('permission:settings_recycle_bin_delete')->only('forceDestroy');
+    }
+
     /**
      * Soft-deleted records for the recycle bin: only rows owned by the current company.
      * Uses strict company_id (excludes shared fixed accounts and NULL company_id orphans).
@@ -209,10 +217,6 @@ class TrashController extends Controller
      */
     public function index(Request $request)
     {
-        // Check if user has permission to view trash
-        if (!auth()->user()->can('trash_view')) {
-            abort(403, 'You do not have permission to access the recycle bin.');
-        }
 
         $moduleFilter = $request->get('module', 'all');
         $searchQuery = $request->get('search', '');
@@ -222,7 +226,7 @@ class TrashController extends Controller
 
         foreach ($this->softDeleteModels as $key => $config) {
             // Check if user has either trash_view or module-specific permission
-            $hasPermission = auth()->user()->can('trash_view');
+            $hasPermission = auth()->user()->can('settings_recycle_bin_view');
 
             if (!$hasPermission) {
                 continue;
@@ -254,10 +258,10 @@ class TrashController extends Controller
 
                 foreach ($records as $record) {
                     // Check restore permission
-                    $canRestore = auth()->user()->can('trash_restore');
+                    $canRestore = auth()->user()->can('settings_recycle_bin_edit');
 
                     // Check force delete permission
-                    $canForceDelete = auth()->user()->can('trash_force_delete');
+                    $canForceDelete = auth()->user()->can('settings_recycle_bin_delete');
 
                     // Get cascade information - check if this was deleted as a cascade
                     $causedBy = DeletionCascade::where('related_model', $config['model'])
@@ -368,7 +372,7 @@ class TrashController extends Controller
         $config = $this->softDeleteModels[$module];
 
         // Check permission (either global trash_restore or module-specific)
-        $hasPermission = auth()->user()->can('trash_restore');
+        $hasPermission = auth()->user()->can('settings_recycle_bin_edit');
 
         if (!$hasPermission) {
             abort(403, 'Unauthorized action.');
@@ -476,7 +480,7 @@ class TrashController extends Controller
         $config = $this->softDeleteModels[$module];
 
         // Check permission (either global trash_force_delete or module-specific)
-        $hasPermission = auth()->user()->can('trash_force_delete');
+        $hasPermission = auth()->user()->can('settings_recycle_bin_delete');
 
         if (!$hasPermission) {
             abort(403, 'Unauthorized action.');
@@ -665,11 +669,6 @@ class TrashController extends Controller
 
         $config = $this->softDeleteModels[$module];
         $model = $config['model'];
-
-        // Check permission
-        if (!auth()->user()->can('trash_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         // Find the trashed record
         $record = $this->findTrashedRecord($model, $id);

@@ -19,6 +19,9 @@ class ModuleAgreementController extends Controller
         protected AgreementModuleService $moduleService
     ) {
         $this->middleware('auth');
+        $this->middleware('permission:agreements_view')->only('index', 'show', 'previewTemplate', 'previewTemplatePdf');
+        $this->middleware('permission:agreements_edit')->only('editTemplate', 'updateTemplate', 'assignContractTemplate');
+        $this->middleware('permission:agreements_delete')->only('destroy');
     }
 
     public function index(Request $request, $company_slug, string $module)
@@ -109,10 +112,6 @@ class ModuleAgreementController extends Controller
     {
         $this->authorizeModule($module);
         $this->assertCategoryAssigned($category, $module);
-
-        if (! Gate::allows('agreement_edit') && ! Gate::allows('agreement_manage_templates') && ! Gate::allows('gn_settings')) {
-            abort(403, 'Unauthorized');
-        }
 
         $template = $this->resolveModuleTemplate($template, $module);
         if ((int) $template->category_id !== (int) $category->id) {

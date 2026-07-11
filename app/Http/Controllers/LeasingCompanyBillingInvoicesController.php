@@ -19,7 +19,12 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 {
     use GlobalPagination;
 
-    public function __construct(private LeasingCompanyBillingInvoicesRepository $billingInvoicesRepository) {}
+    public function __construct(private LeasingCompanyBillingInvoicesRepository $billingInvoicesRepository) {
+        $this->middleware('permission:bike_on_rent_invoices_view')->only('index', 'show', 'all');
+        $this->middleware('permission:bike_on_rent_invoices_create')->only('create', 'store', 'createFromClone', 'clone');
+        $this->middleware('permission:bike_on_rent_invoices_edit')->only('edit', 'update');
+        $this->middleware('permission:bike_on_rent_invoices_delete')->only('destroy');
+    }
 
     public function index(Request $request)
     {
@@ -41,7 +46,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
         }
 
         $data = $this->applyPagination($query, $paginationParams);
-        $bikeRentCustomers = BikeRentCompany::where('status', 1)->orderBy('name')->get();
+        $bikeRentCustomers = BikeRentCompany::where('status', 1)->where('customer_type', 'bike_rental')->orderBy('name')->get();
 
         if ($request->ajax()) {
             $tableData = view('leasing_company_billing_invoices.table', ['data' => $data])->render();
@@ -376,10 +381,6 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (! Gate::allows('leasing_company_invoice_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $invoice = $this->billingInvoicesRepository->find($id);
         if (empty($invoice)) {
             session()->flash('error', 'Billing invoice not found');

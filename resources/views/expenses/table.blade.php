@@ -61,12 +61,12 @@
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
-            @can('voucher_document')
+            @canany(['expenses_create', 'expenses_edit'])
             <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
                 data-action="{{ route('voucher.fileupload', $expenseVoucherRouteParams($voucher->id)) }}" class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-file my-1"></i> Upload Document
               </a></li>
-            @endcan
+            @endcanany
             @can('expenses_view')
             <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">
                 <i class="fa fa-eye my-1"></i> View

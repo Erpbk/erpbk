@@ -37,7 +37,7 @@ $returnTo = $returnTo ?? null;
                 </td>
                 <td>
                     <div class="btn-group">
-                        @can('visaexpense_edit')
+                        @can('visa_expense_edit')
                         @if($embeddedManager)
                         <button type="button"
                             class="btn btn-sm btn-primary js-visa-renewal-edit-btn"
@@ -52,7 +52,7 @@ $returnTo = $returnTo ?? null;
                         </button>
                         @endif
                         @endcan
-                        @can('visaexpense_delete')
+                        @can('visa_expense_delete')
                         @if(!$category->is_default)
                         <button type="button"
                             class="btn btn-sm btn-danger js-visa-renewal-delete-btn"

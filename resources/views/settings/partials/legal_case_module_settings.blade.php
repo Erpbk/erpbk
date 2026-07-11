@@ -1,6 +1,6 @@
           <div class="tab-pane fade" id="tab-legal-case-status-management" role="tabpanel">
             <div class="d-flex justify-content-end mb-3">
-              @can('legalcase_create')
+              @can('legal_case_create')
               <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createLegalCaseStatusModal">
                 <i class="ti ti-plus me-1"></i> Add New Status
               </button>
@@ -66,9 +66,11 @@
                                 <input type="hidden" name="status_ids[]" value="{{ (int)$status->id }}">
                               </div>
                               <div class="d-flex align-items-center gap-1">
+                                @canany(['legal_case_create', 'legal_case_delete'])
                                 <button type="button" class="btn btn-xs btn-outline-danger js-remove-legal-case-top-option" data-remove-id="{{ (int)$status->id }}" title="Remove option">
                                   <i class="ti ti-trash"></i>
                                 </button>
+                                @endcanany
                               </div>
                             </li>
                             @empty

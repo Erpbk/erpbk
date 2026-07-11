@@ -23,7 +23,6 @@ use App\Models\Transactions;
 use App\Models\RiderHistory;
 use App\Models\SimHistory;
 use App\Models\RiderDocumentType;
-use App\Models\cod;
 use App\Models\Countries;
 use App\Models\Customers;
 use App\Models\Dropdowns;
@@ -406,6 +405,23 @@ class RidersController extends AppBaseController
   public function __construct(RidersRepository $ridersRepo)
   {
     $this->ridersRepository = $ridersRepo;
+    $this->middleware('permission:riders_rider_view')->only('index', 'show', 'history', 'picture_upload');
+    $this->middleware('permission:riders_rider_create')->only('create', 'store');
+    $this->middleware('permission:riders_rider_edit')->only('edit', 'update', 'updateSection');
+    $this->middleware('permission:riders_rider_delete')->only('destroy');
+    $this->middleware('permission:riders_documents_view|riders_documents_create')->only(['document','files']);
+    $this->middleware('permission:riders_timeline_view')->only('timeline');
+    $this->middleware('permission:riders_ledger_view')->only('ledger');
+    $this->middleware('permission:riders_attendance_view')->only('attendance');
+    $this->middleware('permission:riders_activities_view')->only(['activities', 'activitiesPdf', 'activitiesPrint']);
+    $this->middleware('permission:riders_invoices_view')->only('invoices');
+    $this->middleware('permission:email_view')->only('emails', 'sendEmail');
+    $this->middleware('permission:riders_voucher_create')->only(['importVouchers', 'importRiderVouchers']);
+    $this->middleware('permission:riders_inventory_view')->only('inventory');
+    $this->middleware('permission:riders_export_data_create')->only(['exportRiders', 'exportCustomizableRiders']);
+
+
+    
   }
 
   /**
@@ -657,25 +673,14 @@ class RidersController extends AppBaseController
 
     $riders = $this->ridersRepository->create($input);
     if ($riders) {
-
-      /* $parentAccount = Accounts::firstOrCreate(
-                ['name' => 'Riders', 'account_type' => 'Liability', 'parent_id' => null],
-                ['name' => 'Riders', 'account_type' => 'Liability', 'account_code' => Account::code()]
-              ); */
-      $parentAccount = Accounts::where('name', 'Riders')->where('account_type', 'Liability')->first();
-      if (! $parentAccount) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Parent account "Riders" not found.',
-        ], 422);
-      }
+      $parentAccount = \App\Support\GlobalAccounts::id('RIDERS');
       $account = new Accounts;
       $account->account_code = 'RD' . str_pad($riders->rider_id, 4, '0', STR_PAD_LEFT);
       $account->name = $riders->name;
       $account->account_type = 'Liability';
       $account->ref_name = 'Rider';
       $account->company_id = auth()->user()->company_id;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentAccount;
       $account->ref_id = $riders->id;
       $account->branch_id = $riders->branch_id;
       $account->save();
@@ -1352,7 +1357,6 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
-
     return view('riders.items', compact('riders'));
   }
 

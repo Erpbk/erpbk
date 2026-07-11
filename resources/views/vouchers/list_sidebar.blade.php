@@ -10,7 +10,7 @@
       <i class="ti ti-chevron-down ti-xs text-muted"></i>
     </div>
     <div class="d-flex align-items-center gap-1 flex-shrink-0">
-      @can('voucher_create')
+        @can('vouchers_create')
         @php $firstVt = collect($voucherTypesForCreate)->keys()->first(); @endphp
         @if($firstVt)
           <a href="javascript:void(0);" class="btn btn-sm btn-primary py-1 px-2 show-modal" data-size="xl" data-title="Create Voucher" data-action="{{ route('vouchers.create', ['company_slug' => $__companySlug, 'vt' => $firstVt]) }}" title="Add"><i class="ti ti-plus"></i></a>

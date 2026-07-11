@@ -16,7 +16,7 @@ $bikeRegistrationRoute = $bikeRegistrationRoute ?? ((View::shared('settings_pane
                 <h1>Bike Registration Statuses</h1>
             </div>
             <div class="col-sm-6 text-end">
-                @can('bike_registration_create')
+                @can('bikes_registration_create')
                 <a class="btn btn-primary" href="{{ route($bikeRegistrationRoute . '.create') }}">
                     Add New Status
                 </a>

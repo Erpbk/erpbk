@@ -2,7 +2,7 @@
 
 @section('page_content')
 <div class="card-action mb-0">
-    @can('rider_document')
+    @can('cash_&_banks_banks_view')
     <!-- FILES SECTION -->
     <div class="card mb-4 border-warning">
         <div class="table-responsive my-3">
@@ -35,6 +35,7 @@
                                 </div>
 
                                 <!-- Upload Button -->
+                                @can('cash_&_banks_banks_create')
                                 <a class="btn btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
                                     data-action="{{ route('files.create',['type_id'=>$banks->id,'type'=>'bank']) }}"
@@ -42,6 +43,7 @@
                                     data-title="Upload File">
                                     <i class="ti ti-upload me-1"></i>Upload File
                                 </a>
+                                @endcan
                             </div>
                         </div>
                     </tr>
@@ -145,12 +147,14 @@
                                 </a>
                             </td>
                             <td class="text-end">
+                                @can('cash_&_banks_banks_delete')
                                 <a href="javascript:void(0);"
                                     data-url="{{ route('files.destroy', $riderFile->id) }}"
                                     target="_blank"
                                     class='btn btn-danger btn-sm delete-file'>
                                     <i class="fa fa-trash my-1"></i>
                                 </a>
+                                @endcan
                             </td>
                         </tr>
                         @endforeach
@@ -166,12 +170,14 @@
                                 </a>
                             </td>
                             <td class="text-end">
+                                @can('cash_&_banks_banks_delete')
                                 <a href="javascript:void(0);"
                                     data-url="{{ route('files.destroy', $riderFile->id) }}"
                                     target="_blank"
                                     class='btn btn-danger btn-sm delete-file'>
                                     <i class="fa fa-trash my-1"></i>
                                 </a>
+                                @endcan
                             </td>
                         </tr>
                         @endforeach
@@ -182,6 +188,7 @@
                             <td class="row-counter">{{ $counter++ }}</td>
                             <td class="text-start">{{ $fileName }}</td>
                             <td class="text-end">
+                                @can('cash_&_banks_banks_create')
                                 <a class="btn btn-sm btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
                                     data-action="{{ route('files.create', [
@@ -193,6 +200,7 @@
                                     data-title="Upload {{ $fileName }}">
                                     <i class="ti ti-upload"></i>
                                 </a>
+                                @endcan
                             </td>
                         </tr>
                         @endforeach
@@ -211,12 +219,11 @@
             </table>
         </div>
     </div>
-    @endcan
-    @cannot('rider_document')
-    <div class="alert alert-warning text-center m-3">
-        <i class="fa fa-warning"></i> You don't have permission.
+    @else
+    <div class="alert alert-danger text-center m-3">
+        <i class="fa fa-exclamation-triangle"></i> You don't have permission to view documents.
     </div>
-    @endcannot
+    @endcan
 </div>
 @endsection
 

@@ -36,12 +36,12 @@
             </td>
             <td>
                 <div class="btn-group">
-                    @can('sim_edit')
+                    @can('sims_companies_edit')
                     <a href="javascript:void(0);" data-action="{{ route('simCompanies.edit', $row->id) }}" class="btn btn-info btn-sm show-modal" data-size="lg" data-title="Update SIM company">
                         <i class="fa fa-edit"></i>
                     </a>
                     @endcan
-                    @can('sim_delete')
+                    @can('sims_companies_delete')
                     <a href="javascript:void(0);" onclick='confirmDelete("{{ route('simCompanies.delete', $row->id) }}")' class="btn btn-danger btn-sm confirm-modal" data-size="lg" data-title="Delete Item">
                         <i class="fa fa-trash"></i>
                     </a>

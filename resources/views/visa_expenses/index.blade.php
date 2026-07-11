@@ -69,7 +69,7 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h3 class="mb-0">Visa Installments</h3>
       <div class="d-flex flex-wrap gap-2">
-        @canany(['installment_create', 'visaloan_create'])
+        @can('visa_expense_create')
         <a class="btn btn-sm btn-success action-btn show-modal"
           href="javascript:void(0);"
           data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}"
@@ -77,7 +77,7 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
           data-title="Create Installment Entry">
           <i class="fa fa-plus"></i> Installment Plan
         </a>
-        @endcanany
+        @endcan
         @if(isset($installmentData) && $installmentData->count() > 0)
         <a href="javascript:void(0);"
           class="btn btn-sm btn-info action-btn show-modal"

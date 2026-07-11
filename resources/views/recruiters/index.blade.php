@@ -5,6 +5,7 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('recruiters_view')
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -12,7 +13,7 @@
                 <h3>Recruiters</h3>
             </div>
             <div class="col-sm-6">
-                @can('recruiter_create')
+                @can('recruiters_create')
                 <a class="btn btn-primary float-right show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('recruiters.create') }}" data-title="Add New" data-size="lg">
                     Add New
@@ -86,7 +87,13 @@
         </div>
     </div>
 </div>
-
+@else
+<div class="card">
+    <div class="card-body">
+        <h5>You are not authorized to access this page</h5>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

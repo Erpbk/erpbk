@@ -89,7 +89,7 @@ return [
         'label' => 'Documents',
         'icon' => 'ti-files',
         'table' => 'files',
-        'route' => 'upload_files.index',
+        'route' => 'files.index',
         'count_strategy' => 'documents_expiry_stats',
         'document_expiry_days' => 10,
         'stat_labels' => [

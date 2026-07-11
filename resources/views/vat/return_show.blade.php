@@ -33,9 +33,13 @@
           <hr class="my-2">
           <p class="mb-2 small text-muted">Payment</p>
           @if($vat_return->status === 'unpaid')
+          @canany(['vat_create', 'vat_edit'])
           <a href="javascript:void(0);" class="btn btn-success btn-sm me-1 show-modal" data-size="xl" data-title="New VAT Payment Voucher (VP)" data-action="{{ route('vat.voucher.create', ['vat_return_id' => $vat_return->id]) }}">
             <i class="ti ti-file-invoice me-1"></i> Make payment
           </a>
+          @else
+          <span class="text-muted small">-</span>
+          @endcanany
           @else
           <p class="text-success small mb-1"><i class="ti ti-circle-check me-1"></i> Paid</p>
           @endif
@@ -47,9 +51,11 @@
       <h6 class="mb-0">Entries in this return</h6>
       <form id="vat-delete-entries-form" action="{{ route('vat.returns.delete-entries', $vat_return) }}" method="post" class="d-none">
         @csrf
+        @can('vat_delete')
         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove selected entries from this return? They will appear again in the VAT ledger.');">
           <i class="ti ti-trash me-1"></i> Delete Entries
         </button>
+        @endcan
       </form>
     </div>
     <div class="table-responsive mb-4">

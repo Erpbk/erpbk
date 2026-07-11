@@ -8,7 +8,7 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
-        @can('bikes_view')
+        @canany(['bike_on_rent_customers_view', 'garages_customers_view'])
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
@@ -72,11 +72,10 @@
                 @endif
             </div>
         </div>
-        @endcan
-        @cannot('bikes_view')
+        @else
             <div class="text-center mt-5">
                 <h3>You do not have permission to view Bikes.</h3> 
             </div>
-        @endcannot
+        @endcanany
     </div>
 @endsection

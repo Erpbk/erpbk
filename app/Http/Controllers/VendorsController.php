@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\VendorsDataTable;
 use App\Helpers\Account;
 use App\Http\Requests\CreateVendorsRequest;
 use App\Http\Requests\UpdateVendorsRequest;
@@ -28,6 +27,10 @@ class VendorsController extends AppBaseController
   public function __construct(VendorsRepository $vendorsRepo)
   {
     $this->vendorsRepository = $vendorsRepo;
+    $this->middleware('permission:vendors_view')->only('index', 'show');
+    $this->middleware('permission:vendors_create')->only('create', 'store');
+    $this->middleware('permission:vendors_edit')->only('edit', 'update');
+    $this->middleware('permission:vendors_delete')->only('destroy');
   }
 
   /**
@@ -67,7 +70,6 @@ class VendorsController extends AppBaseController
     return view('vendors.index', array_merge([
       'data' => $data,
     ], $this->moduleTopBarListingData($request, 'vendors')));
-    return $vendorsDataTable->render('vendors.index');
   }
 
 
@@ -87,13 +89,7 @@ class VendorsController extends AppBaseController
     $input = $request->all();
 
     //Adding Account and setting reference
-    $parentAccount = Accounts::where('name', 'Vendors')->where('account_type', 'Liability')->first();
-    if (!$parentAccount) {
-      return response()->json([
-        'success' => false,
-        'message' => 'Parent account "Vendors" not found.',
-      ], 422);
-    }
+    $parentAccount = \App\Support\GlobalAccounts::id('VENDORS');
     try {
       DB::beginTransaction();
       $vendor = $this->vendorsRepository->create($input);
@@ -102,7 +98,7 @@ class VendorsController extends AppBaseController
       $account->account_code = 'VD' . str_pad($vendor->id, 4, "0", STR_PAD_LEFT);
       $account->account_type = 'Liability';
       $account->name = $vendor->name;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentAccount;
       $account->ref_name = 'Vendor';
       $account->ref_id = $vendor->id;
       $account->status = $vendor->status;

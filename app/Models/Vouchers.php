@@ -126,4 +126,9 @@ class Vouchers extends BaseModel
   {
     return $this->belongsTo(Branch::class,'branch_id', 'id');
   }
+
+  public function salikPayments()
+  {
+    return $this->hasMany(salik::class, 'payment_voucher_id');
+  }
 }

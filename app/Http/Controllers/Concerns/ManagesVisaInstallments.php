@@ -23,31 +23,17 @@ use DB;
 
 trait ManagesVisaInstallments
 {
+
+    public function __construct()
+    {
+        $this->middleware('permission:visa_expense_view')->only('installmentPlan');
+        $this->middleware('permission:visa_expense_create')->only('createInstallmentPlan', 'createInstallmentPlanForm', 'payInstallment', 'finalizePayment', 'generateInstallmentInvoice', 'autoMarkInstallmentsAsPaid', 'recalculateInstallments');
+        $this->middleware('permission:visa_expense_edit')->only('updateInstallmentField', 'payInstallment', 'finalizePayment', 'generateInstallmentInvoice', 'autoMarkInstallmentsAsPaid', 'recalculateInstallments');
+        $this->middleware('permission:visa_expense_delete')->only('deleteInstallment');
+    }
+
     public function installmentPlan(Request $request, $company_slug, $id)
     {
-        // Debug session information
-        \Log::info('InstallmentPlan Access Debug', [
-            'user_authenticated' => auth()->check(),
-            'user_id' => auth()->id(),
-            'session_id' => session()->getId(),
-            'session_data' => session()->all(),
-            'request_url' => $request->fullUrl(),
-            'request_method' => $request->method(),
-        ]);
-
-        // Check if user is authenticated first
-        if (!auth()->check()) {
-            \Log::warning('User not authenticated when accessing installment plan', [
-                'session_id' => session()->getId(),
-                'request_url' => $request->fullUrl(),
-            ]);
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('installment_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $account = $this->resolveExpenseAccountContext((int) $id);
 
         // Auto-mark installments as paid if their date has arrived
@@ -93,10 +79,6 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('installment_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $account = $this->resolveExpenseAccountContext((int) $riderId);
 
         // Auto-mark installments silently in the background
@@ -126,10 +108,6 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlan(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('installment_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'rider_id' => 'required|integer',
             'total_amount' => 'required|numeric|min:1',
@@ -138,7 +116,6 @@ trait ManagesVisaInstallments
             'installment_amounts' => 'required|array|min:1',
             'installment_amounts.*' => 'required|numeric|min:0',
             'reference_number' => 'required|string|max:255',
-            'branch_id' => 'required|integer',
         ]);
 
         try {
@@ -174,18 +151,8 @@ trait ManagesVisaInstallments
                 return redirect()->back()->withInput();
             }
 
-            // Find the liability account using ref_id from rider account
-            $liabilityAccount = Accounts::where('ref_id', $riderAccount)
-                ->where('account_type', 'Liability')
-                ->where('parent_id', 1)
-                ->first();
-
-            if (!$liabilityAccount) {
-                Flash::error('Liability account not found for this rider. Please create the liability account first.');
-                return redirect()->back();
-            }
             $rider = Riders::findOrFail($riderAccount);
-
+            $liabilityAccount = $rider->account;
 
             $existingInstallmentCount = visa_installment_plan::query()
                 ->where(function ($q) use ($expenseAccount) {
@@ -208,7 +175,7 @@ trait ManagesVisaInstallments
                 // Create installment entry
                 $installment = visa_installment_plan::create([
                     'rider_id' => $riderAccount,
-                    'branch_id' => $validated['branch_id'],
+                    'branch_id' => $rider->branch_id,
                     'billing_month' => $billingMonthFormatted,
                     'amount' => $installmentAmount,
                     'total_amount' => $totalAmount, // Store the total amount for reference
@@ -239,7 +206,7 @@ trait ManagesVisaInstallments
                     'Created_By' => auth()->user()->id,
                     'ref_id' => $installment->id,
                     'custom_field_values' => [],
-                    'branch_id' => $validated['branch_id'],
+                    'branch_id' => $rider->branch_id,
                 ]);
                 // Debit the liability account for each installment
                 $TransactionService->recordTransaction([
@@ -250,7 +217,7 @@ trait ManagesVisaInstallments
                     'trans_date' => $trans_date,
                     'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
                     'debit' => $installmentAmount,
-                    'branch_id' => $validated['branch_id'],
+                    'branch_id' => $rider->branch_id,
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
                 ]);
@@ -264,7 +231,7 @@ trait ManagesVisaInstallments
                     'trans_date' => $trans_date,
                     'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
                     'credit' => $installmentAmount,
-                    'branch_id' => $validated['branch_id'],
+                    'branch_id' => $rider->branch_id,
                     'billing_month' => $billingMonth,
                     'created_by' => auth()->user()->id,
                 ]);
@@ -289,7 +256,7 @@ trait ManagesVisaInstallments
                     'closing_balance' => $closing_balance,
                     'created_at' => now(),
                     'updated_at' => now(),
-                    'branch_id' => $validated['branch_id'],
+                    'branch_id' => $rider->branch_id,
                 ]);
             }
 
@@ -312,10 +279,6 @@ trait ManagesVisaInstallments
 
     public function payInstallment(Request $request)
     {
-        if (!auth()->user()->hasAnyPermission(['installment_edit', 'visaloan_edit'])) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'installment_id' => 'required|exists:visa_installment_plans,id',
             'status' => 'nullable|in:pending,paid'
@@ -354,10 +317,6 @@ trait ManagesVisaInstallments
 
     public function updateInstallmentField(Request $request)
     {
-        if (!auth()->user()->hasAnyPermission(['installment_edit', 'visaloan_edit'])) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'installment_id' => 'required|exists:visa_installment_plans,id',
             'field' => 'required|in:date,billing_month,amount,narration',
@@ -527,10 +486,6 @@ trait ManagesVisaInstallments
 
     public function finalizePayment(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('installment_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'changes' => 'nullable|string',
             'deletions' => 'nullable|string',
@@ -1071,10 +1026,6 @@ trait ManagesVisaInstallments
 
     public function deleteInstallment($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('installment_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         try {
             DB::beginTransaction();
 
@@ -1264,10 +1215,6 @@ trait ManagesVisaInstallments
 
     public function generateInstallmentInvoice($company_slug, $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('installment_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         try {
             $account = null;
             $rider = null;
@@ -1708,10 +1655,6 @@ trait ManagesVisaInstallments
      */
     public function recalculateInstallments(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('installment_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'rider_id' => 'required|exists:accounts,id',
             'edited_installment_id' => 'required|exists:visa_installment_plans,id',

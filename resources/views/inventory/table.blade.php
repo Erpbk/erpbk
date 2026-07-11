@@ -36,17 +36,7 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  {{-- @can('fuel_edit')
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Data" data-action="{{ route('fuel_data.edit', $r->id) }}">
-                           <i class="fa fa-edit my-1"></i> Edit
-                        </a>
-                  @endcan
-                  @can('fuel_delete')
-                  <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt' 
-                        onclick='confirmDelete("{{route('fuel_data.destroy' , $r->id ) }}")'>
-                        <i class="fa fa-trash my-1"></i> Delete
-                  </a>
-                  @endcan --}}
+            
                </div>
             </div>
         </td>

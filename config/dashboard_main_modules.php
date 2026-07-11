@@ -43,7 +43,7 @@ return [
         'leasing_companies' => 'leasingCompanies.index',
         'garages' => 'garages.index',
         'supplier' => 'suppliers.index',
-        'documents' => 'upload_files.index',
+        'documents' => 'files.index',
         'cheques' => 'cheques.index',
         'riders' => 'riders.index',
         'accounts' => 'accounts.index',

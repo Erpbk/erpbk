@@ -34,6 +34,18 @@ use Laracasts\Flash\Flash;
 class EmployeeController extends Controller
 {
     use AppliesModuleTopBarFilters, GlobalPagination;
+
+    public function __construct()
+    {
+        $this->middleware('permission:employees_employee_view')->only('index', 'show');
+        $this->middleware('permission:employees_employee_create')->only('create', 'store');
+        $this->middleware('permission:employees_employee_edit')->only('edit', 'update', 'updateSection', 'updateStatus', 'updateProfileField');
+        $this->middleware('permission:employees_employee_delete')->only('destroy');
+        $this->middleware('permission:employees_document_view')->only('files');
+        $this->middleware('permission:employees_attendance_view')->only('attendance');
+        $this->middleware('permission:employees_ledger_view')->only('ledger');
+    }
+
     private function employeeFieldsByCategory(bool $includeCustomFields = true): array
     {
         return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
@@ -558,7 +570,7 @@ class EmployeeController extends Controller
                     'ref_name' => 'employee',
                     'ref_id' => $employee->id,
                     'account_type' => 'Liability',
-                    'parent_id' => '1', // Rider salaries payable account, for now we are hardcoding it, but ideally this should be configurable
+                    'parent_id' => \App\Support\GlobalAccounts::id('STAFF'), // Staff salaries payable account
                     'created_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
                 ]);
@@ -572,6 +584,8 @@ class EmployeeController extends Controller
                     'account_code' => 'EMP' . ($employee->id + 1000),
                     'ref_name' => 'employee',
                     'ref_id' => $employee->id,
+                    'account_type' => 'Liability',
+                    'parent_id' => \App\Support\GlobalAccounts::id('STAFF'), // Staff salaries payable account
                     'updated_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
                 ]);

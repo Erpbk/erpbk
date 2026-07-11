@@ -19,7 +19,7 @@ class RiderInventoryItemController extends Controller
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -49,7 +49,7 @@ class RiderInventoryItemController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -62,7 +62,7 @@ class RiderInventoryItemController extends Controller
             return redirect()->route($this->itemsIndexRoute());
         }
 
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -71,7 +71,7 @@ class RiderInventoryItemController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -119,7 +119,7 @@ class RiderInventoryItemController extends Controller
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -128,7 +128,7 @@ class RiderInventoryItemController extends Controller
 
     public function update(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -176,7 +176,7 @@ class RiderInventoryItemController extends Controller
 
     public function destroy(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_delete')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -219,7 +219,7 @@ class RiderInventoryItemController extends Controller
 
     public function toggleActive($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -242,7 +242,7 @@ class RiderInventoryItemController extends Controller
 
     public function reorder(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!auth()->user()->hasPermissionTo('riders_inventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

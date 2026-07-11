@@ -21,7 +21,7 @@
                 <td>{{ $history->holder_name ?: $history->personName() }}</td>
                 <td>{{ $history->passport_number ?: '-' }}</td>
                 <td>
-                    @can('passport_handover_print')
+                    @can('passport_handover_view')
                     <a href="{{ route('passportHandover.issueContract', $history->id) }}"
                         class="date-display" target="_blank" title="View Issue Acknowledgement">
                         {{ $history->note_date ? $history->note_date->format('d M Y H:i') : '-' }}
@@ -34,7 +34,7 @@
                 <td>{{ $history->received_by ?: '-' }}</td>
                 <td>
                     @if($history->return_date)
-                    @can('passport_handover_print')
+                    @can('passport_handover_view')
                     <a href="{{ route('passportHandover.returnContract', $history->id) }}"
                         class="date-display" target="_blank" title="View Return Acknowledgement">
                         {{ $history->return_date->format('d M Y H:i') }}
@@ -66,7 +66,7 @@
                 </td>
                 <td>
                     <div class="d-flex flex-column gap-1">
-                        @can('passport_handover_print')
+                        @can('passport_handover_view')
                         <a href="{{ route('passportHandover.issueContract', $history->id) }}"
                             class="btn btn-sm btn-outline-primary" target="_blank">
                             Issue Doc

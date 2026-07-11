@@ -31,12 +31,12 @@
                             <i class="ti ti-dots"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            @can('asset_edit')
+                            @can('assets_edit')
                             <a class="dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Edit Category" data-action="{{ route('asset-categories.edit', $category->id) }}">
                                 <i class="fa fa-edit"></i> Edit
                             </a>
                             @endcan
-                            @can('asset_delete')
+                            @can('assets_delete')
                             @unless($category->isSystemLocked())
                             <a class="dropdown-item" href="javascript:void(0);" onclick="confirmDelete('{{ route('asset-categories.delete', $category->id) }}')">
                                 <i class="fa fa-trash"></i> Delete

@@ -45,7 +45,7 @@ $isGlobalLinked = isset($globalLinkedAccountIds[$account->id]);
     <div class="dropdown table-actions-dropdown">
       <button type="button" class="btn btn-sm btn-icon btn-outline-secondary" data-bs-toggle="dropdown" title="Actions"><i class="fa fa-cog"></i></button>
       <ul class="dropdown-menu dropdown-menu-end">
-        @can('account_edit')
+        @can('accounts_coa_edit')
         @if(!$isGlobalLinked)
         <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
         <li><a class="dropdown-item lock-toggle" href="javascript:void(0);" data-account-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
@@ -53,7 +53,7 @@ $isGlobalLinked = isset($globalLinkedAccountIds[$account->id]);
         @endif
         @endcan
         <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
-        @can('account_delete')
+        @can('accounts_coa_delete')
         @if(!$isRoot && !$isGlobalLinked)
         <li>
           <hr class="dropdown-divider">

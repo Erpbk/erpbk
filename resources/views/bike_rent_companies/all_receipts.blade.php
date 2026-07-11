@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Rental Company Receipts')
+@section('title', 'Customer Receipts')
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
@@ -18,6 +18,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
+                        @canany(['bike_on_rent_payments_create', 'garages_payments_create'])
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt (Cash In)" data-action="{{ route('receipts.create') }}?leasing_receipt={{ str_contains(request()->url(), 'bikeRentCompany') ? 'bike' : 'garage' }}">
                             <i class="ti ti-plus"></i>
                             <div>
@@ -25,6 +26,7 @@
                                 <div class="action-dropdown-item-desc">Add a new Receipt</div>
                             </div>
                         </a>
+                        @endcanany
                     </div>
                 </div>
             </div>

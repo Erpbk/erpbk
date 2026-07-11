@@ -15,7 +15,7 @@
             Create agreements and assign them to modules. Template editing is module-side only.
           </p>
         </div>
-        @canany(['agreement_create', 'gn_settings'])
+        @canany(['agreements_create', 'gn_settings'])
         <a class="btn btn-primary btn-sm" href="{{ route('agreements.create-agreement', ['company_slug' => request()->route('company_slug'), 'group' => $groupKey]) }}">
           <i class="ti ti-plus me-1"></i> New Agreement
         </a>
@@ -85,19 +85,19 @@
                 </td>
                 <td class="text-end">
                   <div class="btn-group btn-group-sm">
-                    @canany(['agreement_view', 'gn_settings'])
+                    @canany(['agreements_view', 'gn_settings'])
                     <a href="{{ route('agreements.show-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-info">
                       View
                     </a>
                     @endcanany
 
-                    @canany(['agreement_edit', 'gn_settings'])
+                    @canany(['agreements_edit', 'gn_settings'])
                     <a href="{{ route('agreements.edit-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="btn btn-outline-primary">
                       Edit
                     </a>
                     @endcanany
 
-                    @canany(['agreement_edit', 'gn_settings'])
+                    @canany(['agreements_edit', 'gn_settings'])
                     <form method="POST" action="{{ route('agreements.toggle-agreement-status', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline">
                       @csrf
                       <button type="submit" class="btn btn-outline-secondary">
@@ -106,7 +106,7 @@
                     </form>
                     @endcanany
 
-                    @canany(['agreement_delete', 'gn_settings'])
+                    @canany(['agreements_delete', 'gn_settings'])
                     <form method="POST" action="{{ route('agreements.destroy-agreement', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}" class="d-inline" onsubmit="return confirm('Delete this agreement? This will also delete its templates.');">
                       @csrf
                       @method('DELETE')

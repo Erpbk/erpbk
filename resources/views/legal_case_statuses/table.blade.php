@@ -39,7 +39,7 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? null;
                 <td>{{ $status->display_order }}</td>
                 <td>
                     <div class='btn-group'>
-                        @can('legalcase_edit')
+                        @can('legal_case_edit')
                         @if($embeddedLegalCaseStatusManager)
                         <button
                             type="button"
@@ -65,7 +65,7 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? null;
                             <i class="fas fa-{{ $status->is_active ? 'ban' : 'check' }}"></i>
                         </a>
                         @endcan
-                        @can('legalcase_delete')
+                        @can('legal_case_delete')
                         <button
                             type="button"
                             class="btn btn-sm btn-danger js-visa-status-delete-btn"

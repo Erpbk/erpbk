@@ -91,10 +91,18 @@ class SalikImport implements ToCollection
                     // Add to processed list (before checking database)
                     $processedTransactionIds[] = $transactionId;
 
-                    // Check for duplicates in database (but still import if it's the first occurrence in Excel)
-                    $existsInDatabase = salik::where('transaction_id', $transactionId)->exists();
-                    if ($existsInDatabase) {
-                        \Log::info("Transaction ID {$transactionId} already exists in database, but importing first occurrence from Excel file");
+                    // Existing DB row: skip if paid; allow update if unpaid
+                    $existingSalik = salik::where('transaction_id', $transactionId)->first();
+                    if ($existingSalik && strtolower((string) $existingSalik->status) === 'paid') {
+                        \Log::warning("Transaction ID {$transactionId} already exists in database and is paid - Skipping this record");
+                        $this->storeFailedImport(
+                            $row,
+                            $rowCount,
+                            'Salik already exists in database and is paid',
+                            "Transaction ID {$transactionId} already exists in the database and is marked as paid"
+                        );
+                        $duplicateCount++;
+                        continue;
                     }
 
                     $bike = Bikes::where('plate', $plateNumber)->first();
@@ -160,12 +168,11 @@ class SalikImport implements ToCollection
 
                     \Log::info("Creating Salik record for Transaction ID: {$transactionId}, Amount: {$transactionAmount}, Rider: {$rider->name} (using {$riderSource})");
 
-                    if ($existsInDatabase) {
-                        // Update existing record with new data from Excel
-                        $existingSalik = salik::where('transaction_id', $transactionId)->first();
+                    if ($existingSalik) {
+                        // Update existing unpaid record with new data from Excel
                         $existingSalik->update($salikData);
                         $salik = $existingSalik;
-                        \Log::info("Updated existing Salik record with ID: {$salik->id}");
+                        \Log::info("Updated existing unpaid Salik record with ID: {$salik->id}");
                     } else {
                         // Create new record
                         $salik = salik::create($salikData);

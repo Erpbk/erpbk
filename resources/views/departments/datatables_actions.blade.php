@@ -6,13 +6,13 @@
         <i class="fa fa-eye"></i>
     </a>
     @endcan --}}
-    @can('department_edit')
+    @can('settings_departments_edit')
     <a href="javascript:void(0);" data-title="Edit" data-size="sm" data-action="{{ route($deptRoute . '.edit', $id) }}" class='btn btn-info btn-sm show-modal'>
         <i class="fa fa-edit"></i>
     </a>
     @endcan
 
-    @can('department_delete')
+    @can('settings_departments_delete')
 
     {!! Form::button('<i class="fa fa-trash"></i>', [
         'type' => 'submit',

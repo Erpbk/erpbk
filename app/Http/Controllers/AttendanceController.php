@@ -12,6 +12,15 @@ use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:employees_attendance_view|riders_attendance_view')->only('index', 'summary');
+        $this->middleware('permission:employees_attendance_create|riders_attendance_create')->only('create', 'store');
+        $this->middleware('permission:employees_attendance_edit|riders_attendance_edit')->only('edit', 'update');
+        $this->middleware('permission:employees_attendance_delete|riders_attendance_delete')->only('destroy');
+    }
     /**
      * Display a listing of attendance records.
      */

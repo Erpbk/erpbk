@@ -284,7 +284,9 @@
 
 <div class="controls no-print">
     <button type="button" class="print-btn" onclick="printModalContent()">Print Invoice</button>
+    @can('leasing_companies_invoices_edit')
     <a href="javascript:void(0);" data-size="xl" data-title="Edit Invoice" data-action="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}" class="print-btn show-modal" style="text-decoration: none;">Edit</a>
+    @endcan
 </div>
 
 <div class="invoice-box">

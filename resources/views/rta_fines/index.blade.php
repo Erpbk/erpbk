@@ -321,7 +321,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('rtafine_create')
+                            @can('rta_fines_unpaid_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="New Fine" data-action="{{ route('rtaFines.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -329,14 +329,12 @@
                                     <div class="action-dropdown-item-desc">Add a new fine against a bike</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('rtafine_create')
                             <a class="action-dropdown-item" href="{{ route('rtaFines.import.form') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Fines</span>
                             </a>
                             @endcan
-                            @can('bike_view')
+                            @can('rta_fines_export_data_create')
                             <a class="action-dropdown-item" href="#" data-size="xl" data-title="Export Vehicles" data-action="#">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Fines</span>

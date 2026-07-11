@@ -11,7 +11,7 @@ $completedCount = company_table('legal_cases')->where('legal_case_account_id', $
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h3 class="mb-0">Legal Case - {{ $account->name }}</h3>
-      @can('legalcase_create')
+      @can('legal_case_create')
       <a class="btn btn-primary action-btn show-modal"
         href="javascript:void(0);" data-action="{{ route('LegalCase.create' , $account->id) }}" data-size="lg" data-title="New Legal Case Entry">
         Add New Case

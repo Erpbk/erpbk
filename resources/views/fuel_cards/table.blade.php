@@ -56,7 +56,7 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('fuel_assign')
+                  @canany(['fuel_cards_assign_create', 'fuel_cards_assign_edit'])
                      @if(!$r->assigned_to)
                         <a href="javascript:void(0);" data-size="lg" data-title="Assign Fuel Card" data-action="{{ route('fuelCards.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
                            <i class="ti ti-gas-station my-1"></i>Assign
@@ -69,13 +69,13 @@
                            <i class="fa fa-undo my-1"></i>Return & Assign
                         </a>
                      @endif
-                  @endcan
-                  @can('fuel_edit')
+                  @endcanany
+                  @can('fuel_cards_card_edit')
                      <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Card Details" data-action="{{ route('fuelCards.edit', $r->id) }}">
                         <i class="fa fa-edit my-1"></i> Edit
                      </a>
                   @endcan
-                  @can('fuel_delete')
+                  @can('fuel_cards_card_delete')
                   <a href="#" class='dropdown-item waves-effect' 
                     onclick="confirmDelete('{{route('fuelCards.destroy', $r->id) }}')">
                     <i class="fa fa-trash my-1"></i> Delete

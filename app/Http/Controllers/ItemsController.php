@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\ItemsDataTable;
 use App\Http\Requests\CreateItemsRequest;
 use App\Http\Requests\UpdateItemsRequest;
 use App\Http\Controllers\AppBaseController;

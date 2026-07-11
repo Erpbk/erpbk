@@ -18,8 +18,8 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('bank_create')
                             @if(Route::is('banks.index'))
+                                @can('cash_&_banks_banks_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Bank" data-action="{{ route('banks.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
@@ -27,7 +27,9 @@
                                         <div class="action-dropdown-item-desc">Add a new Bank Account</div>
                                     </div>
                                 </a>
+                                @endcan
                             @elseif(Route::is('receipts.index'))
+                                @can('cash_&_banks_receipts_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Receipt (Cash In)" data-action="{{ route('receipts.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
@@ -35,7 +37,9 @@
                                         <div class="action-dropdown-item-desc">Add a new Receipt</div>
                                     </div>
                                 </a>
+                                @endcan
                             @elseif(Route::is('payments.index'))
+                                @can('cash_&_banks_payments_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Payment (Cash Out)" data-action="{{ route('payments.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
@@ -43,8 +47,8 @@
                                         <div class="action-dropdown-item-desc">Add a new Payment</div>
                                     </div>
                                 </a>
+                                @endcan
                             @endif
-                            @endcan
                         </div>
                     </div>
                 </div>

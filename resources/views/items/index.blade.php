@@ -9,6 +9,7 @@
 </style>
 @endpush
 @section('content')
+@can('items_item_create')
 <section class="content-header ">
     @include('flash::message')
     <div>
@@ -22,7 +23,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('item_create')
+                        @can('items_item_create')
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Item" data-action="{{ route('items.create') }}">
                             <i class="ti ti-plus"></i>
                             <div>
@@ -132,7 +133,15 @@
             </div>
         </div>
     </div>
-
+@else
+<div class="content">
+    <div class="clearfix"></div>
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
+    </div>
+</div>
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

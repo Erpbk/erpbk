@@ -79,7 +79,7 @@
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
-            @can('voucher_document')
+            @can('vouchers_create')
               @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
               <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
                   data-action="{{ route('voucher.fileupload', $voucherCloneParams($voucher->id)) }}" class='dropdown-item waves-effect show-modal'>
@@ -87,12 +87,12 @@
                 </a></li>
               @endif
             @endcan
-            @can('voucher_view')
+            @can('vouchers_view')
             <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                 <i class="fa fa-eye my-1"></i> View
               </a></li>
             @endcan
-            @can('voucher_edit')
+            @can('vouchers_edit')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
@@ -102,7 +102,7 @@
               </a></li>
             @endif
             @endcan
-            @can('voucher_delete')
+            @can('vouchers_delete')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
                 <i class="fa fa-trash my-1"></i> Delete

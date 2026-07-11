@@ -24,7 +24,7 @@
          @foreach($bankColumns as $col)
             <td>
                @if($col === 'name')
-                  <a href="{{ route('bank.files' , $r->id)}}">{{ $r->name }}</a>
+                  <a href="{{ route('bank.ledger' , $r->id)}}">{{ $r->name }}</a>
                @elseif($col === 'status')
                   @if($r->status == 1)
                      <span class="badge bg-success">Active</span>
@@ -44,17 +44,17 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                     @can('bank_view')
-                        <a href="{{ route('bank.files' , $r->id)}}" target="_blank" class='dropdown-item waves-effect'>
+                     @can('cash_&_banks_banks_view')
+                        <a href="{{ route('bank.ledger' , $r->id)}}" target="_blank" class='dropdown-item waves-effect'>
                            <i class="fa fa-eye my-1"></i>view
                         </a>
                      @endcan
-                     @can('bank_edit')
+                     @can('cash_&_banks_banks_edit')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Bank Details" data-action="{{ route('banks.edit', $r->id) }}">
                            <i class="fa fa-edit my-1"></i> Edit
                         </a>
                      @endcan
-                     @can('bank_delete')
+                     @can('cash_&_banks_banks_delete')
                      <a href="#" class='dropdown-item waves-effect'
                      data-delete-url="{{ route('bank.delete', $r->id) }}"
                      onclick="confirmDelete(this.dataset.deleteUrl)">

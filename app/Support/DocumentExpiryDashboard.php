@@ -67,6 +67,23 @@ class DocumentExpiryDashboard
     }
 
     /**
+     * Public URL helper for a files.type / files.type_id pair.
+     */
+    public static function resourceUrlForFile(?string $type, ?int $typeId): ?string
+    {
+        $type = trim((string) $type);
+        $typeId = (int) $typeId;
+        if ($type === '' || $typeId < 1) {
+            return null;
+        }
+
+        $config = self::typeConfig()[$type] ?? null;
+        $slug = (string) (request()->route('company_slug') ?? session('company_slug') ?? '');
+
+        return self::recordUrl($config, $typeId, $slug, $type);
+    }
+
+    /**
      * @return Collection<int, array<string, mixed>>
      */
     protected static function collectItems(?User $user, string $filter): Collection
@@ -75,11 +92,25 @@ class DocumentExpiryDashboard
 
         if (Schema::hasTable('files') && Schema::hasColumn('files', 'expiry_date')) {
             $allowedTypes = self::allowedFileTypesForUser($user);
-            if ($allowedTypes !== []) {
-                $query = DocumentExpiry::applyFilter(
-                    DocumentExpiry::baseQuery()->whereIn('type', $allowedTypes),
-                    $filter
-                );
+            $includeGeneral = self::userCanAccessSource($user, 'documents');
+
+            if ($allowedTypes !== [] || $includeGeneral) {
+                $base = DocumentExpiry::baseQuery();
+                $base->where(function ($q) use ($allowedTypes, $includeGeneral) {
+                    if ($allowedTypes !== []) {
+                        $q->whereIn('type', $allowedTypes);
+                    }
+                    if ($includeGeneral) {
+                        $method = $allowedTypes !== [] ? 'orWhere' : 'where';
+                        $q->{$method}(function ($inner) {
+                            $inner->whereNull('type')
+                                ->orWhere('type', '')
+                                ->orWhere('type', 'documents');
+                        });
+                    }
+                });
+
+                $query = DocumentExpiry::applyFilter($base, $filter);
 
                 $rows = $query
                     ->orderBy('expiry_date')
@@ -87,8 +118,11 @@ class DocumentExpiryDashboard
                     ->get(['id', 'type', 'type_id', 'name', 'file_name', 'expiry_date']);
 
                 foreach ($rows as $row) {
-                    $type = (string) $row->type;
-                    $config = self::typeConfig()[$type] ?? null;
+                    $type = trim((string) ($row->type ?? ''));
+                    if ($type === '') {
+                        $type = 'documents';
+                    }
+                    $config = self::typeConfig()[$type] ?? self::typeConfig()['documents'] ?? null;
                     $items->push(self::mapFileRow($row, $config, $type, $filter));
                 }
             }
@@ -121,6 +155,7 @@ class DocumentExpiryDashboard
                     'title' => $title,
                     'expiry_date' => Carbon::parse($row->expiry_date)->format('d M Y'),
                     'days_left' => (int) now()->startOfDay()->diffInDays(Carbon::parse($row->expiry_date)->startOfDay(), false),
+                    'expiry_sort' => Carbon::parse($row->expiry_date)->startOfDay()->timestamp,
                     'url' => self::recordUrl($config, (int) $row->id, (string) (request()->route('company_slug') ?? session('company_slug') ?? '')),
                 ]);
             }
@@ -143,6 +178,17 @@ class DocumentExpiryDashboard
         $daysLeft = (int) now()->startOfDay()->diffInDays($expiry, false);
         $slug = (string) (request()->route('company_slug') ?? session('company_slug') ?? '');
 
+        $url = null;
+        if ((int) ($row->type_id ?? 0) > 0) {
+            $url = self::recordUrl($config, (int) $row->type_id, $slug, $type);
+        } else {
+            try {
+                $url = route('files.index', ['company_slug' => $slug]);
+            } catch (\Throwable) {
+                $url = null;
+            }
+        }
+
         return [
             'id' => 'file-' . $row->id,
             'module_label' => (string) ($config['label'] ?? ucwords(str_replace('_', ' ', $type))),
@@ -150,7 +196,7 @@ class DocumentExpiryDashboard
             'expiry_date' => $expiry->format('d M Y'),
             'days_left' => $daysLeft,
             'expiry_sort' => $expiry->timestamp,
-            'url' => self::recordUrl($config, (int) $row->type_id, $slug, $type),
+            'url' => $url,
         ];
     }
 
@@ -176,9 +222,12 @@ class DocumentExpiryDashboard
         if ($user->hasAnyRole(['Administrator', 'Super Admin'])) {
             $existing = company_table('files')
                 ->whereNotNull('expiry_date')
+                ->whereNotNull('type')
+                ->where('type', '!=', '')
                 ->distinct()
                 ->pluck('type')
                 ->map(static fn ($t) => (string) $t)
+                ->filter()
                 ->all();
 
             return array_values(array_unique(array_merge($allowed, $existing)));
@@ -199,7 +248,7 @@ class DocumentExpiryDashboard
 
         $config = self::typeConfig()[$key] ?? null;
         if (! $config) {
-            return $user->can('company_documents_view');
+            return $user->can('documents_view');
         }
 
         $visibility = (string) ($config['visibility'] ?? '');
@@ -213,7 +262,7 @@ class DocumentExpiryDashboard
             }
         }
 
-        return $user->hasPermissionTo('company_documents_view');
+        return $user->hasPermissionTo('documents_view');
     }
 
     /**
@@ -262,7 +311,7 @@ class DocumentExpiryDashboard
     protected static function listUrl(string $filter, string $companySlug, int $days): string
     {
         try {
-            return route('upload_files.index', [
+            return route('files.index', [
                 'company_slug' => $companySlug,
                 'expiry' => $filter,
                 'days' => $days,

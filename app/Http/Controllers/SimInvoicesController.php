@@ -28,6 +28,11 @@ class SimInvoicesController extends AppBaseController
     public function __construct(SimInvoicesRepository $simInvoicesRepo)
     {
         $this->simInvoicesRepository = $simInvoicesRepo;
+        $this->middleware('permission:sims_invoices_view')->only('index', 'show');
+        $this->middleware('permission:sims_invoices_create')->only('create', 'store', 'clone');
+        $this->middleware('permission:sims_invoices_edit')->only('edit', 'update');
+        $this->middleware('permission:sims_invoices_delete')->only('destroy');
+        $this->middleware('permission:sims_payments_view')->only('payments');
     }
 
     public function index(Request $request)
@@ -249,10 +254,6 @@ class SimInvoicesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_invoice_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $invoice = $this->simInvoicesRepository->find($id);
         if (empty($invoice)) {
             Flash::error('Invoice not found');
@@ -375,123 +376,5 @@ class SimInvoicesController extends AppBaseController
         $data = $this->applyPagination($query, $paginationParams);
 
         return view('sims.payments', compact('data'));
-    }
-
-    public function createPaymentVoucher($company_slug, $id)
-    {
-        if (!auth()->user()->hasPermissionTo('sim_invoice_payment_voucher')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $invoice = $this->simInvoicesRepository->find($id);
-        if (empty($invoice)) {
-            Flash::error('Invoice not found');
-            return redirect(route('simInvoices.index'));
-        }
-
-        if ((int) $invoice->status === 1) {
-            Flash::error('Invoice is already marked as paid.');
-            return redirect(route('simInvoices.show', $invoice->id));
-        }
-
-        $invoice->load('vendor');
-        $bankAccounts = Accounts::bankAccountsDropdown();
-
-        return view('sim_invoices.payment_voucher', compact('invoice', 'bankAccounts'));
-    }
-
-    public function storePaymentVoucher(Request $request, $company_slug, $id)
-    {
-        if (!auth()->user()->hasPermissionTo('sim_invoice_payment_voucher')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $invoice = $this->simInvoicesRepository->find($id);
-        if (empty($invoice)) {
-            return response()->json(['errors' => ['error' => 'Invoice not found']], 422);
-        }
-
-        if ((int) $invoice->status === 1) {
-            return response()->json(['errors' => ['error' => 'Invoice is already marked as paid.']], 422);
-        }
-
-        $invoice->load('vendor');
-        if (!$invoice->vendor || !$invoice->vendor->account_id) {
-            return response()->json(['errors' => ['error' => 'Vendor account is not configured.']], 422);
-        }
-
-        $request->validate([
-            'trans_date' => 'required|date',
-            'bank_account_id' => 'required|exists:accounts,id',
-            'remarks' => 'nullable|string|max:255',
-        ]);
-
-        if (!VoucherType::isCodeAllowedForModule('PV', 'vouchers')) {
-            return response()->json(['errors' => ['error' => 'Payment voucher type (PV) is not assigned to Vouchers module. Please assign it in Voucher Settings.']], 422);
-        }
-
-        DB::beginTransaction();
-        try {
-            $transCode = Account::trans_code();
-            $amount = (float) $invoice->total_amount;
-            $transDate = $request->input('trans_date');
-            $billingMonth = \Carbon\Carbon::parse($invoice->billing_month)->format('Y-m-d');
-            $remarks = $request->input('remarks') ?: ('Payment against SIM Invoice #' . ($invoice->invoice_number ?? $invoice->id));
-
-            $voucher = Vouchers::create([
-                'trans_date' => $transDate,
-                'trans_code' => $transCode,
-                'billing_month' => $billingMonth,
-                'voucher_type' => 'PV',
-                'payment_type' => 1,
-                'payment_from' => $request->input('bank_account_id'),
-                'payment_to' => $invoice->vendor->account_id,
-                'reference_number' => $invoice->reference_number,
-                'amount' => $amount,
-                'remarks' => $remarks,
-                'vendor_id' => $invoice->vendor_id,
-                'ref_id' => $invoice->id,
-                'Created_By' => auth()->id(),
-            ]);
-
-            // Debit vendor account (reduce payable)
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $transDate,
-                'account_id' => $invoice->vendor->account_id,
-                'debit' => $amount,
-                'credit' => 0,
-                'narration' => $remarks,
-                'reference_id' => $voucher->id,
-                'reference_type' => 'PV',
-                'billing_month' => $billingMonth,
-            ]);
-
-            // Credit bank account
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $transDate,
-                'account_id' => (int) $request->input('bank_account_id'),
-                'debit' => 0,
-                'credit' => $amount,
-                'narration' => $remarks,
-                'reference_id' => $voucher->id,
-                'reference_type' => 'PV',
-                'billing_month' => $billingMonth,
-            ]);
-
-            $invoice->status = 1;
-            $invoice->save();
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Payment voucher created successfully.',
-                'redirect' => route('simInvoices.show', $invoice->id),
-            ]);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
-        }
     }
 }

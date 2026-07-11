@@ -173,7 +173,7 @@
                         <div class="timeline-event">
                         <div class="timeline-header border-bottom mb-3">
                             <h6 class="mb-0">
-                              @can('ticket_edit')
+                              @can('settings_activity_logs_edit')
                                 <a href="javascript:void(0);" class='show-modal text-{{$class}}' data-action="{{ route('activities.create', ['ticket_id'=>$activity->ref_id,'type'=>1]) }}" 
                                     data-title="TICKET # {{$activity->ref_id}} - {{$activity->ticket->name}}" data-size="xl">
                                     {{ Common::ReferenceType($activity->ref_type, $activity->ref_id)}}

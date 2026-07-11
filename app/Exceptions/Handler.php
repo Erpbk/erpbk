@@ -90,6 +90,14 @@ class Handler extends ExceptionHandler
                     ->with('error', $e->getMessage());
             }
 
+            if ($request->routeIs('BikeRegistration.*')) {
+                $slug = $request->route('company_slug') ?? session('company_slug');
+
+                return redirect()
+                    ->route('BikeRegistration.index', ['company_slug' => $slug])
+                    ->with('error', $e->getMessage());
+            }
+
             if ($request->routeIs('VisaExpense.*', 'Installments.*')) {
                 return redirect()
                     ->route('VisaExpense.index')

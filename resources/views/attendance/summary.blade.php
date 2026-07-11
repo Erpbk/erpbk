@@ -3,7 +3,7 @@
 @section('title', 'Attendance Summary - ' . $date->format('F Y'))
 
 @section('content')
-@can('attendance_view')
+@canany(['employees_attendance_view', 'riders_attendance_view'])
 <style>
     .attendance-summary-card {
         border-radius: 16px;
@@ -301,12 +301,12 @@
 </div>
 </div>
 </div>
-@endcan
-@cannot('attendance_view')
-<div class="alert alert-danger" role="alert">
+@endcanany  
+@if(!auth()->user()->canany(['employees_attendance_view', 'riders_attendance_view']))
+<div class="alert alert-danger mt-4" role="alert">
     You do not have permission to view attendance records.
 </div>
-@endcannot
+@endif
 
 
 @endsection

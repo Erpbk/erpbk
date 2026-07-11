@@ -14,7 +14,7 @@ class VisaExpenseAccess
             return false;
         }
 
-        return $user->can('visaexpense_show_in_menu') && $user->can('visaexpense_view');
+        return $user->can('visa_expense_view');
     }
 
     /**
@@ -24,6 +24,6 @@ class VisaExpenseAccess
     {
         $user = auth()->user();
 
-        return $user && $user->can('visaexpense_view');
+        return $user && $user->can('visa_expense_view');
     }
 }

@@ -5,7 +5,6 @@
 @php
 $usersRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.users' : 'users';
 $rolesRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.roles' : 'roles';
-$permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.permissions' : 'permissions';
 @endphp
 
 <div class="container-fluid px-4">
@@ -19,6 +18,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
         </div>
     </div>
 
+    @can('settings_roles_view')
     <!-- Roles Section -->
     <div class="row mb-4">
         <div class="col-4">
@@ -28,6 +28,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
             </div>
             <p class="text-muted mb-4">A role provides access to predefined menus and features so that depending on assigned role, an administrator can give access to what user needs.</p>
         </div>
+        @can('settings_roles_create')
         <!-- Add New Role Card -->
         <div class="col-4">
             <div class="card border-0 shadow-sm h-100 bg-light border-dashed">
@@ -49,32 +50,8 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                 </div>
             </div>
         </div>
-        <!-- Add New Role Card -->
-        <!-- <div class="col-4">
-            <div class="card border-0 shadow-sm h-100 bg-light border-dashed">
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <div class="text-center">
-                        <img src="{{ asset('assets/img/illustrations/add-new-roles.png') }}"
-                            class="img-fluid mb-3"
-                            alt="add-new-roles"
-                            width="60">
-                        <h5 class="fw-bold mb-2">Add New Permission</h5>
-                        <p class="text-muted small mb-3">Create a new permission to assign to roles</p>
-                        <button data-action="{{ route($permissionsRoute . '.create') }}"
-                            data-title="Create New Role"
-                            data-size="lg"
-                            class="btn btn-primary btn-sm show-modal">
-                            <i class="ti ti-plus me-1"></i>New Permission
-                        </button>
-                        <a class="btn btn-primary btn-sm" href="{{ route($permissionsRoute . '.index') }}" target="_blank">
-                            <i class="ti ti-settings me-1"></i>Manage
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div> -->
     </div>
-
+    @endcan
     <!-- Role Cards -->
     <div class="row g-4 mb-5">
         @foreach($roles as $role)
@@ -88,6 +65,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                             </div>
                             <h5 class="fw-bold mb-0">{{ $role->name }}</h5>
                         </div>
+                        @can('settings_roles_delete')
                         <form action="{{ route($rolesRoute . '.destroy', $role->id) }}" method="POST" class="d-inline form-ajax-submit">
                             @csrf
                             @method('DELETE')
@@ -96,14 +74,16 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                             </button>
                         </form>
                     </div>
-
+                    @endcan
                     <div class="d-flex justify-content-between align-items-center">
+                        @can('settings_roles_edit')
                         <a href="javascript:;" class="role-edit-modal show-modal text-decoration-none"
                             data-title="Edit permissions — {{ $role->name }}"
                             data-size="xl"
                             data-action="{{ route($rolesRoute . '.edit', $role->id) }}">
                             <i class="ti ti-edit me-1"></i>Edit Permissions
                         </a>
+                        @endcan
                         <span class="text-muted small">
                             <i class="ti ti-users me-1"></i>{{ $role->users->count() }} assigned
                         </span>
@@ -113,7 +93,8 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
         </div>
         @endforeach
     </div>
-
+    @endcan
+    @can('settings_users_view')
     <!-- Users Section -->
     <div class="row mb-4">
         <div class="col-12">
@@ -122,6 +103,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                     <h4 class="fw-bold mb-0">System Users</h4>
                     <span class="badge bg-secondary ms-2">{{ \App\Models\User::count() }} Total</span>
                 </div>
+                @can('settings_users_create')
                 <a class="btn btn-primary show-modal"
                     href="javascript:void(0)"
                     data-action="{{ route($usersRoute . '.create') }}"
@@ -129,10 +111,10 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                     data-size="xl">
                     <i class="ti ti-plus me-1"></i>Add New User
                 </a>
+                @endcan
             </div>
         </div>
     </div>
-
     <!-- Flash Messages -->
     @include('flash::message')
 
@@ -142,6 +124,7 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
             @include('users.table')
         </div>
     </div>
+    @endcan
 </div>
 
 <style>

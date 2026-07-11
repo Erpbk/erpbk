@@ -9,7 +9,7 @@
       <div class="col-sm-6">
         <h3>Uploaded Files</h3>
       </div>
-      @can('company_documents_create')
+      @can('documents_create')
       <div class="col-sm-6 text-end">
         <a class="btn btn-primary action-btn show-modal"
           href="javascript:void(0);"

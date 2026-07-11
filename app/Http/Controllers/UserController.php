@@ -35,6 +35,11 @@ class UserController extends AppBaseController
   public function __construct(UserRepository $userRepo)
   {
     $this->userRepository = $userRepo;
+    $this->middleware('auth');
+    $this->middleware('permission:settings_users_view')->only('index', 'show');
+    $this->middleware('permission:settings_users_create')->only('create', 'store');
+    $this->middleware('permission:settings_users_edit')->only('edit', 'update');
+    $this->middleware('permission:settings_users_delete')->only('destroy');
   }
 
   /**
@@ -42,21 +47,6 @@ class UserController extends AppBaseController
    */
   public function index(UserDataTable $userDataTable)
   {
-    /* if (
-      !auth()
-        ->user()
-        ->hasRole(IConstants::ROLE_SUPER_ADMIN)
-    ) {
-      if (
-        !auth()
-          ->user()
-          ->hasPermissionTo('user_view')
-      ) {
-        abort(404);
-      }
-    }*/
-
-
     $roles = $this->assignableRolesQuery()->orderBy('name')->get();
     return $userDataTable->render('users.index', compact('roles'));
   }

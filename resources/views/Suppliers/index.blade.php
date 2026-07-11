@@ -10,10 +10,10 @@
                 <h3>Suppliers</h3>
             </div>
             <div class="col-sm-6">
-                @can('supplier_create')
+                @can('suppliers_supplier_create')
                 <a class="btn btn-primary action-btn show-modal me-2"
                     href="javascript:void(0);" data-size="lg" data-title="New Supplier" data-action="{{ route('suppliers.create') }}">
-                    Add New
+                    Add Supplier
                 </a>
                 @endcan
                 <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">

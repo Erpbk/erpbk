@@ -39,17 +39,14 @@ class BikeRegistrationController extends AppBaseController
     public function __construct(BikeRegistrationsRepository $bikeRegistrationRepo)
     {
         $this->bikeRegistrationRepo = $bikeRegistrationRepo;
+        $this->middleware('permission:bikes_registration_view')->only('index', 'show', 'generatentries', 'viewvoucher');
+        $this->middleware('permission:bikes_registration_create')->only('create', 'store', 'toggleActive', 'reorder', 'accountcreate', 'payfine', 'getRegistrationStatusFee');
+        $this->middleware('permission:bikes_registration_edit')->only('edit', 'update', 'toggleActive', 'reorder', 'editaccount', 'payfine', 'inlineUpdate', 'editVoucherCreditForm', 'updateVoucherCredit');
+        $this->middleware('permission:bikes_registration_delete')->only('destroy', 'deleteaccount');
     }
 
     public function index(Request $request)
     {
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
@@ -182,16 +179,19 @@ class BikeRegistrationController extends AppBaseController
                         $sub->whereRaw('1 = 1');
                     });
                     $query->whereNotExists(function ($sub) {
+                        $headId = $this->bikeRegistrationHeadAccountId();
                         $sub->select(DB::raw(1))
                             ->from('bike_registrations as br')
                             ->whereNull('br.deleted_at')
                             ->where('br.payment_status', 'unpaid')
-                            ->where(function ($link) {
-                                $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id')
-                                    ->orWhere(function ($l2) {
-                                        $l2->where('br.bike_registration_account_id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))
+                            ->where(function ($link) use ($headId) {
+                                $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id');
+                                if ($headId !== null) {
+                                    $link->orWhere(function ($l2) use ($headId) {
+                                        $l2->where('br.bike_registration_account_id', $headId)
                                             ->whereColumn('br.rider_id', 'bike_registration_accounts.rider_id');
                                     });
+                                }
                             });
                         $this->applyBikeRegistrationCompanyScopeForAlias($sub);
                     });
@@ -271,16 +271,18 @@ class BikeRegistrationController extends AppBaseController
             }
         }
 
-        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = $this->bikeRegistrationHeadAccountId();
 
         $unpaidRows = BikeRegistration::query()
             ->where('payment_status', 'unpaid')
             ->where(function ($q) use ($ids, $riderToEaId, $headId) {
-                $q->whereIn('bike_registration_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                $q->whereIn('bike_registration_account_id', $ids);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderToEaId, $headId) {
                         $q2->where('bike_registration_account_id', $headId)
                             ->whereIn('rider_id', array_keys($riderToEaId));
                     });
+                }
             })
             ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('date', 'asc')
@@ -294,7 +296,7 @@ class BikeRegistrationController extends AppBaseController
             $rowEa = (int) $row->bike_registration_account_id;
             if (in_array($rowEa, $ids, true)) {
                 $eaId = $rowEa;
-            } elseif ($rowEa === $headId && $row->rider_id !== null) {
+            } elseif ($headId !== null && $rowEa === $headId && $row->rider_id !== null) {
                 $rid = (int) $row->rider_id;
                 if (isset($riderToEaId[$rid])) {
                     $eaId = $riderToEaId[$rid];
@@ -331,18 +333,20 @@ class BikeRegistrationController extends AppBaseController
             }
         }
 
-        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = $this->bikeRegistrationHeadAccountId();
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = BikeRegistration::query()
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', $threshold)
             ->where(function ($q) use ($ids, $riderToEaId, $headId) {
-                $q->whereIn('bike_registration_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                $q->whereIn('bike_registration_account_id', $ids);
+                if ($headId !== null) {
+                    $q->orWhere(function ($q2) use ($riderToEaId, $headId) {
                         $q2->where('bike_registration_account_id', $headId)
                             ->whereIn('rider_id', array_keys($riderToEaId));
                     });
+                }
             })
             ->orderBy('expiry_date', 'asc')
             ->orderBy('id', 'asc')
@@ -354,7 +358,7 @@ class BikeRegistrationController extends AppBaseController
             $rowEa = (int) $row->bike_registration_account_id;
             if (in_array($rowEa, $ids, true)) {
                 $eaId = $rowEa;
-            } elseif ($rowEa === $headId && $row->rider_id !== null) {
+            } elseif ($headId !== null && $rowEa === $headId && $row->rider_id !== null) {
                 $rid = (int) $row->rider_id;
                 if (isset($riderToEaId[$rid])) {
                     $eaId = $riderToEaId[$rid];
@@ -369,19 +373,26 @@ class BikeRegistrationController extends AppBaseController
         return $byEaId;
     }
 
+    private function bikeRegistrationHeadAccountId(): ?int
+    {
+        return GlobalAccounts::idOrNull('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+    }
+
     private function applyBikeRegistrationAccountMatches($expenseAccountQuery, callable $constraintsOnSubquery): void
     {
-        $headId = GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = $this->bikeRegistrationHeadAccountId();
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('bike_registrations as br')
                 ->whereNull('br.deleted_at')
                 ->where(function ($link) use ($headId) {
-                    $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id')
-                        ->orWhere(function ($l2) use ($headId) {
+                    $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id');
+                    if ($headId !== null) {
+                        $link->orWhere(function ($l2) use ($headId) {
                             $l2->where('br.bike_registration_account_id', $headId)
                                 ->whereColumn('br.rider_id', 'bike_registration_accounts.rider_id');
                         });
+                    }
                 });
             $constraintsOnSubquery($sub);
             $this->applyBikeRegistrationCompanyScopeForAlias($sub);
@@ -546,13 +557,6 @@ class BikeRegistrationController extends AppBaseController
 
     public function generatentries(Request $request, $company_slug, $id)
     {
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $account = BikeRegistrationAccount::with(['rider', 'bike'])->where('id', $id)->firstOrFail();
@@ -623,27 +627,29 @@ class BikeRegistrationController extends AppBaseController
      */
     protected function bikeRegistrationExpenseListingQuery(BikeRegistrationAccount $account)
     {
-        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = $this->bikeRegistrationHeadAccountId();
         $riderId = $account->rider_id;
 
         return BikeRegistration::query()
             ->where(function ($q) use ($account, $riderId, $headId) {
                 $q->where('bike_registration_account_id', $account->id);
 
-                if ($riderId !== null && $riderId !== '') {
-                    $riderKey = (string) $riderId;
-                    $q->orWhere(function ($legacy) use ($headId, $riderKey) {
-                        $legacy->where('bike_registration_account_id', $headId)
-                            ->where('rider_id', $riderKey);
-                    });
-                } else {
-                    $q->orWhere(function ($legacyNoRider) use ($account, $headId) {
-                        $legacyNoRider->where('bike_registration_account_id', $headId)
-                            ->where(function ($rid) {
-                                $rid->whereNull('rider_id')->orWhere('rider_id', '');
-                            })
-                            ->where('reference_number', 'like', 'BR-' . $account->id . '-%');
-                    });
+                if ($headId !== null) {
+                    if ($riderId !== null && $riderId !== '') {
+                        $riderKey = (string) $riderId;
+                        $q->orWhere(function ($legacy) use ($headId, $riderKey) {
+                            $legacy->where('bike_registration_account_id', $headId)
+                                ->where('rider_id', $riderKey);
+                        });
+                    } else {
+                        $q->orWhere(function ($legacyNoRider) use ($account, $headId) {
+                            $legacyNoRider->where('bike_registration_account_id', $headId)
+                                ->where(function ($rid) {
+                                    $rid->whereNull('rider_id')->orWhere('rider_id', '');
+                                })
+                                ->where('reference_number', 'like', 'BR-' . $account->id . '-%');
+                        });
+                    }
                 }
             });
     }
@@ -959,9 +965,6 @@ class BikeRegistrationController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $validated = $request->validate([
             'id' => 'required|exists:bike_registrations,id',
@@ -987,9 +990,6 @@ class BikeRegistrationController extends AppBaseController
 
     public function editVoucherCreditForm(Request $request, $company_slug, $bikeRegistrationId)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $expense = BikeRegistration::with('vouchers')->findOrFail($bikeRegistrationId);
 
@@ -1054,9 +1054,6 @@ class BikeRegistrationController extends AppBaseController
 
     public function updateVoucherCredit(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $validated = $request->validate([
             'bike_registration_id' => 'required|exists:bike_registrations,id',

@@ -40,6 +40,17 @@ class LeasingCompaniesController extends AppBaseController
     {
         $this->leasingCompaniesRepository = $leasingCompaniesRepo;
         $this->leasingCompanyInvoicesRepository = $leasingCompanyInvoicesRepo;
+        $this->middleware('permission:leasing_companies_company_view')->only('index', 'show', 'bikes');
+        $this->middleware('permission:leasing_companies_company_create')->only('create', 'store');
+        $this->middleware('permission:leasing_companies_company_edit')->only('edit', 'update');
+        $this->middleware('permission:leasing_companies_company_delete')->only('destroy');
+        $this->middleware('permission:leasing_companies_invoices_view')->only('indexInvoices', 'showInvoice');
+        $this->middleware('permission:leasing_companies_invoices_create')->only('createInvoice', 'storeInvoice', 'createFromClone', 'cloneInvoice');
+        $this->middleware('permission:leasing_companies_invoices_edit')->only('editInvoice', 'updateInvoice');
+        $this->middleware('permission:leasing_companies_invoices_delete')->only('destroyInvoice');
+        $this->middleware('permission:leasing_companies_payments_view')->only('receipts', 'payments', 'payment');
+        $this->middleware('permission:leasing_companies_documents_view')->only('files');
+        $this->middleware('permission:leasing_companies_ledger_view')->only('ledger');
     }
 
     /**
@@ -47,10 +58,6 @@ class LeasingCompaniesController extends AppBaseController
      */
     public function index(Request $request)
     {
-
-        if (! auth()->user()->hasPermissionTo('leasing_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = LeasingCompanies::query()
@@ -743,9 +750,6 @@ class LeasingCompaniesController extends AppBaseController
      */
     public function destroyInvoice($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('leasing_company_invoice_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
         $invoice = $this->leasingCompanyInvoicesRepository->find($id);
 
         if (empty($invoice)) {

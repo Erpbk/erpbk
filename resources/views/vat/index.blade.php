@@ -6,17 +6,19 @@
   <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
     <h5 class="mb-0"><i class="ti ti-receipt-tax ti-lg text-body me-2"></i>VAT Ledger</h5>
     <div class="d-flex flex-wrap gap-2 align-items-center">
+      @canany(['vat_create', 'vat_edit'])
       <button type="button" class="btn btn-primary btn-sm ms-2" id="vatReturnFileBtn" data-bs-toggle="modal" data-bs-target="#vatReturnQuarterModal">
         <i class="ti ti-file-export me-1"></i> Return File
       </button>
       <a href="javascript:void(0);" class="btn btn-outline-primary btn-sm ms-2 show-modal" data-size="xl" data-title="New VAT Payment Voucher (VP)" data-action="{{ route('vat.voucher.create') }}">
         <i class="ti ti-file-invoice me-1"></i> New VAT Payment Voucher
-      </a>
+      </a>''
+      @endcanany
     </div>
   </div>
 
   <div class="card-body pt-0 px-0">
-    <p class="text-muted small px-3 mb-2">Combined entries of VAT accounts (1023, 1025). When you select a quarter, the ledger shows that quarter <strong>plus any unfiled entries from earlier quarters in the same year</strong>. <strong>Select the entries</strong> you want to include, then click <strong>Return File</strong>, choose the year and quarter — only the selected entries will be included in the return and in the VV voucher.</p>
+    <p class="text-muted small px-3 mb-2">Combined entries of VAT accounts ( {{ ga_name('VAT_PURCHASE_ACCOUNT') }} and {{ ga_name('VAT_ON_SALES') }}). When you select a quarter, the ledger shows that quarter <strong>plus any unfiled entries from earlier quarters in the same year</strong>. <strong>Select the entries</strong> you want to include, then click <strong>Return File</strong>, choose the year and quarter — only the selected entries will be included in the return and in the VV voucher.</p>
     <div class="table-responsive" style="max-height: 800px; overflow: auto;">
       <table class="table table-striped table-bordered table-hover mb-0">
         <thead class="table-light">
@@ -57,7 +59,7 @@
           </tr>
           @empty
           <tr>
-            <td colspan="10" class="text-center text-muted py-4">No VAT entries found. Ensure accounts 1023 and 1025 are configured in VAT Settings.</td>
+            <td colspan="10" class="text-center text-muted py-4">No VAT entries found.</td>
           </tr>
           @endforelse
         </tbody>

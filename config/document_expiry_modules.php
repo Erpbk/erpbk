@@ -6,6 +6,12 @@
  * @see App\Support\DocumentExpiryDashboard
  */
 return [
+    'documents' => [
+        'label' => 'Documents',
+        'visibility' => 'documents',
+        'permissions' => ['documents_view', 'documents_create', 'documents_edit', 'documents_delete'],
+        'route' => 'files.index',
+    ],
     'rider' => [
         'label' => 'Riders',
         'visibility' => 'riders',
@@ -16,7 +22,7 @@ return [
     'employee' => [
         'label' => 'Employees',
         'visibility' => 'employees',
-        'permissions' => ['employees_view', 'employee_document', 'employees_documents'],
+        'permissions' => ['employees_employee_view', 'employees_document_view'],
         'route' => 'employees.show',
         'route_param' => 'employee',
     ],

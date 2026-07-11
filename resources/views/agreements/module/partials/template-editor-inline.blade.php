@@ -16,14 +16,14 @@
       <p class="text-muted small mb-0">{{ $activeTemplate->template_name }} · {{ $styleLabel }}</p>
     </div>
     <div class="d-flex flex-wrap gap-1">
-      @canany(['agreement_view', 'agreement_generate', 'gn_settings'])
+      @canany(['agreements_view', 'agreements_generate', 'gn_settings'])
       <a href="{{ route('agreements.preview', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
         class="btn btn-sm btn-outline-info" target="_blank"><i class="ti ti-eye"></i> Preview</a>
       <a href="{{ route('agreements.preview-pdf', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
         class="btn btn-sm btn-outline-dark" target="_blank"><i class="ti ti-download"></i> PDF</a>
       @endcanany
       @if(!$isContractTemplate)
-      @canany(['agreement_edit', 'agreement_manage_templates', 'gn_settings'])
+      @canany(['agreements_edit', 'agreements_manage_templates', 'gn_settings'])
       <form method="POST"
         action="{{ route('documents.agreements.assign-contract-template', ['company_slug' => $companySlug, 'category' => $category->id, 'template' => $activeTemplate->id]) }}"
         class="d-inline">
@@ -41,7 +41,7 @@
   <div class="card-body">
     <div class="row g-3">
       <div class="col-lg-8">
-        @canany(['agreement_edit', 'agreement_manage_templates', 'gn_settings'])
+        @canany(['agreements_edit', 'agreements_manage_templates', 'gn_settings'])
         <form method="POST"
           action="{{ route('documents.agreements.update-content', ['company_slug' => $companySlug, 'id' => $activeTemplate->id]) }}"
           id="agreement-template-form">

@@ -11,15 +11,16 @@ use DB;
 
 class BikeRegistrationStatusController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:bikes_registration_view')->only('index', 'show');
+        $this->middleware('permission:bikes_registration_create')->only('create', 'store', 'toggleActive', 'reorder');
+        $this->middleware('permission:bikes_registration_edit')->only('edit', 'update', 'toggleActive', 'reorder');
+        $this->middleware('permission:bikes_registration_delete')->only('destroy');
+    }
     public function index(Request $request)
     {
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $query = BikeRegistrationStatus::query();
 
@@ -59,24 +60,14 @@ class BikeRegistrationStatusController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_create')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         return view('bike_registration_statuses.create');
     }
 
     public function show($company_slug, $id)
     {
-        if (!auth()->check()) {
-            return redirect()->route($this->statusesIndexRoute());
-        }
 
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        if (auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (auth()->user()->can('bikes_registration_edit')) {
             return redirect()->route($this->statusesRouteBase() . '.edit', ['bike_registration_status' => $id]);
         }
 
@@ -85,9 +76,6 @@ class BikeRegistrationStatusController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_create')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:bike_registration_statuses',
@@ -137,9 +125,6 @@ class BikeRegistrationStatusController extends Controller
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $bikeRegistrationStatus = BikeRegistrationStatus::findOrFail($id);
 
@@ -148,9 +133,6 @@ class BikeRegistrationStatusController extends Controller
 
     public function update(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $bikeRegistrationStatus = BikeRegistrationStatus::findOrFail($id);
 
@@ -194,9 +176,6 @@ class BikeRegistrationStatusController extends Controller
 
     public function destroy(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         try {
             $bikeRegistrationStatus = BikeRegistrationStatus::findOrFail($id);
@@ -243,9 +222,6 @@ class BikeRegistrationStatusController extends Controller
 
     public function toggleActive($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         try {
             $bikeRegistrationStatus = BikeRegistrationStatus::findOrFail($id);
@@ -265,9 +241,6 @@ class BikeRegistrationStatusController extends Controller
 
     public function reorder(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         $order = $request->input('order', []);
         if (!is_array($order) || empty($order)) {

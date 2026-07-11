@@ -19,18 +19,8 @@
                                 <h6>Rider Branch</h6>
                                 @if($branch)
                                 <p><strong>Branch Name:</strong> {{ $branch->name }} - {{ $branch->code }}</p>
-                                @elseif(!empty($branches) && $branches->isNotEmpty())
-                                <div class="form-group mb-0">
-                                    <label for="branch_id" class="form-label">Branch <span class="text-danger">*</span></label>
-                                    <select name="branch_id" id="branch_id" class="form-select" required>
-                                        <option value="">Select branch</option>
-                                        @foreach($branches as $branchOption)
-                                        <option value="{{ $branchOption->id }}">{{ $branchOption->name }}@if($branchOption->code) - {{ $branchOption->code }}@endif</option>
-                                        @endforeach
-                                    </select>
-                                </div>
                                 @else
-                                <p class="text-muted mb-0">No branch is assigned to this rider. Add a branch on the rider profile first.</p>
+                                <p class="text-muted mb-0">No branch is assigned to this rider.</p>
                                 @endif
                             </div>
                         </div>

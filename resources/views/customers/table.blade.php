@@ -13,7 +13,7 @@
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td><a href="{{ route('customer.files', $r->id) }}">{{$r->name}}</a><br/></td>
+         <td><a href="{{ route('customer.ledger', $r->id) }}">{{$r->name}}</a><br/></td>
          <td>{{$r->contact_number }}</td>
          @php
             $account = company_table('accounts')->where('id', $r->account_id)->first();
@@ -45,12 +45,12 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('customer_edit')
+                  @can('customers_customer_edit')
                      <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Customer Details" data-action="{{ route('customers.edit', $r->id) }}">
                         <i class="fa fa-edit my-1"></i> Edit
                      </a>
                   @endcan
-                  @can('customer_delete')
+                  @can('customers_customer_delete')
                   {!! Form::open(['route' => ['customers.destroy', ['id' => $r->id]], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
                   {!! Form::button('<i class="fa fa-trash"></i> Delete', [
                      'type' => 'submit',

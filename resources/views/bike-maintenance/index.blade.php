@@ -26,7 +26,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('bike_maintenance_create')
+                        @canany(['garages_maintenance_create', 'bike_on_rent_maintenance_create', 'bikes_maintenance_create'])
                         <a class="action-dropdown-item show-modal"
                             href="javascript:void(0);"
                             data-size="xl"
@@ -38,7 +38,7 @@
                                 <div class="action-dropdown-item-desc">Add New Maintenance Record</div>
                             </div>
                         </a>
-                        @endcan
+                        @endcanany
                     </div>
                 </div>
             </div>

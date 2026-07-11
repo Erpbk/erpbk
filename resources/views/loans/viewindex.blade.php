@@ -19,7 +19,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addLoanDropdown">
-                            @can('loan_create')
+                            @can('loans_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add Bank Loan" data-action="{{ route('loans.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>

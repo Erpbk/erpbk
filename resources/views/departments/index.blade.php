@@ -30,7 +30,7 @@
                     <h3>Departments</h3>
                 </div>
                 <div class="col-sm-6">
-                    @can('department_create')
+                    @can('settings_departments_create')
                     <a class="btn btn-primary float-right show-modal" style="float:right;"
                     href="javascript:void(0);" data-title="Add New" data-size="sm" data-action="{{ route($deptRoute . '.create') }}">
                         Add New

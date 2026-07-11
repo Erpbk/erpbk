@@ -59,7 +59,7 @@
                 class="btn btn-sm {{ $isActive ? 'btn-primary' : 'btn-outline-primary' }}">
                 <i class="ti ti-settings me-1"></i> {{ $isActive ? 'Managing' : 'Manage' }}
               </a>
-              @canany(['agreement_view', 'agreement_generate', 'gn_settings'])
+              @canany(['agreements_view', 'agreements_generate', 'gn_settings'])
               <a href="{{ route('module-agreements.templates.preview', ['company_slug' => $companySlug, 'module' => $module, 'template' => $template->id]) }}"
                 class="btn btn-sm btn-outline-info" target="_blank">Preview</a>
               @endcanany

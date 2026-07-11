@@ -112,17 +112,19 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+                  @can('agreements_create')
                   @include('layouts.partials.module_contract_action', [
                     'module' => 'riders',
                     'recordId' => $r->id,
                     'recordLabel' => $r->name . ' (' . $r->rider_id . ') — Contracts',
                   ])
-                  @can('rider_edit')
+                  @endcan
+                  @can('riders_rider_edit')
                   <a href="{{ route('riders.edit', ['company_slug' => request()->route('company_slug'), 'rider' => $r->id]) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
                   @endcan
-                  @can('rider_delete')
+                  @can('riders_rider_delete')
                   <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}')" class='dropdown-item waves-effect'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>

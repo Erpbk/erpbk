@@ -57,17 +57,17 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
-                  @can('bike_registration_view')
+                  @can('bikes_registration_view')
                   <button type="button" class='dropdown-item waves-effect js-br-expenses-modal border-0 bg-transparent w-100 text-start' data-account-id="{{ $r->id }}" data-url="{{ route('BikeRegistration.generatentries', $r->id) }}">
                      <i class="fa fa-eye"></i> View expenses
                   </button>
                   @endcan
-                  @can('bike_registration_edit')
+                  @can('bikes_registration_edit')
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit"></i> Edit
                   </a>
                   @endcan
-                  @can('bike_registration_delete')
+                  @can('bikes_registration_delete')
                   <a href="javascript:void(0);" data-delete-url="{{ route('BikeRegistration.deleteaccount', $r->id) }}" class='dropdown-item waves-effect js-delete-expense-account'>
                      <i class="fa fa-trash"></i> Delete
                   </a>

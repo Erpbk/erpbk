@@ -15,6 +15,10 @@ use Carbon\Carbon;
 
 class ReportController extends Controller
 {
+  public function __construct()
+  {
+    $this->middleware('permission:riders_report_view')->only('rider_invoice_index', 'rider_list', 'rider_report', 'rider_monthly_report', 'rider_report_data', 'rider_monthly_report_data');
+  }
   public function rider_invoice_index()
   {
     return view('reports.rider');

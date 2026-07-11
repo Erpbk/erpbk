@@ -14,7 +14,7 @@
             <div class="col-sm-12 col-lg-12">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h3 class="mb-0">Rider Inventory</h3>
-                    @if(auth()->user()->can('riderinventory_create') || auth()->user()->can('riderinventory_edit'))
+                    @canany(['riders_inventory_create', 'riders_inventory_edit'])
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button type="button" class="action-dropdown-btn" id="addBikeDropdownBtn">
@@ -23,7 +23,7 @@
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addBikeDropdown">
-                                @can('riderinventory_create')
+                                @can('riders_inventory_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);"
                                     data-action="{{ route('RiderInventory.assignForm') }}"
                                     data-size="xl" data-title="Assign Inventory">
@@ -34,7 +34,7 @@
                                     </div>
                                 </a>
                                 @endcan
-                                @can('riderinventory_edit')
+                                @can('riders_inventory_edit')
                                 <a class="action-dropdown-item" href="{{ route('RiderInventory.returnToCustomerForm') }}">
                                     <i class="ti ti-truck-return"></i>
                                     <div>
@@ -46,7 +46,7 @@
                             </div>
                         </div>
                     </div>
-                    @endif
+                    @endcanany
                 </div>
             </div>
         </div>

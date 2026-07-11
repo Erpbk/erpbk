@@ -11,7 +11,7 @@
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h3 class="mb-0">Passport Handover</h3>
-            @can('passport_handover_issue')
+            @can('passport_handover_create')
             <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPassportHandover">
                 <i class="ti ti-e-passport me-1"></i> New Passport Handover
             </button>
@@ -20,7 +20,7 @@
     </div>
 </section>
 
-<div class="content">
+<div class="content mt-3">
     @include('flash::message')
 
     @if($topEnabled)
@@ -124,7 +124,7 @@
     </div>
 </div>
 
-@can('passport_handover_issue')
+@can('passport_handover_create')
 <div class="modal fade" id="createPassportHandover" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">

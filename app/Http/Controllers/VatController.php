@@ -23,18 +23,17 @@ class VatController extends Controller
 
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware('permission:vat_view')->only('index', 'returnsIndex', 'returnsShow');
+        $this->middleware('permission:vat_create')->only('fileReturn', 'createVoucher', 'storeVoucher');
+        $this->middleware('permission:vat_edit')->only('updateReturnStatus', 'deleteReturnEntries');
+        $this->middleware('permission:vat_delete')->only('destroyReturn', 'deleteReturnEntries');
     }
 
     /**
-     * VAT Ledger: combined entries of VAT accounts (1023, 1025) in a simple table. Sequence by billing_month.
+     * VAT Ledger: combined entries of VAT accounts (Purchases and Sales) in a simple table. Sequence by billing_month.
      */
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $accountIds = VatSettingsController::getVatAccountIds();
         $quarters = VatSettingsController::getQuartersForDropdown();
         $years = $this->getYearsForDropdown();
@@ -134,10 +133,6 @@ class VatController extends Controller
      */
     public function returnsIndex()
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $paidReturns = VatReturn::withCount('entries')
             ->where('status', 'paid')
             ->orderByDesc('filed_at')
@@ -161,10 +156,6 @@ class VatController extends Controller
      */
     public function returnsShow($company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $vat_return->load(['entries.transaction.account', 'entries.transaction.voucher']);
         // Order by transaction billing_month and trans_date so entries from both VAT accounts appear in sequence
         $entries = $vat_return->entries()
@@ -194,10 +185,6 @@ class VatController extends Controller
      */
     public function fileReturn(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $request->validate([
             'transaction_ids' => ['required', 'array', 'min:1'],
             'transaction_ids.*' => ['integer', 'exists:transactions,id'],
@@ -384,10 +371,6 @@ class VatController extends Controller
      */
     public function updateReturnStatus(Request $request, $company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $request->validate(['status' => ['required', Rule::in(['paid', 'unpaid'])]]);
         $vat_return->update(['status' => $request->input('status')]);
         $message = $request->input('status') === 'paid' ? 'Payment recorded. Return marked as Paid.' : 'Return marked as Unpaid.';
@@ -399,10 +382,6 @@ class VatController extends Controller
      */
     public function deleteReturnEntries(Request $request, $company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $request->validate([
             'entry_ids' => ['required', 'array'],
             'entry_ids.*' => ['integer', 'exists:vat_return_entries,id'],
@@ -423,10 +402,6 @@ class VatController extends Controller
      */
     public function createVoucher(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bankCashAccounts = Accounts::bankAndCashDropdown();
         $allAccounts = Accounts::dropdown(null);
 
@@ -459,10 +434,6 @@ class VatController extends Controller
      */
     public function storeVoucher(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $request->validate([
             'trans_date' => 'required|date',
             'billing_month' => 'required',
@@ -559,10 +530,6 @@ class VatController extends Controller
      */
     public function destroyReturn($company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         if ($vat_return->status === 'unpaid') {
             $vvVouchers = Vouchers::where('voucher_type', 'VV')
                 ->where('ref_id', $vat_return->id)

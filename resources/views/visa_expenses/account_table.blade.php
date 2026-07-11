@@ -167,17 +167,17 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
-                  @can('visaexpense_view')
+                  @can('visa_expense_view')
                   <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye"></i> View
                   </a>
                   @endcan
-                  @can('visaexpense_edit')
+                  @can('visa_expense_edit')
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit"></i> Edit
                   </a>
                   @endcan
-                  @can('visaexpense_delete')
+                  @can('visa_expense_delete')
                   <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.deleteaccount', $r->id) }}" class='dropdown-item waves-effect js-delete-expense-account'>
                      <i class="fa fa-trash"></i> Delete
                   </a>

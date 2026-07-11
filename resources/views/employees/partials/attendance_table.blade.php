@@ -77,7 +77,7 @@
               <i class="ti ti-dots-vertical"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
-              @can('attendance_edit')
+              @can('employees_attendance_edit')
               <li>
                 <a href="javascript:void(0);" class="dropdown-item show-modal"
                   data-size="md" data-title="Edit Attendance"
@@ -86,7 +86,7 @@
                 </a>
               </li>
               @endcan
-              @can('attendance_delete')
+              @can('employees_attendance_delete')
               <li>
                 <a href="javascript:void(0);" class="dropdown-item delete-employee-attendance"
                   data-url="{{ route('attendance.destroy', $attendance->id) }}">

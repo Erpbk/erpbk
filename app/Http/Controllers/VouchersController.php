@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\PublicStorageDisk;
+use App\Support\VoucherAccess;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -44,12 +45,19 @@ class VouchersController extends Controller
    *
    * @return Response
    */
+  public function __construct()
+  {
+    $this->middleware('auth');
+    // Listing stays vouchers-module only; show/listSidebar also used from receipts, payments, ledger, salik, etc.
+    $this->middleware('permission:vouchers_view')->only('index');
+    $this->middleware(VoucherAccess::crossModuleViewMiddleware())->only('show', 'listSidebar');
+    $this->middleware('permission:vouchers_create')->only('create', 'store');
+    $this->middleware('permission:vouchers_edit')->only('edit', 'update');
+    $this->middleware('permission:vouchers_delete')->only('destroy', 'cloneVoucher');
+  }
+
   public function index(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('voucher_view')) {
-      abort(403, 'Unauthorized action.');
-    }
-
     return $this->indexWithFilters($request);
   }
 
@@ -143,10 +151,6 @@ class VouchersController extends Controller
    */
   public function listSidebar(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('voucher_view')) {
-      abort(403, 'Unauthorized action.');
-    }
-
     $query = Vouchers::query()->orderBy('id', 'desc');
 
     if ($request->filled('voucher_type')) {

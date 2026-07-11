@@ -43,7 +43,7 @@ class AccountsController extends AppBaseController
    */
   public function index(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('account_view')) {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_view')) {
       abort(403, 'Unauthorized action.');
     }
     $search = trim((string) $request->get('search'));
@@ -118,8 +118,9 @@ class AccountsController extends AppBaseController
    */
   public function create()
   {
-    //$parents = Accounts::whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
-    //$parents = Accounts::with('children')->whereNull('parent_account_id')->get();
+    if (!auth()->user()->hasPermissionTo('accounts_coa_create')) {
+      abort(403, 'Unauthorized action.');
+    }
     $parents = Accounts::query()
       ->where(function ($q) {
         $q->whereNull('parent_id')->orWhere('parent_id', 0);
@@ -136,6 +137,9 @@ class AccountsController extends AppBaseController
    */
   public function store(CreateAccountsRequest $request)
   {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_create')) {
+      abort(403, 'Unauthorized action.');
+    }
     $input = $request->except(['custom_field_values', 'is_fixed']);
     $input['is_fixed'] = false;
     // Set is_locked=1 if parent_id is not set (root account)
@@ -155,6 +159,9 @@ class AccountsController extends AppBaseController
    */
   public function show($company_slug, $id)
   {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_view')) {
+      abort(403, 'Unauthorized action.');
+    }
     $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
@@ -173,6 +180,9 @@ class AccountsController extends AppBaseController
    */
   public function edit($company_slug, $id)
   {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_edit')) {
+      abort(403, 'Unauthorized action.');
+    }
     $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
@@ -206,6 +216,9 @@ class AccountsController extends AppBaseController
    */
   public function update($company_slug, $id, UpdateAccountsRequest $request)
   {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_edit')) {
+      abort(403, 'Unauthorized action.');
+    }
     $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
@@ -261,6 +274,9 @@ class AccountsController extends AppBaseController
    */
   public function destroy($company_slug, $id)
   {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
     $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
@@ -397,6 +413,9 @@ class AccountsController extends AppBaseController
    */
   public function ledgerEntries(Request $request, $company_slug, $id)
   {
+    if (!auth()->user()->hasPermissionTo('accounts_coa_view')) {
+      abort(403, 'Unauthorized action.');
+    }
     $account = $this->findAccessibleAccount($id);
     if (!$account) {
       abort(404);

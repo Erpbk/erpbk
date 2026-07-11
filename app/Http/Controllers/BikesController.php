@@ -47,6 +47,16 @@ class BikesController extends AppBaseController
     public function __construct(BikesRepository $bikesRepo)
     {
         $this->bikesRepository = $bikesRepo;
+        $this->middleware('permission:bikes_bike_view')->only('index', 'show');
+        $this->middleware('permission:bikes_bike_create')->only('create', 'store', 'leasingReturn', 'importbikes', 'processImport', 'downloadSampleTemplate');
+        $this->middleware('permission:bikes_bike_edit')->only('edit', 'update', 'leasingReturn');
+        $this->middleware('permission:bikes_bike_delete')->only('destroy');
+        $this->middleware('permission:bikes_assign_create|bikes_assign_edit')->only('assignrider', 'assign_rider', 'changeProject', 'assignContract', 'returnContract', 'leaseReturn');
+        $this->middleware('permission:bikes_export_data_create')->only('exportBikes', 'exportCustomizableBikes');
+        $this->middleware('permission:bikes_maintenance_view')->only('maintenance');
+        $this->middleware('permission:bikes_documents_view')->only('files');
+
+
     }
 
     protected function mergeBikeAssignCustomFields(Bikes $bike, Request $request): void
@@ -66,10 +76,6 @@ class BikesController extends AppBaseController
      */
     public function index(Request $request)
     {
-
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Bikes::query()
@@ -1291,7 +1297,7 @@ class BikesController extends AppBaseController
         }
 
         if ($request->isMethod('post')) {
-            if (! auth()->user()->can('bike_edit')) {
+            if (! auth()->user()->can('bikes_bike_edit')) {
                 abort(403, 'Unauthorized');
             }
             if (Schema::hasColumn('bikes', 'leased_return_date') && ! empty($bike->leased_return_date)) {
@@ -1343,7 +1349,7 @@ class BikesController extends AppBaseController
         }
 
         if ($request->isMethod('post')) {
-            if (! auth()->user()->can('bike_assign_edit')) {
+            if (! auth()->user()->can('bikes_assign_edit')) {
                 abort(403, 'Unauthorized');
             }
 
@@ -1593,9 +1599,6 @@ class BikesController extends AppBaseController
      */
     public function exportBikes(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
 
         if ($request->ajax()) {
             return response()->view('bikes.export_modal');
@@ -1609,10 +1612,6 @@ class BikesController extends AppBaseController
      */
     public function exportCustomizableBikes(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         // Get column configuration from request or user settings
         $visibleColumns = $request->input('visible_columns');
         $columnOrder = $request->input('column_order');
@@ -1681,10 +1680,6 @@ class BikesController extends AppBaseController
      */
     public function importbikes()
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         \Log::info('Stack trace: reached importbikes');
 
         return view('bikes.import');
@@ -1695,10 +1690,6 @@ class BikesController extends AppBaseController
      */
     public function processImport(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         // Validate the request
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:51200', // Max 50MB
@@ -1771,10 +1762,6 @@ class BikesController extends AppBaseController
      */
     public function downloadSampleTemplate()
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $headers = [
             'plate',
             'vehicle_type',

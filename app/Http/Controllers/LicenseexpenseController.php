@@ -43,21 +43,16 @@ class LicenseexpenseController extends AppBaseController
     public function __construct(LicenseExpensesRepository $licenseRepo)
     {
         $this->licenseRepo = $licenseRepo;
+        $this->middleware('permission:license_expense_view')->only('index', 'generatentries', 'viewvoucher');
+        $this->middleware('permission:license_expense_create')->only('accountcreate', 'generatentries', 'create', 'store', 'payfine');
+        $this->middleware('permission:license_expense_edit')->only('editaccount', 'updateaccount', 'edit', 'update', 'payfine', 'inlineUpdate', 'editVoucherCreditForm', 'updateVoucherCredit');
+        $this->middleware('permission:license_expense_delete')->only('deleteaccount', 'destroy');
     }
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        // Check if user is authenticated first
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
         $query = ExpenseAccount::query()
@@ -533,14 +528,6 @@ class LicenseexpenseController extends AppBaseController
 
     public function generatentries(Request $request, $company_slug, $id)
     {
-        // Check if user is authenticated first
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
-            abort(403, 'Unauthorized action.');
-        }
         $account = ExpenseAccount::with('rider')->where('id', $id)->firstOrFail();
         $riderId = $account->rider_id;
         // Use global pagination traits
@@ -876,10 +863,6 @@ class LicenseexpenseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'id' => 'required|exists:license_expenses,id',
             'amount' => 'required|numeric|min:0',
@@ -907,10 +890,6 @@ class LicenseexpenseController extends AppBaseController
      */
     public function editVoucherCreditForm(Request $request, $company_slug, $LicenseExpense)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $expense = license_expenses::with('vouchers')->findOrFail($LicenseExpense);
 
         if ($expense->payment_status !== 'paid') {
@@ -977,10 +956,6 @@ class LicenseexpenseController extends AppBaseController
      */
     public function updateVoucherCredit(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $validated = $request->validate([
             'license_expense_id' => 'required|exists:license_expenses,id',
             'credit_account_id' => 'required|exists:accounts,id',
@@ -1062,10 +1037,7 @@ class LicenseexpenseController extends AppBaseController
      */
     private function LicenseExpensePaymentAccountOptions()
     {
-        $bank = Accounts::where('name', 'cash & bank')->first();
-        if (!$bank) {
-            return collect();
-        }
+        $bank = \App\Support\GlobalAccounts::account('BANK');
 
         return Accounts::query()
             ->where('status', 1)

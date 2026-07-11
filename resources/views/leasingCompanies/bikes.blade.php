@@ -8,7 +8,7 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
-        @can('bikes_view')
+        @can('leasing_companies_view')
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
@@ -33,7 +33,7 @@
                     @foreach($bikes as $bike)
                     <tr class="text-center">
                         <td>{{ $bike->bike_code ?? '-' }}</td>
-                        <td>{{ $bike->plate }}</td>
+                        <td><a href='{{ route('bikes.show', $bike->id) }}' target='_blank'>{{ $bike->plate }}</a></td>
                         <td>{{ $bike->emirates ?? '-' }}</td>
                         <td>{{ $bike->leasingCompany?->name ?? '-' }}</td>
                         <td>{{ $bike->model_type ?? '-' }}</td>
@@ -57,12 +57,11 @@
                 @endif
             </div>
         </div>
-        @endcan
-        @cannot('bikes_view')
+        @else
             <div class="text-center mt-5">
                 <h3>You do not have permission to view Bikes.</h3> 
             </div>
-        @endcannot
+        @endcan
     </div>
 @endsection
 

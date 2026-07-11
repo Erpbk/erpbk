@@ -230,7 +230,7 @@ $attendanceRefType = $attendanceRefType ?? null;
           @if($showVisaStatusManagementTab)
           <div class="tab-pane fade" id="tab-visa-status-management" role="tabpanel">
             <div class="d-flex justify-content-end mb-3">
-              @can('visaexpense_create')
+              @can('visa_expense_create')
               <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaStatusModal">
                 <i class="ti ti-plus me-1"></i> Add New Status
               </button>

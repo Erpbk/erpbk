@@ -34,6 +34,13 @@ class SupplierInvoicesController extends AppBaseController
     public function __construct(SupplierInvoicesRepository $supplierInvoicesRepo)
     {
         $this->supplierInvoicesRepository = $supplierInvoicesRepo;
+        $this->middleware('permission:suppliers_invoices_view')->only('index', 'show');
+        $this->middleware('permission:suppliers_invoices_create|suppliers_purchase_order_create')->only('create', 'store', 'import');
+        $this->middleware('permission:suppliers_invoices_edit|suppliers_purchase_order_edit')->only('edit', 'update');
+        $this->middleware('permission:suppliers_invoices_delete|suppliers_purchase_order_delete')->only('destroy');
+        $this->middleware('permission:suppliers_payments_view')->only('payments');
+        $this->middleware('permission:suppliers_ledger_view')->only('ledger');
+        $this->middleware('permission:email_create')->only('sendEmail');
     }
 
     /**

@@ -21,6 +21,10 @@ class DepartmentsController extends AppBaseController
   public function __construct(DepartmentsRepository $departmentsRepo)
   {
     $this->departmentsRepository = $departmentsRepo;
+    $this->middleware('permission:settings_departments_view')->only('index');
+    $this->middleware('permission:settings_departments_create')->only('create', 'store');
+    $this->middleware('permission:settings_departments_edit')->only('edit', 'update');
+    $this->middleware('permission:settings_departments_delete')->only('destroy');
   }
 
   /**
@@ -28,10 +32,6 @@ class DepartmentsController extends AppBaseController
    */
   public function index(DepartmentsDataTable $departmentsDataTable)
   {
-
-    if (!auth()->user()->hasPermissionTo('department_view')) {
-      abort(403, 'Unauthorized action.');
-    }
     return $departmentsDataTable->render('departments.index');
   }
 
@@ -60,7 +60,7 @@ class DepartmentsController extends AppBaseController
   /**
    * Display the specified Departments.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $departments = $this->departmentsRepository->find($id);
 
@@ -76,7 +76,7 @@ class DepartmentsController extends AppBaseController
   /**
    * Show the form for editing the specified Departments.
    */
-  public function edit($id)
+  public function edit($company_slug, $id)
   {
     $departments = $this->departmentsRepository->find($id);
 
@@ -92,7 +92,7 @@ class DepartmentsController extends AppBaseController
   /**
    * Update the specified Departments in storage.
    */
-  public function update($id, UpdateDepartmentsRequest $request)
+  public function update( UpdateDepartmentsRequest $request, $company_slug, $id)
   {
     $departments = $this->departmentsRepository->find($id);
 
@@ -114,7 +114,7 @@ class DepartmentsController extends AppBaseController
    *
    * @throws \Exception
    */
-  public function destroy($id)
+  public function destroy($company_slug, $id)
   {
     $departments = $this->departmentsRepository->find($id);
 

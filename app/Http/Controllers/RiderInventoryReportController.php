@@ -20,7 +20,7 @@ class RiderInventoryReportController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
+        if (!auth()->user()->can('riders_inventory_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -31,7 +31,7 @@ class RiderInventoryReportController extends AppBaseController
 
     public function data(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
+        if (!auth()->user()->can('riders_inventory_view')) {
             abort(403, 'Unauthorized action.');
         }
 

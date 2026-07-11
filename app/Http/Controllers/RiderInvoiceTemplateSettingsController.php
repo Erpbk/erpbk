@@ -18,7 +18,7 @@ class RiderInvoiceTemplateSettingsController extends Controller
     protected function authorizeManage(): void
     {
         $user = auth()->user();
-        if (! $user || (! $user->can('gn_settings') && ! $user->can('riderinvoice_edit'))) {
+        if (! $user || (! $user->can('gn_settings') && ! $user->canany(['riders_invoices_edit','riders_invoices_create']))) {
             abort(403, 'Unauthorized action.');
         }
     }

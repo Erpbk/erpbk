@@ -7,8 +7,9 @@ use App\Http\Requests\CreatePermissionsRequest;
 use App\Http\Requests\UpdatePermissionsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\PermissionsRepository;
-use Illuminate\Http\Request;
+use App\Support\PermissionTreeBuilder;
 use App\Traits\GlobalPagination;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
@@ -43,7 +44,11 @@ class PermissionsController extends AppBaseController
     public function create()
     {
         $this->ensurePermissionWriteAllowed();
-        return view('permissions.create');
+
+        return view('permissions.create', [
+            'submodules' => [],
+            'customPermissions' => [],
+        ]);
     }
 
     /**
@@ -54,61 +59,63 @@ class PermissionsController extends AppBaseController
         $this->ensurePermissionWriteAllowed();
 
         $rules = [
-            'name' => 'required',
+            'name' => 'required|string|max:255',
+            'submodules' => 'nullable|array',
+            'submodules.*' => 'nullable|string|max:255',
             'extra' => 'nullable|array',
-            'extra.*' => 'string|distinct'
+            'extra.*' => 'string|distinct',
         ];
-        
+
         $message = [
             'name.required' => 'Name Required',
-            'extra.*.distinct' => 'Duplicate custom permissions are not allowed'
+            'extra.*.distinct' => 'Duplicate custom permissions are not allowed',
         ];
-        
+
         $this->validate($request, $rules, $message);
-        
-        // Create base permission name (module name)
-        $fixstr = str_replace(' ', '_', strtolower($request->name));
-        $data = request()->except(['_token', 'extra']);
-        $data['guard_name'] = $data['guard_name'] ?? 'web';
 
-        // Parent + children: idempotent (avoids Spatie PermissionAlreadyExists)
-        $parent = Permission::query()->firstOrCreate(
-            ['name' => $data['name'], 'guard_name' => $data['guard_name']],
-            ['parent_id' => $data['parent_id'] ?? null]
-        );
+        $guard = $request->input('guard_name', 'web');
+        $moduleName = trim((string) $request->input('name'));
+        $moduleSlug = PermissionTreeBuilder::slugify($moduleName);
+        $submodules = $this->normalizedSubmodules($request);
+        $extras = $submodules === [] ? $this->normalizedExtras($request) : [];
 
-        $standardPermissions = ['view', 'create', 'edit', 'delete'];
-        foreach ($standardPermissions as $perm) {
-            Permission::query()->firstOrCreate(
-                ['name' => $fixstr . '_' . $perm, 'guard_name' => $data['guard_name']],
-                ['parent_id' => $parent->id]
+        DB::beginTransaction();
+
+        try {
+            $module = Permission::query()->firstOrCreate(
+                ['name' => $moduleName, 'guard_name' => $guard],
+                ['parent_id' => null]
             );
-        }
-
-        if ($request->has('extra') && !empty($request->extra)) {
-            $extraPermissions = array_filter($request->extra, function ($value) {
-                return !empty(trim($value));
-            });
-
-            foreach ($extraPermissions as $customPerm) {
-                $customPerm = str_replace(' ', '_', strtolower(trim($customPerm)));
-                if ($customPerm !== '') {
-                    Permission::query()->firstOrCreate(
-                        ['name' => $fixstr . '_' . $customPerm, 'guard_name' => $data['guard_name']],
-                        ['parent_id' => $parent->id]
-                    );
-                }
+            if ($module->parent_id !== null) {
+                $module->update(['parent_id' => null]);
             }
+
+            PermissionTreeBuilder::syncModuleTree($module, $moduleSlug, $submodules, $extras, $guard);
+
+            DB::commit();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Error creating permission module: ' . $e->getMessage());
+            Flash::error('Failed to save permissions: ' . $e->getMessage());
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => 'Failed to save permissions: ' . $e->getMessage()], 422);
+            }
+
+            return redirect()->back()->withInput();
         }
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
         Flash::success(' permissions saved successfully.');
 
         if ($request->ajax() || $request->expectsJson()) {
-            return response()->json(['message' => 'Permissions saved successfully.'], 200);
+            return response()->json([
+                'message' => 'Permissions saved successfully.',
+                'reload' => true,
+            ], 200);
         }
 
-        return redirect(route('settings-panel.permissions.index'));
+        return redirect()->back();
     }
 
     /**
@@ -141,20 +148,14 @@ class PermissionsController extends AppBaseController
 
             return redirect(route('settings-panel.permissions.index'));
         }
-        $fixstr = str_replace(' ', '_', strtolower($permission->name));
-        $custom = Permission::where('parent_id', $permission->id)
-            ->whereNotIn('name', [
-                $fixstr . '_view',
-                $fixstr . '_create', 
-                $fixstr . '_edit',
-                $fixstr . '_delete'
-            ])->get();
-        $customPermissions = [];
-        foreach($custom as $perm){
-            $perm = str_replace($fixstr.'_','',$perm->name);
-            $customPermissions[] = str_replace('_',' ',$perm);
-        }
-        return view('permissions.edit', compact('permission','customPermissions','fixstr'));
+
+        $moduleSlug = PermissionTreeBuilder::slugify($permission->name);
+        $submodules = PermissionTreeBuilder::submoduleNamesForModule($permission);
+        $customPermissions = $submodules === []
+            ? PermissionTreeBuilder::customLeafNamesForModule($permission, $moduleSlug)
+            : [];
+
+        return view('permissions.edit', compact('permission', 'customPermissions', 'submodules'));
     }
 
     /**
@@ -165,69 +166,54 @@ class PermissionsController extends AppBaseController
         $this->ensurePermissionWriteAllowed();
 
         $rules = [
-            'name' => 'required',
+            'name' => 'required|string|max:255',
+            'submodules' => 'nullable|array',
+            'submodules.*' => 'nullable|string|max:255',
             'extra' => 'nullable|array',
-            'extra.*' => 'string|distinct'
+            'extra.*' => 'string|distinct',
         ];
-        
+
         $message = [
             'name.required' => 'Name Required',
-            'extra.*.distinct' => 'Duplicate custom permissions are not allowed'
+            'extra.*.distinct' => 'Duplicate custom permissions are not allowed',
         ];
-        
+
         $this->validate($request, $rules, $message);
-        
-        // Create base permission name (module name)
-        $fixstr = str_replace(' ', '_', strtolower($request->name));
-        
-        // Find the parent permission
-        $parent = Permission::findOrFail($id);
 
-        // Update parent permission name
-        $parent->update(['name' => $request->name]);
+        $module = Permission::query()->findOrFail($id);
+        $moduleName = trim((string) $request->input('name'));
+        $moduleSlug = PermissionTreeBuilder::slugify($moduleName);
+        $guard = $module->guard_name ?? 'web';
+        $submodules = $this->normalizedSubmodules($request);
+        $extras = $submodules === [] ? $this->normalizedExtras($request) : [];
 
-        $guard = $parent->guard_name ?? 'web';
-        $standardPermissions = ['view', 'create', 'edit', 'delete'];
-        $desiredNames = [];
-        foreach ($standardPermissions as $perm) {
-            $desiredNames[] = $fixstr . '_' . $perm;
-        }
+        DB::beginTransaction();
 
-        $extraPermissions = [];
-        if ($request->has('extra') && !empty($request->extra)) {
-            $extraPermissions = array_values(array_filter($request->extra, function ($value) {
-                return !empty(trim((string) $value));
-            }));
+        try {
+            $module->update(['name' => $moduleName]);
 
-            foreach ($extraPermissions as $customPerm) {
-                $customPerm = str_replace(' ', '_', strtolower(trim((string) $customPerm)));
-                if ($customPerm !== '') {
-                    $desiredNames[] = $fixstr . '_' . $customPerm;
-                }
+            PermissionTreeBuilder::syncModuleTree($module, $moduleSlug, $submodules, $extras, $guard);
+
+            DB::commit();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error("Error updating Permission ID: {$id} - " . $e->getMessage());
+            Flash::error('Failed to update permissions: ' . $e->getMessage());
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => 'Failed to update permissions: ' . $e->getMessage()], 422);
             }
+
+            return redirect()->back()->withInput();
         }
 
-        $desiredNames = array_values(array_unique($desiredNames));
-
-        // firstOrCreate keeps existing permission IDs (preserves role_has_permissions rows)
-        foreach ($desiredNames as $permName) {
-            Permission::query()->firstOrCreate(
-                ['name' => $permName, 'guard_name' => $guard],
-                ['parent_id' => (int) $id]
-            );
-        }
-
-        Permission::where('parent_id', $id)
-            ->whereNotIn('name', $desiredNames)
-            ->delete();
-
-        $totalPermissions = count($desiredNames);
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        Flash::success('Permissions updated successfully. ' . $totalPermissions . ' permissions active.');
+        Flash::success('Permissions updated successfully.');
 
         if ($request->ajax() || $request->expectsJson()) {
             return response()->json([
-                'message' => 'Permissions updated successfully. ' . $totalPermissions . ' permissions active.',
+                'message' => 'Permissions updated successfully.',
+                'reload' => true,
             ], 200);
         }
 
@@ -252,20 +238,10 @@ class PermissionsController extends AppBaseController
 
         DB::beginTransaction();
         try {
-            // ✅ FIX: Delete child permissions with proper parent_id filter
-            // Check if there are child permissions
-            $childPermissionsCount = Permission::where('parent_id', $id)->count();
-
-            if ($childPermissionsCount > 0) {
-                // Delete all child permissions first
-                Permission::where('parent_id', $id)->delete();
-                Log::info("Deleted {$childPermissionsCount} child permissions for parent permission ID: {$id}");
-            }
-
-            // Delete the parent permission
-            $this->permissionsRepository->delete($id);
+            PermissionTreeBuilder::deleteTree((int) $id);
 
             DB::commit();
+            app(PermissionRegistrar::class)->forgetCachedPermissions();
             Flash::success('Permissions deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -274,6 +250,42 @@ class PermissionsController extends AppBaseController
         }
 
         return redirect(route('settings-panel.permissions.index'));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedSubmodules(Request $request): array
+    {
+        if (! $request->boolean('use_submodules')) {
+            return [];
+        }
+
+        $submodules = $request->input('submodules', []);
+        if (! is_array($submodules)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($name) => trim((string) $name),
+            $submodules
+        ))));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalizedExtras(Request $request): array
+    {
+        $extras = $request->input('extra', []);
+        if (! is_array($extras)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $extras
+        )));
     }
 
     private function ensurePermissionWriteAllowed(): void

@@ -23,14 +23,15 @@ class FuelCompaniesController extends AppBaseController
     public function __construct(FuelCompaniesRepository $fuelCompaniesRepository)
     {
         $this->fuelCompaniesRepository = $fuelCompaniesRepository;
+        $this->middleware('auth');
+        $this->middleware('permission:fuel_cards_companies_view')->only('index', 'show');
+        $this->middleware('permission:fuel_cards_companies_create')->only('create', 'store');
+        $this->middleware('permission:fuel_cards_companies_edit')->only('edit', 'update');
+        $this->middleware('permission:fuel_cards_companies_delete')->only('destroy');
     }
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelCompany::query()
             ->with('account')
@@ -64,29 +65,13 @@ class FuelCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('fuel_create')) {
-            abort(403, 'Unauthorized action.');
-        }
         return view('fuel_companies.create');
     }
 
     public function store(CreateFuelCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $input = $request->all();
         $parentAccount = \App\Support\GlobalAccounts::id('FUEL_COMPANIES_PARENT');
-        if (!$parentAccount) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'message' => 'Chart of accounts is missing the Fuel Companies (Asset) head. Contact ERP Team to Configure it.',
-                ], 500);
-            }
-            Flash::error('Chart of accounts is missing the Fuel Companies (Asset) head. Contact ERP Team to Configure it.');
-            return redirect(route('fuelCompanies.index'));
-        }
 
         try {
             DB::beginTransaction();
@@ -127,10 +112,6 @@ class FuelCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             Flash::error('Fuel company not found');
@@ -144,10 +125,6 @@ class FuelCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             Flash::error('Fuel company not found');
@@ -159,10 +136,6 @@ class FuelCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateFuelCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             return response()->json(['errors' => ['error' => 'Fuel company not found!']], 422);
@@ -185,10 +158,6 @@ class FuelCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             return response()->json(['errors' => ['error' => 'Fuel company not found!']], 422);

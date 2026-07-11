@@ -1,6 +1,6 @@
           <div class="tab-pane fade" id="tab-license-status-management" role="tabpanel">
             <div class="d-flex justify-content-end mb-3">
-              @can('licenseexpense_create')
+              @can('license_expense_create')
               <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createLicenseExpenseStatusModal">
                 <i class="ti ti-plus me-1"></i> Add New Status
               </button>

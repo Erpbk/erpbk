@@ -22,7 +22,7 @@
                 <td>{{ number_format((float) $voucher->amount, 2) }}</td>
                 <td>{{ $voucher->remarks ?? '-' }}</td>
                 <td>
-                    @can('riderinventory_view')
+                    @can('riders_inventory_view')
                     <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal"
                         data-action="{{ route('vouchers.show', $voucher->id) }}"
                         data-size="xl" data-title="Inventory Loss Voucher">

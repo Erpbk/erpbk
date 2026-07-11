@@ -17,7 +17,7 @@ $inModal = !empty($embeddedInModal);
             </a>
             @endif
         </div>
-        @can('bike_registration_create')
+        @can('bikes_registration_create')
         <a class="btn btn-primary action-btn show-modal"
             href="javascript:void(0);" data-action="{{ route('BikeRegistration.create' , $account->id) }}" data-size="lg" data-title="New registration expense">
             Add New Expense

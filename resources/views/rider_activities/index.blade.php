@@ -7,6 +7,7 @@
 @endpush
 
 @section('content')
+@can('riders_activities_view')
 <div class="row mb-2">
   <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
@@ -123,7 +124,9 @@
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Activities</b> (Statistics)</h5>
       <small class="text-body-secondary">
+        @can('riders_activities_create')
         <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}"> <i class="ti ti-activity"></i> Import Activities</a>
+        @endcan
         <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
       </small>
     </div>
@@ -163,7 +166,13 @@
     </div>
   </div>
 </div>
-
+@else
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">You are not authorized to access this page</h5>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

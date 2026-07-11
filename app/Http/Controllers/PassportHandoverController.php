@@ -19,16 +19,15 @@ class PassportHandoverController extends AppBaseController
 {
     use GlobalPagination;
 
+    public function __construct()
+    {
+        $this->middleware('permission:passport_handover_view')->only('index', 'history', 'issueContract', 'returnContract');
+        $this->middleware('permission:passport_handover_create')->only('issueForm', 'issueStore');
+        $this->middleware('permission:passport_handover_edit')->only('returnForm', 'returnStore');
+    }
+
     public function index(Request $request)
     {
-        if (!auth()->check()) {
-            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
-        }
-
-        if (!auth()->user()->hasPermissionTo('passport_handover_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $statusFilter = $request->input('status_filter', '');
 
@@ -76,10 +75,6 @@ class PassportHandoverController extends AppBaseController
 
     public function history(Request $request, string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $person = $this->resolvePerson($type, $id);
         if (!$person) {
             abort(404, 'Person not found.');
@@ -107,10 +102,6 @@ class PassportHandoverController extends AppBaseController
 
     public function issueForm(string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_issue')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $person = $this->resolvePerson($type, $id);
         if (!$person) {
             abort(404, 'Person not found.');
@@ -138,10 +129,6 @@ class PassportHandoverController extends AppBaseController
 
     public function issueStore(Request $request, string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_issue')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $person = $this->resolvePerson($type, $id);
         if (!$person) {
             abort(404, 'Person not found.');
@@ -194,10 +181,6 @@ class PassportHandoverController extends AppBaseController
 
     public function returnForm(string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_return')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $person = $this->resolvePerson($type, $id);
         if (!$person) {
             abort(404, 'Person not found.');
@@ -227,10 +210,6 @@ class PassportHandoverController extends AppBaseController
 
     public function returnStore(Request $request, string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_return')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $person = $this->resolvePerson($type, $id);
         if (!$person) {
             abort(404, 'Person not found.');
@@ -285,10 +264,6 @@ class PassportHandoverController extends AppBaseController
 
     public function issueContract(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_print')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $history = PassportHandoverHistory::with(['rider', 'employee'])->findOrFail($id);
 
         return view('passport_handover.issue_contract', [
@@ -299,10 +274,6 @@ class PassportHandoverController extends AppBaseController
 
     public function returnContract(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_print')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $history = PassportHandoverHistory::with(['rider', 'employee'])->findOrFail($id);
 
         if (!$history->return_date) {

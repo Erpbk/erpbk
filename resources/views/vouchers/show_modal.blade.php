@@ -30,17 +30,18 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
       <span class="badge bg-label-success">Published</span>
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
-      @can('voucher_edit')
+      @can('vouchers_edit')
       @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
       @endcan
-      @can('voucher_create')
+      @can('vouchers_create')
         @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
           <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucherCloneParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
         @endif
       @endcan
       @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
+      @can('vouchers_delete')
         <li>
           <form action="{{ route('vouchers.destroy', $voucherRouteParams($voucher->trans_code)) }}" id="formajax" >
               @csrf
@@ -50,9 +51,12 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
               </button>
           </form>
         </li>
+      @endcan
       @endif
       <a href="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
-      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
+      @can('email_create')
+        <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-arrow-right  me-1"></i> Email</a>
+      @endcan
     </div>
   </div>
   @endif

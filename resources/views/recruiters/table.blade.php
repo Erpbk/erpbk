@@ -31,12 +31,12 @@
             </td>
             <td>
                 <div class='btn-group'>
-                    @can('recruiter_edit')
+                    @can('recruiters_edit')
                     <a href="javascript:void(0);" data-action="{{ route('recruiters.edit', $r->id) }}" class='btn btn-info btn-sm show-modal' data-size="lg" data-title="Update Recruiters">
                         <i class="fa fa-edit"></i>
                     </a>
                     @endcan
-                    @can('recruiter_delete')
+                    @can('recruiters_delete')
                     <a href="javascript:void(0);" onclick='confirmDelete("{{route('recruiters.delete', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Item">
                         <i class="fa fa-trash"></i>
                     </a>

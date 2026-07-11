@@ -35,7 +35,7 @@
     <span class="tree-actions">
       <button type="button" class="btn-settings" title="Actions"><i class="fa fa-cog"></i></button>
       <ul class="dropdown-menu dropdown-menu-end">
-        @can('account_edit')
+        @can('accounts_coa_edit')
           @if(!$isGlobalLinked && !$account->is_locked)
             <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
           @endif
@@ -45,7 +45,7 @@
           @endif
         @endcan
         <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
-        @can('account_delete')
+        @can('accounts_coa_delete')
           @if(!$isRoot && !$isGlobalLinked)
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-trash me-2"></i> Delete</a></li>

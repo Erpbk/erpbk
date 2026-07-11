@@ -60,6 +60,7 @@ class Kernel extends HttpKernel
       \App\Http\Middleware\LocaleMiddleware::class,
       \App\Http\Middleware\AutoMarkInstallments::class,
       \App\Http\Middleware\ApplyDynamicModuleLabels::class,
+      \App\Http\Middleware\LogUserActivity::class,
     ],
 
     'api' => [

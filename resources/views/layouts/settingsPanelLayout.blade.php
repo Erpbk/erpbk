@@ -89,6 +89,16 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @can('settings_email_view')
+
+        @if($settingsIsCompanyAdmin)
+        <li class="menu-item {{ Request::is('settings-panel/email-accounts*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.email-accounts.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-mailbox"></i>
+            <div>Email Accounts</div>
+          </a>
+        </li>
+        @endif
+
         <li class="menu-item {{ Request::is('settings-panel/email-settings*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.email-settings.edit', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-mail"></i>
@@ -96,6 +106,14 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
+        {{-- @can('settings_roles_view')
+        <li class="menu-item {{ Request::is('settings-panel/roles*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.roles.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-user-check"></i>
+            <div>Roles</div>
+          </a>
+        </li>
+        @endcan --}}
         @can('settings_activity_logs_view')
         <li class="menu-item {{ Request::is('settings-panel/activity-logs*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.activity-logs.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">

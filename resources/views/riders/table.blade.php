@@ -23,7 +23,7 @@
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      @forelse($data as $r)
       <tr class="text-center">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
@@ -44,7 +44,7 @@
          </td>
          @break
          @case('customer_id')
-         <td>{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
+         <td>{{ $r->customer?->name ?? '-' }}</td>
          @break
          @case('branch_id')
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
@@ -69,7 +69,8 @@
          <td class="text-center">
             @include('riders._status_badges', [
             'employmentStatus' => data_get($r, 'status'),
-            'optionText' => data_get($r, 'rider_status', ''),
+            'statusDays' => data_get($r, 'employment_status_days'),
+            'statusChangedAt' => data_get($r, 'last_employment_status_change_date'),
             ])
          </td>
          @break
@@ -156,7 +157,20 @@
          @endforeach
          <td></td>
       </tr>
-      @endforeach
+      @empty
+      @php
+      $hasSupervisorOrStatusFilter = request()->filled('fleet_supervisor')
+      || request()->filled('rider_status')
+      || request()->filled('status');
+      @endphp
+      <tr>
+         <td colspan="{{ count($dataColumns) + 1 }}" class="text-center text-danger py-3">
+            {{ $hasSupervisorOrStatusFilter
+            ? 'This rider does not belong to this supervisor or status.'
+            : 'No riders found for the selected filters.' }}
+         </td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
 @if(method_exists($data, 'links'))

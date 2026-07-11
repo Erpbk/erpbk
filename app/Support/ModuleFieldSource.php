@@ -152,6 +152,7 @@ class ModuleFieldSource
     {
         return match ($column) {
             'branch_id' => 'Branch',
+            'customer_id' => 'Project',
             'total_orders' => 'Total Orders',
             'working_hours' => 'Working Hours',
             'cancelled_orders' => 'Cancelled Orders',
@@ -167,6 +168,7 @@ class ModuleFieldSource
     {
         return match ($key) {
             'branch_id' => 'Branch',
+            'customer_id' => 'Project',
             default => ucwords(str_replace(['_', '-'], ' ', $key)),
         };
     }

@@ -83,7 +83,7 @@ default => '-- Select employee or rider first --',
             <option value="absent" {{ old('status') == 'absent' ? 'selected' : '' }}>Absent</option>
             <option value="late" {{ old('status') == 'late' ? 'selected' : '' }}>Late</option>
             <option value="half day" {{ old('status') == 'half-day' ? 'selected' : '' }}>Half Day</option>
-            <option value="holiday" {{ old('status') == 'holiday' ? 'selected' : '' }}>Holiday</option>
+            <option value="weekend" {{ old('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
         </select>
     </div>
 </div>
@@ -148,7 +148,29 @@ default => '-- Select employee or rider first --',
     </textarea>
 </div>
 
+@include('attendance.partials.rider_activity_fields', [
+'refType' => old('ref_type', ''),
+'total_orders' => old('total_orders'),
+'working_hours' => old('working_hours'),
+'cancelled_orders' => old('cancelled_orders'),
+'rejected_orders' => old('rejected_orders'),
+'ontime_orders_percentage' => old('ontime_orders_percentage'),
+])
+
 <script>
+    function toggleRiderActivitySection(refType) {
+        var section = $('#rider_activity_section');
+        if (!section.length) {
+            return;
+        }
+        if (refType === 'rider') {
+            section.show();
+        } else {
+            section.hide();
+            section.find('input').val('');
+        }
+    }
+
     function updateRefIdLabel(refType) {
         var label = 'Select Employee or Rider';
         var placeholder = '-- Select employee or rider first --';
@@ -172,9 +194,11 @@ default => '-- Select employee or rider first --',
     $(document).ready(function() {
         var initialRefType = $('input[name="ref_type"]:checked').val() || '';
         updateRefIdLabel(initialRefType);
+        toggleRiderActivitySection(initialRefType);
 
         $('input[name="ref_type"]').on('change', function() {
             updateRefIdLabel($(this).val());
+            toggleRiderActivitySection($(this).val());
         });
     });
 </script>

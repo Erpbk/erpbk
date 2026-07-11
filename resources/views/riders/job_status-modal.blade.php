@@ -1,8 +1,9 @@
 
-                <form action="{{ route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => @$rider->id]) }}" method="post" enctype="multipart/form-data" id="formajax">
+                <form action="{{ route('rider.job_status', ['company_slug' => request()->route('company_slug'), 'id' => @$riders->id]) }}" method="post" enctype="multipart/form-data" id="formajax">
 @csrf
 {{-- <input type="hidden" id="reload_page" value="1" /> --}}
 <input type="hidden" name="job_status" value="1" />
+<input type="hidden" name="rider_id" value="{{ @$riders->id }}" />
                     <div class="row mt-1">
                         <div class="col-md-12">
                             {{-- <div class="form-group">

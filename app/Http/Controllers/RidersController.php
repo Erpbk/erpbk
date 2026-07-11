@@ -35,6 +35,8 @@ use App\Models\RiderAttendance;
 use App\Models\RiderEmails;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderCustomField;
+use App\Models\RiderTopCategory;
+use App\Models\RiderTopOption;
 use App\Models\RiderInvoices;
 use App\Models\RiderItemPrice;
 use App\Models\Riders;
@@ -49,7 +51,9 @@ use App\Models\VoucherType;
 use App\Repositories\RidersRepository;
 use App\Services\BikeHistoryLogger;
 use App\Services\Email\CompanyEmailBrandingService;
+use App\Services\Email\EmailAccountService;
 use App\Services\Email\UserEmailService;
+use App\Http\Requests\SendRiderEmailRequest;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
@@ -108,7 +112,8 @@ class RidersController extends AppBaseController
 
     $dbColumns = array_values(array_unique(array_merge(
       $assignedFixedColumns,
-      Schema::hasColumn('riders', 'status') ? ['status'] : []
+      Schema::hasColumn('riders', 'status') ? ['status'] : [],
+      Schema::hasColumn('riders', 'customer_id') ? ['customer_id'] : []
     )));
 
     $assignedCustomFields = RiderCustomField::query()
@@ -132,6 +137,7 @@ class RidersController extends AppBaseController
       $customTitles = [
         'doj' => 'Date of Joining',
         'recruiter_id' => 'Recruiter',
+        'customer_id' => 'Project',
       ];
 
       return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
@@ -167,6 +173,112 @@ class RidersController extends AppBaseController
       ['data' => 'search', 'title' => 'Search'],
       ['data' => 'control', 'title' => 'Control'],
     ]);
+  }
+
+  /**
+   * Build dynamic filter options from Rider Top cards shown on view page.
+   */
+  private function riderTopStatusFilterOptions(): array
+  {
+    return RiderTopCategory::query()
+      ->where('is_active', true)
+      ->where('show_in_view_cards', true)
+      ->whereNotNull('rider_column')
+      ->where('rider_column', '!=', '')
+      ->where('rider_column', '!=', 'status')
+      ->with(['options' => function ($q) {
+        $q->where('is_active', true)
+          ->where('show_in_view_cards', true)
+          ->orderBy('display_order')
+          ->orderBy('id');
+      }])
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get()
+      ->flatMap(function ($category) {
+        $column = trim((string) ($category->rider_column ?? ''));
+        if ($column === '' || !Schema::hasColumn('riders', $column)) {
+          return collect();
+        }
+
+        return $category->options->map(function ($option) use ($category, $column) {
+          return [
+            'value' => 'top:' . $option->id,
+            'label' => (string) $option->name,
+            'category' => (string) ($category->name ?? RiderCustomField::humanizeFieldKey($column)),
+          ];
+        });
+      })
+      ->values()
+      ->all();
+  }
+
+  private function applyBikeAssignmentOrTopStatusFilter($query, ?string $selected): void
+  {
+    $selected = trim((string) $selected);
+    if ($selected === '') {
+      return;
+    }
+
+    if ($selected === 'Active') {
+      $query->whereHas('bikes', function ($q) {
+        $q->where('warehouse', 'Active');
+      });
+
+      return;
+    }
+
+    if ($selected === 'Inactive') {
+      $query->whereDoesntHave('bikes', function ($q) {
+        $q->where('warehouse', 'Active');
+      });
+
+      return;
+    }
+
+    if (!str_starts_with($selected, 'top:')) {
+      return;
+    }
+
+    $optionId = (int) substr($selected, 4);
+    if ($optionId <= 0) {
+      return;
+    }
+
+    $option = RiderTopOption::query()->with('category')->find($optionId);
+    if (!$option || !$option->category) {
+      return;
+    }
+
+    $column = trim((string) ($option->category->rider_column ?? ''));
+    if ($column === '' || !Schema::hasColumn('riders', $column)) {
+      return;
+    }
+
+    $value = trim((string) $option->name);
+    if ($value === '') {
+      return;
+    }
+
+    if ($column === 'customer_id') {
+      $customerId = Customers::query()->where('name', $value)->value('id');
+      if ($customerId !== null) {
+        $query->where('riders.customer_id', $customerId);
+      }
+
+      return;
+    }
+
+    if (TopBarNumericStatus::isNumericStatusColumn('riders', $column)) {
+      $mapped = TopBarNumericStatus::valueForLabel($value);
+      if ($mapped !== null) {
+        $query->where('riders.' . $column, $mapped);
+
+        return;
+      }
+    }
+
+    $query->where('riders.' . $column, $value);
   }
 
   private function findAccessibleRider(int $id): ?Riders
@@ -447,7 +559,7 @@ class RidersController extends AppBaseController
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'asc')
-      ->with('branch');
+      ->with(['branch', 'customer']);
     $this->applyCompanyScope($query);
     if ($request->has('rider_id') && ! empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
@@ -479,20 +591,8 @@ class RidersController extends AppBaseController
     // if ($request->has('status') && !empty($request->status)) {
     //   $query->where('status', $request->status);
     // }
-    // Filter by bike assignment status (Active/Inactive based on bike assignment)
-    if ($request->has('bike_assignment_status') && ! empty($request->bike_assignment_status)) {
-      if ($request->bike_assignment_status === 'Active') {
-        // Riders who have an active bike assigned
-        $query->whereHas('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      } elseif ($request->bike_assignment_status === 'Inactive') {
-        // Riders who don't have an active bike assigned
-        $query->whereDoesntHave('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      }
-    }
+    // Filter by bike assignment or Rider Top status option selected in the same dropdown.
+    $this->applyBikeAssignmentOrTopStatusFilter($query, $request->input('bike_assignment_status'));
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -526,12 +626,15 @@ class RidersController extends AppBaseController
       $query->select('riders.*');
     }
 
+    $query->addSelect(Riders::employmentStatusDaysSelectColumns());
+
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
 
     return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
+      'riderTopStatusFilterOptions' => $this->riderTopStatusFilterOptions(),
     ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
@@ -558,7 +661,8 @@ class RidersController extends AppBaseController
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'desc')
-      ->orderBy('riders.id', 'desc');
+      ->orderBy('riders.id', 'desc')
+      ->with(['customer']);
     $this->applyCompanyScope($query);
 
     if ($request->has('rider_id') && ! empty($request->rider_id)) {
@@ -584,8 +688,11 @@ class RidersController extends AppBaseController
     // Filter by rider status (active = 1, inactive = 0 or 2)
     $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
     if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'status', $riderStatusKeys);
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
+
+    // Filter by bike assignment or Rider Top status option selected in the same dropdown.
+    $this->applyBikeAssignmentOrTopStatusFilter($query, $request->input('bike_assignment_status'));
 
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
@@ -619,6 +726,8 @@ class RidersController extends AppBaseController
         });
       $query->select('riders.*');
     }
+
+    $query->addSelect(Riders::employmentStatusDaysSelectColumns());
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
@@ -650,7 +759,7 @@ class RidersController extends AppBaseController
   public function create()
   {
     $riderCategories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
 
     return view('riders.create', compact('riderCategories', 'fieldsByCategory'));
   }
@@ -773,7 +882,7 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
 
     // Get dropdown data for edit forms
     $countries = Countries::pluck('name', 'id')->prepend('Select', '');
@@ -800,7 +909,7 @@ class RidersController extends AppBaseController
     }
 
     $riderCategories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
 
     return view('riders.edit', compact('riders', 'riderCategories', 'fieldsByCategory'));
   }
@@ -920,27 +1029,6 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    // Check if rider account has any transactions (like Banks does)
-    if ($riders->account_id) {
-      $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
-      if ($accountTransactions > 0) {
-        Flash::error('Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.');
-
-        return redirect(route('riders.index'));
-      }
-    }
-
-    // Check if rider has any vouchers (by ref_id or rider_id)
-    $vouchersCount = Vouchers::where(function ($query) use ($id) {
-      $query->where('ref_id', $id);
-    })->count();
-
-    if ($vouchersCount > 0) {
-      Flash::error('Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.');
-
-      return redirect(route('riders.index'));
-    }
-
     // Check for other related records
     $relatedRecords = [];
 
@@ -1036,39 +1124,162 @@ class RidersController extends AppBaseController
     // Store rider data BEFORE deleting (important!)
     $riderId = $riders->id;
     $riderName = $riders->name . ' (' . $riders->rider_id . ')';
-    $relatedAccount = $riders->account;
+    $relatedAccounts = collect();
 
-    // Set deleted_by if column exists
-    if (Schema::hasColumn('riders', 'deleted_by')) {
-      $riders->deleted_by = Auth::id();
-      $riders->save();
+    if ($riders->account) {
+      $relatedAccounts->push($riders->account);
     }
 
-    // Soft delete the rider
-    $riders->delete();
+    // Also pick up any rider ledger accounts linked by ref
+    Accounts::where('ref_id', $riderId)
+      ->where('ref_name', 'Rider')
+      ->get()
+      ->each(function ($account) use ($relatedAccounts) {
+        if (! $relatedAccounts->contains('id', $account->id)) {
+          $relatedAccounts->push($account);
+        }
+      });
 
-    // Also soft delete the related account if exists and track it
-    if ($relatedAccount) {
-      $cascadedItems[] = [
-        'model' => 'Accounts',
-        'id' => $relatedAccount->id,
-        'name' => $relatedAccount->name,
-      ];
+    DB::beginTransaction();
+    try {
+      // Soft-delete rider vouchers and their transactions (instead of blocking delete)
+      $relatedVouchers = Vouchers::where(function ($query) use ($riderId) {
+        $query->where('rider_id', $riderId)
+          ->orWhere('ref_id', $riderId);
+      })->get();
 
-      $relatedAccount->delete();
+      foreach ($relatedVouchers as $voucher) {
+        $voucherIdentifier = ($voucher->voucher_type ?? 'V') . '-' . str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
+        $relatedTransactions = Transactions::where('trans_code', $voucher->trans_code)->get();
 
-      // Log the cascade
-      $this->trackCascadeDeletion(
-        'App\Models\Riders',
-        $riderId,
-        $riderName,
-        'App\Models\Accounts',
-        $relatedAccount->id,
-        $relatedAccount->name,
-        'hasOne',
-        'account',
-        'soft'
-      );
+        foreach ($relatedTransactions as $transaction) {
+          try {
+            $this->trackCascadeDeletion(
+              'App\Models\Riders',
+              $riderId,
+              $riderName,
+              'App\Models\Transactions',
+              $transaction->id,
+              "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
+              'hasMany',
+              'transactions',
+              'soft',
+              'Cascade deletion from Rider deletion'
+            );
+          } catch (\Exception $e) {
+            Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+          }
+
+          if (in_array('deleted_by', $transaction->getFillable(), true)) {
+            $transaction->deleted_by = Auth::id();
+            $transaction->save();
+          }
+
+          $transaction->delete();
+        }
+
+        try {
+          $this->trackCascadeDeletion(
+            'App\Models\Riders',
+            $riderId,
+            $riderName,
+            'App\Models\Vouchers',
+            $voucher->id,
+            $voucherIdentifier,
+            'hasMany',
+            'vouchers',
+            'soft',
+            'Cascade deletion from Rider deletion'
+          );
+        } catch (\Exception $e) {
+          Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
+        }
+
+        if (in_array('deleted_by', $voucher->getFillable(), true)) {
+          $voucher->deleted_by = Auth::id();
+          $voucher->save();
+        }
+
+        $voucher->delete();
+        $cascadedItems[] = [
+          'model' => 'Vouchers',
+          'id' => $voucher->id,
+          'name' => $voucherIdentifier,
+        ];
+      }
+
+      // Soft-delete any remaining transactions on rider accounts
+      foreach ($relatedAccounts as $account) {
+        $remainingTransactions = Transactions::where('account_id', $account->id)->get();
+        foreach ($remainingTransactions as $transaction) {
+          try {
+            $this->trackCascadeDeletion(
+              'App\Models\Riders',
+              $riderId,
+              $riderName,
+              'App\Models\Transactions',
+              $transaction->id,
+              "Transaction #{$transaction->id} (Account: {$account->name})",
+              'hasMany',
+              'transactions',
+              'soft',
+              'Cascade deletion from Rider deletion'
+            );
+          } catch (\Exception $e) {
+            Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
+          }
+
+          if (in_array('deleted_by', $transaction->getFillable(), true)) {
+            $transaction->deleted_by = Auth::id();
+            $transaction->save();
+          }
+
+          $transaction->delete();
+        }
+      }
+
+      // Set deleted_by if column exists
+      if (Schema::hasColumn('riders', 'deleted_by')) {
+        $riders->deleted_by = Auth::id();
+        $riders->save();
+      }
+
+      // Soft delete the rider
+      $riders->delete();
+
+      // Soft delete all related rider accounts
+      foreach ($relatedAccounts as $relatedAccount) {
+        $cascadedItems[] = [
+          'model' => 'Accounts',
+          'id' => $relatedAccount->id,
+          'name' => $relatedAccount->name,
+        ];
+
+        $relatedAccount->delete();
+
+        $this->trackCascadeDeletion(
+          'App\Models\Riders',
+          $riderId,
+          $riderName,
+          'App\Models\Accounts',
+          $relatedAccount->id,
+          $relatedAccount->name,
+          'hasOne',
+          'account',
+          'soft'
+        );
+      }
+
+      DB::commit();
+    } catch (\Throwable $e) {
+      DB::rollBack();
+      Log::error('Failed to delete rider', [
+        'rider_id' => $riderId,
+        'error' => $e->getMessage(),
+      ]);
+      Flash::error('Failed to delete rider: ' . $e->getMessage());
+
+      return redirect(route('riders.index'));
     }
 
     // Build cascade message
@@ -1291,12 +1502,30 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function job_status($company_slug, $id, Request $request)
+  public function job_status(Request $request, $company_slug = null, $id = null)
   {
+    $postedRiderId = $request->input('rider_id');
+    if ($id === null && is_numeric($postedRiderId)) {
+      $id = (int) $postedRiderId;
+    }
+
+    if ($id === null && is_numeric($company_slug)) {
+      $id = (int) $company_slug;
+    }
+
+    if (! is_numeric($id)) {
+      return response('Rider not found.', 404);
+    }
+
+    $id = (int) $id;
     $riders = Riders::find($id);
+    if (! $riders) {
+      return response('Rider not found.', 404);
+    }
 
     if ($request->isMethod('post')) {
       $input = $request->all();
+      unset($input['rider_id']);
       $input['RID'] = $id;
       $input['status_by'] = auth()->user()->id;
       JobStatus::create($input);
@@ -1304,7 +1533,10 @@ class RidersController extends AppBaseController
       /*  $rider = Riders::find($id);
              $rider->job_status = $input['job_status'];
              $rider->save(); */
-      return 'Timeline added successfully';
+      return response()->json([
+        'success' => true,
+        'message' => 'Timeline added successfully.',
+      ]);
     }
 
     return view('riders.job_status-modal', compact('riders'));
@@ -1959,8 +2191,23 @@ class RidersController extends AppBaseController
 
     if ($request->isMethod('post')) {
       $user = Auth::user();
+      $emailAccountService = app(EmailAccountService::class);
       $emailService = app(UserEmailService::class);
-      $smtpPrep = $emailService->prepareCompanySmtp($user);
+
+      try {
+        $formRequest = SendRiderEmailRequest::createFrom($request);
+        $formRequest->setContainer(app());
+        $formRequest->validateResolved();
+        $validated = $formRequest->validated();
+      } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+          'success' => false,
+          'message' => collect($e->errors())->flatten()->first() ?: 'Validation failed.',
+          'errors' => $e->errors(),
+        ], 422);
+      }
+
+      $smtpPrep = $emailAccountService->prepareAccountSmtp($user, (int) $validated['email_account_id']);
       if (! $smtpPrep['ready']) {
         return response()->json([
           'success' => false,
@@ -1970,37 +2217,34 @@ class RidersController extends AppBaseController
       $fromEmail = $smtpPrep['from_email'];
       $fromName = $smtpPrep['from_name'];
 
-      $toEmail = $request->input('email_to');
-      if (! is_string($toEmail) || trim($toEmail) === '') {
-        return response()->json([
-          'success' => false,
-          'message' => 'Rider email address is missing.',
-        ], 422);
-      }
-      $toEmail = trim($toEmail);
+      $toEmail = trim($validated['email_to']);
 
-      $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
-        ? trim($request->input('email_subject'))
-        : 'Warning for Attendance and Performance - ' . $rider->name . ' (Rider ID: ' . $rider->rider_id . ')';
+      $subject = trim($validated['email_subject']);
 
       $emailHeading = is_string($request->input('email_heading')) && trim($request->input('email_heading')) !== ''
         ? trim($request->input('email_heading'))
         : 'Warning for Attendance and Performance  Rider I,D ' . $rider->rider_id;
 
+      $ccEmails = $emailAccountService->normalizeCcEmails($validated['email_cc'] ?? []);
+
       $brandingService = app(CompanyEmailBrandingService::class);
       $data = $brandingService->mergeIntoMailData([
-        'html' => $request->input('email_message'),
+        'html' => $validated['email_message'],
         'email_heading' => $emailHeading,
         'rider_name' => $rider->name,
         'rider_id' => $rider->rider_id,
       ]);
 
       try {
-        $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
+        $month = $validated['month'] ?? date('Y-m');
+        $fileName = $id . "_monthly_activity_{$month}.xlsx";
         $filePath = storage_path("app/public/{$fileName}");
-        Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
-        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName) {
+        Excel::store(new MonthlyActivityExport($id, $month), "public/{$fileName}");
+        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
           $message->to([$toEmail]);
+          if (! empty($ccEmails)) {
+            $message->cc($ccEmails);
+          }
           $message->from($fromEmail, $fromName);
           $message->replyTo($fromEmail, $fromName);
           $message->subject($subject);
@@ -2011,7 +2255,7 @@ class RidersController extends AppBaseController
           'rider_id' => $id,
           'mail_to' => $toEmail,
           'subject' => $subject,
-          'message' => $request->email_message,
+          'message' => $validated['email_message'],
         ]);
       } catch (\Throwable $e) {
         report($e);
@@ -2029,8 +2273,11 @@ class RidersController extends AppBaseController
     }
 
     $emailBranding = app(CompanyEmailBrandingService::class)->resolveForEmail();
+    $emailAccountService = app(EmailAccountService::class);
+    $assignedEmailAccounts = $emailAccountService->getActiveAssignedAccounts(Auth::user());
+    $defaultCcEmails = app(UserEmailService::class)->getCcRecipientEmails(Auth::user());
 
-    return view('riders.send_email', compact('rider', 'emailBranding'));
+    return view('riders.send_email', compact('rider', 'emailBranding', 'assignedEmailAccounts', 'defaultCcEmails'));
   }
 
   public function exportRiders()
@@ -2136,78 +2383,148 @@ class RidersController extends AppBaseController
 
   public function setRiderTopOption(Request $request, $company_slug, $id)
   {
-    $rider = $this->ridersRepository->find($id);
+    $rider = $this->findAccessibleRider((int) $id);
     if (empty($rider)) {
       return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
     }
 
+    $isClear = $request->filled('clear_option_id');
     $rules = [
       'option_id' => 'nullable|integer|exists:rider_top_options,id',
+      'clear_option_id' => 'nullable|integer|exists:rider_top_options,id',
     ];
-    if ($request->filled('option_id')) {
+    if ($request->filled('option_id') && ! $isClear) {
       $rules['effective_date'] = ['required', 'date', 'before_or_equal:' . now()->toDateString()];
     } else {
       $rules['effective_date'] = ['nullable', 'date', 'before_or_equal:' . now()->toDateString()];
     }
     $validated = $request->validate($rules);
 
-    $optionId = $validated['option_id'] ?? null;
+    $targetOptionId = $isClear
+      ? (int) $validated['clear_option_id']
+      : (int) ($validated['option_id'] ?? 0);
+
+    if ($targetOptionId <= 0) {
+      return response()->json(['success' => false, 'message' => 'Option is required.'], 422);
+    }
+
+    $optionQuery = CompanyQuery::table('rider_top_options as o')
+      ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
+      ->where('o.id', $targetOptionId)
+      ->where('c.show_in_view_cards', 1);
+    if (CompanyContext::shouldApplyScope() && ($companyId = CompanyContext::id())) {
+      $optionQuery->where('c.company_id', $companyId);
+    }
+    $option = $optionQuery
+      ->select('o.id', 'o.name', 'o.category_id', 'c.rider_column', 'c.name as category_name')
+      ->first();
+
+    if (! $option) {
+      return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
+    }
+
+    $column = trim((string) ($option->rider_column ?? ''));
+    if ($column === '' || ! Schema::hasColumn('riders', $column)) {
+      return response()->json(['success' => false, 'message' => 'Invalid rider column for this option.'], 422);
+    }
+
     $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
+    $bike = Bikes::where('rider_id', $rider->id)->first();
+    $before = RiderHistoryLogger::riderSnapshot($rider);
+    $previousColumnValue = $rider->{$column};
 
-    $option = null;
-    if (! empty($optionId)) {
-      $optionQuery = CompanyQuery::table('rider_top_options as o')
-        ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
-        ->where('o.id', $optionId)
-        ->where('c.show_in_view_cards', 1);
-      if (CompanyContext::shouldApplyScope() && ($companyId = CompanyContext::id())) {
-        $optionQuery->where('c.company_id', $companyId);
+    if ($isClear) {
+      $currentValue = trim((string) ($rider->{$column} ?? ''));
+      $optionName = trim((string) $option->name);
+      $valueMatches = $currentValue !== '' && strcasecmp($currentValue, $optionName) === 0;
+      $fkMatches = (int) ($rider->rider_top_option_id ?? 0) === (int) $option->id;
+
+      if (! $valueMatches && ! $fkMatches) {
+        $employment = Riders::employmentStatusDisplay($rider->status);
+
+        return response()->json([
+          'success' => true,
+          'message' => 'Rider option already cleared.',
+          'column' => $column,
+          'value' => $rider->{$column},
+          'option_id' => $rider->rider_top_option_id,
+          'rider_status' => $rider->rider_status,
+          'employment_status' => $rider->status,
+          'employment_label' => $employment['label'],
+          'employment_badge' => $employment['badge'],
+        ]);
       }
-      $option = $optionQuery
-        ->select('o.id', 'o.name', 'c.rider_column')
-        ->first();
-      if (! $option) {
-        return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
+
+      if ($valueMatches) {
+        $rider->{$column} = null;
       }
+      if ($fkMatches) {
+        $rider->rider_top_option_id = null;
+      }
+      if ($column === 'rider_status' && $valueMatches && Riders::topOptionAffectsEmploymentStatus($option->name)) {
+        $rider->status = Riders::employmentStatusCodeForTopOption(null, $bike, true);
+      } elseif ($column === 'status' && $valueMatches) {
+        $rider->status = Riders::employmentStatusCodeForTopOption(null, $bike, true);
+      }
+      $title = 'View card cleared: ' . $option->name;
+      $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: —';
+    } else {
+      if ($column === 'status') {
+        $rider->status = Riders::employmentStatusCodeForTopOption((string) $option->name, $bike, false);
+      } elseif ($column !== 'status') {
+        $rider->{$column} = (string) $option->name;
+      }
+      $rider->rider_top_option_id = (int) $option->id;
+      if ($column === 'rider_status' && Riders::topOptionAffectsEmploymentStatus($option->name)) {
+        $rider->status = Riders::employmentStatusCodeForTopOption((string) $option->name, $bike, false);
+      }
+      $title = 'View card: ' . $option->name;
+      $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: ' . $option->name;
     }
 
-    $prevOptionId = $rider->rider_top_option_id;
-    $prevRiderStatus = $rider->rider_status;
-    $prevEmployment = $rider->status;
-
-    $rider->rider_top_option_id = $option?->id;
-    $rider->rider_status = $option ? (string) $option->name : null;
-    if ($rider->rider_status !== null) {
-      $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
-      $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
-    }
     $rider->save();
+    $rider = $rider->fresh();
+    $after = RiderHistoryLogger::riderSnapshot($rider);
 
-    RiderHistoryLogger::record(
+    RiderHistoryLogger::bikeAssignStatusChange(
       (int) $rider->id,
-      'status_change',
-      $option ? ('View card: ' . $option->name) : 'View card cleared',
-      null,
-      [
-        'previous_rider_status' => $prevRiderStatus,
-        'new_rider_status' => $rider->rider_status,
-        'previous_option_id' => $prevOptionId,
-        'new_option_id' => $rider->rider_top_option_id,
-        'previous_employment_status' => $prevEmployment,
-        'new_employment_status' => $rider->status,
-      ],
+      $title,
+      $details,
+      $before,
+      $after,
       $effectiveDate,
-      RiderHistoryLogger::resolveBranchId($rider)
+      'rider_view_card',
+      RiderHistoryLogger::resolveBranchId($rider, $bike),
+      [
+        'column' => $column,
+        'category_name' => $option->category_name,
+        'option_id' => (int) $option->id,
+        'option_name' => $option->name,
+        'cleared' => $isClear,
+        'rider_status_option' => $column === 'rider_status' ? $rider->rider_status : null,
+        'employment_status' => $rider->status,
+        'display_status' => Riders::historyStatusLabel($rider),
+      ],
+      Riders::historyStatusLabel($rider),
+      $rider,
+      $bike
     );
 
-    Riders::syncDisplayStatus($rider->fresh());
+    Riders::syncDisplayStatus($rider);
+
+    $employment = Riders::employmentStatusDisplay($rider->status);
 
     return response()->json([
       'success' => true,
-      'message' => 'Rider view card option and status updated successfully.',
-      'option_id' => $option?->id,
-      'option_label' => $option?->name,
+      'message' => $isClear ? 'Rider option cleared successfully.' : 'Rider view card option updated successfully.',
+      'column' => $column,
+      'value' => $rider->{$column},
+      'option_id' => $rider->rider_top_option_id,
+      'option_label' => $column === 'rider_status' ? $rider->rider_status : $rider->{$column},
       'rider_status' => $rider->rider_status,
+      'employment_status' => $rider->status,
+      'employment_label' => $employment['label'],
+      'employment_badge' => $employment['badge'],
     ]);
   }
 

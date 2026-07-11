@@ -13,7 +13,7 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div class="">
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>

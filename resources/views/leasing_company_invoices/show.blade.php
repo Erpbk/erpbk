@@ -1,280 +1,264 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Leasing Company Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
+</head>
+
+<body>
     <style>
-        /* ----- RESET & GLOBAL (following supplier invoice modern structure) ----- */
+        @include('rider_invoices.partials.invoice_brand_styles')
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
+        html,
         body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body:has(.invoice-show-layout) {
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
             background: #eef2f5;
-            margin: 0;
-            padding: 20px;
         }
-        .invoice-box {
-            max-width: 1100px;
-            width: 100%;
-            margin: 0 auto;
-            background: white;
-            padding: 20px 25px;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+
+        .invoice-show-layout {
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
-        }
-
-        /* ----- TABLES (clean border style from supplier invoice) ----- */
-        .invoice-box table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 12px;
-        }
-        .invoice-box th,
-        .invoice-box td {
-            border: 1px solid #ddd;
-            padding: 8px 10px;
-            font-size: 12px;
-            vertical-align: top;
-        }
-        .invoice-box th {
-            background: #004aad;
-            color: white;
-            font-weight: 600;
-            text-align: center;
-        }
-        .invoice-box td {
-            text-align: left;
-        }
-        .invoice-box td.num {
-            text-align: right;
-        }
-        .no-border td {
-            border: none;
-            padding: 4px 6px;
-        }
-
-        /* ----- HEADER STYLES (aligned with supplier invoice) ----- */
-        .primary-header { background: #211c1d; color: white; font-weight: bold; }
-        .secondary-header { background: #004aad; color: white; font-weight: bold; }
-        .accent-total { background: #5271ff; color: white; font-weight: bold; }
-        .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
-        .amount-highlight { background: #2A62FF; color: white; font-weight: bold; }
-        .success-highlight { background: #004aad; color: white; font-weight: bold; }
-        .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
-
-        /* ----- PRINT BUTTONS & CONTROLS (same as supplier invoice) ----- */
-        .print-btn {
-            background: #004aad;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            font-size: 13px;
-            cursor: pointer;
-            border-radius: 4px;
-            text-decoration: none;
-            display: inline-block;
-            font-weight: 500;
-            transition: 0.2s;
-        }
-        .print-btn:hover {
-            background: #2A62FF;
-        }
-        .controls {
-            position: sticky;
-            top: 10px;
-            z-index: 100;
-            display: flex;
-            gap: 12px;
-            background: white;
-            padding: 10px 20px;
-            border-radius: 40px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            margin-bottom: 20px;
-            width: 95%;
-            justify-self: center;
-            margin-left: auto;
-            margin-right: auto;
-            justify-content: flex-end;
-        }
-
-        /* ----- CARD LAYOUT (matching supplier invoice card style) ----- */
-        .leasing-card, .details-card {
-            padding: 16px 18px;
-            margin-bottom: 0;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-        }
-        .invoice-box .card-header {
-            margin-bottom: 14px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #004aad;
-            background-color: white !important;
-        }
-        .invoice-box .card-header strong {
-            color: #004aad;
-            font-size: 15px;
-            letter-spacing: 0.3px;
-        }
-        .details-grid {
-            display: grid;
-            grid-template-columns: 140px 1fr;
-            gap: 12px 8px;
-            align-items: baseline;
-        }
-        .detail-item {
-            display: contents;
-        }
-        .detail-label {
-            font-weight: 700;
-            color: #2c3e66;
-            font-size: 12px;
-        }
-        .detail-value {
-            color: #1e293b;
-            font-weight: 500;
-        }
-        .flex-row-cards {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-        .flex-row-cards > div {
             flex: 1;
-            min-width: 240px;
+            min-height: 0;
+            background: #eef2f5;
         }
 
-        /* description section (supplier style) */
-        .description-block {
-            background: #f8fafc;
-            border-left: 4px solid #004aad;
-            padding: 12px 18px;
-            margin: 20px 0;
-            border-radius: 10px;
-        }
-        .description-block strong {
-            color: #004aad;
-            font-size: 13px;
+        body > .invoice-show-layout {
+            height: 100vh;
+            height: 100dvh;
         }
 
-        /* Notes section */
-        .notes-section {
-            margin: 20px 0;
-            padding: 12px 16px;
-            background: #fef9e6;
-            border-left: 4px solid #ffb347;
-            border-radius: 8px;
+        #modalTopbody {
+            overflow: hidden;
+            padding: 0 !important;
         }
 
-        /* Grand Total (supplier style badge) */
-        .grand-total-wrapper {
-            margin-top: 28px;
-            text-align: right;
-        }
-        .grand-total-card {
-            display: inline-block;
-            padding: 12px 28px;
-            background: #004aad;
-            color: white;
-            border-radius: 20px;
-            text-align: center;
-            box-shadow: 0 4px 10px rgba(0,74,173,0.2);
-        }
-        .grand-total-card div:first-child {
-            font-size: 14px;
-            letter-spacing: 1px;
-            margin-bottom: 4px;
-        }
-        .grand-total-card div:last-child {
-            font-size: 26px;
-            font-weight: 800;
+        #modalTopbody .invoice-show-layout {
+            height: calc(100vh - 160px);
+            max-height: 80vh;
         }
 
-        /* items table improvement */
-        .items-table th, .items-table td {
-            border: 1px solid #ccc;
-        }
-        .items-table th {
-            background: #004aad;
-            color: white;
-            font-weight: 600;
-            text-align: center;
-        }
-        .items-table td {
-            padding: 8px 10px;
-        }
-
-        /* financial summary table */
-        .financial-summary {
+        #rightSideModalBody {
+            overflow: hidden !important;
+            height: 100%;
             display: flex;
-            justify-content: flex-end;
-            margin-top: 5px;
-        }
-        .financial-summary table {
-            width: 45%;
-            min-width: 260px;
-            border: 1px solid #e2e8f0;
+            flex-direction: column;
         }
 
-        .footer-note {
-            margin-top: 28px;
-            text-align: center;
+        #rightSideModalBody .invoice-show-layout {
+            height: 100%;
+            flex: 1;
+        }
+
+        .right-side-modal .modal-body {
+            overflow: hidden !important;
+        }
+
+        .invoice-action-bar {
+            flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: #fff;
+            border-bottom: 1px solid var(--inv-border);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        .invoice-action-bar-inner {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 10px 20px;
+        }
+
+        .invoice-scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px;
+        }
+
+        .invoice-box .primary-header,
+        .invoice-box .secondary-header,
+        .invoice-box .success-highlight {
+            background: var(--inv-primary);
+            color: var(--inv-on-primary);
+            font-weight: 600;
+        }
+
+        .invoice-box .accent-total,
+        .invoice-box .amount-highlight {
+            background: var(--inv-secondary);
+            color: var(--inv-on-primary);
+            font-weight: 600;
+        }
+
+        .invoice-box .light-header {
+            background: var(--inv-surface-soft);
+            color: var(--inv-primary);
+            font-weight: 600;
+        }
+
+        .invoice-box .label-cell {
+            font-weight: 600;
+            background: var(--inv-surface);
+            color: var(--inv-text);
+            width: 20%;
+        }
+
+        .invoice-box .value-cell {
+            width: 30%;
+        }
+
+        .invoice-box .yellow {
+            background: var(--inv-surface-soft);
+            color: var(--inv-primary);
+            font-weight: 600;
+            padding: 3px 8px;
+            display: inline-block;
+            border: 1px solid var(--inv-border);
+        }
+
+        .invoice-box .red {
+            color: var(--inv-secondary);
+            font-weight: 600;
+        }
+
+        .invoice-box .footer-note {
             font-size: 11px;
-            color: #5b6e8c;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 16px;
-            margin-top: auto;
+            margin-top: 10px;
+            color: var(--inv-text-muted);
+            font-weight: normal;
+            text-align: center;
+        }
+
+        .invoice-box .sign-box {
+            margin-top: 25px;
+            text-align: right;
+            font-weight: 600;
+            color: var(--inv-text);
+        }
+
+        .invoice-box .sign-box span {
+            display: block;
+            margin-top: 8px;
+        }
+
+        .invoice-box .summary-table {
+            margin-bottom: 8px;
+        }
+
+        .invoice-toolbar {
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0;
+            margin: 0;
+            max-width: none;
+        }
+
+        .invoice-toolbar-inner {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toolbar-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: #fff;
+            border: 1px solid var(--inv-border);
+            border-radius: 6px;
+            color: var(--inv-text);
+            font-size: 13px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .toolbar-btn:hover {
+            background: var(--inv-surface);
+            color: var(--inv-primary);
+            border-color: var(--inv-primary);
         }
 
         @media print {
+            html,
             body {
+                height: auto;
+                overflow: visible;
+            }
+
+            body:has(.invoice-show-layout) {
+                display: block;
                 background: white;
-                padding: 0;
-                margin: 0;
             }
-            .invoice-box {
-                box-shadow: none;
-                padding: 10px;
-                max-width: 100%;
-                border-radius: 0;
+
+            .invoice-show-layout {
+                height: auto;
+                max-height: none;
             }
-            .controls {
+
+            .invoice-action-bar,
+            .no-print {
                 display: none !important;
             }
-            .leasing-card, .details-card {
-                box-shadow: none;
-                border: 1px solid #ccc;
-                break-inside: avoid;
+
+            .invoice-scroll-area {
+                overflow: visible;
+                padding: 0;
             }
-            .grand-total-card {
-                background: #004aad !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+
+            .invoice-box {
+                width: 100%;
+                border: none;
             }
-            th, .secondary-header, .card-header strong {
+
+            body,
+            *,
+            .primary-header,
+            .secondary-header,
+            .accent-total,
+            .light-header,
+            .amount-highlight,
+            .success-highlight,
+            .inv-total-row td,
+            .inv-grand-total td,
+            .inv-section-header {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
         }
 
         @media (max-width: 700px) {
-            .flex-row-cards {
-                flex-direction: column;
+            .invoice-scroll-area {
+                padding: 10px;
             }
+
+            .invoice-action-bar-inner {
+                padding: 8px 12px;
+            }
+
             .invoice-box {
-                padding: 15px;
-            }
-            .financial-summary table {
                 width: 100%;
             }
         }
@@ -292,202 +276,240 @@
 <div class="invoice-box">
     @php
         $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        $running_total = 0;
-        $items_total = 0;
-        $subtotal = $invoice->subtotal ?? 0;
-        $vat_total = $invoice->vat ?? 0;
-        $final_total = $invoice->total_amount ?? 0;
+        $invoiceNumber = $invoice->invoice_number ?? ('LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT));
+        $serviceFrom = date('d-m-y', strtotime($invoice->billing_month));
+        $serviceTo = date('t-m-y', strtotime($invoice->billing_month));
+        $fmo = strtoupper(date("M'y", strtotime($invoice->billing_month)));
+        $subtotal = (float) ($invoice->subtotal ?? 0);
+        $vatTotal = (float) ($invoice->vat ?? 0);
+        $finalTotal = (float) ($invoice->total_amount ?? 0);
+        $paidAmount = (float) ($invoice->paid_amount ?? 0);
+        $balanceDue = $finalTotal - $paidAmount;
+        $isPaid = (int) ($invoice->status ?? 0) === 1;
+        $amountInWords = \App\Helpers\Helpers::numberToWords($finalTotal);
+        $companySlug = request()->route('company_slug');
     @endphp
 
-    <!-- HEADER SECTION: logo + company + title (supplier invoice style) -->
-    <table style="margin-bottom: 20px; border: none; background: transparent;">
-        <tr style="border: none;">
-            <td style="width: 33%; border: none !important; vertical-align: middle;">
-                @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                    <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
+    <div class="invoice-show-layout">
+        <div class="invoice-action-bar no-print">
+            <div class="invoice-action-bar-inner">
+                <div class="invoice-toolbar no-print">
+                    <div class="invoice-toolbar-inner">
+                        <a href="javascript:void(0);" class="toolbar-btn show-modal" data-size="xl" data-title="Edit Invoice" data-close-right-modal="1" data-action="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}">
+                            <i class="ti ti-edit"></i><span>Edit</span>
+                        </a>
+                        <a href="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" class="toolbar-btn" target="_blank" rel="noopener">
+                            <i class="ti ti-download"></i><span>Download</span>
+                        </a>
+                        <button type="button" class="toolbar-btn" onclick="printModalContent()">
+                            <i class="ti ti-printer"></i><span>Print</span>
+                        </button>
+                        @if(! $isPaid)
+                        <a href="javascript:void(0);" class="toolbar-btn show-modal" data-size="xl" data-title="Record Leasing Payment" data-action="{{ route('payments.create', ['company_slug' => $companySlug]) }}?leasing_company_id={{ $invoice->leasing_company_id }}&invoice_id={{ $invoice->id }}">
+                            <i class="ti ti-currency-dollar"></i><span>Make Payment</span>
+                        </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="invoice-scroll-area">
+            <div class="invoice-box">
+                <table class="no-border" width="100%">
+                    <tr>
+                        <td width="33.33%" class="no-border">
+                            @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                                <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
+                            @else
+                                <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
+                            @endif
+                        </td>
+                        <td width="66.67%" class="no-border" style="text-align: center;">
+                            <h4 style="margin-bottom: 10px; margin-top: 5px; font-size: 14px;">{{ ucwords($settings['company_name'] ?? '') }}</h4>
+                            <p style="margin-bottom: 5px; font-size: 14px; margin-top: 5px;">{{ ucwords($settings['company_address'] ?? '') }}</p>
+                            <p style="margin-bottom: 5px; font-size: 14px; margin-top: 5px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <table>
+                    <tr>
+                        <td colspan="4" class="primary-header" style="padding: 10px; text-align: center; font-size: 18px;">LEASING COMPANY INVOICE</td>
+                    </tr>
+                </table>
+
+                <table>
+                    <tr>
+                        <td class="label-cell">Invoice No:</td>
+                        <td class="value-cell">{{ $invoiceNumber }}</td>
+                        <td class="label-cell">LC Invoice No:</td>
+                        <td class="value-cell">{{ $invoice->leasing_company_invoice_number ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-cell">Invoice Date:</td>
+                        <td class="value-cell">{{ optional($invoice->inv_date)->format('d/m/Y') ?? optional($invoice->created_at)->format('d/m/Y') }}</td>
+                        <td class="label-cell">Reference No:</td>
+                        <td class="value-cell">{{ $invoice->reference_number ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-cell">Service Period From:</td>
+                        <td class="value-cell">{{ $serviceFrom }}</td>
+                        <td class="label-cell">Service Period To:</td>
+                        <td class="value-cell">{{ $serviceTo }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-cell">Billing Month:</td>
+                        <td class="value-cell">{{ date('M-Y', strtotime($invoice->billing_month)) }}</td>
+                        <td class="label-cell">Total Bikes:</td>
+                        <td class="value-cell">{{ $invoice->items ? $invoice->items->count() : 0 }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-cell">Billed To:</td>
+                        <td class="value-cell" colspan="3">{{ $settings['company_name'] ?? '—' }}</td>
+                    </tr>
+                </table>
+
+                <table>
+                    <tr>
+                        <td colspan="4" class="light-header" style="padding: 8px; text-align: center; font-size: 14px;">LEASING COMPANY DETAILS</td>
+                    </tr>
+                    <tr>
+                        <td class="label-cell">Company Name:</td>
+                        <td class="value-cell">{{ $invoice->leasingCompany->name ?? '—' }}</td>
+                        <td class="label-cell">TRN Number:</td>
+                        <td class="value-cell">{{ $invoice->leasingCompany->trn_number ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label-cell">Contact Person:</td>
+                        <td class="value-cell">{{ $invoice->leasingCompany->contact_person ?? '—' }}</td>
+                        <td class="label-cell">Contact Number:</td>
+                        <td class="value-cell">{{ $invoice->leasingCompany->contact_number ?? '—' }}</td>
+                    </tr>
+                    @if($invoice->descriptions)
+                    <tr>
+                        <td class="label-cell">Description:</td>
+                        <td class="value-cell" colspan="3">{{ $invoice->descriptions }}</td>
+                    </tr>
+                    @endif
+                </table>
+
+                @if($invoice->items && $invoice->items->count() > 0)
+                @php $runningTotal = 0; $exclTotal = 0; $taxTotal = 0; @endphp
+                <table class="items-table">
+                    <tr>
+                        <th rowspan="2" class="secondary-header">Sr.</th>
+                        <th rowspan="2" class="secondary-header">Product / Service Description</th>
+                        <th rowspan="2" class="secondary-header">FMO</th>
+                        <th rowspan="2" class="secondary-header">Qty</th>
+                        <th rowspan="2" class="secondary-header">Days</th>
+                        <th rowspan="2" class="secondary-header">Rate</th>
+                        <th rowspan="2" class="secondary-header">Amount</th>
+                        <th colspan="2" class="secondary-header">VAT</th>
+                        <th rowspan="2" class="accent-total">Total (In {{ \App\Helpers\Currency::code() }})</th>
+                    </tr>
+                    <tr>
+                        <th class="secondary-header">Rate</th>
+                        <th class="secondary-header">Amount</th>
+                    </tr>
+                    @foreach($invoice->items as $key => $item)
+                    @php
+                        $vatRate = (float) ($item->tax_rate ?? 0);
+                        $vatAmtRow = (float) ($item->tax_amount ?? 0);
+                        $rowTotal = (float) ($item->total_amount ?? (($item->rental_amount ?? 0) + $vatAmtRow));
+                        $exclAmount = $rowTotal - $vatAmtRow;
+                        $runningTotal += $rowTotal;
+                        $exclTotal += $exclAmount;
+                        $taxTotal += $vatAmtRow;
+                        $bike = $item->bike;
+                        $plate = $bike->plate ?? 'N/A';
+                        $emirates = $bike->emirates ?? '';
+                    @endphp
+                    <tr>
+                        <td>{{ $key + 1 }}</td>
+                        <td>Bike # {{ $plate }}@if($emirates) ({{ $emirates }})@endif</td>
+                        <td>{{ $fmo }}</td>
+                        <td class="num">1</td>
+                        <td class="num">{{ $item->days ?? 1 }}</td>
+                        <td class="num">{{ number_format($item->rental_amount ?? 0, 2) }}</td>
+                        <td class="num">{{ number_format($exclAmount, 2) }}</td>
+                        <td>{{ number_format($vatRate, 0) }}%</td>
+                        <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
+                        <td class="num">{{ number_format($runningTotal, 2) }}</td>
+                    </tr>
+                    @endforeach
+                    <tr class="accent-total">
+                        <td colspan="6" style="text-align: right; padding: 8px;">Total Bikes ({{ date('M-Y', strtotime($invoice->billing_month)) }})</td>
+                        <td class="num">{{ $invoice->items->count() }}</td>
+                        <td colspan="2" style="text-align: right; padding: 8px;">ITEMS TOTAL</td>
+                        <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($runningTotal, 2) }}</td>
+                    </tr>
+                </table>
+
+                <table class="no-border">
+                    <tr>
+                        <td class="amount-highlight" style="padding: 8px; font-size: 13px;">
+                            <b>Total Invoice Amount in Words:</b> {{ $amountInWords }} {{ \App\Helpers\Currency::code() }}
+                        </td>
+                    </tr>
+                </table>
+
+                <table class="summary-table">
+                    <tr class="light-header">
+                        <td style="padding: 6px;">Total Amount before charges:</td>
+                        <td class="num" style="padding: 6px;">{{ number_format($subtotal ?: $exclTotal, 2) }}</td>
+                    </tr>
+                    @if(($vatTotal ?: $taxTotal) > 0)
+                    <tr class="light-header">
+                        <td style="padding: 6px;">Add: VAT</td>
+                        <td class="num" style="padding: 6px;">{{ number_format($vatTotal ?: $taxTotal, 2) }}</td>
+                    </tr>
+                    @endif
+                    <tr class="success-highlight">
+                        <td style="padding: 8px; font-size: 14px;">TOTAL AMOUNT AFTER CHARGES:</td>
+                        <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($finalTotal ?: $runningTotal, 2) }}</td>
+                    </tr>
+                    <tr class="amount-highlight">
+                        <td style="padding: 6px;">Paid Amount:</td>
+                        <td class="num" style="padding: 6px;">{{ number_format($paidAmount, 2) }}</td>
+                    </tr>
+                    <tr class="amount-highlight">
+                        <td style="padding: 6px;">Balance Due:</td>
+                        <td class="num" style="padding: 6px;">{{ number_format($balanceDue, 2) }}</td>
+                    </tr>
+                </table>
+                @else
+                <p style="text-align: center; padding: 32px; color: var(--inv-text-muted);">No invoice items found for this period.</p>
                 @endif
-            </td>
-            <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
-                <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
-                <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
-                <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
-            </td>
-            <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
-                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">LEASING COMPANY INVOICE</h2>
-            </td>
-        </tr>
-    </table>
 
-    <!-- CARD LAYOUT: Leasing Company Info + Invoice Details (exactly like supplier invoice card structure) -->
-    <div class="flex-row-cards">
-        <!-- Leasing Company Card (similar to Supplier Details card) -->
-        <div class="leasing-card">
-            <div class="card-header">
-                <strong>🏢 Leasing Company Details</strong>
-            </div>
-            <div class="details-grid">
-                <span class="detail-label">Company Name:</span>
-                <span class="detail-value">{{ $invoice->leasingCompany->name ?? 'N/A' }}</span>
+                <div class="footer-note">
+                    {{ $invoice->notes ?? 'Note: This leasing company invoice is generated for the selected billing month. Please contact accounts for any discrepancies.' }}
+                </div>
 
-                <span class="detail-label">TRN Number:</span>
-                <span class="detail-value">{{ $invoice->leasingCompany->trn_number ?? 'N/A' }}</span>
-
-                <span class="detail-label">Contact Person:</span>
-                <span class="detail-value">{{ $invoice->leasingCompany->contact_person ?? 'N/A' }}</span>
-
-                <span class="detail-label">Contact Number:</span>
-                <span class="detail-value">{{ $invoice->leasingCompany->contact_number ?? 'N/A' }}</span>
-            </div>
-        </div>
-
-        <!-- Invoice Details Card (matching supplier invoice details style) -->
-        <div class="details-card">
-            <div class="card-header">
-                <strong>📄 Invoice Details</strong>
-            </div>
-            <div class="details-grid">
-                <span class="detail-label">Invoice No:</span>
-                <span class="detail-value">{{ $invoice->invoice_number ?? 'LI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT) }}</span>
-
-                <span class="detail-label">Leasing Company Invoice No:</span>
-                <span class="detail-value">{{ $invoice->leasing_company_invoice_number ?? 'N/A' }}</span>
-
-                <span class="detail-label">Reference Number:</span>
-                <span class="detail-value">{{ $invoice->reference_number ?? 'N/A' }}</span>
-
-                <span class="detail-label">Billing Month:</span>
-                <span class="detail-value">{{ date('M-Y', strtotime($invoice->billing_month)) }}</span>
-
-                <span class="detail-label">Service Period:</span>
-                <span class="detail-value">{{ date('01/m/Y', strtotime($invoice->billing_month)) }} - {{ date('t/m/Y', strtotime($invoice->billing_month)) }}</span>
-
-                <span class="detail-label">Billed To:</span>
-                <span class="detail-value">{{ $settings['company_name'] ?? 'N/A' }}</span>
+                <div class="sign-box">
+                    For Leasing Company <br>
+                    <span class="yellow">{{ $invoice->leasingCompany->name ?? '—' }}</span>
+                    <span>### Sign</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Description Section (styled like supplier) -->
-    @if($invoice->descriptions)
-    <div class="description-block">
-        <strong>📝 Description</strong><br>
-        <span style="color: #334155;">{{ $invoice->descriptions }}</span>
-    </div>
-    @endif
-
-    <!-- Additional Notes Section -->
-    @if($invoice->notes)
-    <div class="notes-section">
-        <strong>📌 Additional Notes:</strong><br>
-        {{ $invoice->notes }}
-    </div>
-    @endif
-
-    <!-- Main Items Table (styled like supplier invoice's clean table) -->
-    @if($invoice->items && $invoice->items->count() > 0)
-    <div style="overflow-x: auto;">
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th>Sr.</th>
-                    <th>Product / Service Description</th>
-                    <th>Qty</th>
-                    <th>Days</th>
-                    <th>Rate (Monthly)</th>
-                    <th>Amount</th>
-                    <th>VAT Rate</th>
-                    <th>VAT Amount</th>
-                    <th>Total ({{ \App\Helpers\Currency::code() }})</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($invoice->items as $key => $item)
-                @php
-                    $vatRate = $item->tax_rate ?? 0;
-                    $vatAmtRow = $item->tax_amount ?? 0;
-                    $rowTotal = $item->total_amount ?? ($item->rental_amount + $vatAmtRow);
-                    $proratedAmount = $rowTotal - $vatAmtRow;
-                    $running_total += $rowTotal;
-                @endphp
-                <tr>
-                    <td class="num">{{ $key + 1 }}</td>
-                    <td>Bike # {{ $item->bike->plate ?? 'N/A' }} ({{ company_table('bikes')->where('id', $item->bike_id)->first()->emirates ?? 'N/A' }})</td>
-                    <td class="num">1</td>
-                    <td class="num">{{ $item->days ?? 1 }}</td>
-                    <td class="num">{{ number_format($item->rental_amount, 2) }}</td>
-                    <td class="num">{{ number_format($proratedAmount, 2) }}</td>
-                    <td class="num">{{ number_format($vatRate, 0) }}%</td>
-                    <td class="num">{{ number_format($item->tax_amount ?? 0, 2) }}</td>
-                    <td class="num">{{ number_format($running_total, 2) }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-    
-    <!-- Financial Summary (exactly like supplier invoice's mini summary table) -->
-    <div class="financial-summary">
-        <table style="border: 1px solid #e2e8f0;">
-            <thead>
-                <tr><th colspan="2" class="secondary-header" style="background:#004aad;">Financial Summary</th></tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="font-weight: 600;">Total Bikes:</td>
-                    <td class="num">{{ $invoice->items->count() ?? 0 }} Bikes</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: 600;">Subtotal (excl. VAT):</td>
-                    <td class="num">{{ number_format($subtotal, 2) }}</td>
-                </tr>
-                @if(($vat_total) > 0)
-                <tr>
-                    <td style="font-weight: 600;">VAT Amount:</td>
-                    <td class="num">{{ number_format($vat_total, 2) }}</td>
-                </tr>
-                @endif
-            </tbody>
-        </table>
-    </div>
-    @else
-    <div style="text-align: center; padding: 30px; background: #f9f9fc; border: 1px solid #e9ecef; border-radius: 12px; margin: 20px 0;">
-        <p style="margin: 0; color: #5b6e8c;">📭 No items recorded for this invoice</p>
-    </div>
-    @endif
-
-    <!-- Grand Total (exactly like supplier invoice card badge) -->
-    <div class="grand-total-wrapper">
-        <div class="grand-total-card">
-            <div>GRAND TOTAL</div>
-            <div>{{ \App\Helpers\Currency::format($final_total ?? 0, 2) }}</div>
-        </div>
-    </div>
-
-    <!-- Footer (matching supplier invoice) -->
-    <div class="footer-note">
-        <p>Thank you for your business!</p>
-        <p>For any queries, please contact: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
-    </div>
-</div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Format all .num cells with proper thousand separators
-        document.querySelectorAll('.num').forEach(function(element) {
-            let rawText = element.innerText.trim();
-            let num = parseFloat(rawText.replace(/,/g, ''));
-            if (!isNaN(num) && rawText !== '') {
-                let formatted = num.toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-                if(element.innerText !== formatted) {
-                    element.innerText = formatted;
+    <script>
+        (function() {
+            document.querySelectorAll('.num').forEach(function(el) {
+                var raw = el.innerText.trim();
+                var num = parseFloat(raw.replace(/,/g, ''));
+                if (!isNaN(num) && raw !== '') {
+                    var formatted = num.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    if (el.innerText !== formatted) el.innerText = formatted;
                 }
-            }
-        });
-    });
-</script>
+            });
+        })();
+    </script>
 </body>
+
 </html>

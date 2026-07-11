@@ -1,10 +1,15 @@
 @extends('layouts.app')
 
-@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Records' : 'All Attendance Records')
+@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Report' : 'Attendance Report')
 
 @section('content')
 <div class="">
     @canany(['employees_attendance_view', 'riders_attendance_view'])
+    @include('attendance.partials.tabs', [
+        'activeAttendanceTab' => 'report',
+        'attendanceUserType' => request('ref_type', 'employee'),
+    ])
+
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -40,11 +45,7 @@
                                 <div class="action-dropdown-item-desc">Last Three Months</div>
                             </div>
                         </a>
-                        <a class="action-dropdown-item" href="{{ route('attendance.summary', request('ref_type') ? ['user_type' => request('ref_type')] : []) }}">
-                            <i class="ti ti-file"></i>
-                            <span>View Summary</span>
-                        </a>
-                        @endcanany
+                        @endcan
                     </div>
                 </div>
             </div>
@@ -86,7 +87,7 @@
                             <option value="absent" {{ request('status') == 'absent' ? 'selected' : '' }}>Absent</option>
                             <option value="late" {{ request('status') == 'late' ? 'selected' : '' }}>Late</option>
                             <option value="half-day" {{ request('status') == 'half-day' ? 'selected' : '' }}>Half Day</option>
-                            <option value="holiday" {{ request('status') == 'holiday' ? 'selected' : '' }}>Holiday</option>
+                            <option value="weekend" {{ request('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
                         </select>
                     </div>
                     <div class="form-group col-md-12">
@@ -108,7 +109,7 @@
     <!-- Attendance Table -->
     <div class="card shadow mb-4">
         <div class="card-header d-flex justify-content-between">
-            <h4>Attendance Records</h4>
+            <h4>Attendance Report</h4>
             <div>
                 <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i> Export</a>
                 <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
@@ -136,8 +137,8 @@
                 <div class="value" id="total_hours">{{ $attendances->where('status', 'half day')->count() ?? 0 }}</div>
             </div>
             <div class="total-card total-3">
-                <div class="label"><i class="fa fa-user-secret"></i>Holiday</div>
-                <div class="value" id="total_hours">{{ $attendances->where('status', 'holiday')->count() ?? 0 }}</div>
+                <div class="label"><i class="fa fa-user-secret"></i>Weekend</div>
+                <div class="value" id="total_hours">{{ $attendances->where('status', 'weekend')->count() ?? 0 }}</div>
             </div>
         </div>
         <div class="card-body table-responsive py-0 px-2" id="table-data">
@@ -201,7 +202,7 @@
                                 <option value="absent">Absent</option>
                                 <option value="late">Late</option>
                                 <option value="half-day">Half Day</option>
-                                <option value="holiday">Holiday</option>
+                                <option value="weekend">Weekend</option>
                             </select>
                         </div>
                     </div>
@@ -453,7 +454,7 @@
                     </td>
                 </tr>
             `);
-            toggleBulkRiderOrderColumns();
+                toggleBulkRiderOrderColumns();
                 $('#selectedUsersCount').text('0');
                 $('#totalSelectedCount').text('0');
                 $('#presentCount').text('0');
@@ -482,7 +483,7 @@
                             <option value="absent" ${user.status === 'absent' ? 'selected' : ''}>Absent</option>
                             <option value="late" ${user.status === 'late' ? 'selected' : ''}>Late</option>
                             <option value="half-day" ${user.status === 'half-day' ? 'selected' : ''}>Half Day</option>
-                            <option value="holiday" ${user.status === 'holiday' ? 'selected' : ''}>Holiday</option>
+                            <option value="weekend" ${user.status === 'weekend' ? 'selected' : ''}>Weekend</option>
                         </select>
                     </td>
                     <td class="align-middle">

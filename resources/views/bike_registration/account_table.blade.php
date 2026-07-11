@@ -17,10 +17,8 @@
    <tbody>
       @foreach($data as $r)
       @php
-      $displayBike = $r->bike;
-      if (!$displayBike && $r->rider && $r->rider->relationLoaded('bikes') && $r->rider->bikes->isNotEmpty()) {
-      $displayBike = $r->rider->bikes->first();
-      }
+      // Account bike_id first; rider->bikes is hasOne (single model), not a collection.
+      $displayBike = $r->bike ?? $r->rider?->bikes;
       $warehouse = $displayBike ? ($displayBike->warehouse ?? null) : null;
       $hasActiveBike = ($warehouse ?? '') === 'Active';
       $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';

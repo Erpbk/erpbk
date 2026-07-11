@@ -133,7 +133,7 @@ class Riders extends BaseModel
 
   /**
    * Human label + Bootstrap badge class for riders.status (bike assign/return lifecycle).
-   * 1 = active on fleet, 3 = inactive/off bike, 4 = vacation hold, 5 = absconded (see BikesController::assignrider).
+   * 1 = active on fleet, 0/2/3 = inactive/off bike, 4 = vacation hold, 5 = absconded (see BikesController::assignrider).
    *
    * @param  int|string|null  $status
    * @return array{label: string, badge: string}
@@ -144,13 +144,45 @@ class Riders extends BaseModel
 
     return match ($code) {
       1 => ['label' => 'Active', 'badge' => 'bg-label-success'],
-      3 => ['label' => 'Inactive', 'badge' => 'bg-label-secondary'],
+      0, 2, 3 => ['label' => 'Inactive', 'badge' => 'bg-label-secondary'],
       4 => ['label' => 'Vacation', 'badge' => 'bg-label-warning'],
       5 => ['label' => 'Absconded', 'badge' => 'bg-label-danger'],
       default => [
         'label' => $code === null ? 'Not set' : 'Status ' . $code,
         'badge' => 'bg-label-secondary',
       ],
+    };
+  }
+
+  /**
+   * Whether a view-card option should update riders.status (bike assignment column).
+   */
+  public static function topOptionAffectsEmploymentStatus(?string $optionName): bool
+  {
+    $name = strtolower(trim((string) $optionName));
+
+    return in_array($name, ['active', 'vacation', 'absconder', 'absconded', 'cancel', 'inactive'], true);
+  }
+
+  /**
+   * Map rider view-card option to riders.status (bike assign / return lifecycle).
+   */
+  public static function employmentStatusCodeForTopOption(?string $optionName, ?Bikes $bike = null, bool $cleared = false): int
+  {
+    if ($cleared || $optionName === null || trim($optionName) === '') {
+      $hasActiveBike = $bike && strcasecmp((string) ($bike->warehouse ?? ''), 'Active') === 0;
+
+      return $hasActiveBike ? 1 : 3;
+    }
+
+    $name = strtolower(trim($optionName));
+
+    return match ($name) {
+      'active' => 1,
+      'vacation' => 4,
+      'absconder', 'absconded' => 5,
+      'cancel', 'inactive' => 3,
+      default => ($bike && strcasecmp((string) ($bike->warehouse ?? ''), 'Active') === 0) ? 1 : 3,
     };
   }
 
@@ -227,6 +259,37 @@ class Riders extends BaseModel
       $rider->display_status = $label;
       $rider->saveQuietly();
     }
+  }
+
+  /**
+   * Extra SELECT columns for riders index: last employment status change + day count.
+   *
+   * @return list<\Illuminate\Contracts\Database\Query\Expression|string>
+   */
+  public static function employmentStatusDaysSelectColumns(): array
+  {
+    if (!Schema::hasTable('rider_histories')) {
+      return [
+        DB::raw('NULL as last_employment_status_change_date'),
+        DB::raw('NULL as employment_status_days'),
+      ];
+    }
+
+    $matchedDate = "(SELECT MAX(rh.effective_date) FROM rider_histories rh
+      WHERE rh.rider_id = riders.id
+      AND rh.event_type = 'status_change'
+      AND CAST(JSON_UNQUOTE(JSON_EXTRACT(rh.meta, '$.new_employment_status')) AS UNSIGNED) = riders.status)";
+
+    $fallbackDate = "(SELECT MAX(rh.effective_date) FROM rider_histories rh
+      WHERE rh.rider_id = riders.id
+      AND rh.event_type = 'status_change')";
+
+    $lastDate = "COALESCE({$matchedDate}, {$fallbackDate}, DATE(riders.updated_at))";
+
+    return [
+      DB::raw("{$lastDate} as last_employment_status_change_date"),
+      DB::raw("DATEDIFF(CURDATE(), {$lastDate}) as employment_status_days"),
+    ];
   }
 
   public function scopeActive($query)

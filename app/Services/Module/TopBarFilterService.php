@@ -45,7 +45,9 @@ class TopBarFilterService
         }
 
         $strategy = (string) ($config['filter_strategy'] ?? 'column');
-        if ($strategy === 'option_fk') {
+        if ($strategy === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
+            $this->applyColumnFilter($query, $config, $option, $request);
+        } elseif ($strategy === 'option_fk') {
             $this->applyOptionFkFilter($query, $config, $option, $request);
         } else {
             $this->applyColumnFilter($query, $config, $option, $request);
@@ -66,13 +68,15 @@ class TopBarFilterService
             return;
         }
 
+        $qualifiedColumn = $this->qualifyColumn($table, $column);
+
         if ($this->isDateColumn($table, $column, $config)) {
-            $this->applyDateColumnFilter($query, $table, $column, $option, $request, $config);
+            $this->applyDateColumnFilter($query, $table, $qualifiedColumn, $option, $request, $config);
 
             return;
         }
 
-        $this->applyScalarColumnFilter($query, $column, $option, $table);
+        $this->applyScalarColumnFilter($query, $qualifiedColumn, $option, $table, $column);
     }
 
     public function applyOptionFkFilter(Builder $query, array $config, Model $option, Request $request): void
@@ -84,14 +88,14 @@ class TopBarFilterService
             return;
         }
 
-        $query->where($fkColumn, $option->getKey());
+        $query->where($this->qualifyColumn($table, $fkColumn), $option->getKey());
 
         $categoryColumn = $this->resolveColumn($config, $option);
         if ($categoryColumn !== null && Schema::hasColumn($table, $categoryColumn)) {
             $filterType = $this->resolveCategoryFilterType($config, $option);
             if (in_array($filterType, [self::MODE_EXACT, self::MODE_UPCOMING, self::MODE_OVERDUE, self::MODE_RANGE], true)
                 && $this->isDateColumn($table, $categoryColumn, $config)) {
-                $this->applyDateColumnFilter($query, $table, $categoryColumn, $option, $request, $config);
+                $this->applyDateColumnFilter($query, $table, $this->qualifyColumn($table, $categoryColumn), $option, $request, $config);
             }
         }
     }
@@ -110,16 +114,17 @@ class TopBarFilterService
             return;
         }
 
+        $table = $this->resolveSourceTable($config);
         $raw = $request->input($statusParam);
         $keys = is_array($raw) ? $raw : [(string) $raw];
 
-        $query->where(function (Builder $q) use ($keys, $statusFilters) {
+        $query->where(function (Builder $q) use ($keys, $statusFilters, $table) {
             foreach ($keys as $key) {
                 $rule = $statusFilters[(string) $key] ?? null;
                 if (!is_array($rule)) {
                     continue;
                 }
-                $column = (string) ($rule['column'] ?? 'status');
+                $column = $this->qualifyColumn($table, (string) ($rule['column'] ?? 'status'));
                 $operator = strtolower((string) ($rule['operator'] ?? '='));
                 $value = $rule['value'] ?? null;
 
@@ -152,7 +157,9 @@ class TopBarFilterService
         $req = $request ?? new Request();
         $req->merge([(string) ($config['request']['option_id'] ?? 'top_option_id') => $option->getKey()]);
 
-        if (($config['filter_strategy'] ?? '') === 'option_fk') {
+        if (($config['filter_strategy'] ?? '') === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
+            $this->applyColumnFilter($query, $config, $option, $req);
+        } elseif (($config['filter_strategy'] ?? '') === 'option_fk') {
             $this->applyOptionFkFilter($query, $config, $option, $req);
         } else {
             $this->applyColumnFilter($query, $config, $option, $req);
@@ -160,7 +167,7 @@ class TopBarFilterService
 
         if ($statusFilter !== null && isset($config['status_filters'][$statusFilter])) {
             $rule = $config['status_filters'][$statusFilter];
-            $column = (string) ($rule['column'] ?? 'status');
+            $column = $this->qualifyColumn($table, (string) ($rule['column'] ?? 'status'));
             $operator = strtolower((string) ($rule['operator'] ?? '='));
             $value = $rule['value'] ?? null;
 
@@ -270,6 +277,22 @@ class TopBarFilterService
         }
 
         return $optionClass::query()->with('category')->find($optionId);
+    }
+
+    /**
+     * Riders (and similar modules) store some categories on scalar columns (fleet_supervisor, rider_status)
+     * while others use the FK column (rider_top_option_id).
+     */
+    protected function shouldUseColumnFilterInsteadOfFk(array $config, Model $option): bool
+    {
+        $fkColumn = trim((string) ($config['fk_column'] ?? ''));
+        $categoryColumn = $this->resolveColumn($config, $option);
+
+        if ($categoryColumn === null) {
+            return false;
+        }
+
+        return $categoryColumn !== $fkColumn;
     }
 
     protected function resolveColumn(array $config, Model $option): ?string
@@ -399,8 +422,13 @@ class TopBarFilterService
         }
     }
 
-    protected function applyScalarColumnFilter(Builder $query, string $column, Model $option, ?string $table = null): void
-    {
+    protected function applyScalarColumnFilter(
+        Builder $query,
+        string $qualifiedColumn,
+        Model $option,
+        ?string $table = null,
+        ?string $rawColumn = null
+    ): void {
         $value = trim((string) $option->name);
         if ($value === '') {
             return;
@@ -408,27 +436,55 @@ class TopBarFilterService
 
         $parsed = $this->parseDate($value);
         if ($parsed !== null) {
-            $query->whereDate($column, $parsed->toDateString());
+            $query->whereDate($qualifiedColumn, $parsed->toDateString());
 
             return;
         }
 
-        if ($table !== null && TopBarNumericStatus::isNumericStatusColumn($table, $column)) {
+        $columnForSchema = $rawColumn ?? $qualifiedColumn;
+
+        if ($table !== null && $columnForSchema === 'customer_id' && Schema::hasTable('customers')) {
+            if (is_numeric($value)) {
+                $query->where($qualifiedColumn, (int) $value);
+
+                return;
+            }
+
+            $customerId = \App\Models\Customers::query()
+                ->where('name', $value)
+                ->value('id');
+            if ($customerId !== null) {
+                $query->where($qualifiedColumn, $customerId);
+
+                return;
+            }
+        }
+
+        if ($table !== null && TopBarNumericStatus::isNumericStatusColumn($table, $columnForSchema)) {
             $mapped = TopBarNumericStatus::valueForLabel($value);
             if ($mapped !== null) {
-                $query->where($column, $mapped);
+                $query->where($qualifiedColumn, $mapped);
 
                 return;
             }
 
             if (is_numeric($value)) {
-                $query->where($column, (int) $value);
+                $query->where($qualifiedColumn, (int) $value);
 
                 return;
             }
         }
 
-        $query->where($column, $value);
+        $query->where($qualifiedColumn, $value);
+    }
+
+    protected function qualifyColumn(string $table, string $column): string
+    {
+        if ($column === '' || str_contains($column, '.')) {
+            return $column;
+        }
+
+        return $table !== '' ? $table . '.' . $column : $column;
     }
 
     protected function resolveSourceTable(array $config): string

@@ -13,6 +13,23 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         $schedule->command('fixed-assets:post-depreciation')->dailyAt('00:30');
+
+        if (config('deploy.marker_enabled')) {
+            $schedule->call(function () {
+                $marker = storage_path('framework/deploy.pending');
+
+                if (! is_file($marker)) {
+                    return;
+                }
+
+                @unlink($marker);
+
+                \Illuminate\Support\Facades\Artisan::call('app:deploy', [
+                    '--force' => true,
+                    '--optimize' => app()->environment('production'),
+                ]);
+            })->everyMinute()->name('deploy-marker')->withoutOverlapping();
+        }
     }
 
     /**

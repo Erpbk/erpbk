@@ -63,7 +63,7 @@ class LeasingCompaniesController extends AppBaseController
         $query = LeasingCompanies::query()
             ->orderBy('id', 'desc');
         if ($request->has('name') && ! empty($request->name)) {
-            $query->where('name', 'like', '%'.$request->name.'%');
+            $query->where('name', 'like', '%' . $request->name . '%');
         }
         if ($request->has('contact_person') && ! empty($request->contact_person)) {
             $query->where('contact_person', $request->contact_person);
@@ -112,7 +112,7 @@ class LeasingCompaniesController extends AppBaseController
             DB::beginTransaction();
             $leasingCompanies = $this->leasingCompaniesRepository->create($input);
             $account = new Accounts;
-            $account->account_code = 'LC'.str_pad($leasingCompanies->id, 4, '0', STR_PAD_LEFT);
+            $account->account_code = 'LC' . str_pad($leasingCompanies->id, 4, '0', STR_PAD_LEFT);
             $account->account_type = 'Liability';
             $account->name = $leasingCompanies->name;
             $account->parent_id = $parentAccount->id;
@@ -128,14 +128,14 @@ class LeasingCompaniesController extends AppBaseController
 
             return response()->json(['message' => 'Company added successfully.', 'reload' => true]);
         } catch (\Exception $e) {
-            \Log::error('error occured while adding leasing company: '.$e->getMessage());
+            \Log::error('error occured while adding leasing company: ' . $e->getMessage());
             DB::rollBack();
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Error: '.$e->getMessage(),
+                    'message' => 'Error: ' . $e->getMessage(),
                 ], 500);
             }
-            Flash::error('Error: '.$e->getMessage());
+            Flash::error('Error: ' . $e->getMessage());
 
             return redirect()->back();
         }
@@ -209,19 +209,19 @@ class LeasingCompaniesController extends AppBaseController
         // Check if leasing company has transactions - protect from deletion
         $transactionCount = $leasingCompanies->transactions()->count();
         if ($transactionCount > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has '.$transactionCount.' transaction(s). Please deactivate instead.']], 422);
+            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $transactionCount . ' transaction(s). Please deactivate instead.']], 422);
         }
 
         // Check if leasing company has assigned bikes - protect from deletion
         $bikeCount = $leasingCompanies->bikes()->count();
         if ($bikeCount > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has '.$bikeCount.' assigned bike(s). Please deactivate instead.']], 422);
+            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $bikeCount . ' assigned bike(s). Please deactivate instead.']], 422);
         }
 
         // Check if leasing company has related vouchers - protect from deletion
         $voucherCount = $leasingCompanies->vouchers()->count();
         if ($voucherCount > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has '.$voucherCount.' voucher(s). Please deactivate instead.']], 422);
+            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has ' . $voucherCount . ' voucher(s). Please deactivate instead.']], 422);
         }
 
         // Track cascaded deletions
@@ -268,11 +268,11 @@ class LeasingCompaniesController extends AppBaseController
             foreach ($cascadedItems as $item) {
                 $parts[] = "{$item['model']}: {$item['name']}";
             }
-            $cascadeMessage .= implode(', ', $parts).')';
+            $cascadeMessage .= implode(', ', $parts) . ')';
         }
 
         return response()->json([
-            'message' => 'Leasing company moved to Recycle Bin'.$cascadeMessage.'. <a href="'.route('settings-panel.trash.index').'?module=leasing_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
+            'message' => 'Leasing company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=leasing_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
         ]);
     }
 
@@ -369,7 +369,7 @@ class LeasingCompaniesController extends AppBaseController
             ->orderBy('plate')
             ->get()
             ->mapWithKeys(function ($b) {
-                return [$b->id => $b->plate.' - '.($b->model ?? '')];
+                return [$b->id => $b->plate . ' - ' . ($b->model ?? '')];
             })
             ->prepend('Select', '')
             ->toArray();
@@ -408,7 +408,7 @@ class LeasingCompaniesController extends AppBaseController
             ->first();
 
         if ($existingInvoice) {
-            $message = 'An invoice for this leasing company already exists for '.$nextMonthString.'.';
+            $message = 'An invoice for this leasing company already exists for ' . $nextMonthString . '.';
             if (request()->ajax()) {
                 return response()->view('leasing_company_invoices.modal_error', compact('message'), 200);
             }
@@ -457,7 +457,7 @@ class LeasingCompaniesController extends AppBaseController
 
         $bikes = [];
         foreach ($companyBikes as $b) {
-            $label = $b->plate.' - '.($b->model ?? '');
+            $label = $b->plate . ' - ' . ($b->model ?? '');
             $isInactive = (int) $b->status !== 1 || $b->trashed() || in_array($b->warehouse, ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
             if ($isInactive) {
                 $label .= ' (Inactive/Returned)';
@@ -469,7 +469,7 @@ class LeasingCompaniesController extends AppBaseController
         $nextBillingMonth = $nextMonthString;
         $cloneFromInvoice = (object) [
             'inv_date' => now()->format('Y-m-d'),
-            'billing_month' => $nextMonthString.'-01',
+            'billing_month' => $nextMonthString . '-01',
             'leasing_company_id' => $sourceInvoice->leasing_company_id,
             'reference_number' => '',
             'descriptions' => $sourceInvoice->descriptions ?? '',
@@ -509,7 +509,7 @@ class LeasingCompaniesController extends AppBaseController
                 }
                 $bike = Bikes::withTrashed()->find($bikeId);
                 if (! $bike) {
-                    $invalidBikes[] = "Bike ID {$bikeId} at position ".($key + 1).' does not exist.';
+                    $invalidBikes[] = "Bike ID {$bikeId} at position " . ($key + 1) . ' does not exist.';
                 }
             }
             if (! empty($invalidBikes)) {
@@ -578,7 +578,7 @@ class LeasingCompaniesController extends AppBaseController
             $attachmentPath = null;
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
-                $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
+                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
                 $attachmentPath = $file->storeAs('leasing_invoices', $fileName, 'public');
             }
 
@@ -642,6 +642,8 @@ class LeasingCompaniesController extends AppBaseController
             return redirect(route('leasingCompanyInvoices.index'));
         }
 
+        $invoice->load(['leasingCompany', 'items.bike']);
+
         return view('leasing_company_invoices.show')->with('invoice', $invoice);
     }
 
@@ -668,7 +670,7 @@ class LeasingCompaniesController extends AppBaseController
             ->orderBy('plate')
             ->get()
             ->mapWithKeys(function ($b) {
-                return [$b->id => $b->plate.' - '.($b->model ?? '')];
+                return [$b->id => $b->plate . ' - ' . ($b->model ?? '')];
             })
             ->prepend('Select', '')
             ->toArray();
@@ -713,7 +715,7 @@ class LeasingCompaniesController extends AppBaseController
             // Handle file upload
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
-                $fileName = time().'_'.str_replace(' ', '_', $file->getClientOriginalName());
+                $fileName = time() . '_' . str_replace(' ', '_', $file->getClientOriginalName());
                 $attachmentPath = $file->storeAs('leasing_invoices', $fileName, 'public');
                 $request->merge(['attachment' => $attachmentPath]);
 
@@ -787,7 +789,7 @@ class LeasingCompaniesController extends AppBaseController
 
             Flash::success('Invoice deleted successfully.');
         } catch (\Exception $e) {
-            Flash::error('Error deleting invoice: '.$e->getMessage());
+            Flash::error('Error deleting invoice: ' . $e->getMessage());
         }
 
         return redirect(route('leasingCompanyInvoices.index'));
@@ -816,7 +818,7 @@ class LeasingCompaniesController extends AppBaseController
                 ->first();
 
             if ($existingInvoice) {
-                return response()->json(['errors' => ['error' => 'An invoice for this leasing company already exists for '.$nextMonthString.'.']], 422);
+                return response()->json(['errors' => ['error' => 'An invoice for this leasing company already exists for ' . $nextMonthString . '.']], 422);
             }
 
             DB::beginTransaction();
@@ -829,7 +831,7 @@ class LeasingCompaniesController extends AppBaseController
             unset($newInvoiceData['updated_at']);
             unset($newInvoiceData['deleted_at']);
 
-            $newInvoiceData['billing_month'] = $nextMonthString.'-01';
+            $newInvoiceData['billing_month'] = $nextMonthString . '-01';
             $newInvoiceData['inv_date'] = now()->format('Y-m-d');
             $newInvoiceData['status'] = 0; // Unpaid
 
@@ -838,7 +840,7 @@ class LeasingCompaniesController extends AppBaseController
 
             // Generate invoice number
             if (empty($newInvoice->invoice_number)) {
-                $newInvoice->invoice_number = 'LCI'.str_pad($newInvoice->id, 8, '0', STR_PAD_LEFT);
+                $newInvoice->invoice_number = 'LCI' . str_pad($newInvoice->id, 8, '0', STR_PAD_LEFT);
                 $newInvoice->save();
             }
 
@@ -876,11 +878,11 @@ class LeasingCompaniesController extends AppBaseController
 
             DB::commit();
 
-            Flash::success('Invoice cloned successfully for '.$nextMonthString.'.');
+            Flash::success('Invoice cloned successfully for ' . $nextMonthString . '.');
 
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Invoice cloned successfully for '.$nextMonthString.'.',
+                    'message' => 'Invoice cloned successfully for ' . $nextMonthString . '.',
                     'redirect' => route('leasingCompanyInvoices.show', $newInvoice->id),
                 ]);
             }
@@ -891,7 +893,7 @@ class LeasingCompaniesController extends AppBaseController
             if ($request->ajax()) {
                 return response()->json(['errors' => ['error' => $e->getMessage()]], 422);
             }
-            Flash::error('Error cloning invoice: '.$e->getMessage());
+            Flash::error('Error cloning invoice: ' . $e->getMessage());
 
             return redirect()->back();
         }

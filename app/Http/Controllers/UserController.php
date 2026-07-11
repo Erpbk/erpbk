@@ -8,9 +8,11 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Country;
 use App\Models\Departments;
+use App\Models\EmailAccount;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Repositories\UserRepository;
+use App\Support\CompanyContext;
 use App\Support\PublicStorageDisk;
 use App\Services\ImageService;
 use App\Services\ActivityLogger;
@@ -132,8 +134,10 @@ class UserController extends AppBaseController
     $branches = Branch::active()->pluck('name', 'id');
     $employees = Employee::active()->get(['id', 'employee_id', 'name']);
     $isSuperAdmin = $user->hasRole(IConstants::ROLE_SUPER_ADMIN);
+    $emailAccounts = EmailAccount::query()->orderBy('email')->get(['id', 'email', 'display_name', 'status']);
+    $assignedEmailAccountIds = $user->emailAccounts()->pluck('email_accounts.id')->all();
 
-    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches', 'employees', 'isSuperAdmin'));
+    return view('users.edit', compact('user', 'roles', 'countries', 'userRole', 'departments', 'branches', 'employees', 'isSuperAdmin', 'emailAccounts', 'assignedEmailAccountIds'));
   }
 
   /**
@@ -189,6 +193,21 @@ class UserController extends AppBaseController
     $user = $this->userRepository->update($input, $user->id);
 
     $user->syncRoles($request->input('roles'));
+
+    if (auth()->user()->isAdmin()) {
+      $emailAccountIds = array_map('intval', (array) $request->input('email_account_ids', []));
+      if ($emailAccountIds !== []) {
+        $companyId = CompanyContext::id();
+        $validIds = EmailAccount::query()
+          ->when($companyId !== null, fn($q) => $q->where('company_id', $companyId))
+          ->whereIn('id', $emailAccountIds)
+          ->pluck('id')
+          ->all();
+        $user->emailAccounts()->sync($validIds);
+      } else {
+        $user->emailAccounts()->sync([]);
+      }
+    }
 
     // Log the user update activity
     ActivityLogger::updated('Users', $user, $oldData);

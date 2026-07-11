@@ -105,7 +105,7 @@
                 <option value="late" {{ $selectedStatus == 'late' ? 'selected' : '' }}>Late</option>
                 <option value="half day" {{ $selectedStatus == 'half day' ? 'selected' : '' }}>Half Day</option>
                 <option value="on leave" {{ $selectedStatus == 'on leave' ? 'selected' : '' }}>On Leave</option>
-                <option value="holiday" {{ $selectedStatus == 'holiday' ? 'selected' : '' }}>Holiday</option>
+                <option value="weekend" {{ $selectedStatus == 'weekend' ? 'selected' : '' }}>Weekend</option>
             </select>
             <div class="invalid-feedback"></div>
         </div>
@@ -180,11 +180,17 @@
     </div>
 
     @include('attendance.partials.rider_activity_fields', [
-        'refType' => $selectedType,
-        'total_orders' => old('total_orders', $attendance->total_orders),
-        'working_hours' => old('working_hours', $attendance->working_hours),
-        'cancelled_orders' => old('cancelled_orders', $attendance->cancelled_orders),
-        'rejected_orders' => old('rejected_orders', $attendance->rejected_orders),
+    'refType' => $selectedType,
+    'total_orders' => old('total_orders', $attendance->total_orders),
+    'working_hours' => old('working_hours', $attendance->working_hours),
+    'cancelled_orders' => old('cancelled_orders', $attendance->cancelled_orders),
+    'rejected_orders' => old('rejected_orders', $attendance->rejected_orders),
+    'ontime_orders_percentage' => old(
+    'ontime_orders_percentage',
+    \App\Services\Attendance\RiderAttendanceActivitySync::formatOntimePercentageDisplay(
+    $riderActivity?->ontime_orders_percentage
+    )
+    ),
     ])
 
     <!-- Form Actions -->
@@ -534,7 +540,7 @@
                 $('#check_in').addClass('is-invalid');
                 toastr.error('Check-in time is required for ' + status + ' status!');
                 isValid = false;
-            } else if (['absent', 'holiday'].includes(status) && checkIn) {
+            } else if (['absent', 'weekend'].includes(status) && checkIn) {
                 $('#check_in').addClass('is-invalid');
                 toastr.warning('Check-in time is not allowed for ' + status + ' status!');
                 // This is a warning, not an error - form can still submit

@@ -155,7 +155,7 @@
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="customer_id">Filter by Customer</label>
+                            <label for="customer_id">Filter by Project</label>
                             <select class="form-control " id="customer_id" name="customer_id">
                                 @php
                                 $customerIds = company_table('riders')
@@ -193,18 +193,23 @@
                             </select>
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="bike_assignment_status">Filter by Bike Assignment</label>
+                            <label for="bike_assignment_status">Filter by Status</label>
                             <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
                                 <option value="" selected>Select</option>
                                 <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
                                 <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                                @foreach(($riderTopStatusFilterOptions ?? []) as $statusOption)
+                                <option value="{{ $statusOption['value'] }}" {{ request('bike_assignment_status') == $statusOption['value'] ? 'selected' : '' }}>
+                                    {{ $statusOption['label'] }}
+                                </option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="form-group col-md-12">
                             <label for="fleet_supervisor">Filter by Supervisor</label>
                             <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
                                 @php
-                                    $supervisors = company_table('riders')->select('fleet_supervisor')->distinct()->pluck('fleet_supervisor')->toArray();
+                                $supervisors = company_table('riders')->select('fleet_supervisor')->distinct()->pluck('fleet_supervisor')->toArray();
                                 @endphp
                                 <option value="" selected>Select</option>
                                 @foreach($supervisors as $supervisor)
@@ -282,13 +287,13 @@
     $(document).ready(function() {
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Customer",
+            placeholder: "Filter By Project",
             allowClear: true, // ✅ cross icon enable
         });
         $('#bike_assignment_status').select2({
             dropdownParent: $('#searchTopbody'),
             allowClear: true, // ✅ cross icon enable
-            placeholder: "Filter By status",
+            placeholder: "Filter By Bike/Top Status",
         });
         $('#attendance').select2({
             dropdownParent: $('#searchTopbody'),

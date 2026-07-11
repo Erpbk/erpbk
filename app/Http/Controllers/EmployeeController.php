@@ -731,7 +731,7 @@ class EmployeeController extends Controller
             'late' => 0,
             'half_day' => 0,
             'on_leave' => 0,
-            'holiday' => 0,
+            'weekend' => 0,
         ];
 
         if (Schema::hasTable('attendance')) {

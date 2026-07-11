@@ -127,6 +127,9 @@ $importErrorMessage = session('error');
   <!-- Filter Overlay -->
   <div id="filterOverlay" class="filter-overlay"></div>
 </div>
+
+@include('rider_activities.partials.tabs_and_operations', ['activeActivitiesTab' => 'live'])
+
 <section class="content">
   @php
   $activity = new App\Models\liveactivities();
@@ -140,6 +143,7 @@ $importErrorMessage = session('error');
 
   //$activity->get();
   @endphp
+
   <div class="card h-100" style="border-radius: 0px !important;">
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Live Activities</b> (Statistics)</h5>
@@ -269,10 +273,32 @@ $importErrorMessage = session('error');
 
 <script type="text/javascript">
   $(document).ready(function() {
+    // Operations dropdown
+    $('#riderActivitiesOpsBtn').on('click', function(e) {
+      e.stopPropagation();
+      const dropdown = $('#riderActivitiesOpsMenu');
+      const btn = $(this);
+      if (dropdown.hasClass('show')) {
+        dropdown.removeClass('show');
+        btn.removeClass('open');
+      } else {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+        dropdown.addClass('show');
+        btn.addClass('open');
+      }
+    });
+
+    $(document).on('click', function(e) {
+      if (!$(e.target).closest('.action-dropdown-container').length) {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+      }
+    });
+
     // Filter sidebar functionality - open on hover
     $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
       e.preventDefault();
-      console.log('Filter button hovered!');
       $('#filterSidebar').addClass('open');
       $('#filterOverlay').addClass('show');
       return false;
@@ -281,7 +307,6 @@ $importErrorMessage = session('error');
     // Keep the original click handler for mobile devices
     $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
       e.preventDefault();
-      console.log('Filter button clicked!');
       $('#filterSidebar').addClass('open');
       $('#filterOverlay').addClass('show');
       return false;

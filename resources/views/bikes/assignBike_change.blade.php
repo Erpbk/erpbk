@@ -4,33 +4,33 @@ $vehicleTypeName = $bike->vehicle_type ?? '';
 $rider = null;
 $company = null;
 if ($bike && $bike->rider_id) {
-    $rider = $bike->rider;
+$rider = $bike->rider;
 }
 if ($bike && $bike->rental_company_id) {
-    $company = $bike->rentalCompany;
+$company = $bike->rentalCompany;
 }
 
 
 $assignFields = $assignFields ?? \App\Models\BikeCustomField::assignModalFields('change');
 $inlineFields = $assignFields->filter(function ($f) {
-    if (($f->field_key ?? '') === 'notes') {
-        return false;
-    }
-    if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
-        return false;
-    }
+if (($f->field_key ?? '') === 'notes') {
+return false;
+}
+if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
+return false;
+}
 
-    return true;
+return true;
 });
 $wideFields = $assignFields->filter(function ($f) {
-    if (($f->field_key ?? '') === 'notes') {
-        return true;
-    }
-    if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
-        return true;
-    }
+if (($f->field_key ?? '') === 'notes') {
+return true;
+}
+if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
+return true;
+}
 
-    return false;
+return false;
 });
 @endphp
 
@@ -58,26 +58,24 @@ $wideFields = $assignFields->filter(function ($f) {
         @endif
 
         @foreach($inlineFields as $field)
-            @include('bikes._assign_modal_field', [
-                'field' => $field,
-                'assignContext' => 'change',
-                'bike' => $bike,
-                'rider' => $rider,
-                'selectedDesignation' => $selectedDesignation,
-            ])
+        @include('bikes._assign_modal_field', [
+        'field' => $field,
+        'assignContext' => 'change',
+        'bike' => $bike,
+        'rider' => $rider,
+        ])
         @endforeach
     </div>
 
     @if($wideFields->isNotEmpty())
     <div class="row mt-3">
         @foreach($wideFields as $field)
-            @include('bikes._assign_modal_field', [
-                'field' => $field,
-                'assignContext' => 'change',
-                'bike' => $bike,
-                'rider' => $rider,
-                'selectedDesignation' => $selectedDesignation,
-            ])
+        @include('bikes._assign_modal_field', [
+        'field' => $field,
+        'assignContext' => 'change',
+        'bike' => $bike,
+        'rider' => $rider,
+        ])
         @endforeach
     </div>
     @endif

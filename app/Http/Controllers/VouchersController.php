@@ -206,8 +206,7 @@ class VouchersController extends Controller
 
       /** @var Vouchers $vouchers */
       if ($request->voucher_type == 'JV') {
-        if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
-
+        if (!$this->debitCreditTotalsAreEqual($request->dr_amount, $request->cr_amount)) {
           return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
         }
         $result = $voucherService->JournalVoucher($request);
@@ -374,14 +373,13 @@ class VouchersController extends Controller
     }
 
     if ($request->voucher_type == 'JV') {
-      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
-
+      if (!$this->debitCreditTotalsAreEqual($request->dr_amount, $request->cr_amount)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
       }
       $voucherService->JournalVoucher($request);
     }
     if ($request->voucher_type === 'RFV') {
-      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
+      if (!$this->debitCreditTotalsAreEqual($request->dr_amount, $request->cr_amount)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal']], 422);
       }
 
@@ -908,5 +906,17 @@ class VouchersController extends Controller
 
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
     return view('vouchers.create', compact('vouchers', 'data', 'voucherCustomFields'));
+  }
+
+  /**
+   * Compare debit/credit totals using money precision (2 dp).
+   * Raw array_sum float comparison can fail even when the UI totals look equal.
+   */
+  private function debitCreditTotalsAreEqual($drAmounts, $crAmounts): bool
+  {
+    $totalDr = round(array_sum(array_map('floatval', (array) $drAmounts)), 2);
+    $totalCr = round(array_sum(array_map('floatval', (array) $crAmounts)), 2);
+
+    return $totalDr === $totalCr;
   }
 }

@@ -1,8 +1,8 @@
 <?php
 // Variables
 return [
-  "creatorName" => "LimeCircles",
-  "creatorUrl" => "https://limecircles.com",
+  "creatorName" => "FleetValue",
+  "creatorUrl" => "https://fleetvalu.com",
   "templateName" => "Express Fast",
   "templateSuffix" => "Express Fast",
   "templateVersion" => "1.0.0",
@@ -11,14 +11,14 @@ return [
   "templateKeyword" => "Express Fast",
   "licenseUrl" => "https://themeforest.net/licenses/standard",
   "livePreview" => "https://demos.pixinvent.com/vuexy-html-admin-template/landing/",
-  "productPage" => "https://limecircles.com",
+  "productPage" => "https://fleetvalu.com",
   "support" => "https://pixinvent.ticksy.com/",
   "moreThemes" => "https://1.envato.market/pixinvent_portfolio",
   "documentation" => "https://demos.pixinvent.com/vuexy-html-admin-template/documentation",
   "generator" => "",
   "changelog" => "https://demos.pixinvent.com/vuexy/changelog.html",
   "repository" => "https://github.com/pixinvent/vuexy-html-admin-template",
-  "gitRepo" => "limecircles",
+  "gitRepo" => "fleetvalue",
   "gitRepoAccess" => "vuexy-html-admin-template",
   "githubFreeUrl" => "https://tools.pixinvent.com/github/github-access",
   "facebookUrl" => "https://www.facebook.com/pixinvents/",

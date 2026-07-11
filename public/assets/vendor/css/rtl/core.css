@@ -27589,7 +27589,8 @@ th.sorting.sorted-desc::after {
 }
 .profile-img img {
   border-radius: 20px;
-  height: 167px;
+  height: 260px;
+  width: 100%;
 }
 .user_list .icons i {
   background-color: #f1f1f3;

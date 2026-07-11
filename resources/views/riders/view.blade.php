@@ -281,10 +281,10 @@ $companySlug = request()->route('company_slug');
 
 @endphp
 <div class="row" style="">
-  <div class="col-xl-2 col-md-3 col-lg-5 order-1 order-md-0">
+  <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 230px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
+      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 310px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
         @isset($result)
         <div class="profile-img">
           @php
@@ -308,7 +308,7 @@ $companySlug = request()->route('company_slug');
           $image_name = asset('uploads/default.png');
 
           @endphp
-          <img src="{{ $image_name}}" id="output" width="270" class="profile-user-img img-fluid" />
+          <img src="{{ $image_name}}" id="output" class="profile-user-img img-fluid" />
         </div>
         @endisset
       </div>
@@ -550,7 +550,7 @@ $companySlug = request()->route('company_slug');
       </div>
     </div>
   </div>
-  <div class="col-xl-9 col-md-9 col-lg-7 order-0 order-md-1 position-relative">
+  <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
     <div class="nav-align-top mb-4" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
       <div class="card" style="z-index: 1;">
         <div class="card-body p-2">

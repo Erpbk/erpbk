@@ -299,7 +299,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
           $image_name = asset('uploads/default.png');
           }
           @endphp
-          <img src="{{ $image_name }}" id="output" class="profile-user-img img-fluid" />
+          <img src="{{ $image_name }}" id="output" style="width: 100%; height: 260px;" class="profile-user-img img-fluid" />
         </div>
       </div>
       <div class="card-body pt-12">

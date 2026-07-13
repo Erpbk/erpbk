@@ -187,7 +187,7 @@ $projects = $projects ?? collect();
 </div>
 
 @include('rider_activities.partials.tabs_and_operations', [
-  'activeActivitiesTab' => $isAllTab ? 'summary' : 'activities'
+'activeActivitiesTab' => $isAllTab ? 'summary' : 'activities'
 ])
 
 @if($isAllTab)
@@ -295,7 +295,7 @@ $projects = $projects ?? collect();
     </div>
   </div>
 </section>
-
+@endif
 <div class="content">
   @include('flash::message')
   <div class="clearfix"></div>
@@ -308,9 +308,9 @@ $projects = $projects ?? collect();
 </div>
 @else
 <div class="card">
-    <div class="card-body">
-        <h5 class="card-title">You are not authorized to access this page</h5>
-    </div>
+  <div class="card-body">
+    <h5 class="card-title">You are not authorized to access this page</h5>
+  </div>
 </div>
 @endcan
 @endsection
@@ -550,7 +550,11 @@ $projects = $projects ?? collect();
 
           // Reload when consolidated mode toggles so the info banner stays in sync
           if (typeof data.isConsolidated !== 'undefined') {
-            const currentlyConsolidated = {{ $isConsolidated ? 'true' : 'false' }};
+            const currentlyConsolidated = {
+              {
+                $isConsolidated ? 'true' : 'false'
+              }
+            };
             if (data.isConsolidated !== currentlyConsolidated) {
               window.location.href = newUrl;
               return;

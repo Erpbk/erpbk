@@ -19,7 +19,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $spec = $item->spec;
   $req = !empty($spec['required']);
   $isReadonly = !empty($spec['readonly'])
-      || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
+  || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
   $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
   @endphp
   @if (($spec['type'] ?? 'text') === 'select')
@@ -58,7 +58,12 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   } elseif (($spec['dropdown'] ?? '') === 'customers') {
   $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'branch') {
-  $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
+  $opts = ['' => 'Select'];
+  foreach (\App\Models\Branch::active()->orderBy('name')->get(['id', 'name', 'code']) as $branch) {
+  $opts[$branch->id] = $branch->code
+  ? $branch->name . ' (' . $branch->code . ')'
+  : $branch->name;
+  }
   } else {
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }

@@ -1,7 +1,5 @@
-<input type="hidden" name="payment_from" value="{{ ga_id('ADVANCE_LOAN') }}" />
-
 @php
-    $rider_account = $rider->account;
+$rider_account = $rider->account;
 @endphp
 
 {{-- Debit: rider liability account --}}
@@ -26,9 +24,9 @@
     <div class="form-group col-md-3">
         <label>Bank / Cash Account</label>
         {!! Form::select('account_id[]', $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown(), null, [
-            'id' => 'al_bank_account',
-            'class' => 'form-control form-select select2',
-            'required' => true,
+        'id' => 'al_bank_account',
+        'class' => 'form-control form-select select2',
+        'required' => true,
         ]) !!}
     </div>
     <div class="form-group col-md-4">

@@ -521,7 +521,7 @@ class RidersController extends AppBaseController
     $this->middleware('permission:riders_rider_create')->only('create', 'store');
     $this->middleware('permission:riders_rider_edit')->only('edit', 'update', 'updateSection');
     $this->middleware('permission:riders_rider_delete')->only('destroy');
-    $this->middleware('permission:riders_documents_view|riders_documents_create')->only(['document','files']);
+    $this->middleware('permission:riders_documents_view|riders_documents_create')->only(['document', 'files']);
     $this->middleware('permission:riders_timeline_view')->only('timeline');
     $this->middleware('permission:riders_ledger_view')->only('ledger');
     $this->middleware('permission:riders_attendance_view')->only('attendance');
@@ -531,9 +531,6 @@ class RidersController extends AppBaseController
     $this->middleware('permission:riders_voucher_create')->only(['importVouchers', 'importRiderVouchers']);
     $this->middleware('permission:riders_inventory_view')->only('inventory');
     $this->middleware('permission:riders_export_data_create')->only(['exportRiders', 'exportCustomizableRiders']);
-
-
-    
   }
 
   /**
@@ -2965,6 +2962,9 @@ class RidersController extends AppBaseController
       if (! VoucherType::isCodeAllowedForModule('AL', 'riders')) {
         return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
+
+
+
       \DB::beginTransaction();
 
       // Validate the request
@@ -2991,12 +2991,12 @@ class RidersController extends AppBaseController
         throw new \Exception('Rider account not found with ID: ' . $riderAccountId);
       }
 
-      // Get the second account (credit account - should be Advance Loan account)
-      $creditAccountId = $request->account_id[1] ?? GlobalAccounts::id('ADVANCE_LOAN');
+      // Get the second account (credit account - bank/cash selected in the form)
+      $creditAccountId = $request->account_id[1];
 
       // Get amounts
       $riderAmount = $request->dr_amount[0] ?? 0;
-      $creditAmount = $request->dr_amount[1] ?? 0;
+      $creditAmount = $request->dr_amount[1] ?? ($request->cr_amount[0] ?? 0);
 
       // Use the first amount for both entries if only one amount is provided
       if ($creditAmount == 0) {
@@ -3011,7 +3011,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'AL', // Advance Loan
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('ADVANCE_LOAN'),
+        'payment_from' => $request->account_id[1],
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Advance Loan to Rider',
@@ -3684,8 +3684,7 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Unified voucher modal for rider: supports types AL, COD, PN, PAY, VC
-   * Incentive remains separate as requested.
+   * Unified voucher modal for rider: Penalty, Incentive, Advance Loan, COD, Payment, Vendor Charges.
    */
   public function voucher($company_slug, $rider_id)
   {
@@ -3698,7 +3697,14 @@ class RidersController extends AppBaseController
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $voucherTypes = VoucherType::activeCodeLabelMapForModule('riders');
+    $allowedCodes = ['PN', 'INC', 'AL', 'COD', 'PAY', 'VC'];
+    $allTypes = VoucherType::activeCodeLabelMapForModule('riders');
+    $voucherTypes = [];
+    foreach ($allowedCodes as $code) {
+      if (isset($allTypes[$code])) {
+        $voucherTypes[$code] = $allTypes[$code];
+      }
+    }
 
     return view('riders.voucher-modal', compact('rider', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
   }

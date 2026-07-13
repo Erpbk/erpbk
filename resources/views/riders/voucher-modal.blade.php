@@ -1,9 +1,10 @@
 @php
 // Map voucher type to form action route
 $actions = [
+'PN' => route('riders.storepenalty'),
+'INC' => route('riders.storeincentive'),
 'AL' => route('riders.storeadvanceloan'),
 'COD' => route('riders.storecod'),
-'PN' => route('riders.storepenalty'),
 'PAY' => route('riders.storepayment'),
 'VC' => route('riders.storevendorcharges'),
 ];
@@ -12,9 +13,9 @@ $actions = [
 $editActions = [];
 if (isset($voucher_id)) {
 $editActions = [
+'PN' => route('riders.editpenalty', ['id' => $voucher_id]),
 'AL' => route('riders.editadvanceloan', ['id' => $voucher_id]),
 'COD' => route('riders.editcod', ['id' => $voucher_id]),
-'PN' => route('riders.editpenalty', ['id' => $voucher_id]),
 'PAY' => route('riders.editpayment', ['id' => $voucher_id]),
 'VC' => route('riders.editvendorcharges', ['id' => $voucher_id]),
 ];
@@ -22,9 +23,10 @@ $editActions = [
 
 // Map voucher type to field-rendering endpoint (with rider id)
 $urls = [
+'PN' => route('riders.penalty', ['id' => $rider->id ?? 0]),
+'INC' => route('riders.incentive', ['id' => $rider->id ?? 0]),
 'AL' => route('riders.advanceloan', ['id' => $rider->id ?? 0]),
 'COD' => route('riders.cod', ['id' => $rider->id ?? 0]),
-'PN' => route('riders.penalty', ['id' => $rider->id ?? 0]),
 'PAY' => route('riders.payment', ['id' => $rider->id ?? 0]),
 'VC' => route('riders.vendorcharges', ['id' => $rider->id ?? 0]),
 ];
@@ -41,7 +43,6 @@ $editMode = isset($voucher_id) && isset($voucher_type);
         <option value="{{ $code }}" {{ isset($voucher_type) && $voucher_type == $code ? 'selected' : '' }}>{{ $label }}</option>
         @endforeach
     </select>
-    <small class="text-muted">Incentive is separate and not included here.</small>
     <input type="hidden" id="reload_page" value="1">
     <input type="hidden" id="rider_id" value="{{ $rider->id ?? '' }}">
     <input type="hidden" id="voucher_id" value="{{ $voucher_id ?? '' }}">

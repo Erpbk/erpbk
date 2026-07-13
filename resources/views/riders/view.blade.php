@@ -398,14 +398,9 @@ $companySlug = request()->route('company_slug');
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
-                    @isset($riders)
+                    @if($rider?->sim?->number)
                       @php
-                      $rider = $riders;
-                      @endphp
-                    @endisset
-                    @if($rider->sim?->number)
-                      @php
-                      $phone = preg_replace('/[^0-9]/', '', $rider->sim?->number ?? '');
+                      $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
                       if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
                       else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
                       @endphp

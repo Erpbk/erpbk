@@ -1,4 +1,5 @@
-<input type="hidden" name="payment_from" value="{{ga_id('ADVANCE_LOAN')}}" />
+@php
+@endphp
 <div id="rows-container" style="width: 98%;">
     @isset($data)
     @foreach($data as $entry)

@@ -380,7 +380,8 @@ class RiderActivitiesController extends AppBaseController
                 'data' => $data,
                 'totals' => $totals,
                 'isConsolidated' => $isConsolidated,
-                'isAllTab' => true,
+                'isAllTab' => false,
+                'hideDay' => true,
             ])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()

@@ -31,8 +31,9 @@ class RiderActivitiesController extends AppBaseController
     {
         $this->riderActivitiesRepository = $riderActivitiesRepo;
         $this->middleware('permission:riders_activities_view')->only('index', 'show');
-        $this->middleware('permission:riders_activities_create')->only('create', 'store', 'import', 'importErrors');
-        $this->middleware('permission:riders_activities_edit')->only('edit', 'update', 'import', 'importErrors');
+        $this->middleware('permission:riders_activities_create')->only('create', 'store');
+        $this->middleware('permission:riders_activities_edit')->only('edit', 'update');
+        $this->middleware('permission:riders_activities_edit|riders_activities_create')->only('import', 'importErrors');
         $this->middleware('permission:riders_activities_delete')->only('destroy');
         $this->middleware('permission:riders_live_activities_view')->only('liveactivities', 'liveimportactivities');
         $this->middleware('permission:riders_live_activities_create')->only('liveimportactivities', 'liveimportErrors');

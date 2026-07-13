@@ -1,9 +1,9 @@
 @php
-  $activeAttendanceTab = $activeAttendanceTab ?? 'attendance';
-  $attendanceUserType = $attendanceUserType
-    ?? request('user_type')
-    ?? request('ref_type')
-    ?? 'employee';
+$activeAttendanceTab = $activeAttendanceTab ?? 'attendance';
+$attendanceUserType = $attendanceUserType
+?? request('user_type')
+?? request('ref_type')
+?? 'employee';
 @endphp
 
 <style>
@@ -11,6 +11,7 @@
     color: #6b7280;
     font-weight: 600;
   }
+
   .attendance-module-tabs .nav-link.active {
     color: #0d6efd;
     border-bottom-color: #0d6efd;
@@ -19,17 +20,19 @@
 
 <div class="content mb-2">
   <ul class="nav nav-tabs attendance-module-tabs" role="tablist">
+    @canany(['riders_attendance_view', 'employees_attendance_view'])
     <li class="nav-item" role="presentation">
       <a class="nav-link {{ $activeAttendanceTab === 'attendance' ? 'active' : '' }}"
-         href="{{ route('attendance.summary', ['user_type' => $attendanceUserType]) }}">
+        href="{{ route('attendance.summary', ['user_type' => $attendanceUserType]) }}">
         Attendance
       </a>
     </li>
     <li class="nav-item" role="presentation">
       <a class="nav-link {{ $activeAttendanceTab === 'report' ? 'active' : '' }}"
-         href="{{ route('attendance.index', ['ref_type' => $attendanceUserType]) }}">
+        href="{{ route('attendance.index', ['ref_type' => $attendanceUserType]) }}">
         Attendance Report
       </a>
     </li>
+    @endcanany
   </ul>
 </div>

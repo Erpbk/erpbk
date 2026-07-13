@@ -290,14 +290,14 @@ $homeLink = $isAdminLogin
       </a>
     </li>
     @endcan
-    @can('riders_live_activities_view')
+    <!-- @can('riders_live_activities_view')
     <li class="menu-item {{ Route::is('rider.liveactivities*') ? 'active' : '' }}">
       <a href="{{ route('rider.liveactivities') }}" class="menu-link ">
         @include('layouts.partials.module_menu_icon', ['key' => 'live_activities'])
         <div>{{ $menuLabels['live_activities'] ?? 'Live Activities' }}</div>
       </a>
     </li>
-    @endcan
+    @endcan -->
     @can('riders_report_view')
     <li class="menu-item {{ Route::is('reports*') ? 'active' : '' }}">
       <a href="{{ route('reports.rider_report') }}" class="menu-link ">
@@ -624,10 +624,10 @@ $homeLink = $isAdminLogin
     @can('garages_maintenance_view')
     <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
       <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
-          @include('layouts.partials.module_menu_icon', ['key' => 'maintenance_overview'])
-          <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
-        </a>
-      </li>
+        @include('layouts.partials.module_menu_icon', ['key' => 'maintenance_overview'])
+        <div>{{ $menuLabels['maintenance_overview'] ?? 'Maintenance' }}</div>
+      </a>
+    </li>
     @endcan
     @if(\App\Support\CompanyModuleVisibility::enabled('garages_customers'))
     @can('garages_customers_view')

@@ -6,8 +6,8 @@
 <div class="">
     @canany(['employees_attendance_view', 'riders_attendance_view'])
     @include('attendance.partials.tabs', [
-        'activeAttendanceTab' => 'report',
-        'attendanceUserType' => request('ref_type', 'employee'),
+    'activeAttendanceTab' => 'report',
+    'attendanceUserType' => request('ref_type', 'employee'),
     ])
 
     <!-- Header Section -->
@@ -110,10 +110,6 @@
     <div class="card shadow mb-4">
         <div class="card-header d-flex justify-content-between">
             <h4>Attendance Report</h4>
-            <div>
-                <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i> Export</a>
-                <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
-            </div>
         </div>
         <div class="totals-cards">
             <div class="total-card total-blue">

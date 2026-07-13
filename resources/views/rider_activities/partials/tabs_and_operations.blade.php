@@ -1,8 +1,8 @@
 @php
-  $activeActivitiesTab = $activeActivitiesTab
-    ?? ($isLiveTab ?? false
-      ? 'live'
-      : (($isAllTab ?? false) ? 'summary' : 'activities'));
+$activeActivitiesTab = $activeActivitiesTab
+?? ($isLiveTab ?? false
+? 'live'
+: (($isAllTab ?? false) ? 'summary' : 'activities'));
 @endphp
 
 <style>
@@ -10,10 +10,12 @@
     color: #6b7280;
     font-weight: 600;
   }
+
   .rider-activities-tabs .nav-link.active {
     color: #0d6efd;
     border-bottom-color: #0d6efd;
   }
+
   .rider-activities-ops {
     display: flex;
     justify-content: flex-end;
@@ -21,10 +23,12 @@
     gap: 8px;
     margin-bottom: 12px;
   }
+
   .rider-activities-ops .action-dropdown-container {
     position: relative;
     display: inline-block;
   }
+
   .rider-activities-ops .action-dropdown-btn {
     display: inline-flex;
     align-items: center;
@@ -36,6 +40,7 @@
     padding: 8px 14px;
     font-weight: 600;
   }
+
   .rider-activities-ops .action-dropdown-menu {
     display: none;
     position: absolute;
@@ -49,9 +54,11 @@
     z-index: 1050;
     padding: 6px 0;
   }
+
   .rider-activities-ops .action-dropdown-menu.show {
     display: block;
   }
+
   .rider-activities-ops .action-dropdown-item {
     display: flex;
     align-items: flex-start;
@@ -60,16 +67,20 @@
     color: #111827;
     text-decoration: none;
   }
+
   .rider-activities-ops .action-dropdown-item:hover {
     background: #f3f4f6;
   }
+
   .rider-activities-ops .action-dropdown-item i {
     color: #2563eb;
     margin-top: 2px;
   }
+
   .rider-activities-ops .action-dropdown-item-text {
     font-weight: 600;
   }
+
   .rider-activities-ops .action-dropdown-item-desc {
     font-size: 12px;
     color: #6b7280;
@@ -78,21 +89,27 @@
 
 <div class="content mb-2">
   <ul class="nav nav-tabs rider-activities-tabs" role="tablist">
+    @can('riders_activities_view')
     <li class="nav-item" role="presentation">
       <a class="nav-link {{ $activeActivitiesTab === 'activities' ? 'active' : '' }}" href="{{ route('riderActivities.index') }}">
         Rider Activities
       </a>
     </li>
+    @endcan
+    @can('riders_activities_view')
     <li class="nav-item" role="presentation">
       <a class="nav-link {{ $activeActivitiesTab === 'summary' ? 'active' : '' }}" href="{{ route('riderActivities.index', ['tab' => 'all']) }}">
         Rider Summary
       </a>
     </li>
+    @endcan
+    @can('riders_live_activities_view')
     <li class="nav-item" role="presentation">
       <a class="nav-link {{ $activeActivitiesTab === 'live' ? 'active' : '' }}" href="{{ route('rider.liveactivities') }}">
         Live Activities
       </a>
     </li>
+    @endcan
   </ul>
 </div>
 

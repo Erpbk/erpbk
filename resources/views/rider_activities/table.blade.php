@@ -158,7 +158,7 @@ $isAllTab = !empty($isAllTab);
          </td>
          @endunless
          <td>{{ $r->d_rider_id }}</td>
-         <td>
+         <td class="text-left">
             @if($rider)
             <a href="{{ route('rider.activities', $r->rider_id) }}">{{ $rider->name }}</a>
             @else

@@ -264,12 +264,6 @@ $projects = $projects ?? collect();
   <div class="card h-100" style="border-radius: 0px !important;">
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Activities</b> (Statistics)</h5>
-      <small class="text-body-secondary">
-        @can('riders_activities_create')
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}"> <i class="ti ti-activity"></i> Import Activities</a>
-        @endcan
-        <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-      </small>
     </div>
     <div class="card-body">
       <div id="totalsBar" class="mb-2">

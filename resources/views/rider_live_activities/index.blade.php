@@ -147,13 +147,6 @@ $importErrorMessage = session('error');
   <div class="card h-100" style="border-radius: 0px !important;">
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Live Activities</b> (Statistics)</h5>
-      <small class="text-body-secondary">
-        @can('riders_live_activities_create')
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Live Activities" data-action="{{ route('rider.live_activities_import') }}"> <i class="ti ti-activity"></i> Import Live Activities</a>
-        <a class="btn btn-info mx-2" href="{{ route('rider.live_activities_import_errors') }}" title="View Last Import Errors"> <i class="fa fa-exclamation-triangle"></i> View Import Errors</a>
-        @endcan
-        <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-      </small>
     </div>
     <div class="card-body">
       <div id="totalsBar" class="mb-2">
@@ -194,9 +187,9 @@ $importErrorMessage = session('error');
 
 @else
 <div class="card">
-    <div class="card-body">
-        <h5 class="card-title">You are not authorized to access this page</h5>
-    </div>
+  <div class="card-body">
+    <h5 class="card-title">You are not authorized to access this page</h5>
+  </div>
 </div>
 @endcan
 @endsection

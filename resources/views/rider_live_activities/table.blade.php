@@ -131,7 +131,7 @@
          @php
          $rider = company_table('riders')->where('id' , $r->rider_id)->first();
          @endphp
-         <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
+         <td class="text-left"> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
          <td>{{ $rider->fleet_supervisor }}</td>
          <td>{{ company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
          @php

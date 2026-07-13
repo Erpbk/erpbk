@@ -13,6 +13,7 @@
         <label for="reference_number">Reference Number</label>
         <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
     </div>
+    @include('vouchers._branch_field')
 </div>
 <div class="scrollbar">
     <h5>Payment Voucher</h5>

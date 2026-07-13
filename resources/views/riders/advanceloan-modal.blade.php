@@ -1,7 +1,6 @@
 {!! Form::open(['route' => 'riders.storeadvanceloan','id'=>'formajax']) !!}
 
 <input type="hidden" id="reload_page" value="1">
-<input type="hidden" name="branch_id" value="{{ $rider->branch_id }}">
 
 <div class="row">
     @include('riders.loan_fields', ['rider' => $rider, 'vt' => 'AL', 'account' => $account, 'bank_accounts' => $bank_accounts])

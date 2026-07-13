@@ -14,6 +14,7 @@
         <label>Reference Number</label>
         <input type="text" name="reference_number" class="form-control" placeholder="Reference Number">
     </div>
+    @include('vouchers._branch_field')
 </div>
 
 <h5>COD Voucher</h5>

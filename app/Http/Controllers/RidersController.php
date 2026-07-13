@@ -2975,7 +2975,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'required|numeric|exists:branches,id',
+        'branch_id' => 'nullable|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3020,7 +3020,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3035,7 +3035,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Advance Loan Received',
         'debit' => $riderAmount,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'billing_month' => $voucherData['billing_month'],
         'created_By' => auth()->id(),
       ];
@@ -3053,7 +3053,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($creditTransaction);
@@ -3126,7 +3126,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'required|numeric|exists:branches,id',
+        'branch_id' => 'nullable|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3171,7 +3171,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3187,7 +3187,7 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[0] ?? 'COD Amount Received',
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($debitTransaction);
@@ -3203,7 +3203,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($creditTransaction);
@@ -3256,7 +3256,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'required|numeric|exists:branches,id',
+        'branch_id' => 'nullable|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3301,7 +3301,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3318,7 +3318,7 @@ class RidersController extends AppBaseController
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($debitTransaction);
@@ -3334,7 +3334,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($creditTransaction);
@@ -3409,7 +3409,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'required|numeric|exists:branches,id',
+        'branch_id' => 'nullable|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3454,7 +3454,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3471,7 +3471,7 @@ class RidersController extends AppBaseController
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($debitTransaction);
@@ -3487,7 +3487,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
       ];
 
       Transactions::create($creditTransaction);
@@ -3559,7 +3559,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'required|numeric|exists:branches,id',
+        'branch_id' => 'nullable|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3603,7 +3603,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3617,7 +3617,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Incentive Amount Received',
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
@@ -3634,7 +3634,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[1] ?? 'Incentive Amount Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
       ];
@@ -3725,7 +3725,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'required|numeric|exists:branches,id',
+        'branch_id' => 'nullable|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3770,7 +3770,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3785,7 +3785,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Vendor Charges ' . $riderAccount->name,
         'debit' => $riderAmount,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
       ];
@@ -3801,7 +3801,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[1] ?? 'Vendor Charges from ' . $riderAccount->name,
         'credit' => $creditAmount,
-        'branch_id' => $request->branch_id,
+        'branch_id' => $request->input('branch_id') ?: null,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
       ];

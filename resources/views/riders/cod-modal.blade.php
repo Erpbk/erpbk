@@ -1,7 +1,6 @@
 {!! Form::open(['route' => 'riders.storecod', 'id' => 'formajax']) !!}
 
 <input type="hidden" id="reload_page" value="1">
-<input type="hidden" name="branch_id" value="{{ $rider->branch_id }}">
 
 <div class="row">
     @include('vouchers.cod_fields', ['rider' => $rider, 'bank_accounts' => $bank_accounts])

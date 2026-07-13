@@ -45,6 +45,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
     </select>
     <input type="hidden" id="reload_page" value="1">
     <input type="hidden" id="rider_id" value="{{ $rider->id ?? '' }}">
+    <input type="hidden" id="rider_branch_id" value="{{ $rider->branch_id ?? '' }}">
     <input type="hidden" id="voucher_id" value="{{ $voucher_id ?? '' }}">
     <input type="hidden" id="voucher_type" value="{{ $voucher_type ?? '' }}">
     <input type="hidden" id="edit_mode" value="{{ $editMode ? '1' : '0' }}">
@@ -70,6 +71,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
         const typeToUrl = urlsB64 ? JSON.parse(atob(urlsB64)) : {};
 
         const riderId = document.getElementById('rider_id').value;
+        const riderBranchId = document.getElementById('rider_branch_id').value;
         const voucherId = document.getElementById('voucher_id').value;
         const voucherType = document.getElementById('voucher_type').value;
         const editMode = document.getElementById('edit_mode').value === '1';
@@ -128,6 +130,16 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                     csrf.name = '_token';
                     csrf.value = '{{ csrf_token() }}';
                     form.prepend(csrf);
+
+                    // Ensure branch_id comes from rider (null/empty allowed)
+                    let branchInput = form.querySelector('input[name="branch_id"]');
+                    if (!branchInput) {
+                        branchInput = document.createElement('input');
+                        branchInput.type = 'hidden';
+                        branchInput.name = 'branch_id';
+                        form.prepend(branchInput);
+                    }
+                    branchInput.value = riderBranchId;
 
                     // If in edit mode, add method PUT
                     if (isEdit) {

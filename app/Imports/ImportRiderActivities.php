@@ -51,19 +51,19 @@ class ImportRiderActivities implements ToCollection
 
       $error = $this->validateRow($row, $rowNumber);
       if ($error) {
-        if ($error['error_type'] === 'Rider Not Found') {
+        $this->importErrors[] = $error;
+        $this->skippedCount++;
+
+        if (($error['error_type'] ?? '') === 'Rider Not Found') {
           $this->missingRecords[] = [
             'row'        => $rowNumber,
             'rider_id'   => $error['rider_id'] ?? 'N/A',
             'date'       => $this->columnValue($row, 'date') ?? 'N/A',
             'error_type' => 'Rider Not Found',
-            'message'    => 'Rider ID does not exist in system',
+            'message'    => $error['message'],
           ];
-          $this->skippedCount++;
-        } else {
-          $this->importErrors[] = $error;
-          $this->skippedCount++;
         }
+
         continue;
       }
 
@@ -71,11 +71,7 @@ class ImportRiderActivities implements ToCollection
     }
 
     if (!empty($this->importErrors)) {
-      $errorMessages = [];
-      foreach ($this->importErrors as $error) {
-        $riderId = $error['rider_id'] ?? 'N/A';
-        $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
-      }
+      $errorMessages = $this->buildImportErrorMessages();
 
       session([
         'activities_import_summary' => [
@@ -83,6 +79,7 @@ class ImportRiderActivities implements ToCollection
           'skipped' => $this->skippedCount,
           'errors'  => $this->importErrors,
           'missing_records' => $this->missingRecords,
+          'unmatched_rider_ids' => $this->uniqueUnmatchedRiderIds(),
           'customer_id' => $this->customerId,
         ]
       ]);
@@ -210,6 +207,45 @@ class ImportRiderActivities implements ToCollection
     session()->save();
   }
 
+  private function uniqueUnmatchedRiderIds(): array
+  {
+    $ids = [];
+    foreach ($this->importErrors as $error) {
+      if (($error['error_type'] ?? '') !== 'Rider Not Found') {
+        continue;
+      }
+      $riderId = trim((string) ($error['rider_id'] ?? ''));
+      if ($riderId === '' || $riderId === 'N/A') {
+        continue;
+      }
+      $ids[$riderId] = $riderId;
+    }
+
+    return array_values($ids);
+  }
+
+  private function buildImportErrorMessages(): array
+  {
+    $errorMessages = [];
+    $unmatchedRiderIds = $this->uniqueUnmatchedRiderIds();
+
+    if (!empty($unmatchedRiderIds)) {
+      $listedIds = implode(', ', array_map(fn ($id) => "'{$id}'", $unmatchedRiderIds));
+      $errorMessages[] = 'The following rider_id(s) from the sheet do not exist or do not match any rider: ' . $listedIds . '.';
+    }
+
+    foreach ($this->importErrors as $error) {
+      if (($error['error_type'] ?? '') === 'Rider Not Found') {
+        continue;
+      }
+
+      $riderId = $error['rider_id'] ?? 'N/A';
+      $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
+    }
+
+    return $errorMessages;
+  }
+
   private function validateRow($row, $rowNumber)
   {
     $riderIdValue = $this->columnValue($row, 'rider_id');
@@ -227,7 +263,7 @@ class ImportRiderActivities implements ToCollection
       return [
         'row'        => $rowNumber,
         'error_type' => 'Rider Not Found',
-        'message'    => 'Rider ID does not exist in system',
+        'message'    => "The rider_id '{$riderIdValue}' does not exist or does not match any rider.",
         'rider_id'   => $riderIdValue,
       ];
     }

@@ -72,11 +72,6 @@ $voucherType = isset($vt) ? $vt : request('vt');
     @include("vouchers.loan_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
     @endif
 
-    @if($voucherType == 'COD')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.cod_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
     @if($voucherType == 'PENALTY')
     @php($accounts = \App\Models\Accounts::dropdown(null))
     @include("vouchers.penalty_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])

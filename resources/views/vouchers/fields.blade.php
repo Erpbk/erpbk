@@ -97,7 +97,7 @@ $voucherType = $vt ?? request('vt');
 
     @if($voucherType == 'LV')
     @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.loan_fields")
+    @include("vouchers.default_fields")
     @endif
 
     @if($voucherType == 'VL')

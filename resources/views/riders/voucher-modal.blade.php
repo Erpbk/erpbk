@@ -35,7 +35,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
 
 <div class="mb-3">
     <label class="form-label">Voucher Type</label>
-    <select id="voucherType" class="form-select form-select-sm" {{ $editMode ? 'disabled' : '' }}>
+    <select id="voucherType" class="form-select form-select-sm select2" {{ $editMode ? 'disabled' : '' }}>
         <option value="">Select</option>
         @foreach($voucherTypes as $code => $label)
         <option value="{{ $code }}" {{ isset($voucher_type) && $voucher_type == $code ? 'selected' : '' }}>{{ $label }}</option>
@@ -73,6 +73,16 @@ $editMode = isset($voucher_id) && isset($voucher_type);
         const voucherType = document.getElementById('voucher_type').value;
         const editMode = document.getElementById('edit_mode').value === '1';
         const typeSelect = document.getElementById('voucherType');
+        const $typeSelect = $(typeSelect);
+
+        if ($.fn.select2 && !$typeSelect.hasClass('select2-hidden-accessible')) {
+            $typeSelect.select2({
+                width: '100%',
+                allowClear: true,
+                placeholder: 'Select',
+                dropdownParent: $('#modalTopbody').length ? $('#modalTopbody') : $(document.body)
+            });
+        }
 
         function loadFormFor(type, isEdit = false) {
             if (!type) {
@@ -127,6 +137,26 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                         form.prepend(methodField);
                     }
 
+                    // innerHTML does not run <script> tags — execute them manually
+                    $(temp).find('script').each(function() {
+                        $.globalEval(this.text || this.textContent || this.innerHTML || '');
+                    });
+
+                    // Init select2 the same way as custom.js modal forms
+                    if (window.jQuery && $.fn && $.fn.select2) {
+                        $(form).find('select.select2').each(function() {
+                            var $select = $(this);
+                            if ($select.hasClass('select2-hidden-accessible')) {
+                                return;
+                            }
+                            $select.select2({
+                                width: '100%',
+                                allowClear: true,
+                                dropdownParent: $('#modalTopbody')
+                            });
+                        });
+                    }
+
                     if (typeof window.getTotal === 'function') {
                         window.getTotal();
                     }
@@ -136,7 +166,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                 });
         }
 
-        typeSelect.addEventListener('change', function() {
+        $typeSelect.on('change', function() {
             loadFormFor(this.value, false);
         });
 

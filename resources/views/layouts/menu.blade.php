@@ -19,6 +19,7 @@ $homeLink = $isAdminLogin
 </li>
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('cash_banks'))
+@canany(['cash_&_banks_banks_view', 'cash_&_banks_cheques_view', 'cash_&_banks_payments_view', 'cash_&_banks_receipts_view'])
 <li class="menu-item {{ Route::is('banks.*') ? 'open' : '' }}  {{ Route::is('bank.*') ? 'open' : '' }} {{ Route::is('cheques.*') ? 'open' : '' }} {{ Route::is('payments.*') ? 'open' : '' }} {{ Route::is('receipts.*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'cash_banks'])
@@ -55,6 +56,7 @@ $homeLink = $isAdminLogin
     @endcan
   </ul>
 </li>
+@endcanany
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('loans'))
 @can('loans_view')
@@ -608,19 +610,21 @@ $homeLink = $isAdminLogin
 @endcanany
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('garages'))
-@can('garages_view')
+@canany(['garages_garage_view', 'garages_maintenance_view', 'garages_customers_view', 'garages_payments_view'])
 <li class="menu-item {{ Route::is('garages*') || Route::is('garage_customer.*') || Route::is('bikeMaintenance*') ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle ">
     @include('layouts.partials.module_menu_icon', ['key' => 'garages'])
     <div>{{ $menuLabels['garages'] ?? 'Garages' }}</div>
   </a>
   <ul class="menu-sub">
+    @can('garages_garage_view')
     <li class="menu-item {{ Route::is('garages*') ? 'active' : '' }}">
       <a href="{{ route('garages.index') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'garage_list'])
         <div>{{ $menuLabels['garage_list'] ?? 'Garage List' }}</div>
       </a>
     </li>
+    @endcan
     @can('garages_maintenance_view')
     <li class="menu-item {{ Route::is('bikeMaintenance*') ? 'active' : '' }}">
       <a href="{{ route('bikeMaintenance.index') }}" class="menu-link">
@@ -649,7 +653,7 @@ $homeLink = $isAdminLogin
     @endif
   </ul>
 </li>
-@endcan
+@endcanany
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('supplier'))
 @canany(['supplier_view'])

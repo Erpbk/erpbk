@@ -107,8 +107,11 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('rta_fines.bike_id', $request->bike_id);
         }
-        if ($request->filled('company_id')) {
+        if ($request->filled('company_id') && $request->company_id != 'own') {
             $query->where('bikes.company', $request->company_id);
+        }
+        if ($request->filled('company_id') && $request->company_id == 'own') {
+            $query->where('bikes.bike_owner', 'Owned');
         }
         $topBarModuleKey = $status === 'paid' ? 'rta_fines_paid' : 'rta_fines_unpaid';
         $this->applyModuleTopBarFilters($query, $request, $topBarModuleKey);
@@ -311,7 +314,7 @@ class RtaFinesController extends AppBaseController
     }
     public function payForm($company_slug, $id)
     {
-        $fine = RtaFines::with(['rider', 'rentalCompany', 'voucher', 'bike.leasingCompany'])->where('id', $id)->first();
+        $fine = RtaFines::with(['rider', 'rentalCompany', 'bike.leasingCompany'])->where('id', $id)->first();
         $debitAccount = Accounts::where('id', $fine->rta_account_id)->first();
         $ids = Banks::active()->pluck('account_id');
         $leasingId = $fine->bike->leasingCompany?->account_id ?? null;

@@ -35,10 +35,12 @@
          <td><a data-action="{{ route('rtaFines.show',$r->id) }}" href="javascript:void(0);" class="show-modal-right">{{$r->ticket_no}}</a></td>
          <td>
             @if($r->is_impound)
-            <span style="font-weight: bold;">Yes</span><br>
-            <span>{{ 'Black Points: '.$r->black_points }}</span>
+            <span class="d-block" style="font-weight: bold;">Yes</span><br>
             @else
-            No
+            <span class="d-block" style="font-weight: bold;">No</span>
+            @endif
+            @if($r->black_points > 0)
+            <span style="font-weight: bold;">(Black Points: {{ $r->black_points }})</span>
             @endif
          </td>
          <td><a href="{{ $fileUrl }}" target="_blank"><i class="fa fa-file"></i></a></td>

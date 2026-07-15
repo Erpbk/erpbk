@@ -478,17 +478,12 @@
                     <label for="company">Filter by Company</label>
                     <select class="form-control " id="company" name="company">
                         @php
-                        $companiesid = company_table('bikes')
-                        ->whereNotNull('company')
-                        ->where('company', '!=', '')
-                        ->pluck('company')
-                        ->unique();
                         $companies = company_table('leasing_companies')
-                        ->whereIn('id', $companiesid)
                         ->select('id', 'name')
                         ->get();
                         @endphp
                         <option value="" selected>Select</option>
+                        <option value="own">Own Vehicles</option>
                         @foreach($companies as $company)
                         <option value="{{ $company->id }}" {{ request('company') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach
@@ -669,6 +664,11 @@
         $('#status').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Status",
+            allowClear: true
+        });
+        $('#customer_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            placeholder: "Filter By Customer",
             allowClear: true
         });
     });

@@ -78,8 +78,8 @@ class Handler extends ExceptionHandler
         }
 
         if ($e instanceof GlobalAccountNotConfiguredException) {
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['message' => $e->getMessage()], 422);
+            if ($json = $e->render($request)) {
+                return $json;
             }
 
             if ($request->routeIs('LicenseExpense.*')) {

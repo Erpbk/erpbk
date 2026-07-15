@@ -95,8 +95,14 @@ class BikesController extends AppBaseController
         if ($request->has('rider') && ! empty($request->rider)) {
             $query->where('rider_id', $request->rider);
         }
-        if ($request->has('company') && ! empty($request->company)) {
+        if ($request->has('customer_id') && ! empty($request->customer_id)) {
+            $query->where('customer_id', $request->customer_id);
+        }
+        if ($request->has('company') && ! empty($request->company) && $request->company != 'own') {
             $query->where('company', $request->company);
+        }
+        if($request->has('company') && $request->company == 'own') {
+            $query->where('bike_owner', 'Owned');
         }
         if ($request->has('emirates') && ! empty($request->emirates)) {
             $query->where('emirates', $request->emirates);

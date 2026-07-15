@@ -102,13 +102,41 @@ $editMode = isset($voucher_id) && isset($voucher_type);
 
             fetch(fetchUrl, {
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
                     }
                 })
-                .then(r => r.text())
-                .then(html => {
+                .then(async (r) => {
+                    const body = await r.text();
+                    if (!r.ok) {
+                        let message = 'Failed to load form.';
+
+                        if (body.indexOf('modal-load-error') !== -1) {
+                            container.innerHTML = body;
+                            const errText = container.querySelector('.modal-load-error p');
+                            if (errText && errText.textContent) {
+                                message = errText.textContent.trim();
+                            }
+                        } else {
+                            try {
+                                const json = JSON.parse(body);
+                                if (json && json.message) {
+                                    message = json.message;
+                                }
+                            } catch (e) {
+                                // keep default message
+                            }
+                            container.innerHTML = '<div class="alert alert-danger">' + message + '</div>';
+                        }
+
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(message);
+                        }
+                        return;
+                    }
+
                     const temp = document.createElement('div');
-                    temp.innerHTML = html;
+                    temp.innerHTML = body;
 
                     const originalForm = temp.querySelector('form#formajax') || temp.querySelector('form');
                     const inner = originalForm ? originalForm.innerHTML : temp.innerHTML;

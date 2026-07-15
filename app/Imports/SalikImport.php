@@ -156,11 +156,9 @@ class SalikImport implements ToCollection
                         'vat'              => $totalVat,
                         'total_amount'     => $totalAmount,
                         'details'          => $details,
-                        'status'           => 'unpaid',
                         'branch_id'        => $bike->branch_id,
                         'billing_month'    => $billingMonthForStore,
                         'trans_date'       => Carbon::today(),
-                        'created_by'       => Auth::user()->id,
                     ];
                     // Determine if we're using current rider or last rider from history
                     $isCurrentRider = ($bike->rider_id == $rider->id);
@@ -169,23 +167,36 @@ class SalikImport implements ToCollection
                     \Log::info("Creating Salik record for Transaction ID: {$transactionId}, Amount: {$transactionAmount}, Rider: {$rider->name} (using {$riderSource})");
 
                     if ($existingSalik) {
-                        // Update existing unpaid record with new data from Excel
+                        // Capture old invoice group before update so ledger can be resynced if rider/month moved
+                        $oldRiderId = $existingSalik->rider_id;
+                        $oldBillingMonth = $existingSalik->billing_month;
+                        $oldRentalCompanyId = $existingSalik->rental_company_id;
+
+                        $salikData['updated_by'] = Auth::user()->id;
+                        // Keep existing unpaid status; do not overwrite created_by
                         $existingSalik->update($salikData);
                         $salik = $existingSalik;
                         \Log::info("Updated existing unpaid Salik record with ID: {$salik->id}");
+
+                        // Sync both new and old monthly invoice groups when assignment changed
+                        $this->queueAffectedInvoiceGroup($rider->id, $billingMonthForStore, $salik->rental_company_id);
+                        if (
+                            (int) $oldRiderId !== (int) $salik->rider_id
+                            || (int) ($oldRentalCompanyId ?? 0) !== (int) ($salik->rental_company_id ?? 0)
+                            || salik::normalizeBillingMonth($oldBillingMonth) !== salik::normalizeBillingMonth($salik->billing_month)
+                        ) {
+                            $this->queueAffectedInvoiceGroup($oldRiderId, $oldBillingMonth, $oldRentalCompanyId);
+                        }
                     } else {
-                        // Create new record
+                        $salikData['status'] = 'unpaid';
+                        $salikData['created_by'] = Auth::user()->id;
                         $salik = salik::create($salikData);
                         \Log::info("Successfully created new Salik record with ID: {$salik->id}");
+
+                        $this->queueAffectedInvoiceGroup($rider->id, $billingMonthForStore, null);
                     }
 
                     $importedSalikIds[] = $salik->id;
-
-                    $this->affectedInvoiceGroups[$rider->id . '|' . $billingMonthForStore] = [
-                        'rider_id' => $rider->id,
-                        'billing_month' => $billingMonthForStore,
-                        'rental_company_id' => null,
-                    ];
                 } catch (\Exception $e) {
                     \Log::error("Error processing row {$rowCount}: " . $e->getMessage());
                     \Log::error("Row data: " . json_encode($row->toArray()));
@@ -440,6 +451,21 @@ class SalikImport implements ToCollection
     {
         $account = \App\Models\Accounts::where('ref_id', $riderId)->first();
         return $account ? $account->id : null;
+    }
+
+    /**
+     * Queue a rider/company + billing-month group for monthly invoice ledger sync.
+     */
+    private function queueAffectedInvoiceGroup($riderId, $billingMonth, $rentalCompanyId = null): void
+    {
+        $normalizedMonth = salik::normalizeBillingMonth($billingMonth) ?: $billingMonth;
+        $key = ($riderId ?: 'c' . ($rentalCompanyId ?? '0')) . '|' . $normalizedMonth;
+
+        $this->affectedInvoiceGroups[$key] = [
+            'rider_id' => $riderId ? (int) $riderId : null,
+            'billing_month' => $normalizedMonth,
+            'rental_company_id' => $rentalCompanyId ? (int) $rentalCompanyId : null,
+        ];
     }
 
     /**

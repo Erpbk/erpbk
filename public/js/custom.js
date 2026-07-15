@@ -434,8 +434,29 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function () {
+  $('#modalTopbody').load(action, function (response, status, xhr) {
     unblock();
+
+    if (status === 'error') {
+      var err = parseModalLoadError(response, xhr);
+
+      if (err.html) {
+        $('#modalTopbody').html(err.html);
+      } else {
+        $('#modalTopbody').html(`
+          <div class="text-center p-5 text-danger modal-load-error">
+            <i class="fas fa-exclamation-circle fa-3x"></i>
+            <p class="mt-2">${err.message}</p>
+          </div>
+        `);
+      }
+
+      if (typeof toastr !== 'undefined' && err.message) {
+        toastr.error(err.message);
+      }
+      return;
+    }
+
     if (window.Helpers && typeof window.Helpers.initPasswordToggle === 'function') {
       window.Helpers.initPasswordToggle();
     }

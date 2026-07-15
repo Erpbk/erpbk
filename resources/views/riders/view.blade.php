@@ -398,22 +398,17 @@ $companySlug = request()->route('company_slug');
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
-                    @isset($riders)
-                      @php
-                      $rider = $riders;
-                      @endphp
-                    @endisset
-                    @if($rider->sim?->number)
-                      @php
-                      $phone = preg_replace('/[^0-9]/', '', $rider->sim?->number ?? '');
-                      if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
-                      else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
-                      @endphp
-                      <a href="https://wa.me/{{ $whatsappNumber }}"
-                        target="_blank"
-                        class="text-success">
-                        {{ $displayNumber }}
-                      </a>
+                    @if($rider?->sim?->number)
+                    @php
+                    $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
+                    if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
+                    else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
+                    @endphp
+                    <a href="https://wa.me/{{ $whatsappNumber }}"
+                      target="_blank"
+                      class="text-success">
+                      {{ $displayNumber }}
+                    </a>
                     @else
                     N/A
                     @endif
@@ -621,7 +616,7 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endif
 
-                
+
                 @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
                 @can('license_expense_view')
                 @if(!empty($riders))
@@ -711,17 +706,6 @@ $companySlug = request()->route('company_slug');
                     data-size="xl" data-title="Voucher"
                     class='nav-link show-modal'>
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
-                  </a>
-                </li>
-                @endcan
-
-                @can('riders_voucher_create')
-                <li class="nav-item nav-priority-11">
-                  <a href="javascript:void(0);"
-                    data-action="{{ route('riders.incentive', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
-                    class='nav-link show-modal'
-                    data-size="xl" data-title="Incentive">
-                    <i class="ti ti-award ti-sm me-1_5"></i>Incentive
                   </a>
                 </li>
                 @endcan

@@ -1,4 +1,4 @@
-<input type="hidden" name="payment_from" value="{{ ga_id('COD_ACCOUNT') }}" />
+<input type="hidden" name="payment_from" value="{{ ga_id('COD_PARENT') }}" />
 <input type="hidden" name="voucher_type" value="COD" />
 
 <div class="row mt-0 mb-2">
@@ -14,16 +14,17 @@
         <label>Reference Number</label>
         <input type="text" name="reference_number" class="form-control" placeholder="Reference Number">
     </div>
+    @include('vouchers._branch_field')
 </div>
 
 <h5>COD Voucher</h5>
 
 @php
-    $rider_account = $rider->account ?? null;
-    $codAccounts = \App\Models\Accounts::where('parent_id', ga_id('COD_PARENT'))
-        ->orderBy('name')
-        ->pluck('name', 'id')
-        ->toArray();
+$rider_account = $rider->account ?? null;
+$codAccounts = \App\Models\Accounts::where('parent_id', ga_id('COD_PARENT'))
+->orderBy('name')
+->pluck('name', 'id')
+->toArray();
 @endphp
 
 {{-- Debit: rider account --}}
@@ -48,10 +49,10 @@
     <div class="form-group col-md-3">
         <label>COD Account</label>
         {!! Form::select('account_id[]', $codAccounts, null, [
-            'id' => 'cod_credit_account',
-            'class' => 'form-control form-select select2',
-            'required' => true,
-            'placeholder' => 'Select Account',
+        'id' => 'cod_credit_account',
+        'class' => 'form-control form-select select2',
+        'required' => true,
+        'placeholder' => 'Select Account',
         ]) !!}
     </div>
     <div class="form-group col-md-4">

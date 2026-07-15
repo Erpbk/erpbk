@@ -38,7 +38,7 @@ if (! function_exists('company_table')) {
     }
 }
 
-if (! function_exists('ga_id') || ! function_exists('ga_name') || ! function_exists('ga_account')) {
+if (! function_exists('ga_id') || ! function_exists('ga_name') || ! function_exists('ga_account') || ! function_exists('ga_id_or_null')) {
     /**
      * Resolve a global account by code from the global_accounts registry.
      */
@@ -55,5 +55,10 @@ if (! function_exists('ga_id') || ! function_exists('ga_name') || ! function_exi
     function ga_id(string $code): int
     {
         return \App\Support\GlobalAccounts::id($code);
+    }
+
+    function ga_id_or_null(string $code): ?int
+    {
+        return \App\Support\GlobalAccounts::idOrNull($code);
     }
 }

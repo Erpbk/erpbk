@@ -46,9 +46,10 @@ $voucherType = isset($vt) ? $vt : request('vt');
     <input type="month" name="billing_month" class="form-control " required>
 </div>
 <div class="form-group col-md-2">
-        <label for="reference_number">Reference Number</label>
-        <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
-    </div>
+    <label for="reference_number">Reference Number</label>
+    <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
+</div>
+@include('vouchers._branch_field')
 
 </div>
 <div class="scrollbar">

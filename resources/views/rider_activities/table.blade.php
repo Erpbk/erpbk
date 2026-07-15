@@ -101,13 +101,16 @@
 @php
 $isConsolidated = $isConsolidated ?? false;
 $isAllTab = !empty($isAllTab);
+$hideDay = !empty($hideDay);
 @endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
          @unless($isAllTab)
          <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
+         @unless($hideDay)
          <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
+         @endunless
          @endunless
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
@@ -149,6 +152,7 @@ $isAllTab = !empty($isAllTab);
             {{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}
             @endif
          </td>
+         @unless($hideDay)
          <td>
             @if($isRowConsolidated)
             -
@@ -156,6 +160,7 @@ $isAllTab = !empty($isAllTab);
             {{ \Carbon\Carbon::parse($r->date)->format('l') }}
             @endif
          </td>
+         @endunless
          @endunless
          <td>{{ $r->d_rider_id }}</td>
          <td class="text-left">

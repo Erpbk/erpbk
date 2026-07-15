@@ -9,6 +9,7 @@
         <label for="exampleInputEmail1">Billing Month</label>
         <input type="month" name="billing_month" class="form-control " value="{{ date('Y-m-01') }}" required>
     </div>
+    @include('vouchers._branch_field')
 </div>
 <div class="scrollbar">
     <h5>Incentive Voucher</h5>

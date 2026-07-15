@@ -1,7 +1,6 @@
 {!! Form::open(['route' => 'riders.storeincentive','id'=>'formajax']) !!}
 
 <input type="hidden" id="reload_page" value="1">
-<input type="hidden" name="branch_id" value="{{ $rider->branch_id }}">
 
 <div class="row">
     @include('vouchers.incentive_fields', ['rider' => $rider])

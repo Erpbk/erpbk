@@ -380,7 +380,8 @@ class RiderActivitiesController extends AppBaseController
                 'data' => $data,
                 'totals' => $totals,
                 'isConsolidated' => $isConsolidated,
-                'isAllTab' => true,
+                'isAllTab' => false,
+                'hideDay' => true,
             ])->render();
             $paginationLinks = method_exists($data, 'links')
                 ? $data->links('components.global-pagination')->render()
@@ -663,10 +664,25 @@ class RiderActivitiesController extends AppBaseController
                 Excel::import($import, $request->file('file'));
             } catch (\Illuminate\Validation\ValidationException $ve) {
                 // Handle validation errors (Rider ID not found, etc.)
+                $summary = session('activities_import_summary', []);
+                $unmatchedRiderIds = $summary['unmatched_rider_ids'] ?? [];
                 $errors = $ve->errors();
-                $errorMessage = is_array($errors['file'] ?? null)
-                    ? implode(' | ', $errors['file'])
-                    : ($errors['file'][0] ?? 'Import validation failed');
+                $fileErrors = is_array($errors['file'] ?? null) ? $errors['file'] : [];
+
+                if (!empty($unmatchedRiderIds)) {
+                    $listedIds = implode(', ', array_map(fn ($id) => "'{$id}'", $unmatchedRiderIds));
+                    $errorMessage = 'The following rider_id(s) from the sheet do not exist or do not match any rider: ' . $listedIds . '.';
+                    $otherErrors = array_values(array_filter($fileErrors, function ($message) {
+                        return stripos($message, 'do not exist or do not match any rider') === false;
+                    }));
+                    if (!empty($otherErrors)) {
+                        $errorMessage .= ' | ' . implode(' | ', $otherErrors);
+                    }
+                } else {
+                    $errorMessage = !empty($fileErrors)
+                        ? implode(' | ', $fileErrors)
+                        : ($errors['file'][0] ?? 'Import validation failed');
+                }
                 session()->flash('error', 'Import failed: ' . $errorMessage);
                 return redirect()->route('riderActivities.index');
             } catch (\Throwable $th) {
@@ -704,21 +720,39 @@ class RiderActivitiesController extends AppBaseController
 
             // Never show success if there are critical errors OR if no records were successfully imported
             if (!empty($errors)) {
-                // If there are critical errors, show error message instead of success
+                $unmatchedRiderIds = $summary['unmatched_rider_ids'] ?? [];
+                if (empty($unmatchedRiderIds)) {
+                    foreach ($errors as $error) {
+                        if (($error['error_type'] ?? '') === 'Rider Not Found' && !empty($error['rider_id'])) {
+                            $unmatchedRiderIds[] = $error['rider_id'];
+                        }
+                    }
+                    $unmatchedRiderIds = array_values(array_unique($unmatchedRiderIds));
+                }
+
                 $errorMessages = [];
+                if (!empty($unmatchedRiderIds)) {
+                    $listedIds = implode(', ', array_map(fn ($id) => "'{$id}'", $unmatchedRiderIds));
+                    $errorMessages[] = 'The following rider_id(s) from the sheet do not exist or do not match any rider: ' . $listedIds . '.';
+                }
+
                 foreach ($errors as $error) {
+                    if (($error['error_type'] ?? '') === 'Rider Not Found') {
+                        continue;
+                    }
                     $riderId = $error['rider_id'] ?? 'N/A';
                     $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
                 }
+
+                if (empty($errorMessages)) {
+                    $errorMessages[] = 'Import validation failed.';
+                }
+
                 session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
-            } elseif ($successCount == 0 && empty($missingRecords)) {
+            } elseif ($successCount == 0) {
                 session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data.');
             } else {
-                // Success popup if records were imported (even if some riders were missing)
                 $message = "Rider activities imported successfully. {$successCount} record(s) saved.";
-                if (!empty($missingRecords)) {
-                    $message .= " " . count($missingRecords) . " record(s) skipped due to missing riders. Check Missing Records list for details.";
-                }
                 session()->flash('success', $message);
             }
 

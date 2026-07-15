@@ -255,7 +255,7 @@ $projects = $projects ?? collect();
 
   <div class="card" style="border-radius: 0px !important;">
     <div class="card-body table-responsive px-2 py-0" id="table-data">
-      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => $isConsolidated, 'isAllTab' => true])
+      @include('rider_activities.table', ['data' => $data, 'totals' => $totals ?? [], 'isConsolidated' => $isConsolidated, 'isAllTab' => false, 'hideDay' => true])
     </div>
   </div>
 </div>
@@ -289,7 +289,7 @@ $projects = $projects ?? collect();
     </div>
   </div>
 </section>
-@endif
+
 <div class="content">
   @include('flash::message')
   <div class="clearfix"></div>
@@ -300,6 +300,7 @@ $projects = $projects ?? collect();
     </div>
   </div>
 </div>
+@endif
 @else
 <div class="card">
   <div class="card-body">

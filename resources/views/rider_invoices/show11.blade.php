@@ -503,7 +503,12 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
                         <td class="num" style="padding: 8px; font-size: 14px;">{{ number_format($finalAmount, 2) }}</td>
                     </tr>
                     @php
-                    $paid_amount = DB::table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
+                    $paid_amount = 0;
+                    if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
+                        $paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
+                            ->whereDate('billing_month', $riderInvoice->billing_month)
+                            ->sum('amount');
+                    }
                     $rider_balance = $paid_amount - $finalAmount;
                     @endphp
                     <tr class="amount-highlight">

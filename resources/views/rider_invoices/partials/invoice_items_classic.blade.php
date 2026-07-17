@@ -37,7 +37,12 @@
 
 @php
     $finalAmount = $items_total - $total_deductions + $total_additions;
-    $paid_amount = company_table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
+    $paid_amount = 0;
+    if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
+        $paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
+            ->whereDate('billing_month', $riderInvoice->billing_month)
+            ->sum('amount');
+    }
     $balanceDue = max(0, $finalAmount - $paid_amount);
 @endphp
 

@@ -5,7 +5,6 @@ $actions = [
 'INC' => route('riders.storeincentive'),
 'AL' => route('riders.storeadvanceloan'),
 'COD' => route('riders.storecod'),
-'PAY' => route('riders.storepayment'),
 'VC' => route('riders.storevendorcharges'),
 ];
 
@@ -16,19 +15,19 @@ $editActions = [
 'PN' => route('riders.editpenalty', ['id' => $voucher_id]),
 'AL' => route('riders.editadvanceloan', ['id' => $voucher_id]),
 'COD' => route('riders.editcod', ['id' => $voucher_id]),
-'PAY' => route('riders.editpayment', ['id' => $voucher_id]),
 'VC' => route('riders.editvendorcharges', ['id' => $voucher_id]),
 ];
 }
 
 // Map voucher type to field-rendering endpoint (with rider id)
+// PAY opens Payments (PV) create against the rider's latest unpaid invoice
 $urls = [
 'PN' => route('riders.penalty', ['id' => $rider->id ?? 0]),
 'INC' => route('riders.incentive', ['id' => $rider->id ?? 0]),
 'AL' => route('riders.advanceloan', ['id' => $rider->id ?? 0]),
 'COD' => route('riders.cod', ['id' => $rider->id ?? 0]),
-'PAY' => route('riders.payment', ['id' => $rider->id ?? 0]),
 'VC' => route('riders.vendorcharges', ['id' => $rider->id ?? 0]),
+'PAY' => route('riders.payment', ['id' => $rider->id ?? 0]),
 ];
 
 // If editing, get the voucher type from the voucher
@@ -70,7 +69,6 @@ $editMode = isset($voucher_id) && isset($voucher_type);
         const typeToEditAction = editActionsB64 ? JSON.parse(atob(editActionsB64)) : {};
         const typeToUrl = urlsB64 ? JSON.parse(atob(urlsB64)) : {};
 
-        const riderId = document.getElementById('rider_id').value;
         const riderBranchId = document.getElementById('rider_branch_id').value;
         const voucherId = document.getElementById('voucher_id').value;
         const voucherType = document.getElementById('voucher_type').value;
@@ -87,20 +85,117 @@ $editMode = isset($voucher_id) && isset($voucher_type);
             });
         }
 
+        function initLoadedForm(form, temp) {
+            if (!form.querySelector('input[name="_token"]')) {
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = '_token';
+                csrf.value = '{{ csrf_token() }}';
+                form.prepend(csrf);
+            }
+
+            let branchInput = form.querySelector('input[name="branch_id"]');
+            if (!branchInput) {
+                branchInput = document.createElement('input');
+                branchInput.type = 'hidden';
+                branchInput.name = 'branch_id';
+                form.prepend(branchInput);
+            }
+            if (!branchInput.value) {
+                branchInput.value = riderBranchId;
+            }
+
+            $(temp).find('script').each(function() {
+                $.globalEval(this.text || this.textContent || this.innerHTML || '');
+            });
+
+            if (window.jQuery && $.fn && $.fn.select2) {
+                $(form).find('select.select2').each(function() {
+                    var $select = $(this);
+                    if ($select.hasClass('select2-hidden-accessible')) {
+                        return;
+                    }
+                    $select.select2({
+                        width: '100%',
+                        allowClear: true,
+                        dropdownParent: $('#modalTopbody')
+                    });
+                });
+            }
+
+            if (typeof window.getTotal === 'function') {
+                window.getTotal();
+            }
+        }
+
+        function loadPaymentVoucherForm(url) {
+            container.innerHTML = '<div class="text-center p-4 text-muted">Loading payment form...</div>';
+
+            fetch(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    },
+                    redirect: 'follow'
+                })
+                .then(async (r) => {
+                    const body = await r.text();
+                    if (!r.ok) {
+                        let message = 'Failed to load payment form.';
+                        if (body.indexOf('modal-load-error') !== -1) {
+                            container.innerHTML = body;
+                            const errText = container.querySelector('.modal-load-error p');
+                            if (errText && errText.textContent) {
+                                message = errText.textContent.trim();
+                            }
+                        } else {
+                            container.innerHTML = '<div class="alert alert-danger modal-load-error"><p>' + message + '</p></div>';
+                        }
+                        if (typeof toastr !== 'undefined') {
+                            toastr.error(message);
+                        }
+                        return;
+                    }
+
+                    const temp = document.createElement('div');
+                    temp.innerHTML = body;
+                    const originalForm = temp.querySelector('form#formajax') || temp.querySelector('form');
+
+                    if (!originalForm) {
+                        container.innerHTML = '<div class="alert alert-danger">Payment form could not be loaded.</div>';
+                        return;
+                    }
+
+                    // Keep payments.store action / enctype — do not wrap as rider PAY store
+                    container.innerHTML = '';
+                    container.appendChild(originalForm);
+                    initLoadedForm(originalForm, temp);
+
+                    $('#modalTopTitle').text('Record Rider Payment');
+                })
+                .catch(() => {
+                    container.innerHTML = '<div class="alert alert-danger">Failed to load payment form.</div>';
+                });
+        }
+
         function loadFormFor(type, isEdit = false) {
             if (!type) {
                 container.innerHTML = '';
                 return;
             }
 
-            // Load the specific form via AJAX from existing endpoints
             const url = typeToUrl[type] || '';
             if (!url) {
                 container.innerHTML = '';
                 return;
             }
 
-            // Determine if we're in edit mode and have a voucher ID
+            // Payment Voucher → same PV unpaid-invoice payment flow
+            if (type === 'PAY' && !isEdit) {
+                loadPaymentVoucherForm(url);
+                return;
+            }
+
             const fetchUrl = isEdit ? `${url}&voucher_id=${voucherId}` : url;
 
             fetch(fetchUrl, {
@@ -143,33 +238,12 @@ $editMode = isset($voucher_id) && isset($voucher_type);
 
                     const originalForm = temp.querySelector('form#formajax') || temp.querySelector('form');
                     const inner = originalForm ? originalForm.innerHTML : temp.innerHTML;
-
-                    // Choose the appropriate action based on edit mode
                     const action = isEdit ? (typeToEditAction[type] || '#') : (typeToAction[type] || '#');
 
-                    // Set up the form with the appropriate action
                     container.innerHTML = '<form id="formajax" method="post" action="' + action + '"></form>';
                     const form = container.querySelector('#formajax');
                     form.innerHTML = inner;
 
-                    // Add CSRF token
-                    const csrf = document.createElement('input');
-                    csrf.type = 'hidden';
-                    csrf.name = '_token';
-                    csrf.value = '{{ csrf_token() }}';
-                    form.prepend(csrf);
-
-                    // Ensure branch_id comes from rider (null/empty allowed)
-                    let branchInput = form.querySelector('input[name="branch_id"]');
-                    if (!branchInput) {
-                        branchInput = document.createElement('input');
-                        branchInput.type = 'hidden';
-                        branchInput.name = 'branch_id';
-                        form.prepend(branchInput);
-                    }
-                    branchInput.value = riderBranchId;
-
-                    // If in edit mode, add method PUT
                     if (isEdit) {
                         const methodField = document.createElement('input');
                         methodField.type = 'hidden';
@@ -178,29 +252,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                         form.prepend(methodField);
                     }
 
-                    // innerHTML does not run <script> tags — execute them manually
-                    $(temp).find('script').each(function() {
-                        $.globalEval(this.text || this.textContent || this.innerHTML || '');
-                    });
-
-                    // Init select2 the same way as custom.js modal forms
-                    if (window.jQuery && $.fn && $.fn.select2) {
-                        $(form).find('select.select2').each(function() {
-                            var $select = $(this);
-                            if ($select.hasClass('select2-hidden-accessible')) {
-                                return;
-                            }
-                            $select.select2({
-                                width: '100%',
-                                allowClear: true,
-                                dropdownParent: $('#modalTopbody')
-                            });
-                        });
-                    }
-
-                    if (typeof window.getTotal === 'function') {
-                        window.getTotal();
-                    }
+                    initLoadedForm(form, temp);
                 })
                 .catch(() => {
                     container.innerHTML = '<div class="alert alert-danger">Failed to load form.</div>';
@@ -211,7 +263,6 @@ $editMode = isset($voucher_id) && isset($voucher_type);
             loadFormFor(this.value, false);
         });
 
-        // If in edit mode, automatically load the form with the selected voucher type
         if (editMode && voucherType) {
             loadFormFor(voucherType, true);
         }

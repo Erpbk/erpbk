@@ -29,7 +29,7 @@
                             <i class="ti ti-plus"></i>
                             <div>
                                 <div class="action-dropdown-item-text">New</div>
-                                <div class="action-dropdown-item-desc">Add a new Rider Payment</div>
+                                <div class="action-dropdown-item-desc">Record payment against an unpaid rider invoice (PV)</div>
                             </div>
                         </a>
                         @endcan

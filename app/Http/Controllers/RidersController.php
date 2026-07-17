@@ -3386,142 +3386,49 @@ class RidersController extends AppBaseController
   public function payment($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
-    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
-    $accounts = Accounts::dropdown(null);
-    $bank_accounts = Accounts::bankAccountsDropdown();
+    if (empty($rider)) {
+      if (request()->ajax() || request()->wantsJson()) {
+        return response(
+          '<div class="alert alert-danger modal-load-error"><p>Rider not found.</p></div>',
+          404
+        );
+      }
+      Flash::error('Rider not found');
 
-    return view('riders.payment-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
+      return redirect(route('riders.index'));
+    }
+
+    $invoice = RiderInvoices::payable()
+      ->where('rider_id', $rider->id)
+      ->orderByDesc('billing_month')
+      ->orderByDesc('id')
+      ->first();
+
+    if (!$invoice) {
+      $message = 'No unpaid invoice found for this rider. Create a rider invoice before recording a payment.';
+      if (request()->ajax() || request()->wantsJson()) {
+        return response(
+          '<div class="alert alert-warning modal-load-error"><p>' . e($message) . '</p></div>',
+          422
+        );
+      }
+      Flash::error($message);
+
+      return redirect()->back();
+    }
+
+    $paymentUrl = route('payments.create', ['company_slug' => $company_slug])
+      . '?invoice_type=rider&invoice_id=' . $invoice->id . '&rider_id=' . $rider->id;
+
+    return redirect()->to($paymentUrl);
   }
 
   public function storepayment(Request $request)
   {
-    try {
-      if (! VoucherType::isCodeAllowedForModule('PAY', 'riders')) {
-        return response()->json(['errors' => ['error' => 'Payment voucher type (PAY) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
-      }
-      \DB::beginTransaction();
-
-      // Validate the request
-      $request->validate([
-        'account_id' => 'required|array|min:2',
-        'account_id.*' => 'required|integer',
-        'dr_amount' => 'required|array',
-        'dr_amount.*' => 'required|numeric|min:0',
-        'narration' => 'required|array|min:2',
-        'narration.*' => 'required|string',
-        'branch_id' => 'nullable|numeric|exists:branches,id',
-      ]);
-
-      // Get rider account (first entry should be the rider's liability account)
-      $riderAccountId = $request->account_id[0];
-
-      if (empty($riderAccountId)) {
-        throw new \Exception('Rider account ID is required');
-      }
-
-      $riderAccount = Accounts::find($riderAccountId);
-
-      if (! $riderAccount) {
-        throw new \Exception('Rider account not found with ID: ' . $riderAccountId);
-      }
-
-      // Get the second account (credit account - should be Payment account)
-      $creditAccountId = $request->account_id[1];
-
-      // Get amounts
-      $riderAmount = $request->dr_amount[0] ?? 0;
-      $creditAmount = $request->dr_amount[1] ?? 0;
-
-      // Use the first amount for both entries if only one amount is provided
-      if ($creditAmount == 0) {
-        $creditAmount = $riderAmount;
-      }
-
-      // Generate transaction code
-      $transCode = Account::trans_code();
-
-      // Create voucher entry
-      $voucherData = [
-        'trans_date' => $request->trans_date ?? date('Y-m-d'),
-        'voucher_type' => 'PAY', // Payment
-        'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('PAYMENT_ACCOUNT'),
-        'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
-        'amount' => $riderAmount,
-        'remarks' => 'Payment Amount to Rider',
-        'ref_id' => $riderAccount->ref_id, // Rider ID
-        'reference_number' => $request->reference_number ?? null,
-        'trans_code' => $transCode,
-        'Created_By' => auth()->id(),
-        'status' => 1,
-        'branch_id' => $request->input('branch_id') ?: null,
-        'custom_field_values' => $request->input('voucher_custom_fields', []),
-      ];
-
-      $voucher = Vouchers::create($voucherData);
-
-      // Create debit transaction for rider account (first entry)
-      $debitTransaction = [
-        'account_id' => $riderAccountId,
-        'reference_id' => $voucher->id,
-        'reference_type' => 'PAY',
-        'trans_code' => $transCode,
-        'trans_date' => $voucherData['trans_date'],
-        'narration' => $request->narration[0] ?? 'Payment Amount Received',
-        'debit' => $riderAmount,
-        'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
-      ];
-
-      Transactions::create($debitTransaction);
-
-      // Create credit transaction for payment account (second entry)
-      $creditTransaction = [
-        'account_id' => $creditAccountId,
-        'reference_id' => $voucher->id,
-        'reference_type' => 'PAY',
-        'trans_code' => $transCode,
-        'trans_date' => $voucherData['trans_date'],
-        'narration' => $request->narration[1] ?? 'Payment Amount Given to ' . $riderAccount->name,
-        'credit' => $creditAmount,
-        'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
-      ];
-
-      Transactions::create($creditTransaction);
-
-      \DB::commit();
-
-      // Return success response
-      return response()->json([
-        'success' => true,
-        'message' => 'Payment amount recorded successfully',
-        'voucher_id' => $voucher->id,
-        'trans_code' => $transCode,
-        'reload' => true,
-      ]);
-    } catch (\Exception $e) {
-      \DB::rollback();
-
-      // Log the request data for debugging
-      \Log::error('Payment error', [
-        'request_data' => $request->all(),
-        'error' => $e->getMessage(),
-        'trace' => $e->getTraceAsString(),
-      ]);
-
-      return response()->json([
-        'success' => false,
-        'message' => 'Error recording payment amount: ' . $e->getMessage(),
-        'debug' => [
-          'account_ids' => $request->account_id ?? 'not provided',
-          'dr_amounts' => $request->dr_amount ?? 'not provided',
-          'narrations' => $request->narration ?? 'not provided',
-        ],
-      ], 500);
-    }
+    return response()->json([
+      'success' => false,
+      'message' => 'Rider PAY vouchers are no longer used. Record payment against the latest unpaid rider invoice via Payments (PV).',
+    ], 422);
   }
 
   public function payments(Request $request)
@@ -3697,13 +3604,17 @@ class RidersController extends AppBaseController
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $allowedCodes = ['PN', 'INC', 'AL', 'COD', 'PAY', 'VC'];
+    $allowedCodes = ['PN', 'INC', 'AL', 'COD', 'VC', 'PAY'];
     $allTypes = VoucherType::activeCodeLabelMapForModule('riders');
     $voucherTypes = [];
     foreach ($allowedCodes as $code) {
       if (isset($allTypes[$code])) {
         $voucherTypes[$code] = $allTypes[$code];
       }
+    }
+    // Payment Voucher opens the Payments (PV) flow against latest unpaid invoice
+    if (!isset($voucherTypes['PAY'])) {
+      $voucherTypes['PAY'] = 'Payment Voucher';
     }
 
     return view('riders.voucher-modal', compact('rider', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));

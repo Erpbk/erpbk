@@ -50,8 +50,10 @@ class ImportRiderVoucherOnly implements ToCollection
                 $voucherType = trim((string)($row[4] ?? 'JV')) ?: 'JV';
                 if ($voucherType == 'Advance Loan') {
                     $voucherType = 'AL';
-                } else if ($voucherType == 'Payment Voucher') {
-                    $voucherType = 'PAY';
+                } else if ($voucherType == 'Payment Voucher' || $voucherType == 'PAY') {
+                    throw ValidationException::withMessages([
+                        'file' => "Row({$rowNum}) - PAY vouchers are no longer supported. Record rider payments against unpaid invoices via Payments (PV)."
+                    ]);
                 } else if ($voucherType == 'Incentive') {
                     $voucherType = 'INC';
                 } else if ($voucherType == 'Vendor Charges') {

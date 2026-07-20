@@ -762,11 +762,6 @@
                 </tbody>
             </table>
 
-            <p class="footer-note">
-                Payable = Invoice Total − Deductions + Incentive − Previous Balance &nbsp;·&nbsp;
-                Balance = Payable − Paid
-            </p>
-
             <div class="sign-box">
                 <div>Authorized Signature</div>
                 <span>________________________</span>

@@ -871,6 +871,22 @@ $homeLink = $isAdminLogin
     </li>
     @endcan
 
+    @can('accounts_ledger_view')
+    <li class="menu-item {{ Route::is('accounts.reports.trial_balance') ? 'active' : '' }}">
+      <a href="{{ route('accounts.reports.trial_balance') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-scale"></i>
+        <div>{{ $menuLabels['trial_balance'] ?? 'Trial Balance' }}</div>
+      </a>
+    </li>
+
+    <li class="menu-item {{ Route::is('accounts.reports.profit_loss') ? 'active' : '' }}">
+      <a href="{{ route('accounts.reports.profit_loss') }}" class="menu-link">
+        <i class="menu-icon tf-icons ti ti-chart-bar"></i>
+        <div>{{ $menuLabels['profit_loss'] ?? 'Profit & Loss' }}</div>
+      </a>
+    </li>
+    @endcan
+
 
   </ul>
 </li>

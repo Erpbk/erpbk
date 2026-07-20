@@ -49,6 +49,7 @@ use App\Http\Controllers\LeasingCompaniesController;
 use App\Http\Controllers\LeasingCompanyBillingInvoicesController;
 use App\Http\Controllers\LoansController;
 use App\Http\Controllers\LedgerController;
+use App\Http\Controllers\AccountsReportController;
 use App\Http\Controllers\pages\MiscError;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReceiptController;
@@ -864,6 +865,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
         Route::get('/ledger/print', [LedgerController::class, 'print'])->name('ledger.print');
+        Route::get('/reports/trial-balance', [AccountsReportController::class, 'trialBalance'])->name('accounts.reports.trial_balance');
+        Route::get('/reports/profit-loss', [AccountsReportController::class, 'profitLoss'])->name('accounts.reports.profit_loss');
         Route::get('/vat', [VatController::class, 'index'])->name('vat.index');
         Route::get('/vat/returns', [VatController::class, 'returnsIndex'])->name('vat.returns.index');
         Route::get('/vat/returns/{vat_return}', [VatController::class, 'returnsShow'])->name('vat.returns.show');

@@ -76,6 +76,9 @@ class ReportController extends Controller
 
     $result = Riders::with(['customer', 'bikes']);
 
+    if ($request->rider_id && $request->rider_id !== '') {
+      $result = $result->where('id', $request->rider_id);
+    }
     if ($request->status && $request->status !== '') {
       $result = $result->where('status', $request->status);
     }
@@ -281,19 +284,19 @@ class ReportController extends Controller
       $data .= '<td>' . e($rider->designation) . '</td>';
       $data .= '<td>' . e(optional($rider->customer)->name) . '</td>';
       $data .= '<td><a target="_blank" href="' . e($detailUrl) . '" title="View rider report details">' . e($billingMonthLabel) . '</a></td>';
-      $data .= '<td align="right">' . $fmt($totalAmount) . '</td>';
-      $data .= '<td align="right">' . $fmt($vc) . '</td>';
-      $data .= '<td align="right">' . $fmt($cod) . '</td>';
-      $data .= '<td align="right">' . $fmt($rta) . '</td>';
-      $data .= '<td align="right">' . $fmt($salik) . '</td>';
-      $data .= '<td align="right">' . $fmt($advance) . '</td>';
-      $data .= '<td align="right">' . $fmt($penalty) . '</td>';
-      $data .= '<td align="right">' . $fmt($incentive) . '</td>';
-      $data .= '<td align="right">' . $fmt($previousBalance) . '</td>';
-      $data .= '<td align="right">' . $fmt($payable) . '</td>';
-      $data .= '<td align="right">' . $fmt($paid) . '</td>';
-      $data .= '<td align="right">' . $fmt($balance) . '</td>';
-      $data .= '<td align="right">' . number_format($pendingPct, 2) . '%</td>';
+      $data .= '<td align="center">' . $fmt($totalAmount) . '</td>';
+      $data .= '<td align="center">' . $fmt($vc) . '</td>';
+      $data .= '<td align="center">' . $fmt($cod) . '</td>';
+      $data .= '<td align="center">' . $fmt($rta) . '</td>';
+      $data .= '<td align="center">' . $fmt($salik) . '</td>';
+      $data .= '<td align="center">' . $fmt($advance) . '</td>';
+      $data .= '<td align="center">' . $fmt($penalty) . '</td>';
+      $data .= '<td align="center">' . $fmt($incentive) . '</td>';
+      $data .= '<td align="center">' . $fmt($previousBalance) . '</td>';
+      $data .= '<td align="center">' . $fmt($payable) . '</td>';
+      $data .= '<td align="center">' . $fmt($paid) . '</td>';
+      $data .= '<td align="center">' . $fmt($balance) . '</td>';
+      $data .= '<td align="center">' . number_format($pendingPct, 2) . '%</td>';
       $data .= '</tr>';
 
       $sumTotalAmount += $totalAmount;
@@ -316,20 +319,20 @@ class ReportController extends Controller
     if ($result->count() > 0) {
       $fmt = static fn ($n) => number_format((float) $n, 2);
       $data .= '<tr class="font-weight-bold total-row">';
-      $data .= '<td colspan="7" style="text-align:right">Totals</td>';
-      $data .= '<th style="text-align:right">' . $fmt($sumTotalAmount) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumVc) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumCod) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumRta) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumSalik) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumAdvance) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumPenalty) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumIncentive) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumPrevious) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumPayable) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumPaid) . '</th>';
-      $data .= '<th style="text-align:right">' . $fmt($sumBalance) . '</th>';
-      $data .= '<th style="text-align:right">' . number_format($sumPendingPct, 2) . '%</th>';
+      $data .= '<td colspan="7" style="text-align:center;font-weight:700;color:#000;">Totals</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumTotalAmount) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVc) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumCod) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumRta) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumSalik) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumAdvance) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPenalty) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumIncentive) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPrevious) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPayable) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPaid) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumBalance) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . number_format($sumPendingPct, 2) . '%</td>';
       $data .= '</tr>';
     }
 

@@ -34,6 +34,15 @@
         min-width: 0;
     }
 
+    /* Totals footer row */
+    #dataTableBuilder tbody tr.total-row,
+    #dataTableBuilder tbody tr.total-row td,
+    #dataTableBuilder tbody tr.total-row th {
+        font-weight: 700 !important;
+        color: #000 !important;
+        background-color: #f3f4f6 !important;
+    }
+
     /* Filter Tabs Section */
     .filter-tabs-section {
         margin-bottom: 1rem;
@@ -416,19 +425,19 @@
                                 <th title="Designation">Designation</th>
                                 <th title="Project">Project</th>
                                 <th title="Billing Month">Billing Month</th>
-                                <th title="Total Amount" style="text-align: right;">Total Amount</th>
-                                <th title="Vendor Charges" style="text-align: right;">Vendor Charges</th>
-                                <th title="COD" style="text-align: right;">COD</th>
-                                <th title="RTA Fine" style="text-align: right;">RTA Fine</th>
-                                <th title="Salik FEE" style="text-align: right;">Salik FEE</th>
-                                <th title="Advance" style="text-align: right;">Advance</th>
-                                <th title="Penalty" style="text-align: right;">Penalty</th>
-                                <th title="Incentive" style="text-align: right;">Incentive</th>
-                                <th title="Previous Balance" style="text-align: right;">Previous Balance</th>
-                                <th title="Payable" style="text-align: right;">Payable</th>
-                                <th title="Paid Amount" style="text-align: right;">Paid Amount</th>
-                                <th title="Balance" style="text-align: right;">Balance</th>
-                                <th title="Pending %" style="text-align: right;">Pending %</th>
+                                <th title="Total Amount" style="text-align: center;">Total</th>
+                                <th title="Vendor Charges" style="text-align: center;">Vendor Charges</th>
+                                <th title="COD" style="text-align: center;">COD</th>
+                                <th title="RTA Fine" style="text-align: center;">RTA Fine</th>
+                                <th title="Salik FEE" style="text-align: center;">Salik</th>
+                                <th title="Advance" style="text-align: center;">Advance</th>
+                                <th title="Penalty" style="text-align: center;">Penalty</th>
+                                <th title="Incentive" style="text-align: center;">Incentive</th>
+                                <th title="Previous Balance" style="text-align: center;">Previous</th>
+                                <th title="Payable" style="text-align: center;">Payable</th>
+                                <th title="Paid Amount" style="text-align: center;">Paid</th>
+                                <th title="Balance" style="text-align: center;">Balance</th>
+                                <th title="Pending %" style="text-align: center;">Pending %</th>
                             </tr>
                         </thead>
                         <tbody id="get_data"></tbody>
@@ -452,6 +461,10 @@
     <div class="filter-body" id="searchTopbody">
         <form id="filterForm">
             <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="rider_id">Rider</label>
+                    {!! Form::select('rider_id', \App\Models\Riders::dropdown(), request('rider_id'), ['class' => 'form-control form-select select2', 'id' => 'rider_id']) !!}
+                </div>
                 <div class="form-group col-md-12">
                     <label for="designation">Filter by Designation</label>
                     <select class="form-control form-select select2" id="designation" name="designation">
@@ -791,6 +804,7 @@
     function updateURLWithFilters() {
         const url = new URL(window.location);
 
+        const rider_id = $('#rider_id').val();
         const designation = $('#designation').val();
         const customer_id = $('#customer_id').val();
         const bike_assignment_status = $('#bike_assignment_status').val();
@@ -801,6 +815,7 @@
 
         const perPage = url.searchParams.get('per_page');
 
+        url.searchParams.delete('rider_id');
         url.searchParams.delete('designation');
         url.searchParams.delete('customer_id');
         url.searchParams.delete('VID');
@@ -811,6 +826,7 @@
         url.searchParams.delete('to_month');
         url.searchParams.delete('quick_search');
 
+        if (rider_id) url.searchParams.set('rider_id', rider_id);
         if (designation) url.searchParams.set('designation', designation);
         if (customer_id) url.searchParams.set('customer_id', customer_id);
         if (bike_assignment_status) url.searchParams.set('bike_assignment_status', bike_assignment_status);
@@ -827,6 +843,7 @@
     function loadFiltersFromURL() {
         const url = new URL(window.location);
 
+        const rider_id = url.searchParams.get('rider_id');
         const designation = url.searchParams.get('designation');
         const customer_id = url.searchParams.get('customer_id');
         const bike_assignment_status = url.searchParams.get('bike_assignment_status');
@@ -835,6 +852,7 @@
         const to_month = url.searchParams.get('to_month') || url.searchParams.get('billing_month');
         const quick_search = url.searchParams.get('quick_search');
 
+        if (rider_id) $('#rider_id').val(rider_id).trigger('change');
         if (designation) $('#designation').val(designation).trigger('change');
         if (customer_id) $('#customer_id').val(customer_id).trigger('change');
         if (bike_assignment_status) $('#bike_assignment_status').val(bike_assignment_status).trigger('change');

@@ -13,25 +13,19 @@
         <label for="reference_number">Reference Number</label>
         <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
     </div>
+    @include('vouchers._branch_field')
 </div>
 <div class="scrollbar">
     <h5>Penalty Voucher</h5>
 
     @php
-    $rider_account = null;
-    if ($rider && $rider->id) {
-    $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->where('account_type', 'Liability')->first();
-    if (!$rider_account) {
-    // Fallback: try to find any account for this rider
-    $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->first();
-    }
-    }
+    $rider_account = $rider->account;
     @endphp
     <div class="row">
         <div class="form-group col-md-3">
-            <label for="exampleInputEmail1">Select Account</label>
+            <label for="exampleInputEmail1">Rider</label>
             <input type="hidden" name="account_id[]" value="{{ $rider_account->id ?? '' }}" />
-            {!! Form::select('account_id[]', $accounts, $rider_account->id ?? null, ['class' => 'form-select form-select-sm select2' , 'disabled' => true]) !!}
+            <input type="text" name="rider_name" class="form-control" value="{{ $rider->name ?? '' }}" readonly>
         </div>
         <div class="form-group col-md-4">
             <label>Narration</label>
@@ -43,35 +37,12 @@
         </div>
     </div>
     <div id="rows-container" class="mb-3" style="width: 100%;">
-        @isset($data)
-        @foreach($data as $entry)
-        <div class="row">
-            <div class="form-group col-md-3">
-                <label for="exampleInputEmail1">Select Account</label>
-                {!! Form::select('account_id[]', $accounts, $entry->account_id??null, ['class' => 'form-control form-select select2 ']) !!}
-            </div>
-            <div class="form-group col-md-4">
-                <label>Narration</label>
-                <textarea name="narration[]" class="form-control " rows="10" placeholder="Narration" style="height: 40px !important;">{{$entry->narration}}</textarea>
-            </div>
-            <div class="form-group col-md-2">
-                <label>Amount</label>
-                <input type="number" step="any" name="dr_amount[]" value="{{$entry->debit}}" class="form-control  dr_amount" onchange="getTotal();" placeholder="Penalty Amount">
-            </div>
-        </div>
-        @endforeach
-        @else
         <!-- Second row for credit account (Penalty account) -->
         <div class="row">
             <div class="form-group col-md-3">
-                <label for="exampleInputEmail1">Select Account</label>
-                @php
-                $penaltyAccounts = \App\Models\Accounts::where('parent_id', 1017)
-                ->orderBy('name')
-                ->pluck('name', 'id')
-                ->toArray();
-                @endphp
-                {!! Form::select('account_id[]', $penaltyAccounts, null, ['class' => 'form-select form-select-sm select2']) !!}
+                <label for="exampleInputEmail1">Account</label>
+                <input type="hidden" name="account_id[]" value="{{ ga_id('PENALTY_REVENUE') }}" />
+                <input type="text" name="credit_account_name" class="form-control" value="{{ ga_id('PENALTY_REVENUE') .'-'. ga_name('PENALTY_REVENUE') }}" readonly>
             </div>
             <div class="form-group col-md-4">
                 <label>Narration</label>
@@ -82,7 +53,6 @@
                 <input type="number" step="any" name="cr_amount[]" class="form-control cr_amount" placeholder="Penalty Amount" onchange="getTotal();" required readonly>
             </div>
         </div>
-        @endisset
     </div>
 
     <div class="row">

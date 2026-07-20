@@ -108,7 +108,7 @@ class TopBarListingService
                 }
 
                 $stats[(int) $option->id] = match ($moduleKey) {
-                    'riders' => $this->riderOptionStats($option),
+                    'riders' => $this->riderOptionStats($option, $category),
                     'bike_list', 'bikes' => $this->bikeOptionStats($option),
                     'employees' => $this->employeeOptionStats($option, $category),
                     default => $this->defaultOptionStats($moduleKey, $option, $statusFilters, $request),
@@ -146,24 +146,62 @@ class TopBarListingService
     /**
      * @return array<string, int>
      */
-    protected function riderOptionStats(Model $option): array
+    protected function riderOptionStats(Model $option, Model $category): array
     {
-        if (!Schema::hasColumn('riders', 'rider_top_option_id')) {
+        $base = $this->riderStatsBaseQuery($option, $category);
+        if ($base === null) {
             return ['active' => 0, 'inactive' => 0];
         }
 
-        $optionId = (int) $option->id;
-
         return [
-            'active' => (int) Riders::query()
-                ->where('rider_top_option_id', $optionId)
-                ->where('status', 1)
-                ->count(),
-            'inactive' => (int) Riders::query()
-                ->where('rider_top_option_id', $optionId)
-                ->whereIn('status', TopBarNumericStatus::INACTIVE_VALUES)
-                ->count(),
+            'active' => (int) (clone $base)->where('status', 1)->count(),
+            'inactive' => (int) (clone $base)->where('status', '!=', 1)->count(),
         ];
+    }
+
+    protected function riderStatsBaseQuery(Model $option, Model $category): ?Builder
+    {
+        $column = trim((string) ($category->rider_column ?? ''));
+
+        if ($column === 'rider_top_option_id' && Schema::hasColumn('riders', 'rider_top_option_id')) {
+            return Riders::query()->where('rider_top_option_id', (int) $option->id);
+        }
+
+        if ($column === '' || !Schema::hasColumn('riders', $column)) {
+            return null;
+        }
+
+        $base = Riders::query();
+
+        if ($column === 'customer_id') {
+            if (is_numeric($option->name)) {
+                return $base->where($column, (int) $option->name);
+            }
+
+            $customerId = \App\Models\Customers::query()
+                ->where('name', (string) $option->name)
+                ->value('id');
+            if ($customerId !== null) {
+                return $base->where($column, $customerId);
+            }
+
+            return null;
+        }
+
+        if (TopBarNumericStatus::isNumericStatusColumn('riders', $column)) {
+            $mapped = TopBarNumericStatus::valueForLabel((string) $option->name);
+            if ($mapped !== null) {
+                return $base->where($column, $mapped);
+            }
+
+            if (is_numeric($option->name)) {
+                return $base->where($column, (int) $option->name);
+            }
+
+            return null;
+        }
+
+        return $base->where($column, (string) $option->name);
     }
 
     /**

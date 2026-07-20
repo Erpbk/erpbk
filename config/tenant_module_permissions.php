@@ -2,204 +2,241 @@
 
 /**
  * Default ERP module permissions for each tenant database (Spatie).
- * Parent `name` matches the Permissions UI; child names are `{slug}_{view|create|edit|delete}`.
- * `extras` are additional permission names attached to the same parent (not covered by slug CRUD).
  *
- * `additional_permissions`: optional groups for stray permission names (same parent row as specified).
+ * Parent `name` is the root permission row (Permissions UI module).
+ * - With `submodules`: leaves are `{slug}_{submodule_slug}_{view|create|edit|delete}`
+ *   (see App\Support\PermissionTreeBuilder).
+ * - Without `submodules`: leaves are `{slug}_{view|create|edit|delete}`.
+ * - `extras`: additional leaf names under the same parent (flat modules only;
+ *   ignored when `submodules` is non-empty).
+ * - `slug` defaults to PermissionTreeBuilder::slugify(parent) when omitted.
+ *
+ * `additional_permissions`: stray leaf names attached to an existing parent.
  */
 return [
     'assign_roles' => ['Super Admin', 'Administrator'],
 
     'modules' => [
-        ['parent' => 'Dashboard', 'slug' => 'dashboard', 'extras' => []],
+        [
+            'parent' => 'Cash & Banks',
+            'slug' => 'cash_&_banks',
+            'submodules' => ['Banks', 'Cheques', 'Payments', 'Receipts'],
+        ],
 
-        ['parent' => 'Bank', 'slug' => 'bank', 'extras' => [
-            'bank_view_deleted',
-            'bank_restore',
-            'bank_force_delete',
-            'bank_view_delete',
-        ]],
+        ['parent' => 'Loans', 'slug' => 'loans', 'submodules' => []],
 
-        ['parent' => 'Loans', 'slug' => 'loan', 'extras' => [
-            'loan_disburse',
-            'loan_repay',
-            'loan_installment_view',
-        ]],
+        [
+            'parent' => 'Employees',
+            'slug' => 'employees',
+            'submodules' => [
+                'Employee',
+                'Attendance',
+                'Invoice',
+                'Payments',
+                'Document',
+                'Ledger',
+                'Voucher',
+            ],
+        ],
 
-        ['parent' => 'Employees', 'slug' => 'employees', 'extras' => [
-            'employeeinvoice_view',
-            'employeeinvoice_create',
-            'employeeinvoice_edit',
-            'employeeinvoice_delete',
-            'employee_document',
-            'employee_salary',
-            'employee_attendance',
-            'employee_leave',
-            'employee_timeline',
-            'employees_documents',
-        ]],
+        ['parent' => 'Email', 'slug' => 'email', 'submodules' => []],
 
-        ['parent' => 'Attendance', 'slug' => 'attendance', 'extras' => []],
-        ['parent' => 'Item', 'slug' => 'item', 'extras' => []],
-        ['parent' => 'Leads', 'slug' => 'leads', 'extras' => []],
+        [
+            'parent' => 'Items',
+            'slug' => 'items',
+            'submodules' => ['Item', 'Inventory'],
+        ],
 
-        ['parent' => 'Customer', 'slug' => 'customer', 'extras' => [
-            'customer_invoice_view',
-            'customer_payments',
-            'customer_invoice_create',
-        ]],
+        ['parent' => 'Leads', 'slug' => 'leads', 'submodules' => []],
 
-        ['parent' => 'Vendor', 'slug' => 'vendor', 'extras' => []],
-        ['parent' => 'Recruiter', 'slug' => 'recruiter', 'extras' => []],
+        [
+            'parent' => 'Customers',
+            'slug' => 'customers',
+            'submodules' => [
+                'Customer',
+                'Invoices',
+                'Payments',
+                'Documents',
+                'Inventory',
+            ],
+        ],
 
-        ['parent' => 'Rider', 'slug' => 'rider', 'extras' => [
-            'riderinvoice_view',
-            'rider_document',
-            'riders_document',
-            'rider_vendor_edit',
-            'rider_customer_edit',
-            'rider_designation_edit',
-            'rider_visa_status_edit',
-            'rider_insurance_edit',
-            'rider_salary_model_edit',
-            'rider_emirate_hub_edit',
-            'rider_passport_handover_edit',
-            'rider_wps_edit',
-            'rider_c3_card_edit',
-            'rider_assign_price_edit',
-            'timeline_view',
-            'timeline_create',
-            'email_view',
-            'email_create',
-            'activity_view',
-            'incentives_create',
-            'invoices_view',
-            'advanceloan_create',
-            'penality_create',
-            'vendorcharges_create',
-        ]],
+        ['parent' => 'Vendors', 'slug' => 'vendors', 'submodules' => []],
+        ['parent' => 'Recruiters', 'slug' => 'recruiters', 'submodules' => []],
 
-        ['parent' => 'Bike', 'slug' => 'bike', 'extras' => [
-            'bike_assign_view',
-            'bike_assign_edit',
-            'bike_document',
-            'files_view',
-            'bikes_view',
-        ]],
+        [
+            'parent' => 'Riders',
+            'slug' => 'riders',
+            'submodules' => [
+                'Rider',
+                'Attendance',
+                'Inventory',
+                'Invoices',
+                'Payments',
+                'Activities',
+                'Live Activities',
+                'Report',
+                'Documents',
+                'Timeline',
+                'History',
+                'Voucher',
+                'Ledger',
+                'Export Data',
+            ],
+        ],
 
-        ['parent' => 'Bike Registration', 'slug' => 'bike_registration', 'extras' => []],
+        [
+            'parent' => 'Bikes',
+            'slug' => 'bikes',
+            'submodules' => [
+                'Bike',
+                'Registration',
+                'Assign',
+                'Documents',
+                'Maintenance',
+                'Export Data',
+            ],
+        ],
 
-        ['parent' => 'Bike on Rent', 'slug' => 'bike_rent', 'extras' => [
-            'bike_rent_edit',
-        ]],
+        [
+            'parent' => 'Bike On Rent',
+            'slug' => 'bike_on_rent',
+            'submodules' => [
+                'Customers',
+                'Invoices',
+                'Payments',
+                'Documents',
+                'Maintenance',
+                'Ledger',
+            ],
+        ],
 
-        ['parent' => 'Sim', 'slug' => 'sim', 'extras' => [
-            'sim_invoice_view',
-            'sim_invoice_create',
-            'sim_invoice_edit',
-            'sim_invoice_delete',
-            'sim_invoice_payment_voucher',
-        ]],
+        [
+            'parent' => 'Sims',
+            'slug' => 'sims',
+            'submodules' => [
+                'Sim',
+                'Companies',
+                'Invoices',
+                'Payments',
+                'Assign',
+                'Export Data',
+            ],
+        ],
 
-        ['parent' => 'Fuel', 'slug' => 'fuel', 'extras' => [
-            'fuel_assign',
-        ]],
+        [
+            'parent' => 'Fuel Cards',
+            'slug' => 'fuel_cards',
+            'submodules' => [
+                'Card',
+                'Transactions',
+                'Companies',
+                'Assign',
+                'Export Data',
+            ],
+        ],
 
-        ['parent' => 'RTA Fines', 'slug' => 'rtafine', 'extras' => [
-            'rtafine_paid_view',
-        ]],
+        [
+            'parent' => 'RTA Fines',
+            'slug' => 'rta_fines',
+            'submodules' => ['Unpaid', 'Paid'],
+        ],
 
-        ['parent' => 'Salik', 'slug' => 'salik', 'extras' => []],
-        ['parent' => 'Inventory', 'slug' => 'inventory', 'extras' => []],
+        [
+            'parent' => 'RTA Saliks',
+            'slug' => 'rta_saliks',
+            'submodules' => ['Salik', 'Payment'],
+        ],
 
-        ['parent' => 'Visa Expense', 'slug' => 'visaexpense', 'extras' => [
-            'visaexpense_show_in_menu',
-        ]],
+        ['parent' => 'Visa Expense', 'slug' => 'visa_expense', 'submodules' => []],
+        ['parent' => 'License Expense', 'slug' => 'license_expense', 'submodules' => []],
+        ['parent' => 'Legal Case', 'slug' => 'legal_case', 'submodules' => []],
+        ['parent' => 'Passport Handover', 'slug' => 'passport_handover', 'submodules' => []],
+        ['parent' => 'Expenses', 'slug' => 'expenses', 'submodules' => []],
+        ['parent' => 'Vat', 'slug' => 'vat', 'submodules' => []],
 
-        ['parent' => 'Installments', 'slug' => 'installment', 'extras' => []],
+        [
+            'parent' => 'Leasing Companies',
+            'slug' => 'leasing_companies',
+            'submodules' => [
+                'Company',
+                'Invoices',
+                'Payments',
+                'Documents',
+                'Ledger',
+            ],
+        ],
 
-        ['parent' => 'License Expense', 'slug' => 'licenseexpense', 'extras' => []],
+        [
+            'parent' => 'Garages',
+            'slug' => 'garages',
+            'submodules' => [
+                'Garage',
+                'Maintenance',
+                'Customers',
+                'Payments',
+                'Documents',
+                'Ledger',
+            ],
+        ],
 
-        ['parent' => 'Legal Case', 'slug' => 'legalcase', 'extras' => []],
+        [
+            'parent' => 'Suppliers',
+            'slug' => 'suppliers',
+            'submodules' => [
+                'Supplier',
+                'Purchase Order',
+                'Invoices',
+                'Payments',
+                'Documents',
+                'Ledger',
+            ],
+        ],
 
-        ['parent' => 'Passport Handover', 'slug' => 'passport_handover', 'extras' => [
-            'passport_handover_issue',
-            'passport_handover_return',
-            'passport_handover_print',
-        ]],
+        ['parent' => 'Assets', 'slug' => 'assets', 'submodules' => []],
 
-        ['parent' => 'Rider Inventory', 'slug' => 'riderinventory', 'extras' => [
-            'riderinventory_contract_print',
-        ]],
+        [
+            'parent' => 'Agreements',
+            'slug' => 'agreements',
+            'submodules' => [],
+        ],
 
-        ['parent' => 'Expenses', 'slug' => 'expenses', 'extras' => [
-            'expense_voucher_create',
-            'voucher_document',
-        ]],
+        ['parent' => 'Documents', 'slug' => 'documents', 'submodules' => []],
+        ['parent' => 'Vouchers', 'slug' => 'vouchers', 'submodules' => []],
 
-        ['parent' => 'VAT', 'slug' => 'vat', 'extras' => [
-            'vat_return_view',
-        ]],
+        [
+            'parent' => 'Accounts',
+            'slug' => 'accounts',
+            'submodules' => ['COA', 'Ledger'],
+        ],
 
-        ['parent' => 'Leasing', 'slug' => 'leasing', 'extras' => [
-            'leasing_company_invoice_view',
-            'leasing_company_invoice_edit',
-            'leasing_company_invoice_create',
-            'leasing_company_invoice_delete',
-            'billing_invoice_view',
-            'billing_invoice_create',
-        ]],
+        [
+            'parent' => 'Settings',
+            'slug' => 'settings',
+            'submodules' => [
+                'Company Setting',
+                'Departments',
+                'Branches',
+                'Users',
+                'Roles',
+                'Activity Logs',
+                'Recycle Bin',
+                'Email',
+            ],
+        ],
 
-        ['parent' => 'Garage', 'slug' => 'garage', 'extras' => []],
-        ['parent' => 'Supplier', 'slug' => 'supplier', 'extras' => []],
-        ['parent' => 'Dropdown', 'slug' => 'dropdown', 'extras' => []],
-        ['parent' => 'Asset', 'slug' => 'asset', 'extras' => []],
-        ['parent' => 'Documents', 'slug' => 'company_documents', 'extras' => []],
-
-        ['parent' => 'Voucher', 'slug' => 'voucher', 'extras' => []],
-
-        ['parent' => 'Accounts', 'slug' => 'account', 'extras' => [
-            'gn_ledger',
-        ]],
-
-        ['parent' => 'Roles', 'slug' => 'role', 'extras' => [
-            'permissions_view',
-        ]],
-
-        ['parent' => 'Users', 'slug' => 'user', 'extras' => []],
-        ['parent' => 'Departments', 'slug' => 'department', 'extras' => []],
-        ['parent' => 'Branches', 'slug' => 'branches', 'extras' => []],
-        ['parent' => 'Receipts', 'slug' => 'receipt', 'extras' => []],
-        ['parent' => 'Cheques', 'slug' => 'cheques', 'extras' => []],
-
-        ['parent' => 'Payments', 'slug' => 'payments', 'extras' => [
-            'payment_create',
-        ]],
-
-        ['parent' => 'Maintenance', 'slug' => 'maintenance', 'extras' => []],
-        ['parent' => 'COD', 'slug' => 'cod', 'extras' => []],
-
-        ['parent' => 'Penalties', 'slug' => 'penalty', 'extras' => [
-            'penality_view',
-            'penality_create',
-        ]],
-
-        ['parent' => 'Activity Logs', 'slug' => 'activity_logs', 'extras' => [
-            'activity_logs_export',
-            'activity_logs_delete',
-        ]],
-
-        ['parent' => 'System', 'slug' => 'trash', 'extras' => [
-            'trash_restore',
-            'trash_force_delete',
-            'gn_settings',
-        ]],
-
-        ['parent' => 'Agreements', 'slug' => 'agreement', 'extras' => [
-            'agreement_generate',
-            'agreement_manage_templates',
-        ]],
+        ['parent' => 'Dropdown', 'slug' => 'dropdown', 'submodules' => []],
     ],
 
-    'additional_permissions' => [],
+    'additional_permissions' => [
+        [
+            'parent' => 'Settings',
+            'permissions' => [
+                'gn_settings',
+                'trash_view',
+                'trash_restore',
+                'trash_force_delete',
+            ],
+        ],
+    ],
 ];

@@ -112,9 +112,9 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
                             ->where('company', $input['leasing_company_id'])
                             ->where('status', 1)
                             ->first();
-
                         if (!$bike) {
-                            throw new \Exception('Bike ID ' . $bikeId . ' is not active or does not belong to this leasing company.');
+                            $bikes = Bikes::where('id', $bikeId)->first();
+                            throw new \Exception('Bike ' . ($bikes?->plate ?? $bikeId) . ' is not active or does not belong to this leasing company.');
                         }
 
                         $monthlyRate = (float) $request['rental_amount'][$key];
@@ -129,7 +129,7 @@ class LeasingCompanyInvoicesRepository extends BaseRepository
 
                         $itemTaxRate = isset($request['tax_rate'][$key]) && $request['tax_rate'][$key] > 0
                             ? (float) $request['tax_rate'][$key]
-                            : $vatPercentage;
+                            : 0;
                         $taxAmount = $proratedAmount * ($itemTaxRate / 100);
                         $totalAmount = $proratedAmount + $taxAmount;
 

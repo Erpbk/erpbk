@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title','Leasing Company Billing Invoices')
+@section('title','Invoices')
 @push('third_party_stylesheets')
 <style>
     .table-responsive {
@@ -18,7 +18,7 @@
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('billing_invoice_create')
+                @can('bike_on_rent_invoices_create')
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addBikeDropdownBtn">
@@ -31,7 +31,7 @@
                                     <i class="ti ti-plus"></i>
                                     <div>
                                         <div class="action-dropdown-item-text">Invoice</div>
-                                        <div class="action-dropdown-item-desc">Add a new Leasing Company Billing Invoice</div>
+                                        <div class="action-dropdown-item-desc">Add a new Invoice</div>
                                     </div>
                                 </a>
                             </div>

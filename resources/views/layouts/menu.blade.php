@@ -700,9 +700,9 @@ $homeLink = $isAdminLogin
 @endcanany
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('documents'))
-@can('company_documents_view')
-<li class="menu-item {{ Route::is('upload_files*') ? 'active' : '' }}">
-  <a href="{{ route('upload_files.index') }}" class="menu-link">
+@can('documents_view')
+<li class="menu-item {{ Route::is('files*') ? 'active' : '' }}">
+  <a href="{{ route('files.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'documents'])
     <div>{{ $menuLabels['documents'] ?? 'Documents' }}</div>
   </a>

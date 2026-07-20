@@ -18,13 +18,16 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
+
+                        @can('leasing_companies_payments_create')
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Payment (Cash Out)" data-action="{{ route('payments.create') }}?leasing_payment={{ true }}">
                             <i class="ti ti-plus"></i>
                             <div>
-                                <div class="action-dropdown-item-text">New Receipt</div>
+                                <div class="action-dropdown-item-text">New Payment</div>
                                 <div class="action-dropdown-item-desc">Add a new Payment</div>
                             </div>
                         </a>
+                        @endcan
                     </div>
                 </div>
             </div>

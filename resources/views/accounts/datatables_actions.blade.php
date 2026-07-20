@@ -4,7 +4,7 @@
     {{-- <a href="javascript:void(0);" data-action="{{ route('accounts.show', $id) }}" class='btn btn-default btn-sm'>
         <i class="fa fa-eye"></i>
     </a> --}}
-    @can('account_edit')
+    @can('accounts_coa_edit')
     @if(!$parent_id)
     <a href="javascript:void(0);" data-size="lg" data-title="Edit Account" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $id]) }}" class='btn btn-info btn-sm show-modal' >
         <i class="fa fa-edit"></i>
@@ -12,7 +12,7 @@
     @endif
     @endcan
 
-    @can('account_delete')
+    @can('accounts_coa_delete')
     {!! Form::button('<i class="fa fa-trash"></i>', [
         'type' => 'submit',
         'class' => 'btn btn-danger btn-sm',

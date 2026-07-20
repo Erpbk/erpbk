@@ -11,11 +11,11 @@
                 <div class="action-dropdown-container">
                     <button type="button" class="action-dropdown-btn" id="addBikeDropdownBtn">
                         <i class="ti ti-plus"></i>
-                        <span>Add New</span>
+                        <span>Add Fixed Asset</span>
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('asset_create')
+                        @can('assets_create')
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add Fixed Asset" data-action="{{ route('fixed-assets.create') }}">
                             <i class="ti ti-box"></i>
                             <div>
@@ -30,6 +30,8 @@
                                 <div class="action-dropdown-item-desc">Create category with COA accounts</div>
                             </div>
                         </a>
+                        @endcan
+                        @can('assets_view')
                         <a class="action-dropdown-item" href="{{ route('asset-categories.index') }}">
                             <i class="ti ti-list"></i>
                             <div>

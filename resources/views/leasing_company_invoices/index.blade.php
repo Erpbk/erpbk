@@ -13,12 +13,12 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div class="">
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('leasing_company_invoice_create')
+                @can('leasing_companies_invoices_create')
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addBikeDropdownBtn">
@@ -31,7 +31,7 @@
                                     <i class="ti ti-plus"></i>
                                     <div>
                                         <div class="action-dropdown-item-text">Invoice</div>
-                                        <div class="action-dropdown-item-desc">Add a new Leasing Company Invoice</div>
+                                        <div class="action-dropdown-item-desc">Add a new Invoice</div>
                                     </div>
                                 </a>
                             </div>

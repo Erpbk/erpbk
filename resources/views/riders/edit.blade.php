@@ -79,7 +79,7 @@
     }
 </style>
 
-{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch','id'=>'formajax', 'class' => 'form-with-fixed-footer']) !!}
+{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch', 'id' => 'rider-edit-form', 'class' => 'form-with-fixed-footer', 'data-reload-table' => '0']) !!}
 <input type="hidden" id="redirect_url" value="{{route('riders.index')}}" />
 <div class="card-body card-body-with-footer">
     @include('riders.fields')
@@ -107,66 +107,113 @@
 <script>
     $(document).ready(function() {
         // Intercept form submission for fast AJAX processing
-        $('#formajax').off('submit.riderEdit').on('submit.riderEdit', function(e) {
-            e.preventDefault();
+        const $form = $('#rider-edit-form');
+        if (!$form.length) {
+            return;
+        }
 
-            const form = $(this);
-            if (form.data('submitting')) {
+        $form.off('submit.riderEdit').on('submit.riderEdit', function(e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            if ($form.data('submitting')) {
                 return false;
             }
-            form.data('submitting', true);
-            const submitButton = form.find('button[type="submit"]');
+            $form.data('submitting', true);
+            const submitButton = $form.find('button[type="submit"]');
             const originalText = submitButton.html();
 
-            // Show immediate loading state
             submitButton.html('<i class="fa fa-spinner fa-spin me-2"></i>Saving...').prop('disabled', true);
 
-            // Get form data
             const formData = new FormData(this);
 
-            // Fast AJAX submission
             $.ajax({
-                url: form.attr('action'),
+                url: $form.attr('action'),
                 type: 'POST',
                 data: formData,
+                dataType: 'json',
                 processData: false,
                 contentType: false,
                 headers: {
-                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 },
                 success: function(response) {
-                    // Show success immediately
-                    showQuickNotification('Rider information updated successfully!', 'success');
+                    if (response && response.success === false) {
+                        $form.data('submitting', false);
+                        submitButton.html(originalText).prop('disabled', false);
+                        showQuickNotification(response.message || 'Failed to update rider. Please try again.', 'error');
+                        return;
+                    }
 
-                    // Redirect after short delay
+                    const message = (response && response.message)
+                        ? response.message
+                        : 'Rider information updated successfully!';
+                    showQuickNotification(message, 'success');
+
+                    const redirectUrl = (response && (response.redirect_url || response.redirect))
+                        ? (response.redirect_url || response.redirect)
+                        : $('#redirect_url').val();
                     setTimeout(function() {
-                        window.location.href = $('#redirect_url').val();
+                        window.location.href = redirectUrl;
                     }, 800);
                 },
                 error: function(xhr) {
-                    // Handle errors
-                    form.data('submitting', false);
+                    $form.data('submitting', false);
                     submitButton.html(originalText).prop('disabled', false);
 
-                    if (xhr.status === 422) {
-                        // Validation errors
-                        const errors = xhr.responseJSON.errors;
-                        let errorMessage = 'Please fix the following errors:\n';
-                        Object.keys(errors).forEach(function(key) {
-                            errorMessage += '• ' + errors[key][0] + '\n';
-                        });
-                        showQuickNotification(errorMessage, 'error');
+                    $('.form-control').removeClass('is-invalid');
+                    $('.invalid-feedback').hide();
+
+                    let errorMessage = '';
+
+                    if (xhr.status === 422 && xhr.responseJSON) {
+                        if (xhr.responseJSON.errors) {
+                            const errors = xhr.responseJSON.errors;
+                            const allErrorMessages = [];
+                            errorMessage = 'Please fix the following errors:\n';
+
+                            Object.keys(errors).forEach(function(key) {
+                                errors[key].forEach(function(errorMsg) {
+                                    allErrorMessages.push('• ' + errorMsg);
+                                });
+
+                                const fieldElement = $('[name="' + key + '"]');
+                                if (fieldElement.length) {
+                                    fieldElement.addClass('is-invalid');
+                                    const errorDiv = $('#' + key + '_error');
+                                    if (errorDiv.length) {
+                                        errorDiv.text(errors[key][0]).show().css('display', 'block');
+                                    }
+                                }
+
+                                if (key === 'rider_id') {
+                                    $('#rider_id_field').addClass('is-invalid').focus();
+                                    $('#rider_id_error').text(errors[key][0]).show().css('display', 'block');
+                                }
+                            });
+
+                            errorMessage += allErrorMessages.join('\n');
+                        } else if (xhr.responseJSON.message) {
+                            errorMessage = xhr.responseJSON.message;
+                        } else {
+                            errorMessage = 'Validation error occurred. Please check your inputs.';
+                        }
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
                     } else if (xhr.status === 500) {
-                        showQuickNotification('Server error occurred. Please try again.', 'error');
+                        errorMessage = 'Server error occurred. Please try again.';
                     } else {
-                        showQuickNotification('An error occurred while saving. Please try again.', 'error');
+                        errorMessage = 'An error occurred while saving. Please try again.';
                     }
+
+                    showQuickNotification(errorMessage, 'error');
                 },
-                timeout: 30000 // 30 seconds timeout
-                ,
+                timeout: 30000,
                 complete: function() {
                     if (!submitButton.prop('disabled')) {
-                        form.data('submitting', false);
+                        $form.data('submitting', false);
                     }
                 }
             });
@@ -174,8 +221,15 @@
 
         // Quick notification function
         function showQuickNotification(message, type) {
-            // Remove any existing notifications
             $('.quick-notification').remove();
+            document.querySelectorAll('.notification').forEach(function(notif) {
+                if (notif.parentNode) {
+                    notif.parentNode.removeChild(notif);
+                }
+            });
+            if (typeof toastr !== 'undefined') {
+                toastr.clear();
+            }
 
             const notification = $(`
             <div class="quick-notification alert alert-${type === 'success' ? 'success' : 'danger'}" style="

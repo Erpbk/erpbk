@@ -415,32 +415,45 @@
             </div>
         </div>
 
-        <!-- Payment Information -->
-        {{-- <div style="margin-top: 25px; padding: 12px; background: #f8f9fa; border: 1px solid #ddd;">
-            <div style="font-weight: bold; margin-bottom: 8px;">Payment Information:</div>
-            <div style="font-size: 11px;">
-                <strong>Credit Notes Total:</strong> 0.00 &nbsp;&nbsp;|&nbsp;&nbsp;
-                <strong>Payments Total:</strong> 0.00 &nbsp;&nbsp;|&nbsp;&nbsp;
-                <strong>Invoice Balance:</strong> {{ number_format($totalAmount, 2) }} AED
+        @php
+            $transactions = $rtaFine->transactions;
+        @endphp
+        @if($transactions->count() > 0)
+        <div style="margin-top: 30px;" class="no-print">
+            <div style="margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #004aad;">
+                <strong style="color: #004aad; font-size: 14px;">Posted Transactions</strong>
             </div>
-            <div style="font-size: 11px; margin-top: 8px;">
-                &gt; All Cheques must be issued in the name of {{ $settings['company_name'] }} &amp; in AED<br>
-                &gt; Bank Transfer Details: Bank Name: EMIRATES ISLAMIC BANK 00001 | Company Name: {{ $settings['company_name'] ?? 'EASY LEASE MOTOR CYCLE RENTAL P.S.C' }} | Account No.: 3707413595301 | IBAN: AE890340003707413595301 | Swift Code: MEBLAEAD | Currency: AED
-            </div>
-        </div> --}}
-
-        {{-- <div class="" style="height: 20px;"></div>
-        
-        <div class="footer" style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #5b6e8c; border-top: 1px solid #e2e8f0; padding-top: 16px; padding-bottom: 0px; background: white; width: 100%; z-index: 1000;">
-            <p>For any queries, please contact: {{ $settings['company_phone'] ?? '00971 4 2999669' }} | {{ $settings['company_email'] ?? 'info@easylease.ae' }}</p>
-        </div> --}}
+            <table>
+                <thead>
+                    <tr>
+                        <th class="secondary-header" style="text-align: left;">Account</th>
+                        <th class="secondary-header" style="text-align: left;">Narration</th>
+                        <th class="secondary-header" style="text-align: right;">Debit</th>
+                        <th class="secondary-header" style="text-align: right;">Credit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($transactions as $transaction)
+                    <tr>
+                        <td style="text-align: left;">
+                            {{ $transaction->account ? $transaction->account->account_code . ' - ' . $transaction->account->name : 'N/A' }}
+                        </td>
+                        <td style="text-align: left;">{{ $transaction->narration }}</td>
+                        <td class="num">{{ $transaction->debit > 0 ? number_format($transaction->debit, 2) : '' }}</td>
+                        <td class="num">{{ $transaction->credit > 0 ? number_format($transaction->credit, 2) : '' }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="2" style="text-align: right; font-weight: bold;">Total:</td>
+                        <td class="num" style="font-weight: bold;">{{ number_format($transactions->sum('debit'), 2) }}</td>
+                        <td class="num" style="font-weight: bold;">{{ number_format($transactions->sum('credit'), 2) }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        @endif
     </div>
-
-    <script>
-        
-        function printInvoice() {
-            window.print();
-        }
-    </script>
 </body>
 </html>

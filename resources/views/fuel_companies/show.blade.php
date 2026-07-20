@@ -9,7 +9,7 @@
                 <h3>{{ $fuelCompany->name }}</h3>
             </div>
             <div class="col-sm-6 text-end">
-                @can('fuel_edit')
+                @can('fuel_cards_companies_edit')
                 <a href="javascript:void(0);" class="btn btn-primary show-modal" data-action="{{ route('fuelCompanies.edit', $fuelCompany->id) }}" data-title="Edit fuel company" data-size="lg">Edit</a>
                 @endcan
                 <a href="{{ route('fuelCompanies.index') }}" class="btn btn-secondary">Back to list</a>

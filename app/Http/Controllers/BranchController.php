@@ -14,6 +14,13 @@ use Yajra\DataTables\Facades\DataTables;
 
 class BranchController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:settings_branches_view')->only('index', 'show');
+        $this->middleware('permission:settings_branches_create')->only('create', 'store');
+        $this->middleware('permission:settings_branches_edit')->only('edit', 'update');
+        $this->middleware('permission:settings_branches_delete')->only('destroy');
+    }
 
     /**
      * Display a listing of branches with DataTables.

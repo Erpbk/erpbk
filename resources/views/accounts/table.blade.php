@@ -38,7 +38,7 @@
                         @if ($account->is_locked ?? false)
                             <i class="fa fa-lock text-muted small" title="Locked" aria-hidden="true"></i>
                         @endif
-                        @can('account_view')
+                        @can('accounts_coa_view')
                         <a href="{{ route('accounts.show', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">{{ $account->name }}</a>
                         @else
                         <span>{{ $account->name }}</span>
@@ -55,7 +55,7 @@
                             <i class="fa fa-cog"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                            @can('account_edit')
+                            @can('accounts_coa_edit')
                             <li>
                                 <a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account">
                                     <i class="fa fa-edit me-2"></i> Edit
@@ -67,7 +67,7 @@
                                 </a>
                             </li>
                             @endcan
-                            @can('account_delete')
+                            @can('accounts_coa_delete')
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <a class="dropdown-item text-danger delete-account" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.destroy', ['company_slug' => $__companySlug, 'id' => $account->id]) }}">

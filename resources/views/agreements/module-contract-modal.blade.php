@@ -74,7 +74,7 @@
     <p class="text-muted small mb-3">Contract date: {{ \Carbon\Carbon::parse($today)->format('d M Y') }}</p>
 
     <div class="d-grid gap-2 mb-3">
-      @canany(['agreement_generate', 'agreement_view', 'gn_settings'])
+      @canany(['agreements_generate', 'agreements_view', 'gn_settings'])
       <button type="button" class="btn btn-primary" id="contract-download-btn">
         <i class="ti ti-download me-1"></i> Download Contract
       </button>
@@ -85,7 +85,7 @@
         <i class="ti ti-mail me-1"></i> Email Contract
       </button>
       @endcanany
-      @canany(['agreement_edit', 'agreement_manage_templates', 'gn_settings'])
+      @canany(['agreements_edit', 'agreements_manage_templates', 'gn_settings'])
       <a href="#" class="btn btn-outline-primary btn-sm d-none" id="contract-edit-template-btn" target="_blank">
         <i class="ti ti-edit me-1"></i> Edit template
       </a>

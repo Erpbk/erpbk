@@ -10,13 +10,14 @@
                     href="{{ route('Installments.index') }}">
                     <i class="fa fa-arrow-left me-2"></i>Back
                 </a>
-                @can('installment_create')
+                @can('visa_expense_create')
                 <a class="btn btn-success action-btn show-modal"
                     href="javascript:void(0);" data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
                     <i class="fa fa-plus me-2"></i>Installment Plan
                 </a>
                 @endcan
                 @if($data->count() > 0)
+                @canany(['visa_expense_create', 'visa_expense_edit', 'visa_expense_view'])
                 <a href="javascript:void(0);"
                     class="btn btn-info action-btn mx-2 show-modal"
                     data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
@@ -24,6 +25,7 @@
                     data-title="Installment plan invoice">
                     <i class="fa fa-file-invoice me-2"></i>Invoice
                 </a>
+                @endcanany
                 @endif
             </div>
             <div class="col-12 col-md-12 mt-3">

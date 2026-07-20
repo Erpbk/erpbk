@@ -391,7 +391,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addSimDropdown">
-                            @can('sim_create')
+                            @can('sims_sim_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Sim" data-action="{{ route('sims.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -399,18 +399,17 @@
                                     <div class="action-dropdown-item-desc">Add a new Sim to the system</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('sim_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Import Sim Data" data-action="{{ route('sims.import') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Sim Data</span>
                             </a>
                             @endcan
-                            @can('sim_view')
+                            @can('sims_export_data_create')
                             <a class="action-dropdown-item" href="{{ route('sims.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Sim Data</span>
                             </a>
+                            @endcan
                             <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
                                 <i class="ti ti-columns"></i>
                                 <div>
@@ -418,7 +417,6 @@
                                     <div class="action-dropdown-item-desc">Open column control modal</div>
                                 </div>
                             </a>
-                            @endcan
                         </div>
                     </div>
                 </div>

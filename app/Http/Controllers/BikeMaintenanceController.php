@@ -123,7 +123,7 @@ class BikeMaintenanceController extends Controller
                                         'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
                                         'profit' => ($request->rate[$index] * $qty_from_this_purchase) - ($purchase->unit_cost * $qty_from_this_purchase),
                                         'charge_to' => $request->charge_to[$index],
-                                        'branch_id' => $bike->branch_id,
+                                        'branch_id' => $bike->branch_id ?? null,
                                         'company_id' => $bike->company_id,
                                         'created_at' => now(),
                                         'updated_at' => now(),
@@ -144,7 +144,7 @@ class BikeMaintenanceController extends Controller
                                         'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
                                         'profit' => 0,
                                         'charge_to' => $request->charge_to[$index],
-                                        'branch_id' => $bike->branch_id,
+                                        'branch_id' => $bike->branch_id ?? null,
                                         'company_id' => $bike->company_id,
                                         'created_at' => now(),
                                         'updated_at' => now(),
@@ -168,7 +168,7 @@ class BikeMaintenanceController extends Controller
                                 'total_cost' => $item->cost * $request->rate[$index],
                                 'profit' => ($request->rate[$index] * $request->quantity[$index]) - ($item->cost * $request->rate[$index]),
                                 'charge_to' => $request->charge_to[$index],
-                                'branch_id' => $bike->branch_id,
+                                'branch_id' => $bike->branch_id ?? null,
                                 'company_id' => $bike->company_id,
                                 'created_at' => now(),
                                 'updated_at' => now(),
@@ -191,7 +191,7 @@ class BikeMaintenanceController extends Controller
                             'vat_amount' => $request->vat_amount[$index] ?? 0,
                             'total_amount' => $request->item_total[$index] ?? 0,
                             'charge_to' => $request->charge_to[$index],
-                            'branch_id' => $bike->branch_id,
+                            'branch_id' => $bike->branch_id ?? null,
                             'company_id' => $bike->company_id,
                             'created_at' => now(),
                             'updated_at' => now(),
@@ -501,7 +501,7 @@ class BikeMaintenanceController extends Controller
         if ($companyItems->isNotEmpty()) {
 
             $companyTotal = $companyItems->sum('total_amount');
-            $acc = Accounts::find(GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT'));
+            $acc = GlobalAccounts::account('BIKE_MAINTENANCE_ACCOUNT');
             if (! $acc) {
                 $missing[] = 'Company Bike Maintennace Account not found ID:'.GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT');
             } else {
@@ -589,7 +589,7 @@ class BikeMaintenanceController extends Controller
             'narration' => $data['description'],
         ]);
         if ($data['profit'] > 0) {
-            $profitAcc = Accounts::find(GlobalAccounts::id('GARAGE_INCOME_ACCOUNT'));
+            $profitAcc = GlobalAccounts::account('GARAGE_INCOME_ACCOUNT');
             if (! $profitAcc) {
                 throw new \Exception('Garage Income Account not find');
             }

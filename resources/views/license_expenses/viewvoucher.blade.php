@@ -153,7 +153,9 @@ $riderUnpaidTotal = company_table('license_expenses')
                                     @if($data->payment_status == 'paid')
                                     <td class="text-end"><a href="javascript:void(0);" class="btn btn-action btn-success">Paid</a> </td>
                                     @else
+                                    @canany(['license_expense_create', 'license_expense_edit'])
                                     <td class="text-end"><a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#payfine" class="btn btn-action btn-primary">Proceed to Pay</a> </td>
+                                    @endcanany
                                     @endif
                                 </tr>
                             </table>

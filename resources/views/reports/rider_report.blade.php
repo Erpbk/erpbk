@@ -22,64 +22,25 @@
         display: flex;
     }
 
-    /* Totals Cards */
-    .totals-cards {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        margin-bottom: 16px;
-    }
-
-    .total-card {
-        flex: 1 1 220px;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-left-width: 6px;
-        border-radius: 10px;
-        padding: 12px 14px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-    }
-
-    .total-card .label {
-        display: flex;
-        align-items: center;
+    /* Keep all totals cards on one row */
+    #totalsBar .totals-cards {
+        flex-wrap: nowrap;
+        overflow-x: auto;
         gap: 8px;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: .5px;
-        color: #6b7280;
-        margin-bottom: 6px;
     }
 
-    .total-card .value {
-        font-size: 20px;
-        font-weight: 700;
-        color: #111827;
+    #totalsBar .total-card {
+        flex: 1 1 0;
+        min-width: 0;
     }
 
-    .total-opening {
-        border-left-color: #3b82f6;
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
-    }
-
-    .total-amount {
-        border-left-color: #10b981;
-        background: linear-gradient(180deg, rgba(16, 185, 129, 0.06), rgba(16, 185, 129, 0.02));
-    }
-
-    .total-balance {
-        border-left-color: #8b5cf6;
-        background: linear-gradient(180deg, rgba(139, 92, 246, 0.06), rgba(139, 92, 246, 0.02));
-    }
-
-    .total-debit {
-        border-left-color: #f59e0b;
-        background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
-    }
-
-    .total-credit {
-        border-left-color: #ef4444;
-        background: linear-gradient(180deg, rgba(239, 68, 68, 0.06), rgba(239, 68, 68, 0.02));
+    /* Totals footer row */
+    #dataTableBuilder tbody tr.total-row,
+    #dataTableBuilder tbody tr.total-row td,
+    #dataTableBuilder tbody tr.total-row th {
+        font-weight: 700 !important;
+        color: #000 !important;
+        background-color: #f3f4f6 !important;
     }
 
     /* Filter Tabs Section */
@@ -386,22 +347,27 @@
         </div>
 
         @php
-        // Define table columns for column control (report-specific)
         $tableColumns = [
-        ['data' => 'id', 'title' => '#'],
+        ['data' => 'id', 'title' => 'ID'],
         ['data' => 'name', 'title' => 'Name'],
-        ['data' => 'vendor', 'title' => 'Vendor'],
-        ['data' => 'designation', 'title' => 'Designation'],
-        ['data' => 'person_code', 'title' => 'Person Code'],
-        ['data' => 'labor_card', 'title' => 'Labor Card'],
-        ['data' => 'bike', 'title' => 'Bike'],
-        ['data' => 'wps', 'title' => 'WPS'],
         ['data' => 'status', 'title' => 'Status'],
+        ['data' => 'emirates', 'title' => 'Emirates'],
+        ['data' => 'designation', 'title' => 'Designation'],
+        ['data' => 'project', 'title' => 'Project'],
+        ['data' => 'billing_month', 'title' => 'Billing Month'],
+        ['data' => 'total_amount', 'title' => 'Total Amount'],
+        ['data' => 'vendor_charges', 'title' => 'Vendor Charges'],
+        ['data' => 'cod', 'title' => 'COD'],
+        ['data' => 'rta_fine', 'title' => 'RTA Fine'],
+        ['data' => 'salik_fee', 'title' => 'Salik FEE'],
+        ['data' => 'advance', 'title' => 'Advance'],
+        ['data' => 'penalty', 'title' => 'Penalty'],
+        ['data' => 'incentive', 'title' => 'Incentive'],
         ['data' => 'previous_balance', 'title' => 'Previous Balance'],
-        ['data' => 'amount', 'title' => 'Amount'],
-        ['data' => 'current_balance', 'title' => 'Current Balance'],
-        ['data' => 'sub_total', 'title' => 'Sub Total'],
-        ['data' => 'total', 'title' => 'Total'],
+        ['data' => 'payable', 'title' => 'Payable'],
+        ['data' => 'paid_amount', 'title' => 'Paid Amount'],
+        ['data' => 'balance', 'title' => 'Balance'],
+        ['data' => 'pending_amount', 'title' => 'Pending %'],
         ];
         @endphp
         @include('components.column-control-panel', [
@@ -422,25 +388,29 @@
             <div class="card-body px-2 py-0">
                 <div id="totalsBar" style="display:none;">
                     <div class="totals-cards">
-                        <div class="total-card total-opening">
-                            <div class="label"><i class="ti ti-wallet"></i> Opening Balance</div>
-                            <div class="value" id="total_opening_balance">0.00</div>
+                        <div class="total-card total-blue">
+                            <div class="label"><i class="ti ti-users"></i> Riders</div>
+                            <div class="value" id="sum_riders_count">0</div>
                         </div>
-                        <div class="total-card total-amount">
-                            <div class="label"><i class="ti ti-coins"></i> Total</div>
-                            <div class="value" id="total_amount">0.00</div>
+                        <div class="total-card total-green">
+                            <div class="label"><i class="ti ti-coins"></i> Total Amount</div>
+                            <div class="value" id="sum_total_amount">0.00</div>
                         </div>
-                        <div class="total-card total-balance">
-                            <div class="label"><i class="ti ti-scale-balanced"></i> Balance (OB + Total)</div>
-                            <div class="value" id="total_b">0.00</div>
+                        <div class="total-card total-red">
+                            <div class="label"><i class="ti ti-minus"></i> Total Deductions</div>
+                            <div class="value" id="sum_total_deductions">0.00</div>
                         </div>
-                        <div class="total-card total-debit">
-                            <div class="label"><i class="ti ti-arrow-down"></i> Debit Sum</div>
-                            <div class="value" id="total_debit_sum">0.00</div>
+                        <div class="total-card total-3">
+                            <div class="label"><i class="ti ti-wallet"></i> Payable</div>
+                            <div class="value" id="sum_total_payable">0.00</div>
                         </div>
-                        <div class="total-card total-credit">
-                            <div class="label"><i class="ti ti-arrow-up"></i> Credit Sum</div>
-                            <div class="value" id="total_credit_sum">0.00</div>
+                        <div class="total-card total-4">
+                            <div class="label"><i class="ti ti-cash"></i> Paid Amount</div>
+                            <div class="value" id="sum_total_paid">0.00</div>
+                        </div>
+                        <div class="total-card total-1">
+                            <div class="label"><i class="ti ti-scale-balanced"></i> Balance</div>
+                            <div class="value" id="sum_total_balance">0.00</div>
                         </div>
                     </div>
                 </div>
@@ -448,20 +418,26 @@
                     <table id="dataTableBuilder" class="table table-hover">
                         <thead>
                             <tr>
-                                <th title="#">#</th>
+                                <th title="ID">ID</th>
                                 <th title="Name">Name</th>
-                                <th title="Vendor">Vendor</th>
-                                <th title="Designation">Designation</th>
-                                <th title="Person Code">Person Code</th>
-                                <th title="Labor Card">Labor Card</th>
-                                <th title="Bike">Bike</th>
-                                <th title="WPS">WPS</th>
                                 <th title="Status">Status</th>
-                                <th title="Previous Balance" style="text-align: right;">Previous Balance</th>
-                                <th title="Amount" style="text-align: right;">Amount</th>
-                                <th title="Current Balance" style="text-align: right;">Current Balance</th>
-                                <th title="Sub Total" style="text-align: right;">Sub Total</th>
-                                <th title="Total" style="text-align: right;">Total</th>
+                                <th title="Emirates">Emirates</th>
+                                <th title="Designation">Designation</th>
+                                <th title="Project">Project</th>
+                                <th title="Billing Month">Billing Month</th>
+                                <th title="Total Amount" style="text-align: center;">Total</th>
+                                <th title="Vendor Charges" style="text-align: center;">Vendor Charges</th>
+                                <th title="COD" style="text-align: center;">COD</th>
+                                <th title="RTA Fine" style="text-align: center;">RTA Fine</th>
+                                <th title="Salik FEE" style="text-align: center;">Salik</th>
+                                <th title="Advance" style="text-align: center;">Advance</th>
+                                <th title="Penalty" style="text-align: center;">Penalty</th>
+                                <th title="Incentive" style="text-align: center;">Incentive</th>
+                                <th title="Previous Balance" style="text-align: center;">Previous</th>
+                                <th title="Payable" style="text-align: center;">Payable</th>
+                                <th title="Paid Amount" style="text-align: center;">Paid</th>
+                                <th title="Balance" style="text-align: center;">Balance</th>
+                                <th title="Pending %" style="text-align: center;">Pending %</th>
                             </tr>
                         </thead>
                         <tbody id="get_data"></tbody>
@@ -477,7 +453,7 @@
 </section>
 
 <!-- Filter Sidebar -->
-<div id="filterSidebar" class="filter-sidebar">
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
         <h5>Filter Riders</h5>
         <button type="button" class="btn-close" id="closeSidebar">&times;</button>
@@ -486,8 +462,12 @@
         <form id="filterForm">
             <div class="row">
                 <div class="form-group col-md-12">
+                    <label for="rider_id">Rider</label>
+                    {!! Form::select('rider_id', \App\Models\Riders::dropdown(), request('rider_id'), ['class' => 'form-control form-select select2', 'id' => 'rider_id']) !!}
+                </div>
+                <div class="form-group col-md-12">
                     <label for="designation">Filter by Designation</label>
-                    <select class="form-control" id="designation" name="designation">
+                    <select class="form-control form-select select2" id="designation" name="designation">
                         @php
                         $emiratedesignation = company_table('riders')->whereNotNull('designation')->where('designation', '!=', '')->select('designation')->distinct()->pluck('designation');
                         @endphp
@@ -498,12 +478,12 @@
                     </select>
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="VID">Vendor</label>
-                    {!! Form::select('VID', \App\Models\Vendors::dropdown(), request('VID'), ['class' => 'form-control form-select']) !!}
+                    <label for="customer_id">Project</label>
+                    {!! Form::select('customer_id', \App\Models\Customers::dropdown(), request('customer_id'), ['class' => 'form-control form-select select2', 'id' => 'customer_id']) !!}
                 </div>
                 <div class="form-group col-md-12">
                     <label for="bike_assignment_status">Filter by Status</label>
-                    <select class="form-control form-select" id="bike_assignment_status" name="bike_assignment_status">
+                    <select class="form-control form-select select2" id="bike_assignment_status" name="bike_assignment_status">
                         <option value="" selected>Select</option>
                         <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
                         <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
@@ -511,15 +491,19 @@
                 </div>
                 <div class="form-group col-md-12">
                     <label for="wps_status">Filter by WPS Status</label>
-                    <select class="form-control form-select" id="wps_status" name="wps_status">
+                    <select class="form-control form-select select2" id="wps_status" name="wps_status">
                         <option value="" selected>Select</option>
                         <option value="WPS" {{ request('wps_status') == 'WPS' ? 'selected' : '' }}>WPS</option>
                         <option value="NON/WPS" {{ request('wps_status') == 'NON/WPS' ? 'selected' : '' }}>NON/WPS</option>
                     </select>
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="billing_month">Billing Month</label>
-                    <input type="month" id="billing_month" name="billing_month" value="{{ request('billing_month') ?? date('Y-m') }}" class="form-control" />
+                    <label for="from_month">From Month</label>
+                    <input type="month" id="from_month" name="from_month" value="{{ request('from_month', request('billing_month', date('Y-m'))) }}" class="form-control" />
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="to_month">To Month</label>
+                    <input type="month" id="to_month" name="to_month" value="{{ request('to_month', request('billing_month', date('Y-m'))) }}" class="form-control" />
                 </div>
                 <div class="col-md-12 form-group text-center">
                     <button type="button" class="btn btn-primary w-100 mt-3" onclick="get_data()">
@@ -540,6 +524,20 @@
 <script src="{{ URL::asset('export_excel/jquery.table2excel.js') }}"></script>
 <script>
     $(document).ready(function() {
+        // Init Select2 on filter selects (dropdownParent must be searchTopbody)
+        $('#filterSidebar select.select2').each(function() {
+            var $select = $(this);
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
+            $select.select2({
+                width: '100%',
+                allowClear: true,
+                placeholder: 'Select',
+                dropdownParent: $('#searchTopbody')
+            });
+        });
+
         // Action dropdown toggle
         $('#reportActionsBtn').on('click', function(e) {
             e.stopPropagation();
@@ -633,8 +631,40 @@
         });
     });
 
+    function formatMoney(value) {
+        return parseFloat(value || 0).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function updateTotalsBar(data) {
+        if (typeof data.total_amount !== 'undefined') {
+            $('#sum_riders_count').text(parseInt(data.riders_count || 0, 10).toLocaleString());
+            $('#sum_total_amount').text(formatMoney(data.total_amount));
+            $('#sum_total_deductions').text(formatMoney(data.total_deductions));
+            $('#sum_total_payable').text(formatMoney(data.total_payable));
+            $('#sum_total_paid').text(formatMoney(data.total_paid));
+            $('#sum_total_balance').text(formatMoney(data.total_balance));
+            $('#totalsBar').show();
+        } else {
+            $('#totalsBar').hide();
+        }
+    }
+
     function get_data() {
         updateURLWithFilters();
+
+        const fromMonth = $('#from_month').val();
+        const toMonth = $('#to_month').val();
+        if (fromMonth && toMonth && fromMonth > toMonth) {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('From Month cannot be after To Month.');
+            } else {
+                alert('From Month cannot be after To Month.');
+            }
+            return;
+        }
 
         const urlParams = new URLSearchParams(window.location.search);
         const perPage = urlParams.get('per_page') || '25';
@@ -642,7 +672,7 @@
         $('#loading-overlay').addClass('show');
 
         $.ajax({
-            url: "{{ url('reports/rider_report_data') }}",
+            url: "{{ route('reports.rider_report_data') }}",
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
@@ -663,32 +693,7 @@
                     }
 
                     $("#get_data").html(data.data || '');
-
-                    if (typeof data.opening_balance_total !== 'undefined') {
-                        $('#total_opening_balance').text(parseFloat(data.opening_balance_total).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_amount').text(parseFloat(data.total).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_b').text(parseFloat(data.b_total).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_debit_sum').text(parseFloat(data.total_debit_sum).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_credit_sum').text(parseFloat(data.total_credit_sum).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#totalsBar').show();
-                    } else {
-                        $('#totalsBar').hide();
-                    }
+                    updateTotalsBar(data);
 
                     if (data.paginationLinks) {
                         $('#paginationLinks').html(data.paginationLinks);
@@ -716,7 +721,7 @@
                 }
 
                 if (!$('#get_data').children().length) {
-                    $('#get_data').html('<tr><td colspan="14"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                    $('#get_data').html('<tr><td colspan="20"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
                 }
             }
         });
@@ -744,7 +749,7 @@
         $('#loading-overlay').addClass('show');
 
         $.ajax({
-            url: "{{ url('reports/rider_report_data') }}?page=" + encodeURIComponent(page),
+            url: "{{ route('reports.rider_report_data') }}?page=" + encodeURIComponent(page),
             headers: {
                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
             },
@@ -765,31 +770,7 @@
                         }
                     }
                     $("#get_data").html(data.data || '');
-                    if (typeof data.opening_balance_total !== 'undefined') {
-                        $('#total_opening_balance').text(parseFloat(data.opening_balance_total).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_amount').text(parseFloat(data.total).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_b').text(parseFloat(data.b_total).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_debit_sum').text(parseFloat(data.total_debit_sum).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#total_credit_sum').text(parseFloat(data.total_credit_sum).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
-                        $('#totalsBar').show();
-                    } else {
-                        $('#totalsBar').hide();
-                    }
+                    updateTotalsBar(data);
                     if (data.paginationLinks) {
                         $('#paginationLinks').html(data.paginationLinks);
                     }
@@ -815,7 +796,7 @@
                     errorMessage = 'Server error occurred. Please try again.';
                 }
 
-                $('#get_data').html('<tr><td colspan="14"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                $('#get_data').html('<tr><td colspan="20"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
             }
         });
     }
@@ -823,27 +804,35 @@
     function updateURLWithFilters() {
         const url = new URL(window.location);
 
+        const rider_id = $('#rider_id').val();
         const designation = $('#designation').val();
-        const vid = $('[name="VID"]').val();
+        const customer_id = $('#customer_id').val();
         const bike_assignment_status = $('#bike_assignment_status').val();
         const wps_status = $('#wps_status').val();
-        const billing_month = $('#billing_month').val();
+        const from_month = $('#from_month').val();
+        const to_month = $('#to_month').val();
         const quick_search = $('#quickSearch').val();
 
         const perPage = url.searchParams.get('per_page');
 
+        url.searchParams.delete('rider_id');
         url.searchParams.delete('designation');
+        url.searchParams.delete('customer_id');
         url.searchParams.delete('VID');
         url.searchParams.delete('bike_assignment_status');
         url.searchParams.delete('wps_status');
         url.searchParams.delete('billing_month');
+        url.searchParams.delete('from_month');
+        url.searchParams.delete('to_month');
         url.searchParams.delete('quick_search');
 
+        if (rider_id) url.searchParams.set('rider_id', rider_id);
         if (designation) url.searchParams.set('designation', designation);
-        if (vid) url.searchParams.set('VID', vid);
+        if (customer_id) url.searchParams.set('customer_id', customer_id);
         if (bike_assignment_status) url.searchParams.set('bike_assignment_status', bike_assignment_status);
         if (wps_status) url.searchParams.set('wps_status', wps_status);
-        if (billing_month) url.searchParams.set('billing_month', billing_month);
+        if (from_month) url.searchParams.set('from_month', from_month);
+        if (to_month) url.searchParams.set('to_month', to_month);
         if (quick_search) url.searchParams.set('quick_search', quick_search);
 
         if (perPage) url.searchParams.set('per_page', perPage);
@@ -854,18 +843,22 @@
     function loadFiltersFromURL() {
         const url = new URL(window.location);
 
+        const rider_id = url.searchParams.get('rider_id');
         const designation = url.searchParams.get('designation');
-        const vid = url.searchParams.get('VID');
+        const customer_id = url.searchParams.get('customer_id');
         const bike_assignment_status = url.searchParams.get('bike_assignment_status');
         const wps_status = url.searchParams.get('wps_status');
-        const billing_month = url.searchParams.get('billing_month');
+        const from_month = url.searchParams.get('from_month') || url.searchParams.get('billing_month');
+        const to_month = url.searchParams.get('to_month') || url.searchParams.get('billing_month');
         const quick_search = url.searchParams.get('quick_search');
 
-        if (designation) $('#designation').val(designation);
-        if (vid) $('[name="VID"]').val(vid);
-        if (bike_assignment_status) $('#bike_assignment_status').val(bike_assignment_status);
-        if (wps_status) $('#wps_status').val(wps_status);
-        if (billing_month) $('#billing_month').val(billing_month);
+        if (rider_id) $('#rider_id').val(rider_id).trigger('change');
+        if (designation) $('#designation').val(designation).trigger('change');
+        if (customer_id) $('#customer_id').val(customer_id).trigger('change');
+        if (bike_assignment_status) $('#bike_assignment_status').val(bike_assignment_status).trigger('change');
+        if (wps_status) $('#wps_status').val(wps_status).trigger('change');
+        if (from_month) $('#from_month').val(from_month);
+        if (to_month) $('#to_month').val(to_month);
         if (quick_search) $('#quickSearch').val(quick_search);
     }
 </script>

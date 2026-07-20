@@ -47,7 +47,7 @@
         'late' => 'warning',
         'half day' => 'info',
         'on leave' => 'primary',
-        'holiday' => 'secondary'
+        'weekend' => 'secondary'
         ];
         $statusColor = $statusColors[$attendance->status] ?? 'secondary';
         @endphp
@@ -57,7 +57,18 @@
                     {{ ucfirst($attendance->ref_type) }}
                 </span>
             </td>
-            <td style="text-align: center;"> <a target="_blank" href="@if($attendance->ref_type == 'employee')   {{ route('employees.show', $user->id) }} @elseif($attendance->ref_type == 'rider') {{ route('riders.show', $user->id) }} @endif">{{ $user->name ?? 'N/A' }}</a> </td>
+            <td style="text-align: center;">
+                @if($user)
+                <a target="_blank" href="@if($attendance->ref_type === 'employee'){{ route('employees.show', $user->id) }}@elseif($attendance->ref_type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
+                @if($attendance->ref_type === 'rider')
+                <div class="mt-1">
+                    @include('riders._status_badges', ['employmentStatus' => $user->status])
+                </div>
+                @endif
+                @else
+                <span class="text-muted">N/A</span>
+                @endif
+            </td>
             <td style="white-space: nowrap">{{ $attendance->date->format('d M Y') }}</td>
             <td>
                 @if($checkInTime)
@@ -141,18 +152,18 @@
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $attendance->id }}" style="z-index: 1050;">
 
-                        @can('attendance_edit')
+                        @canany(['employees_attendance_edit', 'riders_attendance_edit'])
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="md" data-title="Edit Attendance" data-action="{{ route('attendance.create', $attendance->ref_type, $attendance->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
-                        @endcan
+                        @endcanany
 
-                        @can('attendance_delete')
+                        @canany(['employees_attendance_delete', 'riders_attendance_delete'])
                         <a href="javascript:void(0);" class='dropdown-item waves-effect delete-attendance'
                             data-url="{{ route('attendance.destroy', $attendance) }}">
                             <i class="fa fa-trash my-1"></i> Delete
                         </a>
-                        @endcan
+                        @endcanany
                     </div>
                 </div>
             </td>

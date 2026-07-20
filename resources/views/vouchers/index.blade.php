@@ -90,7 +90,7 @@
                     <h3>Vouchers</h3>
                 </div>
                 <div class="col-sm-6">
-                    @can('voucher_create')
+                    @can('vouchers_create')
                     <a class="btn btn-info action-btn show-modal"
                         href="javascript:void(0);" data-size="sm" data-title="Import Voucher" data-action="{{ route('voucher.import') }}">
                         Import Voucher

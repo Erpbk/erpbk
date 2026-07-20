@@ -4,7 +4,7 @@
         <div class="col-md-6">
             <h5 class="mb-1">
                 @if($asset->bike_id)
-                    <a href="{{ route('bikes.show', ['company_slug' => $__companySlug, 'bike' => $asset->bike_id]) }}" target="_blank" rel="noopener">{{ $asset->name }}</a>
+                    <a href="{{ route('bikes.show',  $asset->bike_id) }}" target="_blank" rel="noopener">{{ $asset->name }}</a>
                 @else
                     {{ $asset->name }}
                 @endif
@@ -131,7 +131,7 @@
 </div>
 
 <div class="action-btn">
-    @can('asset_edit')
+    @can('assets_edit')
     <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="xl" data-title="Edit Asset" data-action="{{ route('fixed-assets.edit', $asset->id) }}">Edit Asset</a>
     @endcan
     <button type="button" class="btn btn-default" data-bs-dismiss="modal">Close</button>

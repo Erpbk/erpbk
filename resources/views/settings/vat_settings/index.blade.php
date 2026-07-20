@@ -81,36 +81,46 @@
                 </div>
                 <div class="col-md-6 mb-3">
                   <label class="form-label">VAT Input Account</label>
-                  <select class="form-select" name="vat_input_account_id" id="vat_input_account_id">
-                    <option value="">— Use default VAT account —</option>
-                    @foreach(\App\Models\Accounts::orderBy('account_code')->get() as $acc)
-                      <option value="{{ $acc->id }}" {{ old('vat_input_account_id', $vat['vat_input_account_id'] ?? '') == $acc->id ? 'selected' : '' }}>{{ $acc->account_code }} – {{ $acc->name }}</option>
-                    @endforeach
-                  </select>
-                  <small class="text-muted">Account for VAT on purchases (input). Leave empty to use default.</small>
+                  @php
+                    $vatInputAccount = ga_account('VAT_PURCHASE_ACCOUNT');
+                  @endphp
+                  @if($vatInputAccount)
+                    <input type="text" class="form-control" value="{{ $vatInputAccount->account_code }} – {{ $vatInputAccount->name }}" readonly />
+                  @else
+                    <input type="text" class="form-control" value="Contact ERP Administrator to set up VAT Input Account" readonly />
+                  @endif
+                  <small class="text-muted">Account for VAT on purchases (input).</small>
                 </div>
                 <div class="col-md-6 mb-3">
                   <label class="form-label">VAT Output Account</label>
-                  <select class="form-select" name="vat_output_account_id" id="vat_output_account_id">
-                    <option value="">— Use default VAT account —</option>
-                    @foreach(\App\Models\Accounts::orderBy('account_code')->get() as $acc)
-                      <option value="{{ $acc->id }}" {{ old('vat_output_account_id', $vat['vat_output_account_id'] ?? '') == $acc->id ? 'selected' : '' }}>{{ $acc->account_code }} – {{ $acc->name }}</option>
-                    @endforeach
-                  </select>
-                  <small class="text-muted">Account for VAT on sales (output). Leave empty to use default. VAT module shows combined entries of both.</small>
+                  @php
+                    $vatOutputAccount = ga_account('VAT_ON_SALES');
+                  @endphp
+                  @if($vatOutputAccount)
+                    <input type="text" class="form-control" value="{{ $vatOutputAccount->account_code }} – {{ $vatOutputAccount->name }}" readonly />
+                  @else
+                    <input type="text" class="form-control" value="Contact ERP Administrator to set up VAT Output Account" readonly />
+                  @endif
+                  <small class="text-muted">Account for VAT on sales (output).</small>
                 </div>
               </div>
               <hr />
-              <div class="d-flex justify-content-end">
-                <button type="submit" class="btn btn-primary">Save VAT settings</button>
-              </div>
+              @canany(['vat_create', 'vat_edit'])
+                <div class="d-flex justify-content-end">
+                  <button type="submit" class="btn btn-primary">Save VAT settings</button>
+                </div>
+              @else
+                <div class="d-flex justify-content-end">
+                  <span class="text-muted small">You do not have permission to edit VAT settings.</span>
+                </div>
+              @endcanany
             </form>
           </div>
 
           {{-- Tab 3: VAT Quarters — add via modal with month checkboxes --}}
           <div class="tab-pane fade" id="tab-quarters" role="tabpanel">
             <p class="text-muted small mb-3">Add up to 4 VAT quarters. Each quarter has 3 consecutive months. Click "Add quarter", select a start month (the next two months are included automatically), then save. The quarter name is generated from the months (e.g. "January – March") or you can set a custom name.</p>
-
+            @canany(['vat_create', 'vat_edit', 'vat_delete'])
             <div class="mb-3">
               @if (count(array_filter($quarterStarts ?? [])) < 4)
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addQuarterModal">
@@ -120,7 +130,11 @@
                 <span class="text-muted small">Maximum 4 quarters. Remove one to add another.</span>
                 @endif
             </div>
-
+            @else
+            <div class="d-flex justify-content-end">
+              <span class="text-muted small">You do not have permission to add or edit VAT quarters.</span>
+            </div>
+            @endcanany
             <div class="table-responsive">
               <table class="table table-bordered align-middle">
                 <thead class="table-light">
@@ -152,11 +166,15 @@
                     <td><strong>{{ $name }}</strong></td>
                     <td>{{ $monthsLabel }}</td>
                     <td>
+                      @can('vat_delete')
                       <form action="{{ route('settings-panel.vat-settings.delete-quarter', $q + 1) }}" method="post" class="d-inline" onsubmit="return confirm('Remove this quarter?');">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
                       </form>
+                      @else
+                        <span class="text-muted small">-</span>
+                      @endcan
                     </td>
                     </tr>
                     @endif

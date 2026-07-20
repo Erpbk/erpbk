@@ -155,6 +155,20 @@
 @endisset
 @endif
 
+@if(!$superAdminEditOnly && auth()->user()->isAdmin() && isset($emailAccounts))
+<div class="form-group col-sm-12 mt-2">
+  {!! Form::label('email_account_ids', 'Assigned Email Accounts:') !!}
+  <select class="form-control form-select select2" name="email_account_ids[]" multiple data-placeholder="Select email accounts">
+    @foreach($emailAccounts as $account)
+    <option value="{{ $account->id }}" {{ in_array((int) $account->id, array_map('intval', (array) ($assignedEmailAccountIds ?? [])), true) ? 'selected' : '' }}>
+      {{ $account->displayLabel() }}{{ $account->isActive() ? '' : ' (Inactive)' }}
+    </option>
+    @endforeach
+  </select>
+  <small class="text-muted">Users can send rider emails only from active accounts assigned here.</small>
+</div>
+@endif
+
 <script>
 $(document).ready(function() {
     $('.select2').select2({

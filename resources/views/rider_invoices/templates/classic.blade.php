@@ -18,7 +18,12 @@
             <p class="inv-meta"><strong># {{ $invoiceNumber }}</strong></p>
             @php
                 $previewFinal = $riderInvoice->total_amount ?? 0;
-                $previewPaid = company_table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
+                $previewPaid = 0;
+                if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
+                    $previewPaid = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
+                        ->whereDate('billing_month', $riderInvoice->billing_month)
+                        ->sum('amount');
+                }
                 $previewBalance = max(0, $previewFinal - $previewPaid);
             @endphp
             <p class="inv-meta">Balance Due: <strong>{{ \App\Helpers\Currency::format($previewBalance, 2) }}</strong></p>

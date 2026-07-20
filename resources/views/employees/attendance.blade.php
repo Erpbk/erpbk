@@ -13,7 +13,7 @@
         <input type="month" id="attendance-month" name="month" class="form-control form-control-sm"
           value="{{ $month ?? date('Y-m') }}" onchange="this.form.submit()">
       </form>
-      @can('attendance_create')
+      @can('employees_attendance_create')
       <a href="javascript:void(0);" class="btn btn-primary btn-sm show-modal"
         data-size="md" data-title="Add Attendance — {{ $employee->name }}"
         data-action="{{ route('attendance.create', ['refType' => 'employee']) }}?ref_id={{ $employee->id }}&date={{ date('Y-m-d') }}">
@@ -51,8 +51,8 @@
       </div>
       <div class="col-6 col-md-4 col-lg">
         <div class="border rounded p-3 text-center h-100">
-          <div class="text-muted small">On leave / Holiday</div>
-          <div class="fs-4 fw-semibold text-info">{{ (int) (($summary['on_leave'] ?? 0) + ($summary['holiday'] ?? 0)) }}</div>
+          <div class="text-muted small">On leave / Weekend</div>
+          <div class="fs-4 fw-semibold text-info">{{ (int) (($summary['on_leave'] ?? 0) + ($summary['weekend'] ?? 0)) }}</div>
         </div>
       </div>
     </div>

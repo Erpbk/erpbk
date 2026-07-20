@@ -1,4 +1,4 @@
-@can('loan_repay')
+@canany(['loans_create', 'loans_edit'])
 @php
 if (isset($loan) && $loan && ! $installment->relationLoaded('loan')) {
     $installment->setRelation('loan', $loan);
@@ -13,4 +13,4 @@ if (isset($loan) && $loan && ! $installment->relationLoaded('loan')) {
     Pay
 </a>
 @endif
-@endcan
+@endcanany

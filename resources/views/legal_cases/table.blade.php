@@ -19,7 +19,7 @@
          <tr class="text-center" data-row-id="{{ $r->id }}">
             @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
-               @can('legalcase_edit')
+               @can('legal_case_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-legal-field" data-id="{{ $r->id }}" data-field="date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -32,7 +32,7 @@
             </td>@endif
             @if($vf('billing_month'))<td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
-               @can('legalcase_edit')
+               @can('legal_case_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-legal-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -63,16 +63,14 @@
             </td>@endif
             <td id="step_action_cell_{{ $r->id }}">
                @if($r->step_status === 'pending')
-               @can('legalcase_edit')
+               @canany(['legal_case_create', 'legal_case_edit'])
                <button type="button"
                   class="btn btn-sm btn-primary js-complete-step"
                   data-id="{{ $r->id }}"
                   data-url="{{ route('LegalCase.completeStep') }}">
                   Complete the Step
                </button>
-               @else
-               <span class="text-muted">—</span>
-               @endcan
+               @endcanany
                @else
                <span class="badge bg-success">Completed</span>
                @endif

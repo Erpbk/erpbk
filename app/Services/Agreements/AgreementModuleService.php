@@ -93,7 +93,7 @@ class AgreementModuleService
      */
     public function permissionsFor(string $module): array
     {
-        return config("agreement_modules.modules.{$module}.permissions", ['agreement_view']);
+        return config("agreement_modules.modules.{$module}.permissions", ['agreements_view']);
     }
 
     public function authorize(string $module): void

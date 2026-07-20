@@ -19,7 +19,7 @@
          <tr class="text-center" data-row-id="{{ $r->id }}">
             <td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
-               @can('bike_registration_edit')
+               @can('bikes_registration_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-br-field" data-id="{{ $r->id }}" data-field="date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -32,7 +32,7 @@
             </td>
             <td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
-               @can('bike_registration_edit')
+               @can('bikes_registration_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-br-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -48,7 +48,7 @@
             </td>
             <td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
-               @can('bike_registration_edit')
+               @can('bikes_registration_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-br-field" data-id="{{ $r->id }}" data-field="amount">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -64,7 +64,7 @@
             <td>
                @if($r->expiry_date)
                <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
-               @can('bike_registration_edit')
+               @can('bikes_registration_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-br-field" data-id="{{ $r->id }}" data-field="expiry_date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -88,7 +88,7 @@
                   @endphp
                   <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucherNumber }}</a>@if(!$loop->last), @endif
                   @endforeach
-                  @can('bike_registration_edit')
+                  @can('bikes_registration_edit')
                   <a href="javascript:void(0);"
                      class="show-modal text-body-secondary"
                      data-size="xl"
@@ -119,17 +119,17 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
-                     @can('bike_registration_view')
+                     @can('bikes_registration_view')
                      <a href="{{ route('BikeRegistration.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
                         View Expense Detail
                      </a>
                      @endcan
-                     @can('bike_registration_edit')
+                     @can('bikes_registration_edit')
                      <a href="javascript:void(0);" data-action="{{ route('BikeRegistration.edit' , $r->id) }}" data-size="lg" data-title="Edit registration expense" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
                      @endcan
-                     @can('bike_registration_delete')
+                     @can('bikes_registration_delete')
                      <a href="javascript:void(0);" data-delete-url="{{ route('BikeRegistration.delete', $r->id) }}" class='dropdown-item confirm-modal js-delete-bike-registration' data-size="lg" data-title="Delete entry">
                         delete
                      </a>

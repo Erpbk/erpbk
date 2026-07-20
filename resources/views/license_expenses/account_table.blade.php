@@ -164,17 +164,17 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
-                  @can('licenseexpense_view')
+                  @can('license_expense_view')
                   <a href="{{ route('LicenseExpense.generatentries' , $r->id) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye"></i> View
                   </a>
                   @endcan
-                  @can('licenseexpense_edit')
+                  @can('license_expense_edit')
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit"></i> Edit
                   </a>
                   @endcan
-                  @can('licenseexpense_delete')
+                  @can('license_expense_delete')
                   <a href="javascript:void(0);" data-delete-url="{{ route('LicenseExpense.deleteaccount', $r->id) }}" class='dropdown-item waves-effect js-delete-expense-account'>
                      <i class="fa fa-trash"></i> Delete
                   </a>

@@ -9,10 +9,10 @@
                     <h3>Garages</h3>
                 </div>
                 <div class="col-sm-6">
-                  @can('garage_create')
+                    @can('garages_garage_create')
                     <a class="btn btn-primary action-btn show-modal float-end"
                     href="javascript:void(0);" data-size="md" data-title="New Garage" data-action="{{ route('garages.create') }}">
-                        Add New
+                        Add Garage
                     </a>
                     @endcan
                     <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static"role="dialog" aria-hidden="true">

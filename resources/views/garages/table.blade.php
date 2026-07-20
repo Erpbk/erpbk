@@ -28,12 +28,12 @@
                <!-- <a href="javascript:void(0);" data-size="md" data-title="New Item" data-action=="{{ route('garages.show', $r->id) }}" class='btn btn-default btn-xs'>
                     <i class="fa fa-eye"></i>
                 </a> -->
-               @can('garage_edit')
+               @can('garages_garage_edit')
                <a href="javascript:void(0);" data-size="lg" data-title="Update Garage" data-action="{{ route('garages.edit', $r->id) }}" class='btn btn-info btn-sm show-modal'>
                   <i class="fa fa-edit"></i>
                </a>
                @endcan
-               @can('garage_delete')
+               @can('garages_garage_delete')
                <a href="javascript:void(0);" onclick='confirmDelete("{{route('garages.delete', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Sim">
                   <i class="fa fa-trash"></i>
                </a>

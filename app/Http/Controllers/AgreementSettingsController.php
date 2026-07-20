@@ -27,7 +27,7 @@ class AgreementSettingsController extends Controller
 
     public function index(Request $request, $company_slug)
     {
-        $this->authorizeAgreement('agreement_view');
+        $this->authorizeAgreement('agreements_view');
 
         AgreementCategory::ensureDefaultsForCompany();
 
@@ -47,7 +47,7 @@ class AgreementSettingsController extends Controller
 
     public function createAgreement(Request $request, $company_slug)
     {
-        $this->authorizeAgreement('agreement_create');
+        $this->authorizeAgreement('agreements_create');
 
         $groupKey = (string) $request->get('group', 'rider_agreements');
         $groups = config('agreement_categories.groups', []);
@@ -58,7 +58,7 @@ class AgreementSettingsController extends Controller
 
     public function storeAgreement(Request $request, $company_slug)
     {
-        $this->authorizeAgreement('agreement_create');
+        $this->authorizeAgreement('agreements_create');
 
         $companyId = CompanyContext::id();
         $assignableModuleKeys = $this->assignableModuleKeys();
@@ -115,7 +115,7 @@ class AgreementSettingsController extends Controller
 
     public function editAgreement(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_edit');
+        $this->authorizeAgreement('agreements_edit');
 
         $category = AgreementCategory::with(['templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderBy('template_name')])->findOrFail($category);
         $modules = $this->moduleOptions();
@@ -139,7 +139,7 @@ class AgreementSettingsController extends Controller
 
     public function showAgreement(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_view');
+        $this->authorizeAgreement('agreements_view');
 
         $category = AgreementCategory::with(['defaultTemplate', 'templates' => fn($q) => $q->sampleStyles()])->findOrFail($category);
         $modules = $this->moduleOptions();
@@ -150,7 +150,7 @@ class AgreementSettingsController extends Controller
 
     public function updateAgreement(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_edit');
+        $this->authorizeAgreement('agreements_edit');
 
         $category = AgreementCategory::with('templates')->findOrFail($category);
         $companyId = CompanyContext::id();
@@ -235,7 +235,7 @@ class AgreementSettingsController extends Controller
 
     public function destroyAgreement(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_delete');
+        $this->authorizeAgreement('agreements_delete');
 
         $category = AgreementCategory::findOrFail($category);
         $groupKey = (string) $category->group_key;
@@ -252,7 +252,7 @@ class AgreementSettingsController extends Controller
 
     public function toggleAgreementStatus(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_edit');
+        $this->authorizeAgreement('agreements_edit');
 
         $category = AgreementCategory::findOrFail($category);
         $category->status = ! $category->status;
@@ -272,7 +272,7 @@ class AgreementSettingsController extends Controller
 
     public function templates(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_view');
+        $this->authorizeAgreement('agreements_view');
 
         $category = AgreementCategory::findOrFail($category);
         $templates = AgreementTemplate::where('category_id', $category->id)
@@ -287,7 +287,7 @@ class AgreementSettingsController extends Controller
 
     public function create($company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_create');
+        $this->authorizeAgreement('agreements_create');
 
         $category = AgreementCategory::findOrFail($category);
         $placeholders = AgreementPlaceholder::grouped();
@@ -303,7 +303,7 @@ class AgreementSettingsController extends Controller
 
     public function edit($company_slug, $id)
     {
-        $this->authorizeAgreement('agreement_edit');
+        $this->authorizeAgreement('agreements_edit');
 
         $template = AgreementTemplate::with('category')->findOrFail($id);
         $placeholders = AgreementPlaceholder::grouped();
@@ -316,7 +316,7 @@ class AgreementSettingsController extends Controller
 
     public function store(Request $request, $company_slug, $category)
     {
-        $this->authorizeAgreement('agreement_create');
+        $this->authorizeAgreement('agreements_create');
 
         $category = AgreementCategory::findOrFail($category);
         $data = $this->validatedTemplate($request);
@@ -339,7 +339,7 @@ class AgreementSettingsController extends Controller
 
     public function update(Request $request, $company_slug, $id)
     {
-        $this->authorizeAgreement('agreement_edit');
+        $this->authorizeAgreement('agreements_edit');
 
         $template = AgreementTemplate::findOrFail($id);
         $data = $this->validatedTemplate($request);
@@ -363,7 +363,7 @@ class AgreementSettingsController extends Controller
 
     public function destroy(Request $request, $company_slug, $id)
     {
-        $this->authorizeAgreement('agreement_delete');
+        $this->authorizeAgreement('agreements_delete');
 
         $template = AgreementTemplate::findOrFail($id);
         $categoryId = $template->category_id;
@@ -387,7 +387,7 @@ class AgreementSettingsController extends Controller
 
     public function duplicate(Request $request, $company_slug, $id)
     {
-        $this->authorizeAgreement('agreement_create');
+        $this->authorizeAgreement('agreements_create');
 
         $template = AgreementTemplate::findOrFail($id);
         $name = $request->input('template_name', $template->template_name . ' (Copy)');
@@ -403,7 +403,7 @@ class AgreementSettingsController extends Controller
 
     public function setDefault(Request $request, $company_slug, $id)
     {
-        $this->authorizeAgreement('agreement_manage_templates');
+        $this->authorizeAgreement('agreements_manage_templates');
 
         $template = AgreementTemplate::findOrFail($id);
         $template->setAsDefault();
@@ -418,7 +418,7 @@ class AgreementSettingsController extends Controller
 
     public function toggleStatus(Request $request, $company_slug, $id)
     {
-        $this->authorizeAgreement('agreement_edit');
+        $this->authorizeAgreement('agreements_edit');
 
         $template = AgreementTemplate::findOrFail($id);
         $template->status = !$template->status;
@@ -429,7 +429,7 @@ class AgreementSettingsController extends Controller
 
     public function preview(Request $request, $company_slug, $id, AgreementPdfService $pdfService)
     {
-        $this->authorizeAgreement('agreement_view');
+        $this->authorizeAgreement('agreements_view');
 
         $template = AgreementTemplate::findOrFail($id);
         $withLetterhead = $request->boolean('letterhead', true);
@@ -440,7 +440,7 @@ class AgreementSettingsController extends Controller
 
     public function previewPdf(Request $request, $company_slug, $id, AgreementPdfService $pdfService)
     {
-        $this->authorizeAgreement('agreement_view');
+        $this->authorizeAgreement('agreements_view');
 
         $template = AgreementTemplate::findOrFail($id);
         $withLetterhead = $request->boolean('letterhead', true);

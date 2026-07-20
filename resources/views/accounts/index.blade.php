@@ -3,7 +3,7 @@
 @section('title', 'Chart of Accounts')
 @section('content')
 @php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
-@php $__canManageFixedAccounts = \Illuminate\Support\Facades\Auth::guard('admin')->check(); @endphp
+@php $globalLinkedAccountIds = $globalLinkedAccountIds ?? []; @endphp
 @push('third_party_stylesheets')
 <style>
   .chart-of-accounts-table {
@@ -128,7 +128,7 @@
         <h3>Chart of Accounts</h3>
       </div>
       <div class="col-sm-6">
-        @can('account_create')
+        @can('accounts_coa_create')
         <a class="btn btn-primary float-end action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> Add New</a>
         @endcan
         @can('trash_view')
@@ -160,7 +160,7 @@
               <button type="submit" class="btn btn-outline-secondary d-none d-md-inline">Search</button>
             </div>
           </form>
-          @can('account_create')
+          @can('accounts_coa_create')
           <a class="btn btn-primary btn-sm action-btn show-modal" href="javascript:void(0);" data-action="{{ route('accounts.create', ['company_slug' => $__companySlug]) }}" data-size="lg" data-title="New Account"><i class="fa fa-plus me-1"></i> New</a>
           @endcan
           <div class="dropdown">
@@ -197,6 +197,7 @@
             $hasChildren = $account->relationLoaded('children') ? $account->children->isNotEmpty() : $account->children()->exists();
             $isMainParent = $account->parent_id === null || (int) $account->parent_id === 0;
             $isLocked = (bool) ($account->is_locked ?? false);
+            $isGlobalLinked = isset($globalLinkedAccountIds[$account->id]);
             @endphp
             <tr class="{{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-has-children="{{ $hasChildren ? '1' : '0' }}">
               <td class="ps-3 align-middle">
@@ -219,6 +220,9 @@
                     @if($account->is_fixed)
                     <span class="badge bg-primary">Fixed</span>
                     @endif
+                    @if($isGlobalLinked)
+                    <span class="badge bg-label-primary">Global</span>
+                    @endif
                 </div>
               </td>
               <td class="text-nowrap align-middle">{{ $account->account_code ?? '—' }}</td>
@@ -229,17 +233,16 @@
                 <div class="dropdown">
                   <button type="button" class="btn btn-sm btn-icon btn-outline-secondary btn-actions dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Actions" onclick="event.stopPropagation();"><i class="fa fa-cog"></i></button>
                   <ul class="dropdown-menu dropdown-menu-end">
-                    @can('account_edit')
+                    @can('accounts_coa_edit')
+                    @if(!$isGlobalLinked)
                     <li><a class="dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('accounts.edit', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-size="lg" data-title="Edit Account"><i class="fa fa-edit me-2"></i> Edit</a></li>
                     <li><a class="dropdown-item toggle-lock" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleLock', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-{{ $account->is_locked ? 'unlock' : 'lock' }} me-2"></i> {{ $account->is_locked ? 'Unlock' : 'Lock' }}</a></li>
                     <li><a class="dropdown-item toggle-status" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleStatus', ['company_slug' => $__companySlug, 'id' => $account->id]) }}" data-active="{{ $account->status == 1 ? '1' : '0' }}"><i class="fa fa-{{ $account->status == 1 ? 'pause-circle-o' : 'play-circle-o' }} me-2"></i> {{ $account->status == 1 ? 'Mark as Inactive' : 'Mark as Active' }}</a></li>
-                    @if($__canManageFixedAccounts)
-                    <li><a class="dropdown-item toggle-fixed" href="javascript:void(0);" data-id="{{ $account->id }}" data-url="{{ route('accounts.toggleFixed', ['company_slug' => $__companySlug, 'id' => $account->id]) }}"><i class="fa fa-thumb-tack me-2"></i> {{ $account->is_fixed ? 'Unmark as Fixed' : 'Mark as Fixed' }}</a></li>
                     @endif
                     @endcan
                     <li><a class="dropdown-item view-ledger" href="javascript:void(0);" data-id="{{ $account->id }}"><i class="fa fa-book me-2"></i> Ledger</a></li>
-                    @can('account_delete')
-                    @if(!$isMainParent)
+                    @can('accounts_coa_delete')
+                    @if(!$isMainParent && !$isGlobalLinked)
                     <li>
                       <hr class="dropdown-divider">
                     </li>
@@ -575,23 +578,6 @@
       if (e.target.closest('.toggle-status')) {
         e.preventDefault();
         var link = e.target.closest('.toggle-status');
-        var fd = new FormData();
-        fd.append('_token', csrf);
-        fetch(link.getAttribute('data-url'), {
-          method: 'POST',
-          body: fd,
-          headers: {
-            'Accept': 'application/json'
-          }
-        }).then(function(r) {
-          return r.json();
-        }).then(function(res) {
-          if (res.success) location.reload();
-        });
-      }
-      if (e.target.closest('.toggle-fixed')) {
-        e.preventDefault();
-        var link = e.target.closest('.toggle-fixed');
         var fd = new FormData();
         fd.append('_token', csrf);
         fetch(link.getAttribute('data-url'), {

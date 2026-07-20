@@ -24,7 +24,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('salik_create')
+                            @can('rta_saliks_salik_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Salik" data-action="{{ route('salik.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -32,8 +32,6 @@
                                     <div class="action-dropdown-item-desc">Add a new salik against a bike</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('salik_create')
                             <a class="action-dropdown-item" href="{{ route('salik.import.form') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Saliks</span>
@@ -47,16 +45,7 @@
     </div>
 </section>
 
-<div class="d-flex gap-2 m-3">
-    <a href="{{ route('salik.index') }}"
-       class="btn btn-pill {{ request()->routeIs('salik.index') ? 'btn-primary' : 'btn-outline-secondary' }}">
-        Saliks
-    </a>
-    <a href="{{ route('salik.summary') }}"
-       class="btn btn-pill {{ request()->routeIs('salik.summary') ? 'btn-primary' : 'btn-outline-secondary' }}">
-        Monthly Summary
-    </a>
-</div>
+@include('salik.partials.nav_tabs')
 
 <div class="content mt-3">
     @include('flash::message')

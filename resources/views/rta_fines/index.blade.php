@@ -321,7 +321,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('rtafine_create')
+                            @can('rta_fines_unpaid_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="New Fine" data-action="{{ route('rtaFines.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -329,14 +329,12 @@
                                     <div class="action-dropdown-item-desc">Add a new fine against a bike</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('rtafine_create')
                             <a class="action-dropdown-item" href="{{ route('rtaFines.import.form') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Fines</span>
                             </a>
                             @endcan
-                            @can('bike_view')
+                            @can('rta_fines_export_data_create')
                             <a class="action-dropdown-item" href="#" data-size="xl" data-title="Export Vehicles" data-action="#">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Fines</span>
@@ -361,13 +359,12 @@
         <form id="filterForm" action="{{ route($ticketsRouteName ?? 'rtaFines.tickets') }}" method="GET">
             <div class="row">
                 <div class="form-group col-md-12">
-                    <label for="rta_account_id" class="required">Filter by Account</label>
-                    <select class="form-control" id="rta_account_id" name="rta_account_id" required>
-                        <option value="">Select Account</option>
-                        @foreach(($rtaAccounts ?? collect()) as $rtaAccount)
-                        <option value="{{ $rtaAccount->id }}" {{ (string) optional($account)->id === (string) $rtaAccount->id ? 'selected' : '' }}>
-                            {{ $rtaAccount->name }}
-                        </option>
+                    <label for="rta_account_id" class="required">Filter by Company</label>
+                    <select class="form-control " id="company_id" name="company_id">
+                        <option value="">Select</option>
+                        <option value="own">Own Vehicles</option>
+                        @foreach($leasingCompanies as $company)
+                        <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -533,10 +530,10 @@
             allowClear: true,
             placeholder: "Filter By Branch",
         });
-        $('#rta_account_id').select2({
+        $('#company_id').select2({
             dropdownParent: $('#searchTopbody'),
             allowClear: false,
-            placeholder: "Select Account",
+            placeholder: "Select Company",
         });
     });
 </script>
@@ -560,16 +557,6 @@
         });
 
         $('#closeSidebar, #filterOverlay').on('click', function() {
-            $('#filterSidebar').removeClass('open');
-            $('#filterOverlay').removeClass('show');
-        });
-
-        $('#filterForm').on('submit', function(e) {
-            const selectedAccountId = $('#rta_account_id').val();
-            if (!selectedAccountId) {
-                e.preventDefault();
-                return;
-            }
             $('#filterSidebar').removeClass('open');
             $('#filterOverlay').removeClass('show');
         });

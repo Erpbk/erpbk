@@ -102,7 +102,10 @@ class FixedAssetVoucherService
             throw new \RuntimeException('Opening accumulated depreciation cannot exceed acquisition cost.');
         }
 
-        $equityAccount = $this->openingBalanceAccountService->ensureOpeningBalanceEquityAccount();
+        $equityAccount = \App\Support\GlobalAccounts::id('OPENING_BALANCE_EQUITY');
+        if (! $equityAccount) {
+            throw new \RuntimeException('Equity account is not configured. Contact ERP Team to Configure it.');
+        }
 
         $transCode = Account::trans_code();
         $transDate = $asset->acquisition_date->toDateString();
@@ -143,7 +146,7 @@ class FixedAssetVoucherService
 
         if ($equityAmount > 0) {
             Transactions::create([
-                'account_id' => $equityAccount->id,
+                'account_id' => $equityAccount,
                 'reference_id' => $asset->id,
                 'reference_type' => 'FAV',
                 'trans_code' => $transCode,
@@ -168,7 +171,7 @@ class FixedAssetVoucherService
             'reason' => 'Fixed Asset Opening Balance',
             'remarks' => $narration,
             'amount' => $cost,
-            'payment_from' => $equityAccount->id,
+            'payment_from' => $equityAccount,
             'payment_to' => $asset->asset_account_id,
             'ref_id' => $asset->id,
             'Created_By' => $userId,

@@ -133,17 +133,17 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
-                  @can('legalcase_view')
+                  @can('legal_case_view')
                   <a href="{{ route('LegalCase.generatentries' , $r->id) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye"></i> View
                   </a>
                   @endcan
-                  @can('legalcase_edit')
+                  @can('legal_case_edit')
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit"></i> Edit
                   </a>
                   @endcan
-                  @can('legalcase_delete')
+                  @can('legal_case_delete')
                   <a href="javascript:void(0);" data-delete-url="{{ route('LegalCase.deleteaccount', $r->id) }}" class='dropdown-item waves-effect js-delete-legal-case-account'>
                      <i class="fa fa-trash"></i> Delete
                   </a>

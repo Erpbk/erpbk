@@ -53,7 +53,7 @@ return [
         'leasing_payment',
     ]],
 
-    ['key' => 'garages', 'children' => ['garage_list', 'garage_customers', 'maintenance_overview']],
+    ['key' => 'garages', 'children' => ['garage_list', 'garages_customers', 'maintenance_overview']],
 
     ['key' => 'supplier', 'children' => ['suppliers', 'supplier_orders', 'supplier_invoices', 'supplier_payments']],
 

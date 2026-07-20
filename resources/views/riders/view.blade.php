@@ -270,6 +270,7 @@
   }
 </style>
 @php
+$rider = $riders ?? $rider ?? null;
 if(isset($riders)){
 $result = $riders->toArray();
 }
@@ -280,10 +281,10 @@ $companySlug = request()->route('company_slug');
 
 @endphp
 <div class="row" style="">
-  <div class="col-xl-2 col-md-3 col-lg-5 order-1 order-md-0">
+  <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
     <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 230px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
+      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 310px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
         @isset($result)
         <div class="profile-img">
           @php
@@ -307,7 +308,7 @@ $companySlug = request()->route('company_slug');
           $image_name = asset('uploads/default.png');
 
           @endphp
-          <img src="{{ $image_name}}" id="output" width="270" class="profile-user-img img-fluid" />
+          <img src="{{ $image_name}}" id="output" style="width: 100%; height: 260px;" class="profile-user-img img-fluid" />
         </div>
         @endisset
       </div>
@@ -317,16 +318,9 @@ $companySlug = request()->route('company_slug');
         $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
         $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
         }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
-        $selectedTopOptionId = (int)($result['rider_top_option_id'] ?? 0);
-        $selectedTopOptionLabel = null;
-        foreach ($riderTopViewCategories as $cat) {
-        foreach ($cat->options as $opt) {
-        if ((int)$opt->id === $selectedTopOptionId) {
-        $selectedTopOptionLabel = $opt->name;
-        }
-        }
-        }
-        $displayStatusLabel = $selectedTopOptionLabel ?: ((isset($result['status']) && (int)$result['status'] === 1) ? 'Active' : 'Inactive');
+        $riderStatusLabel = trim((string)($result['rider_status'] ?? ''));
+        $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
+        $displayStatusLabel = $employmentBadge['label'];
         @endphp
         @endisset
         <div class="user-avatar-section">
@@ -335,8 +329,8 @@ $companySlug = request()->route('company_slug');
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
-                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $selectedTopOptionLabel ?? 'not-set' }}@endisset</span>
-                    <span class="badge @isset($result) @if(isset($displayStatusLabel)) @if($displayStatusLabel === 'Active') bg-label-success @elseif($displayStatusLabel === 'Inactive') bg-label-danger @else bg-label-primary @endif @else bg-label-danger @endif @endisset" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
+                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $riderStatusLabel !== '' ? $riderStatusLabel : ($result['designation'] ?? 'not-set') }}@endisset</span>
+                    <span class="badge {{ $employmentBadge['badge'] ?? 'bg-label-danger   ' }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
                   </div>
                   <span>{{ $result['rider_id'] ?? 'not-set' }}</span>
                   <h6>
@@ -404,20 +398,20 @@ $companySlug = request()->route('company_slug');
                 <div class="user_list_content mt-2">
                   <span>WhatsApp:</span><br>
                   <b class="float-right">
-
-                    @isset($result['company_contact'])
+                    @if($rider?->sim?->number)
                     @php
-                    $phone = preg_replace('/[^0-9]/', '', $result['company_contact']);
-                    $whatsappNumber = '+971' . ltrim($phone, '0');
+                    $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
+                    if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
+                    else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
                     @endphp
                     <a href="https://wa.me/{{ $whatsappNumber }}"
                       target="_blank"
                       class="text-success">
-                      {{ $result['company_contact'] }}
+                      {{ $displayNumber }}
                     </a>
                     @else
                     N/A
-                    @endisset
+                    @endif
 
                   </b>
                 </div>
@@ -484,20 +478,32 @@ $companySlug = request()->route('company_slug');
           <div class="d-flex flex-wrap justify-content-start gap-2 gap-md-3" id="rider-status-cards">
             @php $cardIndex = 0; @endphp
             @foreach($riderTopViewCategories as $category)
+            @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
+            @if($riderTopColumn === 'status')
+            @continue
+            @endif
             @foreach($category->options as $option)
             @php
-            $isSelected = $selectedTopOptionId === (int)$option->id;
+            $isSelected = $riderTopColumn !== ''
+            && array_key_exists($riderTopColumn, $result)
+            && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
             $cardKey = 'rider_top_option_' . $option->id;
             $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
             @endphp
-            <div class="status-card {{ $isSelected ? 'active' : '' }}" data-rider-id="{{ $result['id'] ?? '' }}" data-option-id="{{ $option->id }}" data-type="{{ $cardKey }}">
+            <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }}"
+              data-rider-id="{{ $result['id'] ?? '' }}"
+              data-option-id="{{ $option->id }}"
+              data-column="{{ $riderTopColumn }}"
+              data-value="{{ $option->name }}"
+              data-category="{{ $category->name }}"
+              data-type="{{ $cardKey }}">
               <div class="d-flex justify-content-between">
                 <div class="status-icon">
                   <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
                 </div>
                 <div class="status-content">
                   <div class="status-title">{{ $option->name }}</div>
-                  <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : 'Not assigned' }}</div>
+                  <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : $category->name }}</div>
                 </div>
               </div>
               <div class="status-toggle">
@@ -506,6 +512,8 @@ $companySlug = request()->route('company_slug');
                   id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
                   data-rider-id="{{ $result['id'] ?? '' }}"
                   data-option-id="{{ $option->id }}"
+                  data-column="{{ $riderTopColumn }}"
+                  data-value="{{ $option->name }}"
                   {{ $isSelected ? 'checked' : '' }}>
                 <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
                   <span class="toggle-slider"></span>
@@ -541,7 +549,7 @@ $companySlug = request()->route('company_slug');
       </div>
     </div>
   </div>
-  <div class="col-xl-9 col-md-9 col-lg-7 order-0 order-md-1 position-relative">
+  <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
     <div class="nav-align-top mb-4" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
       <div class="card" style="z-index: 1;">
         <div class="card-body p-2">
@@ -557,7 +565,7 @@ $companySlug = request()->route('company_slug');
                 </li>
 
                 @isset($result)
-                @can('timeline_view')
+                @can('riders_timeline_view')
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
                     href="{{route('rider.timeline',$result['id'])}}">
@@ -572,7 +580,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('rider_document')
+                @can('riders_documents_view')
                 <li class="nav-item nav-priority-3">
                   <a class="nav-link @if(Route::is('rider.files')) active @endif"
                     href="{{route('rider.files',$result['id'])}}">
@@ -581,7 +589,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('riderinvoice_view')
+                @can('riders_invoices_view')
                 <li class="nav-item nav-priority-4">
                   <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
                     href="{{route('rider.invoices',$result['id'])}}">
@@ -592,6 +600,7 @@ $companySlug = request()->route('company_slug');
 
                 @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
                 @if(!empty($riders))
+                @can('visa_expense_view')
                 @php
                 $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
                 @endphp
@@ -603,11 +612,13 @@ $companySlug = request()->route('company_slug');
                   </a>
                 </li>
                 @endif
+                @endcan
                 @endif
                 @endif
 
-                @can('licenseexpense_view')
+
                 @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
+                @can('license_expense_view')
                 @if(!empty($riders))
                 @php
                 $licenseExpenseAccount = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
@@ -621,10 +632,10 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endif
                 @endif
-                @endif
                 @endcan
+                @endif
 
-                @can('riderinventory_view')
+                @can('riders_inventory_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
@@ -635,7 +646,7 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
 
-                @can('legalcase_view')
+                @can('legal_case_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
                 @php
                 $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
@@ -651,7 +662,7 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
 
-                @can('item_view')
+                @can('riders_rider_view')
                 <li class="nav-item nav-priority-6">
                   <a class="nav-link @if(Route::is('rider.items')) active @endif"
                     href="{{route('rider.items',$result['id'])}}">
@@ -660,7 +671,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('gn_ledger')
+                @can('riders_ledger_view')
                 <li class="nav-item nav-priority-7">
                   <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
                     href="{{route('rider.ledger',$result['id'])}}">
@@ -669,7 +680,7 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('activity_view')
+                @can('riders_activities_view')
                 <li class="nav-item nav-priority-8">
                   <a class="nav-link @if(Route::is('rider.activities')) active @endif"
                     href="{{route('rider.activities',$result['id'])}}">
@@ -688,24 +699,13 @@ $companySlug = request()->route('company_slug');
                 @endcan
 
                 <!-- Action items with lower priority -->
-                @canany(['advanceloan_create','cod_create','penality_create','payment_create','vendorcharges_create'])
+                @can('riders_voucher_create')
                 <li class="nav-item nav-priority-10">
                   <a href="javascript:void(0);"
                     data-action="{{ route('riders.voucher', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
                     data-size="xl" data-title="Voucher"
                     class='nav-link show-modal'>
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
-                  </a>
-                </li>
-                @endcanany
-
-                @can('incentives_create')
-                <li class="nav-item nav-priority-11">
-                  <a href="javascript:void(0);"
-                    data-action="{{ route('riders.incentive', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
-                    class='nav-link show-modal'
-                    data-size="xl" data-title="Incentive">
-                    <i class="ti ti-award ti-sm me-1_5"></i>Incentive
                   </a>
                 </li>
                 @endcan
@@ -989,74 +989,48 @@ $companySlug = request()->route('company_slug');
       responsiveNav.handleResize();
     }, 500);
 
-    // Single-select Rider Top view cards (assign rider_top_option_id)
-    function syncStatusCards(activeOptionId, activeOptionLabel) {
+    // Rider Top view cards — per-column updates (matches employee profile cards)
+    function syncRiderTopOptionCards(column) {
       const container = document.getElementById('rider-status-cards');
       if (!container) return;
-      const cards = container.querySelectorAll('.status-card');
-      cards.forEach(card => {
-        const optionId = parseInt(card.getAttribute('data-option-id') || '0', 10);
-        const checkbox = card.querySelector('.status-checkbox');
+      container.querySelectorAll('.rider-top-option-card[data-column="' + column + '"]').forEach((card) => {
+        const checkbox = card.querySelector('.rider-top-option-checkbox');
         const subtitle = card.querySelector('.status-subtitle');
-        const isActive = optionId === activeOptionId && activeOptionId > 0;
-        if (isActive) {
-          card.classList.add('active');
-          if (checkbox) {
-            checkbox.checked = true;
-          }
-          if (subtitle) subtitle.textContent = 'Assigned to rider';
-        } else {
-          card.classList.remove('active');
-          if (checkbox) {
-            checkbox.checked = false;
-          }
-          if (subtitle) subtitle.textContent = 'Not assigned';
+        const isActive = !!(checkbox && checkbox.checked);
+        card.classList.toggle('active', isActive);
+        if (subtitle) {
+          const categoryName = card.getAttribute('data-category') || 'Not assigned';
+          subtitle.textContent = isActive ? 'Assigned to rider' : categoryName;
         }
       });
+    }
 
+    function refreshRiderSidebarBadges(data) {
       const designationBadge = document.getElementById('rider-designation-badge');
+      const statusValueBadge = document.getElementById('rider-status-value-badge');
       if (designationBadge) {
-        designationBadge.textContent = activeOptionLabel || 'not-set';
+        if (data.column === 'rider_status') {
+          designationBadge.textContent = data.rider_status || (data.value || 'not-set');
+        } else if (data.value) {
+          designationBadge.textContent = data.value;
+        } else if (!data.rider_status) {
+          designationBadge.textContent = 'not-set';
+        }
       }
-
-      let statusLabel = activeOptionLabel || 'Inactive';
-      const statusValueBadge = document.getElementById('rider-status-value-badge');
       if (statusValueBadge) {
-        statusValueBadge.textContent = statusLabel;
-        statusValueBadge.className = 'badge ' + (activeOptionId > 0 ? 'bg-label-primary' : 'bg-label-danger');
+        const label = data.employment_label || 'Inactive';
+        statusValueBadge.textContent = label;
+        statusValueBadge.className = 'badge ' + (data.employment_badge || 'bg-label-danger');
       }
     }
 
-    function setStatusBadge(statusLabel, badgeClass) {
-      const statusValueBadge = document.getElementById('rider-status-value-badge');
-      if (statusValueBadge) {
-        statusValueBadge.textContent = statusLabel;
-        statusValueBadge.className = 'badge ' + badgeClass;
-      }
-    }
-
-    const statusCardsContainer = document.getElementById('rider-status-cards');
-    const riderTopOptionDateModalEl = document.getElementById('riderTopOptionDateModal');
-    const riderTopOptionModal = riderTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
-      new bootstrap.Modal(riderTopOptionDateModalEl) :
-      null;
-    let pendingRiderTopOptionCheckbox = null;
-
-    function riderTopOptionTodayYmd() {
-      const t = new Date();
-      const y = t.getFullYear();
-      const m = String(t.getMonth() + 1).padStart(2, '0');
-      const d = String(t.getDate()).padStart(2, '0');
-      return y + '-' + m + '-' + d;
-    }
-
-    function submitRiderTopOptionRequest(checkbox, requestOptionId, effectiveDate) {
+    function submitRiderTopOptionRequest(checkbox, requestOptionId, effectiveDate, isClear) {
       const riderId = checkbox.getAttribute('data-rider-id');
-      const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
+      const column = checkbox.getAttribute('data-column');
       const card = checkbox.closest('.status-card');
-      if (!riderId || !card) {
+      if (!riderId || !card || !column) {
         showNotification('Rider ID not found', 'error');
-        return Promise.resolve();
+        return Promise.resolve(false);
       }
       const subtitle = card.querySelector('.status-subtitle');
       card.classList.add('loading');
@@ -1064,12 +1038,12 @@ $companySlug = request()->route('company_slug');
 
       const setOptionUrlTemplate = "{{ route('riders.setRiderTopOption', ['id' => '__RID__']) }}";
       const setOptionUrl = setOptionUrlTemplate.replace('__RID__', riderId);
-      const body = {
-        option_id: requestOptionId
+      const body = isClear ? {
+        clear_option_id: requestOptionId
+      } : {
+        option_id: requestOptionId,
+        effective_date: effectiveDate
       };
-      if (requestOptionId != null && effectiveDate) {
-        body.effective_date = effectiveDate;
-      }
 
       return fetch(setOptionUrl, {
           method: 'POST',
@@ -1083,9 +1057,17 @@ $companySlug = request()->route('company_slug');
         .then(async (response) => {
           const data = await response.json().catch(() => ({}));
           if (response.ok && data.success) {
-            const selectedId = parseInt(data.option_id || 0, 10);
-            const selectedLabel = data.option_label || null;
-            syncStatusCards(selectedId, selectedLabel);
+            if (isClear) {
+              checkbox.checked = false;
+            } else {
+              statusCardsContainer.querySelectorAll('.rider-top-option-card[data-column="' + column + '"]').forEach((c) => {
+                const cb = c.querySelector('.rider-top-option-checkbox');
+                if (cb && cb !== checkbox) cb.checked = false;
+              });
+              checkbox.checked = true;
+            }
+            syncRiderTopOptionCards(column);
+            refreshRiderSidebarBadges(data);
             showNotification(data.message, 'success');
             return true;
           }
@@ -1107,12 +1089,20 @@ $companySlug = request()->route('company_slug');
         });
     }
 
-    function rollbackRiderTopOptionCheckbox(checkbox) {
-      const activeCard = statusCardsContainer.querySelector('.status-card.active');
-      const rollbackId = activeCard ? parseInt(activeCard.getAttribute('data-option-id') || '0', 10) : 0;
-      const rollbackTitleEl = activeCard ? activeCard.querySelector('.status-title') : null;
-      const rollbackLabel = rollbackTitleEl ? rollbackTitleEl.textContent : null;
-      syncStatusCards(rollbackId, rollbackLabel);
+    const statusCardsContainer = document.getElementById('rider-status-cards');
+    const riderTopOptionDateModalEl = document.getElementById('riderTopOptionDateModal');
+    const riderTopOptionModal = riderTopOptionDateModalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal ?
+      new bootstrap.Modal(riderTopOptionDateModalEl) :
+      null;
+    let pendingRiderTopOptionCheckbox = null;
+    let riderTopOptionRequestInFlight = false;
+
+    function riderTopOptionTodayYmd() {
+      const t = new Date();
+      const y = t.getFullYear();
+      const m = String(t.getMonth() + 1).padStart(2, '0');
+      const d = String(t.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + d;
     }
 
     if (statusCardsContainer) {
@@ -1121,7 +1111,26 @@ $companySlug = request()->route('company_slug');
         if (!toggleArea || !statusCardsContainer.contains(toggleArea)) return;
         const checkbox = toggleArea.querySelector('.rider-top-option-checkbox');
         if (!checkbox) return;
-        if (checkbox.checked) return;
+
+        const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
+        if (!optionId) return;
+
+        if (checkbox.checked) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (riderTopOptionRequestInFlight) return;
+          riderTopOptionRequestInFlight = true;
+          submitRiderTopOptionRequest(checkbox, optionId, null, true).then((ok) => {
+            if (!ok) {
+              checkbox.checked = true;
+              syncRiderTopOptionCards(checkbox.getAttribute('data-column'));
+            }
+          }).finally(() => {
+            riderTopOptionRequestInFlight = false;
+          });
+          return;
+        }
+
         e.preventDefault();
         e.stopPropagation();
         pendingRiderTopOptionCheckbox = checkbox;
@@ -1162,7 +1171,7 @@ $companySlug = request()->route('company_slug');
           return;
         }
         const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
-        submitRiderTopOptionRequest(checkbox, optionId, effectiveDate).then((ok) => {
+        submitRiderTopOptionRequest(checkbox, optionId, effectiveDate, false).then((ok) => {
           if (ok) {
             riderTopOptionModal ? riderTopOptionModal.hide() : null;
           }
@@ -1172,20 +1181,23 @@ $companySlug = request()->route('company_slug');
       statusCardsContainer.addEventListener('change', function(e) {
         const checkbox = e.target;
         if (!checkbox.classList.contains('rider-top-option-checkbox')) return;
-        if (checkbox.checked) return;
+        if (checkbox.checked || riderTopOptionRequestInFlight) return;
 
-        const riderId = checkbox.getAttribute('data-rider-id');
-        const card = checkbox.closest('.status-card');
-        if (!riderId || !card) {
-          showNotification('Rider ID not found', 'error');
+        const optionId = parseInt(checkbox.getAttribute('data-option-id') || '0', 10);
+        if (!optionId) {
+          showNotification('Option ID not found', 'error');
+          checkbox.checked = true;
           return;
         }
 
-        submitRiderTopOptionRequest(checkbox, null, null).then((ok) => {
+        riderTopOptionRequestInFlight = true;
+        submitRiderTopOptionRequest(checkbox, optionId, null, true).then((ok) => {
           if (!ok) {
             checkbox.checked = true;
-            rollbackRiderTopOptionCheckbox(checkbox);
+            syncRiderTopOptionCards(checkbox.getAttribute('data-column'));
           }
+        }).finally(() => {
+          riderTopOptionRequestInFlight = false;
         });
       });
     }

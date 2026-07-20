@@ -20,7 +20,7 @@
          <tr class="text-center" data-row-id="{{ $r->id }}">
             @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
-               @can('licenseexpense_edit')
+               @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -33,7 +33,7 @@
             </td>@endif
             @if($vf('billing_month'))<td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
-               @can('licenseexpense_edit')
+               @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -49,7 +49,7 @@
             </td>@endif
             @if($vf('amount'))<td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
-               @can('licenseexpense_edit')
+               @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -65,7 +65,7 @@
             @if($vf('expiry_date'))<td>
                @if($r->expiry_date)
                <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
-               @can('licenseexpense_edit')
+               @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
@@ -89,7 +89,7 @@
                   @endphp
                   <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucherNumber }}</a>@if(!$loop->last), @endif
                   @endforeach
-                  @can('licenseexpense_edit')
+                  @can('license_expense_edit')
                   <a href="javascript:void(0);"
                      class="show-modal text-body-secondary"
                      data-size="xl"
@@ -120,17 +120,17 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
-                     @can('licenseexpense_view')
+                     @can('license_expense_view')
                      <a href="{{ route('LicenseExpense.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
                         View Expense Detail
                      </a>
                      @endcan
-                     @can('licenseexpense_edit')
+                     @can('license_expense_edit')
                      <a href="javascript:void(0);" data-action="{{ route('LicenseExpense.edit' , $r->id) }}" data-size="lg" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
                      @endcan
-                     @can('licenseexpense_delete')
+                     @can('license_expense_delete')
                      <a href="javascript:void(0);" data-delete-url="{{ route('LicenseExpense.delete', $r->id) }}" class='dropdown-item confirm-modal js-delete-visa-expense' data-size="lg" data-title="Delete Sim">
                         delete
                      </a>

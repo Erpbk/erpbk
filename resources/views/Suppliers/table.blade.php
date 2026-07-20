@@ -28,12 +28,12 @@
                <a href="{{ route('suppliers.show', $r->id) }}"  class='btn btn-default btn-sm show-modal'>
                     <i class="fa fa-eye"></i>
                 </a> 
-               @can('supplier_edit')
+               @can('suppliers_supplier_edit')
                <a href="javascript:void(0);" data-size="lg" data-title="Update Leasing Company" data-action="{{ route('suppliers.edit', $r->id) }}" class='btn btn-info btn-sm show-modal'>
                <i class="fa fa-edit"></i>
                </a>
                @endcan
-               @can('item_delete')
+               @can('suppliers_supplier_delete')
                <a href="javascript:void(0);"  onclick='confirmDelete("{{route('suppliers.delete', $r->id) }}")' class='btn btn-danger btn-sm confirm-modal' data-size="lg" data-title="Delete Sim">
                <i class="fa fa-trash"></i>
                </a>

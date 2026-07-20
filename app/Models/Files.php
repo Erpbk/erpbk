@@ -33,12 +33,11 @@ class Files extends BaseModel
   ];
 
   public static array $rules = [
-    'name' => 'required|string',
+    'name' => 'nullable|string',
     'file_name' => 'required|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048',
-    'type' => 'required|string|max:50',
-    'type_id' => 'required|integer|min:1',
-    /*     'file_name' => 'nullable|string|max:100',
-     */ 'expiry_date' => 'nullable',
+    'type' => 'nullable|string|max:50',
+    'type_id' => 'nullable|integer|min:1',
+    'expiry_date' => 'nullable|date',
     'status' => 'nullable|boolean',
     'notes' => 'nullable|string|max:100',
     'created_at' => 'nullable',

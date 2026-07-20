@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title','Bike on rent — Customers')
+@section('title','Customers')
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
@@ -18,7 +18,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('bikes_create')
+                        @canany(['bike_on_rent_customers_create', 'garages_customers_create'])
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}?type={{ $type }}" data-title="Add customer" data-size="lg">
                             <i class="ti ti-plus"></i>
                             <div>
@@ -26,7 +26,7 @@
                                 <div class="action-dropdown-item-desc">Add New Customer</div>
                             </div>
                         </a>
-                        @endcan
+                        @endcanany
                     </div>
                 </div>
             </div>

@@ -97,7 +97,7 @@ $voucherType = $vt ?? request('vt');
 
     @if($voucherType == 'LV')
     @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.loan_fields")
+    @include("vouchers.default_fields")
     @endif
 
     @if($voucherType == 'VL')
@@ -237,9 +237,47 @@ $voucherType = $vt ?? request('vt');
             });
         };
 
+        function getVoucherSelect2DropdownParent($select) {
+            var $offcanvas = $select.closest('.offcanvas');
+            if ($offcanvas.length) {
+                return $offcanvas;
+            }
+            var $modal = $select.closest('.modal');
+            if ($modal.length) {
+                return $modal;
+            }
+            var $form = $('#formajax');
+            if ($form.length) {
+                return $form;
+            }
+            return $(document.body);
+        }
+
+        window.initVoucherSelect2 = function initVoucherSelect2($container) {
+            if (!$.fn.select2) {
+                return;
+            }
+            var $root = ($container && $container.length) ? $container : $('#formajax');
+            if (!$root.length) {
+                $root = $(document);
+            }
+            $root.find('select.select2').each(function() {
+                var $select = $(this);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    return;
+                }
+                $select.select2({
+                    width: '100%',
+                    allowClear: true,
+                    dropdownParent: getVoucherSelect2DropdownParent($select)
+                });
+            });
+        };
+
         $(document).ready(function() {
             var base_url = $('#base_url').val();
             getTotal();
+            initVoucherSelect2();
 
 
 
@@ -300,6 +338,12 @@ $voucherType = $vt ?? request('vt');
             });
             $(".amount").on("focus keyup change", function() {
                 getTotal();
+            });
+
+            $(document).on('click', '#add-new-row', function() {
+                setTimeout(function() {
+                    initVoucherSelect2($('#rows-container .row:last'));
+                }, 0);
             });
         }); // End of $(document).ready
 

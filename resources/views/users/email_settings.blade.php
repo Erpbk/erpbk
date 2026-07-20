@@ -4,57 +4,61 @@
 $isPanel = (View::shared('settings_panel') ?? false);
 $updateRoute = $isPanel ? 'settings-panel.email-settings.update' : 'user.email-settings.update';
 $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
+$emailAccountsRoute = $isPanel ? 'settings-panel.email-accounts.index' : null;
 @endphp
 
-@section('title', 'Email Settings')
+@section('title', 'Email Preferences')
 
 @section('content')
 <div class="row">
   <div class="col-md-12">
     <div class="card">
       <div class="card-header">
-        <h4 class="card-title mb-0">Email Settings</h4>
+        <h4 class="card-title mb-0">Email Preferences</h4>
       </div>
-
+      @canany(['settings_email_edit','settings_email_create'])
       <div class="card-body">
+        <div class="row mb-4">
+          <div class="col-md-12">
+            <h5 class="mb-2">Your Sender Email Accounts</h5>
+            @if($assignedEmailAccounts->isEmpty())
+            <div class="alert alert-warning mb-0">
+              No active email accounts are assigned to you.
+              @if(auth()->user()->isAdmin() && $emailAccountsRoute)
+              <a href="{{ route($emailAccountsRoute, ['company_slug' => request()->route('company_slug')]) }}">Manage email accounts</a>
+              @else
+              Ask an administrator to assign an email account to your user.
+              @endif
+            </div>
+            @else
+            <ul class="list-group">
+              @foreach($assignedEmailAccounts as $account)
+              <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>{{ $account->displayLabel() }}</span>
+                <span class="badge bg-success">Active</span>
+              </li>
+              @endforeach
+            </ul>
+            @endif
+
+            @if(auth()->user()->isAdmin() && $emailAccountsRoute)
+            <div class="mt-3">
+              <a href="{{ route($emailAccountsRoute, ['company_slug' => request()->route('company_slug')]) }}" class="btn btn-outline-primary btn-sm">
+                Manage Email Accounts
+              </a>
+            </div>
+            @endif
+          </div>
+        </div>
+
         <form method="POST" action="{{ route($updateRoute) }}">
           @csrf
 
           <div class="row">
-            <div class="col-md-6 mb-4">
-              <label class="form-label">
-                Gmail App Password (SMTP)
-              </label>
-              <input
-                type="password"
-                name="smtp_app_password"
-                class="form-control"
-                placeholder="Enter your Gmail app password"
-                autocomplete="off" />
-              <div class="form-text">
-                Required before anyone in this company can send rider or employee emails.
-                <ol class="mb-0 ps-3">
-                  <li>Enable <strong>2-Step Verification</strong> on the Gmail account.</li>
-                  <li>Open <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">Google App passwords</a> → create one for <strong>Mail</strong>.</li>
-                  <li>Copy the <strong>16-character</strong> password (paste here; spaces are removed automatically).</li>
-                  <li>Your user login email must be the <strong>same Gmail address</strong> (e.g. absdevelops.17@gmail.com).</li>
-                </ol>
-                Do <strong>not</strong> use your normal Gmail login password. Leave blank to keep the existing app password.
-              </div>
-              @error('smtp_app_password')
-              <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-              @if($hasAppPassword)
-              <div class="alert alert-info py-2 mt-2 mb-0">
-                An SMTP app password is already configured for this account.
-              </div>
-              @endif
-            </div>
-
-            <div class="col-md-6 mb-4">
+            <div class="col-md-8 mb-4">
               <label class="form-label">Default CC Recipients</label>
               <div class="form-text mb-2">
-                Select users to automatically CC on Rider-module emails sent by you.
+                These addresses are pre-filled in the CC field when you send rider emails. You can add or remove recipients before sending.
               </div>
 
               <div class="border rounded p-3" style="max-height: 360px; overflow: auto;">
@@ -89,11 +93,18 @@ $cancelRoute = $isPanel ? 'settings-panel.profile' : 'profile';
           <div class="d-flex justify-content-end gap-2">
             <a href="{{ route($cancelRoute) }}" class="btn btn-outline-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary">
-              Save Email Settings
+              Save Preferences
             </button>
           </div>
         </form>
       </div>
+      @else
+      <div class="card-body">
+        <div class="alert alert-info">
+          You are not authorized to edit email settings.
+        </div>
+      </div>
+      @endcanany
     </div>
   </div>
 </div>

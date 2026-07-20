@@ -2,7 +2,7 @@
 
 @section('page-content')
 <div class="card-action mb-0">
-    @can('employee_document')
+    @can('employees_document_view')
         <div class="card mb-4 border-warning">
             <div class="table-responsive my-3">
                 <table class="table table-hover mb-0" id="files-table">
@@ -25,6 +25,7 @@
                                             </button>
                                         </div>
                                     </div>
+                                    @can('employees_document_create')
                                     <a class="btn btn-primary show-modal action-btn"
                                         href="javascript:void(0);"
                                         data-action="{{ route('files.create', ['type_id' => $employee->id, 'type' => 'employee']) }}"
@@ -32,6 +33,7 @@
                                         data-title="Upload File">
                                         <i class="ti ti-upload me-1"></i>Upload File
                                     </a>
+                                    @endcan
                                 </div>
                             </div>
                         </tr>
@@ -52,12 +54,14 @@
                                     </a>
                                 </td>
                                 <td class="text-end">
+                                    @can('employees_document_delete')
                                     <a href="javascript:void(0);"
                                         data-url="{{ route('files.destroy', $employeeFile->id) }}"
                                         target="_blank"
                                         class="btn btn-danger btn-sm delete-file">
                                         <i class="fa fa-trash my-1"></i>
                                     </a>
+                                    @endcan
                                 </td>
                             </tr>
                         @endforeach
@@ -67,6 +71,7 @@
                                     <td class="row-counter">{{ $counter++ }}</td>
                                     <td class="text-start">{{ $fileName }}</td>
                                     <td class="text-end">
+                                        @can('employees_document_create')
                                         <a class="btn btn-sm btn-primary show-modal action-btn"
                                             href="javascript:void(0);"
                                             data-action="{{ route('files.create', ['type_id' => $employee->id, 'type' => 'employee', 'suggested_name' => $fileName]) }}"
@@ -74,6 +79,7 @@
                                             data-title="Upload {{ $fileName }}">
                                             <i class="ti ti-upload"></i>
                                         </a>
+                                        @endcan
                                     </td>
                                 </tr>
                             @endforeach

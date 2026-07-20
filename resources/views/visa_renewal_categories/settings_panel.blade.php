@@ -8,7 +8,7 @@ $embeddedManager = $embeddedManager ?? true;
 
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <p class="text-muted small mb-0">Default category is <strong>New Visa</strong>. Add renewal stages (e.g. 1st Renewal, 2nd Renewal) in sequence order.</p>
-    @can('visaexpense_create')
+    @can('visa_expense_create')
     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
         <i class="ti ti-plus me-1"></i> Add Category
     </button>

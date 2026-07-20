@@ -8,13 +8,13 @@
     <div class="content">
         @include('flash::message')
         <div class="clearfix"></div>
-        @can('payments_view')
+        @can('cash_&_banks_payments_view')
         <div class="card">
             <div class="card-header d-flex justify-content-between">
                 <div class="card-search">
                     <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
                 </div>
-                @can('payments_create')
+                @can('cash_&_banks_payments_create')
                     <button class="btn btn-primary btn-sm show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Payment" data-action="{{ route('payments.create') }}?id={{ request()->segment(3) }}">Add New</button>
                 @endcan
             </div>
@@ -23,7 +23,7 @@
             </div>
         </div>
         @endcan
-        @cannot('payments_view')
+        @cannot('cash_&_banks_payments_view')
             <div class="text-center mt-5">
                 <h3>You do not have permission to view Payments.</h3> 
             </div>

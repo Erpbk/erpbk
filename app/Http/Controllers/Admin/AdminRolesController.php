@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AdminPermission;
 use App\Models\AdminRole;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -12,12 +11,9 @@ class AdminRolesController extends Controller
 {
     public function create()
     {
-        $modules = AdminPermission::query()
-            ->whereNull('parent_id')
-            ->orderBy('name')
-            ->get();
-
-        return view('admin.roles.create', compact('modules'));
+        return view('admin.roles.create', [
+            'rolePermissions' => [],
+        ]);
     }
 
     public function store(Request $request)
@@ -41,14 +37,11 @@ class AdminRolesController extends Controller
 
     public function edit(AdminRole $role)
     {
-        $modules = AdminPermission::query()
-            ->whereNull('parent_id')
-            ->orderBy('name')
-            ->get();
+        $rolePermissions = $role->permissions->pluck('id')
+            ->mapWithKeys(static fn ($id) => [(int) $id => true])
+            ->all();
 
-        $selectedPermissionIds = $role->permissions->pluck('id')->toArray();
-
-        return view('admin.roles.edit', compact('role', 'modules', 'selectedPermissionIds'));
+        return view('admin.roles.edit', compact('role', 'rolePermissions'));
     }
 
     public function update(Request $request, AdminRole $role)

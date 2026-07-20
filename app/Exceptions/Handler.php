@@ -78,8 +78,8 @@ class Handler extends ExceptionHandler
         }
 
         if ($e instanceof GlobalAccountNotConfiguredException) {
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['message' => $e->getMessage()], 422);
+            if ($json = $e->render($request)) {
+                return $json;
             }
 
             if ($request->routeIs('LicenseExpense.*')) {
@@ -87,6 +87,14 @@ class Handler extends ExceptionHandler
 
                 return redirect()
                     ->route('LicenseExpense.index', ['company_slug' => $slug])
+                    ->with('error', $e->getMessage());
+            }
+
+            if ($request->routeIs('BikeRegistration.*')) {
+                $slug = $request->route('company_slug') ?? session('company_slug');
+
+                return redirect()
+                    ->route('BikeRegistration.index', ['company_slug' => $slug])
                     ->with('error', $e->getMessage());
             }
 

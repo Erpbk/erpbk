@@ -106,6 +106,6 @@ class AuthBranding
             return null;
         }
 
-        return asset('storage/' . ltrim($path, '/'));
+        return storage_url($path);
     }
 }

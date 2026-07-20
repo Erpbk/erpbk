@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\Customers;
 use App\Models\Employee;
+use App\Models\RiderActivities;
 use App\Models\Riders;
 use App\Services\Attendance\RiderAttendanceActivitySync;
 use Illuminate\Http\Request;
@@ -12,6 +14,15 @@ use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('permission:employees_attendance_view|riders_attendance_view')->only('index', 'summary');
+        $this->middleware('permission:employees_attendance_create|riders_attendance_create')->only('create', 'store');
+        $this->middleware('permission:employees_attendance_edit|riders_attendance_edit')->only('edit', 'update');
+        $this->middleware('permission:employees_attendance_delete|riders_attendance_delete')->only('destroy');
+    }
     /**
      * Display a listing of attendance records.
      */
@@ -86,7 +97,7 @@ class AttendanceController extends Controller
             'date' => 'required|date',
             'check_in' => 'nullable',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half day,holiday,on leave',
+            'status' => 'required|in:present,absent,late,half day,weekend,on leave',
             'notes' => 'nullable|string|max:500'
         ];
         if ($request->ref_type === 'employee') {
@@ -98,10 +109,7 @@ class AttendanceController extends Controller
             $rules['check_in'] = 'required';
         }
         if ($request->ref_type === 'rider') {
-            $rules['total_orders'] = 'nullable|integer|min:0';
-            $rules['working_hours'] = 'nullable|numeric|min:0';
-            $rules['rejected_orders'] = 'nullable|integer|min:0';
-            $rules['cancelled_orders'] = 'nullable|integer|min:0';
+            $rules = array_merge($rules, $this->riderAttendanceMetricRules());
         }
         $validated = $request->validate($rules);
         // Validate that the reference ID exists in the appropriate table
@@ -138,7 +146,7 @@ class AttendanceController extends Controller
             RiderAttendanceActivitySync::syncActivityFromAttendance(
                 (int) $validated['ref_id'],
                 $validated['date'],
-                RiderAttendanceActivitySync::metricDataFromRequest($validated)
+                RiderAttendanceActivitySync::syncDataFromAttendance($attendance, $validated)
             );
         }
 
@@ -167,13 +175,17 @@ class AttendanceController extends Controller
         $employees = collect();
         $riders = collect();
 
+        $riderActivity = null;
         if ($refType == 'employee') {
             $employees = Employee::all();
         } else {
             $riders = Riders::all();
+            $riderActivity = RiderActivities::where('rider_id', $attendance->ref_id)
+                ->whereDate('date', $attendance->date)
+                ->first();
         }
 
-        return view('attendance.edit', compact('attendance', 'refType', 'employees', 'riders'));
+        return view('attendance.edit', compact('attendance', 'refType', 'employees', 'riders', 'riderActivity'));
     }
 
     /**
@@ -186,7 +198,7 @@ class AttendanceController extends Controller
             'ref_id' => 'required|integer',
             'date' => 'required|date',
             'check_out' => 'nullable|after:check_in',
-            'status' => 'required|in:present,absent,late,half day, holiday, on leave',
+            'status' => 'required|in:present,absent,late,half day,weekend,on leave',
             'notes' => 'nullable|string|max:500'
         ];
         if ($request->status === 'present' || $request->status === 'late' || $request->status === 'half day') {
@@ -195,10 +207,7 @@ class AttendanceController extends Controller
             $rules['check_in'] = 'nullable';
         }
         if ($request->ref_type === 'rider') {
-            $rules['total_orders'] = 'nullable|integer|min:0';
-            $rules['working_hours'] = 'nullable|numeric|min:0';
-            $rules['rejected_orders'] = 'nullable|integer|min:0';
-            $rules['cancelled_orders'] = 'nullable|integer|min:0';
+            $rules = array_merge($rules, $this->riderAttendanceMetricRules());
         }
         $validated = $request->validate($rules);
 
@@ -240,7 +249,7 @@ class AttendanceController extends Controller
             RiderAttendanceActivitySync::syncActivityFromAttendance(
                 (int) $validated['ref_id'],
                 $validated['date'],
-                RiderAttendanceActivitySync::metricDataFromRequest($validated)
+                RiderAttendanceActivitySync::syncDataFromAttendance($attendance, $validated)
             );
         }
 
@@ -291,7 +300,7 @@ class AttendanceController extends Controller
                 'attendances' => 'required|array|min:1',
                 'attendances.*.ref_id' => 'required|integer',
                 'attendances.*.ref_type' => 'required|in:employee,rider',
-                'attendances.*.status' => 'required|in:present,absent,late,half day, on leave, holiday',
+                'attendances.*.status' => 'required|in:present,absent,late,half day,on leave,weekend',
                 'attendances.*.check_in' => 'nullable',
                 'attendances.*.check_out' => 'nullable',
                 'attendances.*.notes' => 'nullable|string|max:500',
@@ -299,6 +308,7 @@ class AttendanceController extends Controller
                 'attendances.*.working_hours' => 'nullable|numeric|min:0',
                 'attendances.*.rejected_orders' => 'nullable|integer|min:0',
                 'attendances.*.cancelled_orders' => 'nullable|integer|min:0',
+                'attendances.*.ontime_orders_percentage' => 'nullable|numeric|min:0|max:100',
             ]);
 
             $successCount = 0;
@@ -363,7 +373,7 @@ class AttendanceController extends Controller
                     RiderAttendanceActivitySync::syncActivityFromAttendance(
                         (int) $attendanceData['ref_id'],
                         $validated['date'],
-                        RiderAttendanceActivitySync::metricDataFromRequest($attendanceData)
+                        RiderAttendanceActivitySync::syncDataFromAttendance($attendance, $attendanceData)
                     );
                 }
 
@@ -485,6 +495,8 @@ class AttendanceController extends Controller
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         $userType = $request->get('user_type', 'employee');
         $usersId = $request->get('user_id', 'all');
+        $projectId = $request->get('project_id');
+        $fleetSupervisor = $request->get('fleet_supervisor');
         $viewMode = $request->get('view_mode', 'ten_days');
         $viewStart = max(1, (int) $request->get('view_start', 1));
 
@@ -494,7 +506,31 @@ class AttendanceController extends Controller
         $daysInMonth = $date->daysInMonth;
 
         // Get all users based on type
-        $users = $this->getUsersForSummary($userType, $usersId);
+        $users = $this->getUsersForSummary($userType, $usersId, $projectId, $fleetSupervisor);
+        $projects = collect();
+        $fleetSupervisors = collect();
+
+        if ($userType === 'rider') {
+            $projectIds = Riders::query()
+                ->whereNotNull('customer_id')
+                ->where('customer_id', '!=', '')
+                ->distinct()
+                ->pluck('customer_id')
+                ->filter()
+                ->values();
+
+            $projects = Customers::query()
+                ->whereIn('id', $projectIds)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+
+            $fleetSupervisors = Riders::query()
+                ->whereNotNull('fleet_supervisor')
+                ->where('fleet_supervisor', '!=', '')
+                ->distinct()
+                ->orderBy('fleet_supervisor')
+                ->pluck('fleet_supervisor');
+        }
 
         // Get attendance for the month
         $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
@@ -513,6 +549,22 @@ class AttendanceController extends Controller
                 : Carbon::parse($attendance->date)->format('Y-m-d');
 
             $attendancesByUser[$userId][$dateKey] = $attendance;
+        }
+
+        $riderActivitiesByUser = [];
+        if ($userType === 'rider' && $users->isNotEmpty()) {
+            $activities = RiderActivities::query()
+                ->whereIn('rider_id', $users->pluck('id'))
+                ->whereBetween('date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+                ->get(['rider_id', 'date', 'ontime_orders_percentage']);
+
+            foreach ($activities as $activity) {
+                $activityDate = $activity->date instanceof Carbon
+                    ? $activity->date->format('Y-m-d')
+                    : Carbon::parse($activity->date)->format('Y-m-d');
+
+                $riderActivitiesByUser[$activity->rider_id][$activityDate] = $activity->ontime_orders_percentage;
+            }
         }
 
         // Build date window based on selected view mode
@@ -551,7 +603,7 @@ class AttendanceController extends Controller
             $user->total_absent = 0;
             $user->total_late = 0;
             $user->total_halfday = 0;
-            $user->total_holiday = 0;
+            $user->total_weekend = 0;
             $user->total_leave = 0;
             $user->total_unmarked = 0;
 
@@ -568,7 +620,10 @@ class AttendanceController extends Controller
                         'status' => $attendance->status,
                         'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('h:i A') : null,
                         'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('h:i A') : null,
-                        'notes' => $attendance->notes
+                        'notes' => $attendance->notes,
+                        'ontime_orders_percentage' => $user->type === 'rider'
+                            ? ($riderActivitiesByUser[$user->id][$dateString] ?? null)
+                            : null,
                     ];
 
                     // Count totals
@@ -587,8 +642,8 @@ class AttendanceController extends Controller
                             $user->total_halfday++;
                             $user->total_present++;
                             break;
-                        case 'holiday':
-                            $user->total_holiday++;
+                        case 'weekend':
+                            $user->total_weekend++;
                             break;
                         case 'on leave':
                             $user->total_leave++;
@@ -611,7 +666,7 @@ class AttendanceController extends Controller
             'total_absent' => $users->sum('total_absent'),
             'total_late' => $users->sum('total_late'),
             'total_halfday' => $users->sum('total_halfday'),
-            'total_holiday' => $users->sum('total_holiday'),
+            'total_weekend' => $users->sum('total_weekend'),
             'total_leave' => $users->sum('total_leave'),
             'total_unmarked' => $users->sum('total_unmarked')
         ];
@@ -642,6 +697,10 @@ class AttendanceController extends Controller
             'date',
             'userType',
             'usersId',
+            'projectId',
+            'fleetSupervisor',
+            'projects',
+            'fleetSupervisors',
             'viewMode',
             'viewStart',
             'summary',
@@ -664,13 +723,13 @@ class AttendanceController extends Controller
     /**
      * Get users for summary based on type
      */
-    private function getUsersForSummary($userType, $userId)
+    private function getUsersForSummary($userType, $userId, $projectId = null, $fleetSupervisor = null)
     {
         $users = null;
 
         if ($userType === 'employee') {
             if ($userId === 'all') {
-                $users = Employee::active()->with('branch')->select('id', 'name', 'employee_id', 'branch_id', 'designation')
+                $users = Employee::active()->with('branch')->select('id', 'name', 'employee_id', 'branch_id', 'designation', 'status')
                     ->get()
                     ->map(function ($item) {
                         $item->type = 'employee';
@@ -691,8 +750,18 @@ class AttendanceController extends Controller
         }
 
         if ($userType === 'rider') {
+            $riderQuery = Riders::active()->with('branch');
+
+            if (!empty($projectId)) {
+                $riderQuery->where('customer_id', $projectId);
+            }
+
+            if (!empty($fleetSupervisor)) {
+                $riderQuery->where('fleet_supervisor', $fleetSupervisor);
+            }
+
             if ($userId === 'all') {
-                $users = Riders::active()->select('id', 'name', 'rider_id')
+                $users = $riderQuery->select('id', 'name', 'rider_id', 'status', 'branch_id', 'designation', 'customer_id', 'fleet_supervisor')
                     ->get()
                     ->map(function ($item) {
                         $item->type = 'rider';
@@ -701,7 +770,8 @@ class AttendanceController extends Controller
                         return $item;
                     });
             } else {
-                $users = Riders::with('branch')->where('id', $userId)
+                $users = $riderQuery->where('id', $userId)
+                    ->select('id', 'name', 'rider_id', 'status', 'branch_id', 'designation', 'customer_id', 'fleet_supervisor')
                     ->get()
                     ->map(function ($item) {
                         $item->type = 'rider';
@@ -724,13 +794,15 @@ class AttendanceController extends Controller
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
         $userType = $request->get('user_type', 'all');
         $usersId = $request->get('user_id', 'all');
+        $projectId = $request->get('project_id');
+        $fleetSupervisor = $request->get('fleet_supervisor');
 
         $date = Carbon::parse($selectedDate);
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
         $daysInMonth = $date->daysInMonth;
 
-        $users = $this->getUsersForSummary($userType, $usersId);
+        $users = $this->getUsersForSummary($userType, $usersId, $projectId, $fleetSupervisor);
 
         $userIds = $users->pluck('id');
 
@@ -815,8 +887,8 @@ class AttendanceController extends Controller
                                 $totalHalfday++;
                                 break;
 
-                            case 'holiday':
-                                $row[] = 'Holiday';
+                            case 'weekend':
+                                $row[] = 'Weekend';
                                 break;
 
                             case 'on leave':
@@ -857,5 +929,19 @@ class AttendanceController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function riderAttendanceMetricRules(): array
+    {
+        return [
+            'total_orders' => 'nullable|integer|min:0',
+            'working_hours' => 'nullable|numeric|min:0',
+            'rejected_orders' => 'nullable|integer|min:0',
+            'cancelled_orders' => 'nullable|integer|min:0',
+            'ontime_orders_percentage' => 'nullable|numeric|min:0|max:100',
+        ];
     }
 }

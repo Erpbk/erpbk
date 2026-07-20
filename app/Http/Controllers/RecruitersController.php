@@ -83,13 +83,7 @@ class RecruitersController extends AppBaseController
     {
         $input = $request->all();
         //Adding Account and setting reference
-        $parentAccount = Accounts::where('name', 'Recruiter')->where('account_type', 'Liability')->first();
-        if (!$parentAccount) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Parent account "Recruiter" not found.',
-            ], 422);
-        }
+        $parentAccount = \App\Support\GlobalAccounts::id('RECRUITERS');
         try {
             DB::beginTransaction();
             $recruiter = $this->recruitersRepository->create($input);
@@ -98,7 +92,7 @@ class RecruitersController extends AppBaseController
             $account->account_code = 'RC' . str_pad($recruiter->id, 4, "0", STR_PAD_LEFT);
             $account->account_type = 'Liability';
             $account->name = $recruiter->name;
-            $account->parent_id = $parentAccount->id;
+            $account->parent_id = $parentAccount;
             $account->ref_name = 'Recruiter';
             $account->ref_id = $recruiter->id;
             $account->status = $recruiter->status;

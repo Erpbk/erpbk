@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Helpers\Accounts as AccountsHelper;
 use App\Http\Controllers\Controller;
+use App\Models\AccountCustomField;
 use App\Models\Accounts;
 use App\Models\GlobalAccount;
+use App\Repositories\AccountsRepository;
 use App\Services\GlobalAccountResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +19,8 @@ use Illuminate\View\View;
 class AdminGlobalAccountsController extends Controller
 {
     public function __construct(
-        private readonly GlobalAccountResolver $resolver
+        private readonly GlobalAccountResolver $resolver,
+        private readonly AccountsRepository $accountsRepository
     ) {}
 
     private function ensureSuperAdmin(): void
@@ -54,11 +57,13 @@ class AdminGlobalAccountsController extends Controller
         $this->ensureSuperAdmin();
 
         $accountTypes = AccountsHelper::AccountTypes();
+        $existingAccountIds = GlobalAccount::all()->pluck('account_id')->toArray();
         $parents = Accounts::withoutGlobalScopes(['company', 'branch'])
             ->where(function ($query): void {
                 $query->whereNull('parent_id')->orWhere('parent_id', 0);
             })
             ->whereNull('company_id')
+            ->whereNotIn('id', $existingAccountIds)
             ->orderBy('account_code')
             ->get(['id', 'name', 'account_code']);
 
@@ -231,6 +236,69 @@ class AdminGlobalAccountsController extends Controller
             ]);
 
         return response()->json($accounts);
+    }
+
+    public function editLinkedAccount(GlobalAccount $globalAccount): View
+    {
+        $this->ensureSuperAdmin();
+        abort_unless($globalAccount->account_id, 404);
+
+        $accounts = Accounts::withoutGlobalScopes(['company', 'branch'])
+            ->findOrFail($globalAccount->account_id);
+
+        $parents = Accounts::withoutGlobalScopes(['company', 'branch'])
+            ->where(function ($query): void {
+                $query->whereNull('parent_id')->orWhere('parent_id', 0);
+            })
+            ->whereNull('company_id')
+            ->get(['id', 'name', 'parent_id'])
+            ->groupBy('parent_id');
+
+        $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
+
+        return view('admin.global_accounts.linked_account_edit', compact('accounts', 'parents', 'customFields', 'globalAccount'));
+    }
+
+    public function updateLinkedAccount(Request $request, GlobalAccount $globalAccount): JsonResponse
+    {
+        $this->ensureSuperAdmin();
+        abort_unless($globalAccount->account_id, 404);
+
+        $validated = $request->validate(Accounts::$rules);
+
+        $accounts = Accounts::withoutGlobalScopes(['company', 'branch'])
+            ->findOrFail($globalAccount->account_id);
+
+        $input = $request->except(['custom_field_values', 'is_fixed']);
+        $input['is_fixed'] = true;
+        $input['company_id'] = null;
+
+        $accounts = $this->accountsRepository->update($input, $globalAccount->account_id);
+
+        if ($accounts) {
+            $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
+            $row = AccountsHelper::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
+            if (isset($row)) {
+                $row->name = $accounts->name;
+                $row->status = $accounts->status;
+                $row->save();
+            }
+        }
+
+        return response()->json(['message' => 'Account updated successfully.']);
+    }
+
+    private function saveCustomFieldValues(Accounts $account, array $values): void
+    {
+        $validIds = AccountCustomField::pluck('id')->flip()->all();
+        $filtered = [];
+        foreach ($values as $fieldId => $value) {
+            if (isset($validIds[$fieldId])) {
+                $filtered[(string) $fieldId] = $value;
+            }
+        }
+        $account->custom_field_values = $filtered;
+        $account->save();
     }
 
     private function enforceSharedAccount(int $accountId, ?int $exceptGlobalAccountId = null): void

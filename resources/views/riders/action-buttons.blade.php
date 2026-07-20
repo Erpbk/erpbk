@@ -6,7 +6,7 @@ $isRiderEditPage = request()->routeIs('riders.edit');
 @if(!$isRiderEditPage && isset($result))
 <div class="card-footer border-top fixed-footer mt-3" style="padding-top: 25px;">
     <div class="d-flex justify-content-start gap-2 flex-wrap">
-        @can('rider_edit')
+        @can('riders_rider_edit')
         <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-outline-primary btn-sm waves-effect waves-light">
             <i class="fa fa-edit"></i>&nbsp;Edit
         </a>
@@ -18,7 +18,7 @@ $isRiderEditPage = request()->routeIs('riders.edit');
             <i class="fas fa-envelope"></i>&nbsp;Send Email
         </a>
         @endcan
-        @can('timeline_create')
+        @can('riders_timeline_create')
         <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md" data-title="Add Timeline" class="btn btn-outline-success btn-sm text-nowrap show-modal">
             <i class="fas fa-chart-bar"></i>&nbsp;Add Timeline
         </a>

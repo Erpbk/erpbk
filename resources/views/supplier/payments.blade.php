@@ -10,6 +10,7 @@
             <div class="col-sm-6 d-flex gap-2">
             </div>
             <div class="col-sm-6">
+            @can('suppliers_payments_create')
             <div class="action-buttons d-flex justify-content-end">
                 <div class="action-dropdown-container">
                     <button class="action-dropdown-btn" id="addBikeDropdownBtn">
@@ -28,6 +29,7 @@
                     </div>
                 </div>
             </div>
+            @endcan
         </div>
     </div>
 </section>

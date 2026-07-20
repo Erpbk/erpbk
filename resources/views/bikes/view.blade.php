@@ -811,13 +811,15 @@
 
                 <!-- Action Buttons - Smaller size -->
                 <div class="bike-actions-compact">
-                    @can('bike_edit')
+                    @can('bikes_bike_edit')
                     <a href="{{ route('bikes.edit', $bikes->id) }}"
                         class="btn-compact btn-edit-compact show-modal"
                         data-title="Edit Vehicle #{{ $bikes->plate }}">
                         <i class="fas fa-edit"></i>
                         <span>Edit Details</span>
                     </a>
+                    @endcan
+                    @canany(['bikes_assign_edit', 'bikes_assign_create', 'bikes_bike_edit'])
                     @if($showLeasingReturnToCompany)
                     <a href="javascript:void(0);"
                         class="btn-compact btn-edit-compact show-modal"
@@ -828,8 +830,8 @@
                         <span>Return to company</span>
                     </a>
                     @endif
-                    @endcan
-                    @can('bike_assign_edit')
+                    @endcanany
+                    @canany(['bikes_assign_create', 'bikes_assign_edit'])
                     @if($showAssignRiderBlock)
                     @if($bikes->rider_id || $bikes->rental_company_id)
                     <a href="javascript:void(0);"
@@ -861,7 +863,7 @@
                     </a>
                     @endif
                     @endif
-                    @endcan
+                    @endcanany
                 </div>
             </div>
         </div>
@@ -870,22 +872,22 @@
         <div class="nav-align-top">
             <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
                 <li class="nav-item"><a class="nav-link @if(Route::is('bikes.show')) active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
-                @can('bike_assign_view')
+                @can('bikes_assign_view')
                 <li class="nav-item">
                     <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(Route::is('bikeHistories.index')) active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
                 </li>
                 @endcan
-                @can('files_view')
+                @can('bikes_documents_view')
                 <li class="nav-item">
                     <a href="{{route('bikes.files',$bikes->id)}}" class="nav-link @if(Route::is('bikes.files')) active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
                 </li>
                 @endcan
-                @can('files_view')
+                @can('bikes_maintenance_view')
                 <li class="nav-item">
                     <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
                 </li>
                 @endcan
-                @can('bike_registration_view')
+                @can('bikes_registration_view')
                 @php
                 $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');
                 @endphp

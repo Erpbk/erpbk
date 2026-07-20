@@ -56,12 +56,12 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('item_edit')
+                  @can('items_item_edit')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Data" data-action="{{ route('items.edit', $r->id) }}">
                            <i class="fa fa-edit my-1"></i> Edit
                         </a>
                   @endcan
-                  @can('item_delete')
+                  @can('items_item_delete')
                   <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt' 
                         onclick='confirmDelete("{{ route('items.delete', $r->id) }}")'>
                         <i class="fa fa-trash my-1"></i> Delete

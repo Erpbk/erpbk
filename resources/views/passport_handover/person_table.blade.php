@@ -33,7 +33,7 @@
             <td>{{ $person['history_count'] }} record(s)</td>
             <td class="text-end">
                 <div class="d-flex flex-wrap justify-content-end gap-1">
-                    @can('passport_handover_issue')
+                    @can('passport_handover_create')
                     @if(!$person['has_open_issue'])
                     <a href="javascript:void(0);" class="btn btn-sm btn-primary show-modal"
                         data-action="{{ route('passportHandover.issueForm', ['type' => $person['type'], 'id' => $person['id']]) }}"
@@ -42,7 +42,7 @@
                     </a>
                     @endif
                     @endcan
-                    @can('passport_handover_return')
+                    @canany(['passport_handover_create', 'passport_handover_edit'])
                     @if($person['has_open_issue'])
                     <a href="javascript:void(0);" class="btn btn-sm btn-warning show-modal"
                         data-action="{{ route('passportHandover.returnForm', ['type' => $person['type'], 'id' => $person['id']]) }}"
@@ -50,11 +50,13 @@
                         <i class="ti ti-arrow-back-up me-1"></i> Return
                     </a>
                     @endif
-                    @endcan
+                    @endcanany
+                    @can('passport_handover_view')
                     <a href="{{ route('passportHandover.history', ['type' => $person['type'], 'id' => $person['id']]) }}"
-                        class="btn btn-sm btn-outline-primary">
-                        <i class="ti ti-history me-1"></i> History
-                    </a>
+                            class="btn btn-sm btn-outline-primary">
+                            <i class="ti ti-history me-1"></i> History
+                        </a>
+                    @endcan
                 </div>
             </td>
         </tr>

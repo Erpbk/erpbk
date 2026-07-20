@@ -122,9 +122,9 @@ return [
             'label' => 'Garages',
             'primary_label_key' => 'garages',
         ],
-        'garage_customers' => [
+        'garages_customers' => [
             'label' => 'Garage Customers',
-            'primary_label_key' => 'garage_customers',
+            'primary_label_key' => 'garages_customers',
         ],
         'supplier' => [
             'label' => 'Supplier',

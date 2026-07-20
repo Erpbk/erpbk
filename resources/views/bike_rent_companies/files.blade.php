@@ -2,7 +2,10 @@
 
 @section('page_content')
 <div class="card-action mb-0">
-    @can('rider_document')
+    @canany(['bike_on_rent_documents_view', 'garages_documents_view'])
+    @php
+        $type = Route::is('bikeRentCompanies.files') ? 'rentCompany' : 'garage';
+    @endphp
     <!-- FILES SECTION -->
     <div class="card mb-4 border-warning">
         <div class="table-responsive my-3">
@@ -35,13 +38,15 @@
                                 </div>
 
                                 <!-- Upload Button -->
+                                @canany(['bike_on_rent_documents_create', 'garages_documents_create'])
                                 <a class="btn btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
-                                    data-action="{{ route('files.create',['type_id'=> $customer->id,'type'=>'customer']) }}"
+                                    data-action="{{ route('files.create',['type_id'=> $customer->id,'type'=> $type]) }}"
                                     data-size="sm"
                                     data-title="Upload File">
                                     <i class="ti ti-upload me-1"></i>Upload File
                                 </a>
+                                @endcanany
                             </div>
                         </div>
                     </tr>
@@ -64,12 +69,14 @@
                             </a>
                         </td>
                         <td class="text-end">
+                            @canany(['bike_on_rent_documents_delete', 'garages_documents_delete'])
                             <a href="javascript:void(0);"
                                 data-url="{{ route('files.destroy', $riderFile->id) }}"
                                 target="_blank"
                                 class='btn btn-danger btn-sm delete-file'>
                                 <i class="fa fa-trash my-1"></i>
                             </a>
+                            @endcanany
                         </td>
                     </tr>
                     @endforeach
@@ -79,17 +86,19 @@
                         <td class="row-counter">{{ $counter++ }}</td>
                         <td class="text-start">{{ $fileName }}</td>
                         <td class="text-end">
+                            @canany(['bike_on_rent_documents_create', 'garages_documents_create'])
                             <a class="btn btn-sm btn-primary show-modal action-btn"
                                 href="javascript:void(0);"
                                 data-action="{{ route('files.create', [
-                                            'type_id' => request()->segment(3),
-                                            'type' => 'rider',
+                                            'type_id' => $customer->id,
+                                            'type' => $type,
                                             'suggested_name' => $fileName
                                         ]) }}"
                                 data-size="md"
                                 data-title="Upload {{ $fileName }}">
                                 <i class="ti ti-upload"></i>
                             </a>
+                            @endcanany
                         </td>
                     </tr>
                     @endforeach
@@ -108,11 +117,12 @@
             </table>
         </div>
     </div>
-    @endcan
-    @cannot('rider_document')
-    <div class="alert alert-warning text-center m-3">
-        <i class="fa fa-warning"></i> You don't have permission.
+    @else
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
     </div>
-    @endcannot
+    @endcanany
 </div>
 @endsection

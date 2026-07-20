@@ -43,7 +43,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
             'data' => 'emirate_hub'
         ],
         'customer_id' => [
-            'title' => 'Customer',
+            'title' => 'Project',
             'data' => 'customer_id'
         ],
         'designation' => [

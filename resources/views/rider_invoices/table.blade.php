@@ -54,19 +54,19 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
-                  @can('riderinvoice_edit')
+                  @can('riders_invoices_edit')
                   <a href="javascript:void(0);" data-action="{{ route('riderInvoices.edit', $r->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Invoice">
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
                   @if($r->status != 1)
-                  @can('riderinvoice_edit')
+                  @can('riders_payments_create')
                   <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=rider&invoice_id={{ $r->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Record Rider Payment">
                      <i class="fa fa-money-bill mx-1 text-success"></i> Record Payment
                   </a>
                   @endcan
                   @endif
-                  @can('riderinvoice_delete')
+                  @can('riders_invoices_delete')
                   <a href="javascript:void(0);" onclick="confirmDelete('{{route('riderInvoices.delete', $r->id)}}')" class='dropdown-item waves-effect'>
                      <i class="fa fa-trash mx-1"></i> Delete
                   </a>

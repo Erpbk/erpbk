@@ -199,7 +199,7 @@ class DocumentExpiryDashboard
 
         $config = self::typeConfig()[$key] ?? null;
         if (! $config) {
-            return $user->can('company_documents_view');
+            return $user->can('documents_view');
         }
 
         $visibility = (string) ($config['visibility'] ?? '');
@@ -213,7 +213,7 @@ class DocumentExpiryDashboard
             }
         }
 
-        return user_can('company_documents_view', $user);
+        return user_can('documents_view', $user);
     }
 
     /**
@@ -262,7 +262,7 @@ class DocumentExpiryDashboard
     protected static function listUrl(string $filter, string $companySlug, int $days): string
     {
         try {
-            return route('upload_files.index', [
+            return route('files.index', [
                 'company_slug' => $companySlug,
                 'expiry' => $filter,
                 'days' => $days,

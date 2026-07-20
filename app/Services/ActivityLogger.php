@@ -10,6 +10,24 @@ use Illuminate\Support\Facades\Request;
 
 class ActivityLogger
 {
+    protected static bool $loggedThisRequest = false;
+
+    /**
+     * Reset the per-request logging flag (called at the start of each HTTP request).
+     */
+    public static function resetRequestFlag(): void
+    {
+        static::$loggedThisRequest = false;
+    }
+
+    /**
+     * Whether any activity was already logged during this request.
+     */
+    public static function wasLoggedThisRequest(): bool
+    {
+        return static::$loggedThisRequest;
+    }
+
     /**
      * Resolve a valid users.id for activity_logs.user_id (nullable FK).
      * Admin guard sessions and stale web sessions may reference ids that
@@ -17,7 +35,7 @@ class ActivityLogger
      */
     protected static function resolveUserId(): ?int
     {
-        $userId = Auth::guard('web')->id();
+        $userId = Auth::guard('web')->id() ?? Auth::id();
 
         if ($userId === null) {
             return null;
@@ -37,6 +55,8 @@ class ActivityLogger
      */
     public static function log(string $action, string $moduleName, $model = null, $changes = null): ActivityLog
     {
+        static::$loggedThisRequest = true;
+
         return ActivityLog::create([
             'user_id' => self::resolveUserId(),
             'action' => $action,
@@ -135,6 +155,8 @@ class ActivityLogger
      */
     public static function logAsync(string $action, string $moduleName, $model = null, $changes = null): void
     {
+        static::$loggedThisRequest = true;
+
         LogActivity::dispatch(
             self::resolveUserId(),
             $action,

@@ -17,6 +17,10 @@ class VatSettingsController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('permission:vat_view')->only('index');
+        $this->middleware('permission:vat_create')->only('store', 'storeQuarter');
+        $this->middleware('permission:vat_edit')->only('store', 'storeQuarter');
+        $this->middleware('permission:vat_delete')->only('deleteQuarter');
     }
 
     /**
@@ -293,34 +297,19 @@ class VatSettingsController extends Controller
     }
 
     /**
-     * VAT Ledger uses these two accounts by default; overridable via VAT Settings (Configuration).
-     */
-    public const VAT_LEDGER_ACCOUNT_1 = 1023;
-    public const VAT_LEDGER_ACCOUNT_2 = 1025;
-
-    /**
      * Get VAT account IDs for the VAT Ledger (combined entries). Defaults to 1023 and 1025 if not set in settings.
      *
      * @return int[] Non-empty array of account IDs to combine (1 or 2 elements).
      */
     public static function getVatAccountIds(): array
     {
-        $keys = ['vat_input_account_id', 'vat_output_account_id'];
-        $rows = Settings::whereIn('name', $keys)->pluck('value', 'name');
-        $defaults = [self::VAT_LEDGER_ACCOUNT_1, self::VAT_LEDGER_ACCOUNT_2];
-        $ids = [];
-        foreach ($keys as $i => $key) {
-            $val = $rows[$key] ?? null;
-            $id = ($val !== null && $val !== '' && (int) $val > 0) ? (int) $val : $defaults[$i];
-            $ids[] = $id;
-        }
-        return array_values(array_unique($ids));
+        return [\App\Support\GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'), \App\Support\GlobalAccounts::id('VAT_ON_SALES')];
     }
 
     /**
      * Remove a VAT quarter by slot (1-4).
      */
-    public function deleteQuarter(Request $request, int $slot)
+    public function deleteQuarter(Request $request, $company_slug ,int $slot)
     {
         if ($slot < 1 || $slot > 4) {
             return redirect()->to(route('settings-panel.vat-settings.index') . '?tab=quarters')->with('error', 'Invalid quarter.');

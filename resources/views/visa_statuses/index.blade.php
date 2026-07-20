@@ -75,7 +75,7 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
                 <h1>{{ $showRenewalCategoriesTab ? 'Visa Expense Settings' : 'Visa Status Management' }}</h1>
             </div>
             <div class="col-sm-6">
-                @can('visaexpense_create')
+                @can('visa_expense_create')
                 <a class="btn btn-primary float-end js-visa-status-add-btn" href="{{ route($visaRoute . '.create') }}">
                     Add New Status
                 </a>

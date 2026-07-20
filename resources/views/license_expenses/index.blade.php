@@ -15,7 +15,7 @@ $paidCount = company_table('license_expenses')->where('rider_id', $accountId)->w
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
       <h3 class="mb-0">License Expense - {{ $account->name }}</h3>
-      @can('licenseexpense_create')
+      @can('license_expense_create')
       <a class="btn btn-primary action-btn show-modal"
         href="javascript:void(0);" data-action="{{ route('LicenseExpense.create' , $account->id) }}" data-size="lg" data-title="New expense entry">
         Add New Expense

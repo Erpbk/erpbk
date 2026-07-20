@@ -144,7 +144,12 @@
 @php
     $totalBeforeTax = $total;
     $vatAmount = $riderInvoice->vat > 0 ? $total * $vat_percentage / 100 : 0;
-    $paid_amount = company_table('vouchers')->where('ref_id', $riderInvoice->rider->id)->where('voucher_type', 'PAY')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
+    $paid_amount = 0;
+    if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
+        $paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
+            ->whereDate('billing_month', $riderInvoice->billing_month)
+            ->sum('amount');
+    }
     $rider_balance_final = $paid_amount - $finalAmount;
 @endphp
 

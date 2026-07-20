@@ -3,12 +3,13 @@
 @section('page_content')
 <div class="content">
     @include('flash::message')
+    @can('customers_inventory_view')
     <div class="card card-action mb-1">
         <div class="card-header align-items-center">
             <h5 class="card-action-title mb-0">
                 <i class="ti ti-package ti-lg text-body me-2"></i>Customer Inventory
             </h5>
-            @can('riderinventory_edit')
+            @can('customers_inventory_edit')
             <a href="{{ route('RiderInventory.returnToCustomerForm') }}" class="btn btn-sm btn-info">
                 <i class="ti ti-truck-return"></i> Return to Customer
             </a>
@@ -71,5 +72,12 @@
             </table>
         </div>
     </div>
+    @else
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
+    </div>
+    @endcan
 </div>
 @endsection

@@ -54,24 +54,42 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $receipt->id }}" style="z-index: 1050;">
-                        @can('receipt_create')
+                        @canany([
+                            'cash_&_banks_receipts_create',
+                            'customers_payments_create',
+                            'leasing_companies_payments_create',
+                            'bike_on_rent_payments_create',
+                            'garages_payments_create',
+                        ])
                             @if(!str_contains($receipt->reference, 'CI-') && !str_contains($receipt->reference, 'LBI-'))
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add New Receipt (Cloned From RV-{{ $receipt->voucher_id }})" data-action="{{ route('receipts.clone', $receipt->id) }}">
                                 <i class="fa fa-copy my-1"></i>Clone Receipt
                             </a>
                             @endif
-                        @endcan
-                        @can('receipt_edit')
+                        @endcanany
+                        @canany([
+                            'cash_&_banks_receipts_edit',
+                            'customers_payments_edit',
+                            'leasing_companies_payments_edit',
+                            'bike_on_rent_payments_edit',
+                            'garages_payments_edit',
+                        ])
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Receipt Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
                                 <i class="fa fa-edit my-1"></i> Edit
                             </a>
-                        @endcan
-                        @can('receipt_delete')
+                        @endcanany
+                        @canany([
+                            'cash_&_banks_receipts_delete',
+                            'customers_payments_delete',
+                            'leasing_companies_payments_delete',
+                            'bike_on_rent_payments_delete',
+                            'garages_payments_delete',
+                        ])
                         <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt' 
                             data-url="{{ route('receipts.destroy', $receipt->id) }}">
                             <i class="fa fa-trash my-1"></i> Delete
                         </a>
-                        @endcan
+                        @endcanany
                     </div>
                     </div>
                 </td>

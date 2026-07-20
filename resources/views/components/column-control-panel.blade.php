@@ -28,11 +28,15 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
             }
 
             if (!(bool) $assignment->is_visible) {
-                // Riders list: keep employment `status` in column control even if module marks it hidden
-                if ($resolvedModuleKey === 'riders_list' && $columnKey === 'status') {
+                // Riders list: keep employment `status` and project (`customer_id`) in column control even if module marks them hidden
+                if ($resolvedModuleKey === 'riders_list' && in_array($columnKey, ['status', 'customer_id'], true)) {
                     $effectiveLabel = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
                     if ($effectiveLabel !== '') {
-                        $column['title'] = $effectiveLabel;
+                        $column['title'] = $columnKey === 'customer_id' && strcasecmp($effectiveLabel, 'Customer') === 0
+                            ? 'Project'
+                            : $effectiveLabel;
+                    } elseif ($columnKey === 'customer_id') {
+                        $column['title'] = 'Project';
                     }
                     return $column;
                 }
@@ -41,7 +45,9 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
 
             $effectiveLabel = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
             if ($effectiveLabel !== '') {
-                $column['title'] = $effectiveLabel;
+                $column['title'] = ($resolvedModuleKey === 'riders_list' && $columnKey === 'customer_id' && strcasecmp($effectiveLabel, 'Customer') === 0)
+                    ? 'Project'
+                    : $effectiveLabel;
             }
 
             return $column;

@@ -39,12 +39,12 @@
                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $branch->id }}" style="z-index: 1050;">
-                    @can('branches_edit')
+                    @can('settings_branches_edit')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($branch->name) }} Branch" data-action="{{ route($branchRoute . '.edit', $branch->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
                     @endcan
-                    @can('branches_delete')
+                    @can('settings_branches_delete')
                     @php
                         $deleteBlocked = isset(($blockedBranchIds ?? [])[$branch->id]);
                     @endphp

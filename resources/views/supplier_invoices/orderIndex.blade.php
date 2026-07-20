@@ -13,12 +13,12 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6">
+            <div class="col-md-6">
             </div>
-            <div class="col-sm-6">
-                @can('customer_create')
+            <div class="col-md-6">
+                @can('suppliers_purchase_order_create')
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addBikeDropdownBtn">

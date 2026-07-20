@@ -82,7 +82,7 @@
             <td>
                 @if($row->isAssigned())
                 <div class="btn-group">
-                    @can('riderinventory_edit')
+                    @can('riders_inventory_edit')
                     <a href="javascript:void(0);" class="btn btn-sm btn-warning show-modal"
                         data-action="{{ route('RiderInventory.returnForm', $row->id) }}"
                         data-size="md" data-title="Return Inventory Item">
@@ -94,7 +94,7 @@
                         Lost
                     </a>
                     @endcan
-                    @can('riderinventory_delete')
+                    @can('riders_inventory_delete')
                     <button type="button" class="btn btn-sm btn-outline-danger"
                         onclick="if(confirm('Delete this assignment? It will be moved to the Recycle Bin.')) { document.getElementById('delete-assignment-{{ $row->id }}').submit(); }">
                         Delete
@@ -108,7 +108,7 @@
                     @endcan
                 </div>
                 @elseif(in_array($row->status, ['returned', 'lost', 'returned_to_customer'], true))
-                @can('riderinventory_edit')
+                @can('riders_inventory_edit')
                 <div class="d-flex gap-1 flex-wrap justify-content-center">
                     <a href="javascript:void(0);" class="btn btn-sm btn-outline-secondary show-modal"
                         data-action="{{ route('RiderInventory.changeStatusForm', $row->id) }}"

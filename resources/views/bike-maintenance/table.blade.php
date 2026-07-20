@@ -108,7 +108,7 @@
                     <div class="dropdown-menu dropdown-menu-end"
                         aria-labelledby="actiondropdown_{{ $maintenance->id }}"
                         style="z-index: 1050;">
-                        @can('maintenance_edit')
+                        @canany(['bike_on_rent_maintenance_edit', 'garages_maintenance_edit', 'bikes_maintenance_edit'])
                         <a class="dropdown-item waves-effect show-modal"
                             href="javascript:void(0);"
                             data-size="xl"
@@ -116,14 +116,12 @@
                             data-action="{{ route('bikeMaintenance.edit', $maintenance) }}?type={{ $maintenance->rentalComapny?->customer_type ?? null }}">
                             <i class="fa fa-edit my-1"></i>Edit Record
                         </a>
-                        @endcan
-                        @can('maintenance_delete')
-                        @can('bike_delete')
+                        @endcanany
+                        @canany(['bike_on_rent_maintenance_delete', 'garages_maintenance_delete', 'bikes_maintenance_delete'])
                         <a href="javascript:void(0);" class='dropdown-item waves-effect delete-record' data-url="{{ route('bikeMaintenance.destroy', $maintenance) }} ">
                             <i class="fa fa-trash my-1 text-danger"></i>Delete Record
                         </a>
-                        @endcan
-                        @endcan
+                        @endcanany
                     </div>
                 </div>
             </td>

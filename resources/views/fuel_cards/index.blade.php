@@ -16,7 +16,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('fuel_create')
+                            @can('fuel_cards_card_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Card" data-action="{{ route('fuelCards.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -24,15 +24,13 @@
                                     <div class="action-dropdown-item-desc">Add a new Fuel Card</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('fuel_create')
-                            <a class="action-dropdown-item" href="{{ route('fuelCards.import') }}">
+                            <a class="action-dropdown-item" href="javascript:void(0);">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Fuel card Data</span>
                             </a>
                             @endcan
-                            @can('fuel_view')
-                            <a class="action-dropdown-item" href="{{ route('fuelCards.export')}}">
+                            @can('fuel_cards_export_data_create')
+                            <a class="action-dropdown-item" href="javascript:void(0);">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Fuel Card Data</span>
                             </a>
@@ -47,7 +45,7 @@
 
     <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
         <div class="filter-header">
-            <h5>Filter Sims</h5>
+            <h5>Filter Fuel Cards</h5>
             <button type="button" class="btn-close" id="closeSidebar"></button>
         </div>
         <div class="filter-body" id="searchTopbody">

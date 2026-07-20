@@ -39,29 +39,29 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('supplier_create')
+                  @can('suppliers_invoices_create')
                   @if(!$r->is_invoice)
                   <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Generate Invoice" data-action="{{ route('supplierInvoices.edit', $r->id) }}">
                      <i class="fa fa-credit-card my-1"></i> Generate Invoice
                   </a>
                   @endif
                   @endcan
-                  @can('supplier_view')
+                  @canany(['suppliers_invoices_view', 'suppliers_purchase_order_view'])
                   <a href="{{ route('supplierInvoices.show', $r->id) }}@if(str_contains(url()->current(), 'order'))?order={{ true }} @endif" target="_blank" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye my-1"></i> view
                   </a>
-                  @endcan
-                  @can('supplier_edit')
+                  @endcanany
+                  @canany(['suppliers_invoices_edit', 'suppliers_purchase_order_edit'])
                   <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Data" data-action="{{ route('supplierInvoices.edit', $r->id) }}@if(str_contains(url()->current(), 'order'))?order={{ true }} @endif">
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
-                  @endcan
-                  @can('receipt_delete')
+                  @endcanany
+                  @canany(['suppliers_invoices_delete', 'suppliers_purchase_order_delete'])
                   <a href="javascript:void(0);" class='dropdown-item waves-effect delete-receipt'
                      onclick='confirmDelete("{{route('supplierInvoices.delete' , $r->id ) }}")'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>
-                  @endcan
+                  @endcanany
                </div>
             </div>
             {{-- </td>

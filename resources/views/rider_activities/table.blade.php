@@ -98,25 +98,42 @@
 @endpush
 
 
+@php
+$isConsolidated = $isConsolidated ?? false;
+$isAllTab = !empty($isAllTab);
+$hideDay = !empty($hideDay);
+@endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
+         @unless($isAllTab)
          <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
+         @unless($hideDay)
          <th title="Day" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Day: activate to sort column ascending">Day</th>
+         @endunless
+         @endunless
          <th title="ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="ID: activate to sort column ascending">ID</th>
          <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending">Name</th>
          <th title="Fleet Supr" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Fleet Supr">Fleet Supr</th>
          <th title="Project" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Project">Project</th>
          <th title="Status" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
-         <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
-         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Ontime%" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ontime%: activate to sort column ascending">Ontime%</th>
+         <th title="HR" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="HR: activate to sort column ascending">HR</th>
          <th title="Rejected" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rejected: activate to sort column ascending">Rejected</th>
+         <th title="Delivered" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Delivered: activate to sort column ascending">Delivered</th>
+         @if($isAllTab)
+         <th title="Total Days" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Total Days: activate to sort column ascending">Total Days</th>
+         @else
          <th title="Rating" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rating: activate to sort column ascending">Valid Day</th>
+         @endif
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
+      @php
+      $isRowConsolidated = !empty($r->is_consolidated);
+      $rider = $r->rider ?? company_table('riders')->where('id', $r->rider_id)->first();
+      @endphp
       <tr class="text-center"
          data-delivered="{{ $r->delivered_orders ?? 0 }}"
          data-rejected="{{ $r->rejected_orders ?? 0 }}"
@@ -125,20 +142,55 @@
          data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
          data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
          data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
-         <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
-         <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
+         @unless($isAllTab)
+         <td>
+            @if($isRowConsolidated && !empty($r->date_from) && !empty($r->date_to))
+            {{ \Carbon\Carbon::parse($r->date_from)->format('d M Y') }}
+            –
+            {{ \Carbon\Carbon::parse($r->date_to)->format('d M Y') }}
+            @else
+            {{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}
+            @endif
+         </td>
+         @unless($hideDay)
+         <td>
+            @if($isRowConsolidated)
+            -
+            @else
+            {{ \Carbon\Carbon::parse($r->date)->format('l') }}
+            @endif
+         </td>
+         @endunless
+         @endunless
          <td>{{ $r->d_rider_id }}</td>
+         <td class="text-left">
+            @if($rider)
+            <a href="{{ route('rider.activities', $r->rider_id) }}">{{ $rider->name }}</a>
+            @else
+            -
+            @endif
+         </td>
+         <td>{{ $rider->fleet_supervisor ?? '-' }}</td>
+         <td>
+            @if($rider)
+            {{ optional($rider->customer)->name ?? (company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-') }}
+            @else
+            -
+            @endif
+         </td>
          @php
-         $rider = company_table('riders')->where('id' , $r->rider_id)->first();
-         @endphp
-         <td> <a href="{{route('rider.activities',$r->rider_id)}}">{{ $rider->name }}</a> </td>
-         <td>{{ $rider->fleet_supervisor }}</td>
-         <td>{{ company_table('customers')->where('id', $rider->customer_id)->first()->name ?? '-' }}</td>
-         @php
-         $hasActiveBike = company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
-         $isWalker = $rider->designation === 'Walker';
+         $hasActiveBike = $rider ? company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists() : false;
+         $isWalker = $rider && $rider->designation === 'Walker';
+         $employmentStatus = $rider
+         ? \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)
+         : ['label' => 'Inactive', 'badge' => 'bg-label-secondary'];
+         $isEmploymentInactive = $rider && (int) ($rider->status ?? 1) !== 1;
 
-         if ($isWalker) {
+         if ($isEmploymentInactive) {
+         // Show employment inactive/vacation/absconded even when bike status differs
+         $statusText = $employmentStatus['label'];
+         $badgeClass = $employmentStatus['badge'];
+         } elseif ($isWalker) {
          $statusText = 'Active';
          $badgeClass = 'bg-label-success';
          } else {
@@ -149,11 +201,19 @@
          <td>
             <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
          </td>
-         <td>{{ $r->delivered_orders }}</td>
-         <td>{{ $r->login_hr }}</td>
          <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
+         <td>{{ $r->login_hr }}</td>
          <td>{{ $r->rejected_orders }}</td>
+         <td>{{ $r->delivered_orders }}</td>
+         @if($isAllTab)
+         <td>{{ $r->valid_days_count ?? 0 }}</td>
+         @else
          <td>
+            @if($isRowConsolidated)
+            <span class="badge bg-success" title="Valid days">{{ $r->valid_days_count ?? 0 }} Valid</span>
+            <span class="badge bg-warning" title="Invalid days">{{ $r->invalid_days_count ?? 0 }} Invalid</span>
+            <span class="badge bg-danger" title="Off days">{{ $r->off_days_count ?? 0 }} Off</span>
+            @else
             @php
             $orders = $r->delivered_orders ?? 0;
             $hours = $r->login_hr ?? 0;
@@ -171,7 +231,9 @@
             }
             @endphp
             <span class="badge {{ $badgeClass }}">{{ $status }}</span>
+            @endif
          </td>
+         @endif
       </tr>
       @endforeach
    </tbody>
@@ -209,12 +271,16 @@
 <script>
    $(document).ready(function() {
       // Recalculate totals when table is updated (for AJAX filtering)
+      @unless($isAllTab)
       calculateTotals();
+      @endunless
 
       // Recalculate when DataTable is redrawn (if using DataTables)
       if ($.fn.DataTable) {
          $('#dataTableBuilder').on('draw.dt', function() {
+            @unless($isAllTab)
             calculateTotals();
+            @endunless
          });
       }
    });

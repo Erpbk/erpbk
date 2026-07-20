@@ -11,14 +11,16 @@
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h3 class="mb-0">License Expense Accounts</h3>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createaccount">
-                <i class="fa fa-plus me-1"></i> Create Expense Account
-            </button>
+            @can('license_expense_create')
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createaccount">
+                    <i class="fa fa-plus me-1"></i> Create Expense Account
+                </button>
+            @endcan
         </div>
     </div>
 </section>
 
-<div class="content">
+<div class="content mt-3">
     @include('flash::message')
 
     @if(isset($LicenseStatuses) && $LicenseStatuses->isNotEmpty())

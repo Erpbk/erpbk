@@ -65,9 +65,11 @@
                     {{ $row->returned_to_customer?->format('Y-m-d') ?? '—' }}
                 </td>
                 <td>
+                    @can('riders_inventory_view')
                     <a href="{{ route('RiderInventory.show', $row->rider_id) }}" class="btn btn-sm btn-primary">
                         <i class="ti ti-package"></i> Manage
                     </a>
+                    @endcan
                 </td>
             </tr>
             @empty

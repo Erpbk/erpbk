@@ -20,11 +20,11 @@
         <tr class="text-center" data-status="{{ $installment->status }}">
             <td>
                 <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('visa_expense_edit')
                 <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <input type="date"
                     id="inst_date_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
@@ -45,11 +45,11 @@
             </td>
             <td>
                 <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('visa_expense_edit')
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <input type="month"
                     id="inst_billing_input_{{ $installment->id }}"
                     value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
@@ -59,11 +59,11 @@
             </td>
             <td>
                 <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('visa_expense_edit')
                 <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <input type="number"
                     step="0.01"
                     id="inst_amount_input_{{ $installment->id }}"
@@ -74,11 +74,11 @@
             </td>
             <td class="text-start" style="min-width: 260px;">
                 <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                @canany(['installment_edit', 'visaloan_edit'])
+                @can('visa_expense_edit')
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
-                @endcanany
+                @endcan
                 <textarea
                     id="inst_narration_input_{{ $installment->id }}"
                     rows="2"
@@ -99,18 +99,12 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown{{ $installment->id }}">
-                        @canany(['installment_edit', 'visaloan_edit'])
+                        @can('visa_expense_edit')
                         @if($installment->status === 'pending')
                         <a href="javascript:void(0);"
                             onclick="markAsPaid({{ $installment->id }})"
                             class='dropdown-item waves-effect'>
                             <i class="fa fa-check me-2"></i> Mark as Paid
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
-                            class='dropdown-item waves-effect text-danger'>
-                            <i class="fa fa-trash me-2"></i> Delete
                         </a>
                         @else
                         <a href="javascript:void(0);"
@@ -118,18 +112,16 @@
                             class='dropdown-item waves-effect'>
                             <i class="fa fa-undo me-2"></i> Mark as Pending
                         </a>
+                        @endif
+                        @endcan
+                        @can('visa_expense_delete')
                         <div class="dropdown-divider"></div>
                         <a href="javascript:void(0);"
                             onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
                             class='dropdown-item waves-effect text-danger'>
                             <i class="fa fa-trash me-2"></i> Delete
                         </a>
-                        @endif
-                        @else
-                        <span class="dropdown-item-text text-{{ $installment->status === 'paid' ? 'success' : 'warning' }}">
-                            <i class="fa fa-{{ $installment->status === 'paid' ? 'check' : 'clock' }} me-2"></i> {{ ucfirst($installment->status) }}
-                        </span>
-                        @endcanany
+                        @endcan
                     </div>
                 </div>
             </td>

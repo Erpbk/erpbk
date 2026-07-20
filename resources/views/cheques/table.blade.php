@@ -104,7 +104,7 @@
                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $cheque->id }}" style="z-index: 1050;">
-                    @can('cheques_edit')
+                    @can('cash_&_banks_cheques_edit')
                         @if($cheque->status != 'Cleared')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
@@ -116,7 +116,7 @@
                         </a>
                         @endif
                     @endcan
-                    @can('cheques_delete')
+                    @can('cash_&_banks_cheques_delete')
                     <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
                         data-url="{{ route('cheques.destroy', $cheque->id) }}">
                         <i class="fa fa-trash my-1"></i> Delete

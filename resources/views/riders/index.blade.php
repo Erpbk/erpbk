@@ -11,6 +11,7 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('riders_rider_view')
 <section class="content-header">
     <div>
         <!-- Enhanced Fleet Supervisor Accordion Section -->
@@ -79,7 +80,7 @@
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addRiderDropdown">
-                                @can('rider_create')
+                                @can('riders_rider_create')
                                 <a class="action-dropdown-item" href="{{ route('riders.create') }}">
                                     <i class="ti ti-user-plus"></i>
                                     <div>
@@ -88,6 +89,7 @@
                                     </div>
                                 </a>
                                 @endcan
+                                @can('riders_attendance_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Today Attendance" data-action="{{ route('rider.attendance_import') }}">
                                     <i class="ti ti-calendar-check"></i>
                                     <div>
@@ -95,6 +97,7 @@
                                         <div class="action-dropdown-item-desc">Import attendance data for today</div>
                                     </div>
                                 </a>
+                                @endcan
                                 <!-- <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Keeta Rider Activities" data-action="{{ route('rider.keeta_activities_import') }}">
                                     <i class="ti ti-activity"></i>
                                     <div>
@@ -102,6 +105,7 @@
                                         <div class="action-dropdown-item-desc">Import Keeta rider activity data</div>
                                     </div>
                                 </a> -->
+                                @can('riders_export_data_create')
                                 <a class="action-dropdown-item" href="{{ route('rider.exportRiders') }}">
                                     <i class="ti ti-file-export"></i>
                                     <div>
@@ -109,6 +113,8 @@
                                         <div class="action-dropdown-item-desc">Export rider data to Excel</div>
                                     </div>
                                 </a>
+                                @endcan
+                                @can('riders_voucher_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Rider Vouchers" data-action="{{ route('riders.import_rider_vouchers', ['modal' => 1]) }}">
                                     <i class="ti ti-file-spreadsheet"></i>
                                     <div>
@@ -116,6 +122,7 @@
                                         <div class="action-dropdown-item-desc">Open import modal</div>
                                     </div>
                                 </a>
+                                @endcan
                                 <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
                                     <i class="ti ti-columns"></i>
                                     <div>
@@ -148,7 +155,7 @@
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="customer_id">Filter by Customer</label>
+                            <label for="customer_id">Filter by Project</label>
                             <select class="form-control " id="customer_id" name="customer_id">
                                 @php
                                 $customerIds = company_table('riders')
@@ -186,11 +193,28 @@
                             </select>
                         </div>
                         <div class="form-group col-md-12">
-                            <label for="bike_assignment_status">Filter by Bike Assignment</label>
+                            <label for="bike_assignment_status">Filter by Status</label>
                             <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
                                 <option value="" selected>Select</option>
                                 <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
                                 <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                                @foreach(($riderTopStatusFilterOptions ?? []) as $statusOption)
+                                <option value="{{ $statusOption['value'] }}" {{ request('bike_assignment_status') == $statusOption['value'] ? 'selected' : '' }}>
+                                    {{ $statusOption['label'] }}
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="form-group col-md-12">
+                            <label for="fleet_supervisor">Filter by Supervisor</label>
+                            <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
+                                @php
+                                $supervisors = company_table('riders')->select('fleet_supervisor')->distinct()->pluck('fleet_supervisor')->toArray();
+                                @endphp
+                                <option value="" selected>Select</option>
+                                @foreach($supervisors as $supervisor)
+                                <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
+                                @endforeach
                             </select>
                         </div>
                         <div class="col-md-12 form-group text-center">
@@ -233,6 +257,13 @@
         </div>
     </div>
 </div>
+@else
+<div class="card">
+    <div class="card-body">
+        <h5>You are not authorized to access this page</h5>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
@@ -256,18 +287,23 @@
     $(document).ready(function() {
         $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Customer",
+            placeholder: "Filter By Project",
             allowClear: true, // ✅ cross icon enable
         });
         $('#bike_assignment_status').select2({
             dropdownParent: $('#searchTopbody'),
             allowClear: true, // ✅ cross icon enable
-            placeholder: "Filter By status",
+            placeholder: "Filter By Bike/Top Status",
         });
         $('#attendance').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Attandence",
             allowClear: true, // ✅ cross icon enable
+        });
+        $('#fleet_supervisor').select2({
+            dropdownParent: $('#searchTopbody'),
+            allowClear: true, // ✅ cross icon enable
+            placeholder: "Filter By Supervisor",
         });
     });
 </script>

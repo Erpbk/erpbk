@@ -13,6 +13,7 @@ $importErrorMessage = session('error');
 @endpush
 
 @section('content')
+@can('riders_live_activities_view')
 <div class="row mb-2">
   <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
@@ -126,6 +127,9 @@ $importErrorMessage = session('error');
   <!-- Filter Overlay -->
   <div id="filterOverlay" class="filter-overlay"></div>
 </div>
+
+@include('rider_activities.partials.tabs_and_operations', ['activeActivitiesTab' => 'live'])
+
 <section class="content">
   @php
   $activity = new App\Models\liveactivities();
@@ -139,14 +143,10 @@ $importErrorMessage = session('error');
 
   //$activity->get();
   @endphp
+
   <div class="card h-100" style="border-radius: 0px !important;">
     <div class="card-header d-flex justify-content-between">
       <h5 class="card-title mb-0"><b>Rider Live Activities</b> (Statistics)</h5>
-      <small class="text-body-secondary">
-        <a class="btn btn-primary show-modal mx-2" href="javascript:void(0);" data-size="sm" data-title="Import Live Activities" data-action="{{ route('rider.live_activities_import') }}"> <i class="ti ti-activity"></i> Import Live Activities</a>
-        <a class="btn btn-info mx-2" href="{{ route('rider.live_activities_import_errors') }}" title="View Last Import Errors"> <i class="fa fa-exclamation-triangle"></i> View Import Errors</a>
-        <a class="btn btn-primary openFilterSidebar" href="javascript:void(0);"> <i class="fa fa-search"></i></a>
-      </small>
     </div>
     <div class="card-body">
       <div id="totalsBar" class="mb-2">
@@ -185,6 +185,13 @@ $importErrorMessage = session('error');
   </div>
 </div>
 
+@else
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">You are not authorized to access this page</h5>
+  </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -259,10 +266,32 @@ $importErrorMessage = session('error');
 
 <script type="text/javascript">
   $(document).ready(function() {
+    // Operations dropdown
+    $('#riderActivitiesOpsBtn').on('click', function(e) {
+      e.stopPropagation();
+      const dropdown = $('#riderActivitiesOpsMenu');
+      const btn = $(this);
+      if (dropdown.hasClass('show')) {
+        dropdown.removeClass('show');
+        btn.removeClass('open');
+      } else {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+        dropdown.addClass('show');
+        btn.addClass('open');
+      }
+    });
+
+    $(document).on('click', function(e) {
+      if (!$(e.target).closest('.action-dropdown-container').length) {
+        $('.action-dropdown-menu').removeClass('show');
+        $('.action-dropdown-btn').removeClass('open');
+      }
+    });
+
     // Filter sidebar functionality - open on hover
     $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
       e.preventDefault();
-      console.log('Filter button hovered!');
       $('#filterSidebar').addClass('open');
       $('#filterOverlay').addClass('show');
       return false;
@@ -271,7 +300,6 @@ $importErrorMessage = session('error');
     // Keep the original click handler for mobile devices
     $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
       e.preventDefault();
-      console.log('Filter button clicked!');
       $('#filterSidebar').addClass('open');
       $('#filterOverlay').addClass('show');
       return false;

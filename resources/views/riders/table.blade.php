@@ -24,7 +24,7 @@
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      @forelse($data as $r)
       <tr class="text-center">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
@@ -32,20 +32,20 @@
          @case('name')
          <td class="text-start"><a href="{{ route('riders.show', $r->id) }}">{{ $r->name }}</a><br /></td>
          @break
-         @case('company_contact')
+         @case('contact_number')
          @php
-         $phone = preg_replace('/[^0-9]/', '', $r->company_contact);
+         $phone = preg_replace('/[^0-9]/', '', $r->sim?->number ?? '');
          if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
          else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
          @endphp
          <td>
-            @if ($r->company_contact)
+            @if ($phone)
             <a href="https://wa.me/{{ $whatsappNumber }}" target="_blank" class="text-success">{{ $displayNumber }}</a>
             @else N/A @endif
          </td>
          @break
          @case('customer_id')
-         <td>{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-'}}</td>
+         <td>{{ $r->customer?->name ?? '-' }}</td>
          @break
          @case('branch_id')
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
@@ -70,7 +70,8 @@
          <td class="text-center">
             @include('riders._status_badges', [
             'employmentStatus' => data_get($r, 'status'),
-            'optionText' => data_get($r, 'rider_status', ''),
+            'statusDays' => data_get($r, 'employment_status_days'),
+            'statusChangedAt' => data_get($r, 'last_employment_status_change_date'),
             ])
          </td>
          @break
@@ -113,17 +114,19 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+                  @can('agreements_create')
                   @include('layouts.partials.module_contract_action', [
                     'module' => 'riders',
                     'recordId' => $r->id,
                     'recordLabel' => $r->name . ' (' . $r->rider_id . ') — Contracts',
                   ])
-                  @can('rider_edit')
+                  @endcan
+                  @can('riders_rider_edit')
                   <a href="{{ route('riders.edit', ['company_slug' => request()->route('company_slug'), 'rider' => $r->id]) }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-edit my-1"></i> Edit
                   </a>
                   @endcan
-                  @can('rider_delete')
+                  @can('riders_rider_delete')
                   <a href="javascript:void(0);" onclick="confirmDelete('{{ route('rider.delete', ['company_slug' => request()->route('company_slug'), 'id' => $r->id]) }}')" class='dropdown-item waves-effect'>
                      <i class="fa fa-trash my-1"></i> Delete
                   </a>
@@ -155,7 +158,20 @@
          @endforeach
          <td></td>
       </tr>
-      @endforeach
+      @empty
+      @php
+      $hasSupervisorOrStatusFilter = request()->filled('fleet_supervisor')
+      || request()->filled('rider_status')
+      || request()->filled('status');
+      @endphp
+      <tr>
+         <td colspan="{{ count($dataColumns) + 1 }}" class="text-center text-danger py-3">
+            {{ $hasSupervisorOrStatusFilter
+            ? 'This rider does not belong to this supervisor or status.'
+            : 'No riders found for the selected filters.' }}
+         </td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
 @if(method_exists($data, 'links'))

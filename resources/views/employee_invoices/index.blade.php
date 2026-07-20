@@ -5,6 +5,7 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('employees_invoice_view')
 <section class="content-header ">
     @include('flash::message')
     <div>
@@ -18,7 +19,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('employeeinvoice_create')
+                        @can('employees_invoice_create')
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Employee Invoice" data-action="{{ route('employeeInvoices.create') }}">
                             <i class="ti ti-plus"></i>
                             <div>
@@ -46,5 +47,10 @@
         </div>
     </div>
 </div>
+@else
+<div class="alert alert-danger mt-4" role="alert">
+    You do not have permission to view employee invoices.
+</div>
+@endcan
 @endsection
 

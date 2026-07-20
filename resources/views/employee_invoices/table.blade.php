@@ -42,17 +42,17 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            @can('payment_create')
+                            @can('employees_payments_create')
                                 <a href="javascript:void(0);" data-action="{{ route('payments.create', ['employee_payment' => 1, 'invoice_id' => $r->id]) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Add Payment">
                                     <i class="fa fa-money-bill mx-1"></i> Add Payment
                                 </a>
                             @endcan
-                            @can('employeeinvoice_edit')
+                            @can('employees_invoice_edit')
                                 <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
                                     <i class="fa fa-edit mx-1"></i> Update
                                 </a>
                             @endcan
-                            @can('employeeinvoice_delete')
+                            @can('employees_invoice_delete')
                                 <a href="javascript:void(0);" onclick="confirmDelete('{{ route('employeeInvoices.delete', $r->id) }}')" class="dropdown-item waves-effect">
                                     <i class="fa fa-trash mx-1"></i> Delete
                                 </a>

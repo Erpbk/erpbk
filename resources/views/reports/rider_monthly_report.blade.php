@@ -434,7 +434,7 @@
 
         $('.filter-loading-overlay').show();
         $.ajax({
-            url: "{{ url('reports/rider_monthly_report_data') }}",
+            url: "{{ route('reports.rider_monthly_report_data') }}",
             headers: {
                 'X-CSRF-TOKEN': $('meta[name=\"csrf-token\"]').attr('content')
             },
@@ -523,7 +523,7 @@
 
         $('.filter-loading-overlay').show();
         $.ajax({
-            url: "{{ url('reports/rider_monthly_report_data') }}?page=" + encodeURIComponent(page),
+            url: "{{ route('reports.rider_monthly_report_data') }}?page=" + encodeURIComponent(page),
             headers: {
                 'X-CSRF-TOKEN': $('meta[name=\"csrf-token\"]').attr('content')
             },

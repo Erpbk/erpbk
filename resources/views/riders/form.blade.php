@@ -136,11 +136,11 @@
                       <ul class="nav nav-pills">
 
                          <li class="nav-item"><a class="nav-link active" href="#information" data-toggle="tab">Information</a></li>
-                         @can('riders_document')
+                         @can('riders_documents_view')
                          <li class="nav-item"><a class="nav-link" href="#documents" data-toggle="tab">Documents</a></li>
                          @endcan
                          <li class="nav-item"><a class="nav-link" href="#timeline" data-toggle="tab">Timeline</a></li>
-                         @can('invoices_view')
+                         @can('riders_invoices_view')
                          <li class="nav-item"><a class="nav-link" href="#invoices" data-toggle="tab">Invoices</a></li>
                          @endcan
 

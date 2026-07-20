@@ -39,7 +39,7 @@ class LoanVoucherService
 
         $transCode = Account::trans_code();
         $billingMonth = $disbursementDate->copy()->startOfMonth()->format('Y-m-d');
-        $interestParent = $this->resolveInterestExpenseAccount();
+        $interestParent = GlobalAccounts::account('LOAN_INTEREST_EXPENSE');
 
         $voucher = Vouchers::create([
             'trans_date' => $disbursementDate->format('Y-m-d'),
@@ -118,17 +118,9 @@ class LoanVoucherService
             }
         }
 
-        $parentAccount = Accounts::find(GlobalAccounts::id('LOANS_PAYABLE_PARENT_NAME'))
-            ?? Accounts::where('name', 'Loans Payable')
-                ->where('account_type', 'Liability')
-                ->whereNull('parent_id')
-                ->first();
-
-        if (! $parentAccount) {
-            throw new \RuntimeException('Parent account "Loans Payable" not found.');
-        }
-
+        $parentAccount = GlobalAccounts::account('LOANS_PAYABLE_PARENT_NAME');
         $bank = Banks::find($loan->bank_id);
+
         $account = new Accounts;
         $account->account_code = 'LN'.str_pad($loan->id, 4, '0', STR_PAD_LEFT);
         $account->account_type = 'Liability';
@@ -186,7 +178,7 @@ class LoanVoucherService
         $loanPayableNarration = $loanPayableNarration ?: $defaultNarration;
         $interestNarration = $interestNarration ?: $defaultNarration;
         $bankNarration = $bankNarration ?: $defaultNarration;
-        $interestParent = $this->resolveInterestExpenseAccount();
+        $interestParent = GlobalAccounts::account('LOAN_INTEREST_EXPENSE');
 
         $transCode = Account::trans_code();
         $billingMonth = $paymentDate->copy()->startOfMonth()->format('Y-m-d');
@@ -263,17 +255,6 @@ class LoanVoucherService
         $loan->save();
 
         return $voucher;
-    }
-
-    protected function resolveInterestExpenseAccount(): Accounts
-    {
-        $account = Accounts::find(GlobalAccounts::id('LOAN_INTEREST_EXPENSE'));
-
-        if (! $account) {
-            throw new \RuntimeException('Parent account "Loan Interest Expense" not found.');
-        }
-
-        return $account;
     }
 
     protected function updateLedgerEntry(

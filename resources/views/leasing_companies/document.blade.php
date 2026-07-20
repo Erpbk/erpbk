@@ -1,72 +1,125 @@
 @extends('leasing_companies.view')
 
 @section('page_content')
-    <div class="content">
-        @include('flash::message')
-        <div class="clearfix"></div>
+<div class="card-action mb-0">
+    @can('leasing_companies_documents_view')
+    <!-- FILES SECTION -->
+    <div class="card mb-4 border-warning">
+        <div class="table-responsive my-3">
+            <table class="table table-hover mb-0" id="files-table">
+                <thead class="table-light">
+                    <tr class="row flex align-items-center m-0">
+                        <div class="d-flex justify-content-between align-items-center p-3">
+                            <div>
+                                <h4 class="mb-1"><i class="ti ti-file text-primary me-2"></i>Documents</h4>
+                                @isset($missingFiles)
+                                <small class="text-muted">
+                                    <i class="ti ti-info-circle me-1"></i>
+                                    {{ count($missingFiles) ?? 0 }} documents pending
+                                </small>
+                                @endisset
+                            </div>
 
-        <div class="card">
-            <div class="card-header d-flex justify-content-between">
-                <h5>Documents</h5>
-                <button class="btn btn-primary btn-sm" onclick="$('#uploadModal').modal('show')">
-                    <i class="fa fa-upload"></i> Upload Document
-                </button>
-            </div>
-            <div class="card-body table-responsive py-0">
-                <table class="table table-striped">
-                    <thead>
-                        <tr>
-                            <th>File Name</th>
-                            <th>Uploaded Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($files as $file)
-                        <tr>
-                            <td>{{ $file->file_name }}</td>
-                            <td>{{ \Carbon\Carbon::parse($file->created_at)->format('d M Y') }}</td>
-                            <td>
-                                <a href="{{ url('storage/files/' . $file->file_path) }}" class="btn btn-sm btn-primary" target="_blank">
-                                    <i class="fa fa-download"></i> Download
+                            <div class="text-end">
+                                <!-- Search Box -->
+                                <div class="mb-2">
+                                    <div class="input-group input-group-sm" style="max-width: 250px;">
+                                        <input type="text"
+                                            class="form-control"
+                                            id="file-search"
+                                            placeholder="Search documents...">
+                                        <button class="btn btn-outline-secondary" type="button" id="clear-search" title="Clear SearchBox">
+                                            <i class="ti ti-x"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Upload Button -->
+                                @can('leasing_companies_documents_create')
+                                <a class="btn btn-primary show-modal action-btn"
+                                    href="javascript:void(0);"
+                                    data-action="{{ route('files.create',['type_id'=> $leasingCompany->id,'type'=> 'leasing_company']) }}"
+                                    data-size="sm"
+                                    data-title="Upload File">
+                                    <i class="ti ti-upload me-1"></i>Upload File
                                 </a>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="3" class="text-center">No documents found</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Upload Modal -->
-    <div class="modal fade" id="uploadModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Upload Document</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form action="{{ route('files.store') }}" method="POST" enctype="multipart/form-data">
-                    @csrf
-                    <input type="hidden" name="type" value="leasing_company">
-                    <input type="hidden" name="type_id" value="{{ $leasingCompany->id }}">
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label>Select File</label>
-                            <input type="file" name="file" class="form-control" required>
+                                @endcan
+                            </div>
                         </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn btn-primary">Upload</button>
-                    </div>
-                </form>
-            </div>
+                    </tr>
+                    <tr>
+                        <th width="50">#</th>
+                        <th class="text-start">Document</th>
+                        <th width="120" class="text-end">Action</th>
+                    </tr>
+                </thead>
+                @php
+                    $counter = 0;
+                @endphp
+                <tbody id="files-table-body">
+                    @foreach($files as $riderFile)
+                    <tr class="file-row" data-name="{{ strtolower($riderFile->name) }}">
+                        <td class="row-counter">{{ $counter++ }}</td>
+                        <td class="text-start">
+                            <a href="{{ storage_url($riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name) }}" target="_blank">
+                                {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
+                            </a>
+                        </td>
+                        <td class="text-end">
+                            @can('leasing_companies_documents_delete')
+                            <a href="javascript:void(0);"
+                                data-url="{{ route('files.destroy', $riderFile->id) }}"
+                                target="_blank"
+                                class='btn btn-danger btn-sm delete-file'>
+                                <i class="fa fa-trash my-1"></i>
+                            </a>
+                            @endcan
+                        </td>
+                    </tr>
+                    @endforeach
+                    @if(isset($missingFiles) && !empty($missingFiles))
+                    @foreach($missingFiles as $key => $fileName)
+                    <tr class="file-row" data-name="{{ strtolower($fileName) }}">
+                        <td class="row-counter">{{ $counter++ }}</td>
+                        <td class="text-start">{{ $fileName }}</td>
+                        <td class="text-end">
+                            @can('leasing_companies_documents_create')
+                            <a class="btn btn-sm btn-primary show-modal action-btn"
+                                href="javascript:void(0);"
+                                data-action="{{ route('files.create', [
+                                            'type_id' => $leasingCompany->id,
+                                            'type' => 'leasing_company',
+                                            'suggested_name' => $fileName
+                                        ]) }}"
+                                data-size="md"
+                                data-title="Upload {{ $fileName }}">
+                                <i class="ti ti-upload"></i>
+                            </a>
+                            @endcan
+                        </td>
+                    </tr>
+                    @endforeach
+                    @endif
+                </tbody>
+                <tfoot id="no-results" style="display: none;">
+                    <tr>
+                        <td colspan="3" class="text-center py-4">
+                            <div class="text-muted">
+                                <i class="ti ti-search-off fs-4 mb-2"></i>
+                                <p class="mb-0">No documents found</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     </div>
+    @else
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
+    </div>
+    @endcan
+</div>
 @endsection

@@ -54,24 +54,48 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $payment->id }}" style="z-index: 1050;">
-                        @can('payment_create')
+                        @canany([
+                            'cash_&_banks_payments_create',
+                            'employees_payments_create',
+                            'customers_payments_create',
+                            'riders_payments_create',
+                            'sims_payments_create',
+                            'leasing_companies_payments_create',
+                            'suppliers_payments_create',
+                        ])
                             @if(!str_contains($payment->reference, 'LCI') && !str_contains($payment->reference, 'SUP'))
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add New Payment (Cloned From PV-{{ $payment->voucher_id }})" data-action="{{ route('payments.clone', $payment->id) }}">
                                 <i class="fa fa-copy my-1"></i>Clone Payment
                             </a>
                             @endif
-                        @endcan
-                        @can('payments_edit')
+                        @endcanany
+                        @canany([
+                            'cash_&_banks_payments_edit',
+                            'employees_payments_edit',
+                            'customers_payments_edit',
+                            'riders_payments_edit',
+                            'sims_payments_edit',
+                            'leasing_companies_payments_edit',
+                            'suppliers_payments_edit',
+                        ])
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Payment Details" data-action="{{ route('payments.edit', $payment->id) }}">
                                 <i class="fa fa-edit my-1"></i> Edit
                             </a>
-                        @endcan
-                        @can('payments_delete')
+                        @endcanany
+                        @canany([
+                            'cash_&_banks_payments_delete',
+                            'employees_payments_delete',
+                            'customers_payments_delete',
+                            'riders_payments_delete',
+                            'sims_payments_delete',
+                            'leasing_companies_payments_delete',
+                            'suppliers_payments_delete',
+                        ])
                         <a href="javascript:void(0);" class='dropdown-item waves-effect delete-payment' 
                             data-url="{{ route('payments.destroy', $payment->id) }}">
                             <i class="fa fa-trash my-1"></i> Delete
                         </a>
-                        @endcan
+                        @endcanany
                     </div>
                     </div>
                 </td>

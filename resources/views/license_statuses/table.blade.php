@@ -41,7 +41,7 @@ $licenseStatusReturnTo = $licenseStatusReturnTo ?? null;
                 <td>{{ $status->display_order }}</td>
                 <td>
                     <div class='btn-group'>
-                        @can('licenseexpense_edit')
+                        @can('license_expense_edit')
                         @if($embeddedLicenseStatusManager)
                         <button
                             type="button"
@@ -68,7 +68,7 @@ $licenseStatusReturnTo = $licenseStatusReturnTo ?? null;
                             <i class="fas fa-{{ $status->is_active ? 'ban' : 'check' }}"></i>
                         </a>
                         @endcan
-                        @can('licenseexpense_delete')
+                        @can('license_expense_delete')
                         <button
                             type="button"
                             class="btn btn-sm btn-danger js-visa-status-delete-btn"

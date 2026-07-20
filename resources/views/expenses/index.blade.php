@@ -100,7 +100,7 @@
                 <i class="ti ti-chevron-down"></i>
               </button>
               <div class="action-dropdown-menu" id="addBikeDropdown">
-                @can('expense_voucher_create')
+                @can('expenses_create')
                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Expense Voucher" data-action="{{ route('expenses.voucher.create', $expenseModuleRouteParams) }}">
                   <i class="ti ti-file-invoice"></i>
                   <div>
@@ -108,8 +108,6 @@
                     <div class="action-dropdown-item-desc">Add a new Expense Voucher</div>
                   </div>
                 </a>
-                @endcan
-                @can('expenses_create')
                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Expense Account" data-action="{{ route('expenses.create') }}">
                   <i class="ti ti-wallet"></i>
                   <div>

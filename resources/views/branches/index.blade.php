@@ -14,7 +14,7 @@
             <div class="card-search">
                 <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
             </div>
-            @can('branches_create')
+            @can('settings_branches_create')
                 <a href="javascript:void(0)" class="btn btn-primary btn-sm show-modal" data-action="{{ route($branchRoute . '.create') }}" data-size="lg" data-title="Add new branch">
                     <i class="icon-base ti ti-plus me-1"></i> Add New Branch
                 </a>

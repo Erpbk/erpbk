@@ -68,7 +68,7 @@
                 <h1>License Status Management</h1>
             </div>
             <div class="col-sm-6">
-                @can('licenseexpense_create')
+                @can('license_expense_create')
                 <a class="btn btn-primary float-end" href="{{ route($licenseRoute . '.create') }}">
                     Add New Status
                 </a>

@@ -112,7 +112,7 @@
               <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
             </button>
             <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-              @can('sim_assign_edit')
+              @can('sims_assign_create')
               @if(!$r->assign_to)
               <a href="javascript:void(0);" data-size="lg" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
                 <i class="fa fa-motorcycle my-1"></i>Assign
@@ -123,12 +123,12 @@
               </a>
               @endif
               @endcan
-              @can('sim_edit')
+              @can('sims_sim_edit')
               <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit Sim" data-action="{{ route('sims.edit', $r->id) }} ">
                 <i class="fa fa-edit my-1"></i> Edit
               </a>
               @endcan
-              @can('sim_delete')
+              @can('sims_sim_delete')
               <a href="#" class='dropdown-item waves-effect'
                 data-delete-url="{{ route('sims.delete', $r->id) }}"
                 onclick="confirmDelete(this.dataset.deleteUrl)">

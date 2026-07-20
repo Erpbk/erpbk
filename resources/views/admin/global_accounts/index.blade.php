@@ -68,6 +68,15 @@
                                 </td>
                                 <td class="text-end">
                                     <a href="{{ route('admin.global-accounts.edit', $globalAccount) }}" class="btn btn-sm btn-outline-primary">{{ __('Edit') }}</a>
+                                    @if($globalAccount->account_id)
+                                        <a href="javascript:void(0);"
+                                           class="btn btn-sm btn-outline-secondary show-modal"
+                                           data-action="{{ route('admin.global-accounts.linked-account.edit', $globalAccount) }}"
+                                           data-size="lg"
+                                           data-title="{{ __('Edit Linked Account') }}">
+                                            {{ __('Edit Linked Account') }}
+                                        </a>
+                                    @endif
                                     <form action="{{ route('admin.global-accounts.destroy', $globalAccount) }}" method="post" class="d-inline" onsubmit="return confirm('{{ __('Delete this global account mapping?') }}');">
                                         @csrf
                                         @method('DELETE')

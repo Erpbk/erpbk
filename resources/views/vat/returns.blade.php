@@ -8,9 +8,11 @@
   <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
     <h5 class="mb-0"><i class="ti ti-file-export ti-lg text-body me-2"></i>VAT Return File</h5>
     <div class="d-flex gap-2">
+      @canany(['vat_create', 'vat_edit'])
       <a href="javascript:void(0);" class="btn btn-primary btn-sm show-modal" data-size="xl" data-title="New VAT Payment Voucher (VP)" data-action="{{ route('vat.voucher.create') }}">
         <i class="ti ti-file-invoice me-1"></i> New VAT Payment Voucher
       </a>
+      @endcanany
       <a href="{{ route('vat.index') }}" class="btn btn-outline-primary btn-sm"><i class="ti ti-receipt-tax me-1"></i> VAT Ledger</a>
     </div>
   </div>

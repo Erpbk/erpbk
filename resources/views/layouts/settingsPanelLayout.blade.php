@@ -36,22 +36,23 @@ $containerNav = 'container-fluid';
           <span class="menu-header-text">Administration</span>
         </li>
 
-        @canany(['gn_settings','department_view','dropdown_view','visaexpense_view','riderinventory_view','branches_view'])
+        @can('settings_company_setting_view')
         <li class="menu-item {{ Request::is('settings-panel/company') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.company', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building-community"></i>
             <div>Company Details</div>
           </a>
         </li>
-        @can('gn_settings')
+        @endcan
+        {{-- @can('gn_settings')
         <li class="menu-item {{ Request::is('settings-panel/erp') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.erp', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-adjustments"></i>
             <div>Settings</div>
           </a>
         </li>
-        @endcan
-        @can('department_view')
+        @endcan --}}
+        @can('settings_departments_view')
         <li class="menu-item {{ Request::is('settings-panel/departments*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.departments.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-sitemap"></i>
@@ -59,7 +60,7 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('branches_view')
+        @can('settings_branches_view')
         <li class="menu-item {{ Request::is('settings-panel/branches*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.branches.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-building"></i>
@@ -68,25 +69,35 @@ $containerNav = 'container-fluid';
         </li>
         @endcan
 
-        @endcanany
 
         {{-- User Management, Activity Logs, Recycle Bin --}}
         <li class="menu-header small text-uppercase mt-3">
           <span class="menu-header-text">User & System</span>
         </li>
+        @can('settings_users_view')
         <li class="menu-item {{ Request::is('settings-panel/users*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.users.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-users-group"></i>
             <div>Users</div>
           </a>
         </li>
-
+        @endcan
         <li class="menu-item {{ Request::is('settings-panel/profile*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.profile', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-user"></i>
             <div>Profile</div>
           </a>
         </li>
+        @can('settings_email_view')
+
+        @if($settingsIsCompanyAdmin)
+        <li class="menu-item {{ Request::is('settings-panel/email-accounts*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.email-accounts.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-mailbox"></i>
+            <div>Email Accounts</div>
+          </a>
+        </li>
+        @endif
 
         <li class="menu-item {{ Request::is('settings-panel/email-settings*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.email-settings.edit', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
@@ -94,15 +105,16 @@ $containerNav = 'container-fluid';
             <div>Email Settings</div>
           </a>
         </li>
-        @can('role_view')
+        @endcan
+        {{-- @can('settings_roles_view')
         <li class="menu-item {{ Request::is('settings-panel/roles*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.roles.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-user-check"></i>
             <div>Roles</div>
           </a>
         </li>
-        @endcan
-        @can('activity_logs_view')
+        @endcan --}}
+        @can('settings_activity_logs_view')
         <li class="menu-item {{ Request::is('settings-panel/activity-logs*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.activity-logs.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-history"></i>
@@ -110,7 +122,7 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
-        @can('trash_view')
+        @can('settings_recycle_bin_view')
         <li class="menu-item {{ Request::is('settings-panel/trash*') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.trash.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-trash text-warning"></i>

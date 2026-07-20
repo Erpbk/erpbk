@@ -19,12 +19,13 @@ class AgreementGenerationController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
+        $this->middleware('permission:agreements_create')->only('modal', 'editTemplate', 'updateTemplate');
+        $this->middleware('permission:agreements_view')->only('preview', 'pdf');
+        $this->middleware('permission:email_create')->only('email');
     }
 
     public function modal(Request $request, $company_slug, int $riderId)
     {
-        $this->authorizeGenerate();
-
         AgreementCategory::ensureDefaultsForCompany();
 
         $rider = Riders::findOrFail($riderId);
@@ -55,8 +56,6 @@ class AgreementGenerationController extends Controller
 
     public function preview(Request $request, $company_slug, int $riderId, AgreementPdfService $pdfService)
     {
-        $this->authorizeGenerate();
-
         $rider = Riders::findOrFail($riderId);
         $template = $this->resolveRiderTemplate((int) $request->input('template_id'));
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
@@ -69,8 +68,6 @@ class AgreementGenerationController extends Controller
 
     public function pdf(Request $request, $company_slug, int $riderId, AgreementPdfService $pdfService)
     {
-        $this->authorizeGenerate();
-
         $rider = Riders::findOrFail($riderId);
         $template = $this->resolveRiderTemplate((int) $request->input('template_id'));
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
@@ -88,8 +85,6 @@ class AgreementGenerationController extends Controller
 
     public function email(Request $request, $company_slug, int $riderId, AgreementPdfService $pdfService)
     {
-        $this->authorizeGenerate();
-
         $wantsJson = $request->ajax() || $request->wantsJson();
 
         $validated = $request->validate([
@@ -165,8 +160,6 @@ class AgreementGenerationController extends Controller
 
     public function editTemplate(Request $request, $company_slug, int $riderId, int $template)
     {
-        $this->authorizeGenerate();
-
         $rider = Riders::findOrFail($riderId);
         $template = $this->resolveRiderTemplate($template);
         $category = $template->category()->first();
@@ -181,9 +174,7 @@ class AgreementGenerationController extends Controller
     }
 
     public function updateTemplate(Request $request, $company_slug, int $riderId, int $template)
-    {
-        $this->authorizeGenerate();
-
+    {   
         $template = $this->resolveRiderTemplate($template);
         $validated = $request->validate([
             'description' => 'nullable|string',
@@ -197,13 +188,6 @@ class AgreementGenerationController extends Controller
             'riderId' => $riderId,
             'template' => $template->id,
         ])->with('success', 'Agreement template updated from module.');
-    }
-
-    private function authorizeGenerate(): void
-    {
-        if (!Gate::allows('agreement_generate') && !Gate::allows('agreement_view') && !Gate::allows('rider_view')) {
-            abort(403, 'Unauthorized');
-        }
     }
 
     private function resolveRiderTemplate(int $templateId): AgreementTemplate

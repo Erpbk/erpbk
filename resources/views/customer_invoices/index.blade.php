@@ -12,13 +12,13 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('customers_invoices_view')
 <section class="content-header">
     <div class="">
         <div class="row mb-2">
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('customer_create')
                 <div class="action-buttons d-flex justify-content-end">
                     <div class="action-dropdown-container">
                         <button class="action-dropdown-btn" id="addBikeDropdownBtn">
@@ -27,6 +27,7 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
+                            @can('customers_invoices_create')
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Invoice" data-action="{{ route('customer_invoices.create') }}">
                                 <i class="ti ti-plus"></i>
                                 <div>
@@ -34,10 +35,10 @@
                                     <div class="action-dropdown-item-desc">Add a new Customer Invoice</div>
                                 </div>
                             </a>
+                            @endcan
                         </div>
                     </div>
                 </div>
-                @endcan
             </div>
         </div>
     </div>
@@ -107,6 +108,16 @@
     </div>
 
 </div>
+@else
+<div class="content">
+    <div class="clearfix"></div>
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
+    </div>
+</div>
+@endcan
 @endsection
 @section('page-script')
 @endsection

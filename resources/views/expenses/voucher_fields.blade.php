@@ -2,7 +2,7 @@
 
 <input type="hidden" name="voucher_type" id="voucher_type" value="EXP">
 
-<div class="row mt-0 mb-2">
+<div class="row mt-0 mb-2" id="expense-voucher-header">
     <div class="form-group col-md-2">
         <label for="trans_date">Date</label>
         <input type="date" name="trans_date" class="form-control" placeholder="Transaction Date" value="{{ date('Y-m-d') }}">
@@ -19,8 +19,95 @@
     </div>
 
     <div class="form-group col-md-3">
-        <label for="credit_account_id">Credit Account (Bank/Cash) <span class="text-danger">*</span></label>
-        <select name="credit_account_id" id="credit_account_id" class="form-control form-select select2" required>
+        <label for="payment_type">Payment Type</label>
+        {!! Form::select('payment_type', App\Helpers\Account::payment_type_list(), null, ['class' => 'form-control select2', 'id' => 'payment_type']) !!}
+    </div>
+</div>
+
+<hr>
+
+<h6 class="mb-2">Debit Entries (Expenses)</h6>
+
+<div class="row g-2 mb-1 fw-semibold small text-muted px-1 expense-voucher-col-header">
+    <div class="col-md-3">Account <span class="text-danger">*</span></div>
+    <div class="col-md-3">Narration</div>
+    <div class="col-md-2">Amount <span class="text-danger">*</span></div>
+    <div class="col-md-1">VAT %</div>
+    <div class="col-md-2">VAT Amount</div>
+    <div class="col-md-1"></div>
+</div>
+
+<div class="scrollbar" id="expense-voucher-scroll">
+    <div id="expense-voucher-rows">
+        <div class="expense-voucher-entry row g-2 mb-2 align-items-start">
+            <div class="col-md-3">
+                <select name="debit_account_id[]" class="form-control form-select select2 debit-account-select" required>
+                    <option value="">Select Expense Account</option>
+                    {!! App\Helpers\Accounts::expenseAccountsDropdown($expenseAccounts) !!}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <textarea name="debit_narration[]" class="form-control debit-narration expense-narration-auto" rows="2" placeholder="Narration"></textarea>
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="any" name="amount[]" class="form-control expense-amount" placeholder="Amount" required>
+            </div>
+            <div class="col-md-1">
+                <input type="number" step="any" name="vat_percent[]" class="form-control vat-percent" placeholder="%" value="0">
+            </div>
+            <div class="col-md-2">
+                <input type="number" step="any" name="vat_amount[]" class="form-control vat-amount" placeholder="VAT" readonly>
+            </div>
+            <div class="col-md-1">
+                <a href="javascript:void(0);" class="text-danger btn-remove-expense-entry" title="Remove"><i class="fa fa-trash"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<button type="button" id="add-expense-row" class="btn btn-success btn-sm mt-2 mb-3">
+    <i class="fa fa-plus me-1"></i> Add Entry
+</button>
+
+<template id="expense-voucher-row-tpl">
+    <div class="expense-voucher-entry row g-2 mb-2 align-items-start">
+        <div class="col-md-3">
+            <select name="debit_account_id[]" class="form-control form-select select2 debit-account-select" required>
+                <option value="">Select Expense Account</option>
+                {!! App\Helpers\Accounts::expenseAccountsDropdown($expenseAccounts) !!}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <textarea name="debit_narration[]" class="form-control debit-narration expense-narration-auto" rows="2" placeholder="Narration"></textarea>
+        </div>
+        <div class="col-md-2">
+            <input type="number" step="any" name="amount[]" class="form-control expense-amount" placeholder="Amount" required>
+        </div>
+        <div class="col-md-1">
+            <input type="number" step="any" name="vat_percent[]" class="form-control vat-percent" placeholder="%" value="0">
+        </div>
+        <div class="col-md-2">
+            <input type="number" step="any" name="vat_amount[]" class="form-control vat-amount" placeholder="VAT" readonly>
+        </div>
+        <div class="col-md-1">
+            <a href="javascript:void(0);" class="text-danger btn-remove-expense-entry" title="Remove"><i class="fa fa-trash"></i></a>
+        </div>
+    </div>
+</template>
+
+<hr class="mt-0">
+
+<h6 class="mb-2">Credit Entry (Bank/Cash)</h6>
+
+<div class="row g-2 mb-1 fw-semibold small text-muted px-1 expense-voucher-col-header">
+    <div class="col-md-3">Account <span class="text-danger">*</span></div>
+    <div class="col-md-3">Narration</div>
+    <div class="col-md-2">Amount</div>
+</div>
+
+<div class="expense-credit-entry row g-2 mb-2 align-items-start">
+    <div class="col-md-3">
+        <select name="credit_account_id" id="credit_account_id" class="form-control select2" required>
             <option value="">Select Bank/Cash Account</option>
             @foreach($bankCashAccounts as $id => $name)
                 @if($id !== '')
@@ -29,54 +116,12 @@
             @endforeach
         </select>
     </div>
-
-    <div class="form-group col-md-2">
-        <label for="payment_type">Payment Type</label>
-        {!! Form::select('payment_type', App\Helpers\Account::payment_type_list(), null, ['class' => 'form-select form-select-sm select2', 'id' => 'payment_type']) !!}
+    <div class="col-md-3">
+        <textarea name="credit_narration" id="credit_narration" class="form-control credit-narration expense-narration-auto" rows="2" placeholder="Narration">Expense Payment</textarea>
     </div>
-</div>
-
-<hr>
-
-<div class="scrollbar">
-    <h6 class="mb-3">Debit Entries (Expenses)</h6>
-
-    <div id="expense-voucher-rows">
-        <div class="expense-voucher-entry border rounded p-3 mb-2">
-            <div class="row">
-                <div class="form-group col-md-3">
-                    <label>Debit Account (Expense) <span class="text-danger">*</span></label>
-                    <select name="debit_account_id[]" class="form-control form-select select2 debit-account-select" required>
-                        <option value="">Select Expense Account</option>
-                        {!! App\Helpers\Accounts::expenseAccountsDropdown($expenseAccounts) !!}
-                    </select>
-                </div>
-                <div class="form-group col-md-3">
-                    <label>Narration</label>
-                    <input type="text" name="debit_narration[]" class="form-control" placeholder="Narration">
-                </div>
-                <div class="form-group col-md-2">
-                    <label>Amount <span class="text-danger">*</span></label>
-                    <input type="number" step="any" name="amount[]" class="form-control expense-amount" placeholder="Amount" required>
-                </div>
-                <div class="form-group col-md-1">
-                    <label>VAT %</label>
-                    <input type="number" step="any" name="vat_percent[]" class="form-control vat-percent" placeholder="%" value="0">
-                </div>
-                <div class="form-group col-md-2">
-                    <label>VAT Amount</label>
-                    <input type="number" step="any" name="vat_amount[]" class="form-control vat-amount" placeholder="VAT" readonly>
-                </div>
-                <div class="form-group col-md-1 d-flex align-items-end">
-                    <a href="javascript:void(0);" class="text-danger btn-remove-expense-entry"><i class="fa fa-trash"></i></a>
-                </div>
-            </div>
-        </div>
+    <div class="col-md-2">
+        <input type="number" step="any" id="credit_amount" class="form-control fw-bold" placeholder="Amount" readonly>
     </div>
-
-    <button type="button" id="add-expense-row" class="btn btn-success btn-sm mt-2 mb-3">
-        <i class="fa fa-plus me-1"></i> Add Entry
-    </button>
 </div>
 
 <div class="row mt-3">
@@ -101,58 +146,75 @@
 
 <script>
 (function() {
-    if (typeof jQuery === 'undefined') {
-        setTimeout(arguments.callee, 50);
-        return;
-    }
-
-    function initSelect2($container) {
-        var $modal = $container.closest('.modal');
-        var options = {
-            width: '100%',
-            placeholder: 'Select...',
-            allowClear: true
-        };
-        if ($modal.length) {
-            options.dropdownParent = $modal;
+    function boot() {
+        if (typeof jQuery === 'undefined' || typeof $.fn.select2 === 'undefined') {
+            setTimeout(boot, 50);
+            return;
         }
-        $container.find('select.select2').each(function() {
-            if (!$(this).hasClass('select2-hidden-accessible')) {
-                $(this).select2(options);
-            }
-        });
-    }
 
-    $(document).ready(function() {
+        var $formRoot = $('#formajax').length ? $('#formajax') : $('#modalTopbody');
+
+        function initSelect2($container) {
+            if (!$container || !$container.length) return;
+
+            var $modal = $container.closest('.modal');
+            if (!$modal.length) {
+                $modal = $('#modalTopbody');
+            }
+            var options = {
+                width: '100%',
+                placeholder: 'Select...',
+                allowClear: true
+            };
+            if ($modal.length) {
+                options.dropdownParent = $modal;
+            }
+
+            var $selects = $container.is('select.select2')
+                ? $container
+                : $container.find('select.select2');
+
+            $selects.each(function() {
+                var $select = $(this);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                }
+                $select.select2(options);
+            });
+        }
+
+        function autoResizeNarration($textarea) {
+            $textarea.each(function() {
+                var el = this;
+                el.style.height = 'auto';
+                var minHeight = parseFloat($(el).css('min-height')) || (parseInt($(el).attr('rows'), 10) || 2) * 22;
+                el.style.height = Math.max(el.scrollHeight, minHeight) + 'px';
+            });
+        }
+
+        function initNarrationFields($scope) {
+            autoResizeNarration($scope.find('.expense-narration-auto'));
+        }
+
+        initSelect2($formRoot);
+        initSelect2($('#expense-voucher-header'));
+        initSelect2($('#payment_type'));
         initSelect2($('#expense-voucher-rows'));
-        initSelect2($('.row').first());
+        initSelect2($('.expense-credit-entry'));
+        initNarrationFields($formRoot);
         calculateTotals();
 
-        $('#add-expense-row').on('click', function() {
-            var $firstEntry = $('.expense-voucher-entry:first');
+        $('#add-expense-row').off('click.expenseVoucher').on('click.expenseVoucher', function() {
+            var tpl = document.getElementById('expense-voucher-row-tpl');
+            if (!tpl || !tpl.content) return;
 
-            $firstEntry.find('select.select2').each(function() {
-                if ($(this).hasClass('select2-hidden-accessible')) {
-                    $(this).select2('destroy');
-                }
-            });
-
-            var $newEntry = $firstEntry.clone();
-
-            $newEntry.find('.select2-container').remove();
-            $newEntry.find('select').val('').removeClass('select2-hidden-accessible').removeAttr('data-select2-id').removeAttr('aria-hidden').removeAttr('tabindex');
-            $newEntry.find('input[type="number"]').val('');
-            $newEntry.find('input[type="text"]').val('');
-            $newEntry.find('.vat-percent').val('0');
-            $newEntry.find('[data-select2-id]').removeAttr('data-select2-id');
-
+            var $newEntry = $(tpl.content.cloneNode(true)).children();
             $('#expense-voucher-rows').append($newEntry);
-
-            initSelect2($firstEntry);
             initSelect2($newEntry);
+            initNarrationFields($newEntry);
         });
 
-        $(document).on('click', '.btn-remove-expense-entry', function() {
+        $(document).off('click.expenseVoucher', '.btn-remove-expense-entry').on('click.expenseVoucher', '.btn-remove-expense-entry', function() {
             if ($('.expense-voucher-entry').length > 1) {
                 var $entry = $(this).closest('.expense-voucher-entry');
                 $entry.find('select.select2').each(function() {
@@ -165,12 +227,17 @@
             }
         });
 
-        $(document).on('change keyup', '.expense-amount, .vat-percent', function() {
-            var $entry = $(this).closest('.expense-voucher-entry');
-            calculateRowVat($entry);
-            calculateTotals();
+        $(document).off('input.expenseVoucher', '.expense-narration-auto').on('input.expenseVoucher', '.expense-narration-auto', function() {
+            autoResizeNarration($(this));
         });
-    });
+
+        $(document).off('change.expenseVoucher keyup.expenseVoucher', '.expense-amount, .vat-percent')
+            .on('change.expenseVoucher keyup.expenseVoucher', '.expense-amount, .vat-percent', function() {
+                var $entry = $(this).closest('.expense-voucher-entry');
+                calculateRowVat($entry);
+                calculateTotals();
+            });
+    }
 
     function calculateRowVat($entry) {
         var amount = parseFloat($entry.find('.expense-amount').val()) || 0;
@@ -195,6 +262,9 @@
         $('#subtotal_amount').val(subtotal.toFixed(2));
         $('#total_vat_amount').val(totalVat.toFixed(2));
         $('#expense_total').val(grandTotal.toFixed(2));
+        $('#credit_amount').val(grandTotal > 0 ? grandTotal.toFixed(2) : '');
     };
+
+    boot();
 })();
 </script>

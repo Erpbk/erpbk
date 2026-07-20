@@ -41,31 +41,24 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            @can('sim_invoice_edit')
+                            @can('sims_invoices_edit')
                                 <a href="javascript:void(0);" data-action="{{ route('simInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
                                     <i class="fa fa-edit mx-1"></i> Edit
                                 </a>
                             @endcan
-                            @can('sim_invoice_create')
+                            @can('sims_invoices_create')
                                 <a href="javascript:void(0);" data-action="{{ route('simInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice (Next Month)">
                                     <i class="fa fa-copy mx-1 text-primary"></i> Clone (Next Month)
                                 </a>
                             @endcan
-                            @can('payments_view')
+                            @can('sims_payments_create')
                                 @if((int) $invoice->status !== 1)
                                     <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=sim&invoice_id={{ $invoice->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Add Payment">
                                         <i class="fa fa-money mx-1 text-success"></i> Add Payment
                                     </a>
                                 @endif
                             @endcan
-                            @can('sim_invoice_payment_voucher')
-                                @if((int) $invoice->status !== 1)
-                                    <a href="javascript:void(0);" data-action="{{ route('simInvoices.paymentVoucher.create', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Create Payment Voucher">
-                                        <i class="fa fa-credit-card mx-1 text-success"></i> Payment Voucher
-                                    </a>
-                                @endif
-                            @endcan
-                            @can('sim_invoice_delete')
+                            @can('sims_invoices_delete')
                                 {!! Form::open(['route' => ['simInvoices.destroy', $invoice->id], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
                                 {!! Form::button('<i class="fa fa-trash mx-1"></i> Delete', [
                                     'type' => 'submit',

@@ -34,7 +34,6 @@
                             <i class="ti ti-chevron-down"></i>
                         </button>
                         <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('salik_create')
                             <a class="action-dropdown-item" href="{{ route('salik.index') }}">
                                 <i class="ti ti-arrow-left"></i>
                                 <div>
@@ -42,26 +41,23 @@
                                     <div class="action-dropdown-item-desc">Back to salik Accounts list</div>
                                 </div>
                             </a>
-                            @endcan
-                            @can('salik_create')
+                            @can('saliks_salik_create')
                             <a class="action-dropdown-item" href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#analyzeExcelModal">
                                 <i class="ti ti-file-search"></i>
                                 <span>Analyze Excel</span>
                             </a>
-                            @endcan
-                            @can('bike_view')
                             <a class="action-dropdown-item" href="{{ route('salik.export.missing.records') }}">
                                 <i class="ti ti-download"></i>
                                 <span>Export Excel</span>
                             </a>
                             @endcan
 
-                            @can('salik_create')
+                            @canany(['saliks_salik_create', 'saliks_salik_delete'])
                             <a class="action-dropdown-item" href="javascript:void(0)" onclick="clearOldFailedImports('{{ route('salik.clear.failed.imports') }}')">
                                 <i class="ti ti-trash"></i>
                                 <span>Clear Old Records</span>    
                             </a>
-                            @endcan
+                            @endcanany
                         </div>
                     </div>
                 </div>

@@ -8,6 +8,7 @@
 
 @section('content')
 <section class="content-header">
+    @can('bikes_registration_create')
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h3 class="mb-0">Bike Registration Accounts</h3>
@@ -16,6 +17,7 @@
             </button>
         </div>
     </div>
+    @endcan
 </section>
 
 <div class="content">

@@ -22,14 +22,14 @@
   </thead>
   <tbody>
     @php
-      $__companySlug = \App\Support\CompanyRouteContext::slug();
-      $expenseVoucherRouteParams = static function (int $id) use ($__companySlug): array {
-        $params = ['id' => $id];
-        if (!empty($__companySlug)) {
-          $params['company_slug'] = $__companySlug;
-        }
-        return $params;
-      };
+    $__companySlug = \App\Support\CompanyRouteContext::slug();
+    $expenseVoucherRouteParams = static function (int $id) use ($__companySlug): array {
+    $params = ['id' => $id];
+    if (!empty($__companySlug)) {
+    $params['company_slug'] = $__companySlug;
+    }
+    return $params;
+    };
     @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
@@ -62,12 +62,12 @@
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
-            @can('voucher_document')
+            @canany(['expenses_create', 'expenses_edit'])
             <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
+                data-action="{{ route('voucher.fileupload', $expenseVoucherRouteParams($voucher->id)) }}" class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-file my-1"></i> Upload Document
               </a></li>
-            @endcan
+            @endcanany
             @can('expenses_view')
             <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">
                 <i class="fa fa-eye my-1"></i> View

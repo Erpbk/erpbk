@@ -1,10 +1,9 @@
 {!! Form::open(['route' => 'riders.storevendorcharges','id'=>'formajax']) !!}
 
 <input type="hidden" id="reload_page" value="1">
-<input type="hidden" name="branch_id" value="{{ $rider->branch_id }}">
 
 <div class="row">
-    @include('vouchers.vendorcharges_fields', ['bank_accounts' => $bank_accounts])
+    @include('vouchers.vendorcharges_fields', ['rider' => $rider])
 </div>
 @include('vouchers._custom_fields_section')
 

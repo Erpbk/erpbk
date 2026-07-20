@@ -37,12 +37,12 @@
             </td>@endif
             <td>
                 <div class="btn-group">
-                    @can('fuel_edit')
+                    @can('fuel_cards_companies_edit')
                     <a href="javascript:void(0);" data-action="{{ route('fuelCompanies.edit', $row->id) }}" class="btn btn-info btn-sm show-modal" data-size="lg" data-title="Update fuel company">
                         <i class="fa fa-edit"></i>
                     </a>
                     @endcan
-                    @can('fuel_delete')
+                    @can('fuel_cards_companies_delete')
                     <a href="javascript:void(0);" onclick='confirmDelete("{{ route('fuelCompanies.delete', $row->id) }}")' class="btn btn-danger btn-sm confirm-modal" data-size="lg" data-title="Delete Item">
                         <i class="fa fa-trash"></i>
                     </a>

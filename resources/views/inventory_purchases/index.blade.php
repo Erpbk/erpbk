@@ -18,7 +18,7 @@
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('customer_create')
+                @can('items_inventory_create')
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addBikeDropdownBtn">

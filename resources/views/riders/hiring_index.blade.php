@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title','Rider Leads')
 @section('content')
+@canany(['leads_create', 'leads_view'])
 <style type="text/css">
     .iti{
         width: 100% !important;
@@ -184,6 +185,16 @@
         </div>
     </div>
 </div>
+@else
+<div class="content">
+    <div class="clearfix"></div>
+    <div class="card">
+        <div class="card-body">
+            <h5>You are not authorized to access this page</h5>
+        </div>
+    </div>
+</div>
+@endcanany
 @endsection
 @section('page-script')
 

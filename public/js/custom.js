@@ -434,13 +434,37 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function () {
+  $('#modalTopbody').load(action, function (response, status, xhr) {
     unblock();
+
+    if (status === 'error') {
+      var err = parseModalLoadError(response, xhr);
+
+      if (err.html) {
+        $('#modalTopbody').html(err.html);
+      } else {
+        $('#modalTopbody').html(`
+          <div class="text-center p-5 text-danger modal-load-error">
+            <i class="fas fa-exclamation-circle fa-3x"></i>
+            <p class="mt-2">${err.message}</p>
+          </div>
+        `);
+      }
+
+      if (typeof toastr !== 'undefined' && err.message) {
+        toastr.error(err.message);
+      }
+      return;
+    }
+
     if (window.Helpers && typeof window.Helpers.initPasswordToggle === 'function') {
       window.Helpers.initPasswordToggle();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
       window.initBikeFormSelect2(document.getElementById('formajax') || this);
+    }
+    if (typeof window.initPermissionRoleMatrix === 'function') {
+      window.initPermissionRoleMatrix();
     }
   });
 
@@ -554,8 +578,8 @@ function reloadDataTable() {
 }
 
 $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
-  // Employee create/edit use dedicated handlers (#employee-store-form / #employee-edit-form)
-  if ($(this).is('#employee-store-form, #employee-edit-form')) {
+  // Employee/rider create/edit use dedicated handlers
+  if ($(this).is('#employee-store-form, #employee-edit-form, #rider-edit-form')) {
     return;
   }
 
@@ -944,6 +968,10 @@ $(document).ready(function () {
 
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
+    // SIM invoices use a dedicated add-row handler.
+    if ($('#sim-add-new-row').length || $('#rows-container .invoice-item-row').length) {
+      return;
+    }
     event.preventDefault();
     // Clone the first row
     const newRow = $('#rows-container .row:first').clone();
@@ -989,6 +1017,10 @@ $(document).ready(function () {
 
   // Remove a row
   $(document).on('click', '.btn-remove-row', function () {
+    // SIM invoices use a dedicated remove-row handler.
+    if ($(this).closest('.invoice-item-row').length) {
+      return;
+    }
     if ($('#rows-container .row').length > 1) {
       $(this).closest('.row').remove();
       // Recalculate total after removing row
@@ -1002,6 +1034,9 @@ $(document).ready(function () {
 
   $(document).on('input change', '.item', function () {
     const row = $(this).closest('.row');
+    if (row.hasClass('invoice-item-row')) {
+      return;
+    }
     const selectedOption = $(this).find('option:selected');
     const itemPrice = parseFloat(selectedOption.data('price')) || 0;
     const itemVat = parseFloat(selectedOption.data('vat')) || 0;
@@ -1013,6 +1048,10 @@ $(document).ready(function () {
 
   $(document).on('input change', '.qty, .rate, .discount, .vat', function () {
     const row = $(this).closest('.row');
+    // Skip SIM invoice rows (they use days/tax prorating).
+    if (row.hasClass('invoice-item-row')) {
+      return;
+    }
     setItemTotal(row);
     setTotal();
   });

@@ -12,7 +12,7 @@
                 <h3>SIM Companies</h3>
             </div>
             <div class="col-sm-6">
-                @can('sim_create')
+                @can('sims_companies_create')
                 <a class="btn btn-primary float-right show-modal action-btn"
                     href="javascript:void(0);" data-action="{{ route('simCompanies.create') }}" data-title="Add SIM company" data-size="lg">
                     Add New

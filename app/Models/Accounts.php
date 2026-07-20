@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
@@ -100,6 +101,20 @@ class Accounts extends BaseModel
     return $this->hasMany(Transactions::class);
   }
 
+  public function globalAccount(): HasOne
+  {
+    return $this->hasOne(GlobalAccount::class, 'account_id');
+  }
+
+  public function isLinkedToGlobalAccount(): bool
+  {
+    if ($this->relationLoaded('globalAccount')) {
+      return $this->globalAccount !== null;
+    }
+
+    return GlobalAccount::query()->where('account_id', $this->id)->exists();
+  }
+
   public function parent()
   {
     return $this->belongsTo(self::class, 'parent_id');
@@ -151,7 +166,7 @@ class Accounts extends BaseModel
   {
     return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
-      ->whereIn('parent_id', [2452])
+      ->where('parent_id', \App\Support\GlobalAccounts::id('BANK'))
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
   }
@@ -164,8 +179,7 @@ class Accounts extends BaseModel
   {
     return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
-      ->whereIn('parent_id', [994, 1643])
-      ->orderBy('account_code')
+      ->where('parent_id', \App\Support\GlobalAccounts::id('BANK'))
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
   }

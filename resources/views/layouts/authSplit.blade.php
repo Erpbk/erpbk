@@ -46,8 +46,8 @@ $bgStyle .= " background-image: url('" . e($branding['bg_image_url']) . "'); bac
   }
 
   .auth-split-logo {
-    max-height: 120px;
-    max-width: 280px;
+    max-height: 100%;
+    max-width: 660px;
     width: auto;
     object-fit: contain;
     margin-bottom: 1.5rem;
@@ -120,9 +120,6 @@ $bgStyle .= " background-image: url('" . e($branding['bg_image_url']) . "'); bac
       <img src="{{ $branding['logo_url'] }}" alt="{{ config('app.name') }}" class="auth-split-logo">
       @else
       <div class="mb-4">@include('_partials.macros', ['height' => 72, 'withbg' => 'fill: #fff;'])</div>
-      @endif
-      @if(!empty($branding['tagline']))
-      <p class="auth-split-tagline">{{ $branding['tagline'] }}</p>
       @endif
     </div>
   </aside>

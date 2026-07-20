@@ -41,12 +41,22 @@ $balance = $debit - $credit;
         </a>
       </li>
       <li class="nav-item" role="presentation">
+        <a class="nav-link @if(Route::is('leasingCompany.bikes')) active @endif d-flex align-items-center justify-content-center py-3"
+          href="{{ route('leasingCompany.bikes', $leasingCompany->id) }}">
+          <i class="fas fa-bicycle fa-lg me-2"></i>
+          <span class="fw-semibold">Bikes</span>
+        </a>
+      </li>
+      @can('leasing_companies_documents_view')
+      <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('leasingCompany.files')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompany.files', $leasingCompany->id) }}">
           <i class="fas fa-file-upload fa-lg me-2"></i>
           <span class="fw-semibold">Documents</span>
         </a>
       </li>
+      @endcan
+      @can('leasing_companies_payments_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('leasingCompanies.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompanies.receipts', $leasingCompany->id) }}">
@@ -61,6 +71,8 @@ $balance = $debit - $credit;
           <span class="fw-semibold">Payments</span>
         </a>
       </li>
+      @endcan
+      @can('leasing_companies_ledger_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('leasingCompany.ledger')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompany.ledger', $leasingCompany->id) }}">
@@ -68,13 +80,7 @@ $balance = $debit - $credit;
           <span class="fw-semibold">Ledger</span>
         </a>
       </li>
-      <li class="nav-item" role="presentation">
-        <a class="nav-link @if(Route::is('leasingCompany.bikes')) active @endif d-flex align-items-center justify-content-center py-3"
-          href="{{ route('leasingCompany.bikes', $leasingCompany->id) }}">
-          <i class="fas fa-bicycle fa-lg me-2"></i>
-          <span class="fw-semibold">Bikes</span>
-        </a>
-      </li>
+      @endcan
     </ul>
   </div>
 </div>

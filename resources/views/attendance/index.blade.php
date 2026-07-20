@@ -1,10 +1,15 @@
 @extends('layouts.app')
 
-@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Records' : 'All Attendance Records')
+@section('title', request('ref_type') ? ucfirst(request('ref_type')) . ' Attendance Report' : 'Attendance Report')
 
 @section('content')
 <div class="">
-    @can('attendance_view')
+    @canany(['employees_attendance_view', 'riders_attendance_view'])
+    @include('attendance.partials.tabs', [
+    'activeAttendanceTab' => 'report',
+    'attendanceUserType' => request('ref_type', 'employee'),
+    ])
+
     <!-- Header Section -->
     <div class="row mb-4">
         <div class="col-md-6">
@@ -18,7 +23,7 @@
                         <i class="ti ti-chevron-down"></i>
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
-                        @can('attendance_create')
+                        @canany(['employees_attendance_create', 'riders_attendance_create'])
                         <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Attendance Record" data-action="{{ route('attendance.create', request('ref_type')) }}">
                             <i class="ti ti-plus"></i>
                             <span>Add New Record</span>
@@ -32,17 +37,13 @@
                             <span>Import Attendance</span>
                         </a>
                         @endcan
-                        @can('attendance_view')
+                        @canany(['employees_attendance_view', 'riders_attendance_view'])
                         <a class="action-dropdown-item" href="{{ route('attendance.export')}}?from_date={{ \Carbon\Carbon::today()->subMonths(3)->format('Y-m-d') }}&to_date={{ \Carbon\Carbon::today()->format('Y-m-d') }}" data-size="xl" data-title="Export Attendance" data-action="{{ route('attendance.export') }}">
                             <i class="ti ti-file-export"></i>
                             <div>
                                 <div class="action-dropdown-item-text">Export Attendance</div>
                                 <div class="action-dropdown-item-desc">Last Three Months</div>
                             </div>
-                        </a>
-                        <a class="action-dropdown-item" href="{{ route('attendance.summary', request('ref_type') ? ['user_type' => request('ref_type')] : []) }}">
-                            <i class="ti ti-file"></i>
-                            <span>View Summary</span>
                         </a>
                         @endcan
                     </div>
@@ -86,7 +87,7 @@
                             <option value="absent" {{ request('status') == 'absent' ? 'selected' : '' }}>Absent</option>
                             <option value="late" {{ request('status') == 'late' ? 'selected' : '' }}>Late</option>
                             <option value="half-day" {{ request('status') == 'half-day' ? 'selected' : '' }}>Half Day</option>
-                            <option value="holiday" {{ request('status') == 'holiday' ? 'selected' : '' }}>Holiday</option>
+                            <option value="weekend" {{ request('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
                         </select>
                     </div>
                     <div class="form-group col-md-12">
@@ -108,7 +109,7 @@
     <!-- Attendance Table -->
     <div class="card shadow mb-4">
         <div class="card-header d-flex justify-content-between">
-            <h4>Attendance Records</h4>
+            <h4>Attendance Report</h4>
             <div>
                 <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i> Export</a>
                 <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
@@ -136,14 +137,20 @@
                 <div class="value" id="total_hours">{{ $attendances->where('status', 'half day')->count() ?? 0 }}</div>
             </div>
             <div class="total-card total-3">
-                <div class="label"><i class="fa fa-user-secret"></i>Holiday</div>
-                <div class="value" id="total_hours">{{ $attendances->where('status', 'holiday')->count() ?? 0 }}</div>
+                <div class="label"><i class="fa fa-user-secret"></i>Weekend</div>
+                <div class="value" id="total_hours">{{ $attendances->where('status', 'weekend')->count() ?? 0 }}</div>
             </div>
         </div>
         <div class="card-body table-responsive py-0 px-2" id="table-data">
             @include('attendance.table')
         </div>
     </div>
+    @endcanany
+    @if(!auth()->user()->canany(['employees_attendance_view', 'riders_attendance_view']))
+    <div class="alert alert-danger mt-4" role="alert">
+        You do not have permission to view attendance records.
+    </div>
+    @endif
 </div>
 
 <!-- Bulk Attendance Modal - NEW APPROACH -->
@@ -195,7 +202,7 @@
                                 <option value="absent">Absent</option>
                                 <option value="late">Late</option>
                                 <option value="half-day">Half Day</option>
-                                <option value="holiday">Holiday</option>
+                                <option value="weekend">Weekend</option>
                             </select>
                         </div>
                     </div>
@@ -269,12 +276,6 @@
             </form>
         </div>
     </div>
-    @endcan
-    @cannot('attendance_view')
-    <div class="alert alert-danger" role="alert">
-        You do not have permission to view attendance records.
-    </div>
-    @endcannot
 </div>
 
 @endsection
@@ -453,7 +454,7 @@
                     </td>
                 </tr>
             `);
-            toggleBulkRiderOrderColumns();
+                toggleBulkRiderOrderColumns();
                 $('#selectedUsersCount').text('0');
                 $('#totalSelectedCount').text('0');
                 $('#presentCount').text('0');
@@ -482,7 +483,7 @@
                             <option value="absent" ${user.status === 'absent' ? 'selected' : ''}>Absent</option>
                             <option value="late" ${user.status === 'late' ? 'selected' : ''}>Late</option>
                             <option value="half-day" ${user.status === 'half-day' ? 'selected' : ''}>Half Day</option>
-                            <option value="holiday" ${user.status === 'holiday' ? 'selected' : ''}>Holiday</option>
+                            <option value="weekend" ${user.status === 'weekend' ? 'selected' : ''}>Weekend</option>
                         </select>
                     </td>
                     <td class="align-middle">

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title','Supplier Invoices')
+@section('title','Fuel Data')
 @push('third_party_stylesheets')
 <style>
     .table-responsive {
@@ -18,7 +18,7 @@
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('customer_create')
+                @can('fuel_cards_transactions_create')
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addBikeDropdownBtn">

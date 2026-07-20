@@ -15,7 +15,7 @@ $returnTo = url()->current();
                 <h1>Rider Inventory Items</h1>
             </div>
             <div class="col-sm-6">
-                @can('riderinventory_create')
+                @can('riders_inventory_create')
                 <button type="button" class="btn btn-primary float-end" data-bs-toggle="modal" data-bs-target="#createInventoryItemModal">
                     <i class="ti ti-plus me-1"></i> Add New Item
                 </button>
@@ -42,7 +42,7 @@ $returnTo = url()->current();
     </div>
 </div>
 
-@can('riderinventory_create')
+@can('riders_inventory_create')
 <div class="modal fade" id="createInventoryItemModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -88,7 +88,7 @@ $returnTo = url()->current();
 </div>
 @endcan
 
-@can('riderinventory_edit')
+@can('riders_inventory_edit')
 <div class="modal fade" id="editInventoryItemModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

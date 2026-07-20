@@ -32,22 +32,22 @@
                         <i class="ti ti-dots"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end">
-                        @can('loan_view')
+                        @can('loans_view')
                         <a href="{{ route('loans.show', $loan->id) }}" class="dropdown-item"><i class="fa fa-eye"></i> View</a>
                         @endcan
-                        @can('loan_edit')
+                        @can('loans_edit')
                         @if($loan->isEditable())
                         <a href="javascript:void(0);" class="dropdown-item show-modal" data-size="lg" data-title="Edit Loan" data-action="{{ route('loans.edit', $loan->id) }}"><i class="fa fa-edit"></i> Edit</a>
                         @endif
                         @endcan
-                        @can('loan_disburse')
+                        @canany(['loans_create', 'loans_edit'])
                         @if($loan->status === 'draft')
                         <a href="javascript:void(0);" class="dropdown-item" onclick="confirmDisburse('{{ route('loans.disburse', $loan->id) }}')">
                             <i class="fa fa-check-circle text-success"></i> Disburse Loan
                         </a>
                         @endif
-                        @endcan
-                        @can('loan_delete')
+                        @endcanany
+                        @can('loans_delete')
                         @if($loan->status !== 'active')
                         <a href="javascript:void(0);" class="dropdown-item" onclick="confirmDelete('{{ route('loans.destroy', $loan->id) }}')"><i class="fa fa-trash"></i> Delete</a>
                         @endif

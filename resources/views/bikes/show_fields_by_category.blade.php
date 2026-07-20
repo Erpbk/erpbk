@@ -12,7 +12,7 @@
             <b>{{ $group->category->label }}</b>
             <div class="d-flex align-items-center ms-auto">
                 @php
-                $mulkiyaAuthorized = auth()->user()->can('bike_document');
+                $mulkiyaAuthorized = auth()->user()->can('bikes_documents_create');
                 @endphp
                 @if($mulkiyaFile)
                 <a href="{{ storage_url($mulkiyaFile->type . '/' . $mulkiyaFile->type_id . '/' . $mulkiyaFile->file_name) }}" target="_blank" class="btn btn-light btn-sm">

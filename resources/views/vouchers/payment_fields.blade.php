@@ -13,25 +13,19 @@
         <label for="reference_number">Reference Number</label>
         <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($voucher->reference_number){{$voucher->reference_number}}@endisset" placeholder="Reference Number">
     </div>
+    @include('vouchers._branch_field')
 </div>
 <div class="scrollbar">
     <h5>Payment Voucher</h5>
 
     @php
-    $rider_account = null;
-    if ($rider && $rider->id) {
-    $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->where('account_type', 'Liability')->first();
-    if (!$rider_account) {
-    // Fallback: try to find any account for this rider
-    $rider_account = \App\Models\Accounts::where('ref_id', $rider->id)->first();
-    }
-    }
+    $rider_account = $rider->account;
     @endphp
     <div class="row">
         <div class="form-group col-md-3">
             <label for="exampleInputEmail1">Select Account</label>
             <input type="hidden" name="account_id[]" value="{{ $rider_account->id ?? '' }}" />
-            {!! Form::select('account_id[]', $accounts, $rider_account->id ?? null, ['class' => 'form-select form-select-sm select2' , 'disabled' => true]) !!}
+            <input type="text" class="form-control" value="{{ $rider_account->name ?? 'Select Account' }}" disabled>
         </div>
         <div class="form-group col-md-4">
             <label>Narration</label>

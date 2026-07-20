@@ -33,7 +33,7 @@
                 <td>{{ $row->remarks ?? '-' }}</td>
                 <td>
                     @if($row->voucher_id)
-                    @can('riderinventory_view')
+                    @can('riders_inventory_view')
                     <a href="javascript:void(0);" class="show-modal" data-action="{{ route('vouchers.show', $row->voucher_id) }}" data-size="xl" data-title="Voucher">View</a>
                     @endcan
                     @else

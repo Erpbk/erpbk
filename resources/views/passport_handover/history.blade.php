@@ -49,7 +49,7 @@
                 <a href="{{ route('passportHandover.index') }}" class="btn btn-outline-secondary">
                     <i class="ti ti-arrow-left me-1"></i> Back to List
                 </a>
-                @can('passport_handover_issue')
+                @can('passport_handover_create')
                 @if(!$hasOpenIssue)
                 <a href="javascript:void(0);" class="btn btn-primary show-modal"
                     data-action="{{ route('passportHandover.issueForm', ['type' => $holderType, 'id' => $holderId]) }}"
@@ -58,7 +58,7 @@
                 </a>
                 @endif
                 @endcan
-                @can('passport_handover_return')
+                @canany(['passport_handover_create', 'passport_handover_edit'])
                 @if($hasOpenIssue)
                 <a href="javascript:void(0);" class="btn btn-warning show-modal"
                     data-action="{{ route('passportHandover.returnForm', ['type' => $holderType, 'id' => $holderId]) }}"
@@ -66,7 +66,7 @@
                     <i class="ti ti-arrow-back-up me-1"></i> Return Passport
                 </a>
                 @endif
-                @endcan
+                @endcanany
             </div>
         </div>
     </div>

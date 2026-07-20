@@ -10,6 +10,7 @@
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+@can('employees_employee_view')
 <section class="content-header">
     <div>
         <div class="filter-tabs-section mb-4" id="filter-tabs-section">
@@ -50,7 +51,7 @@
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addEmployeeDropdown">
-                                @can('employees_create')
+                                @can('employees_employee_create')
                                 <a class="action-dropdown-item" href="{{ route('employees.create') }}">
                                     <i class="ti ti-user-plus"></i>
                                     <div>
@@ -147,6 +148,11 @@
         </div>
     </div>
 </div>
+@else
+<div class="alert alert-danger mt-4" role="alert">
+    You do not have permission to view employees.
+</div>
+@endcan
 @endsection
 
 @section('page-script')

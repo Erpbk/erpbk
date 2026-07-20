@@ -2,35 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers\Account;
-use App\Helpers\CommonHelper;
-use App\Helpers\General;
-use App\Models\Rider;
 use App\Models\Riders;
 use App\Models\Transactions;
 use Illuminate\Http\Request;
-use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ReportController extends Controller
 {
-  public function rider_invoice_index()
+  public function __construct()
   {
-    return view('reports.rider');
+    $this->middleware('permission:riders_report_view')->only(
+      'rider_report',
+      'rider_monthly_report',
+      'rider_report_data',
+      'rider_monthly_report_data',
+      'rider_report_detail'
+    );
   }
-  public function vendor_invoice_index()
-  {
-    return view('reports.vendor');
-  }
-  public function rider_list()
-  {
-    $riders = Riders::all()->sortBy('rider_id');
-    return view('reports.rider_list', compact('riders'));
-  }
+
   public function rider_report()
   {
-    $riders = []; //Rider::all()->sortBy('rider_id');
+    $riders = [];
     return view('reports.rider_report', compact('riders'));
   }
   public function rider_monthly_report()
@@ -39,138 +32,215 @@ class ReportController extends Controller
   }
   public function rider_report_data(Request $request)
   {
-    // Increase execution time for large datasets (e.g., "Show All")
-    set_time_limit(300); // 5 minutes max execution time
+    set_time_limit(300);
 
-    $data = '';
-    $total = 0;
-    $ob_total = 0;
-    $opening_balance_total = 0;
-    $b_total = 0;
-    $total_debit_sum = 0;
-    $total_credit_sum = 0;
-
-    // Handle billing_month - make it optional
-    $billing_month = null;
-    if ($request->billing_month) {
-      $billing_month = $request->billing_month;
-      if (!str_contains($billing_month, '-01')) {
-        $billing_month = $billing_month . "-01";
+    $normalizeMonth = static function ($value) {
+      $value = trim((string) $value);
+      if ($value === '') {
+        return Carbon::now()->startOfMonth()->format('Y-m-01');
       }
+      if (preg_match('/^\d{4}-\d{2}-01$/', $value)) {
+        return $value;
+      }
+      if (preg_match('/^\d{4}-\d{2}$/', $value)) {
+        return $value . '-01';
+      }
+
+      return Carbon::parse($value)->startOfMonth()->format('Y-m-01');
+    };
+
+    $fromMonth = $normalizeMonth($request->input('from_month', $request->input('billing_month')));
+    $toMonth = $normalizeMonth($request->input('to_month', $request->input('billing_month', $fromMonth)));
+
+    $fromCarbon = Carbon::parse($fromMonth)->startOfMonth();
+    $toCarbon = Carbon::parse($toMonth)->startOfMonth();
+    if ($fromCarbon->gt($toCarbon)) {
+      [$fromCarbon, $toCarbon] = [$toCarbon, $fromCarbon];
+      $fromMonth = $fromCarbon->format('Y-m-01');
+      $toMonth = $toCarbon->format('Y-m-01');
     }
 
-    // Optimize query with eager loading to reduce database queries
-    $result = Riders::with(['vendor', 'bikes']);
+    $billingMonthLabel = $fromCarbon->equalTo($toCarbon)
+      ? $fromCarbon->format('F Y')
+      : $fromCarbon->format('M Y') . ' - ' . $toCarbon->format('M Y');
+
+    $salikMonthValues = [];
+    $cursor = $fromCarbon->copy();
+    while ($cursor->lte($toCarbon)) {
+      $salikMonthValues[] = $cursor->format('Y-m-01');
+      $salikMonthValues[] = $cursor->format('Y-m');
+      $salikMonthValues[] = $cursor->format('M') . '-' . $cursor->format('y');
+      $cursor->addMonth();
+    }
+    $salikMonthValues = array_values(array_unique($salikMonthValues));
+
+    $result = Riders::with(['customer', 'bikes']);
+
+    if ($request->rider_id && $request->rider_id !== '') {
+      $result = $result->where('id', $request->rider_id);
+    }
     if ($request->status && $request->status !== '') {
       $result = $result->where('status', $request->status);
     }
-    if ($request->VID && $request->VID !== '') {
-      $result = $result->where('VID', $request->VID);
+    if ($request->customer_id && $request->customer_id !== '') {
+      $result = $result->where('customer_id', $request->customer_id);
     }
     if ($request->designation && $request->designation !== '') {
       $result = $result->where('designation', $request->designation);
     }
-    // Filter by bike assignment status (Active/Inactive based on bike assignment)
     if ($request->has('bike_assignment_status') && !empty($request->bike_assignment_status)) {
       if ($request->bike_assignment_status === 'Active') {
-        // Riders who have an active bike assigned
         $result = $result->whereHas('bikes', function ($q) {
           $q->where('warehouse', 'Active');
         });
       } elseif ($request->bike_assignment_status === 'Inactive') {
-        // Riders who don't have an active bike assigned
         $result = $result->whereDoesntHave('bikes', function ($q) {
           $q->where('warehouse', 'Active');
         });
       }
     }
-
-    // Filter by WPS status
     if ($request->has('wps_status') && !empty($request->wps_status)) {
       $result = $result->where('wps', $request->wps_status);
     }
+    if ($quickSearch = trim((string) $request->quick_search)) {
+      $result = $result->where(function ($query) use ($quickSearch) {
+        $query->where('name', 'like', '%' . $quickSearch . '%')
+          ->orWhere('rider_id', 'like', '%' . $quickSearch . '%')
+          ->orWhere('emirate_hub', 'like', '%' . $quickSearch . '%')
+          ->orWhere('designation', 'like', '%' . $quickSearch . '%');
+      });
+    }
 
-    // Global pagination
     $perPage = $request->get('per_page', 25);
-
-    // Handle 'all' and -1 options (show all records)
     if ($perPage === 'all' || $perPage === '-1' || $perPage == -1) {
-      $perPage = $result->count(); // Get all records
+      $perPage = $result->count();
     } else {
       $perPage = (int) $perPage;
-      if ($perPage <= 0) $perPage = 25;
+      if ($perPage <= 0) {
+        $perPage = 25;
+      }
     }
 
     $page = (int) ($request->get('page') ?: 1);
     $totalCount = $result->count();
     $result = $result->orderBy('rider_id')->forPage($page, $perPage)->get();
 
-    // Pre-load active bikes status for all riders in one query
-    $riderIds = $result->pluck('id')->toArray();
-    $activeBikeRiders = \App\Support\CompanyQuery::table('bikes')
-      ->whereIn('rider_id', $riderIds)
-      ->where('warehouse', 'Active')
-      ->pluck('rider_id')
-      ->toArray();
+    $riderIds = $result->pluck('id')->filter()->values()->all();
+    $accountIds = $result->pluck('account_id')->filter()->unique()->values()->all();
 
+    $activeBikeRiders = [];
+    if (!empty($riderIds)) {
+      $activeBikeRiders = \App\Support\CompanyQuery::table('bikes')
+        ->whereIn('rider_id', $riderIds)
+        ->where('warehouse', 'Active')
+        ->pluck('rider_id')
+        ->toArray();
+    }
 
+    $invoiceTotals = collect();
+    $voucherByRider = [];
+    $rtaTotals = collect();
+    $salikTotals = collect();
+    $previousBalances = collect();
+    $paidByAccount = collect();
 
-    // Process each rider
-    foreach ($result as $rider) {
-      // Initialize default values
-      $opening_balance = 0.00;
-      $balance = 0.00;
-      $rider_total_debit = 0.00;
-      $rider_total_credit = 0.00;
+    if (!empty($riderIds)) {
+      $invoiceTotals = company_table('rider_invoices')
+        ->whereIn('rider_id', $riderIds)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->select('rider_id', DB::raw('SUM(total_amount) as total'))
+        ->groupBy('rider_id')
+        ->pluck('total', 'rider_id');
 
-      if (isset($rider->account_id) && $rider->account_id) {
-        if ($billing_month) {
-          // If billing month is provided, get monthly data
-          $opening_balance = Account::Monthly_ob($billing_month, $rider->account_id);
-          $balance = Account::BillingMonth_Balance($billing_month, $rider->account_id);
+      $voucherRows = company_table('vouchers')
+        ->whereIn('ref_id', $riderIds)
+        ->whereIn('voucher_type', ['VC', 'COD', 'AL', 'PN', 'INC'])
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->select('ref_id', 'voucher_type', DB::raw('SUM(amount) as total'))
+        ->groupBy('ref_id', 'voucher_type')
+        ->get();
 
-          // Calculate total debits and credits for the specific month
-          $rider_total_debit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->whereDate('billing_month', $billing_month)->sum('debit');
-          $rider_total_credit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->whereDate('billing_month', $billing_month)->sum('credit');
-
-          $subtotal_debit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('debit');
-          $subtotal_credit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('credit');
-          $subtotal_balance = $subtotal_debit - $subtotal_credit;
-        } else {
-          // If no billing month, get overall account balance
-          $opening_balance = 0.00; // No opening balance for overall report
-
-          // Calculate total debits and credits for entire history
-          $rider_total_debit = \App\Models\Transactions::where('account_id', $rider->account_id)->sum('debit');
-
-          $rider_total_credit = \App\Models\Transactions::where('account_id', $rider->account_id)->sum('credit');
-
-          // Calculate balance as debit minus credit
-          $balance = $rider_total_debit - $rider_total_credit;
-          $subtotal_debit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('debit');
-          $subtotal_credit = \App\Models\Transactions::where('account_id', $rider->account_id)
-            ->sum('credit');
-          $subtotal_balance = $subtotal_debit - $subtotal_credit;
-        }
-
-        // No additional calculations - just show raw debit and credit values
+      foreach ($voucherRows as $row) {
+        $voucherByRider[$row->ref_id][$row->voucher_type] = (float) $row->total;
       }
-      $data .= '<tr>';
-      $data .= '<td  >' . @$rider->rider_id . '</td>';
-      $data .= '<td  ><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . @$rider->name . '</a></td>';
-      $data .= '<td >' . @$rider->vendor->name . '</td>';
-      $data .= '<td >' . @$rider->designation . '</td>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . @$rider->person_code . '</td>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . @$rider->labor_card_number . '</td>';
-      $data .= '<td  >' . @$rider->bikes->plate . '</td>';
-      $data .= '<td  >' . $rider->wps . '</td>';
 
-      // Status column: same logic as Rider table (riders/table.blade.php)
+      $rtaTotals = company_table('rta_fines')
+        ->whereIn('rider_id', $riderIds)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->select('rider_id', DB::raw('SUM(total_amount) as total'))
+        ->groupBy('rider_id')
+        ->pluck('total', 'rider_id');
+
+      $salikTotals = company_table('saliks')
+        ->whereIn('rider_id', $riderIds)
+        ->where(function ($q) use ($fromMonth, $toMonth, $salikMonthValues) {
+          $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
+            $dateQ->whereDate('billing_month', '>=', $fromMonth)
+              ->whereDate('billing_month', '<=', $toMonth);
+          })->orWhereIn('billing_month', $salikMonthValues);
+        })
+        ->select('rider_id', DB::raw('SUM(total_amount) as total'))
+        ->groupBy('rider_id')
+        ->pluck('total', 'rider_id');
+    }
+
+    if (!empty($accountIds)) {
+      $previousBalances = Transactions::whereIn('account_id', $accountIds)
+        ->whereDate('billing_month', '<', $fromMonth)
+        ->select('account_id', DB::raw('SUM(debit - credit) as balance'))
+        ->groupBy('account_id')
+        ->pluck('balance', 'account_id');
+
+      // Paid Amount from Payments module (PV vouchers), keyed by rider account
+      $paidByAccount = \App\Models\Payment::whereIn('payee_account_id', $accountIds)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->select('payee_account_id', DB::raw('SUM(amount) as total'))
+        ->groupBy('payee_account_id')
+        ->pluck('total', 'payee_account_id');
+    }
+
+    $data = '';
+    $sumTotalAmount = 0;
+    $sumVc = 0;
+    $sumCod = 0;
+    $sumRta = 0;
+    $sumSalik = 0;
+    $sumAdvance = 0;
+    $sumPenalty = 0;
+    $sumIncentive = 0;
+    $sumPrevious = 0;
+    $sumPayable = 0;
+    $sumPaid = 0;
+    $sumBalance = 0;
+
+    foreach ($result as $rider) {
+      $riderId = $rider->id;
+      $vouchers = $voucherByRider[$riderId] ?? [];
+
+      $totalAmount = (float) ($invoiceTotals[$riderId] ?? 0);
+      $vc = (float) ($vouchers['VC'] ?? 0);
+      $cod = (float) ($vouchers['COD'] ?? 0);
+      $rta = (float) ($rtaTotals[$riderId] ?? 0);
+      $salik = (float) ($salikTotals[$riderId] ?? 0);
+      $advance = (float) ($vouchers['AL'] ?? 0);
+      $penalty = (float) ($vouchers['PN'] ?? 0);
+      $incentive = (float) ($vouchers['INC'] ?? 0);
+      $paid = $rider->account_id
+        ? (float) ($paidByAccount[$rider->account_id] ?? 0)
+        : 0.0;
+      $previousBalance = $rider->account_id
+        ? (float) ($previousBalances[$rider->account_id] ?? 0)
+        : 0.0;
+
+      // Payable = Total - VC - COD - RTA - Salik - Advance - Penalty + Incentive - Previous Balance
+      $payable = $totalAmount - $vc - $cod - $rta - $salik - $advance - $penalty + $incentive - $previousBalance;
+      $balance = $payable - $paid;
+      $pendingPct = abs($payable) > 0.00001 ? ($paid / $payable) * 100 : 0;
+
       $statusOptionLabel = !empty($rider->rider_status_option) ? $rider->rider_status_option : null;
       if (!$statusOptionLabel) {
         if (($rider->absconder ?? 0) == 1) {
@@ -197,33 +267,75 @@ class ReportController extends Controller
         $statusText = $isActive ? 'Active' : 'Inactive';
         $badgeClass = $isActive ? 'bg-label-success' : 'bg-label-danger';
       }
-      $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
 
-      $data .= '<td align="right" >' . number_format($opening_balance, 2) . '</td>';
-      $data .= '<td align="right" >' . number_format($balance, 2) . '</td>';
-      $data .= '<td align="right">' . Account::show_bal($opening_balance + $balance) . '</td>';
-      $data .= '<td align="right">' . Account::show_bal($subtotal_balance - ($opening_balance + $balance)) . '</td>';
-      $data .= '<td align="right">' . number_format($subtotal_balance, 2) . '</td>';
+      $fmt = static fn ($n) => number_format((float) $n, 2);
+
+      $detailUrl = route('reports.rider_report_detail', [
+        'rider' => $rider->id,
+        'from_month' => $fromCarbon->format('Y-m'),
+        'to_month' => $toCarbon->format('Y-m'),
+      ]);
+
+      $data .= '<tr>';
+      $data .= '<td>' . e($rider->rider_id) . '</td>';
+      $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
+      $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
+      $data .= '<td>' . e($rider->emirate_hub) . '</td>';
+      $data .= '<td>' . e($rider->designation) . '</td>';
+      $data .= '<td>' . e(optional($rider->customer)->name) . '</td>';
+      $data .= '<td><a target="_blank" href="' . e($detailUrl) . '" title="View rider report details">' . e($billingMonthLabel) . '</a></td>';
+      $data .= '<td align="center">' . $fmt($totalAmount) . '</td>';
+      $data .= '<td align="center">' . $fmt($vc) . '</td>';
+      $data .= '<td align="center">' . $fmt($cod) . '</td>';
+      $data .= '<td align="center">' . $fmt($rta) . '</td>';
+      $data .= '<td align="center">' . $fmt($salik) . '</td>';
+      $data .= '<td align="center">' . $fmt($advance) . '</td>';
+      $data .= '<td align="center">' . $fmt($penalty) . '</td>';
+      $data .= '<td align="center">' . $fmt($incentive) . '</td>';
+      $data .= '<td align="center">' . $fmt($previousBalance) . '</td>';
+      $data .= '<td align="center">' . $fmt($payable) . '</td>';
+      $data .= '<td align="center">' . $fmt($paid) . '</td>';
+      $data .= '<td align="center">' . $fmt($balance) . '</td>';
+      $data .= '<td align="center">' . number_format($pendingPct, 2) . '%</td>';
       $data .= '</tr>';
 
-      $opening_balance_total += $opening_balance;
-      $ob_total += $opening_balance;
-      $total += $balance;
-      $b_total += $opening_balance + $balance;
-      $total_debit_sum += $rider_total_debit;
-      $total_credit_sum += $rider_total_credit;
+      $sumTotalAmount += $totalAmount;
+      $sumVc += $vc;
+      $sumCod += $cod;
+      $sumRta += $rta;
+      $sumSalik += $salik;
+      $sumAdvance += $advance;
+      $sumPenalty += $penalty;
+      $sumIncentive += $incentive;
+      $sumPrevious += $previousBalance;
+      $sumPayable += $payable;
+      $sumPaid += $paid;
+      $sumBalance += $balance;
     }
 
-    $data .= '<tr>';
-    $data .= '<td colspan="9"></td>';
-    $data .= '<th style="text-align: right">' . number_format($opening_balance_total, 2) . '</th>';
-    $data .= '<th style="text-align: right">' . number_format($total, 2) . '</th>';
-    $data .= '<th style="text-align: right">' . Account::show_bal($b_total) . '</th>';
-    $data .= '<th style="text-align: right">' . number_format($total_debit_sum, 2) . '</th>';
-    $data .= '<th style="text-align: right">' . number_format($total_credit_sum, 2) . '</th>';
-    $data .= '</tr>';
+    $sumPendingPct = abs($sumPayable) > 0.00001 ? ($sumPaid / $sumPayable) * 100 : 0;
+    $sumDeductions = $sumVc + $sumCod + $sumRta + $sumSalik + $sumAdvance + $sumPenalty;
 
-    // Render pagination links (global component) for consistency with riders
+    if ($result->count() > 0) {
+      $fmt = static fn ($n) => number_format((float) $n, 2);
+      $data .= '<tr class="font-weight-bold total-row">';
+      $data .= '<td colspan="7" style="text-align:center;font-weight:700;color:#000;">Totals</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumTotalAmount) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVc) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumCod) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumRta) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumSalik) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumAdvance) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPenalty) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumIncentive) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPrevious) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPayable) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPaid) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumBalance) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . number_format($sumPendingPct, 2) . '%</td>';
+      $data .= '</tr>';
+    }
+
     $paginationLinks = view('components.global-pagination', [
       'paginator' => new \Illuminate\Pagination\LengthAwarePaginator([], $totalCount, $perPage, $page, ['path' => url()->current()]),
       'perPageOptions' => [20, 50, 100, -1]
@@ -231,16 +343,157 @@ class ReportController extends Controller
 
     return [
       'data' => $data,
-      'opening_balance_total' => $opening_balance_total,
-      'total' => $total,
-      'b_total' => $b_total,
-      'total_debit_sum' => $total_debit_sum,
-      'total_credit_sum' => $total_credit_sum,
+      'riders_count' => $totalCount,
+      'total_amount' => $sumTotalAmount,
+      'total_deductions' => $sumDeductions,
+      'total_payable' => $sumPayable,
+      'total_paid' => $sumPaid,
+      'total_balance' => $sumBalance,
       'paginationLinks' => $paginationLinks,
       'totalCount' => $totalCount,
       'perPage' => $perPage,
       'page' => $page,
     ];
+  }
+
+  public function rider_report_detail(Request $request, $company_slug, $rider)
+  {
+    $riderModel = Riders::with(['customer', 'bikes', 'vendor', 'sim'])->findOrFail($rider);
+
+    $normalizeMonth = static function ($value) {
+      $value = trim((string) $value);
+      if ($value === '') {
+        return Carbon::now()->startOfMonth()->format('Y-m-01');
+      }
+      if (preg_match('/^\d{4}-\d{2}-01$/', $value)) {
+        return $value;
+      }
+      if (preg_match('/^\d{4}-\d{2}$/', $value)) {
+        return $value . '-01';
+      }
+
+      return Carbon::parse($value)->startOfMonth()->format('Y-m-01');
+    };
+
+    $fromMonth = $normalizeMonth($request->input('from_month', $request->input('billing_month')));
+    $toMonth = $normalizeMonth($request->input('to_month', $request->input('billing_month', $fromMonth)));
+
+    $fromCarbon = Carbon::parse($fromMonth)->startOfMonth();
+    $toCarbon = Carbon::parse($toMonth)->startOfMonth();
+    if ($fromCarbon->gt($toCarbon)) {
+      [$fromCarbon, $toCarbon] = [$toCarbon, $fromCarbon];
+      $fromMonth = $fromCarbon->format('Y-m-01');
+      $toMonth = $toCarbon->format('Y-m-01');
+    }
+
+    $periodLabel = $fromCarbon->equalTo($toCarbon)
+      ? $fromCarbon->format('F Y')
+      : $fromCarbon->format('M Y') . ' - ' . $toCarbon->format('M Y');
+
+    $salikMonthValues = [];
+    $cursor = $fromCarbon->copy();
+    while ($cursor->lte($toCarbon)) {
+      $salikMonthValues[] = $cursor->format('Y-m-01');
+      $salikMonthValues[] = $cursor->format('Y-m');
+      $salikMonthValues[] = $cursor->format('M') . '-' . $cursor->format('y');
+      $cursor->addMonth();
+    }
+    $salikMonthValues = array_values(array_unique($salikMonthValues));
+
+    $invoices = company_table('rider_invoices')
+      ->where('rider_id', $riderModel->id)
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->orderBy('billing_month')
+      ->orderBy('id')
+      ->get();
+
+    $voucherTypes = ['VC', 'COD', 'AL', 'PN', 'INC'];
+    $vouchersByType = [];
+    foreach ($voucherTypes as $type) {
+      $vouchersByType[$type] = company_table('vouchers')
+        ->where('ref_id', $riderModel->id)
+        ->where('voucher_type', $type)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->orderBy('billing_month')
+        ->orderBy('id')
+        ->get();
+    }
+
+    $rtaFines = company_table('rta_fines')
+      ->where('rider_id', $riderModel->id)
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->orderBy('billing_month')
+      ->orderBy('id')
+      ->get();
+
+    $saliks = company_table('saliks')
+      ->where('rider_id', $riderModel->id)
+      ->where(function ($q) use ($fromMonth, $toMonth, $salikMonthValues) {
+        $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
+          $dateQ->whereDate('billing_month', '>=', $fromMonth)
+            ->whereDate('billing_month', '<=', $toMonth);
+        })->orWhereIn('billing_month', $salikMonthValues);
+      })
+      ->orderBy('trip_date')
+      ->orderBy('id')
+      ->get();
+
+    $payments = collect();
+    if ($riderModel->account_id) {
+      $payments = \App\Models\Payment::where('payee_account_id', $riderModel->account_id)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->orderBy('billing_month')
+        ->orderBy('id')
+        ->get();
+    }
+
+    $previousBalance = 0.0;
+    if ($riderModel->account_id) {
+      $previousBalance = (float) Transactions::where('account_id', $riderModel->account_id)
+        ->whereDate('billing_month', '<', $fromMonth)
+        ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
+        ->value('balance');
+    }
+
+    $totals = [
+      'invoices' => (float) $invoices->sum('total_amount'),
+      'vc' => (float) $vouchersByType['VC']->sum('amount'),
+      'cod' => (float) $vouchersByType['COD']->sum('amount'),
+      'rta' => (float) $rtaFines->sum('total_amount'),
+      'salik' => (float) $saliks->sum('total_amount'),
+      'advance' => (float) $vouchersByType['AL']->sum('amount'),
+      'penalty' => (float) $vouchersByType['PN']->sum('amount'),
+      'incentive' => (float) $vouchersByType['INC']->sum('amount'),
+      'paid' => (float) $payments->sum('amount'),
+      'previous_balance' => $previousBalance,
+    ];
+
+    $totals['deductions'] = $totals['vc'] + $totals['cod'] + $totals['rta'] + $totals['salik'] + $totals['advance'] + $totals['penalty'];
+    $totals['payable'] = $totals['invoices'] - $totals['deductions'] + $totals['incentive'] - $totals['previous_balance'];
+    $totals['balance'] = $totals['payable'] - $totals['paid'];
+    $totals['pending_pct'] = abs($totals['payable']) > 0.00001
+      ? ($totals['paid'] / $totals['payable']) * 100
+      : 0;
+
+    return view('reports.rider_report_detail', [
+      'rider' => $riderModel,
+      'periodLabel' => $periodLabel,
+      'fromMonth' => $fromCarbon->format('Y-m'),
+      'toMonth' => $toCarbon->format('Y-m'),
+      'invoices' => $invoices,
+      'vouchersByType' => $vouchersByType,
+      'rtaFines' => $rtaFines,
+      'saliks' => $saliks,
+      'payments' => $payments,
+      'totals' => $totals,
+      'settings' => company_table('settings')->pluck('value', 'name')->toArray(),
+      'brand' => app(\App\Services\Agreements\AgreementPdfBranding::class)
+        ->forCompany(\App\Support\CompanyContext::id()),
+    ]);
   }
 
   public function rider_monthly_report_data(Request $request)

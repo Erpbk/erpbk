@@ -1,4 +1,4 @@
-{!! Form::model($permission, ['route' => ['admin.permissions.update', $permission->id], 'method' => 'patch', 'id' => 'formajax']) !!}
+{!! Form::model($permission, ['route' => ['admin.permissions.update', $permission->id], 'method' => 'patch', 'id' => 'formajax', 'class' => 'form-ajax-submit', 'data-reload-table' => '0']) !!}
 
     @include('permissions.fields')
 

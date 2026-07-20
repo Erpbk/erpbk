@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\AdminBlogsController;
 use App\Http\Controllers\Admin\AdminCompaniesController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminLoginController;
+use App\Http\Controllers\Admin\AdminErpPermissionsController;
 use App\Http\Controllers\Admin\AdminPermissionsController;
 use App\Http\Controllers\Admin\AdminAuthBrandingController;
 use App\Http\Controllers\Admin\AdminPolicyController;
@@ -34,7 +35,6 @@ use App\Http\Controllers\ErpSettingsController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FixedAssetController;
-use App\Http\Controllers\FileController;
 use App\Http\Controllers\FilesController;
 use App\Http\Controllers\FuelCardController;
 use App\Http\Controllers\FuelCardHistoryController;
@@ -49,6 +49,7 @@ use App\Http\Controllers\LeasingCompaniesController;
 use App\Http\Controllers\LeasingCompanyBillingInvoicesController;
 use App\Http\Controllers\LoansController;
 use App\Http\Controllers\LedgerController;
+use App\Http\Controllers\AccountsReportController;
 use App\Http\Controllers\pages\MiscError;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ReceiptController;
@@ -68,7 +69,6 @@ use App\Http\Controllers\SimInvoicesController;
 use App\Http\Controllers\SimsController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\SupplierInvoicesController;
-use App\Http\Controllers\UploadFilesController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserEmailSettingsController;
 use App\Http\Controllers\UserTableSettingsController;
@@ -196,8 +196,18 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::post('permissions/roles/{role}', [AdminPermissionsController::class, 'updateRolePermissions'])->name('permissions.update-role');
     Route::delete('permissions/{permission}', [AdminPermissionsController::class, 'destroy'])->name('permissions.destroy');
 
+    // ERP company permissions (Spatie permissions table on ERP database)
+    Route::get('erp-permissions', [AdminErpPermissionsController::class, 'index'])->name('erp-permissions.index');
+    Route::get('erp-permissions/create', [AdminErpPermissionsController::class, 'create'])->name('erp-permissions.create');
+    Route::post('erp-permissions', [AdminErpPermissionsController::class, 'store'])->name('erp-permissions.store');
+    Route::get('erp-permissions/{permission}/edit', [AdminErpPermissionsController::class, 'edit'])->name('erp-permissions.edit');
+    Route::patch('erp-permissions/{permission}', [AdminErpPermissionsController::class, 'update'])->name('erp-permissions.update');
+    Route::delete('erp-permissions/{permission}', [AdminErpPermissionsController::class, 'destroy'])->name('erp-permissions.destroy');
+
     // Global accounts (system-wide chart account registry)
     Route::get('global-accounts/accounts-by-type/{type}', [AdminGlobalAccountsController::class, 'accountsByType'])->name('global-accounts.accounts-by-type');
+    Route::get('global-accounts/{globalAccount}/linked-account/edit', [AdminGlobalAccountsController::class, 'editLinkedAccount'])->name('global-accounts.linked-account.edit');
+    Route::patch('global-accounts/{globalAccount}/linked-account', [AdminGlobalAccountsController::class, 'updateLinkedAccount'])->name('global-accounts.linked-account.update');
     Route::resource('global-accounts', AdminGlobalAccountsController::class)->except(['show']);
 
     // Legacy Account Fixing URLs → Global Accounts
@@ -313,13 +323,11 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('rtaFines/invoice/{id}', [RtaFinesController::class, 'show'])->name('rtaFines.show');
     Route::post('rtaFines/store', [RtaFinesController::class, 'store']);
     Route::get('rtaFines/edit/{id}', [RtaFinesController::class, 'edit']);
-    Route::post('rtaFines/update', [RtaFinesController::class, 'update']);
+    Route::post('rtaFines/update/{id}', [RtaFinesController::class, 'update'])->name('rtaFines.update');
     Route::get('rtaFines/create', [RtaFinesController::class, 'create'])->name('rtaFines.create');
     Route::any('rtaFines/attach_file/{id}', [RtaFinesController::class, 'fileUpload'])->name('rtaFines.fileupload');
 
     Route::post('rtaFines/accountcreate', [RtaFinesController::class, 'accountcreate'])->name('rtaFines.accountcreate');
-    Route::post('rtaFines/editaccount', [RtaFinesController::class, 'editaccount'])->name('rtaFines.editaccount');
-    Route::get('rtaFines/deleteaccount/{id}', [RtaFinesController::class, 'deleteaccount'])->name('rtaFines.deleteaccount');
     Route::get('rtaFines/tickets', [RtaFinesController::class, 'tickets'])->name('rtaFines.tickets');
     Route::get('rtaFines/paid', [RtaFinesController::class, 'paid'])->name('rtaFines.paid');
     Route::post('rtaFines/payfine', [RtaFinesController::class, 'payfine'])->name('rtaFines.payfine');
@@ -524,10 +532,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('BikeRegistration', [BikeRegistrationController::class, 'index'])->name('BikeRegistration.index');
     Route::get('BikeRegistration/{id}', [BikeRegistrationController::class, 'show'])->name('BikeRegistration.show')->whereNumber('id');
 
-    Route::get('sims/trash', [SimsController::class, 'trash'])->name('sims.trash');
-    Route::get('sims/trash/{id}', [SimsController::class, 'showTrash'])->name('sims.showTrash');
-    Route::post('sims/empty-trash', [SimsController::class, 'emptyTrash'])->name('sims.emptyTrash');
-    Route::get('sims/restore/{id}', [SimsController::class, 'restore'])->name('sims.restore');
     Route::match(['get', 'post'], 'sims/assign/{id}', [SimsController::class, 'assign'])->name('sims.assign');
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
@@ -552,8 +556,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::delete('simInvoices/{id}', [SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy');
     Route::post('simInvoices/{id}/clone', [SimInvoicesController::class, 'clone'])->name('simInvoices.clone');
     Route::get('simInvoices/vendor/{id}/sims', [SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
-    Route::get('simInvoices/{id}/payment-voucher/create', [SimInvoicesController::class, 'createPaymentVoucher'])->name('simInvoices.paymentVoucher.create');
-    Route::post('simInvoices/{id}/payment-voucher', [SimInvoicesController::class, 'storePaymentVoucher'])->name('simInvoices.paymentVoucher.store');
     Route::get('sim/payments', [SimInvoicesController::class, 'payments'])->name('sim.payments');
 
     Route::get('bikeRentCompanies/trash', [BikeRentCompaniesController::class, 'trash'])->name('bikeRentCompanies.trash');
@@ -818,11 +820,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('cheques/set-cheque-top-option/{id}', [ChequesController::class, 'setChequeTopOption'])->name('cheques.setChequeTopOption');
     Route::resource('cheques', ChequesController::class);
 
-    // Soft Delete Routes for Banks - DEPRECATED: Use centralized trash module (/trash)
-    // Route::get('banks/trashed/list', [\App\Http\Controllers\BanksController::class, 'trashed'])->name('banks.trashed');
-    // Route::post('banks/{id}/restore', [\App\Http\Controllers\BanksController::class, 'restore'])->name('banks.restore');
-    // Route::delete('banks/{id}/force-delete', [\App\Http\Controllers\BanksController::class, 'forceDestroy'])->name('banks.force-destroy');
-
     Route::get('vouchers/{id}/clone', [VouchersController::class, 'cloneVoucher'])->name('vouchers.clone');
     Route::get('vouchers/list-sidebar', [VouchersController::class, 'listSidebar'])->name('vouchers.list-sidebar');
     Route::resource('vouchers', VouchersController::class);
@@ -843,6 +840,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::prefix('reports')->group(function () {
         Route::get('/rider_report', [ReportController::class, 'rider_report'])->name('reports.rider_report');
         Route::post('/rider_report_data', [ReportController::class, 'rider_report_data'])->name('reports.rider_report_data');
+        Route::get('/rider_report/detail/{rider}', [ReportController::class, 'rider_report_detail'])->name('reports.rider_report_detail');
         Route::get('/rider_monthly_report', [ReportController::class, 'rider_monthly_report'])->name('reports.rider_monthly_report');
         Route::post('/rider_monthly_report_data', [ReportController::class, 'rider_monthly_report_data'])->name('reports.rider_monthly_report_data');
     });
@@ -867,6 +865,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/ledger/data', [LedgerController::class, 'getLedgerData'])->name('ledger.data');
         Route::get('/ledger/export', [LedgerController::class, 'export'])->name('ledger.export');
         Route::get('/ledger/print', [LedgerController::class, 'print'])->name('ledger.print');
+        Route::get('/reports/trial-balance', [AccountsReportController::class, 'trialBalance'])->name('accounts.reports.trial_balance');
+        Route::get('/reports/profit-loss', [AccountsReportController::class, 'profitLoss'])->name('accounts.reports.profit_loss');
         Route::get('/vat', [VatController::class, 'index'])->name('vat.index');
         Route::get('/vat/returns', [VatController::class, 'returnsIndex'])->name('vat.returns.index');
         Route::get('/vat/returns/{vat_return}', [VatController::class, 'returnsShow'])->name('vat.returns.show');
@@ -901,9 +901,6 @@ Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']
 /* Route::group(['prefix' => 'laravel-filemanager', 'middleware' => ['web', 'auth']], function () {
   Lfm::routes();
 }); */
-
-Route::get('/storage/{path}', [FileController::class, 'show'])->where('path', '.+');
-Route::get('/storage2/{path}', [FileController::class, 'root'])->where('path', '.+');
 
 Route::get('/artisan-cache', function () {
     Artisan::call('cache:clear');
@@ -990,12 +987,10 @@ Route::get('/run-admin-migrate', function () {
 /* Suppliers section start here */
 Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     // Suppliers: explicit routes before resource (avoid clashes with {supplier})
-    Route::get('suppliers/datatable', [SupplierController::class, 'datatable'])->name('suppliers.datatable');
     Route::get('suppliers/trash', [SupplierController::class, 'trash'])->name('suppliers.trash');
     Route::post('suppliers/trash/{id}/restore', [SupplierController::class, 'restoreTrash'])->name('suppliers.restore');
     Route::delete('suppliers/trash/{id}/force-destroy', [SupplierController::class, 'forceDestroyTrash'])->name('suppliers.force-destroy');
     Route::get('suppliers/document/{id}', [SupplierController::class, 'document'])->name('suppliers.document');
-    Route::get('suppliers/files/{id}', [SupplierController::class, 'files'])->name('suppliers.files');
     Route::get('suppliers/ledger/{id}', [SupplierController::class, 'ledger'])->name('suppliers.ledger');
     Route::delete('suppliers/delete/{id}', [SupplierController::class, 'destroy'])->name('suppliers.delete');
     Route::get('suppliers/show/{id}', [SupplierController::class, 'show']);
@@ -1018,13 +1013,10 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
 /* Suppliers section end here */
 Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
-    Route::resource('upload_files', UploadFilesController::class);
-});
-
-Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
     // Specific Salik routes (must come before resource route)
     Route::get('salik/missing-records', [SalikController::class, 'showMissingRecords'])->name('salik.missing.records');
     Route::get('salik/summary', [SalikController::class, 'monthlySummary'])->name('salik.summary');
+    Route::get('salik/payments', [SalikController::class, 'paymentRecords'])->name('salik.payments');
     Route::get('salik_invoice/{rider_id}/{billing_month}', [SalikController::class, 'showMonthlyInvoice'])->name('salik.rider_monthly_summary');
     Route::get('salik_invoice/company/{rental_company_id}/{billing_month}', [SalikController::class, 'showCompanyMonthlyInvoice'])->name('salik.company_monthly_summary');
     Route::get('salik/export-missing-records', [SalikController::class, 'exportMissingRecords'])->name('salik.export.missing.records');

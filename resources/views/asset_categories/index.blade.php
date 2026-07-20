@@ -11,9 +11,9 @@
                 <a href="{{ route('fixed-assets.index') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="ti ti-arrow-left"></i> Back to Assets
                 </a>
-                @can('asset_create')
+                @can('assets_create')
                 <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="lg" data-title="Add Asset Category" data-action="{{ route('asset-categories.create') }}">
-                    <i class="ti ti-plus"></i> New Category
+                    <i class="ti ti-plus"></i> Add Category
                 </a>
                 @endcan
             </div>

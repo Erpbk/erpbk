@@ -39,12 +39,14 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                             width="60">
                         <h5 class="fw-bold mb-2">Add New Role</h5>
                         <p class="text-muted small mb-3">Create a new role with custom permissions</p>
-                        <button data-action="{{ route($rolesRoute . '.create') }}"
-                            data-title="Create New Role"
-                            data-size="lg"
-                            class="btn btn-primary btn-sm show-modal">
+                        @php
+                            $createRoleUrl = ($rolesRoute === 'settings-panel.roles')
+                                ? route('settings-panel.roles.permissions.create', ['company_slug' => request()->route('company_slug') ?? session('company_slug')])
+                                : route($rolesRoute . '.create');
+                        @endphp
+                        <a href="{{ $createRoleUrl }}" class="btn btn-primary btn-sm">
                             <i class="ti ti-plus me-1"></i>New Role
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>

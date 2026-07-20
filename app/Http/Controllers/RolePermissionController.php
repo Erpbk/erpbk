@@ -218,11 +218,11 @@ class RolePermissionController extends AppBaseController
     private function permissionTree(): array
     {
         $all = Permission::query()->orderBy('name')->get();
-        $byParent = $all->groupBy(fn ($p) => (int) ($p->parent_id ?? 0));
+        $byParent = $all->groupBy(fn($p) => (int) ($p->parent_id ?? 0));
 
         $hasParentId = Schema::hasColumn('permissions', 'parent_id');
         $topModules = $hasParentId
-            ? $all->filter(fn ($p) => $p->parent_id === null || (int) $p->parent_id === 0)->sortBy('name')->values()
+            ? $all->filter(fn($p) => $p->parent_id === null || (int) $p->parent_id === 0)->sortBy('name')->values()
             : $all;
 
         return [$topModules, $byParent];
@@ -312,7 +312,7 @@ class RolePermissionController extends AppBaseController
         $finalIds = Permission::query()
             ->whereIn('id', array_keys($set))
             ->pluck('id')
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->unique()
             ->values()
             ->all();

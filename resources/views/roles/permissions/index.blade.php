@@ -82,9 +82,9 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
 
                     <div id="rfpModulesBody" class="rfp-modules-scroll">
                         @php
-                            $actions = ['view', 'create', 'edit', 'delete'];
-                            $flatModules = collect($moduleRows)->where('is_flat', true)->values();
-                            $groupedModules = collect($moduleRows)->where('is_flat', false)->values();
+                        $actions = ['view', 'create', 'edit', 'delete'];
+                        $flatModules = collect($moduleRows)->where('is_flat', true)->values();
+                        $groupedModules = collect($moduleRows)->where('is_flat', false)->values();
                         @endphp
 
                         {{-- Modules without submodules: grouped together in one card --}}
@@ -138,8 +138,8 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                         {{-- Modules with submodules: one card each --}}
                         @foreach ($groupedModules as $m)
                         @php
-                            $subNames = collect($m['submodules'])->pluck('name')->implode(' ');
-                            $search = \Illuminate\Support\Str::lower($m['name'] . ' ' . $subNames);
+                        $subNames = collect($m['submodules'])->pluck('name')->implode(' ');
+                        $search = \Illuminate\Support\Str::lower($m['name'] . ' ' . $subNames);
                         @endphp
                         <div class="rfp-module-block is-grouped rfp-selectable rfp-counter-scope rfp-page-item"
                             data-module-id="{{ $m['id'] }}"
@@ -251,6 +251,7 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
         font-size: .8rem;
         position: relative;
     }
+
     .rfp-page .rfp-donut::before {
         content: "";
         position: absolute;
@@ -258,352 +259,481 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
         border-radius: 50%;
         background: var(--bs-card-bg, #fff);
     }
-    .rfp-page .rfp-donut span { position: relative; z-index: 1; }
-    .rfp-page .rfp-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px; }
-    .rfp-page .rfp-fields-table th { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary); }
+
+    .rfp-page .rfp-donut span {
+        position: relative;
+        z-index: 1;
+    }
+
+    .rfp-page .rfp-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 3px;
+    }
+
+    .rfp-page .rfp-fields-table th {
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--bs-secondary);
+    }
 
     /* Grouped module blocks */
-    .rfp-page .rfp-col-name { flex: 1 1 auto; min-width: 0; }
-    .rfp-page .rfp-col-act { flex: 0 0 84px; width: 84px; text-align: center; }
+    .rfp-page .rfp-col-name {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .rfp-page .rfp-col-act {
+        flex: 0 0 84px;
+        width: 84px;
+        text-align: center;
+    }
+
     .rfp-page .rfp-cols-head,
-    .rfp-page .rfp-sub-head { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-secondary); font-weight: 600; }
-    .rfp-page .rfp-module-block { border-bottom: 1px solid var(--bs-border-color); }
-    .rfp-page .rfp-module-block.is-grouped { margin: .5rem; border: 1px solid var(--bs-border-color); border-radius: .5rem; overflow: hidden; }
-    .rfp-page .rfp-module-block.is-grouped .rfp-module-head { background: var(--bs-tertiary-bg, #f8f9fa); }
-    .rfp-page .rfp-sub-row + .rfp-sub-row { border-top: 1px solid var(--bs-border-color); }
-    .rfp-page .rfp-sub-row:hover { background: rgba(105, 108, 255, .04); }
-    .rfp-page .rfp-flat-row { cursor: pointer; transition: background .12s ease, box-shadow .12s ease; }
-    .rfp-page .rfp-flat-row:hover { background: rgba(105, 108, 255, .04); }
+    .rfp-page .rfp-sub-head {
+        font-size: .72rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--bs-secondary);
+        font-weight: 600;
+    }
+
+    .rfp-page .rfp-module-block {
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .rfp-page .rfp-module-block.is-grouped {
+        margin: .5rem;
+        border: 1px solid var(--bs-border-color);
+        border-radius: .5rem;
+        overflow: hidden;
+    }
+
+    .rfp-page .rfp-module-block.is-grouped .rfp-module-head {
+        background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+
+    .rfp-page .rfp-sub-row+.rfp-sub-row {
+        border-top: 1px solid var(--bs-border-color);
+    }
+
+    .rfp-page .rfp-sub-row:hover {
+        background: rgba(105, 108, 255, .04);
+    }
+
+    .rfp-page .rfp-flat-row {
+        cursor: pointer;
+        transition: background .12s ease, box-shadow .12s ease;
+    }
+
+    .rfp-page .rfp-flat-row:hover {
+        background: rgba(105, 108, 255, .04);
+    }
 
     /* Selected module highlight (clear background + accent border) */
     .rfp-page .rfp-module-block.active {
         border-color: var(--bs-primary);
         box-shadow: 0 0 0 2px rgba(105, 108, 255, .25);
     }
-    .rfp-page .rfp-module-block.active .rfp-module-head { background: rgba(105, 108, 255, .16); }
-    .rfp-page .rfp-module-block.active .rfp-module-select { color: var(--bs-primary); font-weight: 700; }
+
+    .rfp-page .rfp-module-block.active .rfp-module-head {
+        background: rgba(105, 108, 255, .16);
+    }
+
+    .rfp-page .rfp-module-block.active .rfp-module-select {
+        color: var(--bs-primary);
+        font-weight: 700;
+    }
+
     .rfp-page .rfp-flat-row.active {
         background: rgba(105, 108, 255, .16);
         box-shadow: inset 4px 0 0 var(--bs-primary);
     }
-    .rfp-page .rfp-flat-row.active .rfp-module-select { color: var(--bs-primary); font-weight: 700; }
-    .rfp-page .rfp-flat-card .rfp-module-head { background: var(--bs-tertiary-bg, #f8f9fa); }
-    .rfp-page .rfp-module-select { color: inherit; }
+
+    .rfp-page .rfp-flat-row.active .rfp-module-select {
+        color: var(--bs-primary);
+        font-weight: 700;
+    }
+
+    .rfp-page .rfp-flat-card .rfp-module-head {
+        background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+
+    .rfp-page .rfp-module-select {
+        color: inherit;
+    }
 
     /* Scrollable module list so a large number of modules fits without breaking layout */
-    .rfp-page .rfp-modules-scroll { max-height: 640px; overflow-y: auto; overflow-x: hidden; }
-    .rfp-page #rfpFieldPanel { max-height: 640px; overflow-y: auto; }
+    .rfp-page .rfp-modules-scroll {
+        max-height: 640px;
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+
+    .rfp-page #rfpFieldPanel {
+        max-height: 640px;
+        overflow-y: auto;
+    }
+
     .rfp-page .rfp-modules-scroll::-webkit-scrollbar,
-    .rfp-page #rfpFieldPanel::-webkit-scrollbar { width: 8px; }
+    .rfp-page #rfpFieldPanel::-webkit-scrollbar {
+        width: 8px;
+    }
+
     .rfp-page .rfp-modules-scroll::-webkit-scrollbar-thumb,
-    .rfp-page #rfpFieldPanel::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 4px; }
+    .rfp-page #rfpFieldPanel::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
     .rfp-page .rfp-modules-scroll::-webkit-scrollbar-thumb:hover,
-    .rfp-page #rfpFieldPanel::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
-    .rfp-page .rfp-mod-counter { font-weight: 600; }
-    .rfp-page .rfp-fields-table code { font-size: .78rem; }
-    .rfp-page .card-header { background: transparent; }
+    .rfp-page #rfpFieldPanel::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+    }
+
+    .rfp-page .rfp-mod-counter {
+        font-weight: 600;
+    }
+
+    .rfp-page .rfp-fields-table code {
+        font-size: .78rem;
+    }
+
+    .rfp-page .card-header {
+        background: transparent;
+    }
 </style>
 @endsection
 
 @section('page-script')
 <script>
-(function () {
-    var RFP = {
-        fieldsUrl: @json($fieldsUrlTemplate),
-        saveUrl: @json($saveUrl),
-        csrf: @json(csrf_token()),
-        fieldStats: @json($fieldStats),
-        moduleTotal: {{ (int) $summary['module_total'] }},
-    };
-
-    // Persisted (unsaved) field edits: { moduleId: { fieldName: {visible, editable, required} } }
-    var fieldState = {};
-    // Permission leaves the admin actually changed: key = permId => { id: permId, enabled: bool }
-    var permChanges = {};
-    var currentModuleId = null;
-    var activeFilter = 'all';
-
-    var $units = $('.rfp-page-item');
-
-    function num(n) { return isNaN(n) ? 0 : n; }
-
-    function moduleEnabledCount() {
-        return $('.rfp-perm-toggle:checked').length;
-    }
-
-    function fieldTotals() {
-        var total = 0, enabled = 0;
-        for (var mid in RFP.fieldStats) {
-            if (!RFP.fieldStats.hasOwnProperty(mid)) continue;
-            total += num(RFP.fieldStats[mid].total);
-            enabled += num(RFP.fieldStats[mid].enabled);
-        }
-        return { total: total, enabled: enabled };
-    }
-
-    function updateSummary() {
-        var ft = fieldTotals();
-        var total = RFP.moduleTotal + ft.total;
-        var enabled = moduleEnabledCount() + ft.enabled;
-        var pct = total > 0 ? Math.round((enabled / total) * 100) : 0;
-        $('#rfpEnabled').text(enabled);
-        $('#rfpTotal').text(total);
-        $('#rfpPercent').text(pct + '%');
-        $('#rfpDonut').css('--rfp-pct', pct);
-    }
-
-    // ---- Left panel: search / filter / pagination ----
-    function matches($el, term) {
-        var hay = ($el.attr('data-search') || '').toString();
-        var matchesSearch = !term || hay.indexOf(term) !== -1;
-        var matchesFilter = activeFilter === 'all'
-            || $el.find('.rfp-perm-toggle[data-action="' + activeFilter + '"]:checked').length > 0;
-        return matchesSearch && matchesFilter;
-    }
-
-    // Filter individual flat rows inside the "General Modules" card.
-    function refreshFlatRows(term) {
-        $('.rfp-flat-card .rfp-flat-row').each(function () {
-            $(this).toggle(matches($(this), term));
-        });
-    }
-
-    function visibleUnits(term) {
-        return $units.filter(function () {
-            var $u = $(this);
-            if ($u.hasClass('rfp-flat-card')) {
-                return $u.find('.rfp-flat-row:visible').length > 0;
-            }
-            return matches($u, term);
-        });
-    }
-
-    // No pagination: every matching module is rendered inside the scrollable list.
-    function renderPage() {
-        var term = $('#rfpModuleSearch').val().toLowerCase().trim();
-        refreshFlatRows(term);
-        var $vis = visibleUnits(term);
-        $units.hide();
-        $vis.show();
-
-        var moduleCount = $('.rfp-flat-card .rfp-flat-row:visible').length
-            + $vis.filter(function () { return !$(this).hasClass('rfp-flat-card'); }).length;
-        $('#rfpModuleCount').text(moduleCount + ' module' + (moduleCount === 1 ? '' : 's'));
-    }
-
-    $('#rfpModuleSearch').on('input', function () { renderPage(); });
-
-    $('.rfp-filters button').on('click', function () {
-        activeFilter = $(this).data('filter');
-        $('.rfp-filters button').removeClass('btn-primary').addClass('btn-outline-primary');
-        $(this).removeClass('btn-outline-primary').addClass('btn-primary');
-        renderPage();
-    });
-
-    // ---- Module permission toggles ----
-    function updateModuleCounter($scope) {
-        var enabled = $scope.find('.rfp-perm-toggle:checked').length;
-        $scope.find('.rfp-mod-enabled').first().text(enabled);
-    }
-
-    $(document).on('change', '.rfp-perm-toggle', function () {
-        var $t = $(this);
-        var permId = parseInt($t.attr('data-perm-id'), 10);
-        if (!isNaN(permId)) {
-            permChanges[permId] = { ids: [permId], enabled: this.checked };
-        }
-        updateModuleCounter($t.closest('.rfp-counter-scope'));
-        updateSummary();
-        if (activeFilter !== 'all') renderPage();
-    });
-
-    // ---- Right panel: load module fields ----
-    function loadModuleFields(moduleId, moduleName) {
-        currentModuleId = moduleId;
-        $('.rfp-selectable').removeClass('active');
-        $('.rfp-selectable[data-module-id="' + moduleId + '"]').addClass('active');
-        $('#rfpSelectedModule').text(moduleName);
-        $('#rfpFieldPanel').html('<div class="text-center text-muted py-5"><div class="spinner-border spinner-border-sm"></div> Loading fields...</div>');
-
-        $.getJSON(RFP.fieldsUrl.replace('__MODULE__', moduleId))
-            .done(function (res) {
-                $('#rfpFieldPanel').html(res.html);
-                // Re-apply any unsaved edits for this module.
-                applyStateToDom(moduleId);
-                syncModuleFieldStats(moduleId);
-                $('#rfpFieldSearch').prop('disabled', false).val('');
-                filterFields();
-            })
-            .fail(function () {
-                $('#rfpFieldPanel').html('<div class="text-center text-danger py-5">Failed to load fields.</div>');
-            });
-    }
-
-    $(document).on('click', '.rfp-module-select', function (e) {
-        e.preventDefault();
-        var $sel = $(this).closest('.rfp-selectable');
-        loadModuleFields($sel.data('module-id'), $(this).text().trim());
-    });
-
-    // Clicking anywhere on a module row/header selects it (except on the toggles or the name button, which handle themselves).
-    $(document).on('click', '.rfp-flat-row, .rfp-module-head', function (e) {
-        if ($(e.target).closest('.form-check, .rfp-module-select').length) return;
-        var $sel = $(this).closest('.rfp-selectable');
-        if (!$sel.length || $sel.data('module-id') == null) return;
-        loadModuleFields($sel.data('module-id'), $sel.find('.rfp-module-select').first().text().trim());
-    });
-
-    // ---- Field permission rules ----
-    function readRow($tr) {
-        return {
-            visible: $tr.find('.rfp-field-visible').is(':checked'),
-            editable: $tr.find('.rfp-field-editable').is(':checked'),
-            required: $tr.find('.rfp-field-required').is(':checked')
+    (function() {
+        var RFP = {
+            fieldsUrl: @json($fieldsUrlTemplate),
+            saveUrl: @json($saveUrl),
+            csrf: @json(csrf_token()),
+            fieldStats: @json($fieldStats),
+            moduleTotal: {
+                {
+                    (int) $summary['module_total']
+                }
+            },
         };
-    }
 
-    function enforceRow($tr) {
-        var visible = $tr.find('.rfp-field-visible').is(':checked');
-        var $editable = $tr.find('.rfp-field-editable');
-        var $required = $tr.find('.rfp-field-required');
-        if (!visible) {
-            $editable.prop('checked', false).prop('disabled', true);
-            $required.prop('checked', false).prop('disabled', true);
-        } else {
-            $editable.prop('disabled', false);
-            $required.prop('disabled', false);
+        // Persisted (unsaved) field edits: { moduleId: { fieldName: {visible, editable, required} } }
+        var fieldState = {};
+        // Permission leaves the admin actually changed: key = permId => { id: permId, enabled: bool }
+        var permChanges = {};
+        var currentModuleId = null;
+        var activeFilter = 'all';
+
+        var $units = $('.rfp-page-item');
+
+        function num(n) {
+            return isNaN(n) ? 0 : n;
         }
-    }
 
-    function storeRow($tr) {
-        var mid = $tr.data('module-id');
-        var name = $tr.data('field-name');
-        if (!fieldState[mid]) fieldState[mid] = {};
-        fieldState[mid][name] = readRow($tr);
-    }
+        function moduleEnabledCount() {
+            return $('.rfp-perm-toggle:checked').length;
+        }
 
-    function applyStateToDom(moduleId) {
-        var state = fieldState[moduleId];
-        if (!state) return;
-        $('#rfpFieldPanel .rfp-field-row').each(function () {
-            var $tr = $(this);
-            var s = state[$tr.data('field-name')];
-            if (!s) return;
-            $tr.find('.rfp-field-visible').prop('checked', s.visible);
-            $tr.find('.rfp-field-editable').prop('checked', s.editable);
-            $tr.find('.rfp-field-required').prop('checked', s.required);
-            enforceRow($tr);
+        function fieldTotals() {
+            var total = 0,
+                enabled = 0;
+            for (var mid in RFP.fieldStats) {
+                if (!RFP.fieldStats.hasOwnProperty(mid)) continue;
+                total += num(RFP.fieldStats[mid].total);
+                enabled += num(RFP.fieldStats[mid].enabled);
+            }
+            return {
+                total: total,
+                enabled: enabled
+            };
+        }
+
+        function updateSummary() {
+            var ft = fieldTotals();
+            var total = RFP.moduleTotal + ft.total;
+            var enabled = moduleEnabledCount() + ft.enabled;
+            var pct = total > 0 ? Math.round((enabled / total) * 100) : 0;
+            $('#rfpEnabled').text(enabled);
+            $('#rfpTotal').text(total);
+            $('#rfpPercent').text(pct + '%');
+            $('#rfpDonut').css('--rfp-pct', pct);
+        }
+
+        // ---- Left panel: search / filter / pagination ----
+        function matches($el, term) {
+            var hay = ($el.attr('data-search') || '').toString();
+            var matchesSearch = !term || hay.indexOf(term) !== -1;
+            var matchesFilter = activeFilter === 'all' ||
+                $el.find('.rfp-perm-toggle[data-action="' + activeFilter + '"]:checked').length > 0;
+            return matchesSearch && matchesFilter;
+        }
+
+        // Filter individual flat rows inside the "General Modules" card.
+        function refreshFlatRows(term) {
+            $('.rfp-flat-card .rfp-flat-row').each(function() {
+                $(this).toggle(matches($(this), term));
+            });
+        }
+
+        function visibleUnits(term) {
+            return $units.filter(function() {
+                var $u = $(this);
+                if ($u.hasClass('rfp-flat-card')) {
+                    return $u.find('.rfp-flat-row:visible').length > 0;
+                }
+                return matches($u, term);
+            });
+        }
+
+        // No pagination: every matching module is rendered inside the scrollable list.
+        function renderPage() {
+            var term = $('#rfpModuleSearch').val().toLowerCase().trim();
+            refreshFlatRows(term);
+            var $vis = visibleUnits(term);
+            $units.hide();
+            $vis.show();
+
+            var moduleCount = $('.rfp-flat-card .rfp-flat-row:visible').length +
+                $vis.filter(function() {
+                    return !$(this).hasClass('rfp-flat-card');
+                }).length;
+            $('#rfpModuleCount').text(moduleCount + ' module' + (moduleCount === 1 ? '' : 's'));
+        }
+
+        $('#rfpModuleSearch').on('input', function() {
+            renderPage();
         });
-    }
 
-    function syncModuleFieldStats(moduleId) {
-        var enabled = 0, total = 0;
-        $('#rfpFieldPanel .rfp-field-row').each(function () {
-            var r = readRow($(this));
-            total += 3;
-            enabled += (r.visible ? 1 : 0) + (r.editable ? 1 : 0) + (r.required ? 1 : 0);
+        $('.rfp-filters button').on('click', function() {
+            activeFilter = $(this).data('filter');
+            $('.rfp-filters button').removeClass('btn-primary').addClass('btn-outline-primary');
+            $(this).removeClass('btn-outline-primary').addClass('btn-primary');
+            renderPage();
         });
-        if (total > 0 || !RFP.fieldStats[moduleId]) {
-            RFP.fieldStats[moduleId] = { total: total, enabled: enabled };
+
+        // ---- Module permission toggles ----
+        function updateModuleCounter($scope) {
+            var enabled = $scope.find('.rfp-perm-toggle:checked').length;
+            $scope.find('.rfp-mod-enabled').first().text(enabled);
         }
-        updateSummary();
-    }
 
-    $(document).on('change', '.rfp-field-visible', function () {
-        var $tr = $(this).closest('.rfp-field-row');
-        enforceRow($tr);
-        storeRow($tr);
-        syncModuleFieldStats($tr.data('module-id'));
-    });
-
-    $(document).on('change', '.rfp-field-editable', function () {
-        var $tr = $(this).closest('.rfp-field-row');
-        if ($(this).is(':checked')) {
-            $tr.find('.rfp-field-visible').prop('checked', true);
-            enforceRow($tr);
-        }
-        storeRow($tr);
-        syncModuleFieldStats($tr.data('module-id'));
-    });
-
-    $(document).on('change', '.rfp-field-required', function () {
-        var $tr = $(this).closest('.rfp-field-row');
-        if ($(this).is(':checked')) {
-            $tr.find('.rfp-field-visible').prop('checked', true);
-            enforceRow($tr);
-        }
-        storeRow($tr);
-        syncModuleFieldStats($tr.data('module-id'));
-    });
-
-    // ---- Field search ----
-    function filterFields() {
-        var term = $('#rfpFieldSearch').val().toLowerCase().trim();
-        $('#rfpFieldPanel .rfp-field-row').each(function () {
-            var hay = ($(this).data('field-label') || '').toString();
-            $(this).toggle(!term || hay.indexOf(term) !== -1);
+        $(document).on('change', '.rfp-perm-toggle', function() {
+            var $t = $(this);
+            var permId = parseInt($t.attr('data-perm-id'), 10);
+            if (!isNaN(permId)) {
+                permChanges[permId] = {
+                    ids: [permId],
+                    enabled: this.checked
+                };
+            }
+            updateModuleCounter($t.closest('.rfp-counter-scope'));
+            updateSummary();
+            if (activeFilter !== 'all') renderPage();
         });
-    }
-    $('#rfpFieldSearch').on('input', filterFields);
 
-    // ---- Save ----
-    $('#rfpSaveBtn').on('click', function () {
-        var $btn = $(this);
-        $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+        // ---- Right panel: load module fields ----
+        function loadModuleFields(moduleId, moduleName) {
+            currentModuleId = moduleId;
+            $('.rfp-selectable').removeClass('active');
+            $('.rfp-selectable[data-module-id="' + moduleId + '"]').addClass('active');
+            $('#rfpSelectedModule').text(moduleName);
+            $('#rfpFieldPanel').html('<div class="text-center text-muted py-5"><div class="spinner-border spinner-border-sm"></div> Loading fields...</div>');
 
-        // Make sure current DOM edits are captured.
-        if (currentModuleId !== null) {
-            $('#rfpFieldPanel .rfp-field-row').each(function () { storeRow($(this)); });
+            $.getJSON(RFP.fieldsUrl.replace('__MODULE__', moduleId))
+                .done(function(res) {
+                    $('#rfpFieldPanel').html(res.html);
+                    // Re-apply any unsaved edits for this module.
+                    applyStateToDom(moduleId);
+                    syncModuleFieldStats(moduleId);
+                    $('#rfpFieldSearch').prop('disabled', false).val('');
+                    filterFields();
+                })
+                .fail(function() {
+                    $('#rfpFieldPanel').html('<div class="text-center text-danger py-5">Failed to load fields.</div>');
+                });
         }
 
-        var permChangesList = [];
-        for (var key in permChanges) {
-            if (permChanges.hasOwnProperty(key)) permChangesList.push(permChanges[key]);
+        $(document).on('click', '.rfp-module-select', function(e) {
+            e.preventDefault();
+            var $sel = $(this).closest('.rfp-selectable');
+            loadModuleFields($sel.data('module-id'), $(this).text().trim());
+        });
+
+        // Clicking anywhere on a module row/header selects it (except on the toggles or the name button, which handle themselves).
+        $(document).on('click', '.rfp-flat-row, .rfp-module-head', function(e) {
+            if ($(e.target).closest('.form-check, .rfp-module-select').length) return;
+            var $sel = $(this).closest('.rfp-selectable');
+            if (!$sel.length || $sel.data('module-id') == null) return;
+            loadModuleFields($sel.data('module-id'), $sel.find('.rfp-module-select').first().text().trim());
+        });
+
+        // ---- Field permission rules ----
+        function readRow($tr) {
+            return {
+                visible: $tr.find('.rfp-field-visible').is(':checked'),
+                editable: $tr.find('.rfp-field-editable').is(':checked'),
+                required: $tr.find('.rfp-field-required').is(':checked')
+            };
         }
 
-        var fields = [];
-        for (var mid in fieldState) {
-            if (!fieldState.hasOwnProperty(mid)) continue;
-            for (var name in fieldState[mid]) {
-                if (!fieldState[mid].hasOwnProperty(name)) continue;
-                var s = fieldState[mid][name];
-                fields.push({
-                    module_id: parseInt(mid, 10),
-                    field_name: name,
-                    visible: s.visible ? 1 : 0,
-                    editable: s.editable ? 1 : 0,
-                    required: s.required ? 1 : 0
+        function enforceRow($tr) {
+            var visible = $tr.find('.rfp-field-visible').is(':checked');
+            var $editable = $tr.find('.rfp-field-editable');
+            var $required = $tr.find('.rfp-field-required');
+            if (!visible) {
+                $editable.prop('checked', false).prop('disabled', true);
+                $required.prop('checked', false).prop('disabled', true);
+            } else {
+                $editable.prop('disabled', false);
+                $required.prop('disabled', false);
+            }
+        }
+
+        function storeRow($tr) {
+            var mid = $tr.data('module-id');
+            var name = $tr.data('field-name');
+            if (!fieldState[mid]) fieldState[mid] = {};
+            fieldState[mid][name] = readRow($tr);
+        }
+
+        function applyStateToDom(moduleId) {
+            var state = fieldState[moduleId];
+            if (!state) return;
+            $('#rfpFieldPanel .rfp-field-row').each(function() {
+                var $tr = $(this);
+                var s = state[$tr.data('field-name')];
+                if (!s) return;
+                $tr.find('.rfp-field-visible').prop('checked', s.visible);
+                $tr.find('.rfp-field-editable').prop('checked', s.editable);
+                $tr.find('.rfp-field-required').prop('checked', s.required);
+                enforceRow($tr);
+            });
+        }
+
+        function syncModuleFieldStats(moduleId) {
+            var enabled = 0,
+                total = 0;
+            $('#rfpFieldPanel .rfp-field-row').each(function() {
+                var r = readRow($(this));
+                total += 3;
+                enabled += (r.visible ? 1 : 0) + (r.editable ? 1 : 0) + (r.required ? 1 : 0);
+            });
+            if (total > 0 || !RFP.fieldStats[moduleId]) {
+                RFP.fieldStats[moduleId] = {
+                    total: total,
+                    enabled: enabled
+                };
+            }
+            updateSummary();
+        }
+
+        $(document).on('change', '.rfp-field-visible', function() {
+            var $tr = $(this).closest('.rfp-field-row');
+            enforceRow($tr);
+            storeRow($tr);
+            syncModuleFieldStats($tr.data('module-id'));
+        });
+
+        $(document).on('change', '.rfp-field-editable', function() {
+            var $tr = $(this).closest('.rfp-field-row');
+            if ($(this).is(':checked')) {
+                $tr.find('.rfp-field-visible').prop('checked', true);
+                enforceRow($tr);
+            }
+            storeRow($tr);
+            syncModuleFieldStats($tr.data('module-id'));
+        });
+
+        $(document).on('change', '.rfp-field-required', function() {
+            var $tr = $(this).closest('.rfp-field-row');
+            if ($(this).is(':checked')) {
+                $tr.find('.rfp-field-visible').prop('checked', true);
+                enforceRow($tr);
+            }
+            storeRow($tr);
+            syncModuleFieldStats($tr.data('module-id'));
+        });
+
+        // ---- Field search ----
+        function filterFields() {
+            var term = $('#rfpFieldSearch').val().toLowerCase().trim();
+            $('#rfpFieldPanel .rfp-field-row').each(function() {
+                var hay = ($(this).data('field-label') || '').toString();
+                $(this).toggle(!term || hay.indexOf(term) !== -1);
+            });
+        }
+        $('#rfpFieldSearch').on('input', filterFields);
+
+        // ---- Save ----
+        $('#rfpSaveBtn').on('click', function() {
+            var $btn = $(this);
+            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+
+            // Make sure current DOM edits are captured.
+            if (currentModuleId !== null) {
+                $('#rfpFieldPanel .rfp-field-row').each(function() {
+                    storeRow($(this));
                 });
             }
-        }
 
-        // Send as JSON strings so a large number of fields cannot be truncated by
-        // PHP's max_input_vars (deep form-encoding would emit ~5 vars per field).
-        $.ajax({
-            url: RFP.saveUrl,
-            method: 'POST',
-            data: {
-                _token: RFP.csrf,
-                perm_changes: JSON.stringify(permChangesList),
-                fields: JSON.stringify(fields)
-            },
-            dataType: 'json'
-        }).done(function (res) {
-            permChanges = {};
-            if (typeof toastr !== 'undefined') {
-                toastr.success((res && res.message) || 'Permissions saved successfully.');
+            var permChangesList = [];
+            for (var key in permChanges) {
+                if (permChanges.hasOwnProperty(key)) permChangesList.push(permChanges[key]);
             }
-        }).fail(function (xhr) {
-            var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save permissions.';
-            if (typeof toastr !== 'undefined') { toastr.error(msg); } else { alert(msg); }
-        }).always(function () {
-            $btn.prop('disabled', false).html('<i class="ti ti-device-floppy me-1"></i>Save Changes');
-        });
-    });
 
-    // ---- Init ----
-    updateSummary();
-    renderPage();
-})();
+            var fields = [];
+            for (var mid in fieldState) {
+                if (!fieldState.hasOwnProperty(mid)) continue;
+                for (var name in fieldState[mid]) {
+                    if (!fieldState[mid].hasOwnProperty(name)) continue;
+                    var s = fieldState[mid][name];
+                    fields.push({
+                        module_id: parseInt(mid, 10),
+                        field_name: name,
+                        visible: s.visible ? 1 : 0,
+                        editable: s.editable ? 1 : 0,
+                        required: s.required ? 1 : 0
+                    });
+                }
+            }
+
+            // Send as JSON strings so a large number of fields cannot be truncated by
+            // PHP's max_input_vars (deep form-encoding would emit ~5 vars per field).
+            $.ajax({
+                url: RFP.saveUrl,
+                method: 'POST',
+                data: {
+                    _token: RFP.csrf,
+                    perm_changes: JSON.stringify(permChangesList),
+                    fields: JSON.stringify(fields)
+                },
+                dataType: 'json'
+            }).done(function(res) {
+                permChanges = {};
+                if (typeof toastr !== 'undefined') {
+                    toastr.success((res && res.message) || 'Permissions saved successfully.');
+                }
+            }).fail(function(xhr) {
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save permissions.';
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(msg);
+                } else {
+                    alert(msg);
+                }
+            }).always(function() {
+                $btn.prop('disabled', false).html('<i class="ti ti-device-floppy me-1"></i>Save Changes');
+            });
+        });
+
+        // ---- Init ----
+        updateSummary();
+        renderPage();
+    })();
 </script>
 @endsection

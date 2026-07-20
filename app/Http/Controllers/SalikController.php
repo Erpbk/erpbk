@@ -54,7 +54,7 @@ class SalikController extends AppBaseController
 
     private function renderSalikListing(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -230,7 +230,7 @@ class SalikController extends AppBaseController
 
     public function monthlySummary(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1661,7 +1661,7 @@ class SalikController extends AppBaseController
      */
     public function showMissingRecords(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
         $perPage = $request->get('per_page', 50);
@@ -1849,7 +1849,7 @@ class SalikController extends AppBaseController
      */
     public function analyzeExcelFile(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1936,7 +1936,7 @@ class SalikController extends AppBaseController
      */
     public function exportMissingRecords(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2013,7 +2013,7 @@ class SalikController extends AppBaseController
      */
     public function clearFailedImports(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -2038,7 +2038,7 @@ class SalikController extends AppBaseController
 
     public function paymentForm(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('salik_view')) {
+        if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
         }
 

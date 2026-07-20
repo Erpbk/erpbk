@@ -17,7 +17,7 @@ class BikeRegistrationStatusController extends Controller
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
+        if (!user_can('bike_registration_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -59,7 +59,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_create')) {
+        if (!user_can('bike_registration_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -72,11 +72,11 @@ class BikeRegistrationStatusController extends Controller
             return redirect()->route($this->statusesIndexRoute());
         }
 
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
+        if (!user_can('bike_registration_view')) {
             abort(403, 'Unauthorized action.');
         }
 
-        if (auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (user_can('bike_registration_edit')) {
             return redirect()->route($this->statusesRouteBase() . '.edit', ['bike_registration_status' => $id]);
         }
 
@@ -85,7 +85,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_create')) {
+        if (!user_can('bike_registration_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -137,7 +137,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -148,7 +148,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function update(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -194,7 +194,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function destroy(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_delete')) {
+        if (!user_can('bike_registration_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -243,7 +243,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function toggleActive($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -265,7 +265,7 @@ class BikeRegistrationStatusController extends Controller
 
     public function reorder(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

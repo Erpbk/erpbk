@@ -21,7 +21,7 @@ class LedgerController extends Controller
 
     public function index(Request $request, LedgerDataTable $ledgerDataTable)
     {
-        if (! auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (! user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
         if (! $request->has('account') && ! $request->has('month')) {
@@ -284,7 +284,7 @@ class LedgerController extends Controller
 
     public function export(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (! user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 

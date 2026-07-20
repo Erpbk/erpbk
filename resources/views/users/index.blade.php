@@ -98,10 +98,12 @@ $permissionsRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.
                     </div>
 
                     <div class="d-flex justify-content-between align-items-center">
-                        <a href="javascript:;" class="role-edit-modal show-modal text-decoration-none"
-                            data-title="Edit permissions — {{ $role->name }}"
-                            data-size="xl"
-                            data-action="{{ route($rolesRoute . '.edit', $role->id) }}">
+                        @php
+                            $rolePermissionsUrl = ($rolesRoute === 'settings-panel.roles')
+                                ? route('settings-panel.roles.permissions', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'role' => $role->id])
+                                : route($rolesRoute . '.edit', $role->id);
+                        @endphp
+                        <a href="{{ $rolePermissionsUrl }}" class="role-edit-modal text-decoration-none">
                             <i class="ti ti-edit me-1"></i>Edit Permissions
                         </a>
                         <span class="text-muted small">

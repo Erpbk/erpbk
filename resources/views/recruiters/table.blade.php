@@ -1,12 +1,13 @@
 @push('third_party_stylesheets')
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+    @php $vf = static fn (string $f): bool => field_visible('recruiter', $f); @endphp
     <thead class="text-center">
         <tr role="row">
-            <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
-            <th title="Email" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending">Email</th>
-            <th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>
-            <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+            @if($vf('name'))<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>@endif
+            @if($vf('email'))<th title="Email" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending">Email</th>@endif
+            @if($vf('contact_number'))<th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>@endif
+            @if($vf('status'))<th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>@endif
             <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
             <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
                 <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
@@ -16,19 +17,19 @@
     <tbody>
         @foreach($data as $r)
         <tr class="text-center">
-            <td>
+            @if($vf('name'))<td>
                 <a href="{{ route('recruiters.riders', $r->id) }}">{{$r->name}}</a>
                 <br />
-            </td>
-            <td>{{$r->email }}</td>
-            <td>{{$r->contact_number }}</td>
-            <td>
+            </td>@endif
+            @if($vf('email'))<td>{{$r->email }}</td>@endif
+            @if($vf('contact_number'))<td>{{$r->contact_number }}</td>@endif
+            @if($vf('status'))<td>
                 @if($r->status == 1)
                 <span class="badge  bg-success">Active</span>
                 @else
                 <span class="badge  bg-danger">Inactive</span>
                 @endif
-            </td>
+            </td>@endif
             <td>
                 <div class='btn-group'>
                     @can('recruiter_edit')

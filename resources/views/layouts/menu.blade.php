@@ -177,7 +177,7 @@ $homeLink = $isAdminLogin
 @endcan
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('customers'))
-@can('customer_view')
+@if(\App\Support\RoleFieldAccess::canAccessModule('customer'))
 <li class="menu-item {{ (Route::is('customer*') || Route::is('customers*') || Route::is('customer_invoice*') || Route::is('customer_invoices*')) ? 'open' : '' }}">
   <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'customers'])
@@ -209,7 +209,7 @@ $homeLink = $isAdminLogin
     </li>
   </ul>
 </li>
-@endcan
+@endif
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('vendors'))
 @can('vendor_view')

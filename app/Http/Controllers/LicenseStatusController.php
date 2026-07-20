@@ -24,7 +24,7 @@ class LicenseStatusController extends Controller
         }
 
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
+        if (!user_can('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -71,7 +71,7 @@ class LicenseStatusController extends Controller
     public function create()
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_create')) {
+        if (!user_can('licenseexpense_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -89,12 +89,12 @@ class LicenseStatusController extends Controller
             return redirect()->route($this->licenseStatusesIndexRoute());
         }
 
-        if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
+        if (!user_can('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
         // If user can edit, send them to edit page; otherwise back to index.
-        if (auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (user_can('licenseexpense_edit')) {
             return redirect()->route($this->licenseStatusesRouteBase() . '.edit', ['license_status' => $id]);
         }
 
@@ -110,7 +110,7 @@ class LicenseStatusController extends Controller
     public function store(Request $request)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_create')) {
+        if (!user_can('licenseexpense_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -170,7 +170,7 @@ class LicenseStatusController extends Controller
     public function edit($company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -188,7 +188,7 @@ class LicenseStatusController extends Controller
     public function update(Request $request, $company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -239,7 +239,7 @@ class LicenseStatusController extends Controller
     public function destroy(Request $request, $company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_delete')) {
+        if (!user_can('licenseexpense_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -291,7 +291,7 @@ class LicenseStatusController extends Controller
     public function toggleActive($company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -314,7 +314,7 @@ class LicenseStatusController extends Controller
      */
     public function reorder(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -6,30 +6,31 @@
 </style>
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+   @php $vf = static fn (string $f): bool => field_visible('leasing', $f); @endphp
    <thead class="text-center">
       <tr role="row">
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
-         <th title="Contact Person" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Person: activate to sort column ascending">Contact Person</th>
-         <th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>
-         <th title="TRN Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="TRN Number: activate to sort column ascending">TRN Number</th>
-         <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+         @if($vf('name'))<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>@endif
+         @if($vf('contact_person'))<th title="Contact Person" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Person: activate to sort column ascending">Contact Person</th>@endif
+         @if($vf('contact_number'))<th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>@endif
+         @if($vf('trn_number'))<th title="TRN Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="TRN Number: activate to sort column ascending">TRN Number</th>@endif
+         @if($vf('status'))<th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>@endif
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td><a href="{{ route('leasingCompany.files', $r->id) }}">{{$r->name}}</a></td>
-         <td>{{$r->contact_person}}</td>
-         <td>{{$r->contact_number}}</td>
-         <td>{{$r->trn_number}}</td>
-         <td>
+         @if($vf('name'))<td><a href="{{ route('leasingCompany.files', $r->id) }}">{{$r->name}}</a></td>@endif
+         @if($vf('contact_person'))<td>{{$r->contact_person}}</td>@endif
+         @if($vf('contact_number'))<td>{{$r->contact_number}}</td>@endif
+         @if($vf('trn_number'))<td>{{$r->trn_number}}</td>@endif
+         @if($vf('status'))<td>
             @if($r->status == 1)
             <span class="badge  bg-success">Active</span>
             @else
             <span class="badge  bg-danger">Inactive</span>
             @endif
-         </td>
+         </td>@endif
          <td style="position: relative;">
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">

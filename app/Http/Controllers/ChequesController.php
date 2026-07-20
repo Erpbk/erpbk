@@ -33,6 +33,10 @@ class ChequesController extends Controller
      */
     public function index(Request $request)
     {
+        if (! \App\Support\RoleFieldAccess::canAccessModule('cheques')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $query = Cheques::query()->latest('issue_date');
 
         if (Schema::hasTable('cheque_top_categories')) {

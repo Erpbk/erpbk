@@ -47,7 +47,7 @@ class BikeRegistrationController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
+        if (!user_can('bike_registration_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -550,7 +550,7 @@ class BikeRegistrationController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('bike_registration_view')) {
+        if (!user_can('bike_registration_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -959,7 +959,7 @@ class BikeRegistrationController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -987,7 +987,7 @@ class BikeRegistrationController extends AppBaseController
 
     public function editVoucherCreditForm(Request $request, $company_slug, $bikeRegistrationId)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1054,7 +1054,7 @@ class BikeRegistrationController extends AppBaseController
 
     public function updateVoucherCredit(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('bike_registration_edit')) {
+        if (!user_can('bike_registration_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

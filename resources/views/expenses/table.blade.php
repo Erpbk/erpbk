@@ -1,15 +1,16 @@
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+  @php $vf = static fn (string $f): bool => field_visible('expenses', $f); @endphp
   <thead class="text-center">
     <tr role="row">
       <th title="Voucher ID" class="sorting" tabindex="0" rowspan="1" colspan="1">Voucher ID</th>
-      <th title="Date" class="sorting" tabindex="0" rowspan="1" colspan="1">Date</th>
-      <th title="Trans Code" class="sorting" tabindex="0" rowspan="1" colspan="1">Trans Code</th>
-      <th title="Billing Month" class="sorting" tabindex="0" rowspan="1" colspan="1">Billing Month</th>
-      <th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1">Reference Number</th>
-      <th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1">Amount</th>
-      <th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1">Created By</th>
-      <th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1">Updated By</th>
-      <th title="File" class="sorting_disabled" rowspan="1" colspan="1">File</th>
+      @if($vf('trans_date'))<th title="Date" class="sorting" tabindex="0" rowspan="1" colspan="1">Date</th>@endif
+      @if($vf('trans_code'))<th title="Trans Code" class="sorting" tabindex="0" rowspan="1" colspan="1">Trans Code</th>@endif
+      @if($vf('billing_month'))<th title="Billing Month" class="sorting" tabindex="0" rowspan="1" colspan="1">Billing Month</th>@endif
+      @if($vf('reference_number'))<th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1">Reference Number</th>@endif
+      @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1">Amount</th>@endif
+      @if($vf('created_by'))<th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1">Created By</th>@endif
+      @if($vf('updated_by'))<th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1">Updated By</th>@endif
+      @if($vf('attach_file'))<th title="File" class="sorting_disabled" rowspan="1" colspan="1">File</th>@endif
       <th title="Actions" class="sorting_disabled" rowspan="1" colspan="1">Actions</th>
       <th tabindex="0" rowspan="1" colspan="1">
         <a class="openFilterSidebar" href="javascript:void(0);" title="Filters"> <i class="fa fa-search"></i></a>
@@ -39,14 +40,14 @@
         @endphp
         <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">{{ $voucherId }}</a>
       </td>
-      <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
-      <td>{{ $voucher->trans_code }}</td>
-      <td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>
-      <td>{{ $voucher->reference_number ?? 'N/A' }}</td>
-      <td class="text-end">{{ number_format($voucher->amount, 2) }}</td>
-      <td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>
-      <td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>
-      <td>
+      @if($vf('trans_date'))<td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>@endif
+      @if($vf('trans_code'))<td>{{ $voucher->trans_code }}</td>@endif
+      @if($vf('billing_month'))<td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>@endif
+      @if($vf('reference_number'))<td>{{ $voucher->reference_number ?? 'N/A' }}</td>@endif
+      @if($vf('amount'))<td class="text-end">{{ number_format($voucher->amount, 2) }}</td>@endif
+      @if($vf('created_by'))<td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>@endif
+      @if($vf('updated_by'))<td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>@endif
+      @if($vf('attach_file'))<td>
         @if($voucher->attach_file)
         <a href="{{ url('storage/vouchers/' . $voucher->attach_file) }}" class="btn btn-sm btn-outline-primary" target="_blank">
           <i class="fa fa-file"></i> View
@@ -54,7 +55,7 @@
         @else
         <span class="text-muted">-</span>
         @endif
-      </td>
+      </td>@endif
       <td style="position: relative;">
         <div class="dropdown">
           <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $voucher->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

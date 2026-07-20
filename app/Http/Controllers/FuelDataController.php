@@ -25,7 +25,7 @@ class FuelDataController extends Controller
      */
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_view')) {
+        if (!user_can('fuel_view')) {
             abort(403, 'Unauthorized action.');
         }
         // Use global pagination trait
@@ -68,7 +68,7 @@ class FuelDataController extends Controller
      */
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('fuel_create')) {
+        if (!user_can('fuel_create')) {
             abort(403, 'Unauthorized action.');
         }
         $data = null;
@@ -228,7 +228,7 @@ class FuelDataController extends Controller
      */
     public function edit($company_slug, string $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_create')) {
+        if (!user_can('fuel_create')) {
             abort(403, 'Unauthorized action.');
         }
         $data = FuelData::find($id);
@@ -345,7 +345,7 @@ class FuelDataController extends Controller
     public function destroy($company_slug, string $id)
     {
         // Check permission
-        if (!auth()->user()->hasPermissionTo('fuel_delete')) {
+        if (!user_can('fuel_delete')) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to delete fuel transactions.'

@@ -1,26 +1,27 @@
 <div class="table-responsive">
+    @php $vf = static fn (string $f): bool => field_visible('passport_handover', $f); @endphp
     <table id="historyTable">
         <thead>
             <tr>
-                <th>Passport Holder</th>
-                <th>Passport No.</th>
-                <th>Issued</th>
-                <th>Handed Over By</th>
-                <th>Received By</th>
-                <th>Returned</th>
-                <th>Returned By</th>
-                <th>Return Received By</th>
+                @if($vf('holder_name'))<th>Passport Holder</th>@endif
+                @if($vf('passport_number'))<th>Passport No.</th>@endif
+                @if($vf('note_date'))<th>Issued</th>@endif
+                @if($vf('handed_over_by'))<th>Handed Over By</th>@endif
+                @if($vf('received_by'))<th>Received By</th>@endif
+                @if($vf('return_date'))<th>Returned</th>@endif
+                @if($vf('returned_by'))<th>Returned By</th>@endif
+                @if($vf('return_received_by'))<th>Return Received By</th>@endif
                 <th>Status</th>
-                <th>Remarks</th>
+                @if($vf('remarks'))<th>Remarks</th>@endif
                 <th>Documents</th>
             </tr>
         </thead>
         <tbody>
             @forelse($histories as $history)
             <tr>
-                <td>{{ $history->holder_name ?: $history->personName() }}</td>
-                <td>{{ $history->passport_number ?: '-' }}</td>
-                <td>
+                @if($vf('holder_name'))<td>{{ $history->holder_name ?: $history->personName() }}</td>@endif
+                @if($vf('passport_number'))<td>{{ $history->passport_number ?: '-' }}</td>@endif
+                @if($vf('note_date'))<td>
                     @can('passport_handover_print')
                     <a href="{{ route('passportHandover.issueContract', $history->id) }}"
                         class="date-display" target="_blank" title="View Issue Acknowledgement">
@@ -29,10 +30,10 @@
                     @else
                     {{ $history->note_date ? $history->note_date->format('d M Y H:i') : '-' }}
                     @endcan
-                </td>
-                <td>{{ $history->handed_over_by ?: '-' }}</td>
-                <td>{{ $history->received_by ?: '-' }}</td>
-                <td>
+                </td>@endif
+                @if($vf('handed_over_by'))<td>{{ $history->handed_over_by ?: '-' }}</td>@endif
+                @if($vf('received_by'))<td>{{ $history->received_by ?: '-' }}</td>@endif
+                @if($vf('return_date'))<td>
                     @if($history->return_date)
                     @can('passport_handover_print')
                     <a href="{{ route('passportHandover.returnContract', $history->id) }}"
@@ -45,9 +46,9 @@
                     @else
                     <span class="text-muted">-</span>
                     @endif
-                </td>
-                <td>{{ $history->returned_by ?: '-' }}</td>
-                <td>{{ $history->return_received_by ?: '-' }}</td>
+                </td>@endif
+                @if($vf('returned_by'))<td>{{ $history->returned_by ?: '-' }}</td>@endif
+                @if($vf('return_received_by'))<td>{{ $history->return_received_by ?: '-' }}</td>@endif
                 <td>
                     @if($history->isOpen())
                     <span class="badge bg-warning">Issued</span>
@@ -55,7 +56,7 @@
                     <span class="badge bg-success">Returned</span>
                     @endif
                 </td>
-                <td>
+                @if($vf('remarks'))<td>
                     @if(!empty($history->remarks))
                     <span class="text-truncate d-inline-block" style="max-width:120px;" title="{{ $history->remarks }}">
                         {{ \Illuminate\Support\Str::limit($history->remarks, 40) }}
@@ -63,7 +64,7 @@
                     @else
                     <span class="text-muted">-</span>
                     @endif
-                </td>
+                </td>@endif
                 <td>
                     <div class="d-flex flex-column gap-1">
                         @can('passport_handover_print')

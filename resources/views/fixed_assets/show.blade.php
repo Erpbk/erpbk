@@ -24,13 +24,14 @@
         </div>
     </div>
 
+    @php $vf = static fn (string $f): bool => field_visible('asset', $f); @endphp
     <div class="row">
-        <div class="col-md-4"><strong>Acquisition Type</strong><br>{{ \App\Models\FixedAsset::acquisitionTypes()[$asset->acquisition_type ?? 'new_purchase'] ?? $asset->acquisition_type }}</div>
-        <div class="col-md-4"><strong>Acquisition Date</strong><br>{{ $asset->acquisition_date?->format('d M Y') }}</div>
-        <div class="col-md-4"><strong>In-Service Date</strong><br>{{ $asset->in_service_date?->format('d M Y') }}</div>
-        <div class="col-md-4 mt-3"><strong>Branch</strong><br>{{ $asset->branch?->name ?? '—' }}</div>
-        <div class="col-md-4 mt-3"><strong>Acquisition Cost</strong><br>{{ number_format((float) $asset->acquisition_cost, 2) }}</div>
-        <div class="col-md-4 mt-3"><strong>Salvage Value</strong><br>{{ number_format((float) $asset->salvage_value, 2) }}</div>
+        @if($vf('acquisition_type'))<div class="col-md-4"><strong>Acquisition Type</strong><br>{{ \App\Models\FixedAsset::acquisitionTypes()[$asset->acquisition_type ?? 'new_purchase'] ?? $asset->acquisition_type }}</div>@endif
+        @if($vf('acquisition_date'))<div class="col-md-4"><strong>Acquisition Date</strong><br>{{ $asset->acquisition_date?->format('d M Y') }}</div>@endif
+        @if($vf('in_service_date'))<div class="col-md-4"><strong>In-Service Date</strong><br>{{ $asset->in_service_date?->format('d M Y') }}</div>@endif
+        @if($vf('branch_id'))<div class="col-md-4 mt-3"><strong>Branch</strong><br>{{ $asset->branch?->name ?? '—' }}</div>@endif
+        @if($vf('acquisition_cost'))<div class="col-md-4 mt-3"><strong>Acquisition Cost</strong><br>{{ number_format((float) $asset->acquisition_cost, 2) }}</div>@endif
+        @if($vf('salvage_value'))<div class="col-md-4 mt-3"><strong>Salvage Value</strong><br>{{ number_format((float) $asset->salvage_value, 2) }}</div>@endif
         @if($asset->isOpeningBalance())
         <div class="col-md-4 mt-3"><strong>Opening Accumulated Depreciation</strong><br>{{ number_format((float) $asset->opening_accumulated_depreciation, 2) }}</div>
         <div class="col-md-4 mt-3"><strong>Depreciation As Of</strong><br>{{ $asset->depreciation_as_of_date?->format('d M Y') ?? '—' }}</div>
@@ -41,7 +42,7 @@
         <div class="col-md-4 mt-3"><strong>Depreciation Method</strong><br>{{ \App\Models\AssetCategory::depreciationMethods()[$asset->depreciation_method] ?? $asset->depreciation_method }}</div>
         <div class="col-md-4 mt-3"><strong>Posting Frequency</strong><br>{{ \App\Models\AssetCategory::depreciationFrequencies()[$asset->depreciation_frequency ?? 'monthly'] ?? $asset->depreciation_frequency }}</div>
         <div class="col-md-4 mt-3"><strong>Useful Life</strong><br>{{ $asset->useful_life_months }} months</div>
-        @if($asset->description)
+        @if($vf('description') && $asset->description)
         <div class="col-md-12 mt-3"><strong>Description</strong><br>{{ $asset->description }}</div>
         @endif
     </div>

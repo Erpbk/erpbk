@@ -3,13 +3,14 @@
     $__companySlug = \App\Support\CompanyRouteContext::slug();
 @endphp
 <table class="table table-hover table-striped mb-0 chart-table">
+    @php $vf = static fn (string $f): bool => field_visible('account', $f); @endphp
     <thead class="table-light">
         <tr>
             <th class="account-name-cell ps-3">Account Name</th>
-            <th class="text-nowrap">Account Code</th>
-            <th class="text-nowrap">Account Type</th>
+            @if($vf('account_code'))<th class="text-nowrap">Account Code</th>@endif
+            @if($vf('account_type'))<th class="text-nowrap">Account Type</th>@endif
             <th class="text-nowrap">Documents</th>
-            <th class="text-nowrap">Parent Account</th>
+            @if($vf('parent_id'))<th class="text-nowrap">Parent Account</th>@endif
             <th style="width: 80px;" class="text-end pe-3">Actions</th>
         </tr>
     </thead>
@@ -44,10 +45,10 @@
                         @endcan
                     </div>
                 </td>
-                <td class="text-nowrap">{{ $account->account_code ?? '—' }}</td>
-                <td class="text-nowrap">{{ $account->account_type ?? '—' }}</td>
+                @if($vf('account_code'))<td class="text-nowrap">{{ $account->account_code ?? '—' }}</td>@endif
+                @if($vf('account_type'))<td class="text-nowrap">{{ $account->account_type ?? '—' }}</td>@endif
                 <td class="text-muted">—</td>
-                <td class="text-nowrap text-muted">{{ $account->parent->name ?? '—' }}</td>
+                @if($vf('parent_id'))<td class="text-nowrap text-muted">{{ $account->parent->name ?? '—' }}</td>@endif
                 <td class="text-end pe-3">
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-outline-secondary btn-actions dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">

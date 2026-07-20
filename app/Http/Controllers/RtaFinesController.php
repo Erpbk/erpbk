@@ -49,7 +49,7 @@ class RtaFinesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('rtafine_view')) {
+        if (!user_can('rtafine_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -57,7 +57,7 @@ class RtaFinesController extends AppBaseController
     }
     public function tickets(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('rtafine_view')) {
+        if (!user_can('rtafine_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -66,7 +66,7 @@ class RtaFinesController extends AppBaseController
 
     public function paid(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('rtafine_paid_view')) {
+        if (!user_can('rtafine_paid_view')) {
             abort(403, 'Unauthorized action.');
         }
 

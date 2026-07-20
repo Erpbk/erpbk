@@ -146,7 +146,7 @@ class SupplierController extends AppBaseController
 
   public function show($company_slug, $id)
   {
-    if (!auth()->user()->hasPermissionTo('supplier_view')) {
+    if (!user_can('supplier_view')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -269,7 +269,7 @@ class SupplierController extends AppBaseController
 
   public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
-    if (!auth()->user()->hasPermissionTo('supplier_view')) {
+    if (!user_can('supplier_view')) {
       abort(403, 'Unauthorized action.');
     }
 

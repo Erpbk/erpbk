@@ -249,7 +249,7 @@ class SimInvoicesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_invoice_delete')) {
+        if (!user_can('sim_invoice_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -379,7 +379,7 @@ class SimInvoicesController extends AppBaseController
 
     public function createPaymentVoucher($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_invoice_payment_voucher')) {
+        if (!user_can('sim_invoice_payment_voucher')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -402,7 +402,7 @@ class SimInvoicesController extends AppBaseController
 
     public function storePaymentVoucher(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_invoice_payment_voucher')) {
+        if (!user_can('sim_invoice_payment_voucher')) {
             abort(403, 'Unauthorized action.');
         }
 

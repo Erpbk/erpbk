@@ -1,17 +1,18 @@
 
 <table class="table  dataTable" id="dataTableBuilder">
+    @php $vf = static fn (string $f): bool => field_visible('cheques', $f); @endphp
     <thead class="text-center">
         <tr role="row">
-            <th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>
-            <th title="Cheque No." class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque No.: activate to sort column ascending">Cheque No.</th>
-            <th title="Cheque date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque date: activate to sort column ascending">Cheque date</th>
-            <th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>
+            @if($vf('reference'))<th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>@endif
+            @if($vf('cheque_number'))<th title="Cheque No." class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque No.: activate to sort column ascending">Cheque No.</th>@endif
+            @if($vf('cheque_date'))<th title="Cheque date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cheque date: activate to sort column ascending">Cheque date</th>@endif
+            @if($vf('type'))<th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
             <th title="Sender/Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender/Receiver: activate to sort column ascending">Sender/Reciever</th>
-            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-            <th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>
-            <th title="Attachmnet" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>
-            <th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>
-            <th title="Voucher Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+            @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
+            @if($vf('voucher_id'))<th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>@endif
+            @if($vf('attachment'))<th title="Attachmnet" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>@endif
+            @if($vf('description'))<th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>@endif
+            @if($vf('status'))<th title="Voucher Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>@endif
             <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
         </tr>
     </thead>
@@ -28,16 +29,16 @@
         @endphp
         @foreach($data as $cheque)
         <tr>
-            <td>{{ $cheque->reference ?? '-' }}</td>
-            <td>
+            @if($vf('reference'))<td>{{ $cheque->reference ?? '-' }}</td>@endif
+            @if($vf('cheque_number'))<td>
                 <a href="javascript:void(0);" class="show-modal text-primary" data-size="xl"
                 data-action="{{ route('cheques.show', $cheque->id) }}"
                 data-title="Cheque Details">
                     {{ $cheque->cheque_number }}
                 </a>
-            </td>
-            <td>{{ $cheque->cheque_date?->format('d M Y') ?? '-' }}</td>
-            <td>
+            </td>@endif
+            @if($vf('cheque_date'))<td>{{ $cheque->cheque_date?->format('d M Y') ?? '-' }}</td>@endif
+            @if($vf('type'))<td>
                 @if($cheque->type == 'payable')
                     <span class="badge border border-danger text-black">Payable</span>
                 @else
@@ -46,7 +47,7 @@
                 @if($cheque->is_security)
                     <small class=" badge border border-danger text-warning mt-2" style="white-space: nowrap">Security Cheque</small>
                 @endif
-            </td>
+            </td>@endif
             <td>
                 @if($cheque->type == 'payable')
 
@@ -65,8 +66,8 @@
                     @endif
                 @endif
             </td>
-            <td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>
-            <td>
+            @if($vf('amount'))<td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>@endif
+            @if($vf('voucher_id'))<td>
                 @if($cheque->voucher_id)
                     <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($cheque->voucher_id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
                         {{ $cheque->voucher->voucher_type . '-'. $cheque->voucher_id }}
@@ -74,8 +75,8 @@
                 @else
                     -
                 @endif
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('attachment'))<td>
                 @if($cheque->attachment)
                     <a href="{{ storage_url('vouchers/' . $cheque->attachment) }}" class="btn btn-sm btn-outline-primary" target="_blank">
                         <i class="fa fa-file"></i> View
@@ -83,8 +84,8 @@
                 @else
                     -
                 @endif
-            </td>
-            <td class="text-start">{{ $cheque->description }}</td>
+            </td>@endif
+            @if($vf('description'))<td class="text-start">{{ $cheque->description }}</td>@endif
             @php
                 $badge=[
                     'Issued' => 'primary',
@@ -94,9 +95,9 @@
                     'Lost' => 'secondary',
                 ];
             @endphp
-            <td>
+            @if($vf('status'))<td>
                 <span class="badge bg-{{ $badge[$cheque->status] ?? 'secondary' }}">{{ $cheque->status }}</span>
-            </td>
+            </td>@endif
             <td style="position: relative;">
                 <div class="dropdown">
                 <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $cheque->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">

@@ -95,18 +95,21 @@
     <div style="position: relative;min-height: 100%;height: 100%;">
         @include('_partials.header')
         @isset($voucher)
+        @php $vf = static fn (string $f): bool => field_visible('voucher', $f); @endphp
         <table width="100%" style="font-family: sans-serif; margin-top: 20px;font-size: 12px">
             <tr>
                 <td style="padding: 3px;width: 65%;text-align: left;"><strong>Voucher No</strong>: {{ $voucher->voucher_type . '-' . str_pad($voucher->id, '4', '0', STR_PAD_LEFT) }}</td>
+                @if($vf('trans_date'))
                 <th style="padding: 3px;width: 15%;text-align: left;">Voucher Date:</th>
                 <td style="padding: 3px;width: 20%;text-align: left;">{{ $voucher->trans_date }}</td>
+                @endif
             </tr>
             <tr>
                 <td style="padding: 3px;width: 65%;text-align: left;"><strong>Voucher Type</strong>:{{$voucher_type}}</td>
-                @isset($voucher->billing_month)
+                @if($vf('billing_month') && isset($voucher->billing_month))
                 <th style="padding: 3px;width: 15%;text-align: left;"> Billing Month: </th>
                 <td style="padding: 3px;width: 20%;text-align: left;">{{date('M-Y',strtotime($voucher->billing_month))}}</td>
-                @endisset
+                @endif
             </tr>
             <tr>
                 <td style="padding: 3px;width: 65%;text-align: left;"><strong>Created By</strong>: {{ Auth::user()->where('id', $voucher->Created_By)->first()->name ?? 'N/A' }}</td>

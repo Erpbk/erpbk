@@ -28,7 +28,7 @@ class PenaltiesController extends AppBaseController
      */
     public function index(Request $request, $riderId = null)
     {
-        if (!auth()->user()->hasPermissionTo('penality_view')) {
+        if (!user_can('penality_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -84,7 +84,7 @@ class PenaltiesController extends AppBaseController
      */
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('penality_view')) {
+        if (!user_can('penality_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -97,7 +97,7 @@ class PenaltiesController extends AppBaseController
      */
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('penality_view')) {
+        if (!user_can('penality_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -136,7 +136,7 @@ class PenaltiesController extends AppBaseController
      */
     public function edit($id)
     {
-        if (!auth()->user()->hasPermissionTo('penalty_edit')) {
+        if (!user_can('penalty_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -156,7 +156,7 @@ class PenaltiesController extends AppBaseController
      */
     public function update(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('penalty_edit')) {
+        if (!user_can('penalty_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -187,7 +187,7 @@ class PenaltiesController extends AppBaseController
      */
     public function destroy($id)
     {
-        if (!auth()->user()->hasPermissionTo('penalty_delete')) {
+        if (!user_can('penalty_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -213,7 +213,7 @@ class PenaltiesController extends AppBaseController
      */
     public function markAsPaid(Request $request, $id)
     {
-        if (!auth()->user()->hasPermissionTo('penalty_edit')) {
+        if (!user_can('penalty_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -249,7 +249,7 @@ class PenaltiesController extends AppBaseController
      */
     public function riderPenalties(Request $request, $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('penality_view')) {
+        if (!user_can('penality_view')) {
             abort(403, 'Unauthorized action.');
         }
 

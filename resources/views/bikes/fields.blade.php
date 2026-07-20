@@ -17,6 +17,16 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @if ($useDynamicFields)
 {{-- One card per category, stacked (same pattern as riders) --}}
 @foreach($fieldsByCategory as $group)
+@php
+    $rfpGroupVisible = collect($group->fields)->contains(function ($item) use ($hiddenFieldKeys) {
+        if (($item->kind ?? '') === 'fixed' && in_array((string) ($item->field_key ?? ''), $hiddenFieldKeys, true)) {
+            return false;
+        }
+        $fn = ($item->kind ?? '') === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
+        return field_visible('bike', (string) $fn);
+    });
+@endphp
+@if($rfpGroupVisible)
 <div class="card mb-4">
     <div class="card-header">
         <b>{{ $group->category->label }}</b>
@@ -53,6 +63,7 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
         </div>
     </div>
 </div>
+@endif
 @endforeach
 @else
 <div class="alert alert-warning mb-0">

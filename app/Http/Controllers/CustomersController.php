@@ -43,7 +43,7 @@ class CustomersController extends AppBaseController
   public function index(Request $request)
   {
 
-    if (!auth()->user()->hasPermissionTo('customer_view')) {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('customer')) {
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait
@@ -113,6 +113,7 @@ class CustomersController extends AppBaseController
       return redirect(route('customers.index'));
     }
     try {
+      $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'customer');
       $customers = $this->customersRepository->create($input);
       $account = new Accounts();
       $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
@@ -191,7 +192,10 @@ class CustomersController extends AppBaseController
       return redirect(route('customers.index'));
     }
 
-    $customers = $this->customersRepository->update($request->all(), $id);
+    $customers = $this->customersRepository->update(
+      \App\Support\RoleFieldAccess::stripNonEditableInput($request->all(), 'customer'),
+      $id
+    );
 
     // Update linked account safely via relation model instance.
     $account = $customers->account;
@@ -368,7 +372,7 @@ class CustomersController extends AppBaseController
 
   public function inventory($company_slug, $id)
   {
-    if (!auth()->user()->hasPermissionTo('riderinventory_view') && !auth()->user()->hasPermissionTo('customer_view')) {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('riderinventory') && ! \App\Support\RoleFieldAccess::canAccessModule('customer')) {
       abort(403, 'Unauthorized action.');
     }
 

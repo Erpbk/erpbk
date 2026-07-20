@@ -35,7 +35,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_view')) {
+        if (!user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -73,7 +73,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function garageIndex(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_view')) {
+        if (!user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -111,7 +111,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('bike_create')) {
+        if (!user_can('bike_create')) {
             abort(403, 'Unauthorized action.');
         }
         $type = request()->input('type');
@@ -120,7 +120,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function store(CreateBikeRentCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_create')) {
+        if (!user_can('bike_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -189,7 +189,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_view')) {
+        if (!user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -206,7 +206,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_edit')) {
+        if (!user_can('bike_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -221,7 +221,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateBikeRentCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('bike_edit')) {
+        if (!user_can('bike_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -247,7 +247,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('bike_delete')) {
+        if (!user_can('bike_delete')) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -27,7 +27,7 @@ class SimCompaniesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('sim_view')) {
+        if (!user_can('sim_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -64,7 +64,7 @@ class SimCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('sim_create')) {
+        if (!user_can('sim_create')) {
             abort(403, 'Unauthorized action.');
         }
         return view('sim_companies.create');
@@ -72,7 +72,7 @@ class SimCompaniesController extends AppBaseController
 
     public function store(CreateSimCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('sim_create')) {
+        if (!user_can('sim_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -129,7 +129,7 @@ class SimCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_view')) {
+        if (!user_can('sim_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -146,7 +146,7 @@ class SimCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_edit')) {
+        if (!user_can('sim_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -161,7 +161,7 @@ class SimCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateSimCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('sim_edit')) {
+        if (!user_can('sim_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -187,7 +187,7 @@ class SimCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('sim_delete')) {
+        if (!user_can('sim_delete')) {
             abort(403, 'Unauthorized action.');
         }
 

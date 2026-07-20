@@ -12,15 +12,21 @@ $value = $riders->custom_field_values[$item->field->id] ?? $item->field->default
 $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default_value ?? null;
 }
 }
+$rfpEntity = 'rider';
+$rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
+$rfpVisible = field_visible($rfpEntity, (string) $rfpField);
+$rfpEditable = field_editable($rfpEntity, (string) $rfpField);
+$rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
 @endphp
+@if ($rfpVisible)
 <div class="form-group col-sm-4">
   @if ($item->kind === 'fixed')
   @php
   $spec = $item->spec;
   $req = !empty($spec['required']);
   $isReadonly = !empty($spec['readonly'])
-      || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
-  $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+  || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
+  $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
   @endphp
   @if (($spec['type'] ?? 'text') === 'select')
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
@@ -58,7 +64,10 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   } elseif (($spec['dropdown'] ?? '') === 'customers') {
   $opts = \App\Models\Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'branch') {
-  $opts = \App\Models\Branch::active()->pluck('name', 'id')->prepend('Select', '')->toArray();
+  $opts = ['' => 'Select'];
+  foreach (\App\Models\Branch::active()->orderBy('name')->get(['id', 'name', 'code']) as $__branch) {
+  $opts[$__branch->id] = trim($__branch->name . ($__branch->code ? ' (' . $__branch->code . ')' : ''));
+  }
   } else {
   $opts = Common::Dropdowns($spec['dropdown'] ?? '');
   }
@@ -70,6 +79,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   if ($req) {
   $selectAttributes['required'] = true;
   }
+  $selectAttributes = $selectAttributes + $rfpSelectLock;
   @endphp
   {!! Form::select($item->field_key, $opts, $value, $selectAttributes) !!}
   @if ($item->field_key === 'rider_id')
@@ -99,7 +109,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   $f = $item->field;
   $req = $f->is_mandatory ?? false;
   $isReadonly = \App\Support\SimAssigneeContactSync::isManagedCustomFieldId((int) $f->id, 'rider_custom_fields');
-  $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+  $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
   @endphp
   {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
   @if ($f->help_text)
@@ -128,7 +138,7 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   if ($line !== '') $dd[$line] = $line;
   }
   @endphp
-  {!! Form::select($name, $dd, $value, ['class' => 'form-select', 'placeholder' => 'Select'] + ($req ? ['required' => true] : [])) !!}
+  {!! Form::select($name, $dd, $value, ['class' => 'form-select', 'placeholder' => 'Select'] + ($req ? ['required' => true] : []) + $rfpSelectLock) !!}
   @break
   @case('checkbox')
   <div class="form-check mt-2">
@@ -143,3 +153,4 @@ $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default
   @error($name)<span class="text-danger">{{ $message }}</span>@enderror
   @endif
 </div>
+@endif

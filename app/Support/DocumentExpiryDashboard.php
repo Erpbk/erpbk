@@ -208,12 +208,12 @@ class DocumentExpiryDashboard
         }
 
         foreach ((array) ($config['permissions'] ?? []) as $permission) {
-            if ($user->hasPermissionTo($permission)) {
+            if (user_can($permission, $user)) {
                 return true;
             }
         }
 
-        return $user->hasPermissionTo('company_documents_view');
+        return user_can('company_documents_view', $user);
     }
 
     /**

@@ -48,7 +48,7 @@ class LeasingCompaniesController extends AppBaseController
     public function index(Request $request)
     {
 
-        if (! auth()->user()->hasPermissionTo('leasing_view')) {
+        if (! user_can('leasing_view')) {
             abort(403, 'Unauthorized action.');
         }
         // Use global pagination trait
@@ -749,7 +749,7 @@ class LeasingCompaniesController extends AppBaseController
      */
     public function destroyInvoice($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('leasing_company_invoice_delete')) {
+        if (! user_can('leasing_company_invoice_delete')) {
             abort(403, 'Unauthorized action.');
         }
         $invoice = $this->leasingCompanyInvoicesRepository->find($id);

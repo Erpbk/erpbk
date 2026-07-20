@@ -29,7 +29,7 @@ class DepartmentsController extends AppBaseController
   public function index(DepartmentsDataTable $departmentsDataTable)
   {
 
-    if (!auth()->user()->hasPermissionTo('department_view')) {
+    if (!user_can('department_view')) {
       abort(403, 'Unauthorized action.');
     }
     return $departmentsDataTable->render('departments.index');

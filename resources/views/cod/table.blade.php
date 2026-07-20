@@ -1,13 +1,14 @@
 <div class="table-responsive">
+    @php $vf = static fn (string $f): bool => field_visible('cod', $f); @endphp
     <table class="table table-striped table-bordered">
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Rider</th>
-                <th>Transaction Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Description</th>
+                @if($vf('rider_id'))<th>Rider</th>@endif
+                @if($vf('transaction_date'))<th>Transaction Date</th>@endif
+                @if($vf('amount'))<th>Amount</th>@endif
+                @if($vf('status'))<th>Status</th>@endif
+                @if($vf('description'))<th>Description</th>@endif
                 <th>Actions</th>
             </tr>
         </thead>
@@ -15,7 +16,7 @@
             @foreach($data as $cod)
             <tr>
                 <td>{{ $cod->id }}</td>
-                <td>
+                @if($vf('rider_id'))<td>
                     @if($cod->rider)
                     <a href="{{ route('cod.rider', $cod->rider->id) }}">
                         {{ $cod->rider->rider_id }} - {{ $cod->rider->name }}
@@ -23,15 +24,15 @@
                     @else
                     N/A
                     @endif
-                </td>
-                <td>{{ App\Helpers\General::DateFormat($cod->transaction_date) }}</td>
-                <td>{{ \App\Helpers\Currency::format($cod->amount, 2) }}</td>
-                <td>
+                </td>@endif
+                @if($vf('transaction_date'))<td>{{ App\Helpers\General::DateFormat($cod->transaction_date) }}</td>@endif
+                @if($vf('amount'))<td>{{ \App\Helpers\Currency::format($cod->amount, 2) }}</td>@endif
+                @if($vf('status'))<td>
                     <span class="badge badge-{{ $cod->status == 'paid' ? 'success' : ($cod->status == 'unpaid' ? 'danger' : 'warning') }}">
                         {{ ucfirst($cod->status) }}
                     </span>
-                </td>
-                <td>{{ Str::limit($cod->description, 50) }}</td>
+                </td>@endif
+                @if($vf('description'))<td>{{ Str::limit($cod->description, 50) }}</td>@endif
                 <td>
                     <div class="btn-group" role="group">
                         @can('cod_view')

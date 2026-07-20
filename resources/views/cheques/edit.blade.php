@@ -7,33 +7,38 @@
     <div id="chequeFormStep">
         <!-- Basic Information -->
         <div class="row">
+            @fieldVisible('cheques', 'is_security')
             <div class="col-md-12">
                 {!! Form::checkbox('is_security', true, $cheque->is_security, [
                     'class' => 'form-check-input'
-                ]) !!}
+                ] + field_lock('cheques', 'is_security', 'select')) !!}
                 {!! Form::label('is_security', 'Security Cheque', [
                     'class' => 'fw-bold'
                 ]) !!}
             </div>
+            @endfieldVisible
         
             <!-- Parties Section -->
             <div id="partiesSection">
                 <div class="row">
+                @fieldVisible('cheques', 'cheque_number')
                 <div class="col-md-6">
                     {!! Form::label('cheque_number', 'Cheque Number', ['class' => ['form-label', 'required']]) !!}
                     {!! Form::text('cheque_number', old('cheque_number', $cheque->cheque_number), [
                         'class' => 'form-control' . ($errors->has('cheque_number') ? ' is-invalid' : ''),
                         'required' => true,
                         'placeholder' => 'Enter cheque number'
-                    ]) !!}
+                    ] + field_lock('cheques', 'cheque_number')) !!}
                     @error('cheque_number')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
                 </div>
+                @endfieldVisible
                 @if($cheque->type == 'payable')
+                    @fieldVisible('cheques', 'payee_account')
                     <div class="col-md-6">
                         <label for="payee_account" class="form-label required">Payee Account</label>
-                        <select name="payee_account" class="form-control select2" required>
+                        <select name="payee_account" class="form-control select2" required @fieldReadonly('cheques', 'payee_account')>
                             <option value="">Select</option>
                             @foreach(\App\Models\Accounts::where('status', 1)->get() as $payee)
                             <option value="{{ $payee->id }}" 
@@ -43,10 +48,12 @@
                             @endforeach
                         </select>
                     </div>
+                    @endfieldVisible
                 @else
+                    @fieldVisible('cheques', 'payer_account')
                     <div class="col-md-6">
                         <label for="payer_account" class="form-label required">Payer Account</label>
-                        <select name="payer_account" class="form-control select2" required>
+                        <select name="payer_account" class="form-control select2" required @fieldReadonly('cheques', 'payer_account')>
                             <option value="">Select</option>
                             @foreach(\App\Models\Accounts::where('status', 1)->get() as $payer)
                             <option value="{{ $payer->id }}" 
@@ -56,12 +63,14 @@
                             @endforeach
                         </select>
                     </div>
+                    @endfieldVisible
                 @endif
                 </div>
             </div>
+            @fieldVisible('cheques', 'bank_id')
             <div class="col-md-6">
                 {!! Form::label('bank_id', 'Bank', ['class' => 'form-label']) !!}
-                <select name="bank_id" id="bank_id" class="form-control select2">
+                <select name="bank_id" id="bank_id" class="form-control select2" @fieldReadonly('cheques', 'bank_id')>
                     <option value="">Select Bank</option>
                     @foreach(App\Models\Banks::where('status', 1)->get() as $bank)
                         <option value="{{ $bank->id }}" 
@@ -73,7 +82,9 @@
                     <div class="invalid-feedback d-block">{{ $message }}</div>
                 @enderror
             </div>
-            
+            @endfieldVisible
+
+            @fieldVisible('cheques', 'amount')
             <div class="col-md-6">
                 {!! Form::label('amount', 'Amount', ['class' => ['form-label', 'required']]) !!}
                 <div class="input-group">
@@ -84,56 +95,65 @@
                         'step' => '0.01',
                         'min' => '0.01',
                         'placeholder' => '0.00'
-                    ]) !!}
+                    ] + field_lock('cheques', 'amount')) !!}
                 </div>
                 @error('amount')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
+            @endfieldVisible
 
             <!-- Reference & Issued By -->
+            @fieldVisible('cheques', 'reference')
             <div class="col-md-6">
                 {!! Form::label('reference', 'Reference Number', ['class' => 'form-label']) !!}
                 {!! Form::text('reference', old('reference', $cheque->reference), [
                     'class' => 'form-control' . ($errors->has('reference') ? ' is-invalid' : ''),
                     'placeholder' => 'Enter reference number'
-                ]) !!}
+                ] + field_lock('cheques', 'reference')) !!}
                 @error('reference')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
-            
+            @endfieldVisible
+
+            @fieldVisible('cheques', 'cheque_date')
             <div class="col-6">
                     {!! Form::label('cheque_date', 'Cheque Date', ['class' => ['form-label']]) !!}
                     {!! Form::date('cheque_date', old('cheque_date', $cheque->cheque_date ?? null), [
                         'class' => 'form-control' . ($errors->has('cheque_date') ? ' is-invalid' : ''),
-                    ]) !!}
+                    ] + field_lock('cheques', 'cheque_date')) !!}
                     @error('issued_by')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
             </div>
-        
+            @endfieldVisible
+
             <!-- Dates Section -->
+            @fieldVisible('cheques', 'issue_date')
             <div class="col-md-6">
                 {!! Form::label('issue_date', 'Issue Date', ['class' => ['form-label', 'required']]) !!}
                 {!! Form::date('issue_date', old('issue_date', $cheque->issue_date), [
                     'class' => 'form-control' . ($errors->has('issue_date') ? ' is-invalid' : ''),
                     'required' => true
-                ]) !!}
+                ] + field_lock('cheques', 'issue_date')) !!}
                 @error('issue_date')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
-        
+            @endfieldVisible
+
+            @fieldVisible('cheques', 'billing_month')
             <div class="col-md-6">
                 {!! Form::label('billing_month', 'Billing Month', ['class' => 'form-label']) !!}
                 {!! Form::month('billing_month', old('billing_month', $cheque->billing_month), [
                     'class' => 'form-control' . ($errors->has('billing_month') ? ' is-invalid' : '')
-                ]) !!}
+                ] + field_lock('cheques', 'billing_month')) !!}
                 @error('billing_month')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
+            @endfieldVisible
         </div>
 
         <!-- Attachment & Bank -->
@@ -154,17 +174,19 @@
         
         <!-- Additional Information -->
         <div class="row">
+            @fieldVisible('cheques', 'description')
             <div class="col-12">
                 {!! Form::label('description', 'Description', ['class' => 'form-label']) !!}
                 {!! Form::textarea('description', old('description', $cheque->description), [
                     'class' => 'form-control' . ($errors->has('description') ? ' is-invalid' : ''),
                     'rows' => 2,
                     'placeholder' => 'Enter cheque description'
-                ]) !!}
+                ] + field_lock('cheques', 'description')) !!}
                 @error('description')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
+            @endfieldVisible
         </div>
         
         <!-- Form Actions -->

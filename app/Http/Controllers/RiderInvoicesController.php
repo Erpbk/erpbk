@@ -494,7 +494,7 @@ class RiderInvoicesController extends AppBaseController
     public function bulkDelete(Request $request)
     {
         // Check permission
-        if (! auth()->user()->hasPermissionTo('riderinvoice_delete')) {
+        if (! user_can('riderinvoice_delete')) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to delete invoices.',

@@ -46,7 +46,7 @@ class VouchersController extends Controller
    */
   public function index(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('voucher_view')) {
+    if (!user_can('voucher_view')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -143,7 +143,7 @@ class VouchersController extends Controller
    */
   public function listSidebar(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('voucher_view')) {
+    if (!user_can('voucher_view')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -182,7 +182,7 @@ class VouchersController extends Controller
       $vt = count($allowedTypes) > 0 ? array_key_first($allowedTypes) : null;
     }
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
-    return view('vouchers.create', compact('voucherCustomFields', 'vt','vouchers'));
+    return view('vouchers.create', compact('voucherCustomFields', 'vt', 'vouchers'));
   }
 
   /**
@@ -288,7 +288,7 @@ class VouchersController extends Controller
     }
 
     if (request()->ajax() || request()->wantsJson()) {
-      return view('vouchers.show_modal', compact('voucher','editDeleteFlags'));
+      return view('vouchers.show_modal', compact('voucher', 'editDeleteFlags'));
     }
 
     return view('vouchers.show', compact('voucher'));
@@ -839,30 +839,28 @@ class VouchersController extends Controller
     $vouchers = Vouchers::where('trans_code', $id)->first();
     $vouchers->trans_code = null;
     $vouchers->billing_month = Carbon::parse($vouchers->billing_month)->format('Y-m');
-    if($vouchers->voucher_type == 'RV') {
+    if ($vouchers->voucher_type == 'RV') {
       $receipt = Receipt::find($vouchers->ref_id);
-        if (empty($receipt)) {
-            Flash::error('Receipt not found');
-            return redirect()->back();
-        }
+      if (empty($receipt)) {
+        Flash::error('Receipt not found');
+        return redirect()->back();
+      }
 
-        $banks = Banks::active()->get();
-        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
-        return view('receipts.create', compact('receipt', 'banks'));
-
-    }  elseif($vouchers->voucher_type == 'PV') {
+      $banks = Banks::active()->get();
+      $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+      return view('receipts.create', compact('receipt', 'banks'));
+    } elseif ($vouchers->voucher_type == 'PV') {
       $payment = Payment::find($vouchers->ref_id);
-        if (empty($payment)) {
-            Flash::error('Payment not found');
-            return redirect()->back();
-        }
+      if (empty($payment)) {
+        Flash::error('Payment not found');
+        return redirect()->back();
+      }
 
-        $banks = Banks::active()->get();
-        $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
-        $payment->amount = $payment->amount - $payment->bank_charges;
+      $banks = Banks::active()->get();
+      $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
+      $payment->amount = $payment->amount - $payment->bank_charges;
 
-        return view('payments.create', compact('payment', 'banks'));
-
+      return view('payments.create', compact('payment', 'banks'));
     } elseif ($vouchers->voucher_type == 'JV') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'RFV') {

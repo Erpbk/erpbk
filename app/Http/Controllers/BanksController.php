@@ -43,7 +43,7 @@ class BanksController extends AppBaseController
   public function index(Request $request)
   {
 
-    if (!auth()->user()->hasPermissionTo('bank_view')) {
+    if (!user_can('bank_view')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -311,7 +311,7 @@ class BanksController extends AppBaseController
   /*
   public function trashed(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('bank_view_delete')) {
+    if (!user_can('bank_view_delete')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -348,7 +348,7 @@ class BanksController extends AppBaseController
 
   public function restore($id)
   {
-    if (!auth()->user()->hasPermissionTo('bank_view_delete')) {
+    if (!user_can('bank_view_delete')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -373,7 +373,7 @@ class BanksController extends AppBaseController
 
   public function forceDestroy($id)
   {
-    if (!auth()->user()->hasPermissionTo('bank_view_delete')) {
+    if (!user_can('bank_view_delete')) {
       abort(403, 'Unauthorized action.');
     }
 

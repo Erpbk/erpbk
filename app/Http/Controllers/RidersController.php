@@ -159,7 +159,7 @@ class RidersController extends AppBaseController
       ];
     }
 
-    return array_merge($columns, [
+    return \App\Support\RoleFieldAccess::filterTableColumns(array_merge($columns, [
       ['data' => 'bike', 'title' => 'Bike'],
       ['data' => 'orders_sum', 'title' => 'Orders'],
       ['data' => 'days', 'title' => 'Days'],
@@ -167,7 +167,7 @@ class RidersController extends AppBaseController
       ['data' => 'action', 'title' => 'Actions'],
       ['data' => 'search', 'title' => 'Search'],
       ['data' => 'control', 'title' => 'Control'],
-    ]);
+    ]), 'rider');
   }
 
   private function findAccessibleRider(int $id): ?Riders
@@ -321,6 +321,10 @@ class RidersController extends AppBaseController
    */
   public function index(Request $request)
   {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
@@ -561,6 +565,7 @@ class RidersController extends AppBaseController
       $input['company_id'] = auth()->user()->company_id;
     }
     $input = SimAssigneeContactSync::stripManagedContactFromRequestData($input, null, 'rider');
+    $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'rider');
     $items = $request->get('items');
 
     $riders = $this->ridersRepository->create($input);
@@ -727,6 +732,7 @@ class RidersController extends AppBaseController
       $data['company_id'] = auth()->user()->company_id;
     }
     $data = SimAssigneeContactSync::stripManagedContactFromRequestData($data, $riders, 'rider');
+    $data = \App\Support\RoleFieldAccess::stripNonEditableInput($data, 'rider', is_array($riders->custom_field_values ?? null) ? $riders->custom_field_values : []);
 
     $prevCustomerId = $riders->customer_id;
     $prevFleetSupervisor = $riders->fleet_supervisor;

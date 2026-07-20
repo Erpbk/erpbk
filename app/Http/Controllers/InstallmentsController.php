@@ -24,7 +24,7 @@ class InstallmentsController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('installment_view')) {
+        if (!user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 

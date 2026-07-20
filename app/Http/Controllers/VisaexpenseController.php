@@ -56,7 +56,7 @@ class VisaexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
+        if (!user_can('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -602,7 +602,7 @@ class VisaexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
+        if (!user_can('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
         $account = ExpenseAccount::with(['rider', 'renewalCategory'])->where('id', $id)->firstOrFail();
@@ -966,7 +966,7 @@ class VisaexpenseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+        if (!user_can('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -997,7 +997,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function editVoucherCreditForm(Request $request, $company_slug, $visaExpense)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+        if (!user_can('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1067,7 +1067,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function updateVoucherCredit(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+        if (!user_can('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

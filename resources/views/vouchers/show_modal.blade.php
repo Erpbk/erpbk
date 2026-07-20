@@ -70,22 +70,24 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
   </div>
 
   {{-- Voucher type and number, Date, Amount, Reference --}}
+  @php $vf = static fn (string $f): bool => field_visible('voucher', $f); @endphp
   <div class="mb-3">
     <h5 class="mb-2">{{ $voucher_type_label }}</h5>
     <div class="row g-2">
       <div class="col-auto">
         <span class="text-muted">#</span><strong class="ms-1">{{ $voucher_number }}</strong>
       </div>
-      <div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>
-      <div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>
-      @if($voucher->reference_number)
+      @if($vf('trans_date'))<div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>@endif
+      @if($vf('billing_month') && $voucher->billing_month)<div class="col-auto text-muted">Billing Month: {{ \Carbon\Carbon::parse($voucher->billing_month)->format('M Y') }}</div>@endif
+      @if($vf('amount'))<div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>@endif
+      @if($vf('reference_number') && $voucher->reference_number)
       <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
       @endif
     </div>
   </div>
 
   {{-- Notes --}}
-  @if($voucher->remarks)
+  @if($vf('remarks') && $voucher->remarks)
   <div class="mb-3">
     <label class="form-label small text-uppercase text-muted mb-1">Notes</label>
     <p class="mb-0">{!! $voucher->remarks !!}</p>

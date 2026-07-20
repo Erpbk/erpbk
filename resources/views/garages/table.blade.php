@@ -1,13 +1,14 @@
 @push('third_party_stylesheets')
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+   @php $vf = static fn (string $f): bool => field_visible('garage', $f); @endphp
    <thead class="text-center">
       <tr role="row">
       <tr role="row">
-         <th title="Name" class="sorting_desc" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
-         <th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1">Type</th>
-         <th title="Contact Person" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Person: activate to sort column ascending">Contact Person</th>
-         <th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>
+         @if($vf('name'))<th title="Name" class="sorting_desc" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>@endif
+         @if($vf('garage_type'))<th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1">Type</th>@endif
+         @if($vf('contact_person'))<th title="Contact Person" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Person: activate to sort column ascending">Contact Person</th>@endif
+         @if($vf('contact_number'))<th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>@endif
          <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);"> <i class="fa fa-search"></i></a></th>
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
             <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);"> <i class="fa fa-filter"></i></a>
@@ -18,10 +19,10 @@
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td>{{$r->name}}</td>
-         <td @if($r->garage_type === 'internal') class="text-success" @else class="text-danger" @endif>{{ ($r->garage_type ?? 'external') === 'internal' ? 'Internal' : 'External' }}</td>
-         <td>{{$r->contact_person}}</td>
-         <td>{{$r->contact_number}}</td>
+         @if($vf('name'))<td>{{$r->name}}</td>@endif
+         @if($vf('garage_type'))<td @if($r->garage_type === 'internal') class="text-success" @else class="text-danger" @endif>{{ ($r->garage_type ?? 'external') === 'internal' ? 'Internal' : 'External' }}</td>@endif
+         @if($vf('contact_person'))<td>{{$r->contact_person}}</td>@endif
+         @if($vf('contact_number'))<td>{{$r->contact_number}}</td>@endif
          <td>
             <div class='btn-group'>
                <!-- <a href="javascript:void(0);" data-size="md" data-title="New Item" data-action=="{{ route('garages.show', $r->id) }}" class='btn btn-default btn-xs'>

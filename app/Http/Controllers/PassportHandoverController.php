@@ -25,7 +25,7 @@ class PassportHandoverController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('passport_handover_view')) {
+        if (!user_can('passport_handover_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -76,7 +76,7 @@ class PassportHandoverController extends AppBaseController
 
     public function history(Request $request, string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_view')) {
+        if (!user_can('passport_handover_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -107,7 +107,7 @@ class PassportHandoverController extends AppBaseController
 
     public function issueForm(string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_issue')) {
+        if (!user_can('passport_handover_issue')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -138,7 +138,7 @@ class PassportHandoverController extends AppBaseController
 
     public function issueStore(Request $request, string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_issue')) {
+        if (!user_can('passport_handover_issue')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -194,7 +194,7 @@ class PassportHandoverController extends AppBaseController
 
     public function returnForm(string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_return')) {
+        if (!user_can('passport_handover_return')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -227,7 +227,7 @@ class PassportHandoverController extends AppBaseController
 
     public function returnStore(Request $request, string $company_slug, string $type, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_return')) {
+        if (!user_can('passport_handover_return')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -285,7 +285,7 @@ class PassportHandoverController extends AppBaseController
 
     public function issueContract(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_print')) {
+        if (!user_can('passport_handover_print')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -299,7 +299,7 @@ class PassportHandoverController extends AppBaseController
 
     public function returnContract(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('passport_handover_print')) {
+        if (!user_can('passport_handover_print')) {
             abort(403, 'Unauthorized action.');
         }
 

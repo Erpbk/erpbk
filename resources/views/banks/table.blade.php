@@ -6,7 +6,10 @@
 </style>
 @endpush
 @php
-   $bankColumns = \App\Support\BankFormLayout::userFacingFieldKeys();
+   $bankColumns = array_values(array_filter(
+      \App\Support\BankFormLayout::userFacingFieldKeys(),
+      static fn ($col) => field_visible('bank', (string) $col)
+   ));
    $colspan = count($bankColumns) + 1;
 @endphp
 <table class="table dataTable no-footer" id="dataTableBuilder">

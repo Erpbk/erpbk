@@ -14,7 +14,7 @@ class FuelCardHistoryController extends Controller
 
     public function assign(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
+        if (!user_can('fuel_assign')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -72,7 +72,7 @@ class FuelCardHistoryController extends Controller
 
     public function return(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
+        if (!user_can('fuel_assign')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -132,7 +132,7 @@ class FuelCardHistoryController extends Controller
 
     public function updateAssignment(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_assign')) {
+        if (!user_can('fuel_assign')) {
             abort(403, 'Unauthorized action.');
         }
 

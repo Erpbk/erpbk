@@ -35,7 +35,7 @@ class LoansController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_view')) {
+        if (! user_can('loan_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -85,7 +85,7 @@ class LoansController extends AppBaseController
 
     public function upcomingInstallments(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_installment_view')) {
+        if (! user_can('loan_installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -115,7 +115,7 @@ class LoansController extends AppBaseController
 
     public function interestSummary(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_view')) {
+        if (! user_can('loan_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -140,7 +140,7 @@ class LoansController extends AppBaseController
 
     public function store(CreateLoanRequest $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_create')) {
+        if (! user_can('loan_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -176,7 +176,7 @@ class LoansController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_view')) {
+        if (! user_can('loan_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -221,7 +221,7 @@ class LoansController extends AppBaseController
 
     public function update($company_slug, $id, UpdateLoanRequest $request)
     {
-        if (! auth()->user()->hasPermissionTo('loan_edit')) {
+        if (! user_can('loan_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -257,7 +257,7 @@ class LoansController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_delete')) {
+        if (! user_can('loan_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -279,7 +279,7 @@ class LoansController extends AppBaseController
 
     public function disburse(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_disburse')) {
+        if (! user_can('loan_disburse')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -334,7 +334,7 @@ class LoansController extends AppBaseController
 
     public function installments(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_installment_view')) {
+        if (! user_can('loan_installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -366,7 +366,7 @@ class LoansController extends AppBaseController
 
     public function payInstallmentForm($company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_repay')) {
+        if (! user_can('loan_repay')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -412,7 +412,7 @@ class LoansController extends AppBaseController
 
     public function payInstallment(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_repay')) {
+        if (! user_can('loan_repay')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -488,7 +488,7 @@ class LoansController extends AppBaseController
 
     public function regenerateScheduleAction(Request $request, $company_slug, $id)
     {
-        if (! auth()->user()->hasPermissionTo('loan_edit')) {
+        if (! user_can('loan_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

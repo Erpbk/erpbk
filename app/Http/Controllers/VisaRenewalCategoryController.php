@@ -16,7 +16,7 @@ class VisaRenewalCategoryController extends Controller
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('visaexpense_view')) {
+        if (!user_can('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -41,7 +41,7 @@ class VisaRenewalCategoryController extends Controller
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_create')) {
+        if (!user_can('visaexpense_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -77,7 +77,7 @@ class VisaRenewalCategoryController extends Controller
 
     public function update(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+        if (!user_can('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -120,7 +120,7 @@ class VisaRenewalCategoryController extends Controller
 
     public function destroy(Request $request, $company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_delete')) {
+        if (!user_can('visaexpense_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -170,7 +170,7 @@ class VisaRenewalCategoryController extends Controller
 
     public function reorder(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('visaexpense_edit')) {
+        if (!user_can('visaexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

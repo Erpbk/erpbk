@@ -115,7 +115,8 @@
          $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km'];
          $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
          $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search' && $k !== 'control' && !in_array($k, $hiddenTableColumns, true);
+         return $k !== 'search' && $k !== 'control' && !in_array($k, $hiddenTableColumns, true)
+         && field_visible('bike', $k);
          }));
          @endphp
          @foreach($dataColumns as $col)

@@ -44,7 +44,7 @@ trait ManagesVisaInstallments
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('installment_view')) {
+        if (!user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -93,7 +93,7 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('installment_create')) {
+        if (!user_can('installment_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -126,7 +126,7 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlan(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('installment_create')) {
+        if (!user_can('installment_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -527,7 +527,7 @@ trait ManagesVisaInstallments
 
     public function finalizePayment(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('installment_edit')) {
+        if (!user_can('installment_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1071,7 +1071,7 @@ trait ManagesVisaInstallments
 
     public function deleteInstallment($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('installment_delete')) {
+        if (!user_can('installment_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1264,7 +1264,7 @@ trait ManagesVisaInstallments
 
     public function generateInstallmentInvoice($company_slug, $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('installment_view')) {
+        if (!user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1708,7 +1708,7 @@ trait ManagesVisaInstallments
      */
     public function recalculateInstallments(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('installment_edit')) {
+        if (!user_can('installment_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

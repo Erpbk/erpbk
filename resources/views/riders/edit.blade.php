@@ -235,6 +235,18 @@
 
 <script>
     $(document).ready(function() {
+        // Turn every select in the rider form into a Select2 (recruiter has its own tagging setup below).
+        $('#formajax select').not('#recruiter_select').not('.select2-hidden-accessible').each(function () {
+            var $s = $(this);
+            var $empty = $s.find('option[value=""]').first();
+            var hasEmpty = $empty.length > 0;
+            $s.select2({
+                width: '100%',
+                placeholder: hasEmpty ? ($empty.text() || 'Select') : 'Select',
+                allowClear: hasEmpty && !$s.prop('required')
+            });
+        });
+
         // Initialize Select2 for recruiter field with tagging
         $('#recruiter_select').select2({
             tags: true,

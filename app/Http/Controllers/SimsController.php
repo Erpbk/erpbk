@@ -45,7 +45,7 @@ class SimsController extends AppBaseController
     public function index(Request $request)
     {
 
-        if (!auth()->user()->hasPermissionTo('sim_view')) {
+        if (!user_can('sim_view')) {
             abort(403, 'Unauthorized action.');
         }
         // Use global pagination trait
@@ -183,7 +183,9 @@ class SimsController extends AppBaseController
             ['data' => 'action', 'title' => 'Actions'],
         ]);
 
-        return $columns;
+        // Drop columns the current user may not view so the Column Control panel
+        // stays index-aligned with the (also permission-gated) table body.
+        return \App\Support\RoleFieldAccess::filterTableColumns($columns, 'sim');
     }
 
     /**

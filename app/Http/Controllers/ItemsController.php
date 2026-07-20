@@ -35,7 +35,7 @@ class ItemsController extends AppBaseController
   public function index(Request $request)
   {
 
-    if (!auth()->user()->hasPermissionTo('item_view')) {
+    if (!user_can('item_view')) {
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait

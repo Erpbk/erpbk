@@ -31,7 +31,7 @@ class VatController extends Controller
      */
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -134,7 +134,7 @@ class VatController extends Controller
      */
     public function returnsIndex()
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -161,7 +161,7 @@ class VatController extends Controller
      */
     public function returnsShow($company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -194,7 +194,7 @@ class VatController extends Controller
      */
     public function fileReturn(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -384,7 +384,7 @@ class VatController extends Controller
      */
     public function updateReturnStatus(Request $request, $company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -399,7 +399,7 @@ class VatController extends Controller
      */
     public function deleteReturnEntries(Request $request, $company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -423,7 +423,7 @@ class VatController extends Controller
      */
     public function createVoucher(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -459,7 +459,7 @@ class VatController extends Controller
      */
     public function storeVoucher(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -559,7 +559,7 @@ class VatController extends Controller
      */
     public function destroyReturn($company_slug, VatReturn $vat_return)
     {
-        if (!auth()->user()->hasPermissionTo('gn_ledger')) {
+        if (!user_can('gn_ledger')) {
             abort(403, 'Unauthorized action.');
         }
 

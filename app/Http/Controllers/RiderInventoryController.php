@@ -32,7 +32,7 @@ class RiderInventoryController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
+        if (!user_can('riderinventory_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -102,7 +102,7 @@ class RiderInventoryController extends AppBaseController
 
     public function show(Request $request, string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_view')) {
+        if (!user_can('riderinventory_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -130,7 +130,7 @@ class RiderInventoryController extends AppBaseController
 
     public function assignForm(string $company_slug, ?int $riderId = null)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
+        if (!user_can('riderinventory_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -150,7 +150,7 @@ class RiderInventoryController extends AppBaseController
 
     public function assignStore(Request $request, string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_create')) {
+        if (!user_can('riderinventory_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -247,7 +247,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnForm(string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -258,7 +258,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnStore(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -323,7 +323,7 @@ class RiderInventoryController extends AppBaseController
 
     public function lostForm(string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -335,7 +335,7 @@ class RiderInventoryController extends AppBaseController
 
     public function markLost(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -387,7 +387,7 @@ class RiderInventoryController extends AppBaseController
 
     public function changeStatusForm(string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -399,7 +399,7 @@ class RiderInventoryController extends AppBaseController
 
     public function changeStatusStore(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -473,7 +473,7 @@ class RiderInventoryController extends AppBaseController
 
     public function assignmentContract(string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
+        if (!user_can('riderinventory_contract_print')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -528,7 +528,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnContractForm(string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
+        if (!user_can('riderinventory_contract_print')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -549,7 +549,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnContractProcess(Request $request, string $company_slug, int $riderId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
+        if (!user_can('riderinventory_contract_print')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -684,7 +684,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnContractDocument(string $company_slug, int $contractId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_contract_print')) {
+        if (!user_can('riderinventory_contract_print')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -714,7 +714,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnToCustomerForm(string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -725,7 +725,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnToCustomerAssignments(Request $request, string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -755,7 +755,7 @@ class RiderInventoryController extends AppBaseController
 
     public function returnToCustomerStore(Request $request, string $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_edit')) {
+        if (!user_can('riderinventory_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -818,7 +818,7 @@ class RiderInventoryController extends AppBaseController
 
     public function destroyAssignment(Request $request, string $company_slug, int $assignmentId)
     {
-        if (!auth()->user()->hasPermissionTo('riderinventory_delete')) {
+        if (!user_can('riderinventory_delete')) {
             abort(403, 'Unauthorized action.');
         }
 

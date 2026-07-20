@@ -1,13 +1,14 @@
 <div class="table-responsive">
+    @php $vf = static fn (string $f): bool => field_visible('penalty', $f); @endphp
     <table class="table table-striped table-bordered">
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Rider</th>
-                <th>Transaction Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Description</th>
+                @if($vf('rider_id'))<th>Rider</th>@endif
+                @if($vf('transaction_date'))<th>Transaction Date</th>@endif
+                @if($vf('amount'))<th>Amount</th>@endif
+                @if($vf('status'))<th>Status</th>@endif
+                @if($vf('description'))<th>Description</th>@endif
                 <th>Actions</th>
             </tr>
         </thead>
@@ -15,7 +16,7 @@
             @foreach($data as $penalty)
             <tr>
                 <td>{{ $penalty->id }}</td>
-                <td>
+                @if($vf('rider_id'))<td>
                     @if($penalty->rider)
                     <a href="{{ route('penalties.rider', $penalty->rider->id) }}">
                         {{ $penalty->rider->rider_id }} - {{ $penalty->rider->name }}
@@ -23,15 +24,15 @@
                     @else
                     N/A
                     @endif
-                </td>
-                <td>{{ App\Helpers\General::DateFormat($penalty->transaction_date) }}</td>
-                <td>{{ \App\Helpers\Currency::format($penalty->amount, 2) }}</td>
-                <td>
+                </td>@endif
+                @if($vf('transaction_date'))<td>{{ App\Helpers\General::DateFormat($penalty->transaction_date) }}</td>@endif
+                @if($vf('amount'))<td>{{ \App\Helpers\Currency::format($penalty->amount, 2) }}</td>@endif
+                @if($vf('status'))<td>
                     <span class="badge badge-{{ $penalty->status == 'paid' ? 'success' : ($penalty->status == 'unpaid' ? 'danger' : 'warning') }}">
                         {{ ucfirst($penalty->status) }}
                     </span>
-                </td>
-                <td>{{ Str::limit($penalty->description, 50) }}</td>
+                </td>@endif
+                @if($vf('description'))<td>{{ Str::limit($penalty->description, 50) }}</td>@endif
                 <td>
                     <div class="btn-group" role="group">
                         @can('penality_view')

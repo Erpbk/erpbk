@@ -32,7 +32,7 @@ class GaragesController extends AppBaseController
   public function index(Request $request)
   {
 
-    if (!auth()->user()->hasPermissionTo('garage_view')) {
+    if (!user_can('garage_view')) {
       abort(403, 'Unauthorized action.');
     }
     // Use global pagination trait

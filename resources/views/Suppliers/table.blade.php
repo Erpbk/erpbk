@@ -1,13 +1,14 @@
 @push('third_party_stylesheets')
 @endpush
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+   @php $vf = static fn (string $f): bool => field_visible('supplier', $f); @endphp
    <thead class="text-center">
       <tr role="row">
-         <th title="Name" class="sorting_desc" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending" >Name</th>
-         <th title="Email" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending" >Email</th>
-         <th title="Phone" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Phone: activate to sort column ascending" >Phone</th>
-         <th title="Company Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Company Name: activate to sort column ascending" >Company Name</th>
-         <th title="Address" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Address: activate to sort column ascending" >Address</th>
+         @if($vf('name'))<th title="Name" class="sorting_desc" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending" >Name</th>@endif
+         @if($vf('email'))<th title="Email" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending" >Email</th>@endif
+         @if($vf('phone'))<th title="Phone" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Phone: activate to sort column ascending" >Phone</th>@endif
+         @if($vf('company_name'))<th title="Company Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Company Name: activate to sort column ascending" >Company Name</th>@endif
+         @if($vf('address'))<th title="Address" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Address: activate to sort column ascending" >Address</th>@endif
          <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"><a data-bs-toggle="modal" data-bs-target="#searchModal" href="javascript:void(0);" > <i class="fa fa-search"></i></a></th>
          <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
             <a data-bs-toggle="modal" data-bs-target="#customoizecolmn" href="javascript:void(0);" > <i class="fa fa-filter"></i></a> 
@@ -17,11 +18,11 @@
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td><a href="{{route('suppliers.show', $r->id)}}">{{$r->name}}</a></br></td>
-         <td>{{$r->email}}</td>
-         <td>{{$r->phone ?? 'N/A'}}</td>
-         <td>{{$r->company_name ?? 'N/A' }}</td>
-         <td>{{$r->address ?? 'N/A' }}</td>
+         @if($vf('name'))<td><a href="{{route('suppliers.show', $r->id)}}">{{$r->name}}</a></br></td>@endif
+         @if($vf('email'))<td>{{$r->email}}</td>@endif
+         @if($vf('phone'))<td>{{$r->phone ?? 'N/A'}}</td>@endif
+         @if($vf('company_name'))<td>{{$r->company_name ?? 'N/A' }}</td>@endif
+         @if($vf('address'))<td>{{$r->address ?? 'N/A' }}</td>@endif
          <td>
             <div class='btn-group'>
                <a href="{{ route('suppliers.show', $r->id) }}"  class='btn btn-default btn-sm show-modal'>

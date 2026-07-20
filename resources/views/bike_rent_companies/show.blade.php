@@ -21,23 +21,24 @@
     @include('flash::message')
     <div class="card">
         <div class="card-body">
+            @php $vf = static fn (string $f): bool => field_visible('bike_rent_company', $f); @endphp
             <dl class="row mb-0">
-                <dt class="col-sm-3">Name</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->name }}</dd>
-                <dt class="col-sm-3">Company contact</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->company_contact ?: '—' }}</dd>
-                <dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->email ?: '—' }}</dd>
-                <dt class="col-sm-3">Address</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->address ?: '—' }}</dd>
-                <dt class="col-sm-3">Status</dt>
+                @if($vf('name'))<dt class="col-sm-3">Name</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->name }}</dd>@endif
+                @if($vf('company_contact'))<dt class="col-sm-3">Company contact</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->company_contact ?: '—' }}</dd>@endif
+                @if($vf('email'))<dt class="col-sm-3">Email</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->email ?: '—' }}</dd>@endif
+                @if($vf('address'))<dt class="col-sm-3">Address</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->address ?: '—' }}</dd>@endif
+                @if($vf('status'))<dt class="col-sm-3">Status</dt>
                 <dd class="col-sm-9">
                     @if($bikeRentCompany->status == 1)
                         <span class="badge bg-success">Active</span>
                     @else
                         <span class="badge bg-danger">Inactive</span>
                     @endif
-                </dd>
+                </dd>@endif
                 <dt class="col-sm-3">Chart of accounts</dt>
                 <dd class="col-sm-9">
                     @if($bikeRentCompany->account)

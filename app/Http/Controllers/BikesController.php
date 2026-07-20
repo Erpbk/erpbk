@@ -67,7 +67,7 @@ class BikesController extends AppBaseController
     public function index(Request $request)
     {
 
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
+        if (! user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
         // Use global pagination trait
@@ -286,7 +286,7 @@ class BikesController extends AppBaseController
             ['data' => 'control', 'title' => 'Control'],
         ]);
 
-        return $columns;
+        return \App\Support\RoleFieldAccess::filterTableColumns($columns, 'bike');
     }
 
     /**
@@ -438,6 +438,7 @@ class BikesController extends AppBaseController
         }
 
         $input = $this->normalizeBikeInputForDatabase($input, true);
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'bike');
         $input['warehouse'] = 'Inactive';
 
         $emiratesFromForm = trim((string) ($input['emirates'] ?? ''));
@@ -512,6 +513,7 @@ class BikesController extends AppBaseController
         $oldBikeCustomerId = $bikes->customer_id;
 
         $input = $this->normalizeBikeInputForDatabase($request->all(), false);
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'bike', is_array($bikes->custom_field_values ?? null) ? $bikes->custom_field_values : []);
         $bikes = $this->bikesRepository->update($input, $id);
         $bikes->updated_by = Auth::user()->id;
         $bikes->save();
@@ -1594,7 +1596,7 @@ class BikesController extends AppBaseController
      */
     public function exportBikes(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
+        if (! user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1610,7 +1612,7 @@ class BikesController extends AppBaseController
      */
     public function exportCustomizableBikes(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
+        if (! user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1682,7 +1684,7 @@ class BikesController extends AppBaseController
      */
     public function importbikes()
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
+        if (! user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1696,7 +1698,7 @@ class BikesController extends AppBaseController
      */
     public function processImport(Request $request)
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
+        if (! user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1772,7 +1774,7 @@ class BikesController extends AppBaseController
      */
     public function downloadSampleTemplate()
     {
-        if (! auth()->user()->hasPermissionTo('bike_view')) {
+        if (! user_can('bike_view')) {
             abort(403, 'Unauthorized action.');
         }
 

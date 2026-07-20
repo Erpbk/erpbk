@@ -15,8 +15,11 @@ if (($item->kind ?? '') === 'fixed') {
     $value = $cfValues[$item->field->id] ?? $item->field->default_value ?? null;
 }
 $displayValue = ($value === null || $value === '') ? '—' : $value;
+$rfpField = ($item->kind ?? '') === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 @endphp
+@if (field_visible('employees', (string) $rfpField))
 <div class="col-md-3 form-group col-3 mb-3">
     <label><b>{{ ($item->kind ?? '') === 'fixed' ? $item->label : $item->field->label }}</b></label>
     <p>{{ $displayValue }}</p>
 </div>
+@endif

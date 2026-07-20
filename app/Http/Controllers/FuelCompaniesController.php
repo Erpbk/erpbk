@@ -27,7 +27,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_view')) {
+        if (!user_can('fuel_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -64,7 +64,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('fuel_create')) {
+        if (!user_can('fuel_create')) {
             abort(403, 'Unauthorized action.');
         }
         return view('fuel_companies.create');
@@ -72,7 +72,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function store(CreateFuelCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_create')) {
+        if (!user_can('fuel_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -126,7 +126,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_view')) {
+        if (!user_can('fuel_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -143,7 +143,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_edit')) {
+        if (!user_can('fuel_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -158,7 +158,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateFuelCompaniesRequest $request)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_edit')) {
+        if (!user_can('fuel_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -184,7 +184,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!auth()->user()->hasPermissionTo('fuel_delete')) {
+        if (!user_can('fuel_delete')) {
             abort(403, 'Unauthorized action.');
         }
 

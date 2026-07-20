@@ -54,7 +54,7 @@ class LicenseexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
+        if (!user_can('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -538,7 +538,7 @@ class LicenseexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('licenseexpense_view')) {
+        if (!user_can('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
         $account = ExpenseAccount::with('rider')->where('id', $id)->firstOrFail();
@@ -876,7 +876,7 @@ class LicenseexpenseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -907,7 +907,7 @@ class LicenseexpenseController extends AppBaseController
      */
     public function editVoucherCreditForm(Request $request, $company_slug, $LicenseExpense)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -977,7 +977,7 @@ class LicenseexpenseController extends AppBaseController
      */
     public function updateVoucherCredit(Request $request, $company_slug)
     {
-        if (!auth()->user()->hasPermissionTo('licenseexpense_edit')) {
+        if (!user_can('licenseexpense_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

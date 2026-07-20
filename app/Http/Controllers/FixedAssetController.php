@@ -33,7 +33,7 @@ class FixedAssetController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('asset_view')) {
+        if (!user_can('asset_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -90,7 +90,7 @@ class FixedAssetController extends AppBaseController
 
     public function create()
     {
-        if (!auth()->user()->hasPermissionTo('asset_create')) {
+        if (!user_can('asset_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -108,7 +108,7 @@ class FixedAssetController extends AppBaseController
 
     public function store(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('asset_create')) {
+        if (!user_can('asset_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -199,7 +199,7 @@ class FixedAssetController extends AppBaseController
 
     public function show(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_view')) {
+        if (!user_can('asset_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -210,7 +210,7 @@ class FixedAssetController extends AppBaseController
 
     public function edit(string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_edit')) {
+        if (!user_can('asset_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -230,7 +230,7 @@ class FixedAssetController extends AppBaseController
 
     public function update(Request $request, string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_edit')) {
+        if (!user_can('asset_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -348,7 +348,7 @@ class FixedAssetController extends AppBaseController
 
     public function destroy(Request $request, string $company_slug, int $id)
     {
-        if (!auth()->user()->hasPermissionTo('asset_delete')) {
+        if (!user_can('asset_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -367,7 +367,7 @@ class FixedAssetController extends AppBaseController
 
     public function categoryDefaults(Request $request, string $company_slug, int $categoryId)
     {
-        if (!auth()->user()->hasPermissionTo('asset_view')) {
+        if (!user_can('asset_view')) {
             abort(403, 'Unauthorized action.');
         }
 

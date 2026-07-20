@@ -24,7 +24,7 @@ class LegalCaseStatusController extends Controller
         }
 
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_view')) {
+        if (!user_can('legalcase_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -71,7 +71,7 @@ class LegalCaseStatusController extends Controller
     public function create()
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_create')) {
+        if (!user_can('legalcase_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -89,12 +89,12 @@ class LegalCaseStatusController extends Controller
             return redirect()->route($this->legalCaseStatusesIndexRoute());
         }
 
-        if (!auth()->user()->hasPermissionTo('legalcase_view')) {
+        if (!user_can('legalcase_view')) {
             abort(403, 'Unauthorized action.');
         }
 
         // If user can edit, send them to edit page; otherwise back to index.
-        if (auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (user_can('legalcase_edit')) {
             return redirect()->route($this->legalCaseStatusesRouteBase() . '.edit', ['case_status' => $id]);
         }
 
@@ -110,7 +110,7 @@ class LegalCaseStatusController extends Controller
     public function store(Request $request)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_create')) {
+        if (!user_can('legalcase_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -168,7 +168,7 @@ class LegalCaseStatusController extends Controller
     public function edit($company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (!user_can('legalcase_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -186,7 +186,7 @@ class LegalCaseStatusController extends Controller
     public function update(Request $request, $company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (!user_can('legalcase_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -235,7 +235,7 @@ class LegalCaseStatusController extends Controller
     public function destroy(Request $request, $company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_delete')) {
+        if (!user_can('legalcase_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -287,7 +287,7 @@ class LegalCaseStatusController extends Controller
     public function toggleActive($company_slug, $id)
     {
         // Check permissions
-        if (!auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (!user_can('legalcase_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -310,7 +310,7 @@ class LegalCaseStatusController extends Controller
      */
     public function reorder(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (!user_can('legalcase_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

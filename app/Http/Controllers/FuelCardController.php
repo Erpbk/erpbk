@@ -16,7 +16,7 @@ class FuelCardController extends Controller
      public function index(Request $request)
     {
 
-        if (!auth()->user()->hasPermissionTo('fuel_view')) {
+        if (!user_can('fuel_view')) {
             abort(403, 'Unauthorized action.');
         }
         // Use global pagination trait

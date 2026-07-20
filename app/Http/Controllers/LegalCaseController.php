@@ -38,7 +38,7 @@ class LegalCaseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('legalcase_view')) {
+        if (!user_can('legalcase_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -436,7 +436,7 @@ class LegalCaseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!auth()->user()->hasPermissionTo('legalcase_view')) {
+        if (!user_can('legalcase_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -561,7 +561,7 @@ class LegalCaseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (!user_can('legalcase_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -586,7 +586,7 @@ class LegalCaseController extends AppBaseController
 
     public function completeStep(Request $request)
     {
-        if (!auth()->user()->hasPermissionTo('legalcase_edit')) {
+        if (!user_can('legalcase_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

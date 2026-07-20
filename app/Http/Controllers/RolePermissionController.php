@@ -12,6 +12,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -29,7 +30,7 @@ class RolePermissionController extends AppBaseController
     private const ACTIONS = ['view', 'create', 'edit', 'delete'];
 
     /**
-     * Render the two-panel permission management page for a role.
+     * Render the two-panel permission management page for an existing role.
      */
     public function index(Request $request, string $company_slug, $roleId)
     {
@@ -38,102 +39,57 @@ class RolePermissionController extends AppBaseController
             return redirect()->route('settings-panel.users.index', ['company_slug' => $company_slug]);
         }
 
-        [$topModules, $byParent] = $this->permissionTree();
-        $assigned = $this->assignedPermissionIds($role);
+        return view('roles.permissions.index', $this->buildPageData($role, false));
+    }
 
-        $savedFieldPerms = RoleFieldPermission::query()
-            ->where('role_id', $role->id)
-            ->get()
-            ->groupBy('module_id');
+    /**
+     * Same two-panel UI for creating a brand-new role.
+     */
+    public function create(Request $request, string $company_slug)
+    {
+        return view('roles.permissions.index', $this->buildPageData(null, true));
+    }
 
-        $moduleRows = [];
-        $moduleEnabled = 0;
-        $moduleTotal = 0;
-        $fieldStats = [];
-        $fieldEnabled = 0;
-        $fieldTotal = 0;
-
-        foreach ($topModules as $module) {
-            $subNodes = $this->submodulesFor($byParent, $module);
-            if ($subNodes === []) {
-                // Module without any CRUD leaves (rare) — still show it so fields can be managed.
-                $subNodes = [];
-            }
-
-            $submodules = [];
-            $modLeafTotal = 0;
-            $modLeafEnabled = 0;
-
-            foreach ($subNodes as $node) {
-                $actions = [];
-                foreach (self::ACTIONS as $action) {
-                    $leafId = $node['actions'][$action];
-                    if ($leafId === null) {
-                        $actions[$action] = null;
-                        continue;
-                    }
-                    $enabled = isset($assigned[$leafId]);
-                    $actions[$action] = ['id' => $leafId, 'enabled' => $enabled];
-                    $modLeafTotal++;
-                    if ($enabled) {
-                        $modLeafEnabled++;
-                    }
-                }
-                $submodules[] = [
-                    'name' => $node['name'],
-                    'is_root' => $node['is_root'],
-                    'actions' => $actions,
-                ];
-            }
-
-            $moduleTotal += $modLeafTotal;
-            $moduleEnabled += $modLeafEnabled;
-
-            $isFlat = count($submodules) === 1 && $submodules[0]['is_root'];
-
-            $fields = RoleModuleFieldResolver::fieldsForModule($module);
-            $hasFields = $fields !== [];
-
-            $savedForModule = ($savedFieldPerms->get($module->id) ?? collect())->keyBy('field_name');
-            $mEnabled = 0;
-            $mTotal = count($fields) * 3;
-            foreach ($fields as $field) {
-                $saved = $savedForModule->get($field['name']);
-                $visible = $saved ? (bool) $saved->visible : true;
-                $editable = $saved ? (bool) $saved->editable : true;
-                $required = $saved ? (bool) $saved->required : false;
-                $mEnabled += ($visible ? 1 : 0) + ($editable ? 1 : 0) + ($required ? 1 : 0);
-            }
-            $fieldTotal += $mTotal;
-            $fieldEnabled += $mEnabled;
-            $fieldStats[$module->id] = ['total' => $mTotal, 'enabled' => $mEnabled];
-
-            $moduleRows[] = [
-                'id' => $module->id,
-                'name' => $module->name,
-                'is_flat' => $isFlat,
-                'leaf_total' => $modLeafTotal,
-                'leaf_enabled' => $modLeafEnabled,
-                'submodules' => $submodules,
-                'has_fields' => $hasFields,
-                'field_count' => count($fields),
-            ];
+    /**
+     * Create a role and save module + field permissions in one transaction.
+     */
+    public function store(Request $request, string $company_slug)
+    {
+        $companyId = (int) (optional(auth()->user())->company_id ?? CompanyContext::id());
+        $uniqueNameRule = Rule::unique('roles', 'name');
+        if (Schema::hasColumn('roles', 'company_id')) {
+            $uniqueNameRule = Rule::unique('roles', 'name')->where(function ($query) use ($companyId) {
+                return $query->where('company_id', $companyId);
+            });
         }
 
-        $totalPermissions = $moduleTotal + $fieldTotal;
-        $enabledPermissions = $moduleEnabled + $fieldEnabled;
+        $request->validate([
+            'name' => ['required', 'string', 'max:255', $uniqueNameRule],
+        ]);
 
-        return view('roles.permissions.index', [
-            'role' => $role,
-            'moduleRows' => $moduleRows,
-            'fieldStats' => $fieldStats,
-            'summary' => [
-                'total' => $totalPermissions,
-                'enabled' => $enabledPermissions,
-                'percent' => $totalPermissions > 0 ? (int) round(($enabledPermissions / $totalPermissions) * 100) : 0,
-                'module_total' => $moduleTotal,
-                'module_enabled' => $moduleEnabled,
-            ],
+        $permChanges = $this->decodePayload($request->input('perm_changes', []));
+        $fieldPayload = $this->decodePayload($request->input('fields', []));
+
+        $role = null;
+        DB::transaction(function () use ($request, $companyId, $permChanges, $fieldPayload, &$role) {
+            $payload = ['name' => trim((string) $request->input('name')), 'guard_name' => 'web'];
+            if (Schema::hasColumn('roles', 'company_id')) {
+                $payload['company_id'] = $companyId;
+            }
+            $role = Role::create($payload);
+
+            $this->saveModulePermissions($role, $permChanges);
+            $this->saveFieldPermissions($role, $fieldPayload);
+        });
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return response()->json([
+            'message' => 'Role created successfully.',
+            'redirect' => route('settings-panel.roles.permissions', [
+                'company_slug' => $company_slug,
+                'role' => $role->id,
+            ]),
         ]);
     }
 
@@ -147,42 +103,15 @@ class RolePermissionController extends AppBaseController
             return response()->json(['message' => 'Role not found'], 404);
         }
 
-        $module = Permission::query()->find($moduleId);
-        if (empty($module)) {
-            return response()->json(['message' => 'Module not found'], 404);
-        }
+        return $this->moduleFieldsResponse($moduleId, (int) $role->id);
+    }
 
-        $fields = RoleModuleFieldResolver::fieldsForModule($module);
-        $saved = RoleFieldPermission::query()
-            ->where('role_id', $role->id)
-            ->where('module_id', $module->id)
-            ->get()
-            ->keyBy('field_name');
-
-        $rows = [];
-        foreach ($fields as $field) {
-            $existing = $saved->get($field['name']);
-            $rows[] = [
-                'name' => $field['name'],
-                'label' => $field['label'],
-                'type' => $field['type'],
-                'visible' => $existing ? (bool) $existing->visible : true,
-                'editable' => $existing ? (bool) $existing->editable : true,
-                'required' => $existing ? (bool) $existing->required : false,
-            ];
-        }
-
-        $html = view('roles.permissions._fields', [
-            'moduleId' => $module->id,
-            'moduleName' => $module->name,
-            'rows' => $rows,
-        ])->render();
-
-        return response()->json([
-            'html' => $html,
-            'module_id' => $module->id,
-            'field_count' => count($rows),
-        ]);
+    /**
+     * AJAX: field rows for the create-role screen (defaults, no saved state).
+     */
+    public function createModuleFields(Request $request, string $company_slug, $moduleId)
+    {
+        return $this->moduleFieldsResponse($moduleId, null);
     }
 
     /**
@@ -423,5 +352,152 @@ class RolePermissionController extends AppBaseController
         }
 
         return true;
+    }
+
+    /**
+     * Shared page payload for create + edit screens.
+     *
+     * @return array{role: ?Role, isCreate: bool, moduleRows: list<array>, fieldStats: array, summary: array}
+     */
+    private function buildPageData(?Role $role, bool $isCreate): array
+    {
+        [$topModules, $byParent] = $this->permissionTree();
+        $assigned = $role ? $this->assignedPermissionIds($role) : [];
+
+        $savedFieldPerms = $role
+            ? RoleFieldPermission::query()->where('role_id', $role->id)->get()->groupBy('module_id')
+            : collect();
+
+        $moduleRows = [];
+        $moduleEnabled = 0;
+        $moduleTotal = 0;
+        $fieldStats = [];
+        $fieldEnabled = 0;
+        $fieldTotal = 0;
+
+        foreach ($topModules as $module) {
+            $subNodes = $this->submodulesFor($byParent, $module);
+            $submodules = [];
+            $modLeafTotal = 0;
+            $modLeafEnabled = 0;
+
+            foreach ($subNodes as $node) {
+                $actions = [];
+                foreach (self::ACTIONS as $action) {
+                    $leafId = $node['actions'][$action];
+                    if ($leafId === null) {
+                        $actions[$action] = null;
+                        continue;
+                    }
+                    $enabled = isset($assigned[$leafId]);
+                    $actions[$action] = ['id' => $leafId, 'enabled' => $enabled];
+                    $modLeafTotal++;
+                    if ($enabled) {
+                        $modLeafEnabled++;
+                    }
+                }
+                $submodules[] = [
+                    'name' => $node['name'],
+                    'is_root' => $node['is_root'],
+                    'actions' => $actions,
+                ];
+            }
+
+            $moduleTotal += $modLeafTotal;
+            $moduleEnabled += $modLeafEnabled;
+
+            $isFlat = count($submodules) === 1 && ($submodules[0]['is_root'] ?? false);
+
+            $fields = RoleModuleFieldResolver::fieldsForModule($module);
+            $hasFields = $fields !== [];
+
+            $savedForModule = ($savedFieldPerms->get($module->id) ?? collect())->keyBy('field_name');
+            $mEnabled = 0;
+            $mTotal = count($fields) * 3;
+            foreach ($fields as $field) {
+                $saved = $savedForModule->get($field['name']);
+                $visible = $saved ? (bool) $saved->visible : true;
+                $editable = $saved ? (bool) $saved->editable : true;
+                $required = $saved ? (bool) $saved->required : false;
+                $mEnabled += ($visible ? 1 : 0) + ($editable ? 1 : 0) + ($required ? 1 : 0);
+            }
+            $fieldTotal += $mTotal;
+            $fieldEnabled += $mEnabled;
+            $fieldStats[$module->id] = ['total' => $mTotal, 'enabled' => $mEnabled];
+
+            $moduleRows[] = [
+                'id' => $module->id,
+                'name' => $module->name,
+                'is_flat' => $isFlat,
+                'leaf_total' => $modLeafTotal,
+                'leaf_enabled' => $modLeafEnabled,
+                'submodules' => $submodules,
+                'has_fields' => $hasFields,
+                'field_count' => count($fields),
+            ];
+        }
+
+        $totalPermissions = $moduleTotal + $fieldTotal;
+        $enabledPermissions = $moduleEnabled + $fieldEnabled;
+
+        return [
+            'role' => $role,
+            'isCreate' => $isCreate,
+            'moduleRows' => $moduleRows,
+            'fieldStats' => $fieldStats,
+            'summary' => [
+                'total' => $totalPermissions,
+                'enabled' => $enabledPermissions,
+                'percent' => $totalPermissions > 0 ? (int) round(($enabledPermissions / $totalPermissions) * 100) : 0,
+                'module_total' => $moduleTotal,
+                'module_enabled' => $moduleEnabled,
+            ],
+        ];
+    }
+
+    /**
+     * Build the field-permissions HTML/JSON for a module (role optional = defaults).
+     */
+    private function moduleFieldsResponse($moduleId, ?int $roleId)
+    {
+        $module = Permission::query()->find($moduleId);
+        if (empty($module)) {
+            return response()->json(['message' => 'Module not found'], 404);
+        }
+
+        $fields = RoleModuleFieldResolver::fieldsForModule($module);
+        $saved = collect();
+        if ($roleId !== null) {
+            $saved = RoleFieldPermission::query()
+                ->where('role_id', $roleId)
+                ->where('module_id', $module->id)
+                ->get()
+                ->keyBy('field_name');
+        }
+
+        $rows = [];
+        foreach ($fields as $field) {
+            $existing = $saved->get($field['name']);
+            $rows[] = [
+                'name' => $field['name'],
+                'label' => $field['label'],
+                'type' => $field['type'],
+                'visible' => $existing ? (bool) $existing->visible : true,
+                'editable' => $existing ? (bool) $existing->editable : true,
+                'required' => $existing ? (bool) $existing->required : false,
+            ];
+        }
+
+        $html = view('roles.permissions._fields', [
+            'moduleId' => $module->id,
+            'moduleName' => $module->name,
+            'rows' => $rows,
+        ])->render();
+
+        return response()->json([
+            'html' => $html,
+            'module_id' => $module->id,
+            'field_count' => count($rows),
+        ]);
     }
 }

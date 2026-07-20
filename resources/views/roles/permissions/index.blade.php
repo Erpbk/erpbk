@@ -1,23 +1,31 @@
 @extends($layout ?? 'layouts.app')
-@section('title', 'Role Permissions — ' . $role->name)
+@section('title', ($isCreate ?? false) ? 'Create New Role' : ('Role Permissions — ' . ($role->name ?? '')))
 
 @section('content')
 @php
+$isCreate = $isCreate ?? false;
 $companySlug = request()->route('company_slug') ?? session('company_slug');
 $usersUrl = route('settings-panel.users.index', ['company_slug' => $companySlug]);
-$saveUrl = route('settings-panel.roles.permissions.save', ['company_slug' => $companySlug, 'role' => $role->id]);
-$fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['company_slug' => $companySlug, 'role' => $role->id, 'module' => '__MODULE__']);
+if ($isCreate) {
+    $saveUrl = route('settings-panel.roles.permissions.store', ['company_slug' => $companySlug]);
+    $fieldsUrlTemplate = route('settings-panel.roles.permissions.create-module-fields', ['company_slug' => $companySlug, 'module' => '__MODULE__']);
+} else {
+    $saveUrl = route('settings-panel.roles.permissions.save', ['company_slug' => $companySlug, 'role' => $role->id]);
+    $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['company_slug' => $companySlug, 'role' => $role->id, 'module' => '__MODULE__']);
+}
 @endphp
 
 <div class="rfp-page">
     {{-- Header --}}
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
-            <h4 class="fw-bold mb-1">Permissions</h4>
+            <h4 class="fw-bold mb-1">{{ $isCreate ? 'Create New Role' : 'Permissions' }}</h4>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0 small">
                     <li class="breadcrumb-item"><a href="{{ $usersUrl }}">Administration</a></li>
-                    <li class="breadcrumb-item active">Permissions — {{ $role->name }}</li>
+                    <li class="breadcrumb-item active">
+                        {{ $isCreate ? 'New Role' : ('Permissions — ' . $role->name) }}
+                    </li>
                 </ol>
             </nav>
         </div>
@@ -26,10 +34,22 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                 <i class="ti ti-arrow-left me-1"></i>Back
             </a>
             <button type="button" id="rfpSaveBtn" class="btn btn-primary">
-                <i class="ti ti-device-floppy me-1"></i>Save Changes
+                <i class="ti ti-device-floppy me-1"></i>{{ $isCreate ? 'Create Role' : 'Save Changes' }}
             </button>
         </div>
     </div>
+
+    @if ($isCreate)
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <label for="rfpRoleName" class="form-label fw-semibold required">Role Name</label>
+            <input type="text" id="rfpRoleName" class="form-control form-control-lg" maxlength="255"
+                placeholder="e.g. Fleet Manager, Accountant, HR Officer" autocomplete="off" required>
+            <div class="invalid-feedback" id="rfpRoleNameError">Please enter a role name.</div>
+            <small class="text-muted">Set the role name, then configure module and field permissions below.</small>
+        </div>
+    </div>
+    @endif
 
     {{-- Summary bar --}}
     <div class="card border-0 shadow-sm mb-4">
@@ -416,11 +436,9 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
             saveUrl: @json($saveUrl),
             csrf: @json(csrf_token()),
             fieldStats: @json($fieldStats),
-            moduleTotal: {
-                {
-                    (int) $summary['module_total']
-                }
-            },
+            moduleTotal: {{ (int) $summary['module_total'] }},
+            isCreate: @json($isCreate),
+            usersUrl: @json($usersUrl),
         };
 
         // Persisted (unsaved) field edits: { moduleId: { fieldName: {visible, editable, required} } }
@@ -673,9 +691,24 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
         // ---- Save ----
         $('#rfpSaveBtn').on('click', function() {
             var $btn = $(this);
-            $btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-1"></span>Saving...');
+            var roleName = '';
 
-            // Make sure current DOM edits are captured.
+            if (RFP.isCreate) {
+                roleName = ($('#rfpRoleName').val() || '').toString().trim();
+                if (!roleName) {
+                    $('#rfpRoleName').addClass('is-invalid').focus();
+                    $('#rfpRoleNameError').text('Please enter a role name.').show();
+                    return;
+                }
+                $('#rfpRoleName').removeClass('is-invalid');
+                $('#rfpRoleNameError').hide();
+            }
+
+            $btn.prop('disabled', true).html(
+                '<span class="spinner-border spinner-border-sm me-1"></span>' +
+                (RFP.isCreate ? 'Creating...' : 'Saving...')
+            );
+
             if (currentModuleId !== null) {
                 $('#rfpFieldPanel .rfp-field-row').each(function() {
                     storeRow($(this));
@@ -685,6 +718,16 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
             var permChangesList = [];
             for (var key in permChanges) {
                 if (permChanges.hasOwnProperty(key)) permChangesList.push(permChanges[key]);
+            }
+
+            // On create, also capture every currently-checked toggle.
+            if (RFP.isCreate) {
+                $('.rfp-perm-toggle:checked').each(function() {
+                    var permId = parseInt($(this).attr('data-perm-id'), 10);
+                    if (!isNaN(permId) && !permChanges[permId]) {
+                        permChangesList.push({ ids: [permId], enabled: true });
+                    }
+                });
             }
 
             var fields = [];
@@ -703,33 +746,61 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                 }
             }
 
-            // Send as JSON strings so a large number of fields cannot be truncated by
-            // PHP's max_input_vars (deep form-encoding would emit ~5 vars per field).
+            var payload = {
+                _token: RFP.csrf,
+                perm_changes: JSON.stringify(permChangesList),
+                fields: JSON.stringify(fields)
+            };
+            if (RFP.isCreate) {
+                payload.name = roleName;
+            }
+
             $.ajax({
                 url: RFP.saveUrl,
                 method: 'POST',
-                data: {
-                    _token: RFP.csrf,
-                    perm_changes: JSON.stringify(permChangesList),
-                    fields: JSON.stringify(fields)
-                },
+                data: payload,
                 dataType: 'json'
             }).done(function(res) {
                 permChanges = {};
                 if (typeof toastr !== 'undefined') {
-                    toastr.success((res && res.message) || 'Permissions saved successfully.');
+                    toastr.success((res && res.message) || (RFP.isCreate ? 'Role created successfully.' : 'Permissions saved successfully.'));
+                }
+                if (RFP.isCreate) {
+                    var dest = (res && res.redirect) ? res.redirect : RFP.usersUrl;
+                    setTimeout(function() { window.location.href = dest; }, 600);
                 }
             }).fail(function(xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save permissions.';
+                if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                    var errs = xhr.responseJSON.errors;
+                    if (errs.name && errs.name[0]) {
+                        $('#rfpRoleName').addClass('is-invalid').focus();
+                        $('#rfpRoleNameError').text(errs.name[0]).show();
+                        msg = errs.name[0];
+                    } else {
+                        var first = Object.keys(errs)[0];
+                        if (first && errs[first][0]) msg = errs[first][0];
+                    }
+                }
                 if (typeof toastr !== 'undefined') {
                     toastr.error(msg);
                 } else {
                     alert(msg);
                 }
             }).always(function() {
-                $btn.prop('disabled', false).html('<i class="ti ti-device-floppy me-1"></i>Save Changes');
+                $btn.prop('disabled', false).html(
+                    '<i class="ti ti-device-floppy me-1"></i>' +
+                    (RFP.isCreate ? 'Create Role' : 'Save Changes')
+                );
             });
         });
+
+        if (RFP.isCreate) {
+            $('#rfpRoleName').on('input', function() {
+                $(this).removeClass('is-invalid');
+                $('#rfpRoleNameError').hide();
+            });
+        }
 
         // ---- Init ----
         updateSummary();

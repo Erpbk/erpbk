@@ -208,7 +208,7 @@ class BikesController extends AppBaseController
         $filteredColumns = Schema::getColumnListing('bikes');
 
         // Columns to exclude
-        $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
+        $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'leased_date', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -234,10 +234,8 @@ class BikesController extends AppBaseController
             'emirates',
             'company',
             'customer_id',
-            'warehouse',
-            'status',
+            'bike_status',
             'expiry_date',
-            'leased_return_status',
             'created_by',
             'updated_by',
         ];
@@ -250,11 +248,13 @@ class BikesController extends AppBaseController
 
         // Add preferred DB columns first
         foreach ($preferredOrder as $key) {
-            if ($key === 'leased_return_status') {
-                if (Schema::hasColumn('bikes', 'leased_return_by')) {
-                    $columns[] = ['data' => 'leased_return_status', 'title' => 'Leasing return'];
-                    $added['leased_return_status'] = true;
-                }
+            if ($key === 'bike_status') {
+                // Combined column: road status + warehouse + leasing return (stacked badges).
+                $columns[] = ['data' => 'bike_status', 'title' => 'Status'];
+                $added['bike_status'] = true;
+                // Prevent the underlying DB columns from being appended separately below.
+                $added['warehouse'] = true;
+                $added['status'] = true;
 
                 continue;
             }
@@ -1799,7 +1799,7 @@ class BikesController extends AppBaseController
             'insurance_co',
             'policy_no',
             'status',
-            'contract_number',
+            'leased_date',
             'customer_name',
         ];
 
@@ -1825,7 +1825,7 @@ class BikesController extends AppBaseController
                 'Insurance Company',
                 'POL001',
                 '1',
-                'CNT001',
+                '2023-01-15',
                 'Customer Name',
             ],
             [
@@ -1849,7 +1849,7 @@ class BikesController extends AppBaseController
                 'Insurance Company',
                 'POL002',
                 '1',
-                'CNT002',
+                '2023-02-20',
                 'Customer Name',
             ],
             [
@@ -1873,7 +1873,7 @@ class BikesController extends AppBaseController
                 'Insurance Company',
                 'POL003',
                 '1',
-                'CNT003',
+                '2023-03-10',
                 'Customer Name',
             ],
         ];

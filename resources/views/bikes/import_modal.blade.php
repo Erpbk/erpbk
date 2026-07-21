@@ -113,7 +113,7 @@
                             <li>Insurance Expiry</li>
                             <li>Insurance Company</li>
                             <li>Policy Number</li>
-                            <li>Contract Number</li>
+                            <li>Leased Date</li>
                             <li>Traffic File Number</li>
                             <li>Rider Name (will match with existing riders)</li>
                             <li>Company Name (will match with existing companies)</li>

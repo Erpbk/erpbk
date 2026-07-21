@@ -30,6 +30,13 @@ $cyclistHideFields = [
 
 $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyclistHideFields, true)) ? ' hide-if-cyclist' : '';
 
+// These fields only apply to leased bikes (toggled by the bike_owner select).
+$leasedOnlyFields = [
+'leased_date',
+'company',
+];
+$wrapperExtraClass .= ($item->kind === 'fixed' && in_array($item->field_key, $leasedOnlyFields, true)) ? ' show-if-leased' : '';
+
 $rfpEntity = 'bike';
 $rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 $rfpVisible = field_visible($rfpEntity, (string) $rfpField);
@@ -44,7 +51,7 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
     @php
     $spec = $item->spec ?? [];
     $req = !empty($spec['required']);
-    $fieldId = $item->field_key === 'vehicle_type' ? 'vehicle_type' : null;
+    $fieldId = in_array($item->field_key, ['vehicle_type', 'bike_owner'], true) ? $item->field_key : null;
     @endphp
 
     @if (($spec['type'] ?? 'text') === 'select')

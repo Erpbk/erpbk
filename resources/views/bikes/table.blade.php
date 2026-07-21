@@ -89,6 +89,24 @@
       color: #ffffff;
    }
 
+   /* Uniform size for the stacked status badges regardless of text length */
+   .status-stack .road-status-badge,
+   .status-stack .badge {
+      width: 130px;
+      min-width: 130px;
+      max-width: 130px;
+      height: 24px;
+      line-height: 24px;
+      padding-top: 0;
+      padding-bottom: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+   }
+
 
    @keyframes pulse {
       0% {
@@ -112,6 +130,7 @@
       <tr role="row">
          @php
          $tableCols = $tableColumns ?? [];
+         $hasLeasingReturn = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by');
          $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km'];
          $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
          $k = $c['data'] ?? ($c['key'] ?? null);
@@ -171,13 +190,25 @@
          @case('branch_id')
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
          @break
-         @case('warehouse')
-
+         @case('bike_status')
          <td tabindex="0">
             @php
-            $wRaw = $r->warehouse ?? '';
-            $wKey = strtolower(trim((string) $wRaw));
-            $badgeClass = match ($wKey) {
+            $wRaw = trim((string) ($r->warehouse ?? ''));
+            $wKey = strtolower($wRaw);
+
+            // Road status derived from warehouse (same rules as before)
+            if ($wKey === 'active') {
+            $roadStatus = 'On Road';
+            $roadStatusClass = 'road-onroad';
+            } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
+            $roadStatus = 'Off Road';
+            $roadStatusClass = 'road-offroad';
+            } else {
+            $roadStatus = 'On Road';
+            $roadStatusClass = 'road-onroadRed';
+            }
+
+            $warehouseBadge = match ($wKey) {
             'active' => 'bg-label-success',
             'return' => 'bg-label-warning',
             'vacation' => 'bg-label-info',
@@ -185,45 +216,17 @@
             'absconded' => 'bg-label-danger',
             default => 'bg-secondary',
             };
-            $wDisplay = $wRaw !== '' && $wRaw !== null ? $wRaw : '—';
+            $wDisplay = $wRaw !== '' ? $wRaw : '—';
+
+            $lr = $hasLeasingReturn ? $r->leasedReturnDisplay() : null;
             @endphp
-            <span class="badge {{ $badgeClass }}">{{ $wDisplay }}</span>
-         </td>
-         @break
-         @case('status')
-         <td tabindex="0">
-            @php
-            $warehouse = $r->warehouse ?? '';
-            $warehouseClass = 'warehouse-default';
-
-            if (strtolower($warehouse) == 'active') {
-            $warehouseClass = 'Active';
-            } elseif (strtolower($warehouse) == 'return') {
-            $warehouseClass = 'Return';
-            } elseif (strtolower($warehouse) == 'absconded') {
-            $warehouseClass = 'Absconded';
-            } elseif (strtolower($warehouse) == 'vacation') {
-            $warehouseClass = 'Vacation';
-            }
-
-            $warehouse = strtolower(trim($r->warehouse ?? ''));
-            $roadStatus = 'N/A';
-            $roadStatusClass = '';
-
-            if ($warehouse === 'active') {
-            $roadStatus = 'On Road';
-            $roadStatusClass = 'road-onroad';
-            } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage' || $warehouse === 'inactive') {
-            $roadStatus = 'Off Road';
-            $roadStatusClass = 'road-offroad';
-            }else{
-            $roadStatus = 'On Road';
-            $roadStatusClass = 'road-onroadRed';
-            }
-            @endphp
-            <span class="road-status-badge {{ $roadStatusClass }}">
-               {{ $roadStatus }}
-            </span>
+            <div class="status-stack d-flex flex-column align-items-center gap-1">
+               <span class="road-status-badge {{ $roadStatusClass }}" title="Status">{{ $roadStatus }}</span>
+               <span class="badge {{ $warehouseBadge }}" title="Warehouse">{{ $wDisplay }}</span>
+               @if($lr)
+               <span class="badge {{ $lr['badge'] }}" title="Leasing Return">{{ $lr['label'] }}</span>
+               @endif
+            </div>
          </td>
          @break
          @case('created_by')
@@ -289,14 +292,6 @@
             @else
             <span>-</span>
             @endif
-            </td>
-            @break
-            @case('leased_return_status')
-            @php
-            $lr = $r->leasedReturnDisplay();
-            @endphp
-            <td tabindex="0">
-               <span class="badge {{ $lr['badge'] }}">{{ $lr['label'] }}</span>
             </td>
             @break
             @default

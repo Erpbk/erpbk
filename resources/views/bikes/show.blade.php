@@ -69,8 +69,8 @@
         <p>{{ $bikes->policy_no ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Contract No:</label>
-        <p>{{ $bikes->contract_number ?? 'N/A' }}</p>
+        <label>Leased Date:</label>
+        <p>{{ $bikes->leased_date ? $bikes->leased_date->format('d M Y') : 'N/A' }}</p>
       </div>
     </div>
   </div>

@@ -89,22 +89,10 @@
       color: #ffffff;
    }
 
-   /* Uniform size for the stacked status badges regardless of text length */
-   .status-stack .road-status-badge,
-   .status-stack .badge {
-      width: 130px;
-      min-width: 130px;
-      max-width: 130px;
-      height: 24px;
-      line-height: 24px;
-      padding-top: 0;
-      padding-bottom: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+   /* Bike returned to the leasing company */
+   .road-returned {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+      border: 1px solid #5c636a;
    }
 
 
@@ -193,40 +181,30 @@
          @case('bike_status')
          <td tabindex="0">
             @php
-            $wRaw = trim((string) ($r->warehouse ?? ''));
-            $wKey = strtolower($wRaw);
+            $isReturned = $hasLeasingReturn && !empty($r->leased_return_date);
+
+            if ($isReturned) {
+            $statusLabel = 'Returned';
+            $statusClass = 'road-returned';
+            $statusTitle = 'Returned to leasing company';
+            } else {
+            $wKey = strtolower(trim((string) ($r->warehouse ?? '')));
 
             // Road status derived from warehouse (same rules as before)
             if ($wKey === 'active') {
-            $roadStatus = 'On Road';
-            $roadStatusClass = 'road-onroad';
+            $statusLabel = 'On Road';
+            $statusClass = 'road-onroad';
             } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
-            $roadStatus = 'Off Road';
-            $roadStatusClass = 'road-offroad';
+            $statusLabel = 'Off Road';
+            $statusClass = 'road-offroad';
             } else {
-            $roadStatus = 'On Road';
-            $roadStatusClass = 'road-onroadRed';
+            $statusLabel = 'On Road';
+            $statusClass = 'road-onroadRed';
             }
-
-            $warehouseBadge = match ($wKey) {
-            'active' => 'bg-label-success',
-            'return' => 'bg-label-warning',
-            'vacation' => 'bg-label-info',
-            'express garage' => 'bg-label-info',
-            'absconded' => 'bg-label-danger',
-            default => 'bg-secondary',
-            };
-            $wDisplay = $wRaw !== '' ? $wRaw : '—';
-
-            $lr = $hasLeasingReturn ? $r->leasedReturnDisplay() : null;
+            $statusTitle = 'Status: ' . $statusLabel;
+            }
             @endphp
-            <div class="status-stack d-flex flex-column align-items-center gap-1">
-               <span class="road-status-badge {{ $roadStatusClass }}" title="Status">{{ $roadStatus }}</span>
-               <span class="badge {{ $warehouseBadge }}" title="Warehouse">{{ $wDisplay }}</span>
-               @if($lr)
-               <span class="badge {{ $lr['badge'] }}" title="Leasing Return">{{ $lr['label'] }}</span>
-               @endif
-            </div>
+            <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
          </td>
          @break
          @case('created_by')

@@ -21,6 +21,16 @@ $lc = \App\Models\LeasingCompanies::find($leasedReturnCompanyId);
 $leasedCompanyDisplayName = $lc ? (string) $lc->name : '';
 }
 }
+
+$assignFields = $assignFields ?? \App\Models\BikeCustomField::assignModalFields('change');
+$notesField = $assignFields->firstWhere('field_key', 'notes');
+$notesSpec = $notesField ? $notesField->resolvedInputSpec() : null;
+$notesLabel = $notesField ? $notesField->resolvedLabel() : 'Notes';
+$notesRequired = (bool) ($notesSpec['required'] ?? false);
+$notesInputType = $notesSpec['type'] ?? 'text';
+$notesOpts = ($notesField && in_array($notesInputType, ['select', 'dropdown'], true))
+? $notesField->resolvedSelectOptions()
+: [];
 @endphp
 <form action="{{ route('bikes.leasingReturn', $bike->id) }}" method="post" id="formajax">
     @csrf
@@ -45,6 +55,28 @@ $leasedCompanyDisplayName = $lc ? (string) $lc->name : '';
                     <small class="text-muted">Leasing company this vehicle will be returned to.</small>
                 </div>
                 @endif
+
+                @if($notesField)
+                <div class="col-md-6 mb-3">
+                    <label class="form-label" for="leasing_return_note">{{ $notesLabel }}@if($notesRequired)<span class="text-danger">*</span>@endif</label>
+                    @if(in_array($notesInputType, ['select', 'dropdown'], true))
+                    {!! Form::select('note', $notesOpts, old('note'), ['class' => 'form-select select2', 'id' => 'leasing_return_note', 'required' => $notesRequired]) !!}
+                    @elseif($notesInputType === 'textarea')
+                    <textarea class="form-control" name="note" id="leasing_return_note" rows="3" placeholder="{{ $notesLabel }}" @if($notesRequired) required @endif>{{ old('note') }}</textarea>
+                    @elseif($notesInputType === 'date')
+                    <input type="date" name="note" id="leasing_return_note" class="form-control" value="{{ old('note') }}" @if($notesRequired) required @endif>
+                    @elseif($notesInputType === 'datetime')
+                    <input type="datetime-local" name="note" id="leasing_return_note" class="form-control" value="{{ old('note') }}" @if($notesRequired) required @endif>
+                    @elseif($notesInputType === 'checkbox')
+                    <div class="form-check mt-2">
+                        <input type="hidden" name="note" value="0">
+                        <input type="checkbox" name="note" value="1" class="form-check-input" id="leasing_return_note" @if(old('note')) checked @endif @if($notesRequired) required @endif>
+                    </div>
+                    @else
+                    <input type="{{ in_array($notesInputType, ['number', 'decimal', 'email', 'url'], true) ? $notesInputType : 'text' }}" name="note" id="leasing_return_note" class="form-control" value="{{ old('note') }}" @if($notesRequired) required @endif placeholder="{{ $notesLabel }}">
+                    @endif
+                </div>
+                @endif
             </div>
         </div>
     </div>
@@ -52,3 +84,12 @@ $leasedCompanyDisplayName = $lc ? (string) $lc->name : '';
         <button type="submit" class="btn btn-primary">Save</button>
     </div>
 </form>
+
+<script>
+    $(document).ready(function() {
+        $('#leasing_return_note.select2').select2({
+            allowClear: true,
+            dropdownParent: $('#modalTopbody')
+        });
+    });
+</script>

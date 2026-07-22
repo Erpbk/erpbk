@@ -89,6 +89,12 @@
       color: #ffffff;
    }
 
+   /* Bike returned to the leasing company */
+   .road-returned {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+      border: 1px solid #5c636a;
+   }
+
 
    @keyframes pulse {
       0% {
@@ -112,10 +118,12 @@
       <tr role="row">
          @php
          $tableCols = $tableColumns ?? [];
+         $hasLeasingReturn = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by');
          $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km'];
          $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
          $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search' && $k !== 'control' && !in_array($k, $hiddenTableColumns, true);
+         return $k !== 'search' && $k !== 'control' && !in_array($k, $hiddenTableColumns, true)
+         && field_visible('bike', $k);
          }));
          @endphp
          @foreach($dataColumns as $col)
@@ -170,59 +178,33 @@
          @case('branch_id')
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
          @break
-         @case('warehouse')
-
+         @case('bike_status')
          <td tabindex="0">
             @php
-            $wRaw = $r->warehouse ?? '';
-            $wKey = strtolower(trim((string) $wRaw));
-            $badgeClass = match ($wKey) {
-            'active' => 'bg-label-success',
-            'return' => 'bg-label-warning',
-            'vacation' => 'bg-label-info',
-            'express garage' => 'bg-label-info',
-            'absconded' => 'bg-label-danger',
-            default => 'bg-secondary',
-            };
-            $wDisplay = $wRaw !== '' && $wRaw !== null ? $wRaw : '—';
-            @endphp
-            <span class="badge {{ $badgeClass }}">{{ $wDisplay }}</span>
-         </td>
-         @break
-         @case('status')
-         <td tabindex="0">
-            @php
-            $warehouse = $r->warehouse ?? '';
-            $warehouseClass = 'warehouse-default';
+            $isReturned = $hasLeasingReturn && !empty($r->leased_return_date);
 
-            if (strtolower($warehouse) == 'active') {
-            $warehouseClass = 'Active';
-            } elseif (strtolower($warehouse) == 'return') {
-            $warehouseClass = 'Return';
-            } elseif (strtolower($warehouse) == 'absconded') {
-            $warehouseClass = 'Absconded';
-            } elseif (strtolower($warehouse) == 'vacation') {
-            $warehouseClass = 'Vacation';
+            if ($isReturned) {
+            $statusLabel = 'Returned';
+            $statusClass = 'road-returned';
+            $statusTitle = 'Returned to leasing company';
+            } else {
+            $wKey = strtolower(trim((string) ($r->warehouse ?? '')));
+
+            // Road status derived from warehouse (same rules as before)
+            if ($wKey === 'active') {
+            $statusLabel = 'On Road';
+            $statusClass = 'road-onroad';
+            } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
+            $statusLabel = 'Off Road';
+            $statusClass = 'road-offroad';
+            } else {
+            $statusLabel = 'On Road';
+            $statusClass = 'road-onroadRed';
             }
-
-            $warehouse = strtolower(trim($r->warehouse ?? ''));
-            $roadStatus = 'N/A';
-            $roadStatusClass = '';
-
-            if ($warehouse === 'active') {
-            $roadStatus = 'On Road';
-            $roadStatusClass = 'road-onroad';
-            } elseif ($warehouse === 'return' || $warehouse === 'vacation' || $warehouse === 'express garage' || $warehouse === 'inactive') {
-            $roadStatus = 'Off Road';
-            $roadStatusClass = 'road-offroad';
-            }else{
-            $roadStatus = 'On Road';
-            $roadStatusClass = 'road-onroadRed';
+            $statusTitle = 'Status: ' . $statusLabel;
             }
             @endphp
-            <span class="road-status-badge {{ $roadStatusClass }}">
-               {{ $roadStatus }}
-            </span>
+            <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
          </td>
          @break
          @case('created_by')
@@ -288,14 +270,6 @@
             @else
             <span>-</span>
             @endif
-            </td>
-            @break
-            @case('leased_return_status')
-            @php
-            $lr = $r->leasedReturnDisplay();
-            @endphp
-            <td tabindex="0">
-               <span class="badge {{ $lr['badge'] }}">{{ $lr['label'] }}</span>
             </td>
             @break
             @default

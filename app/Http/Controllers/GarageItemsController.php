@@ -40,7 +40,7 @@ class GarageItemsController extends AppBaseController
     {
         // Check permissions if needed
         // For now, we'll skip the permission check
-        // if (!auth()->user()->hasPermissionTo('item_view')) {
+        // if (!user_can('item_view')) {
         //     abort(403, 'Unauthorized action.');
         // }
 

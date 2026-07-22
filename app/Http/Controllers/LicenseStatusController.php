@@ -11,17 +11,23 @@ use DB;
 
 class LicenseStatusController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('permission:license_expense_view')->only('index', 'show');
-        $this->middleware('permission:license_expense_create')->only('create', 'store', 'toggleActive', 'reorder');
-        $this->middleware('permission:license_expense_edit')->only('edit', 'update', 'toggleActive', 'reorder');
-        $this->middleware('permission:license_expense_delete')->only('destroy');
-    }
-
+    /**
+     * Display a listing of the License Statuses.
+     *
+     * @return \Illuminate\Http\Response
+     */
     public function index(Request $request)
     {
+        // Check if user is authenticated
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        // Check permissions
+        if (!user_can('licenseexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $query = LicenseStatus::query();
 
         if ($request->filled('code')) {
@@ -64,6 +70,11 @@ class LicenseStatusController extends Controller
      */
     public function create()
     {
+        // Check permissions
+        if (!user_can('licenseexpense_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         return view('license_statuses.create');
     }
 
@@ -74,10 +85,19 @@ class LicenseStatusController extends Controller
      */
     public function show($company_slug, $id)
     {
+        if (!auth()->check()) {
+            return redirect()->route($this->licenseStatusesIndexRoute());
+        }
+
+        if (!user_can('licenseexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // If user can edit, send them to edit page; otherwise back to index.
-        if (auth()->user()->hasPermissionTo('license_expense_edit')) {
+        if (user_can('licenseexpense_edit')) {
             return redirect()->route($this->licenseStatusesRouteBase() . '.edit', ['license_status' => $id]);
         }
+
         return redirect()->route($this->licenseStatusesIndexRoute());
     }
 
@@ -89,6 +109,11 @@ class LicenseStatusController extends Controller
      */
     public function store(Request $request)
     {
+        // Check permissions
+        if (!user_can('licenseexpense_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:license_statuses',
             'code' => 'nullable|string|max:20',
@@ -144,6 +169,11 @@ class LicenseStatusController extends Controller
      */
     public function edit($company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('licenseexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $LicenseStatus = LicenseStatus::findOrFail($id);
         return view('license_statuses.edit', compact('LicenseStatus'));
     }
@@ -157,6 +187,11 @@ class LicenseStatusController extends Controller
      */
     public function update(Request $request, $company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('licenseexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $LicenseStatus = LicenseStatus::findOrFail($id);
 
         $validated = $request->validate([
@@ -203,6 +238,11 @@ class LicenseStatusController extends Controller
      */
     public function destroy(Request $request, $company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('licenseexpense_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             $LicenseStatus = LicenseStatus::findOrFail($id);
 
@@ -250,6 +290,11 @@ class LicenseStatusController extends Controller
      */
     public function toggleActive($company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('licenseexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             $LicenseStatus = LicenseStatus::findOrFail($id);
             $LicenseStatus->is_active = !$LicenseStatus->is_active;
@@ -269,6 +314,10 @@ class LicenseStatusController extends Controller
      */
     public function reorder(Request $request)
     {
+        if (!user_can('licenseexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $order = $request->input('order', []);
         if (!is_array($order) || empty($order)) {
             return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);

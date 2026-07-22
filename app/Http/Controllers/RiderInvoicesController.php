@@ -45,13 +45,6 @@ class RiderInvoicesController extends AppBaseController
     public function __construct(RiderInvoicesRepository $riderInvoicesRepo)
     {
         $this->riderInvoicesRepository = $riderInvoicesRepo;
-        $this->middleware('auth');
-        $this->middleware('permission:riders_invoices_view')->only('index', 'show', 'download');
-        $this->middleware('permission:riders_invoices_create')->only('create', 'store', 'import', 'importPaid');
-        $this->middleware('permission:riders_invoices_edit')->only('edit', 'update', 'import', 'importPaid');
-        $this->middleware('permission:riders_invoices_delete')->only('destroy', 'bulkDelete');
-        $this->middleware('permission:email_create')->only('sendEmail');
-        $this->middleware('permission:riders_payments_create')->only('markAsPaid');
     }
 
     /**
@@ -501,7 +494,7 @@ class RiderInvoicesController extends AppBaseController
     public function bulkDelete(Request $request)
     {
         // Check permission
-        if (! auth()->user()->can('riders_invoices_delete')) {
+        if (! user_can('riderinvoice_delete')) {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to delete invoices.',

@@ -101,9 +101,9 @@ class CustomizableBikeExport implements FromCollection, WithHeadings, WithMappin
             'title' => 'Policy Number',
             'data' => 'policy_no'
         ],
-        'contract_number' => [
-            'title' => 'Contract Number',
-            'data' => 'contract_number'
+        'leased_date' => [
+            'title' => 'Leased Date',
+            'data' => 'leased_date'
         ],
         'traffic_file_number' => [
             'title' => 'Traffic File Number',
@@ -291,8 +291,8 @@ class CustomizableBikeExport implements FromCollection, WithHeadings, WithMappin
             case 'policy_no':
                 return $bike->policy_no;
 
-            case 'contract_number':
-                return $bike->contract_number;
+            case 'leased_date':
+                return $bike->leased_date ? $bike->leased_date->format('d M Y') : '-';
 
             case 'traffic_file_number':
                 return $bike->traffic_file_number;

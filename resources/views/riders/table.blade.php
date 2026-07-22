@@ -9,7 +9,8 @@
          $k = $c['data'] ?? ($c['key'] ?? null);
          return $k !== 'search'
          && $k !== 'control'
-         && !in_array($k, ['company_id', 'account_id'], true);
+         && !in_array($k, ['company_id', 'account_id'], true)
+         && field_visible('rider', $k);
          }));
          @endphp
          @foreach($dataColumns as $col)

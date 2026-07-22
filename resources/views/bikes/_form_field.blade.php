@@ -29,14 +29,29 @@ $cyclistHideFields = [
 ];
 
 $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyclistHideFields, true)) ? ' hide-if-cyclist' : '';
+
+// These fields only apply to leased bikes (toggled by the bike_owner select).
+$leasedOnlyFields = [
+'leased_date',
+'company',
+];
+$wrapperExtraClass .= ($item->kind === 'fixed' && in_array($item->field_key, $leasedOnlyFields, true)) ? ' show-if-leased' : '';
+
+$rfpEntity = 'bike';
+$rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
+$rfpVisible = field_visible($rfpEntity, (string) $rfpField);
+$rfpEditable = field_editable($rfpEntity, (string) $rfpField);
+$rfpLock = $rfpEditable ? [] : ['readonly' => 'readonly'];
+$rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
 @endphp
 
+@if ($rfpVisible)
 <div class="form-group {{ !empty($fullWidth) ? 'col-sm-12' : 'col-sm-4' }}{{ $wrapperExtraClass }}">
     @if ($item->kind === 'fixed')
     @php
     $spec = $item->spec ?? [];
     $req = !empty($spec['required']);
-    $fieldId = $item->field_key === 'vehicle_type' ? 'vehicle_type' : null;
+    $fieldId = in_array($item->field_key, ['vehicle_type', 'bike_owner'], true) ? $item->field_key : null;
     @endphp
 
     @if (($spec['type'] ?? 'text') === 'select')
@@ -123,14 +138,14 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     'class' => 'form-select select2',
     'id' => $fieldId,
     'required' => $req,
-    ]
+    ] + $rfpSelectLock
     ) !!}
     @elseif (($spec['type'] ?? '') === 'textarea')
     {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     {!! Form::textarea(
     $item->field_key,
     $value,
-    ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3, 'required' => $req]
+    ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3, 'required' => $req] + $rfpLock
     ) !!}
     @elseif (($spec['type'] ?? '') === 'checkbox')
     <div class="form-check mt-4">
@@ -143,7 +158,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
         $item->field_key,
         $spec['value'] ?? 1,
         $value == 1 || $value === true,
-        ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key]
+        ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key] + $rfpSelectLock
         ) !!}
         {!! Form::label(
         'field_' . $item->field_key,
@@ -164,7 +179,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     // Add max-length if provided via config/spec.
     'maxlength' => $spec['maxlength'] ?? null,
     'autocomplete' => 'off',
-    ]
+    ] + $rfpLock
     ) !!}
     @endif
 
@@ -183,7 +198,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
 
     @switch($f->data_type)
     @case('textarea')
-    {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4, 'required' => $req]) !!}
+    {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4, 'required' => $req] + $rfpLock) !!}
     @break
 
     @case('number')
@@ -192,15 +207,15 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     'class' => 'form-control',
     'step' => $f->data_type === 'decimal' ? '0.01' : '1',
     'required' => $req,
-    ]) !!}
+    ] + $rfpLock) !!}
     @break
 
     @case('date')
-    {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control', 'required' => $req]) !!}
+    {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control', 'required' => $req] + $rfpLock) !!}
     @break
 
     @case('datetime')
-    {!! Form::input('datetime-local', $name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d\TH:i')) : null, ['class' => 'form-control', 'required' => $req]) !!}
+    {!! Form::input('datetime-local', $name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d\TH:i')) : null, ['class' => 'form-control', 'required' => $req] + $rfpLock) !!}
     @break
 
     @case('dropdown')
@@ -214,13 +229,13 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     }
     }
     @endphp
-    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req]) !!}
+    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req] + $rfpSelectLock) !!}
     @break
 
     @case('checkbox')
     <div class="form-check mt-2">
         <input type="hidden" name="{{ $name }}" value="0" />
-        {!! Form::checkbox($name, '1', filter_var($value, FILTER_VALIDATE_BOOLEAN), ['class' => 'form-check-input', 'id' => 'cf_' . $f->id]) !!}
+        {!! Form::checkbox($name, '1', filter_var($value, FILTER_VALIDATE_BOOLEAN), ['class' => 'form-check-input', 'id' => 'cf_' . $f->id] + $rfpSelectLock) !!}
         {!! Form::label('cf_' . $f->id, 'Yes', ['class' => 'form-check-label ']) !!}
     </div>
     @break
@@ -230,7 +245,7 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     $f->data_type === 'email' ? 'email' : ($f->data_type === 'url' ? 'url' : 'text'),
     $name,
     $value,
-    ['class' => 'form-control', 'required' => $req] + (!empty($f->config['placeholder']) ? ['placeholder' => $f->config['placeholder']] : [])
+    ['class' => 'form-control', 'required' => $req] + (!empty($f->config['placeholder']) ? ['placeholder' => $f->config['placeholder']] : []) + $rfpLock
     ) !!}
     @endswitch
 
@@ -239,3 +254,4 @@ $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyc
     @enderror
     @endif
 </div>
+@endif

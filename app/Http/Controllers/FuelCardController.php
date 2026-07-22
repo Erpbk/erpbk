@@ -12,17 +12,13 @@ use App\Traits\GlobalPagination;
 class FuelCardController extends Controller
 {
     use GlobalPagination;
-
-    public function __construct()
-    {
-        $this->middleware('permission:fuel_cards_card_view')->only('index', 'show');
-        $this->middleware('permission:fuel_cards_card_create')->only('create', 'store');
-        $this->middleware('permission:fuel_cards_card_edit')->only('edit', 'update');
-        $this->middleware('permission:fuel_cards_card_delete')->only('destroy');
-    }
     
      public function index(Request $request)
     {
+
+        if (!user_can('fuel_view')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelCards::query()

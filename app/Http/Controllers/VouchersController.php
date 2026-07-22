@@ -27,7 +27,6 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\PublicStorageDisk;
-use App\Support\VoucherAccess;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -45,19 +44,12 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function __construct()
-  {
-    $this->middleware('auth');
-    // Listing stays vouchers-module only; show/listSidebar also used from receipts, payments, ledger, salik, etc.
-    $this->middleware('permission:vouchers_view')->only('index');
-    $this->middleware(VoucherAccess::crossModuleViewMiddleware())->only('show', 'listSidebar');
-    $this->middleware('permission:vouchers_create')->only('create', 'store');
-    $this->middleware('permission:vouchers_edit')->only('edit', 'update');
-    $this->middleware('permission:vouchers_delete')->only('destroy', 'cloneVoucher');
-  }
-
   public function index(Request $request)
   {
+    if (!user_can('voucher_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     return $this->indexWithFilters($request);
   }
 
@@ -151,6 +143,10 @@ class VouchersController extends Controller
    */
   public function listSidebar(Request $request)
   {
+    if (!user_can('voucher_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     $query = Vouchers::query()->orderBy('id', 'desc');
 
     if ($request->filled('voucher_type')) {
@@ -186,7 +182,7 @@ class VouchersController extends Controller
       $vt = count($allowedTypes) > 0 ? array_key_first($allowedTypes) : null;
     }
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
-    return view('vouchers.create', compact('voucherCustomFields', 'vt','vouchers'));
+    return view('vouchers.create', compact('voucherCustomFields', 'vt', 'vouchers'));
   }
 
   /**
@@ -210,7 +206,8 @@ class VouchersController extends Controller
 
       /** @var Vouchers $vouchers */
       if ($request->voucher_type == 'JV') {
-        if (!$this->debitCreditTotalsAreEqual($request->dr_amount, $request->cr_amount)) {
+        if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
+
           return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
         }
         $result = $voucherService->JournalVoucher($request);
@@ -291,7 +288,7 @@ class VouchersController extends Controller
     }
 
     if (request()->ajax() || request()->wantsJson()) {
-      return view('vouchers.show_modal', compact('voucher','editDeleteFlags'));
+      return view('vouchers.show_modal', compact('voucher', 'editDeleteFlags'));
     }
 
     return view('vouchers.show', compact('voucher'));
@@ -377,13 +374,14 @@ class VouchersController extends Controller
     }
 
     if ($request->voucher_type == 'JV') {
-      if (!$this->debitCreditTotalsAreEqual($request->dr_amount, $request->cr_amount)) {
+      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
+
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
       }
       $voucherService->JournalVoucher($request);
     }
     if ($request->voucher_type === 'RFV') {
-      if (!$this->debitCreditTotalsAreEqual($request->dr_amount, $request->cr_amount)) {
+      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal']], 422);
       }
 
@@ -802,19 +800,7 @@ class VouchersController extends Controller
   {
     $voucher = Vouchers::find($id);
 
-    if (!$voucher) {
-      if ($request->expectsJson() || $request->ajax()) {
-        return response()->json(['message' => 'Voucher not found'], 404);
-      }
-
-      abort(404);
-    }
-
-    if ($request->isMethod('post')) {
-      if (!$request->hasFile('attach_file')) {
-        return response()->json(['message' => 'Please select a file to upload.'], 422);
-      }
-
+    if ($request->hasFile('attach_file')) {
       $photo = $request->file('attach_file');
       $fileName = $photo->getClientOriginalName();
       if (in_array($voucher->voucher_type, ['LV', 'LE'])) {
@@ -825,10 +811,7 @@ class VouchersController extends Controller
       $voucher->attach_file = $fileName;
       $voucher->updated_by = auth()->id();
       $voucher->save();
-
-      return response()->json(['message' => 'File uploaded successfully', 'reload' => true], 200);
     }
-
     return view('vouchers.attach_file', compact('id', 'voucher'));
   }
 
@@ -856,30 +839,28 @@ class VouchersController extends Controller
     $vouchers = Vouchers::where('trans_code', $id)->first();
     $vouchers->trans_code = null;
     $vouchers->billing_month = Carbon::parse($vouchers->billing_month)->format('Y-m');
-    if($vouchers->voucher_type == 'RV') {
+    if ($vouchers->voucher_type == 'RV') {
       $receipt = Receipt::find($vouchers->ref_id);
-        if (empty($receipt)) {
-            Flash::error('Receipt not found');
-            return redirect()->back();
-        }
+      if (empty($receipt)) {
+        Flash::error('Receipt not found');
+        return redirect()->back();
+      }
 
-        $banks = Banks::active()->get();
-        $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
-        return view('receipts.create', compact('receipt', 'banks'));
-
-    }  elseif($vouchers->voucher_type == 'PV') {
+      $banks = Banks::active()->get();
+      $receipt->billing_month = \Carbon\Carbon::parse($receipt->billing_month)->format('Y-m');
+      return view('receipts.create', compact('receipt', 'banks'));
+    } elseif ($vouchers->voucher_type == 'PV') {
       $payment = Payment::find($vouchers->ref_id);
-        if (empty($payment)) {
-            Flash::error('Payment not found');
-            return redirect()->back();
-        }
+      if (empty($payment)) {
+        Flash::error('Payment not found');
+        return redirect()->back();
+      }
 
-        $banks = Banks::active()->get();
-        $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
-        $payment->amount = $payment->amount - $payment->bank_charges;
+      $banks = Banks::active()->get();
+      $payment->billing_month = \Carbon\Carbon::parse($payment->billing_month)->format('Y-m');
+      $payment->amount = $payment->amount - $payment->bank_charges;
 
-        return view('payments.create', compact('payment', 'banks'));
-
+      return view('payments.create', compact('payment', 'banks'));
     } elseif ($vouchers->voucher_type == 'JV') {
       $data = Transactions::where('trans_code', $id)->get();
     } elseif ($vouchers->voucher_type == 'RFV') {
@@ -910,17 +891,5 @@ class VouchersController extends Controller
 
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
     return view('vouchers.create', compact('vouchers', 'data', 'voucherCustomFields'));
-  }
-
-  /**
-   * Compare debit/credit totals using money precision (2 dp).
-   * Raw array_sum float comparison can fail even when the UI totals look equal.
-   */
-  private function debitCreditTotalsAreEqual($drAmounts, $crAmounts): bool
-  {
-    $totalDr = round(array_sum(array_map('floatval', (array) $drAmounts)), 2);
-    $totalCr = round(array_sum(array_map('floatval', (array) $crAmounts)), 2);
-
-    return $totalDr === $totalCr;
   }
 }

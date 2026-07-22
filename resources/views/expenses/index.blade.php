@@ -199,6 +199,9 @@
     ['data' => 'search', 'title' => 'Search'],
     ['data' => 'control', 'title' => 'Control']
     ];
+    // Drop columns whose field the current user may not view, so the Column Control
+    // panel stays index-aligned with the (also permission-gated) table.
+    $tableColumns = \App\Support\RoleFieldAccess::filterTableColumns($tableColumns, 'expenses');
     @endphp
     @include('components.column-control-panel', [
     'tableColumns' => $tableColumns,

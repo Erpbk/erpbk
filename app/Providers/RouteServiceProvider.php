@@ -37,10 +37,13 @@ class RouteServiceProvider extends ServiceProvider
                 ->where('path', '.+')
                 ->middleware([]);
 
-            Route::middleware('api')
-                ->prefix('api')
-                ->namespace($this->namespace)
-                ->group(base_path('routes/api.php'));
+            $apiRoutes = base_path('routes/api.php');
+            if (is_file($apiRoutes)) {
+                Route::middleware('api')
+                    ->prefix('api')
+                    ->namespace($this->namespace)
+                    ->group($apiRoutes);
+            }
 
             Route::middleware('web')
                 ->namespace($this->namespace)

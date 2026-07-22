@@ -3,18 +3,18 @@
 <table class="table dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending" aria-sort="descending">Name</th>
-         <th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>
+         @fieldVisible('customer', 'name')<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending" aria-sort="descending">Name</th>@endfieldVisible
+         @fieldVisible('customer', 'contact_number')<th title="Contact Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact Number: activate to sort column ascending">Contact Number</th>@endfieldVisible
          <th title="Balance" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Balance: activate to sort column ascending">Balance</th>
-         <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+         @fieldVisible('customer', 'status')<th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>@endfieldVisible
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action"> Actions</th>
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td><a href="{{ route('customer.ledger', $r->id) }}">{{$r->name}}</a><br/></td>
-         <td>{{$r->contact_number }}</td>
+         @fieldVisible('customer', 'name')<td><a href="{{ route('customer.files', $r->id) }}">{{$r->name}}</a><br/></td>@endfieldVisible
+         @fieldVisible('customer', 'contact_number')<td>{{$r->contact_number }}</td>@endfieldVisible
          @php
             $account = company_table('accounts')->where('id', $r->account_id)->first();
             $account_id = $account->id ?? null;
@@ -31,6 +31,7 @@
 
         <td>{{ number_format($finalBalance, 2) }}</td>
 
+         @fieldVisible('customer', 'status')
          <td>
             @if($r->status == 1)
             <span class="badge  bg-success">Active</span>
@@ -38,6 +39,7 @@
             <span class="badge  bg-danger">Inactive</span>
             @endif
          </td>
+         @endfieldVisible
          
          <td style="position: relative;">
             <div class="dropdown">
@@ -45,12 +47,12 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
-                  @can('customers_customer_edit')
+                  @can('customer_edit')
                      <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Customer Details" data-action="{{ route('customers.edit', $r->id) }}">
                         <i class="fa fa-edit my-1"></i> Edit
                      </a>
                   @endcan
-                  @can('customers_customer_delete')
+                  @can('customer_delete')
                   {!! Form::open(['route' => ['customers.destroy', ['id' => $r->id]], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
                   {!! Form::button('<i class="fa fa-trash"></i> Delete', [
                      'type' => 'submit',

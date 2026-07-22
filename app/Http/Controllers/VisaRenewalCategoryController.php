@@ -10,15 +10,16 @@ use DB;
 
 class VisaRenewalCategoryController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('permission:visa_expense_view')->only('index');
-        $this->middleware('permission:visa_expense_create')->only('store');
-        $this->middleware('permission:visa_expense_edit|visa_expense_create')->only('update', 'reorder');
-        $this->middleware('permission:visa_expense_delete')->only('destroy');
-    }
     public function index(Request $request)
     {
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('visaexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $categories = VisaRenewalCategory::query()
             ->orderBy('display_order')
             ->orderBy('id')
@@ -40,6 +41,10 @@ class VisaRenewalCategoryController extends Controller
 
     public function store(Request $request)
     {
+        if (!user_can('visaexpense_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:visa_renewal_categories,name',
             'display_order' => 'nullable|integer|min:1',
@@ -72,6 +77,10 @@ class VisaRenewalCategoryController extends Controller
 
     public function update(Request $request, $company_slug, $id)
     {
+        if (!user_can('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $category = VisaRenewalCategory::findOrFail($id);
 
         $validated = $request->validate([
@@ -111,6 +120,10 @@ class VisaRenewalCategoryController extends Controller
 
     public function destroy(Request $request, $company_slug, $id)
     {
+        if (!user_can('visaexpense_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $category = VisaRenewalCategory::findOrFail($id);
 
         if ($category->is_default) {
@@ -157,6 +170,10 @@ class VisaRenewalCategoryController extends Controller
 
     public function reorder(Request $request)
     {
+        if (!user_can('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'order' => 'required|array',
             'order.*' => 'integer|exists:visa_renewal_categories,id',

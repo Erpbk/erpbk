@@ -13,8 +13,16 @@ class ActivityLogController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('permission:settings_activity_logs_view')->only(['index', 'show']);
-        $this->middleware('permission:settings_activity_logs_delete')->only(['destroy']);
+        $this->middleware(function ($request, $next) {
+            abort_unless(user_can('activity_logs_view'), 403);
+
+            return $next($request);
+        })->only(['index', 'show']);
+        $this->middleware(function ($request, $next) {
+            abort_unless(user_can('activity_logs_delete'), 403);
+
+            return $next($request);
+        })->only(['destroy']);
     }
     /**
      * Display a listing of the activity logs.

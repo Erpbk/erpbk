@@ -73,7 +73,7 @@ class ImportBikes implements ToCollection, WithHeadingRow
             'insurance_expiry' => 'nullable|date',
             'insurance_co' => 'nullable|string|max:255',
             'policy_no' => 'nullable|string|max:100',
-            'contract_number' => 'nullable|string|max:50',
+            'leased_date' => 'nullable|date',
             'traffic_file_number' => 'nullable|string|max:100',
             'notes' => 'nullable|string',
         ];
@@ -134,7 +134,6 @@ class ImportBikes implements ToCollection, WithHeadingRow
             'status' => isset($row['status']) ? (int)$row['status'] : 1,
             'insurance_co' => $row['insurance_co'] ?? null,
             'policy_no' => $row['policy_no'] ?? null,
-            'contract_number' => $row['contract_number'] ?? null,
             'traffic_file_number' => $row['traffic_file_number'] ?? null,
             'notes' => $row['notes'] ?? null,
             'created_by' => Auth::id(),
@@ -152,6 +151,10 @@ class ImportBikes implements ToCollection, WithHeadingRow
 
         if (!empty($row['insurance_expiry'])) {
             $data['insurance_expiry'] = $this->parseDate($row['insurance_expiry']);
+        }
+
+        if (!empty($row['leased_date'])) {
+            $data['leased_date'] = $this->parseDate($row['leased_date']);
         }
 
         // Handle foreign key relationships

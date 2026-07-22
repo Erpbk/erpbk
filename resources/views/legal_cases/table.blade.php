@@ -2,21 +2,22 @@
 @endpush
 <div id="legal-cases-inline-edit-scope">
    <table class="table table-striped dataTable no-footer" id="legalCasesDataTable">
+      @php $vf = static fn (string $f): bool => field_visible('legalcase', $f); @endphp
       <thead class="text-center">
          <tr role="row">
-            <th title="Date">Date</th>
-            <th title="Billing Month">Billing Month</th>
-            <th title="Case Status">Case Status</th>
-            <th title="Reference Number">Reference #</th>
-            <th title="Expiry Date">Expiry Date</th>
-            <th title="Step Status">Step Status</th>
+            @if($vf('date'))<th title="Date">Date</th>@endif
+            @if($vf('billing_month'))<th title="Billing Month">Billing Month</th>@endif
+            @if($vf('case_status'))<th title="Case Status">Case Status</th>@endif
+            @if($vf('reference_number'))<th title="Reference Number">Reference #</th>@endif
+            @if($vf('expiry_date'))<th title="Expiry Date">Expiry Date</th>@endif
+            @if($vf('step_status'))<th title="Step Status">Step Status</th>@endif
             <th title="Action">Action</th>
          </tr>
       </thead>
       <tbody>
          @foreach($data as $r)
          <tr class="text-center" data-row-id="{{ $r->id }}">
-            <td>
+            @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
                @can('legal_case_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-legal-field" data-id="{{ $r->id }}" data-field="date">
@@ -28,8 +29,8 @@
                   id="date_input_{{ $r->id }}"
                   value="{{ \Carbon\Carbon::parse($r->date)->format('Y-m-d') }}"
                   class="form-control form-control-sm d-none">
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('billing_month'))<td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
                @can('legal_case_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-legal-field" data-id="{{ $r->id }}" data-field="billing">
@@ -41,25 +42,25 @@
                   id="billing_input_{{ $r->id }}"
                   value="{{ \Carbon\Carbon::parse($r->billing_month)->format('Y-m') }}"
                   class="form-control form-control-sm d-none">
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('case_status'))<td>
                <span class="badge bg-primary">{{ $r->case_status }}</span>
-            </td>
-            <td>{{ $r->reference_number }}</td>
-            <td>
+            </td>@endif
+            @if($vf('reference_number'))<td>{{ $r->reference_number }}</td>@endif
+            @if($vf('expiry_date'))<td>
                @if($r->expiry_date)
                <span>{{ \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') }}</span>
                @else
                <span class="text-muted">-</span>
                @endif
-            </td>
-            <td id="step_status_cell_{{ $r->id }}">
+            </td>@endif
+            @if($vf('step_status'))<td id="step_status_cell_{{ $r->id }}">
                @if($r->step_status === 'completed')
                <span class="badge bg-success">Completed</span>
                @else
                <span class="badge bg-warning text-dark">Pending</span>
                @endif
-            </td>
+            </td>@endif
             <td id="step_action_cell_{{ $r->id }}">
                @if($r->step_status === 'pending')
                @canany(['legal_case_create', 'legal_case_edit'])

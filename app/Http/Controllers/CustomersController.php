@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\CustomersDataTable;
 use App\DataTables\FilesDataTable;
 use App\DataTables\LedgerDataTable;
 use App\Helpers\Account;
@@ -34,15 +35,6 @@ class CustomersController extends AppBaseController
   public function __construct(CustomersRepository $customersRepo)
   {
     $this->customersRepository = $customersRepo;
-    $this->middleware('permission:customers_customer_view')->only('index', 'show', 'ledger');
-    $this->middleware('permission:customers_customer_create')->only('create', 'store');
-    $this->middleware('permission:customers_customer_edit')->only('edit', 'update');
-    $this->middleware('permission:customers_customer_delete')->only('destroy');
-    $this->middleware('permission:customers_invoices_view')->only('invoices');
-    $this->middleware('permission:customers_payments_view')->only('payments', 'receipts', 'cReceipts');
-    $this->middleware('permission:customers_documents_view')->only('files');
-    $this->middleware('permission:customers_inventory_view')->only('inventory');
-
   }
 
   /**
@@ -50,6 +42,10 @@ class CustomersController extends AppBaseController
    */
   public function index(Request $request)
   {
+
+    if (! \App\Support\RoleFieldAccess::canAccessModule('customer')) {
+      abort(403, 'Unauthorized action.');
+    }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Customers::query()
@@ -106,14 +102,24 @@ class CustomersController extends AppBaseController
       Flash::error('Customer already exists.');
       return redirect()->back();
     }
-    $parentAccount = \App\Support\GlobalAccounts::id('CUSTOMER_PARENT');
+    $parentAccount = Accounts::where('name', 'Customer')->where('account_type', 'Asset')->first();
+    if (!$parentAccount) {
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Parent account "Customer" not found.',
+        ], 500);
+      }
+      Flash::error('Parent account "Customer" not found.');
+      return redirect(route('customers.index'));
+    }
     try {
+      $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'customer');
       $customers = $this->customersRepository->create($input);
       $account = new Accounts();
       $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
       $account->account_type = 'Asset';
       $account->name = $customers->name;
-      $account->parent_id = $parentAccount;
+      $account->parent_id = $parentAccount->id;
       $account->ref_name = 'Customer';
       $account->ref_id = $customers->id;
       $account->status = $customers->status;
@@ -186,14 +192,16 @@ class CustomersController extends AppBaseController
       return redirect(route('customers.index'));
     }
 
-    $customers = $this->customersRepository->update($request->all(), $id);
+    $customers = $this->customersRepository->update(
+      \App\Support\RoleFieldAccess::stripNonEditableInput($request->all(), 'customer'),
+      $id
+    );
 
     // Update linked account safely via relation model instance.
     $account = $customers->account;
     if ($account) {
       $account->status = $customers->status;
       $account->branch_id = $customers->branch_id;
-      $account->name = $customers->name;
       $account->save();
     }
 
@@ -364,6 +372,9 @@ class CustomersController extends AppBaseController
 
   public function inventory($company_slug, $id)
   {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('riderinventory') && ! \App\Support\RoleFieldAccess::canAccessModule('customer')) {
+      abort(403, 'Unauthorized action.');
+    }
 
     $customer = Customers::find($id);
     if (!$customer) {

@@ -41,10 +41,11 @@
     <thead class="text-center">
       <tr role="row">
         @php
+        $vf = static fn (string $f): bool => field_visible('sim', $f);
         $tableCols = $tableColumns ?? [];
-        $dataColumns = array_values(array_filter($tableCols, function($c){
+        $dataColumns = array_values(array_filter($tableCols, function($c) use ($vf) {
         $k = $c['data'] ?? ($c['key'] ?? null);
-        return $k !== 'search' && $k !== 'control';
+        return $k !== 'search' && $k !== 'control' && $vf((string) $k);
         }));
         @endphp
         @foreach($dataColumns as $col)
@@ -56,14 +57,14 @@
     <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-        <td>
+        @if($vf('number'))<td>
           <a href="{{ route('sims.show', $r->id) }}" class="table-link">
             {{$r->number}}
           </a>
-        </td>
-        <td>{{$r->telecomCompany?->name ?? '-'}}</td>
-        <td>{{$r->emi}}</td>
-        <td>
+        </td>@endif
+        @if($vf('company'))<td>{{$r->telecomCompany?->name ?? '-'}}</td>@endif
+        @if($vf('emi'))<td>{{$r->emi}}</td>@endif
+        @if($vf('assign_to'))<td>
           @if($r->assign_to)
           @if($r->assign_type === 'employee' && $r->employee)
           {{ $r->employee->employee_id }}
@@ -75,8 +76,8 @@
           @else
           -
           @endif
-        </td>
-        <td>
+        </td>@endif
+        @if($vf('rider_name'))<td>
           @if($r->assign_to)
           @if($r->assign_type === 'employee' && $r->employee)
           <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->name }}</a>
@@ -88,15 +89,15 @@
           @else
           -
           @endif
-        </td>
-        <td>
+        </td>@endif
+        @if($vf('vendor'))<td>
           @if($r->vendors)
           {{$r->vendors->name}}
           @else
           -
           @endif
-        </td>
-        <td>
+        </td>@endif
+        @if($vf('status'))<td>
           @if($r->status === null)
           <span class="badge bg-secondary">Unknown</span>
           @elseif($r->status)
@@ -104,7 +105,7 @@
           @else
           <span class="badge bg-danger">Inactive</span>
           @endif
-        </td>
+        </td>@endif
         <td style="position: relative;">
           <div class="dropdown sim-table-action-dropdown">
             <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">

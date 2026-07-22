@@ -43,7 +43,7 @@ class AccountsController extends AppBaseController
    */
   public function index(Request $request)
   {
-    if (!auth()->user()->hasPermissionTo('accounts_coa_view')) {
+    if (!user_can('account_view')) {
       abort(403, 'Unauthorized action.');
     }
     $search = trim((string) $request->get('search'));
@@ -140,8 +140,10 @@ class AccountsController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('accounts_coa_create')) {
       abort(403, 'Unauthorized action.');
     }
-    $input = $request->except(['custom_field_values', 'is_fixed']);
-    $input['is_fixed'] = false;
+
+    $input = $request->except(['custom_field_values']);
+    $input['is_fixed'] = $this->resolveFixedFlag($request, false);
+    $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
     // Set is_locked=1 if parent_id is not set (root account)
 
     $accounts = $this->accountsRepository->create($input);
@@ -149,7 +151,11 @@ class AccountsController extends AppBaseController
     $accounts->is_locked = 0;
     $accounts->save();
 
-    $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
+    $storeCustom = \App\Support\RoleFieldAccess::stripNonEditableInput(
+      ['custom_field_values' => $request->input('custom_field_values', [])],
+      'account'
+    )['custom_field_values'] ?? [];
+    $this->saveCustomFieldValues($accounts, $storeCustom);
 
     return response()->json(['message' => 'Account added successfully.']);
   }
@@ -233,12 +239,19 @@ class AccountsController extends AppBaseController
       ], 422);
     }
 
-    $input = $request->except(['custom_field_values', 'is_fixed']);
-    $input['is_fixed'] = (bool) ($accounts->is_fixed ?? false);
+    $input = $request->except(['custom_field_values']);
+    $input['is_fixed'] = $this->resolveFixedFlag($request, (bool) ($accounts->is_fixed ?? false));
+    $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
+    $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
     $accounts = $this->accountsRepository->update($input, $id);
 
     if ($accounts) {
-      $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
+      $updateCustom = \App\Support\RoleFieldAccess::stripNonEditableInput(
+        ['custom_field_values' => $request->input('custom_field_values', [])],
+        'account',
+        $existingCustom
+      )['custom_field_values'] ?? [];
+      $this->saveCustomFieldValues($accounts, $updateCustom);
       $row = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
       if (isset($row)) {
         $row->name = $accounts->name;
@@ -589,7 +602,7 @@ class AccountsController extends AppBaseController
     return GlobalAccount::query()
       ->whereNotNull('account_id')
       ->pluck('account_id')
-      ->map(fn ($id) => (int) $id)
+      ->map(fn($id) => (int) $id)
       ->flip()
       ->all();
   }

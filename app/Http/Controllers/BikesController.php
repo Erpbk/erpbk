@@ -47,16 +47,6 @@ class BikesController extends AppBaseController
     public function __construct(BikesRepository $bikesRepo)
     {
         $this->bikesRepository = $bikesRepo;
-        $this->middleware('permission:bikes_bike_view')->only('index', 'show');
-        $this->middleware('permission:bikes_bike_create')->only('create', 'store', 'leasingReturn', 'importbikes', 'processImport', 'downloadSampleTemplate');
-        $this->middleware('permission:bikes_bike_edit')->only('edit', 'update', 'leasingReturn');
-        $this->middleware('permission:bikes_bike_delete')->only('destroy');
-        $this->middleware('permission:bikes_assign_create|bikes_assign_edit')->only('assignrider', 'assign_rider', 'changeProject', 'assignContract', 'returnContract', 'leaseReturn');
-        $this->middleware('permission:bikes_export_data_create')->only('exportBikes', 'exportCustomizableBikes');
-        $this->middleware('permission:bikes_maintenance_view')->only('maintenance');
-        $this->middleware('permission:bikes_documents_view')->only('files');
-
-
     }
 
     protected function mergeBikeAssignCustomFields(Bikes $bike, Request $request): void
@@ -76,6 +66,10 @@ class BikesController extends AppBaseController
      */
     public function index(Request $request)
     {
+
+        if (! user_can('bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Bikes::query()
@@ -95,14 +89,8 @@ class BikesController extends AppBaseController
         if ($request->has('rider') && ! empty($request->rider)) {
             $query->where('rider_id', $request->rider);
         }
-        if ($request->has('customer_id') && ! empty($request->customer_id)) {
-            $query->where('customer_id', $request->customer_id);
-        }
-        if ($request->has('company') && ! empty($request->company) && $request->company != 'own') {
+        if ($request->has('company') && ! empty($request->company)) {
             $query->where('company', $request->company);
-        }
-        if($request->has('company') && $request->company == 'own') {
-            $query->where('bike_owner', 'Owned');
         }
         if ($request->has('emirates') && ! empty($request->emirates)) {
             $query->where('emirates', $request->emirates);
@@ -220,7 +208,7 @@ class BikesController extends AppBaseController
         $filteredColumns = Schema::getColumnListing('bikes');
 
         // Columns to exclude
-        $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'contract_number', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
+        $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'leased_date', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -246,10 +234,8 @@ class BikesController extends AppBaseController
             'emirates',
             'company',
             'customer_id',
-            'warehouse',
-            'status',
+            'bike_status',
             'expiry_date',
-            'leased_return_status',
             'created_by',
             'updated_by',
         ];
@@ -262,11 +248,13 @@ class BikesController extends AppBaseController
 
         // Add preferred DB columns first
         foreach ($preferredOrder as $key) {
-            if ($key === 'leased_return_status') {
-                if (Schema::hasColumn('bikes', 'leased_return_by')) {
-                    $columns[] = ['data' => 'leased_return_status', 'title' => 'Leasing return'];
-                    $added['leased_return_status'] = true;
-                }
+            if ($key === 'bike_status') {
+                // Combined column: road status + warehouse + leasing return (stacked badges).
+                $columns[] = ['data' => 'bike_status', 'title' => 'Status'];
+                $added['bike_status'] = true;
+                // Prevent the underlying DB columns from being appended separately below.
+                $added['warehouse'] = true;
+                $added['status'] = true;
 
                 continue;
             }
@@ -298,7 +286,7 @@ class BikesController extends AppBaseController
             ['data' => 'control', 'title' => 'Control'],
         ]);
 
-        return $columns;
+        return \App\Support\RoleFieldAccess::filterTableColumns($columns, 'bike');
     }
 
     /**
@@ -450,6 +438,7 @@ class BikesController extends AppBaseController
         }
 
         $input = $this->normalizeBikeInputForDatabase($input, true);
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'bike');
         $input['warehouse'] = 'Inactive';
 
         $emiratesFromForm = trim((string) ($input['emirates'] ?? ''));
@@ -524,6 +513,7 @@ class BikesController extends AppBaseController
         $oldBikeCustomerId = $bikes->customer_id;
 
         $input = $this->normalizeBikeInputForDatabase($request->all(), false);
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'bike', is_array($bikes->custom_field_values ?? null) ? $bikes->custom_field_values : []);
         $bikes = $this->bikesRepository->update($input, $id);
         $bikes->updated_by = Auth::user()->id;
         $bikes->save();
@@ -794,6 +784,7 @@ class BikesController extends AppBaseController
                 $riderBefore = $rider ? RiderHistoryLogger::riderSnapshot($rider) : null;
                 $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
                 $company = $bike->rentalCompany;
+                $designation = $request->designation;
                 $message = "*Bike* 🏍️\n";
                 $message .= "────────────────\n";
                 $message .= "*Bike No:* {$bike->plate}\n";
@@ -815,9 +806,6 @@ class BikesController extends AppBaseController
                     $message .= "*Project:* {$bike->customer->name}\n";
                 }
                 $message .= "*Emirates:* {$bike->emirates}\n";
-                if ($request->note) {
-                    $message .= "*Note:* {$request->note}\n";
-                }
                 $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
 
                 // Status handling
@@ -1306,7 +1294,7 @@ class BikesController extends AppBaseController
         }
 
         if ($request->isMethod('post')) {
-            if (! auth()->user()->can('bikes_bike_edit')) {
+            if (! auth()->user()->can('bike_edit')) {
                 abort(403, 'Unauthorized');
             }
             if (Schema::hasColumn('bikes', 'leased_return_date') && ! empty($bike->leased_return_date)) {
@@ -1358,7 +1346,7 @@ class BikesController extends AppBaseController
         }
 
         if ($request->isMethod('post')) {
-            if (! auth()->user()->can('bikes_assign_edit')) {
+            if (! auth()->user()->can('bike_assign_edit')) {
                 abort(403, 'Unauthorized');
             }
 
@@ -1608,6 +1596,9 @@ class BikesController extends AppBaseController
      */
     public function exportBikes(Request $request)
     {
+        if (! user_can('bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
 
         if ($request->ajax()) {
             return response()->view('bikes.export_modal');
@@ -1621,6 +1612,10 @@ class BikesController extends AppBaseController
      */
     public function exportCustomizableBikes(Request $request)
     {
+        if (! user_can('bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // Get column configuration from request or user settings
         $visibleColumns = $request->input('visible_columns');
         $columnOrder = $request->input('column_order');
@@ -1689,6 +1684,10 @@ class BikesController extends AppBaseController
      */
     public function importbikes()
     {
+        if (! user_can('bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         \Log::info('Stack trace: reached importbikes');
 
         return view('bikes.import');
@@ -1699,6 +1698,10 @@ class BikesController extends AppBaseController
      */
     public function processImport(Request $request)
     {
+        if (! user_can('bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // Validate the request
         $request->validate([
             'file' => 'required|file|mimes:xlsx,xls,csv|max:51200', // Max 50MB
@@ -1771,6 +1774,10 @@ class BikesController extends AppBaseController
      */
     public function downloadSampleTemplate()
     {
+        if (! user_can('bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $headers = [
             'plate',
             'vehicle_type',
@@ -1792,7 +1799,7 @@ class BikesController extends AppBaseController
             'insurance_co',
             'policy_no',
             'status',
-            'contract_number',
+            'leased_date',
             'customer_name',
         ];
 
@@ -1818,7 +1825,7 @@ class BikesController extends AppBaseController
                 'Insurance Company',
                 'POL001',
                 '1',
-                'CNT001',
+                '2023-01-15',
                 'Customer Name',
             ],
             [
@@ -1842,7 +1849,7 @@ class BikesController extends AppBaseController
                 'Insurance Company',
                 'POL002',
                 '1',
-                'CNT002',
+                '2023-02-20',
                 'Customer Name',
             ],
             [
@@ -1866,7 +1873,7 @@ class BikesController extends AppBaseController
                 'Insurance Company',
                 'POL003',
                 '1',
-                'CNT003',
+                '2023-03-10',
                 'Customer Name',
             ],
         ];

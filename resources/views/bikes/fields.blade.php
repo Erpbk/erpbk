@@ -17,6 +17,16 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @if ($useDynamicFields)
 {{-- One card per category, stacked (same pattern as riders) --}}
 @foreach($fieldsByCategory as $group)
+@php
+    $rfpGroupVisible = collect($group->fields)->contains(function ($item) use ($hiddenFieldKeys) {
+        if (($item->kind ?? '') === 'fixed' && in_array((string) ($item->field_key ?? ''), $hiddenFieldKeys, true)) {
+            return false;
+        }
+        $fn = ($item->kind ?? '') === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
+        return field_visible('bike', (string) $fn);
+    });
+@endphp
+@if($rfpGroupVisible)
 <div class="card mb-4">
     <div class="card-header">
         <b>{{ $group->category->label }}</b>
@@ -53,6 +63,7 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
         </div>
     </div>
 </div>
+@endif
 @endforeach
 @else
 <div class="alert alert-warning mb-0">
@@ -135,9 +146,49 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
             vehicleTypeEl.addEventListener('change', toggleCyclistFields);
         }
 
+        function toggleLeasedFields() {
+            var bikeOwnerEl = document.getElementById('bike_owner');
+            if (!bikeOwnerEl) return;
+
+            var isLeased = (bikeOwnerEl.value || '').toLowerCase() === 'leased';
+            document.querySelectorAll('.show-if-leased').forEach(function(el) {
+                el.style.display = isLeased ? '' : 'none';
+
+                // Hidden required inputs block form submission, so lift the
+                // attribute while hidden and restore it when shown again.
+                el.querySelectorAll('input, select, textarea').forEach(function(input) {
+                    if (isLeased) {
+                        if (input.dataset.leasedRequired === '1') {
+                            input.required = true;
+                        }
+                    } else {
+                        if (input.required) {
+                            input.dataset.leasedRequired = '1';
+                        }
+                        input.required = false;
+                    }
+                });
+            });
+        }
+
+        function bindLeasedToggle() {
+            var bikeOwnerEl = document.getElementById('bike_owner');
+            if (!bikeOwnerEl || bikeOwnerEl.dataset.leasedToggleBound === '1') {
+                return;
+            }
+            bikeOwnerEl.dataset.leasedToggleBound = '1';
+            bikeOwnerEl.addEventListener('change', toggleLeasedFields);
+            // select2 fires change through jQuery only, which native listeners miss.
+            if (window.jQuery) {
+                window.jQuery(bikeOwnerEl).on('change', toggleLeasedFields);
+            }
+        }
+
         function bootBikeForm(scope) {
             toggleCyclistFields();
             bindCyclistToggle();
+            toggleLeasedFields();
+            bindLeasedToggle();
             initBikeFormSelect2(scope);
         }
 

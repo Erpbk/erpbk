@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\SimsDataTable;
 use App\Http\Requests\CreateSimsRequest;
 use App\Http\Requests\UpdateSimsRequest;
 use App\Http\Controllers\AppBaseController;
@@ -36,12 +37,6 @@ class SimsController extends AppBaseController
     public function __construct(SimsRepository $simsRepo)
     {
         $this->simsRepository = $simsRepo;
-        $this->middleware('permission:sims_sim_view')->only('index', 'show');
-        $this->middleware('permission:sims_sim_create')->only('create', 'store', 'import', 'downloadTemplate');
-        $this->middleware('permission:sims_sim_edit')->only('edit', 'update', 'import', 'downloadTemplate');
-        $this->middleware('permission:sims_sim_delete')->only('destroy');
-        $this->middleware('permission:sims_assign_create|sims_assign_edit')->only('assign', 'return');
-        $this->middleware('permission:sims_export_data_create')->only('export');
     }
 
     /**
@@ -49,6 +44,10 @@ class SimsController extends AppBaseController
      */
     public function index(Request $request)
     {
+
+        if (!user_can('sim_view')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Sims::query()
@@ -184,7 +183,9 @@ class SimsController extends AppBaseController
             ['data' => 'action', 'title' => 'Actions'],
         ]);
 
-        return $columns;
+        // Drop columns the current user may not view so the Column Control panel
+        // stays index-aligned with the (also permission-gated) table body.
+        return \App\Support\RoleFieldAccess::filterTableColumns($columns, 'sim');
     }
 
     /**

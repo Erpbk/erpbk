@@ -1,41 +1,62 @@
+@php
+  // Field-level visibility (respects Role → Field Permissions). A column is hidden
+  // everywhere in this module when its field is marked not-visible for the user.
+  $vfShow = static fn (string $field): bool => field_visible('voucher', $field);
+  $vfCols = [
+    'trans_date' => $vfShow('trans_date'),
+    'trans_code' => $vfShow('trans_code'),
+    'billing_month' => $vfShow('billing_month'),
+    'reference_number' => $vfShow('reference_number'),
+    'voucher_type' => $vfShow('voucher_type'),
+    'amount' => $vfShow('amount'),
+    'created_by' => $vfShow('created_by'),
+    'updated_by' => $vfShow('updated_by'),
+    'attach_file' => $vfShow('attach_file'),
+  ];
+  // colspan for the "no data" row = visible data columns + Voucher ID + Actions.
+  $vfColspan = count(array_filter($vfCols)) + 2;
+@endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
   <thead class="text-center">
     <tr role="row">
       <th title="Voucher ID" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-      <th title="Date" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-      <th title="Trans Code" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Trans Code: activate to sort column ascending">Trans Code</th>
-      <th title="Billing Month" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-      <th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Reference Number: activate to sort column ascending">Reference Number</th>
-      <th title="Type" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>
-      <th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-      <th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
-      <th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
-      <th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>
+      @if($vfCols['trans_date'])<th title="Date" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>@endif
+      @if($vfCols['trans_code'])<th title="Trans Code" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Trans Code: activate to sort column ascending">Trans Code</th>@endif
+      @if($vfCols['billing_month'])<th title="Billing Month" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>@endif
+      @if($vfCols['reference_number'])<th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Reference Number: activate to sort column ascending">Reference Number</th>@endif
+      @if($vfCols['voucher_type'])<th title="Type" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
+      @if($vfCols['amount'])<th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
+      @if($vfCols['created_by'])<th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>@endif
+      @if($vfCols['updated_by'])<th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>@endif
+      @if($vfCols['attach_file'])<th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>@endif
       <th title="Actions" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Actions">Actions</th>
+      {{-- Trailing fixed columns (search + control) expected by the Column Control panel. Hidden from view but present so the panel's index math (headerCells.length - 2) stays aligned with the table body. --}}
+      <th class="sorting_disabled" rowspan="1" colspan="1" aria-hidden="true" style="display:none;"></th>
+      <th class="sorting_disabled" rowspan="1" colspan="1" aria-hidden="true" style="display:none;"></th>
     </tr>
   </thead>
   <tbody>
     @php
-      $__companySlug = \App\Support\CompanyRouteContext::slug();
-      $editDeleteFlags = $editDeleteFlags ?? [];
-      $voucherTypes = \App\Helpers\General::VoucherType();
-      $voucherRouteParams = static function ($voucherKey) use ($__companySlug): array {
-        $params = ['voucher' => $voucherKey];
-        if (!empty($__companySlug)) {
-          $params['company_slug'] = $__companySlug;
-        }
-        return $params;
-      };
-      $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
-        $params = ['id' => $transCode];
-        if (!empty($__companySlug)) {
-          $params['company_slug'] = $__companySlug;
-        }
-        return $params;
-      };
-      $listSidebarParams = !empty($__companySlug) ? ['company_slug' => $__companySlug] : [];
+    $__companySlug = \App\Support\CompanyRouteContext::slug();
+    $editDeleteFlags = $editDeleteFlags ?? [];
+    $voucherTypes = \App\Helpers\General::VoucherType();
+    $voucherRouteParams = static function ($voucherKey) use ($__companySlug): array {
+    $params = ['voucher' => $voucherKey];
+    if (!empty($__companySlug)) {
+    $params['company_slug'] = $__companySlug;
+    }
+    return $params;
+    };
+    $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
+    $params = ['id' => $transCode];
+    if (!empty($__companySlug)) {
+    $params['company_slug'] = $__companySlug;
+    }
+    return $params;
+    };
+    $listSidebarParams = !empty($__companySlug) ? ['company_slug' => $__companySlug] : [];
     @endphp
-@if(isset($data) && $data->count() > 0)
+    @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
     <tr class="text-center">
       <td>
@@ -44,17 +65,17 @@
         @endphp
         <a href="javascript:void(0);" class="text-primary show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ \App\Helpers\General::VoucherType($voucher->voucher_type) ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">{{ $voucherId }}</a>
       </td>
-      <td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>
-      <td>{{ $voucher->trans_code }}</td>
-      <td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>
-      <td>{{ $voucher->reference_number ?? 'N/A' }}</td>
-      <td>
+      @if($vfCols['trans_date'])<td>{{ \App\Helpers\Common::DateFormat($voucher->trans_date) }}</td>@endif
+      @if($vfCols['trans_code'])<td>{{ $voucher->trans_code }}</td>@endif
+      @if($vfCols['billing_month'])<td>{{ \App\Helpers\Common::MonthFormat($voucher->billing_month) }}</td>@endif
+      @if($vfCols['reference_number'])<td>{{ $voucher->reference_number ?? 'N/A' }}</td>@endif
+      @if($vfCols['voucher_type'])<td>
         <span class="badge bg-primary">{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }}</span>
-      </td>
-      <td class="text-end">{{ number_format($voucher->amount, 2) }}</td>
-      <td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>
-      <td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>
-      <td>
+      </td>@endif
+      @if($vfCols['amount'])<td class="text-end">{{ number_format($voucher->amount, 2) }}</td>@endif
+      @if($vfCols['created_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>@endif
+      @if($vfCols['updated_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>@endif
+      @if($vfCols['attach_file'])<td>
         @if($voucher->attach_file)
         @if($voucher->voucher_type == 'RFV')
         <a href="{{ url('storage/' . $voucher->attach_file) }}" class="btn btn-sm btn-outline-primary" target="_blank">
@@ -72,27 +93,27 @@
         @else
         <span class="text-muted">-</span>
         @endif
-      </td>
+      </td>@endif
       <td style="position: relative;">
         <div class="dropdown">
           <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $voucher->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
-            @can('vouchers_create')
-              @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-              <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                  data-action="{{ route('voucher.fileupload', $voucherCloneParams($voucher->id)) }}" class='dropdown-item waves-effect show-modal'>
-                  <i class="fa fa-file my-1"></i> Upload Document
-                </a></li>
-              @endif
+            @can('voucher_document')
+            @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
+            <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
+                data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
+                <i class="fa fa-file my-1"></i> Upload Document
+              </a></li>
+            @endif
             @endcan
-            @can('vouchers_view')
+            @can('voucher_view')
             <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                 <i class="fa fa-eye my-1"></i> View
               </a></li>
             @endcan
-            @can('vouchers_edit')
+            @can('voucher_edit')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
@@ -102,7 +123,7 @@
               </a></li>
             @endif
             @endcan
-            @can('vouchers_delete')
+            @can('voucher_delete')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
                 <i class="fa fa-trash my-1"></i> Delete
@@ -112,11 +133,13 @@
             </ul>
           </div>
       </td>
+      <td style="display:none;"></td>
+      <td style="display:none;"></td>
     </tr>
     @endforeach
     @else
     <tr>
-      <td colspan="12" class="text-center">
+      <td colspan="{{ $vfColspan + 2 }}" class="text-center">
         <div class="py-4">
           <i class="fa fa-info-circle text-muted"></i>
           <p class="text-muted mb-0">No vouchers found</p>

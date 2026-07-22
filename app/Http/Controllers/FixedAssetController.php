@@ -25,14 +25,18 @@ class FixedAssetController extends AppBaseController
         private readonly FixedAssetVoucherService $voucherService,
         private readonly FixedAssetDepreciationPostingService $postingService
     ) {
-        $this->middleware('permission:assets_view')->only('index', 'show', 'categoryDefaults');
-        $this->middleware('permission:assets_create')->only('create', 'store');
-        $this->middleware('permission:assets_edit')->only('edit', 'update');
-        $this->middleware('permission:assets_delete')->only('destroy');
     }
 
     public function index(Request $request)
     {
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('asset_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FixedAsset::query()
             ->with(['category', 'branch', 'bike', 'depreciationSchedules'])
@@ -86,6 +90,10 @@ class FixedAssetController extends AppBaseController
 
     public function create()
     {
+        if (!user_can('asset_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $categories = AssetCategory::query()->where('is_active', true)->with('assetAccount')->orderBy('name')->get();
         $creditAccounts = Accounts::dropdown(null);
 
@@ -100,6 +108,10 @@ class FixedAssetController extends AppBaseController
 
     public function store(Request $request)
     {
+        if (!user_can('asset_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $this->validateAssetRequest($request, forUpdate: false);
 
         $category = AssetCategory::findOrFail($validated['asset_category_id']);
@@ -187,6 +199,10 @@ class FixedAssetController extends AppBaseController
 
     public function show(string $company_slug, int $id)
     {
+        if (!user_can('asset_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $asset = FixedAsset::with(['category', 'branch', 'depreciationSchedules', 'bike'])->findOrFail($id);
 
         return view('fixed_assets.show', compact('asset'));
@@ -194,6 +210,10 @@ class FixedAssetController extends AppBaseController
 
     public function edit(string $company_slug, int $id)
     {
+        if (!user_can('asset_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $asset = FixedAsset::with(['category', 'assetAccount', 'bike'])->findOrFail($id);
         $categories = AssetCategory::query()->where('is_active', true)->with('assetAccount')->orderBy('name')->get();
         $creditAccounts = Accounts::dropdown(null);
@@ -210,6 +230,10 @@ class FixedAssetController extends AppBaseController
 
     public function update(Request $request, string $company_slug, int $id)
     {
+        if (!user_can('asset_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $asset = FixedAsset::findOrFail($id);
 
         $validated = $this->validateAssetRequest($request, forUpdate: true);
@@ -324,6 +348,10 @@ class FixedAssetController extends AppBaseController
 
     public function destroy(Request $request, string $company_slug, int $id)
     {
+        if (!user_can('asset_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $asset = FixedAsset::findOrFail($id);
         $asset->deleted_by = auth()->id();
         $asset->save();
@@ -339,6 +367,10 @@ class FixedAssetController extends AppBaseController
 
     public function categoryDefaults(Request $request, string $company_slug, int $categoryId)
     {
+        if (!user_can('asset_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $category = AssetCategory::with('assetAccount')->findOrFail($categoryId);
         $cost = (float) $request->query('acquisition_cost', 0);
         $assetAccount = $category->assetAccount;

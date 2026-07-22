@@ -24,10 +24,6 @@ class GaragesController extends AppBaseController
   public function __construct(GaragesRepository $garagesRepo)
   {
     $this->garagesRepository = $garagesRepo;
-    $this->middleware('permission:garages_garage_view')->only('index', 'show');
-    $this->middleware('permission:garages_garage_create')->only('create', 'store');
-    $this->middleware('permission:garages_garage_edit')->only('edit', 'update');
-    $this->middleware('permission:garages_garage_delete')->only('destroy');
   }
 
   /**
@@ -35,6 +31,10 @@ class GaragesController extends AppBaseController
    */
   public function index(Request $request)
   {
+
+    if (!user_can('garage_view')) {
+      abort(403, 'Unauthorized action.');
+    }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Garages::query()
@@ -87,20 +87,27 @@ class GaragesController extends AppBaseController
     $isInternal = ($input['garage_type'] ?? '') === 'internal';
 
     if ($isInternal) {
-      $parentId = GlobalAccounts::id('GARAGE_ACCOUNT');
-      if (! $parentId) {
+      $inventoryParent = Accounts::find(GlobalAccounts::id('GARAGE_ACCOUNT'));
+      if (! $inventoryParent) {
+        $inventoryParent = Accounts::where('name', 'Garages')
+          ->where('account_type', 'Asset')
+          ->first();
+      }
+      if (! $inventoryParent) {
         return response()->json([
-          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Contact ERP Team to Configure it.',
+          'message' => 'Chart of accounts is missing the Garage Inventory (Asset) head. Add it or configure GARAGE_ACCOUNT in Global Accounts.',
         ], 422);
       }
+      $parentId = $inventoryParent->id;
       $accountType = 'Asset';
     } else {
-      $parentId = GlobalAccounts::id('GARAGE_PARENT');
-      if (! $parentId) {
+      $liabilityParent = Accounts::where('name', 'Garages')->where('account_type', 'Liability')->first();
+      if (! $liabilityParent) {
         return response()->json([
-          'message' => 'Chart of accounts is missing the Garage (Liability) head. Contact ERP Team to Configure it.',
+          'message' => 'Chart of accounts is missing the Garages (Liability) head.',
         ], 422);
       }
+      $parentId = $liabilityParent->id;
       $accountType = 'Liability';
     }
 

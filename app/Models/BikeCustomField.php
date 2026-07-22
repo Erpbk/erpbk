@@ -392,6 +392,7 @@ class BikeCustomField extends BaseModel
             'registration_date' => ['type' => 'date'],
             'expiry_date' => ['type' => 'date'],
             'insurance_expiry' => ['type' => 'date'],
+            'leased_date' => ['type' => 'date'],
 
             'notes' => ['type' => 'textarea', 'rows' => 3],
         ];
@@ -431,7 +432,7 @@ class BikeCustomField extends BaseModel
                 'policy_no',
             ],
             'documents_info' => [
-                'contract_number',
+                'leased_date',
             ],
             'other' => [],
         ];

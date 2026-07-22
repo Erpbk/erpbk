@@ -28,7 +28,7 @@ class DropdownsController extends AppBaseController
   public function index(DropdownsDataTable $dropdownsDataTable)
   {
 
-    if (!auth()->user()->hasPermissionTo('dropdown_view')) {
+    if (!user_can('dropdown_view')) {
       abort(403, 'Unauthorized action.');
     }
     return $dropdownsDataTable->render('dropdowns.index');

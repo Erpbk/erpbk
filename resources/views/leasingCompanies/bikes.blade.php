@@ -22,11 +22,11 @@
                         <th title="Code" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Code: activate to sort column ascending">Code</th>
                         <th title="Plate" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Plate: activate to sort column ascending">Plate</th>
                         <th title="Emirates" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Emirates: activate to sort column ascending">Emirates</th>
-                        <th title="Company" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Company: activate to sort column ascending">Company</th>
                         <th title="Warehouse" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Warehouse: activate to sort column ascending">Model Type</th>
                         <th title="Warehouse" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Warehouse: activate to sort column ascending">Chassis</th>
                         <th title="Warehouse" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Warehouse: activate to sort column ascending">Engine</th>
                         <th title="Expiry Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Expiry Date: activate to sort column ascending">Expiry Date</th>
+                        <th title="Leased Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Leased Date: activate to sort column ascending">Leased Date</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -35,7 +35,6 @@
                         <td>{{ $bike->bike_code ?? '-' }}</td>
                         <td><a href='{{ route('bikes.show', $bike->id) }}' target='_blank'>{{ $bike->plate }}</a></td>
                         <td>{{ $bike->emirates ?? '-' }}</td>
-                        <td>{{ $bike->leasingCompany?->name ?? '-' }}</td>
                         <td>{{ $bike->model_type ?? '-' }}</td>
                         <td>{{ $bike->chassis_number ?? '-' }}</td>
                         <td>{{ $bike->engine ?? '-'}}</td>
@@ -46,7 +45,13 @@
                                 -
                             @endif
                         </td>
-
+                        <td>
+                            @if($bike->leased_date)
+                                {{ \Carbon\Carbon::parse($bike->leased_date)->format('d-m-Y') }}
+                            @else
+                                -
+                            @endif
+                        </td>
                     </tr>
                     @endforeach
                 </tbody>

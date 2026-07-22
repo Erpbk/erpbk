@@ -30,14 +30,18 @@ class LegalCaseController extends AppBaseController
     public function __construct(LegalCasesRepository $legalCaseRepo)
     {
         $this->legalCaseRepo = $legalCaseRepo;
-        $this->middleware('permission:legal_case_view')->only('index', 'generatentries');
-        $this->middleware('permission:legal_case_create')->only('accountcreate', 'generatentries', 'create', 'store', 'completeStep');
-        $this->middleware('permission:legal_case_edit')->only('editaccount', 'updateaccount', 'edit', 'update', 'inlineUpdate', 'completeStep');
-        $this->middleware('permission:legal_case_delete')->only('deleteaccount', 'destroy');
     }
 
     public function index(Request $request)
     {
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('legalcase_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
         $query = LegalCaseAccount::query()
@@ -428,6 +432,14 @@ class LegalCaseController extends AppBaseController
 
     public function generatentries(Request $request, $company_slug, $id)
     {
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('legalcase_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $account = LegalCaseAccount::with(['rider', 'employee'])->where('id', $id)->firstOrFail();
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
@@ -549,6 +561,10 @@ class LegalCaseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
+        if (!user_can('legalcase_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'id' => 'required|exists:legal_cases,id',
             'date' => 'required|date',
@@ -570,6 +586,10 @@ class LegalCaseController extends AppBaseController
 
     public function completeStep(Request $request)
     {
+        if (!user_can('legalcase_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'id' => 'required|exists:legal_cases,id',
         ]);

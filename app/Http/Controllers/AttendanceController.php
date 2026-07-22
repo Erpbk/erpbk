@@ -28,6 +28,10 @@ class AttendanceController extends Controller
      */
     public function index(Request $request)
     {
+        if (! \App\Support\RoleFieldAccess::canAccessModule('attendance')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $query = Attendance::with('user');
 
         // Filter by date

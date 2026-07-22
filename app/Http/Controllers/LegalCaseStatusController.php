@@ -11,13 +11,6 @@ use DB;
 
 class LegalCaseStatusController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('permission:legal_case_view')->only('index', 'show');
-        $this->middleware('permission:legal_case_create')->only('create', 'store', 'toggleActive', 'reorder');
-        $this->middleware('permission:legal_case_edit')->only('edit', 'update', 'toggleActive', 'reorder');
-        $this->middleware('permission:legal_case_delete')->only('destroy');
-    }
     /**
      * Display a listing of the visa statuses.
      *
@@ -25,6 +18,16 @@ class LegalCaseStatusController extends Controller
      */
     public function index(Request $request)
     {
+        // Check if user is authenticated
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        // Check permissions
+        if (!user_can('legalcase_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $query = LegalCaseStatus::query();
 
         if ($request->filled('code')) {
@@ -67,6 +70,11 @@ class LegalCaseStatusController extends Controller
      */
     public function create()
     {
+        // Check permissions
+        if (!user_can('legalcase_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         return view('legal_case_statuses.create');
     }
 
@@ -77,8 +85,16 @@ class LegalCaseStatusController extends Controller
      */
     public function show($company_slug, $id)
     {
+        if (!auth()->check()) {
+            return redirect()->route($this->legalCaseStatusesIndexRoute());
+        }
+
+        if (!user_can('legalcase_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         // If user can edit, send them to edit page; otherwise back to index.
-        if (auth()->user()->hasPermissionTo('legal_case_edit')) {
+        if (user_can('legalcase_edit')) {
             return redirect()->route($this->legalCaseStatusesRouteBase() . '.edit', ['case_status' => $id]);
         }
 
@@ -93,6 +109,11 @@ class LegalCaseStatusController extends Controller
      */
     public function store(Request $request)
     {
+        // Check permissions
+        if (!user_can('legalcase_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:legal_case_statuses',
             'code' => 'nullable|string|max:20',
@@ -146,6 +167,11 @@ class LegalCaseStatusController extends Controller
      */
     public function edit($company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('legalcase_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $visaStatus = LegalCaseStatus::findOrFail($id);
         return view('legal_case_statuses.edit', compact('visaStatus'));
     }
@@ -159,6 +185,11 @@ class LegalCaseStatusController extends Controller
      */
     public function update(Request $request, $company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('legalcase_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $visaStatus = LegalCaseStatus::findOrFail($id);
 
         $validated = $request->validate([
@@ -203,6 +234,11 @@ class LegalCaseStatusController extends Controller
      */
     public function destroy(Request $request, $company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('legalcase_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             $visaStatus = LegalCaseStatus::findOrFail($id);
 
@@ -250,6 +286,11 @@ class LegalCaseStatusController extends Controller
      */
     public function toggleActive($company_slug, $id)
     {
+        // Check permissions
+        if (!user_can('legalcase_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             $visaStatus = LegalCaseStatus::findOrFail($id);
             $visaStatus->is_active = !$visaStatus->is_active;
@@ -269,6 +310,10 @@ class LegalCaseStatusController extends Controller
      */
     public function reorder(Request $request)
     {
+        if (!user_can('legalcase_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $order = $request->input('order', []);
         if (!is_array($order) || empty($order)) {
             return response()->json(['success' => false, 'message' => 'Invalid order.'], 422);

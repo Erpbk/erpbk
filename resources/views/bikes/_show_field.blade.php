@@ -54,9 +54,12 @@ $displayValue = \App\Models\BikeCustomField::displayLabelForFixedFieldValue($fie
 $displayValue = filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'Yes' : 'No';
 }
 }
+$rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 @endphp
 
+@if (field_visible('bike', (string) $rfpField))
 <div class="{{ !empty($fullWidth) ? 'col-md-12 col-12' : 'col-md-3 col-3' }} form-group">
     <label><b>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</b></label>
     <p>{{ $displayValue }}</p>
 </div>
+@endif

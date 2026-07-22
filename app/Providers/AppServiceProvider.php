@@ -21,8 +21,8 @@ use App\Services\GlobalAccountResolver;
 use App\Services\Module\TopBarListingService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
-
 class AppServiceProvider extends ServiceProvider
 {
   /**
@@ -52,7 +52,36 @@ class AppServiceProvider extends ServiceProvider
         return true;
       }
 
-      return null;
+      // Bridge legacy/flat ability names (e.g. "voucher_view", "salik_view", "gn_ledger")
+      // still used by @can directives and the sidebar to the new hierarchical permission
+      // scheme. Only ever grants (true) or defers (null) — never denies, never over-grants.
+      return \App\Support\RoleFieldAccess::gateFallback(
+        $user instanceof \App\Models\User ? $user : null,
+        $ability
+      );
+    });
+
+    // ---- Field-level permission Blade directives ----
+    // These delegate to the global field_* helpers (app/functions.php), which are the
+    // single source of truth and in turn delegate to App\Support\RoleFieldAccess.
+    //
+    // Wrap a field so it only renders when the current user may VIEW it:
+    //   @fieldVisible('rider', 'phone') ... @endfieldVisible
+    Blade::if('fieldVisible', function ($entity, $field) {
+      return field_visible((string) $entity, (string) $field);
+    });
+    // Render a block only when the field is EDITABLE for the current user:
+    //   @fieldEditable('rider', 'phone') ... @else ... @endfieldEditable
+    Blade::if('fieldEditable', function ($entity, $field) {
+      return field_editable((string) $entity, (string) $field);
+    });
+    // Inline attribute helpers for hardcoded inputs:
+    //   <input ... @fieldReadonly('rider', 'phone') @fieldRequired('rider', 'phone')>
+    Blade::directive('fieldReadonly', function ($expression) {
+      return "<?php echo field_editable($expression) ? '' : 'readonly disabled'; ?>";
+    });
+    Blade::directive('fieldRequired', function ($expression) {
+      return "<?php echo field_required($expression) ? 'required' : ''; ?>";
     });
 
     // Force HTTPS in production

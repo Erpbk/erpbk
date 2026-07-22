@@ -1,37 +1,38 @@
 @php $branchRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.branches' : 'branches'; @endphp
+@php $vf = static fn (string $f): bool => field_visible('branch', $f); @endphp
 <table class="table" id="dataTableBuilder">
     <thead>
         <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Contact</th>
-            <th>City</th>
-            <th>Address</th>
+            @if($vf('code'))<th>Code</th>@endif
+            @if($vf('name'))<th>Name</th>@endif
+            @if($vf('contact'))<th>Contact</th>@endif
+            @if($vf('city'))<th>City</th>@endif
+            @if($vf('address'))<th>Address</th>@endif
             <th>Parent Branch</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Notes</th>
+            @if($vf('type'))<th>Type</th>@endif
+            @if($vf('is_active'))<th>Status</th>@endif
+            @if($vf('description'))<th>Notes</th>@endif
             <th>Actions</th>
         </tr>
     </thead>
     <tbody>
         @foreach($branches as $branch)
         <tr>
-            <td>{{ $branch->code ?? '-' }}</td>
-            <td>{{ $branch->name }}</td>
-            <td>{{ $branch->contact ?? '-' }}</td>
-            <td>{{ $branch->city ?? '-' }}</td>
-            <td>{{ $branch->address }}</td>
+            @if($vf('code'))<td>{{ $branch->code ?? '-' }}</td>@endif
+            @if($vf('name'))<td>{{ $branch->name }}</td>@endif
+            @if($vf('contact'))<td>{{ $branch->contact ?? '-' }}</td>@endif
+            @if($vf('city'))<td>{{ $branch->city ?? '-' }}</td>@endif
+            @if($vf('address'))<td>{{ $branch->address }}</td>@endif
             <td>{{ $branch->parent->name ?? '-' }}</td>
-            <td><span class="badge bg-label-primary">{{ $branch->type }}</span></td>
-            <td>
+            @if($vf('type'))<td><span class="badge bg-label-primary">{{ $branch->type }}</span></td>@endif
+            @if($vf('is_active'))<td>
                 @if($branch->is_active)
                     <span class="badge bg-label-success">Active</span>
                 @else   
                     <span class="badge bg-label-danger">Inactive</span>
                 @endif
-            </td>
-            <td>{{ $branch->description }}</td>
+            </td>@endif
+            @if($vf('description'))<td>{{ $branch->description }}</td>@endif
             <td style="position: relative;">
                 <div class="dropdown">
                 <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $branch->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">

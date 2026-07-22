@@ -14,7 +14,13 @@ if (($item->kind ?? '') === 'fixed') {
         $value = old('custom_field_values.' . $item->field->id) ?? $item->field->default_value ?? null;
     }
 }
+$rfpEntity = 'employees';
+$rfpField = ($item->kind ?? '') === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
+$rfpVisible = field_visible($rfpEntity, (string) $rfpField);
+$rfpEditable = field_editable($rfpEntity, (string) $rfpField);
+$rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
 @endphp
+@if ($rfpVisible)
 <div class="form-group col-sm-4 mb-3">
     @if (($item->kind ?? '') === 'fixed')
         @php
@@ -22,7 +28,7 @@ if (($item->kind ?? '') === 'fixed') {
         $req = !empty($spec['required']);
         $isReadonly = !empty($spec['readonly'])
             || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
-        $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+        $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
         @endphp
         {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
         @if (($spec['type'] ?? 'text') === 'select')
@@ -62,7 +68,7 @@ if (($item->kind ?? '') === 'fixed') {
                     $opts = $dropdownOpts !== [] ? ['' => 'Select'] + $dropdownOpts : ['' => 'Select'];
                 }
             @endphp
-            {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}
+            {!! Form::select($item->field_key, $opts, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : []) + $rfpSelectLock) !!}
         @elseif (($spec['type'] ?? '') === 'textarea')
             {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
         @elseif (($spec['type'] ?? '') === 'checkbox')
@@ -79,7 +85,7 @@ if (($item->kind ?? '') === 'fixed') {
         $f = $item->field;
         $req = $f->is_mandatory ?? false;
         $isReadonly = \App\Support\SimAssigneeContactSync::isManagedCustomFieldId((int) $f->id, 'employee_custom_fields');
-        $readonlyAttrs = $isReadonly ? ['readonly' => 'readonly'] : [];
+        $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
         @endphp
         {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
         @switch($f->data_type)
@@ -104,10 +110,11 @@ if (($item->kind ?? '') === 'fixed') {
                         }
                     }
                 @endphp
-                {!! Form::select($name, $dd, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : [])) !!}
+                {!! Form::select($name, $dd, $value, ['class' => 'form-select'] + ($req ? ['required' => true] : []) + $rfpSelectLock) !!}
                 @break
             @default
                 {!! Form::input('text', $name, $value, ['class' => 'form-control'] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
         @endswitch
     @endif
 </div>
+@endif

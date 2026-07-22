@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\BanksDataTable;
 use App\DataTables\FilesDataTable;
 use App\DataTables\LedgerDataTable;
 use App\Helpers\Account;
@@ -34,10 +35,6 @@ class BanksController extends AppBaseController
   public function __construct(BanksRepository $banksRepo)
   {
     $this->banksRepository = $banksRepo;
-    $this->middleware('permission:cash_&_banks_banks_view')->only('index', 'show', 'ledger', 'files', 'receipts', 'payments', 'cheques');
-    $this->middleware('permission:cash_&_banks_banks_create')->only('create', 'store');
-    $this->middleware('permission:cash_&_banks_banks_edit')->only('edit', 'update');
-    $this->middleware('permission:cash_&_banks_banks_delete')->only('destroy');
   }
 
   /**
@@ -45,6 +42,10 @@ class BanksController extends AppBaseController
    */
   public function index(Request $request)
   {
+
+    if (!user_can('bank_view')) {
+      abort(403, 'Unauthorized action.');
+    }
 
     $fundIn = 0;
     $fundOut = 0;
@@ -120,12 +121,22 @@ class BanksController extends AppBaseController
       $banks = $this->banksRepository->create($input);
 
       //Adding Account and setting reference
-      $parentId = \App\Support\GlobalAccounts::id('BANK');
+      $parentId = Accounts::where('name', 'Current Assets')->where('account_type', 'Asset')->first()->id;
+      $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->where('parent_id', $parentId)->first();
+      if (!$parentAccount) {
+        if($request->ajax()) {
+          return response()->json([
+            'message' => 'Parent account "Cash & Bank" not found.',
+          ], 500);
+        }
+        Flash::error('Parent account "Cash & Bank" not found.');
+        return redirect()->back();
+      }
       $account = new Accounts();
       $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
       $account->account_type = 'Asset';
       $account->name = $banks->name;
-      $account->parent_id = $parentId;
+      $account->parent_id = $parentAccount->id;
       $account->ref_name = 'Bank';
       $account->ref_id = $banks->id;
       $account->status = $banks->status;
@@ -291,6 +302,106 @@ class BanksController extends AppBaseController
     return redirect(route('banks.index'));
   }
 
+  // ========================================================================
+  // DEPRECATED: Old trash methods - now handled by centralized TrashController
+  // These methods are kept for backward compatibility but should not be used
+  // Use /trash route instead for all trash operations
+  // ========================================================================
+
+  /*
+  public function trashed(Request $request)
+  {
+    if (!user_can('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+
+    $query = Banks::onlyTrashed()
+      ->orderBy('deleted_at', 'desc');
+
+    // Apply same filters as index
+    if ($request->has('name') && !empty($request->name)) {
+      $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->has('account_no') && !empty($request->account_no)) {
+      $query->where('account_no', $request->account_no);
+    }
+
+    $data = $this->applyPagination($query, $paginationParams);
+
+    if ($request->ajax()) {
+      $tableData = view('banks.trashed_table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+
+    return view('banks.trashed', [
+      'data' => $data,
+    ]);
+  }
+
+  public function restore($id)
+  {
+    if (!user_can('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $bank = Banks::onlyTrashed()->find($id);
+
+    if (empty($bank)) {
+      Flash::error('Bank not found in trash!');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Restore the bank
+    $bank->restore();
+
+    // Restore the related account if it was soft deleted
+    if ($bank->account && $bank->account->trashed()) {
+      $bank->account->restore();
+    }
+
+    Flash::success('Bank restored successfully.');
+    return redirect(route('banks.index'));
+  }
+
+  public function forceDestroy($id)
+  {
+    if (!user_can('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $bank = Banks::onlyTrashed()->find($id);
+
+    if (empty($bank)) {
+      Flash::error('Bank not found in trash!');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Check if bank has any transactions (even soft deleted)
+    if ($bank->transactions()->withTrashed()->count() > 0) {
+      Flash::error('Cannot permanently delete bank. Bank has transaction history.');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Permanently delete the related account
+    if ($bank->account) {
+      $bank->account->forceDelete();
+    }
+
+    // Permanently delete the bank
+    $bank->forceDelete();
+
+    Flash::success('Bank permanently deleted.');
+    return redirect(route('banks.trashed'));
+  }
+  */
   public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
     $banks = Banks::find($id);

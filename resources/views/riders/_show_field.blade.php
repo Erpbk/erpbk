@@ -2,7 +2,7 @@
 $spec = [];
 if ($item->kind === 'fixed') {
 if($item->field_key === 'branch_id') {
-$value = $rider->branch ? $rider->branch->name .' ( '. $rider->branch->code . ' )' : null;
+$value = $rider->branch ? trim($rider->branch->name . ($rider->branch->code ? ' (' . $rider->branch->code . ')' : '')) : null;
 } else {
 $value = $rider->{$item->field_key} ?? null;
 }
@@ -45,8 +45,11 @@ $displayValue = $rider->vendor->name;
 $displayValue = $rider->recruiter->name;
 }
 }
+$rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 @endphp
+@if (field_visible('rider', (string) $rfpField))
 <div class="col-md-3 form-group col-3">
   <label><b>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</b></label>
   <p>{{ $displayValue }}</p>
 </div>
+@endif

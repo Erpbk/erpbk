@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\SuppliersDataTable;
+use App\DataTables\FilesDataTable;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -14,6 +16,7 @@ use App\Models\Transactions;
 use App\Models\Files;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
+use App\Support\PublicStorageDisk;
 use Illuminate\Support\Facades\DB;
 use Flash;
 
@@ -23,20 +26,6 @@ use Flash;
 class SupplierController extends AppBaseController
 {
   use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
-  
-
-  private $suppliersRepository;
-
-  public function __construct(SuppliersRepository $suppliersRepo)
-  {
-    $this->suppliersRepository = $suppliersRepo;
-    $this->middleware('permission:suppliers_supplier_view')->only('index', 'show');
-    $this->middleware('permission:suppliers_supplier_create')->only('create', 'store');
-    $this->middleware('permission:suppliers_supplier_edit')->only('edit', 'update');
-    $this->middleware('permission:suppliers_supplier_delete')->only('destroy');
-    $this->middleware('permission:suppliers_ledger_view')->only('ledger');
-    $this->middleware('permission:suppliers_documents_view')->only('document', 'files');
-  }
   public function index(Request $request)
   {
     // Use global pagination trait
@@ -69,24 +58,32 @@ class SupplierController extends AppBaseController
     ]);
   }
 
-  public function files($company_slug, $supplier_id)
+  public function files($company_slug, $supplier_id, FilesDataTable $filesDataTable)
   {
-    $supplier = Supplier::find($supplier_id);
+    $supplier = Supplier::find($supplier_id); // Fetch supplier
     if (!$supplier) {
-      Flash::error('Supplier not found');
-
-      return redirect(route('suppliers.index'));
+      abort(404, 'Supplier not found');
     }
 
-    $files = Files::where(['type' => 'supplier', 'type_id' => $supplier_id])->latest('id')->get();
+    return $filesDataTable
+      ->with([
 
-    return view('Suppliers.document', compact('files', 'supplier'));
+        'type_id' => $supplier_id,   // ✅ pass 'type_id'
+      ])
+      ->render('Suppliers.document', compact('supplier'));
   }
 
 
   public function create()
   {
     return view('Suppliers.create');
+  }
+
+  private $suppliersRepository;
+
+  public function __construct(SuppliersRepository $suppliersRepo)
+  {
+    $this->suppliersRepository = $suppliersRepo;
   }
 
   public function store(Request $request)
@@ -100,8 +97,14 @@ class SupplierController extends AppBaseController
       'status' => 'nullable|string',
     ]);
 
+
+    // Create or get parent "Supplier" account
+    $parentId = Accounts::where('name', 'Supplier')->where('account_type', 'Liability')->first()->id;
+    if (!$parentId) {
+      Flash::error('Parent account "Supplier" not found.');
+    }
+
     try {
-      $parentId = \App\Support\GlobalAccounts::id('SUPPLIER_ACCOUNT');
       DB::beginTransaction();
       $supplier = Supplier::create($validated);
       // Create linked account in chart of accounts
@@ -143,6 +146,10 @@ class SupplierController extends AppBaseController
 
   public function show($company_slug, $id)
   {
+    if (!user_can('supplier_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     $supplier = $this->suppliersRepository->find($id);
     if (empty($supplier)) {
       Flash::error('Supplier not found');
@@ -262,6 +269,10 @@ class SupplierController extends AppBaseController
 
   public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
   {
+    if (!user_can('supplier_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     $supplier = $this->suppliersRepository->find($id);
     if (empty($supplier)) {
       Flash::error('Supplier not found');
@@ -283,17 +294,59 @@ class SupplierController extends AppBaseController
         'dataTable' => $ledgerDataTable
       ]);
   }
+  //     public function files($supplier_id, FilesDataTable $filesDataTable)
+  //   {
+  //     return $filesDataTable->with(['supplier_id' => $supplier_id])->render('suppliers.document');
+  //   }
 
   public function document($company_slug, $supplier_id)
   {
-    $supplier = Supplier::find($supplier_id);
-    if (!$supplier) {
-      Flash::error('Supplier not found');
+    if (request()->post()) {
 
-      return redirect(route('suppliers.index'));
+      foreach (request('documents') as $document) {
+
+        if ($document['expiry_date']) {
+          $data = [];
+          if (isset($document['file_name'])) {
+
+            $extension = $document['file_name']->extension();
+            $name = $document['type'] . '-' . $supplier_id . '-' . time() . '.' . $extension;
+            PublicStorageDisk::storeUploadedFile(
+              $document['file_name'],
+              $document['type'] . '/' . $supplier_id,
+              $name
+            );
+
+            $data['file_name'] = $name;
+            $data['file_type'] = $extension;
+          }
+
+          $data['type_id'] = $supplier_id;  // Link to supplier
+          $data['type'] = $document['type'];
+          $data['expiry_date'] = $document['expiry_date'];
+
+          $condition = [
+            'type' => $document['type'],
+            'type_id' => $supplier_id
+          ];
+
+          Files::updateOrCreate($condition, $data);
+        } else {
+          if (isset($document['file_name'])) {
+            return response()->json([
+              'errors' => [
+                'error' => General::file_types($document['type']) . ' expiry date must be selected.'
+              ]
+            ], 422);
+          }
+        }
+      }
+
+      return 1;
     }
 
-    $files = Files::where(['type' => 'supplier', 'type_id' => $supplier_id])->latest('id')->get();
+    $files = Files::where('type_id', $supplier_id)->get();
+    $supplier = Supplier::find($supplier_id);
 
     return view('Suppliers.document', compact('files', 'supplier'));
   }

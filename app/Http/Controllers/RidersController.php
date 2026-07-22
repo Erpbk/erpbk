@@ -23,6 +23,7 @@ use App\Models\Transactions;
 use App\Models\RiderHistory;
 use App\Models\SimHistory;
 use App\Models\RiderDocumentType;
+use App\Models\cod;
 use App\Models\Countries;
 use App\Models\Customers;
 use App\Models\Dropdowns;
@@ -35,8 +36,6 @@ use App\Models\RiderAttendance;
 use App\Models\RiderEmails;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderCustomField;
-use App\Models\RiderTopCategory;
-use App\Models\RiderTopOption;
 use App\Models\RiderInvoices;
 use App\Models\RiderItemPrice;
 use App\Models\Riders;
@@ -51,13 +50,10 @@ use App\Models\VoucherType;
 use App\Repositories\RidersRepository;
 use App\Services\BikeHistoryLogger;
 use App\Services\Email\CompanyEmailBrandingService;
-use App\Services\Email\EmailAccountService;
 use App\Services\Email\UserEmailService;
-use App\Http\Requests\SendRiderEmailRequest;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
-use App\Support\CompanyRouteContext;
 use App\Support\CompanyScope;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
@@ -72,6 +68,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderCategory;
@@ -112,8 +109,7 @@ class RidersController extends AppBaseController
 
     $dbColumns = array_values(array_unique(array_merge(
       $assignedFixedColumns,
-      Schema::hasColumn('riders', 'status') ? ['status'] : [],
-      Schema::hasColumn('riders', 'customer_id') ? ['customer_id'] : []
+      Schema::hasColumn('riders', 'status') ? ['status'] : []
     )));
 
     $assignedCustomFields = RiderCustomField::query()
@@ -137,7 +133,6 @@ class RidersController extends AppBaseController
       $customTitles = [
         'doj' => 'Date of Joining',
         'recruiter_id' => 'Recruiter',
-        'customer_id' => 'Project',
       ];
 
       return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
@@ -163,122 +158,16 @@ class RidersController extends AppBaseController
         'title' => trim((string) $cf->label) !== '' ? $cf->label : ('Custom Field #' . $cf->id),
       ];
     }
-    return array_merge($columns, [
+
+    return \App\Support\RoleFieldAccess::filterTableColumns(array_merge($columns, [
       ['data' => 'bike', 'title' => 'Bike'],
-      ['data' => 'contact_number', 'title' => 'Contact Number'],
       ['data' => 'orders_sum', 'title' => 'Orders'],
       ['data' => 'days', 'title' => 'Days'],
       ['data' => 'balance', 'title' => 'Balance'],
       ['data' => 'action', 'title' => 'Actions'],
       ['data' => 'search', 'title' => 'Search'],
       ['data' => 'control', 'title' => 'Control'],
-    ]);
-  }
-
-  /**
-   * Build dynamic filter options from Rider Top cards shown on view page.
-   */
-  private function riderTopStatusFilterOptions(): array
-  {
-    return RiderTopCategory::query()
-      ->where('is_active', true)
-      ->where('show_in_view_cards', true)
-      ->whereNotNull('rider_column')
-      ->where('rider_column', '!=', '')
-      ->where('rider_column', '!=', 'status')
-      ->with(['options' => function ($q) {
-        $q->where('is_active', true)
-          ->where('show_in_view_cards', true)
-          ->orderBy('display_order')
-          ->orderBy('id');
-      }])
-      ->orderBy('display_order')
-      ->orderBy('id')
-      ->get()
-      ->flatMap(function ($category) {
-        $column = trim((string) ($category->rider_column ?? ''));
-        if ($column === '' || !Schema::hasColumn('riders', $column)) {
-          return collect();
-        }
-
-        return $category->options->map(function ($option) use ($category, $column) {
-          return [
-            'value' => 'top:' . $option->id,
-            'label' => (string) $option->name,
-            'category' => (string) ($category->name ?? RiderCustomField::humanizeFieldKey($column)),
-          ];
-        });
-      })
-      ->values()
-      ->all();
-  }
-
-  private function applyBikeAssignmentOrTopStatusFilter($query, ?string $selected): void
-  {
-    $selected = trim((string) $selected);
-    if ($selected === '') {
-      return;
-    }
-
-    if ($selected === 'Active') {
-      $query->whereHas('bikes', function ($q) {
-        $q->where('warehouse', 'Active');
-      });
-
-      return;
-    }
-
-    if ($selected === 'Inactive') {
-      $query->whereDoesntHave('bikes', function ($q) {
-        $q->where('warehouse', 'Active');
-      });
-
-      return;
-    }
-
-    if (!str_starts_with($selected, 'top:')) {
-      return;
-    }
-
-    $optionId = (int) substr($selected, 4);
-    if ($optionId <= 0) {
-      return;
-    }
-
-    $option = RiderTopOption::query()->with('category')->find($optionId);
-    if (!$option || !$option->category) {
-      return;
-    }
-
-    $column = trim((string) ($option->category->rider_column ?? ''));
-    if ($column === '' || !Schema::hasColumn('riders', $column)) {
-      return;
-    }
-
-    $value = trim((string) $option->name);
-    if ($value === '') {
-      return;
-    }
-
-    if ($column === 'customer_id') {
-      $customerId = Customers::query()->where('name', $value)->value('id');
-      if ($customerId !== null) {
-        $query->where('riders.customer_id', $customerId);
-      }
-
-      return;
-    }
-
-    if (TopBarNumericStatus::isNumericStatusColumn('riders', $column)) {
-      $mapped = TopBarNumericStatus::valueForLabel($value);
-      if ($mapped !== null) {
-        $query->where('riders.' . $column, $mapped);
-
-        return;
-      }
-    }
-
-    $query->where('riders.' . $column, $value);
+    ]), 'rider');
   }
 
   private function findAccessibleRider(int $id): ?Riders
@@ -287,61 +176,6 @@ class RidersController extends AppBaseController
     $this->applyCompanyScope($query);
 
     return $query->first();
-  }
-
-  /**
-   * Route resource parameter may be a numeric id or a bound Riders model.
-   */
-  private function resolveRiderRouteId(mixed $routeRider): int
-  {
-    if ($routeRider instanceof Riders) {
-      return (int) $routeRider->id;
-    }
-
-    return (int) $routeRider;
-  }
-
-
-
-  /**
-   * Strip unique validators from a rule string or token list.
-   *
-   * @param  array<int, mixed>|string  $rule
-   * @return array<int, mixed>|string
-   */
-  private function stripUniqueValidationRules(array|string $rule): array|string
-  {
-    if (is_array($rule)) {
-      return array_values(array_filter($rule, function ($token) {
-        return ! (is_string($token) && str_starts_with($token, 'unique:'))
-          && ! ($token instanceof \Illuminate\Validation\Rules\Unique);
-      }));
-    }
-
-    $tokens = array_values(array_filter(explode('|', (string) $rule), function ($token) {
-      return $token !== '' && ! str_starts_with($token, 'unique:');
-    }));
-
-    return $tokens === [] ? 'nullable|string|max:191' : implode('|', $tokens);
-  }
-
-  private function riderIndexUrl(): string
-  {
-    $slug = CompanyRouteContext::slug();
-    if ($slug !== null && $slug !== '') {
-      return route('riders.index', ['company_slug' => $slug]);
-    }
-
-    return route('riders.index');
-  }
-
-  private function riderUpdateJsonResponse(string $message, int $status = 200)
-  {
-    return response()->json([
-      'success' => $status < 400,
-      'message' => $message,
-      'redirect_url' => $this->riderIndexUrl(),
-    ], $status);
   }
 
   /**
@@ -412,22 +246,13 @@ class RidersController extends AppBaseController
   /**
    * Build rider create/update validation rules from settings + rider table columns.
    */
-  private function riderValidationRules(?int $ignoreRiderId = null, ?Riders $existingRider = null, ?array $input = null): array
+  private function riderValidationRules(?int $ignoreRiderId = null): array
   {
     $rules = Riders::$rules;
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
     $assignmentTable = (new RiderFieldCategoryAssignment)->getTable();
     $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
     $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
-    $input = $input ?? [];
-
-    $fieldValueUnchanged = function (string $field) use ($existingRider, $input): bool {
-      if ($existingRider === null || ! array_key_exists($field, $input)) {
-        return false;
-      }
-
-      return trim((string) $input[$field]) === trim((string) ($existingRider->{$field} ?? ''));
-    };
 
     $normalizePresenceRule = function ($rule, bool $required) {
       if (is_array($rule)) {
@@ -471,44 +296,16 @@ class RidersController extends AppBaseController
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
     }
 
-    foreach (['rider_id', 'name', 'passport'] as $uniqueKey) {
-      if (! isset($riderColumns[$uniqueKey])) {
-        continue;
-      }
-      $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
-      if ($fieldValueUnchanged($uniqueKey)) {
-        $rules[$uniqueKey] = $this->stripUniqueValidationRules($baseRule);
-
-        continue;
-      }
-      $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
-      $tokens = array_values(array_filter($tokens, function ($token) {
-        return ! (is_string($token) && str_starts_with($token, 'unique:'))
-          && ! ($token instanceof \Illuminate\Validation\Rules\Unique);
-      }));
-      $tokens[] = CompanyScope::unique('riders', $uniqueKey, $ignoreRiderId);
-      $rules[$uniqueKey] = $tokens;
-    }
-
     if ($ignoreRiderId !== null) {
-      foreach (['rider_id', 'name'] as $requiredKey) {
-        if (! isset($rules[$requiredKey])) {
-          continue;
-        }
-        $rule = $rules[$requiredKey];
-        if (is_array($rule)) {
-          $rule = array_values(array_filter($rule, function ($token) {
-            return $token !== 'nullable' && $token !== 'required';
-          }));
-          array_unshift($rule, 'required');
-        } else {
-          $rule = array_values(array_filter(explode('|', (string) $rule), function ($token) {
-            return $token !== '' && $token !== 'nullable' && $token !== 'required';
-          }));
-          array_unshift($rule, 'required');
-        }
-        $rules[$requiredKey] = $rule;
-      }
+      $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
+      $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
+      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
+      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
+      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
+        return ! (is_string($token) && str_starts_with($token, 'unique:'));
+      }));
+      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
+      $rules['passport'] = $passportTokens;
     }
 
     return array_merge($rules, $this->dynamicFieldRules());
@@ -517,20 +314,6 @@ class RidersController extends AppBaseController
   public function __construct(RidersRepository $ridersRepo)
   {
     $this->ridersRepository = $ridersRepo;
-    $this->middleware('permission:riders_rider_view')->only('index', 'show', 'history', 'picture_upload');
-    $this->middleware('permission:riders_rider_create')->only('create', 'store');
-    $this->middleware('permission:riders_rider_edit')->only('edit', 'update', 'updateSection');
-    $this->middleware('permission:riders_rider_delete')->only('destroy');
-    $this->middleware('permission:riders_documents_view|riders_documents_create')->only(['document', 'files']);
-    $this->middleware('permission:riders_timeline_view')->only('timeline');
-    $this->middleware('permission:riders_ledger_view')->only('ledger');
-    $this->middleware('permission:riders_attendance_view')->only('attendance');
-    $this->middleware('permission:riders_activities_view')->only(['activities', 'activitiesPdf', 'activitiesPrint']);
-    $this->middleware('permission:riders_invoices_view')->only('invoices');
-    $this->middleware('permission:email_view')->only('emails', 'sendEmail');
-    $this->middleware('permission:riders_voucher_create')->only(['importVouchers', 'importRiderVouchers']);
-    $this->middleware('permission:riders_inventory_view')->only('inventory');
-    $this->middleware('permission:riders_export_data_create')->only(['exportRiders', 'exportCustomizableRiders']);
   }
 
   /**
@@ -538,6 +321,10 @@ class RidersController extends AppBaseController
    */
   public function index(Request $request)
   {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
@@ -556,7 +343,7 @@ class RidersController extends AppBaseController
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'asc')
-      ->with(['branch', 'customer']);
+      ->with('branch');
     $this->applyCompanyScope($query);
     if ($request->has('rider_id') && ! empty($request->rider_id)) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
@@ -568,7 +355,7 @@ class RidersController extends AppBaseController
       $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('fleet_supervisor') && ! empty($request->fleet_supervisor)) {
-      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
+      $query->where('fleet_supervisor', $request->fleet_supervisor);
     }
     if ($request->has('hub') && ! empty($request->hub)) {
       $query->where('hub', $request->hub);
@@ -588,8 +375,20 @@ class RidersController extends AppBaseController
     // if ($request->has('status') && !empty($request->status)) {
     //   $query->where('status', $request->status);
     // }
-    // Filter by bike assignment or Rider Top status option selected in the same dropdown.
-    $this->applyBikeAssignmentOrTopStatusFilter($query, $request->input('bike_assignment_status'));
+    // Filter by bike assignment status (Active/Inactive based on bike assignment)
+    if ($request->has('bike_assignment_status') && ! empty($request->bike_assignment_status)) {
+      if ($request->bike_assignment_status === 'Active') {
+        // Riders who have an active bike assigned
+        $query->whereHas('bikes', function ($q) {
+          $q->where('warehouse', 'Active');
+        });
+      } elseif ($request->bike_assignment_status === 'Inactive') {
+        // Riders who don't have an active bike assigned
+        $query->whereDoesntHave('bikes', function ($q) {
+          $q->where('warehouse', 'Active');
+        });
+      }
+    }
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -623,15 +422,12 @@ class RidersController extends AppBaseController
       $query->select('riders.*');
     }
 
-    $query->addSelect(Riders::employmentStatusDaysSelectColumns());
-
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
 
     return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
-      'riderTopStatusFilterOptions' => $this->riderTopStatusFilterOptions(),
     ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
@@ -658,8 +454,7 @@ class RidersController extends AppBaseController
       )
       ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
       ->orderBy('days_count', 'desc')
-      ->orderBy('riders.id', 'desc')
-      ->with(['customer']);
+      ->orderBy('riders.id', 'desc');
     $this->applyCompanyScope($query);
 
     if ($request->has('rider_id') && ! empty($request->rider_id)) {
@@ -669,7 +464,7 @@ class RidersController extends AppBaseController
       $query->where('name', 'like', '%' . $request->name . '%');
     }
     if ($request->has('fleet_supervisor') && ! empty($request->fleet_supervisor)) {
-      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
+      $query->where('fleet_supervisor', $request->fleet_supervisor);
     }
     if ($request->has('hub') && ! empty($request->hub)) {
       $query->where('hub', $request->hub);
@@ -685,11 +480,8 @@ class RidersController extends AppBaseController
     // Filter by rider status (active = 1, inactive = 0 or 2)
     $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
     if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'status', $riderStatusKeys);
     }
-
-    // Filter by bike assignment or Rider Top status option selected in the same dropdown.
-    $this->applyBikeAssignmentOrTopStatusFilter($query, $request->input('bike_assignment_status'));
 
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
@@ -723,8 +515,6 @@ class RidersController extends AppBaseController
         });
       $query->select('riders.*');
     }
-
-    $query->addSelect(Riders::employmentStatusDaysSelectColumns());
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
@@ -756,7 +546,7 @@ class RidersController extends AppBaseController
   public function create()
   {
     $riderCategories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
 
     return view('riders.create', compact('riderCategories', 'fieldsByCategory'));
   }
@@ -775,18 +565,30 @@ class RidersController extends AppBaseController
       $input['company_id'] = auth()->user()->company_id;
     }
     $input = SimAssigneeContactSync::stripManagedContactFromRequestData($input, null, 'rider');
+    $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'rider');
     $items = $request->get('items');
 
     $riders = $this->ridersRepository->create($input);
     if ($riders) {
-      $parentAccount = \App\Support\GlobalAccounts::id('RIDERS');
+
+      /* $parentAccount = Accounts::firstOrCreate(
+                ['name' => 'Riders', 'account_type' => 'Liability', 'parent_id' => null],
+                ['name' => 'Riders', 'account_type' => 'Liability', 'account_code' => Account::code()]
+              ); */
+      $parentAccount = Accounts::where('name', 'Riders')->where('account_type', 'Liability')->first();
+      if (! $parentAccount) {
+        return response()->json([
+          'success' => false,
+          'message' => 'Parent account "Riders" not found.',
+        ], 422);
+      }
       $account = new Accounts;
       $account->account_code = 'RD' . str_pad($riders->rider_id, 4, '0', STR_PAD_LEFT);
       $account->name = $riders->name;
       $account->account_type = 'Liability';
       $account->ref_name = 'Rider';
       $account->company_id = auth()->user()->company_id;
-      $account->parent_id = $parentAccount;
+      $account->parent_id = $parentAccount->id;
       $account->ref_id = $riders->id;
       $account->branch_id = $riders->branch_id;
       $account->save();
@@ -879,7 +681,7 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
 
     // Get dropdown data for edit forms
     $countries = Countries::pluck('name', 'id')->prepend('Select', '');
@@ -906,7 +708,7 @@ class RidersController extends AppBaseController
     }
 
     $riderCategories = RiderCategory::orderBy('display_order')->orderBy('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm(true);
+    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
 
     return view('riders.edit', compact('riders', 'riderCategories', 'fieldsByCategory'));
   }
@@ -916,80 +718,61 @@ class RidersController extends AppBaseController
    */
   public function update($company_slug, $id, Request $request)
   {
-    $riderId = $this->resolveRiderRouteId($id);
-    $existingRider = $this->findAccessibleRider($riderId);
-    $request->validate($this->riderValidationRules(
-      $riderId,
-      $existingRider,
-      $request->except(['_token', 'items', '_method'])
-    ));
-    $riders = $existingRider;
-    $wantsJson = $request->wantsJson() || $request->ajax();
-
+    $request->validate($this->riderValidationRules((int) $id));
+    $riders = $this->findAccessibleRider((int) $id);
+    // $items = $riders->items;
+    $items = $request->get('items');
     if (empty($riders)) {
-      if ($wantsJson) {
-        return $this->riderUpdateJsonResponse('Rider not found.', 404);
-      }
       Flash::error('Riders not found');
 
-      return redirect($this->riderIndexUrl());
+      return redirect(route('riders.index'));
     }
-
-    $data = $request->except(['_token', 'items', '_method']);
+    $data = $request->except(['_token', 'items']);
     if (Schema::hasColumn('riders', 'company_id')) {
       $data['company_id'] = auth()->user()->company_id;
     }
     $data = SimAssigneeContactSync::stripManagedContactFromRequestData($data, $riders, 'rider');
+    $data = \App\Support\RoleFieldAccess::stripNonEditableInput($data, 'rider', is_array($riders->custom_field_values ?? null) ? $riders->custom_field_values : []);
 
     $prevCustomerId = $riders->customer_id;
     $prevFleetSupervisor = $riders->fleet_supervisor;
 
     $riders->update($data);
-
-    try {
-      if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
-        RiderHistoryLogger::projectChange(
-          (int) $riders->id,
-          $prevCustomerId !== null && $prevCustomerId !== '' ? (string) $prevCustomerId : null,
-          (string) ($riders->customer_id ?? ''),
-          $prevCustomerId ? optional(Customers::find($prevCustomerId))->name : null,
-          optional(Customers::find($riders->customer_id))->name,
-          now()->toDateString(),
-          'rider_profile',
-          RiderHistoryLogger::resolveBranchId($riders),
-          $riders->fresh()
-        );
-      }
-      if (array_key_exists('fleet_supervisor', $data)) {
-        RiderHistoryLogger::fleetSupervisorChange(
-          $riders->fresh(),
-          $prevFleetSupervisor,
-          $riders->fleet_supervisor,
-          now()->toDateString(),
-          Bikes::where('rider_id', $riders->id)->first()
-        );
-      } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
-        Riders::syncDisplayStatus($riders->fresh());
-      }
-    } catch (\Throwable $e) {
-      Log::warning('Rider history logging failed after update', [
-        'rider_id' => $riders->id,
-        'error' => $e->getMessage(),
-      ]);
+    if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
+      RiderHistoryLogger::projectChange(
+        (int) $riders->id,
+        $prevCustomerId !== null && $prevCustomerId !== '' ? (string) $prevCustomerId : null,
+        (string) ($riders->customer_id ?? ''),
+        $prevCustomerId ? optional(Customers::find($prevCustomerId))->name : null,
+        optional(Customers::find($riders->customer_id))->name,
+        now()->toDateString(),
+        'rider_profile',
+        RiderHistoryLogger::resolveBranchId($riders),
+        $riders->fresh()
+      );
     }
+    if (array_key_exists('fleet_supervisor', $data)) {
+      RiderHistoryLogger::fleetSupervisorChange(
+        $riders->fresh(),
+        $prevFleetSupervisor,
+        $riders->fleet_supervisor,
+        now()->toDateString(),
+        Bikes::where('rider_id', $riders->id)->first()
+      );
+    } elseif (array_key_exists('status', $data) || array_key_exists('rider_status', $data)) {
+      Riders::syncDisplayStatus($riders->fresh());
+    }
+    if ($riders) {
 
-    try {
-      $account = $riders->account;
-      if ($account) {
-        $account->name = $riders->name;
-        $account->account_code = 'RD' . str_pad((string) $riders->rider_id, 4, '0', STR_PAD_LEFT);
-        $account->save();
-      }
+      $riders->account->name = $riders->name;
+      $riders->account->account_code = 'RD' . str_pad($riders->rider_id, 4, '0', STR_PAD_LEFT);
+      $riders->account->save();
 
       if ($request->items) {
         RiderItemPrice::where('RID', $id)->delete();
         $items = $request->items;
         foreach ($items['id'] as $key => $val) {
+
           $riderItemPrice = new RiderItemPrice;
           $riderItemPrice->item_id = $items['id'][$key];
           $riderItemPrice->price = $items['price'][$key] ?? 0;
@@ -997,18 +780,19 @@ class RidersController extends AppBaseController
           $riderItemPrice->save();
         }
       }
-    } catch (\Throwable $e) {
-      Log::warning('Rider account/items sync failed after update', [
-        'rider_id' => $riders->id,
-        'error' => $e->getMessage(),
+    }
+    // Check if request is AJAX
+    if (request()->ajax()) {
+      return response()->json([
+        'success' => true,
+        'message' => 'Rider information updated successfully!',
+        'redirect_url' => route('riders.index'),
       ]);
     }
 
-    if ($wantsJson) {
-      return $this->riderUpdateJsonResponse('Rider information updated successfully!');
-    }
-
-    return redirect($this->riderIndexUrl());
+    /*     Flash::success('Riders updated successfully.');
+         */
+    return redirect(route('riders.index'));
   }
 
   /**
@@ -1022,6 +806,27 @@ class RidersController extends AppBaseController
 
     if (empty($riders)) {
       Flash::error('Riders not found');
+
+      return redirect(route('riders.index'));
+    }
+
+    // Check if rider account has any transactions (like Banks does)
+    if ($riders->account_id) {
+      $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
+      if ($accountTransactions > 0) {
+        Flash::error('Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.');
+
+        return redirect(route('riders.index'));
+      }
+    }
+
+    // Check if rider has any vouchers (by ref_id or rider_id)
+    $vouchersCount = Vouchers::where(function ($query) use ($id) {
+      $query->where('ref_id', $id);
+    })->count();
+
+    if ($vouchersCount > 0) {
+      Flash::error('Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.');
 
       return redirect(route('riders.index'));
     }
@@ -1121,162 +926,39 @@ class RidersController extends AppBaseController
     // Store rider data BEFORE deleting (important!)
     $riderId = $riders->id;
     $riderName = $riders->name . ' (' . $riders->rider_id . ')';
-    $relatedAccounts = collect();
+    $relatedAccount = $riders->account;
 
-    if ($riders->account) {
-      $relatedAccounts->push($riders->account);
+    // Set deleted_by if column exists
+    if (Schema::hasColumn('riders', 'deleted_by')) {
+      $riders->deleted_by = Auth::id();
+      $riders->save();
     }
 
-    // Also pick up any rider ledger accounts linked by ref
-    Accounts::where('ref_id', $riderId)
-      ->where('ref_name', 'Rider')
-      ->get()
-      ->each(function ($account) use ($relatedAccounts) {
-        if (! $relatedAccounts->contains('id', $account->id)) {
-          $relatedAccounts->push($account);
-        }
-      });
+    // Soft delete the rider
+    $riders->delete();
 
-    DB::beginTransaction();
-    try {
-      // Soft-delete rider vouchers and their transactions (instead of blocking delete)
-      $relatedVouchers = Vouchers::where(function ($query) use ($riderId) {
-        $query->where('rider_id', $riderId)
-          ->orWhere('ref_id', $riderId);
-      })->get();
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
 
-      foreach ($relatedVouchers as $voucher) {
-        $voucherIdentifier = ($voucher->voucher_type ?? 'V') . '-' . str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
-        $relatedTransactions = Transactions::where('trans_code', $voucher->trans_code)->get();
+      $relatedAccount->delete();
 
-        foreach ($relatedTransactions as $transaction) {
-          try {
-            $this->trackCascadeDeletion(
-              'App\Models\Riders',
-              $riderId,
-              $riderName,
-              'App\Models\Transactions',
-              $transaction->id,
-              "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code})",
-              'hasMany',
-              'transactions',
-              'soft',
-              'Cascade deletion from Rider deletion'
-            );
-          } catch (\Exception $e) {
-            Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-          }
-
-          if (in_array('deleted_by', $transaction->getFillable(), true)) {
-            $transaction->deleted_by = Auth::id();
-            $transaction->save();
-          }
-
-          $transaction->delete();
-        }
-
-        try {
-          $this->trackCascadeDeletion(
-            'App\Models\Riders',
-            $riderId,
-            $riderName,
-            'App\Models\Vouchers',
-            $voucher->id,
-            $voucherIdentifier,
-            'hasMany',
-            'vouchers',
-            'soft',
-            'Cascade deletion from Rider deletion'
-          );
-        } catch (\Exception $e) {
-          Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage());
-        }
-
-        if (in_array('deleted_by', $voucher->getFillable(), true)) {
-          $voucher->deleted_by = Auth::id();
-          $voucher->save();
-        }
-
-        $voucher->delete();
-        $cascadedItems[] = [
-          'model' => 'Vouchers',
-          'id' => $voucher->id,
-          'name' => $voucherIdentifier,
-        ];
-      }
-
-      // Soft-delete any remaining transactions on rider accounts
-      foreach ($relatedAccounts as $account) {
-        $remainingTransactions = Transactions::where('account_id', $account->id)->get();
-        foreach ($remainingTransactions as $transaction) {
-          try {
-            $this->trackCascadeDeletion(
-              'App\Models\Riders',
-              $riderId,
-              $riderName,
-              'App\Models\Transactions',
-              $transaction->id,
-              "Transaction #{$transaction->id} (Account: {$account->name})",
-              'hasMany',
-              'transactions',
-              'soft',
-              'Cascade deletion from Rider deletion'
-            );
-          } catch (\Exception $e) {
-            Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-          }
-
-          if (in_array('deleted_by', $transaction->getFillable(), true)) {
-            $transaction->deleted_by = Auth::id();
-            $transaction->save();
-          }
-
-          $transaction->delete();
-        }
-      }
-
-      // Set deleted_by if column exists
-      if (Schema::hasColumn('riders', 'deleted_by')) {
-        $riders->deleted_by = Auth::id();
-        $riders->save();
-      }
-
-      // Soft delete the rider
-      $riders->delete();
-
-      // Soft delete all related rider accounts
-      foreach ($relatedAccounts as $relatedAccount) {
-        $cascadedItems[] = [
-          'model' => 'Accounts',
-          'id' => $relatedAccount->id,
-          'name' => $relatedAccount->name,
-        ];
-
-        $relatedAccount->delete();
-
-        $this->trackCascadeDeletion(
-          'App\Models\Riders',
-          $riderId,
-          $riderName,
-          'App\Models\Accounts',
-          $relatedAccount->id,
-          $relatedAccount->name,
-          'hasOne',
-          'account',
-          'soft'
-        );
-      }
-
-      DB::commit();
-    } catch (\Throwable $e) {
-      DB::rollBack();
-      Log::error('Failed to delete rider', [
-        'rider_id' => $riderId,
-        'error' => $e->getMessage(),
-      ]);
-      Flash::error('Failed to delete rider: ' . $e->getMessage());
-
-      return redirect(route('riders.index'));
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Riders',
+        $riderId,
+        $riderName,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
     }
 
     // Build cascade message
@@ -1499,30 +1181,12 @@ class RidersController extends AppBaseController
     }
   }
 
-  public function job_status(Request $request, $company_slug = null, $id = null)
+  public function job_status($company_slug, $id, Request $request)
   {
-    $postedRiderId = $request->input('rider_id');
-    if ($id === null && is_numeric($postedRiderId)) {
-      $id = (int) $postedRiderId;
-    }
-
-    if ($id === null && is_numeric($company_slug)) {
-      $id = (int) $company_slug;
-    }
-
-    if (! is_numeric($id)) {
-      return response('Rider not found.', 404);
-    }
-
-    $id = (int) $id;
     $riders = Riders::find($id);
-    if (! $riders) {
-      return response('Rider not found.', 404);
-    }
 
     if ($request->isMethod('post')) {
       $input = $request->all();
-      unset($input['rider_id']);
       $input['RID'] = $id;
       $input['status_by'] = auth()->user()->id;
       JobStatus::create($input);
@@ -1530,10 +1194,7 @@ class RidersController extends AppBaseController
       /*  $rider = Riders::find($id);
              $rider->job_status = $input['job_status'];
              $rider->save(); */
-      return response()->json([
-        'success' => true,
-        'message' => 'Timeline added successfully.',
-      ]);
+      return 'Timeline added successfully';
     }
 
     return view('riders.job_status-modal', compact('riders'));
@@ -1586,6 +1247,7 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
+
     return view('riders.items', compact('riders'));
   }
 
@@ -2161,11 +1823,11 @@ class RidersController extends AppBaseController
     }
     $riders = $rider;
     $assignments = RiderInventoryAssignment::query()
-      ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
-      ->where('rider_id', $rider_id)
-      ->orderByDesc('assigned_date')
-      ->orderByDesc('id')
-      ->get();
+            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+            ->where('rider_id', $rider_id)
+            ->orderByDesc('assigned_date')
+            ->orderByDesc('id')
+            ->get();
     $availableItems = Items::availableForAssignment();
 
     return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
@@ -2188,23 +1850,8 @@ class RidersController extends AppBaseController
 
     if ($request->isMethod('post')) {
       $user = Auth::user();
-      $emailAccountService = app(EmailAccountService::class);
       $emailService = app(UserEmailService::class);
-
-      try {
-        $formRequest = SendRiderEmailRequest::createFrom($request);
-        $formRequest->setContainer(app());
-        $formRequest->validateResolved();
-        $validated = $formRequest->validated();
-      } catch (\Illuminate\Validation\ValidationException $e) {
-        return response()->json([
-          'success' => false,
-          'message' => collect($e->errors())->flatten()->first() ?: 'Validation failed.',
-          'errors' => $e->errors(),
-        ], 422);
-      }
-
-      $smtpPrep = $emailAccountService->prepareAccountSmtp($user, (int) $validated['email_account_id']);
+      $smtpPrep = $emailService->prepareCompanySmtp($user);
       if (! $smtpPrep['ready']) {
         return response()->json([
           'success' => false,
@@ -2214,34 +1861,37 @@ class RidersController extends AppBaseController
       $fromEmail = $smtpPrep['from_email'];
       $fromName = $smtpPrep['from_name'];
 
-      $toEmail = trim($validated['email_to']);
+      $toEmail = $request->input('email_to');
+      if (! is_string($toEmail) || trim($toEmail) === '') {
+        return response()->json([
+          'success' => false,
+          'message' => 'Rider email address is missing.',
+        ], 422);
+      }
+      $toEmail = trim($toEmail);
 
-      $subject = trim($validated['email_subject']);
+      $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+        ? trim($request->input('email_subject'))
+        : 'Warning for Attendance and Performance - ' . $rider->name . ' (Rider ID: ' . $rider->rider_id . ')';
 
       $emailHeading = is_string($request->input('email_heading')) && trim($request->input('email_heading')) !== ''
         ? trim($request->input('email_heading'))
         : 'Warning for Attendance and Performance  Rider I,D ' . $rider->rider_id;
 
-      $ccEmails = $emailAccountService->normalizeCcEmails($validated['email_cc'] ?? []);
-
       $brandingService = app(CompanyEmailBrandingService::class);
       $data = $brandingService->mergeIntoMailData([
-        'html' => $validated['email_message'],
+        'html' => $request->input('email_message'),
         'email_heading' => $emailHeading,
         'rider_name' => $rider->name,
         'rider_id' => $rider->rider_id,
       ]);
 
       try {
-        $month = $validated['month'] ?? date('Y-m');
-        $fileName = $id . "_monthly_activity_{$month}.xlsx";
+        $fileName = $id . "_monthly_activity_{$request->month}.xlsx";
         $filePath = storage_path("app/public/{$fileName}");
-        Excel::store(new MonthlyActivityExport($id, $month), "public/{$fileName}");
-        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName, $ccEmails) {
+        Excel::store(new MonthlyActivityExport($id, $request->month), "public/{$fileName}");
+        $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $subject, $filePath, $fromEmail, $fromName) {
           $message->to([$toEmail]);
-          if (! empty($ccEmails)) {
-            $message->cc($ccEmails);
-          }
           $message->from($fromEmail, $fromName);
           $message->replyTo($fromEmail, $fromName);
           $message->subject($subject);
@@ -2252,7 +1902,7 @@ class RidersController extends AppBaseController
           'rider_id' => $id,
           'mail_to' => $toEmail,
           'subject' => $subject,
-          'message' => $validated['email_message'],
+          'message' => $request->email_message,
         ]);
       } catch (\Throwable $e) {
         report($e);
@@ -2270,11 +1920,8 @@ class RidersController extends AppBaseController
     }
 
     $emailBranding = app(CompanyEmailBrandingService::class)->resolveForEmail();
-    $emailAccountService = app(EmailAccountService::class);
-    $assignedEmailAccounts = $emailAccountService->getActiveAssignedAccounts(Auth::user());
-    $defaultCcEmails = app(UserEmailService::class)->getCcRecipientEmails(Auth::user());
 
-    return view('riders.send_email', compact('rider', 'emailBranding', 'assignedEmailAccounts', 'defaultCcEmails'));
+    return view('riders.send_email', compact('rider', 'emailBranding'));
   }
 
   public function exportRiders()
@@ -2380,148 +2027,78 @@ class RidersController extends AppBaseController
 
   public function setRiderTopOption(Request $request, $company_slug, $id)
   {
-    $rider = $this->findAccessibleRider((int) $id);
+    $rider = $this->ridersRepository->find($id);
     if (empty($rider)) {
       return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
     }
 
-    $isClear = $request->filled('clear_option_id');
     $rules = [
       'option_id' => 'nullable|integer|exists:rider_top_options,id',
-      'clear_option_id' => 'nullable|integer|exists:rider_top_options,id',
     ];
-    if ($request->filled('option_id') && ! $isClear) {
+    if ($request->filled('option_id')) {
       $rules['effective_date'] = ['required', 'date', 'before_or_equal:' . now()->toDateString()];
     } else {
       $rules['effective_date'] = ['nullable', 'date', 'before_or_equal:' . now()->toDateString()];
     }
     $validated = $request->validate($rules);
 
-    $targetOptionId = $isClear
-      ? (int) $validated['clear_option_id']
-      : (int) ($validated['option_id'] ?? 0);
-
-    if ($targetOptionId <= 0) {
-      return response()->json(['success' => false, 'message' => 'Option is required.'], 422);
-    }
-
-    $optionQuery = CompanyQuery::table('rider_top_options as o')
-      ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
-      ->where('o.id', $targetOptionId)
-      ->where('c.show_in_view_cards', 1);
-    if (CompanyContext::shouldApplyScope() && ($companyId = CompanyContext::id())) {
-      $optionQuery->where('c.company_id', $companyId);
-    }
-    $option = $optionQuery
-      ->select('o.id', 'o.name', 'o.category_id', 'c.rider_column', 'c.name as category_name')
-      ->first();
-
-    if (! $option) {
-      return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
-    }
-
-    $column = trim((string) ($option->rider_column ?? ''));
-    if ($column === '' || ! Schema::hasColumn('riders', $column)) {
-      return response()->json(['success' => false, 'message' => 'Invalid rider column for this option.'], 422);
-    }
-
+    $optionId = $validated['option_id'] ?? null;
     $effectiveDate = $validated['effective_date'] ?? now()->toDateString();
-    $bike = Bikes::where('rider_id', $rider->id)->first();
-    $before = RiderHistoryLogger::riderSnapshot($rider);
-    $previousColumnValue = $rider->{$column};
 
-    if ($isClear) {
-      $currentValue = trim((string) ($rider->{$column} ?? ''));
-      $optionName = trim((string) $option->name);
-      $valueMatches = $currentValue !== '' && strcasecmp($currentValue, $optionName) === 0;
-      $fkMatches = (int) ($rider->rider_top_option_id ?? 0) === (int) $option->id;
-
-      if (! $valueMatches && ! $fkMatches) {
-        $employment = Riders::employmentStatusDisplay($rider->status);
-
-        return response()->json([
-          'success' => true,
-          'message' => 'Rider option already cleared.',
-          'column' => $column,
-          'value' => $rider->{$column},
-          'option_id' => $rider->rider_top_option_id,
-          'rider_status' => $rider->rider_status,
-          'employment_status' => $rider->status,
-          'employment_label' => $employment['label'],
-          'employment_badge' => $employment['badge'],
-        ]);
+    $option = null;
+    if (! empty($optionId)) {
+      $optionQuery = CompanyQuery::table('rider_top_options as o')
+        ->join('rider_top_categories as c', 'c.id', '=', 'o.category_id')
+        ->where('o.id', $optionId)
+        ->where('c.show_in_view_cards', 1);
+      if (CompanyContext::shouldApplyScope() && ($companyId = CompanyContext::id())) {
+        $optionQuery->where('c.company_id', $companyId);
       }
-
-      if ($valueMatches) {
-        $rider->{$column} = null;
+      $option = $optionQuery
+        ->select('o.id', 'o.name', 'c.rider_column')
+        ->first();
+      if (! $option) {
+        return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
       }
-      if ($fkMatches) {
-        $rider->rider_top_option_id = null;
-      }
-      if ($column === 'rider_status' && $valueMatches && Riders::topOptionAffectsEmploymentStatus($option->name)) {
-        $rider->status = Riders::employmentStatusCodeForTopOption(null, $bike, true);
-      } elseif ($column === 'status' && $valueMatches) {
-        $rider->status = Riders::employmentStatusCodeForTopOption(null, $bike, true);
-      }
-      $title = 'View card cleared: ' . $option->name;
-      $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: —';
-    } else {
-      if ($column === 'status') {
-        $rider->status = Riders::employmentStatusCodeForTopOption((string) $option->name, $bike, false);
-      } elseif ($column !== 'status') {
-        $rider->{$column} = (string) $option->name;
-      }
-      $rider->rider_top_option_id = (int) $option->id;
-      if ($column === 'rider_status' && Riders::topOptionAffectsEmploymentStatus($option->name)) {
-        $rider->status = Riders::employmentStatusCodeForTopOption((string) $option->name, $bike, false);
-      }
-      $title = 'View card: ' . $option->name;
-      $details = 'From: ' . ($previousColumnValue ?: '—') . ' → To: ' . $option->name;
     }
 
-    $rider->save();
-    $rider = $rider->fresh();
-    $after = RiderHistoryLogger::riderSnapshot($rider);
+    $prevOptionId = $rider->rider_top_option_id;
+    $prevRiderStatus = $rider->rider_status;
+    $prevEmployment = $rider->status;
 
-    RiderHistoryLogger::bikeAssignStatusChange(
+    $rider->rider_top_option_id = $option?->id;
+    $rider->rider_status = $option ? (string) $option->name : null;
+    if ($rider->rider_status !== null) {
+      $inactiveStatuses = ['Absconder', 'Vacation', 'Cancel'];
+      $rider->status = in_array($rider->rider_status, $inactiveStatuses, true) ? 3 : 1;
+    }
+    $rider->save();
+
+    RiderHistoryLogger::record(
       (int) $rider->id,
-      $title,
-      $details,
-      $before,
-      $after,
-      $effectiveDate,
-      'rider_view_card',
-      RiderHistoryLogger::resolveBranchId($rider, $bike),
+      'status_change',
+      $option ? ('View card: ' . $option->name) : 'View card cleared',
+      null,
       [
-        'column' => $column,
-        'category_name' => $option->category_name,
-        'option_id' => (int) $option->id,
-        'option_name' => $option->name,
-        'cleared' => $isClear,
-        'rider_status_option' => $column === 'rider_status' ? $rider->rider_status : null,
-        'employment_status' => $rider->status,
-        'display_status' => Riders::historyStatusLabel($rider),
+        'previous_rider_status' => $prevRiderStatus,
+        'new_rider_status' => $rider->rider_status,
+        'previous_option_id' => $prevOptionId,
+        'new_option_id' => $rider->rider_top_option_id,
+        'previous_employment_status' => $prevEmployment,
+        'new_employment_status' => $rider->status,
       ],
-      Riders::historyStatusLabel($rider),
-      $rider,
-      $bike
+      $effectiveDate,
+      RiderHistoryLogger::resolveBranchId($rider)
     );
 
-    Riders::syncDisplayStatus($rider);
-
-    $employment = Riders::employmentStatusDisplay($rider->status);
+    Riders::syncDisplayStatus($rider->fresh());
 
     return response()->json([
       'success' => true,
-      'message' => $isClear ? 'Rider option cleared successfully.' : 'Rider view card option updated successfully.',
-      'column' => $column,
-      'value' => $rider->{$column},
-      'option_id' => $rider->rider_top_option_id,
-      'option_label' => $column === 'rider_status' ? $rider->rider_status : $rider->{$column},
+      'message' => 'Rider view card option and status updated successfully.',
+      'option_id' => $option?->id,
+      'option_label' => $option?->name,
       'rider_status' => $rider->rider_status,
-      'employment_status' => $rider->status,
-      'employment_label' => $employment['label'],
-      'employment_badge' => $employment['badge'],
     ]);
   }
 
@@ -2962,9 +2539,6 @@ class RidersController extends AppBaseController
       if (! VoucherType::isCodeAllowedForModule('AL', 'riders')) {
         return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
-
-
-
       \DB::beginTransaction();
 
       // Validate the request
@@ -2975,7 +2549,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'nullable|numeric|exists:branches,id',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -2991,12 +2565,12 @@ class RidersController extends AppBaseController
         throw new \Exception('Rider account not found with ID: ' . $riderAccountId);
       }
 
-      // Get the second account (credit account - bank/cash selected in the form)
-      $creditAccountId = $request->account_id[1];
+      // Get the second account (credit account - should be Advance Loan account)
+      $creditAccountId = $request->account_id[1] ?? GlobalAccounts::id('ADVANCE_LOAN');
 
       // Get amounts
       $riderAmount = $request->dr_amount[0] ?? 0;
-      $creditAmount = $request->dr_amount[1] ?? ($request->cr_amount[0] ?? 0);
+      $creditAmount = $request->dr_amount[1] ?? 0;
 
       // Use the first amount for both entries if only one amount is provided
       if ($creditAmount == 0) {
@@ -3011,7 +2585,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'AL', // Advance Loan
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => $request->account_id[1],
+        'payment_from' => GlobalAccounts::id('ADVANCE_LOAN'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Advance Loan to Rider',
@@ -3020,7 +2594,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3035,7 +2609,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Advance Loan Received',
         'debit' => $riderAmount,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'created_By' => auth()->id(),
       ];
@@ -3053,7 +2627,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -3102,12 +2676,12 @@ class RidersController extends AppBaseController
 
   public function penalty($company_slug, $rider_id)
   {
-    $rider = $this->findAccessibleRider((int) $rider_id);
-    if (empty($rider)) {
-      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
-    }
+    $rider = Riders::find($rider_id);
+    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
+    $accounts = Accounts::dropdown(null);
+    $bank_accounts = Accounts::bankAccountsDropdown();
 
-    return view('riders.penalty-modal', compact('rider'))->render();
+    return view('riders.penalty-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
   public function storecod(Request $request)
@@ -3126,7 +2700,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'nullable|numeric|exists:branches,id',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3171,7 +2745,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3187,7 +2761,7 @@ class RidersController extends AppBaseController
         'narration' => $request->narration[0] ?? 'COD Amount Received',
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($debitTransaction);
@@ -3203,7 +2777,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -3256,7 +2830,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'nullable|numeric|exists:branches,id',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3292,16 +2866,16 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'PN', // Penalty
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => $riderAccountId,
+        'payment_from' => GlobalAccounts::id('PENALTY_ACCOUNT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
-        'remarks' => 'Penalty Charged to Rider: ' . $riderAccount->name,
+        'remarks' => 'Penalty Amount to Rider',
         'ref_id' => $riderAccount->ref_id, // Rider ID
         'reference_number' => $request->reference_number ?? null,
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3318,7 +2892,7 @@ class RidersController extends AppBaseController
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($debitTransaction);
@@ -3334,7 +2908,7 @@ class RidersController extends AppBaseController
         'credit' => $creditAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
       ];
 
       Transactions::create($creditTransaction);
@@ -3379,56 +2953,152 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
+    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
+    $accounts = Accounts::dropdown(null);
+    $bank_accounts = Accounts::bankAccountsDropdown();
 
-    return view('riders.incentive-modal', compact('rider'));
+    return view('riders.incentive-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
   public function payment($company_slug, $rider_id)
   {
     $rider = Riders::find($rider_id);
-    if (empty($rider)) {
-      if (request()->ajax() || request()->wantsJson()) {
-        return response(
-          '<div class="alert alert-danger modal-load-error"><p>Rider not found.</p></div>',
-          404
-        );
-      }
-      Flash::error('Rider not found');
+    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
+    $accounts = Accounts::dropdown(null);
+    $bank_accounts = Accounts::bankAccountsDropdown();
 
-      return redirect(route('riders.index'));
-    }
-
-    $invoice = RiderInvoices::payable()
-      ->where('rider_id', $rider->id)
-      ->orderByDesc('billing_month')
-      ->orderByDesc('id')
-      ->first();
-
-    if (!$invoice) {
-      $message = 'No unpaid invoice found for this rider. Create a rider invoice before recording a payment.';
-      if (request()->ajax() || request()->wantsJson()) {
-        return response(
-          '<div class="alert alert-warning modal-load-error"><p>' . e($message) . '</p></div>',
-          422
-        );
-      }
-      Flash::error($message);
-
-      return redirect()->back();
-    }
-
-    $paymentUrl = route('payments.create', ['company_slug' => $company_slug])
-      . '?invoice_type=rider&invoice_id=' . $invoice->id . '&rider_id=' . $rider->id;
-
-    return redirect()->to($paymentUrl);
+    return view('riders.payment-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
   public function storepayment(Request $request)
   {
-    return response()->json([
-      'success' => false,
-      'message' => 'Rider PAY vouchers are no longer used. Record payment against the latest unpaid rider invoice via Payments (PV).',
-    ], 422);
+    try {
+      if (! VoucherType::isCodeAllowedForModule('PAY', 'riders')) {
+        return response()->json(['errors' => ['error' => 'Payment voucher type (PAY) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
+      }
+      \DB::beginTransaction();
+
+      // Validate the request
+      $request->validate([
+        'account_id' => 'required|array|min:2',
+        'account_id.*' => 'required|integer',
+        'dr_amount' => 'required|array',
+        'dr_amount.*' => 'required|numeric|min:0',
+        'narration' => 'required|array|min:2',
+        'narration.*' => 'required|string',
+        'branch_id' => 'required|numeric|exists:branches,id',
+      ]);
+
+      // Get rider account (first entry should be the rider's liability account)
+      $riderAccountId = $request->account_id[0];
+
+      if (empty($riderAccountId)) {
+        throw new \Exception('Rider account ID is required');
+      }
+
+      $riderAccount = Accounts::find($riderAccountId);
+
+      if (! $riderAccount) {
+        throw new \Exception('Rider account not found with ID: ' . $riderAccountId);
+      }
+
+      // Get the second account (credit account - should be Payment account)
+      $creditAccountId = $request->account_id[1];
+
+      // Get amounts
+      $riderAmount = $request->dr_amount[0] ?? 0;
+      $creditAmount = $request->dr_amount[1] ?? 0;
+
+      // Use the first amount for both entries if only one amount is provided
+      if ($creditAmount == 0) {
+        $creditAmount = $riderAmount;
+      }
+
+      // Generate transaction code
+      $transCode = Account::trans_code();
+
+      // Create voucher entry
+      $voucherData = [
+        'trans_date' => $request->trans_date ?? date('Y-m-d'),
+        'voucher_type' => 'PAY', // Payment
+        'payment_type' => $request->payment_type ?? 1, // Default to Cash
+        'payment_from' => GlobalAccounts::id('PAYMENT_ACCOUNT'),
+        'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+        'amount' => $riderAmount,
+        'remarks' => 'Payment Amount to Rider',
+        'ref_id' => $riderAccount->ref_id, // Rider ID
+        'reference_number' => $request->reference_number ?? null,
+        'trans_code' => $transCode,
+        'Created_By' => auth()->id(),
+        'status' => 1,
+        'branch_id' => $request->branch_id,
+        'custom_field_values' => $request->input('voucher_custom_fields', []),
+      ];
+
+      $voucher = Vouchers::create($voucherData);
+
+      // Create debit transaction for rider account (first entry)
+      $debitTransaction = [
+        'account_id' => $riderAccountId,
+        'reference_id' => $voucher->id,
+        'reference_type' => 'PAY',
+        'trans_code' => $transCode,
+        'trans_date' => $voucherData['trans_date'],
+        'narration' => $request->narration[0] ?? 'Payment Amount Received',
+        'debit' => $riderAmount,
+        'billing_month' => $voucherData['billing_month'],
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
+      ];
+
+      Transactions::create($debitTransaction);
+
+      // Create credit transaction for payment account (second entry)
+      $creditTransaction = [
+        'account_id' => $creditAccountId,
+        'reference_id' => $voucher->id,
+        'reference_type' => 'PAY',
+        'trans_code' => $transCode,
+        'trans_date' => $voucherData['trans_date'],
+        'narration' => $request->narration[1] ?? 'Payment Amount Given to ' . $riderAccount->name,
+        'credit' => $creditAmount,
+        'billing_month' => $voucherData['billing_month'],
+        'Created_By' => auth()->id(),
+        'branch_id' => $request->branch_id,
+      ];
+
+      Transactions::create($creditTransaction);
+
+      \DB::commit();
+
+      // Return success response
+      return response()->json([
+        'success' => true,
+        'message' => 'Payment amount recorded successfully',
+        'voucher_id' => $voucher->id,
+        'trans_code' => $transCode,
+        'reload' => true,
+      ]);
+    } catch (\Exception $e) {
+      \DB::rollback();
+
+      // Log the request data for debugging
+      \Log::error('Payment error', [
+        'request_data' => $request->all(),
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString(),
+      ]);
+
+      return response()->json([
+        'success' => false,
+        'message' => 'Error recording payment amount: ' . $e->getMessage(),
+        'debug' => [
+          'account_ids' => $request->account_id ?? 'not provided',
+          'dr_amounts' => $request->dr_amount ?? 'not provided',
+          'narrations' => $request->narration ?? 'not provided',
+        ],
+      ], 500);
+    }
   }
 
   public function payments(Request $request)
@@ -3466,7 +3136,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'nullable|numeric|exists:branches,id',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3510,7 +3180,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3524,7 +3194,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Incentive Amount Received',
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'debit' => $riderAmount,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
@@ -3541,7 +3211,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[1] ?? 'Incentive Amount Given to ' . $riderAccount->name,
         'credit' => $creditAmount,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
       ];
@@ -3582,16 +3252,17 @@ class RidersController extends AppBaseController
 
   public function vendorcharges($company_slug, $rider_id)
   {
-    $rider = $this->findAccessibleRider((int) $rider_id);
-    if (empty($rider)) {
-      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
-    }
+    $rider = Riders::find($rider_id);
+    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
+    $accounts = Accounts::dropdown(null);
+    $bank_accounts = Accounts::bankAccountsDropdown();
 
-    return view('riders.vendorcharges-modal', compact('rider'))->render();
+    return view('riders.vendorcharges-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
   }
 
   /**
-   * Unified voucher modal for rider: Penalty, Incentive, Advance Loan, COD, Payment, Vendor Charges.
+   * Unified voucher modal for rider: supports types AL, COD, PN, PAY, VC
+   * Incentive remains separate as requested.
    */
   public function voucher($company_slug, $rider_id)
   {
@@ -3604,18 +3275,7 @@ class RidersController extends AppBaseController
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $allowedCodes = ['PN', 'INC', 'AL', 'COD', 'VC', 'PAY'];
-    $allTypes = VoucherType::activeCodeLabelMapForModule('riders');
-    $voucherTypes = [];
-    foreach ($allowedCodes as $code) {
-      if (isset($allTypes[$code])) {
-        $voucherTypes[$code] = $allTypes[$code];
-      }
-    }
-    // Payment Voucher opens the Payments (PV) flow against latest unpaid invoice
-    if (!isset($voucherTypes['PAY'])) {
-      $voucherTypes['PAY'] = 'Payment Voucher';
-    }
+    $voucherTypes = VoucherType::activeCodeLabelMapForModule('riders');
 
     return view('riders.voucher-modal', compact('rider', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
   }
@@ -3636,7 +3296,7 @@ class RidersController extends AppBaseController
         'dr_amount.*' => 'required|numeric|min:0',
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
-        'branch_id' => 'nullable|numeric|exists:branches,id',
+        'branch_id' => 'required|numeric|exists:branches,id',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3681,7 +3341,7 @@ class RidersController extends AppBaseController
         'trans_code' => $transCode,
         'Created_By' => auth()->id(),
         'status' => 1,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
       ];
 
@@ -3696,7 +3356,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[0] ?? 'Vendor Charges ' . $riderAccount->name,
         'debit' => $riderAmount,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
       ];
@@ -3712,7 +3372,7 @@ class RidersController extends AppBaseController
         'trans_date' => $voucherData['trans_date'],
         'narration' => $request->narration[1] ?? 'Vendor Charges from ' . $riderAccount->name,
         'credit' => $creditAmount,
-        'branch_id' => $request->input('branch_id') ?: null,
+        'branch_id' => $request->branch_id,
         'billing_month' => $voucherData['billing_month'],
         'Created_By' => auth()->id(),
       ];

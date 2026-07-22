@@ -20,19 +20,14 @@ use App\Support\GlobalAccounts;
 class FuelDataController extends Controller
 {
     use GlobalPagination;
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('permission:fuel_cards_transactions_view')->only('index', 'show', 'show2', 'monthlySummary');
-        $this->middleware('permission:fuel_cards_transactions_create')->only('create', 'store', 'import', 'downloadTemplate');
-        $this->middleware('permission:fuel_cards_transactions_edit')->only('edit', 'update');
-        $this->middleware('permission:fuel_cards_transactions_delete')->only('destroy');
-    }
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        if (!user_can('fuel_view')) {
+            abort(403, 'Unauthorized action.');
+        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelData::query()
@@ -73,6 +68,9 @@ class FuelDataController extends Controller
      */
     public function create()
     {
+        if (!user_can('fuel_create')) {
+            abort(403, 'Unauthorized action.');
+        }
         $data = null;
         return view('fuel_data.create', compact('data'));
     }
@@ -230,6 +228,9 @@ class FuelDataController extends Controller
      */
     public function edit($company_slug, string $id)
     {
+        if (!user_can('fuel_create')) {
+            abort(403, 'Unauthorized action.');
+        }
         $data = FuelData::find($id);
         return view('fuel_data.edit', compact('data'));
     }
@@ -343,6 +344,14 @@ class FuelDataController extends Controller
      */
     public function destroy($company_slug, string $id)
     {
+        // Check permission
+        if (!user_can('fuel_delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete fuel transactions.'
+            ], 403);
+        }
+
         try {
             DB::beginTransaction();
 

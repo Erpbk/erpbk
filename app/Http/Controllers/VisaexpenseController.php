@@ -45,16 +45,20 @@ class VisaexpenseController extends AppBaseController
     public function __construct(VisaExpensesRepository $visaRepo)
     {
         $this->visaRepo = $visaRepo;
-        $this->middleware('permission:visa_expense_view')->only('index', 'generatentries', 'show', 'viewvoucher');
-        $this->middleware('permission:visa_expense_create')->only('accountcreate', 'eligibleRenewalCategories', 'editaccount', 'create', 'store', 'viewvoucher', 'payfine');
-        $this->middleware('permission:visa_expense_edit')->only('editaccount', 'updateaccount', 'updateaccountform', 'payaccount', 'finalizePayment', 'generateAccountInvoice', 'autoMarkAccountsAsPaid', 'recalculateAccounts', 'payfine', 'updateVoucherCredit', 'inlineUpdate', 'edit', 'update', 'editVoucherCreditForm');
-        $this->middleware('permission:visa_expense_delete')->only('deleteaccount', 'destroy');
     }
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        // Check if user is authenticated first
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('visaexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
@@ -593,6 +597,14 @@ class VisaexpenseController extends AppBaseController
 
     public function generatentries(Request $request, $company_slug, $id)
     {
+        // Check if user is authenticated first
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('visaexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
         $account = ExpenseAccount::with(['rider', 'renewalCategory'])->where('id', $id)->firstOrFail();
         $riderId = $account->rider_id;
         $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($account);
@@ -954,6 +966,10 @@ class VisaexpenseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
+        if (!user_can('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'id' => 'required|exists:visa_expenses,id',
             'amount' => 'required|numeric|min:0',
@@ -981,6 +997,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function editVoucherCreditForm(Request $request, $company_slug, $visaExpense)
     {
+        if (!user_can('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $expense = visa_expenses::with('vouchers')->findOrFail($visaExpense);
 
         if ($expense->payment_status !== 'paid') {
@@ -1047,6 +1067,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function updateVoucherCredit(Request $request, $company_slug)
     {
+        if (!user_can('visaexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $validated = $request->validate([
             'visa_expense_id' => 'required|exists:visa_expenses,id',
             'credit_account_id' => 'required|exists:accounts,id',

@@ -1,21 +1,22 @@
 @push('third_party_stylesheets')
 @endpush
 <table class="table dataTable no-footer" id="dataTableBuilder">
+   @php $vf = static fn (string $f): bool => field_visible('item', $f); @endphp
    <thead class="text-center">
       <tr role="row">
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Image</th>
-         <th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>
+         @if($vf('attachment'))<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Image</th>@endif
+         @if($vf('name'))<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Name: activate to sort column ascending">Name</th>@endif
          <th title="Customer" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Customer: activate to sort column ascending">Owner</th>
-         <th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Available</th>
-         <th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Price</th>
-         <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+         @if($vf('available'))<th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Available</th>@endif
+         @if($vf('price'))<th title="Price" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Price: activate to sort column ascending">Price</th>@endif
+         @if($vf('status'))<th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>@endif
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
    </thead>
    <tbody>
       @foreach($data as $r)
       <tr class="text-center">
-         <td>
+         @if($vf('attachment'))<td>
             @if($r->attachment)
                <div class="image-container">
                      <img src="{{ storage_url($r->attachment) }}" 
@@ -29,8 +30,8 @@
             @else
                <span class="text-muted">No image</span>
             @endif
-         </td>
-         <td><a href="javascript:void(0);" data-action="{{ route('items.show', $r->id) }}" class="show-modal-right">{{ $r->name }}</a></td>
+         </td>@endif
+         @if($vf('name'))<td><a href="javascript:void(0);" data-action="{{ route('items.show', $r->id) }}" class="show-modal-right">{{ $r->name }}</a></td>@endif
          <td>
             @if($r->owners)
                @foreach ($r->owners as $owner)
@@ -40,15 +41,15 @@
                {{ 'Unknown' }}
             @endif
          </td>
-         <td>{{$r->available }}</td>
-         <td>{{$r->price }}</td>
-         <td>
+         @if($vf('available'))<td>{{$r->available }}</td>@endif
+         @if($vf('price'))<td>{{$r->price }}</td>@endif
+         @if($vf('status'))<td>
             @if($r->status == 1)
             <span class="badge  bg-success">Active</span>
             @else
             <span class="badge  bg-danger">Inactive</span>
             @endif
-         </td>
+         </td>@endif
          <td style="position: relative;">
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">

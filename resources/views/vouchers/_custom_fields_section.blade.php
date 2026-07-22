@@ -9,6 +9,7 @@
     <h6 class="text-muted mb-2">Custom Fields</h6>
   </div>
   @foreach($voucherCustomFields as $field)
+  @continue(! field_visible('voucher', 'cf_' . $field->id))
   @php
     $value = $customValues[$field->id] ?? $field->default_value ?? '';
     $config = $field->config ?? [];

@@ -1,14 +1,15 @@
 @php $__companySlug = \App\Support\CompanyRouteContext::slug(); @endphp
+@php $vf = static fn (string $f): bool => field_visible('asset', $f); @endphp
 <table class="table dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr>
-            <th>Code</th>
-            <th>Name</th>
-            <th>Category</th>
-            <th>Acquisition Date</th>
-            <th>Cost</th>
+            @if($vf('asset_code'))<th>Code</th>@endif
+            @if($vf('name'))<th>Name</th>@endif
+            @if($vf('category_id'))<th>Category</th>@endif
+            @if($vf('acquisition_date'))<th>Acquisition Date</th>@endif
+            @if($vf('acquisition_cost'))<th>Cost</th>@endif
             <th>Book Value</th>
-            <th>Status</th>
+            @if($vf('status'))<th>Status</th>@endif
             <th width="120px">Actions</th>
         </tr>
     </thead>
@@ -23,12 +24,12 @@
                     : (float) $asset->acquisition_cost;
             @endphp
             <tr class="text-center">
-                <td>
+                @if($vf('asset_code'))<td>
                     <a href="javascript:void(0);" class="show-modal-right" data-size="xl" data-title="Asset Details" data-action="{{ route('fixed-assets.show', $asset->id) }}">
                         {{ $asset->asset_code }}
                     </a>
-                </td>
-                <td>
+                </td>@endif
+                @if($vf('name'))<td>
                     @if($asset->bike_id)
                         <a href="{{ route('bikes.show', ['company_slug' => $__companySlug, 'bike' => $asset->bike_id]) }}" target="_blank" rel="noopener">
                             {{ $asset->name }}
@@ -36,12 +37,12 @@
                     @else
                         {{ $asset->name }}
                     @endif
-                </td>
-                <td>{{ $asset->category?->name }}</td>
-                <td>{{ $asset->acquisition_date?->format('d M Y') }}</td>
-                <td>{{ number_format((float) $asset->acquisition_cost, 2) }}</td>
+                </td>@endif
+                @if($vf('category_id'))<td>{{ $asset->category?->name }}</td>@endif
+                @if($vf('acquisition_date'))<td>{{ $asset->acquisition_date?->format('d M Y') }}</td>@endif
+                @if($vf('acquisition_cost'))<td>{{ number_format((float) $asset->acquisition_cost, 2) }}</td>@endif
                 <td>{{ number_format((float) $bookValue, 2) }}</td>
-                <td>
+                @if($vf('status'))<td>
                     @if($asset->status === 'draft')
                         <span class="badge bg-warning text-dark">Draft</span>
                     @elseif($asset->status === 'active')
@@ -51,7 +52,7 @@
                     @else
                         <span class="badge bg-secondary">Disposed</span>
                     @endif
-                </td>
+                </td>@endif
                 <td>
                     <div class="dropdown">
                         <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2" type="button" data-bs-toggle="dropdown">

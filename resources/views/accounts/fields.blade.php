@@ -1,68 +1,92 @@
-@if(!($hideBranch ?? false))
 <div class="alert alert-warning"> Select <b>'All'</b> option in Branch list if this account will be used by all or multiple branches</div>
-@endif
 
 <!-- Account Type Field -->
+@fieldVisible('account', 'account_type')
 <div class="form-group col-sm-6">
   {!! Form::label('account_type', 'Account Type:') !!}
-  {!! Form::select('account_type', App\Helpers\Accounts::AccountTypes(),null, ['class' => 'form-control form-select select2']) !!}
+  {!! Form::select('account_type', App\Helpers\Accounts::AccountTypes(),null, ['class' => 'form-control form-select select2'] + field_lock('account', 'account_type', 'select')) !!}
 </div>
-@if(!($hideBranch ?? false))
+@endfieldVisible
 <!-- Branch Field -->
+@fieldVisible('account', 'branch_id')
 <div class="form-group col-sm-6">
     {!! Form::label('branch_id', 'Branch:',['class'=>'required']) !!}
-    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2']) !!}
+    {!! Form::select('branch_id', auth()->user()->branchDropdown(true), null, ['class' => 'form-select select2'] + field_lock('account', 'branch_id', 'select')) !!}
 </div>
-@endif
+@endfieldVisible
 <!-- Account Name Field -->
+@fieldVisible('account', 'name')
 <div class="form-group col-sm-6">
   {!! Form::label('name', 'Account Name:') !!}
-  {!! Form::text('name', null, ['class' => 'form-control', 'required', 'maxlength' => 100, 'maxlength' => 100]) !!}
+  {!! Form::text('name', null, ['class' => 'form-control', 'required', 'maxlength' => 100, 'maxlength' => 100] + field_lock('account', 'name')) !!}
 </div>
+@endfieldVisible
 <!-- Account Code Field -->
-@if((Route::currentRouteName() == 'accounts.edit' || ($showAccountCode ?? false)) && isset($accounts->id))
+@if(Route::currentRouteName() == 'accounts.edit' && isset($accounts->id))
+@fieldVisible('account', 'account_code')
 <div class="form-group col-sm-6">
   {!! Form::label('account_code', 'Account Code:') !!}
-  {!! Form::text('account_code', $accounts->account_code, ['class' => 'form-control']) !!}
+  {!! Form::text('account_code', $accounts->account_code, ['class' => 'form-control'] + field_lock('account', 'account_code')) !!}
 </div>
+@endfieldVisible
 @endif
 
 <!-- Parent Account Id Field -->
+@fieldVisible('account', 'parent_id')
 <div class="form-group col-sm-6">
   {!! Form::label('parent_id', 'Parent Account:') !!}
-  <select name="parent_id" class="form-control form-select select2">
+  <select name="parent_id" class="form-control form-select select2" @fieldReadonly('account', 'parent_id')>
     <option value="">Select</option>
     {!! App\Helpers\Accounts::dropdown($parents, isset($accounts) ? $accounts->parent_id : null) !!}
   </select>
   {{-- {!! Form::select('parent_account_id', $parents,null, ['class' => 'form-control form-select select2']) !!} --}}
 </div>
+@endfieldVisible
 
 <!-- Opening Balance Field -->
+@fieldVisible('account', 'opening_balance')
 <div class="form-group col-sm-6">
   {!! Form::label('opening_balance', 'Opening Balance:') !!}
-  {!! Form::number('opening_balance', null, ['class' => 'form-control','step'=>'any']) !!}
+  {!! Form::number('opening_balance', null, ['class' => 'form-control','step'=>'any'] + field_lock('account', 'opening_balance')) !!}
 </div>
+@endfieldVisible
 
 <div class="form-group col-sm-6"></div>
 <!-- Status Field -->
+@fieldVisible('account', 'status')
 <div class="form-group col-sm-6">
   <label>Status</label>
   <div class="form-check">
     <input type="hidden" name="status" value="2" />
-    <input type="checkbox" name="status" id="status" class="form-check-input" value="1" @isset($accounts) @if($accounts->status == 1) checked @endif @else checked @endisset/>
+    <input type="checkbox" name="status" id="status" class="form-check-input" value="1" @isset($accounts) @if($accounts->status == 1) checked @endif @else checked @endisset @fieldReadonly('account', 'status')/>
     <label for="status" class="pt-0">Is Active</label>
 
   </div>
 </div>
+@endfieldVisible
 
+@if(\Illuminate\Support\Facades\Auth::guard('admin')->check())
+<div class="form-group col-sm-6">
+  <label>Fixed Account</label>
+  <div class="form-check">
+    <input type="hidden" name="is_fixed" value="0" />
+    <input type="checkbox" name="is_fixed" id="is_fixed" class="form-check-input" value="1" @isset($accounts) @if($accounts->is_fixed) checked @endif @endisset />
+    <label for="is_fixed" class="pt-0">Share this account with all companies</label>
+  </div>
+</div>
+@endif
+
+@fieldVisible('account', 'notes')
 <div class="form-group col-sm-12">
   {!! Form::label('notes', 'Notes:') !!}
-  {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 4]) !!}
+  {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 4] + field_lock('account', 'notes')) !!}
 
 </div>
+@endfieldVisible
 
 @isset($customFields)
 @foreach($customFields as $field)
+@continue(! field_visible('account', 'cf_' . $field->id))
 @php
 $value = isset($accounts) ? (data_get($accounts->custom_field_values, $field->id) ?? $field->default_value) : ($field->default_value ?? '');
 $config = $field->config ?? [];

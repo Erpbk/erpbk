@@ -63,14 +63,15 @@
             </div>
         </div>
         <div class="card-body">
+            @php $vf = static fn (string $f): bool => field_visible('loan', $f); @endphp
             <div class="row">
-                <div class="col-md-4"><strong>Bank:</strong> {{ $loan->bank?->name }}</div>
-                <div class="col-md-4"><strong>Rate:</strong> {{ number_format($loan->interest_rate, 2) }}% p.a.</div>
+                @if($vf('bank_id'))<div class="col-md-4"><strong>Bank:</strong> {{ $loan->bank?->name }}</div>@endif
+                @if($vf('interest_rate'))<div class="col-md-4"><strong>Rate:</strong> {{ number_format($loan->interest_rate, 2) }}% p.a.</div>@endif
                 <div class="col-md-4"><strong>Interest Method:</strong> {{ $loan->interest_calculation_method_label }}</div>
                 <div class="col-md-4 mt-2"><strong>Term:</strong> {{ $loan->term_months }} months</div>
                 <div class="col-md-4 mt-2"><strong>First Payment:</strong> {{ $loan->first_payment_date?->format('d M Y') }}</div>
-                <div class="col-md-4 mt-2"><strong>Maturity:</strong> {{ $loan->maturity_date?->format('d M Y') ?? '-' }}</div>
-                <div class="col-md-4 mt-2"><strong>Status:</strong> {!! $loan->status_badge !!}</div>
+                @if($vf('maturity_date'))<div class="col-md-4 mt-2"><strong>Maturity:</strong> {{ $loan->maturity_date?->format('d M Y') ?? '-' }}</div>@endif
+                @if($vf('status'))<div class="col-md-4 mt-2"><strong>Status:</strong> {!! $loan->status_badge !!}</div>@endif
                 @if($nextInstallment)
                 <div class="col-md-4 mt-2"><strong>Next EMI:</strong> {{ $nextInstallment->due_date->format('d M Y') }} — {{ number_format($nextInstallment->total_amount, 2) }}</div>
                 @endif

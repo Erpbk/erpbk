@@ -23,15 +23,14 @@ class FuelCompaniesController extends AppBaseController
     public function __construct(FuelCompaniesRepository $fuelCompaniesRepository)
     {
         $this->fuelCompaniesRepository = $fuelCompaniesRepository;
-        $this->middleware('auth');
-        $this->middleware('permission:fuel_cards_companies_view')->only('index', 'show');
-        $this->middleware('permission:fuel_cards_companies_create')->only('create', 'store');
-        $this->middleware('permission:fuel_cards_companies_edit')->only('edit', 'update');
-        $this->middleware('permission:fuel_cards_companies_delete')->only('destroy');
     }
 
     public function index(Request $request)
     {
+        if (!user_can('fuel_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = FuelCompany::query()
             ->with('account')
@@ -65,13 +64,28 @@ class FuelCompaniesController extends AppBaseController
 
     public function create()
     {
+        if (!user_can('fuel_create')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('fuel_companies.create');
     }
 
     public function store(CreateFuelCompaniesRequest $request)
     {
+        if (!user_can('fuel_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $input = $request->all();
-        $parentAccount = \App\Support\GlobalAccounts::id('FUEL_COMPANIES_PARENT');
+        $parentAccount = Accounts::where('name', 'Fuel Wallet')->where('account_type', 'Asset')->where('parent_id', 2484)->first();
+        if (!$parentAccount) {
+            $message = 'Chart of accounts is missing a "Fuels (Company)" (Liability) head under Current Liabilities. Add it in Chart of Accounts first.';
+            if ($request->ajax()) {
+                return response()->json(['message' => $message], 422);
+            }
+            Flash::error($message);
+            return redirect()->back();
+        }
 
         try {
             DB::beginTransaction();
@@ -82,7 +96,7 @@ class FuelCompaniesController extends AppBaseController
             $account->account_code = 'FC' . str_pad((string) $fuelCompany->id, 4, '0', STR_PAD_LEFT);
             $account->account_type = 'Asset';
             $account->name = $fuelCompany->name;
-            $account->parent_id = $parentAccount;
+            $account->parent_id = $parentAccount->id;
             $account->ref_name = 'FuelCompany';
             $account->ref_id = $fuelCompany->id;
             $account->status = (int) $fuelCompany->status;
@@ -112,6 +126,10 @@ class FuelCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
+        if (!user_can('fuel_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             Flash::error('Fuel company not found');
@@ -125,6 +143,10 @@ class FuelCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
+        if (!user_can('fuel_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             Flash::error('Fuel company not found');
@@ -136,6 +158,10 @@ class FuelCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateFuelCompaniesRequest $request)
     {
+        if (!user_can('fuel_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             return response()->json(['errors' => ['error' => 'Fuel company not found!']], 422);
@@ -158,6 +184,10 @@ class FuelCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
+        if (!user_can('fuel_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
             return response()->json(['errors' => ['error' => 'Fuel company not found!']], 422);

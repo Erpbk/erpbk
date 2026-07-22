@@ -38,6 +38,10 @@ class VendorsController extends AppBaseController
    */
   public function index(Request $request)
   {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('vendor')) {
+      abort(403, 'Unauthorized action.');
+    }
+
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = vendors::query()

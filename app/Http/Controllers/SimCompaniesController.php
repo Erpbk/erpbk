@@ -23,14 +23,14 @@ class SimCompaniesController extends AppBaseController
     public function __construct(SimCompaniesRepository $simCompaniesRepository)
     {
         $this->simCompaniesRepository = $simCompaniesRepository;
-        $this->middleware('permission:sims_companies_view')->only('index', 'show');
-        $this->middleware('permission:sims_companies_create')->only('create', 'store');
-        $this->middleware('permission:sims_companies_edit')->only('edit', 'update');
-        $this->middleware('permission:sims_companies_delete')->only('destroy');
     }
 
     public function index(Request $request)
     {
+        if (!user_can('sim_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = SimCompany::query()
             ->with('account')
@@ -64,16 +64,33 @@ class SimCompaniesController extends AppBaseController
 
     public function create()
     {
+        if (!user_can('sim_create')) {
+            abort(403, 'Unauthorized action.');
+        }
         return view('sim_companies.create');
     }
 
     public function store(CreateSimCompaniesRequest $request)
     {
+        if (!user_can('sim_create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $input = $request->all();
+        $currentLiabilities = Accounts::where('name', 'Sims (Company)')->where('account_type', 'Liability')->first();
+        if (!$currentLiabilities) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Parent account "Sims (Company)" not found.',
+            ], 422);
+            if ($request->ajax()) {
+                return response()->json(['message' => $message], 422);
+            }
+            Flash::error($message);
+            return redirect()->back();
+        }
 
         try {
-            
-            $currentLiabilities = \App\Support\GlobalAccounts::account('SIM_COMPANIES');
             DB::beginTransaction();
             $input['created_by'] = auth()->id();
             $simCompany = $this->simCompaniesRepository->create($input);
@@ -112,6 +129,10 @@ class SimCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
+        if (!user_can('sim_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $simCompany = $this->simCompaniesRepository->find((int) $id);
         if (empty($simCompany)) {
             Flash::error('SIM company not found');
@@ -125,6 +146,10 @@ class SimCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
+        if (!user_can('sim_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $simCompany = $this->simCompaniesRepository->find((int) $id);
         if (empty($simCompany)) {
             Flash::error('SIM company not found');
@@ -136,6 +161,10 @@ class SimCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateSimCompaniesRequest $request)
     {
+        if (!user_can('sim_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $simCompany = $this->simCompaniesRepository->find((int) $id);
         if (empty($simCompany)) {
             return response()->json(['errors' => ['error' => 'SIM company not found!']], 422);
@@ -158,6 +187,10 @@ class SimCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
+        if (!user_can('sim_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $simCompany = $this->simCompaniesRepository->find((int) $id);
         if (empty($simCompany)) {
             return response()->json(['errors' => ['error' => 'SIM company not found!']], 422);

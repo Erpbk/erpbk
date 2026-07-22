@@ -445,11 +445,11 @@ class EmployeeController extends Controller
 
         $columns[] = ['data' => 'documents_expiry', 'title' => $labelMap['documents_expiry'] ?? 'Documents Expiry'];
 
-        return array_merge($columns, [
+        return \App\Support\RoleFieldAccess::filterTableColumns(array_merge($columns, [
             ['data' => 'action', 'title' => 'Actions'],
             ['data' => 'search', 'title' => 'Search'],
             ['data' => 'control', 'title' => 'Control'],
-        ]);
+        ]), 'employees');
     }
 
     private function applyEmployeeIndexFilters($query, Request $request): void
@@ -497,6 +497,10 @@ class EmployeeController extends Controller
      */
     public function index(Request $request)
     {
+        if (! \App\Support\RoleFieldAccess::canAccessModule('employees')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = Employee::query()->with('branch', 'department', 'nationality');
@@ -551,6 +555,7 @@ class EmployeeController extends Controller
             DB::beginTransaction();
 
             $input = $this->employeeAttributesFromRequest($request);
+            $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'employees');
             $input['created_by'] = auth()->id();
 
             if ($request->hasFile('profile_image')) {
@@ -929,6 +934,7 @@ class EmployeeController extends Controller
         $request->validate($this->employeeValidationRules((int) $employee->id));
 
         $input = $this->employeeAttributesFromRequest($request, $employee);
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'employees', is_array($employee->custom_field_values ?? null) ? $employee->custom_field_values : []);
 
         if ($request->hasFile('profile_image')) {
             if ($employee->profile_image) {

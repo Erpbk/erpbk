@@ -40,12 +40,6 @@ class SalikController extends AppBaseController
     public function __construct(SalikRepository $salikRepo)
     {
         $this->salikRepository = $salikRepo;
-        $this->middleware('permission:rta_saliks_salik_view')->only('index', 'show', 'monthlySummary', 'showMonthlyInvoice', 'showCompanyMonthlyInvoice', 'tickets', 'showMonthlyInvoiceTransactions');
-        $this->middleware('permission:rta_saliks_salik_create')->only('create', 'store', 'fileUpload', 'importForm', 'testImport', 'import', 'downloadTemplate', 'showMissingRecords', 'analyzeExcelFile', 'exportMissingRecords', 'clearFailedImports', 'attachFile');
-        $this->middleware('permission:rta_saliks_salik_edit')->only('edit', 'update', 'fileUpload', 'importForm', 'testImport', 'import', 'downloadTemplate', 'showMissingRecords', 'analyzeExcelFile', 'exportMissingRecords', 'clearFailedImports', 'attachFile');
-        $this->middleware('permission:rta_saliks_salik_delete')->only('destroy');
-        $this->middleware('permission:rta_saliks_payment_view')->only('paymentRecords');
-        $this->middleware('permission:rta_saliks_payment_create')->only('payment', 'getPaymentRecords', 'calculatePaymentVoucher', 'storePayment', 'paymentForm');
     }
 
     public function index(Request $request)
@@ -60,6 +54,10 @@ class SalikController extends AppBaseController
 
     private function renderSalikListing(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = salik::query()
             ->with(['branch', 'bike.leasingCompany', 'rider', 'rentalCompany'])
@@ -232,6 +230,10 @@ class SalikController extends AppBaseController
 
     public function monthlySummary(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $query = salik::query()
             ->select(
                 'inv_id',
@@ -262,64 +264,6 @@ class SalikController extends AppBaseController
         $summaries->load(['rider', 'rentalCompany']);
 
         return view('salik.monthly_summary', compact('summaries'));
-    }
-
-    public function paymentRecords(Request $request)
-    {
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
-        $query = Vouchers::query()
-            ->whereIn('id', salik::query()->whereNotNull('payment_voucher_id')->select('payment_voucher_id'))
-            ->with(['branch'])
-            ->withCount(['salikPayments as salik_count'])
-            ->orderBy('trans_date', 'desc')
-            ->orderBy('id', 'desc');
-
-        if ($request->filled('branch_id')) {
-            $query->where('branch_id', $request->branch_id);
-        }
-        if ($request->filled('billing_month')) {
-            $billingMonth = Carbon::parse($request->billing_month . '-01')->format('Y-m-01');
-            $query->where('billing_month', 'like', Carbon::parse($billingMonth)->format('Y-m') . '%');
-        }
-        if ($request->filled('trans_date_from')) {
-            $query->whereDate('trans_date', '>=', $request->trans_date_from);
-        }
-        if ($request->filled('trans_date_to')) {
-            $query->whereDate('trans_date', '<=', $request->trans_date_to);
-        }
-
-        $totalAmount = (clone $query)->sum('amount');
-        $totalCount = (clone $query)->count();
-        $totalSaliks = salik::query()
-            ->whereIn('payment_voucher_id', (clone $query)->select('id'))
-            ->count();
-
-        $data = $this->applyPagination($query, $paginationParams);
-
-        $accountIds = $data->getCollection()
-            ->flatMap(fn ($voucher) => [$voucher->payment_from, $voucher->payment_to])
-            ->filter()
-            ->unique()
-            ->values();
-        $accounts = Accounts::whereIn('id', $accountIds)->pluck('name', 'id');
-
-        if ($request->ajax()) {
-            $tableData = view('salik.payments_table', compact('data', 'accounts'))->render();
-            $paginationLinks = $data->links('components.global-pagination')->render();
-
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-                'totals' => [
-                    'totalCount' => $totalCount,
-                    'totalSaliks' => $totalSaliks,
-                    'totalAmount' => \App\Helpers\Currency::format($totalAmount, 2),
-                ],
-            ]);
-        }
-
-        return view('salik.payments', compact('data', 'accounts', 'totalAmount', 'totalCount', 'totalSaliks'));
     }
 
     public function showMonthlyInvoice($company_slug, $rider_id, $billing_month)
@@ -1717,6 +1661,9 @@ class SalikController extends AppBaseController
      */
     public function showMissingRecords(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
         $perPage = $request->get('per_page', 50);
         $failedImports = FailedSalikImport::orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -1902,6 +1849,10 @@ class SalikController extends AppBaseController
      */
     public function analyzeExcelFile(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'excel_file' => 'required|file|mimes:xlsx,xls,csv'
         ]);
@@ -1985,6 +1936,10 @@ class SalikController extends AppBaseController
      */
     public function exportMissingRecords(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             // Get all failed import records
             $failedImports = FailedSalikImport::orderBy('created_at', 'desc')->get();
@@ -2058,6 +2013,10 @@ class SalikController extends AppBaseController
      */
     public function clearFailedImports(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             // Delete all records
             $deletedCount = FailedSalikImport::query()->delete();
@@ -2079,6 +2038,10 @@ class SalikController extends AppBaseController
 
     public function paymentForm(Request $request)
     {
+        if (!user_can('salik_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         try {
             $this->requireSalikPaymentHeadAccounts(0, 0, 0);
         } catch (\Exception $e) {

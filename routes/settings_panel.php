@@ -342,6 +342,14 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('users', App\Http\Controllers\UserController::class)->names('settings-panel.users');
     Route::patch('users/{id}/password', [App\Http\Controllers\UserController::class, 'changePassword'])->name('users.password');
     Route::resource('permissions', App\Http\Controllers\PermissionsController::class)->names('settings-panel.permissions');
+    // Dedicated single-page Role Permission manager (module + field permissions).
+    // Create routes must be registered before the {role} parameterized routes.
+    Route::get('roles/create/permissions', [App\Http\Controllers\RolePermissionController::class, 'create'])->name('settings-panel.roles.permissions.create');
+    Route::post('roles/create/permissions', [App\Http\Controllers\RolePermissionController::class, 'store'])->name('settings-panel.roles.permissions.store');
+    Route::get('roles/create/permissions/modules/{module}/fields', [App\Http\Controllers\RolePermissionController::class, 'createModuleFields'])->name('settings-panel.roles.permissions.create-module-fields');
+    Route::get('roles/{role}/permissions', [App\Http\Controllers\RolePermissionController::class, 'index'])->name('settings-panel.roles.permissions');
+    Route::get('roles/{role}/permissions/modules/{module}/fields', [App\Http\Controllers\RolePermissionController::class, 'moduleFields'])->name('settings-panel.roles.permissions.module-fields');
+    Route::post('roles/{role}/permissions', [App\Http\Controllers\RolePermissionController::class, 'save'])->name('settings-panel.roles.permissions.save');
     Route::resource('roles', App\Http\Controllers\RolesController::class)->names('settings-panel.roles');
     Route::prefix('activity-logs')->name('settings-panel.activity-logs.')->group(function () {
         Route::get('/', [ActivityLogController::class, 'index'])->name('index');

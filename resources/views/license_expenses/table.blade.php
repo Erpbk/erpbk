@@ -2,22 +2,23 @@
 @endpush
 <div id="visa-expenses-inline-edit-scope">
    <table class="table table-striped dataTable no-footer" id="LicenseExpensesDataTable">
+      @php $vf = static fn (string $f): bool => field_visible('licenseexpense', $f); @endphp
       <thead class="text-center">
          <tr role="row">
-            <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-            <th title="Transation Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transation Date: activate to sort column ascending">Billing Month</th>
-            <th title="License Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="License Status: activate to sort column ascending" aria-sort="descending">License Status</th>
-            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>
-            <th title="expiry date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="expiry date: activate to sort column ascending">Expiry Date</th>
+            @if($vf('date'))<th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>@endif
+            @if($vf('billing_month'))<th title="Transation Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transation Date: activate to sort column ascending">Billing Month</th>@endif
+            @if($vf('license_status'))<th title="License Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="License Status: activate to sort column ascending" aria-sort="descending">License Status</th>@endif
+            @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>@endif
+            @if($vf('expiry_date'))<th title="expiry date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="expiry date: activate to sort column ascending">Expiry Date</th>@endif
             <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-            <th title="Payment Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Payment Status: activate to sort column ascending" aria-sort="descending">Payment Status</th>
+            @if($vf('payment_status'))<th title="Payment Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Payment Status: activate to sort column ascending" aria-sort="descending">Payment Status</th>@endif
             <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
          </tr>
       </thead>
       <tbody>
          @foreach($data as $r)
          <tr class="text-center" data-row-id="{{ $r->id }}">
-            <td>
+            @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
                @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
@@ -29,8 +30,8 @@
                   id="date_input_{{ $r->id }}"
                   value="{{ \Carbon\Carbon::parse($r->date)->format('Y-m-d') }}"
                   class="form-control form-control-sm d-none">
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('billing_month'))<td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
                @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
@@ -42,11 +43,11 @@
                   id="billing_input_{{ $r->id }}"
                   value="{{ \Carbon\Carbon::parse($r->billing_month)->format('Y-m') }}"
                   class="form-control form-control-sm d-none">
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('license_status'))<td>
                <span class="badge bg-primary">{{ $r->license_status }}</span>
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('amount'))<td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
                @can('license_expense_edit')
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
@@ -60,8 +61,8 @@
                   id="amount_input_{{ $r->id }}"
                   value="{{ number_format((float) $r->amount, 2, '.', '') }}"
                   class="form-control form-control-sm d-none">
-            </td>
-            <td>
+            </td>@endif
+            @if($vf('expiry_date'))<td>
                @if($r->expiry_date)
                <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
                @can('license_expense_edit')
@@ -77,7 +78,7 @@
                @else
                <span class="text-muted">-</span>
                @endif
-            </td>
+            </td>@endif
             <td>
                <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
                   @if($r->payment_status === 'paid')
@@ -106,13 +107,13 @@
                   @endif
                </span>
             </td>
-            <td>
+            @if($vf('payment_status'))<td>
                @if($r->payment_status == 'paid')
                <span class="badge bg-success">Paid</span>
                @else
                <span class="badge bg-danger">Unpaid</span>
                @endif
-            </td>
+            </td>@endif
             <td>
                <div class="dropdown">
                   <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

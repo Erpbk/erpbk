@@ -134,14 +134,19 @@
                             <label for="voucher_id">Voucher ID</label>
                             <input type="text" name="voucher_id" class="form-control" placeholder="Filter By Voucher ID (e.g., JV-0001)" value="{{ request('voucher_id') }}">
                         </div>
+                        @if(field_visible('voucher', 'trans_date'))
                         <div class="form-group col-md-12">
                             <label for="trans_date">Transaction Date</label>
                             <input type="date" name="trans_date" class="form-control" value="{{ request('trans_date') }}">
                         </div>
+                        @endif
+                        @if(field_visible('voucher', 'billing_month'))
                         <div class="form-group col-md-12">
                             <label for="billing_month">Billing Month</label>
                             <input type="month" name="billing_month" class="form-control" value="{{ request('billing_month') }}">
                         </div>
+                        @endif
+                        @if(field_visible('voucher', 'voucher_type'))
                         <div class="form-group col-md-12">
                             <label for="voucher_type">Voucher Type</label>
                             <select class="form-control" id="voucher_type" name="voucher_type">
@@ -151,6 +156,8 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
+                        @if(field_visible('voucher', 'created_by'))
                         <div class="form-group col-md-12">
                             <label for="created_by">Created By</label>
                             <select class="form-control" id="created_by" name="created_by">
@@ -170,6 +177,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endif
                         <div class="form-group col-md-12">
                             <label for="quick_search">Quick Search</label>
                             <input type="text" name="quick_search" id="quickSearchSidebar" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
@@ -191,6 +199,7 @@
         ['data' => 'trans_date', 'title' => 'Date'],
         ['data' => 'trans_code', 'title' => 'Trans Code'],
         ['data' => 'billing_month', 'title' => 'Billing Month'],
+        ['data' => 'reference_number', 'title' => 'Reference Number'],
         ['data' => 'voucher_type', 'title' => 'Type'],
         ['data' => 'amount', 'title' => 'Amount'],
         ['data' => 'created_by', 'title' => 'Created By'],
@@ -200,6 +209,8 @@
         ['data' => 'search', 'title' => 'Search'],
         ['data' => 'control', 'title' => 'Control']
         ];
+        // Drop columns whose field the current user may not view (Role → Field Permissions).
+        $tableColumns = \App\Support\RoleFieldAccess::filterTableColumns($tableColumns, 'voucher');
         @endphp
         @include('components.column-control-panel', [
         'tableColumns' => $tableColumns,

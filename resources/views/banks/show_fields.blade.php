@@ -1,5 +1,8 @@
 @php
-  $bankFieldKeys = \App\Support\BankFormLayout::userFacingFieldKeys();
+  $bankFieldKeys = array_values(array_filter(
+      \App\Support\BankFormLayout::userFacingFieldKeys(),
+      static fn ($col) => field_visible('bank', (string) $col)
+  ));
 @endphp
 @foreach($bankFieldKeys as $col)
   <div class="col-sm-12">

@@ -10,7 +10,8 @@
          $k = $c['data'] ?? ($c['key'] ?? null);
          return $k !== 'search'
          && $k !== 'control'
-         && !in_array($k, $hiddenTableColumns, true);
+         && !in_array($k, $hiddenTableColumns, true)
+         && field_visible('employees', $k);
          }));
          @endphp
          @foreach($dataColumns as $col)

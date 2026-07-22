@@ -796,14 +796,15 @@ class BikesController extends AppBaseController
                 } else {
                     $message .= "*Rental Company:* {$company->name}\n";
                 }
+                $returnDateFormatted = Carbon::parse($request->return_date)->format('d-m-Y');
                 if ($request->warehouse == 'Absconded') {
-                    $message .= "*Absconding Date:* {$request->return_date}\n";
+                    $message .= "*Absconding Date:* {$returnDateFormatted}\n";
                 } elseif ($request->warehouse == 'Theft') {
-                    $message .= "*Theft Date:* {$request->return_date}\n";
+                    $message .= "*Theft Date:* {$returnDateFormatted}\n";
                 } elseif ($request->warehouse == 'Impound') {
-                    $message .= "*Impound Date:* {$request->return_date}\n";
+                    $message .= "*Impound Date:* {$returnDateFormatted}\n";
                 } else {
-                    $message .= "*Return Date:* {$request->return_date}\n";
+                    $message .= "*Return Date:* {$returnDateFormatted}\n";
                 }
                 $message .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
                 if ($rider) {
@@ -1189,7 +1190,7 @@ class BikesController extends AppBaseController
                     $historyMessage .= "*Company:* {$rentCompany->name}\n";
                 }
 
-                $historyMessage .= "*Assign Date:* {$request->note_date}\n";
+                $historyMessage .= '*Assign Date:* ' . Carbon::parse($request->note_date)->format('d-m-Y') . "\n";
                 $historyMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
                 if ($assignType == 'rider') {
                     $project = CompanyQuery::table('customers')->where('id', $customer_id)->first();
@@ -1439,6 +1440,7 @@ class BikesController extends AppBaseController
             $oldProject = $bike->customer;
             $newProject = Customers::find($newCustomerId);
             $changeDate = now()->setTimezone('Asia/Dubai')->toDateString();
+            $changeDateFormatted = Carbon::parse($changeDate)->format('d-m-Y');
             $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
             $riderBefore = RiderHistoryLogger::riderSnapshot($rider);
             $prevRiderCustomerId = $rider->customer_id;
@@ -1448,7 +1450,7 @@ class BikesController extends AppBaseController
             $returnMessage .= "*Bike No:* {$bike->plate}\n";
             $returnMessage .= "*ID:* {$rider->rider_id}\n";
             $returnMessage .= "*Name:* {$rider->name}\n";
-            $returnMessage .= "*Return Date:* {$changeDate}\n";
+            $returnMessage .= "*Return Date:* {$changeDateFormatted}\n";
             $returnMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
             $returnMessage .= '*Project:* ' . ($oldProject->name ?? '—') . "\n";
             $returnMessage .= "*Emirates:* {$bike->emirates}\n";
@@ -1459,7 +1461,7 @@ class BikesController extends AppBaseController
             $assignMessage .= "*Bike No:* {$bike->plate}\n";
             $assignMessage .= "*ID:* {$rider->rider_id}\n";
             $assignMessage .= "*Name:* {$rider->name}\n";
-            $assignMessage .= "*Assign Date:* {$changeDate}\n";
+            $assignMessage .= "*Assign Date:* {$changeDateFormatted}\n";
             $assignMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
             $assignMessage .= '*Project:* ' . ($newProject->name ?? '—') . "\n";
             $assignMessage .= "*Emirates:* {$bike->emirates}\n";

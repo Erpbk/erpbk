@@ -184,7 +184,7 @@ class Branch extends BaseModel
         return Branch::whereIn('id', app('user_branches'))
             ->get(['id', 'code', 'name'])
             ->mapWithKeys(function ($branch) {
-                $label = trim(($branch->code ? $branch->code . '-' : '') . $branch->name);
+                $label = trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''));
 
                 return [$branch->id => $label !== '' ? $label : (string) $branch->id];
             })

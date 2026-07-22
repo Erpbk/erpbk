@@ -331,6 +331,14 @@ class RidersController extends AppBaseController
     $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
     $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
 
+    $indexSelect = array_merge(
+      [
+        'riders.*',
+        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
+      ],
+      Riders::employmentStatusDaysSelectColumns()
+    );
+
     $query = Riders::query()
       ->leftJoin(
         \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
@@ -341,7 +349,7 @@ class RidersController extends AppBaseController
         '=',
         'ra.rider_id'
       )
-      ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
+      ->select($indexSelect)
       ->orderBy('days_count', 'asc')
       ->with('branch');
     $this->applyCompanyScope($query);
@@ -419,7 +427,7 @@ class RidersController extends AppBaseController
             });
           }
         });
-      $query->select('riders.*');
+      $query->select($indexSelect);
     }
 
     // Apply pagination using the trait
@@ -442,6 +450,14 @@ class RidersController extends AppBaseController
     $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
     $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
 
+    $indexSelect = array_merge(
+      [
+        'riders.*',
+        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
+      ],
+      Riders::employmentStatusDaysSelectColumns()
+    );
+
     $query = Riders::query()
       ->leftJoin(
         \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
@@ -452,7 +468,7 @@ class RidersController extends AppBaseController
         '=',
         'ra.rider_id'
       )
-      ->select('riders.*', \DB::raw('COALESCE(ra.days_count, 0) as days_count'))
+      ->select($indexSelect)
       ->orderBy('days_count', 'desc')
       ->orderBy('riders.id', 'desc');
     $this->applyCompanyScope($query);
@@ -513,7 +529,7 @@ class RidersController extends AppBaseController
             });
           }
         });
-      $query->select('riders.*');
+      $query->select($indexSelect);
     }
 
     // Apply pagination using the trait
@@ -1186,15 +1202,20 @@ class RidersController extends AppBaseController
     $riders = Riders::find($id);
 
     if ($request->isMethod('post')) {
-      $input = $request->all();
-      $input['RID'] = $id;
-      $input['status_by'] = auth()->user()->id;
-      JobStatus::create($input);
+      JobStatus::create([
+        'RID' => $id,
+        'job_status' => $request->input('job_status', 1),
+        'reason' => $request->input('reason'),
+        'status_by' => auth()->id(),
+      ]);
 
       /*  $rider = Riders::find($id);
              $rider->job_status = $input['job_status'];
              $rider->save(); */
-      return 'Timeline added successfully';
+      return response()->json([
+        'success' => true,
+        'message' => 'Timeline added successfully',
+      ]);
     }
 
     return view('riders.job_status-modal', compact('riders'));
@@ -2093,12 +2114,20 @@ class RidersController extends AppBaseController
 
     Riders::syncDisplayStatus($rider->fresh());
 
+    $employment = Riders::employmentStatusDisplay($rider->status);
+    $statusDays = Riders::resolveEmploymentStatusDays($rider);
+
     return response()->json([
       'success' => true,
       'message' => 'Rider view card option and status updated successfully.',
       'option_id' => $option?->id,
       'option_label' => $option?->name,
       'rider_status' => $rider->rider_status,
+      'column' => 'rider_status',
+      'employment_label' => $employment['label'],
+      'employment_badge' => $employment['badge'],
+      'employment_status_days' => $statusDays['days'],
+      'last_employment_status_change_date' => $statusDays['changed_at'],
     ]);
   }
 

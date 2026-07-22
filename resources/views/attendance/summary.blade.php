@@ -228,7 +228,11 @@ $fleetSupervisorQuery = $fleetSupervisor ? '&fleet_supervisor=' . urlencode((str
                             <span class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
                                 <a target="_blank" href="@if($user->type === 'employee'){{ route('employees.show', $user->id) }}@elseif($user->type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
                                 @if($user->type === 'rider')
-                                @include('riders._status_badges', ['employmentStatus' => $user->status])
+                                @include('riders._status_badges', [
+                                    'employmentStatus' => $user->status,
+                                    'rider' => $user,
+                                    'wrapperClass' => 'align-items-start',
+                                ])
                                 @elseif($user->type === 'employee')
                                 @include('employees._status_badges', ['status' => $user->status])
                                 @endif

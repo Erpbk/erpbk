@@ -62,7 +62,10 @@
                 <a target="_blank" href="@if($attendance->ref_type === 'employee'){{ route('employees.show', $user->id) }}@elseif($attendance->ref_type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
                 @if($attendance->ref_type === 'rider')
                 <div class="mt-1">
-                    @include('riders._status_badges', ['employmentStatus' => $user->status])
+                    @include('riders._status_badges', [
+                        'employmentStatus' => $user->status,
+                        'rider' => $user,
+                    ])
                 </div>
                 @endif
                 @else

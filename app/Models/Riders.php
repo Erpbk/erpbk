@@ -292,6 +292,86 @@ class Riders extends BaseModel
     ];
   }
 
+  /**
+   * Resolve days since the rider's current employment status last changed.
+   *
+   * @param  self|object|array|null  $rider
+   * @return array{days: int|null, changed_at: string|null}
+   */
+  public static function resolveEmploymentStatusDays($rider): array
+  {
+    if ($rider === null) {
+      return ['days' => null, 'changed_at' => null];
+    }
+
+    $attrs = $rider instanceof self
+      ? $rider->getAttributes()
+      : (array) $rider;
+
+    if (array_key_exists('employment_status_days', $attrs)) {
+      return [
+        'days' => $attrs['employment_status_days'] !== null && $attrs['employment_status_days'] !== ''
+          ? (int) $attrs['employment_status_days']
+          : null,
+        'changed_at' => $attrs['last_employment_status_change_date'] ?? null,
+      ];
+    }
+
+    $id = $attrs['id'] ?? null;
+    if (! $id) {
+      return ['days' => null, 'changed_at' => null];
+    }
+
+    $row = static::withTrashed()
+      ->where('riders.id', $id)
+      ->select('riders.id')
+      ->addSelect(static::employmentStatusDaysSelectColumns())
+      ->first();
+
+    if (! $row) {
+      return ['days' => null, 'changed_at' => null];
+    }
+
+    return [
+      'days' => $row->employment_status_days !== null ? (int) $row->employment_status_days : null,
+      'changed_at' => $row->last_employment_status_change_date ?? null,
+    ];
+  }
+
+  /**
+   * Attach employment_status_days / last_employment_status_change_date onto rider models (batch).
+   *
+   * @param  iterable<int, self|null>  $riders
+   */
+  public static function hydrateEmploymentStatusDays(iterable $riders): void
+  {
+    $collection = collect($riders)->filter(fn ($rider) => $rider instanceof self);
+    if ($collection->isEmpty()) {
+      return;
+    }
+
+    $needsHydration = $collection->filter(
+      fn (self $rider) => ! array_key_exists('employment_status_days', $rider->getAttributes())
+    );
+    if ($needsHydration->isEmpty()) {
+      return;
+    }
+
+    $ids = $needsHydration->pluck('id')->unique()->values();
+    $rows = static::withTrashed()
+      ->whereIn('riders.id', $ids)
+      ->select('riders.id')
+      ->addSelect(static::employmentStatusDaysSelectColumns())
+      ->get()
+      ->keyBy('id');
+
+    foreach ($needsHydration as $rider) {
+      $row = $rows->get($rider->id);
+      $rider->setAttribute('employment_status_days', $row?->employment_status_days);
+      $rider->setAttribute('last_employment_status_change_date', $row?->last_employment_status_change_date);
+    }
+  }
+
   public function scopeActive($query)
   {
     return $query->where('status', 1);

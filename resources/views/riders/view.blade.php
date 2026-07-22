@@ -321,6 +321,10 @@ $companySlug = request()->route('company_slug');
         $riderStatusLabel = trim((string)($result['rider_status'] ?? ''));
         $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
         $displayStatusLabel = $employmentBadge['label'];
+        $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
+        $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+          ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+          : 'Days in current status';
         @endphp
         @endisset
         <div class="user-avatar-section">
@@ -328,9 +332,18 @@ $companySlug = request()->route('company_slug');
             <div class="col-md-12 mt-2">
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
-                  <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px;">
+                  <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px; align-items: flex-start;">
                     <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $riderStatusLabel !== '' ? $riderStatusLabel : ($result['designation'] ?? 'not-set') }}@endisset</span>
-                    <span class="badge {{ $employmentBadge['badge'] ?? 'bg-label-danger   ' }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
+                    <div class="d-inline-flex flex-column align-items-start gap-1">
+                      <span class="badge {{ $employmentBadge['badge'] ?? 'bg-label-danger' }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
+                      @isset($result)
+                      <small class="text-muted lh-1" id="rider-status-days" title="{{ $statusDaysTitle }}" @if($statusDaysInfo['days'] === null) style="display:none" @endif>
+                        @if($statusDaysInfo['days'] !== null)
+                        {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
+                        @endif
+                      </small>
+                      @endisset
+                    </div>
                   </div>
                   <span>{{ $result['rider_id'] ?? 'not-set' }}</span>
                   <h6>
@@ -1008,6 +1021,7 @@ $companySlug = request()->route('company_slug');
     function refreshRiderSidebarBadges(data) {
       const designationBadge = document.getElementById('rider-designation-badge');
       const statusValueBadge = document.getElementById('rider-status-value-badge');
+      const statusDaysEl = document.getElementById('rider-status-days');
       if (designationBadge) {
         if (data.column === 'rider_status') {
           designationBadge.textContent = data.rider_status || (data.value || 'not-set');
@@ -1021,6 +1035,22 @@ $companySlug = request()->route('company_slug');
         const label = data.employment_label || 'Inactive';
         statusValueBadge.textContent = label;
         statusValueBadge.className = 'badge ' + (data.employment_badge || 'bg-label-danger');
+      }
+      if (statusDaysEl) {
+        const days = data.employment_status_days;
+        if (days === null || days === undefined || days === '') {
+          statusDaysEl.style.display = 'none';
+          statusDaysEl.textContent = '';
+        } else {
+          const dayNum = parseInt(days, 10);
+          statusDaysEl.textContent = dayNum + (dayNum === 1 ? ' day' : ' days');
+          statusDaysEl.style.display = '';
+          if (data.last_employment_status_change_date) {
+            statusDaysEl.title = 'Status changed on ' + data.last_employment_status_change_date;
+          } else {
+            statusDaysEl.title = 'Days in current status';
+          }
+        }
       }
     }
 

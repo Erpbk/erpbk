@@ -197,9 +197,20 @@ $hideDay = !empty($hideDay);
          $statusText = $hasActiveBike ? 'Active' : 'Inactive';
          $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
          }
+         $statusDaysInfo = $rider
+         ? \App\Models\Riders::resolveEmploymentStatusDays($rider)
+         : ['days' => null, 'changed_at' => null];
+         $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+         ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+         : 'Days in current status';
          @endphp
-         <td>
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+         <td class="text-center">
+            <div class="d-inline-flex flex-column align-items-center gap-1">
+               <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+               @if($statusDaysInfo['days'] !== null)
+               <small class="text-muted lh-1" title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
+               @endif
+            </div>
          </td>
          <td>@if($r->ontime_orders_percentage){{ $r->ontime_orders_percentage }}% @else - @endif</td>
          <td>{{ $r->login_hr }}</td>

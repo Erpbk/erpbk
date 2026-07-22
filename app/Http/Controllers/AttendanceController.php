@@ -69,6 +69,10 @@ class AttendanceController extends Controller
 
         $attendances = $query->get();
 
+        Riders::hydrateEmploymentStatusDays(
+            $attendances->where('ref_type', 'rider')->map->user
+        );
+
         return view('attendance.index', compact('attendances'));
     }
 
@@ -783,7 +787,13 @@ class AttendanceController extends Controller
         }
 
         // Sort by name and reset keys
-        return $users->sortBy('name')->values();
+        $users = $users->sortBy('name')->values();
+
+        if ($userType === 'rider') {
+            Riders::hydrateEmploymentStatusDays($users);
+        }
+
+        return $users;
     }
 
     /**

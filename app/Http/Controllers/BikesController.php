@@ -1327,7 +1327,7 @@ class BikesController extends AppBaseController
             $notesField = $assignFields->firstWhere('field_key', 'notes');
 
             $rules = [
-                'leased_return_date' => 'nullable|date',
+                'leased_return_date' => 'required|date',
             ];
             if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
                 $rules['leased_return_company_id'] = 'nullable|integer|exists:leasing_companies,id';
@@ -1338,9 +1338,6 @@ class BikesController extends AppBaseController
             $request->validate($rules);
 
             $leasedReturnDate = $request->input('leased_return_date');
-            if ($leasedReturnDate === '' || $leasedReturnDate === null) {
-                $leasedReturnDate = null;
-            }
 
             $update = [
                 'leased_return_date' => $leasedReturnDate,
@@ -1355,19 +1352,43 @@ class BikesController extends AppBaseController
             $bike->save();
 
             $note = RiderHistoryLogger::assignModalRiderHistoryNote($request);
+            $leasingCompany = $bike->leasedReturnCompany
+                ?? $bike->LeasingCompany
+                ?? (isset($update['leased_return_company_id']) && $update['leased_return_company_id']
+                    ? \App\Models\LeasingCompanies::find($update['leased_return_company_id'])
+                    : null);
+            $returnDateFormatted = Carbon::parse($leasedReturnDate)->format('d-m-Y');
+            $historyNotes = "*Bike* 🏍️\n";
+            $historyNotes .= "────────────────\n";
+            $historyNotes .= "*Bike Plate:* {$bike->plate}\n";
+            $historyNotes .= '*Returned To:* ' . ($leasingCompany?->name ?? 'N/A') . "\n";
+            $historyNotes .= "*Return Date:* {$returnDateFormatted}\n";
+            $historyNotes .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
             if ($note !== null) {
-                $lastHistory = BikeHistory::where('bike_id', $bike->id)
-                    ->orderByDesc('note_date')
-                    ->orderByDesc('id')
-                    ->first();
-
-                if ($lastHistory) {
-                    $lastHistory->update([
-                        'notes' => $note,
-                        'updated_by' => Auth::id(),
-                    ]);
-                }
+                $historyNotes .= "*Note:* {$note}\n";
             }
+
+            $historyData = [
+                'bike_id' => $bike->id,
+                'rider_id' => $bike->rider_id,
+                'rental_company_id' => $bike->rental_company_id,
+                'warehouse' => $bike->warehouse ?: 'Return',
+                'note_date' => $leasedReturnDate,
+                'return_date' => $leasedReturnDate,
+                'notes' => $historyNotes,
+                'customer_id' => $bike->customer_id,
+                'created_by' => Auth::id(),
+            ];
+            $historyData = array_merge(
+                $historyData,
+                BikeHistoryLogger::structuredBikeHistoryFields(
+                    $bike->fresh(),
+                    $bike->rider,
+                    'Returned to Leasing',
+                    $bike->customer_id
+                )
+            );
+            BikeHistory::create($historyData);
 
             return response()->json(['message' => 'Leasing return details saved.', 'reload' => true]);
         }

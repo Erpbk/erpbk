@@ -41,9 +41,9 @@ $notesOpts = ($notesField && in_array($notesInputType, ['select', 'dropdown'], t
         <div class="card-body px-0 pb-0">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label" for="leased_return_date">Return date</label>
+                    <label class="form-label" for="leased_return_date">Return date<span class="text-danger">*</span></label>
                     <input type="date" class="form-control" id="leased_return_date" name="leased_return_date"
-                        value="{{ $leasedReturnDateValue }}">
+                        value="{{ $leasedReturnDateValue }}" required>
                     <small class="text-muted">Date the vehicle was actually returned.</small>
                 </div>
                 @if(\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_company_id'))

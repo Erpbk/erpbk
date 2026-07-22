@@ -45,20 +45,34 @@
          <td>{{ company_table('customers')->where('id', $r->customer_id)->first()->name ?? '-' }}</td>
          <td>{{ company_table('recruiters')->where('id', $r->recruiter_id)->first()->name ?? '-' }}</td>
          <td>{{ $r->designation ?? '-' }}</td>
-         <td>
+         <td class="text-center">
             @php
             $hasActiveBike = company_table('bikes')->where('rider_id', $r->id)->where('warehouse', 'Active')->exists();
             $isWalker = $r->designation === 'Walker';
-            
-            if ($isWalker) {
+            $employmentStatus = \App\Models\Riders::employmentStatusDisplay($r->status ?? null);
+            $isEmploymentInactive = (int) ($r->status ?? 1) !== 1;
+
+            if ($isEmploymentInactive) {
+               $statusText = $employmentStatus['label'];
+               $badgeClass = $employmentStatus['badge'];
+            } elseif ($isWalker) {
                $statusText = 'Active';
                $badgeClass = 'bg-label-success';
             } else {
                $statusText = $hasActiveBike ? 'Active' : 'Inactive';
                $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
             }
+            $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays($r);
+            $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+               ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+               : 'Days in current status';
             @endphp
-            <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+            <div class="d-inline-flex flex-column align-items-center gap-1">
+               <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+               @if($statusDaysInfo['days'] !== null)
+               <small class="text-muted lh-1" title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
+               @endif
+            </div>
          </td>
          <td>
             <small class="text-muted">

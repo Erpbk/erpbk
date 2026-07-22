@@ -173,17 +173,31 @@
             @php
             $hasActiveBike = company_table('bikes')->where('rider_id', $rider->id)->where('warehouse', 'Active')->exists();
             $isWalker = $rider->designation === 'Walker';
+            $employmentStatus = \App\Models\Riders::employmentStatusDisplay($rider->status ?? null);
+            $isEmploymentInactive = (int) ($rider->status ?? 1) !== 1;
 
-            if ($isWalker) {
+            if ($isEmploymentInactive) {
+            $statusText = $employmentStatus['label'];
+            $badgeClass = $employmentStatus['badge'];
+            } elseif ($isWalker) {
             $statusText = 'Active';
             $badgeClass = 'bg-label-success';
             } else {
             $statusText = $hasActiveBike ? 'Active' : 'Inactive';
             $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
             }
+            $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays($rider);
+            $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+            ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+            : 'Days in current status';
             @endphp
-            <td>
-              <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+            <td class="text-center">
+              <div class="d-inline-flex flex-column align-items-center gap-1">
+                <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
+                @if($statusDaysInfo['days'] !== null)
+                <small class="text-muted lh-1" title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
+                @endif
+              </div>
             </td>
             <td>{{ $r->delivered_orders }}</td>
             <td>{{ $r->login_hr }}</td>

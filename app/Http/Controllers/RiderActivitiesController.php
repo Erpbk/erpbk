@@ -196,6 +196,10 @@ class RiderActivitiesController extends AppBaseController
             $data->appends($request->query());
         }
 
+        Riders::hydrateEmploymentStatusDays(
+            collect(method_exists($data, 'items') ? $data->items() : $data)->map->rider
+        );
+
         $riders = Riders::withTrashed()
             ->select('id', 'name', 'rider_id', 'status')
             ->orderBy('name')
@@ -348,6 +352,10 @@ class RiderActivitiesController extends AppBaseController
         ];
 
         $data = $this->buildConsolidatedRiderActivities($allData, $request, $paginationParams);
+
+        Riders::hydrateEmploymentStatusDays(
+            collect(method_exists($data, 'items') ? $data->items() : $data)->map->rider
+        );
 
         $riders = Riders::withTrashed()
             ->select('id', 'name', 'rider_id', 'status')

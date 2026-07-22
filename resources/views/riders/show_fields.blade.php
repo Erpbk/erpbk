@@ -592,8 +592,14 @@
 <div class="col-md-4 border-right border-bottom" style="height: 45px;">
     <b>Passport Handover</b><br /> {{@$rider->passport_handover}}
 </div>
-<div class="col-md-4 border-right border-bottom" style="height: 45px;">
-    <b>Status</b><br /> {{App\Helpers\General::RiderStatus(@$rider->status)}}
+<div class="col-md-4 border-right border-bottom" style="min-height: 45px;">
+    <b>Status</b><br />
+    @include('riders._status_badges', [
+        'employmentStatus' => $rider->status ?? null,
+        'optionText' => $rider->rider_status ?? null,
+        'rider' => $rider ?? null,
+        'wrapperClass' => 'align-items-start',
+    ])
 </div>
 <div class="col-md-4 border-right border-bottom" style="height: 45px;">
     <b>Emirate (Hub)</b><br /> {{@$rider->emirate_hub}}

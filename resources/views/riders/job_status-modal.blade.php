@@ -3,7 +3,6 @@
 @csrf
 {{-- <input type="hidden" id="reload_page" value="1" /> --}}
 <input type="hidden" name="job_status" value="1" />
-<input type="hidden" name="rider_id" value="{{ @$riders->id }}" />
                     <div class="row mt-1">
                         <div class="col-md-12">
                             {{-- <div class="form-group">

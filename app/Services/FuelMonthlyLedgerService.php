@@ -82,25 +82,18 @@ class FuelMonthlyLedgerService
 
         $totalAmount = (float) $activeRows->sum('total');
         $totalVat = (float) $activeRows->sum('vat_amount');
-        $txCount = $activeRows->count();
         $serviceCharge = (float) ($serviceChargeAmount ?? self::DEFAULT_SERVICE_CHARGE);
         $riderDebit = $totalAmount + max(0, $serviceCharge);
 
         // One combined debit on the rider ledger (fuel total + service charge).
         if ($riderDebit > 0) {
-            $narration = "Fuel purchased ({$txCount} txn)";
-            if ($serviceCharge > 0) {
-                $narration .= ' + service charges';
-            }
-            $narration .= " — {$riderName} — {$monthLabel}";
-
             Transactions::create([
                 'account_id' => $rider->account_id,
                 'reference_id' => $referenceId,
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => $narration,
+                'narration' => 'Fuel Charges - ' . Carbon::parse($billingMonthDate)->format('M Y'),
                 'debit' => $riderDebit,
                 'credit' => 0,
                 'billing_month' => $billingMonthDate,

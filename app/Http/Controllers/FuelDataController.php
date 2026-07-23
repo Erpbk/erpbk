@@ -380,6 +380,95 @@ class FuelDataController extends Controller
         }
     }
 
+    /**
+     * Show form to delete fuel data for a billing month (optional rider filter).
+     */
+    public function deleteMonthlyForm()
+    {
+        if (! user_can('fuel_cards_transactions_delete') && ! user_can('fuel_delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $riders = \App\Models\Riders::query()
+            ->orderBy('rider_id')
+            ->get(['id', 'rider_id', 'name']);
+
+        return view('fuel_data.delete_monthly', compact('riders'));
+    }
+
+    /**
+     * Delete fuel data for a billing month, optionally limited to one rider.
+     * Rebuilds monthly ledger totals for each affected rider.
+     */
+    public function deleteMonthly(Request $request)
+    {
+        if (! user_can('fuel_cards_transactions_delete') && ! user_can('fuel_delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete fuel transactions.',
+            ], 403);
+        }
+
+        $request->validate([
+            'billing_month' => 'required|date_format:Y-m',
+            'rider_id' => 'nullable|exists:riders,id',
+        ], [
+            'billing_month.required' => 'Billing month is required.',
+            'billing_month.date_format' => 'Billing month must be a valid month.',
+        ]);
+
+        $billingMonth = Carbon::createFromFormat('Y-m', $request->billing_month)->startOfMonth()->toDateString();
+        $riderId = $request->filled('rider_id') ? (int) $request->rider_id : null;
+
+        try {
+            DB::beginTransaction();
+
+            $query = FuelData::query()->whereDate('billing_month', $billingMonth);
+            if ($riderId) {
+                $query->where('rider_id', $riderId);
+            }
+
+            $affectedRiderIds = (clone $query)->distinct()->pluck('rider_id')->map(fn ($id) => (int) $id)->all();
+            $deletedCount = (clone $query)->count();
+
+            if ($deletedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No fuel data found for the selected month'
+                        . ($riderId ? ' and rider.' : '.'),
+                ], 404);
+            }
+
+            $query->delete();
+
+            $ledger = app(FuelMonthlyLedgerService::class);
+            foreach ($affectedRiderIds as $affectedRiderId) {
+                $ledger->sync($affectedRiderId, $billingMonth);
+            }
+
+            DB::commit();
+
+            $monthLabel = Carbon::parse($billingMonth)->format('F Y');
+            $scope = $riderId
+                ? 'for the selected rider in ' . $monthLabel
+                : 'for all riders in ' . $monthLabel;
+
+            return response()->json([
+                'success' => true,
+                'message' => "Deleted {$deletedCount} fuel transaction(s) {$scope}.",
+                'reload' => true,
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete monthly fuel data: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function import(Request $request)
     {
         if ($request->isMethod('get')) {

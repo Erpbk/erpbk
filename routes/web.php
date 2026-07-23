@@ -732,6 +732,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('fuel_transactions/importSample', [FuelDataController::class, 'downloadTemplate'])->name('fuel_data.importSample');
     Route::get('fuel_data/summary', [FuelDataController::class, 'monthlySummary'])->name('fuel_data.summary');
     Route::get('fuel_invoice/{rider_id}/{billing_month}', [FuelDataController::class, 'show2'])->name('fuel_data.rider_monthly_summary');
+    Route::get('fuel_data/delete-monthly', [FuelDataController::class, 'deleteMonthlyForm'])->name('fuel_data.deleteMonthlyForm');
+    Route::post('fuel_data/delete-monthly', [FuelDataController::class, 'deleteMonthly'])->name('fuel_data.deleteMonthly');
     Route::resource('fuel_data', FuelDataController::class);
 
     Route::get('fuelCompanies/trash', [FuelCompaniesController::class, 'trash'])->name('fuelCompanies.trash');

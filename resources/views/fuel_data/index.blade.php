@@ -18,15 +18,16 @@
             <div class="col-sm-6">
             </div>
             <div class="col-sm-6">
-                @can('fuel_cards_transactions_create')
+                @canany(['fuel_cards_transactions_create', 'fuel_cards_transactions_delete'])
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
                             <button class="action-dropdown-btn" id="addBikeDropdownBtn">
                                 <i class="ti ti-plus"></i>
-                                <span>Add New</span>
+                                <span>Actions</span>
                                 <i class="ti ti-chevron-down"></i>
                             </button>
                             <div class="action-dropdown-menu" id="addBikeDropdown">
+                                @can('fuel_cards_transactions_create')
                                 <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add Fuel Transaction" data-action="{{ route('fuel_data.create') }}">
                                     <i class="ti ti-plus"></i>
                                     <div>
@@ -38,10 +39,20 @@
                                     <i class="ti ti-arrow-up"></i>
                                      <div class="action-dropdown-item-text">Import Fuel Data</div>
                                 </a>
+                                @endcan
+                                @can('fuel_cards_transactions_delete')
+                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Delete Monthly Data" data-action="{{ route('fuel_data.deleteMonthlyForm') }}">
+                                    <i class="ti ti-trash"></i>
+                                    <div>
+                                        <div class="action-dropdown-item-text">Delete Monthly Data</div>
+                                        <div class="action-dropdown-item-desc">Remove fuel data for a billing month</div>
+                                    </div>
+                                </a>
+                                @endcan
                             </div>
                         </div>
                     </div>
-                @endcan
+                @endcanany
             </div>
         </div>
     </div>

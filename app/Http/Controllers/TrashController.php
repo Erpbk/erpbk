@@ -20,6 +20,7 @@ use App\Models\Sims;
 use App\Models\SimCompany;
 use App\Models\BikeRentCompany;
 use App\Models\FuelCompany;
+use App\Models\FuelData;
 use App\Models\Items;
 use App\Models\salik;
 use App\Models\RiderInventoryAssignment;
@@ -32,6 +33,7 @@ use App\Models\Vouchers;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
 use App\Services\DeleteRequestService;
+use App\Services\FuelMonthlyLedgerService;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\Loan;
 use App\Support\CompanyContext;
@@ -150,6 +152,12 @@ class TrashController extends Controller
             'name' => 'Fuel Companies',
             'icon' => 'fa-gas-pump',
             'display_columns' => ['name', 'email', 'company_contact'],
+        ],
+        'fuel_data' => [
+            'model' => FuelData::class,
+            'name' => 'Fuel Transactions',
+            'icon' => 'fa-gas-pump',
+            'display_columns' => ['trans_no', 'billing_month', 'rider_id', 'bike_no', 'card_no', 'total'],
         ],
         'items' => [
             'model' => Items::class,
@@ -450,6 +458,11 @@ class TrashController extends Controller
                 }
             }
 
+            if ($module === 'fuel_data' && $record instanceof FuelData) {
+                $this->syncFuelMonthlyLedger($record);
+                $restoredItems[] = 'monthly fuel ledger synced';
+            }
+
             DB::commit();
 
             // Build restoration message
@@ -526,69 +539,72 @@ class TrashController extends Controller
 
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
-            $constraintTables = [
-                'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
-                'invoices' => ['customer_id', 'vendor_id'],
-                'vouchers' => ['account_id', 'bank_id'],
-                'journal_entries' => ['account_id'],
-            ];
+            // Fuel transactions link via reference_id/reference_type, not account_id = fuel id.
+            if ($module !== 'fuel_data') {
+                $constraintTables = [
+                    'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
+                    'invoices' => ['customer_id', 'vendor_id'],
+                    'vouchers' => ['account_id', 'bank_id'],
+                    'journal_entries' => ['account_id'],
+                ];
 
-            foreach ($constraintTables as $constraintTable => $foreignKeys) {
-                try {
-                    foreach ($foreignKeys as $foreignKey) {
-                        // Check if this table and foreign key combination has any records
-                        if (Schema::hasColumn($constraintTable, $foreignKey)) {
-                            $count = \App\Support\CompanyQuery::table($constraintTable)
-                                ->where($foreignKey, $id)
-                                ->count();
-
-                            if ($count > 0) {
-                                DB::rollBack();
-                                Flash::error("Cannot permanently delete {$config['name']}. Record has {$count} related records in {$constraintTable}.");
-                                return redirect()->route('settings-panel.trash.index');
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    // Table might not exist, continue checking other constraints
-                    continue;
-                }
-            }
-
-            // Check cascaded records for constraints
-            foreach ($cascadedDeletions as $cascade) {
-                $relatedModelClass = $cascade->related_model;
-
-                if (class_exists($relatedModelClass)) {
+                foreach ($constraintTables as $constraintTable => $foreignKeys) {
                     try {
-                        $relatedModelInstance = new $relatedModelClass;
-                        $relatedTableName = $relatedModelInstance->getTable();
+                        foreach ($foreignKeys as $foreignKey) {
+                            // Check if this table and foreign key combination has any records
+                            if (Schema::hasColumn($constraintTable, $foreignKey)) {
+                                $count = \App\Support\CompanyQuery::table($constraintTable)
+                                    ->where($foreignKey, $id)
+                                    ->count();
 
-                        // Check constraints for related records
-                        foreach ($constraintTables as $constraintTable => $foreignKeys) {
-                            foreach ($foreignKeys as $foreignKey) {
-                                try {
-                                    if (Schema::hasColumn($constraintTable, $foreignKey)) {
-                                        $count = \App\Support\CompanyQuery::table($constraintTable)
-                                            ->where($foreignKey, $cascade->related_id)
-                                            ->count();
-
-                                        if ($count > 0) {
-                                            DB::rollBack();
-                                            Flash::error("Cannot permanently delete {$config['name']}. Related " .
-                                                class_basename($relatedModelClass) .
-                                                " ({$cascade->related_name}) has {$count} related records in {$constraintTable}.");
-                                            return redirect()->route('settings-panel.trash.index');
-                                        }
-                                    }
-                                } catch (\Exception $e) {
-                                    continue;
+                                if ($count > 0) {
+                                    DB::rollBack();
+                                    Flash::error("Cannot permanently delete {$config['name']}. Record has {$count} related records in {$constraintTable}.");
+                                    return redirect()->route('settings-panel.trash.index');
                                 }
                             }
                         }
                     } catch (\Exception $e) {
-                        Log::error("Error checking constraints for cascaded record: " . $e->getMessage());
+                        // Table might not exist, continue checking other constraints
                         continue;
+                    }
+                }
+
+                // Check cascaded records for constraints
+                foreach ($cascadedDeletions as $cascade) {
+                    $relatedModelClass = $cascade->related_model;
+
+                    if (class_exists($relatedModelClass)) {
+                        try {
+                            $relatedModelInstance = new $relatedModelClass;
+                            $relatedTableName = $relatedModelInstance->getTable();
+
+                            // Check constraints for related records
+                            foreach ($constraintTables as $constraintTable => $foreignKeys) {
+                                foreach ($foreignKeys as $foreignKey) {
+                                    try {
+                                        if (Schema::hasColumn($constraintTable, $foreignKey)) {
+                                            $count = \App\Support\CompanyQuery::table($constraintTable)
+                                                ->where($foreignKey, $cascade->related_id)
+                                                ->count();
+
+                                            if ($count > 0) {
+                                                DB::rollBack();
+                                                Flash::error("Cannot permanently delete {$config['name']}. Related " .
+                                                    class_basename($relatedModelClass) .
+                                                    " ({$cascade->related_name}) has {$count} related records in {$constraintTable}.");
+                                                return redirect()->route('settings-panel.trash.index');
+                                            }
+                                        }
+                                    } catch (\Exception $e) {
+                                        continue;
+                                    }
+                                }
+                            }
+                        } catch (\Exception $e) {
+                            Log::error("Error checking constraints for cascaded record: " . $e->getMessage());
+                            continue;
+                        }
                     }
                 }
             }
@@ -641,7 +657,24 @@ class TrashController extends Controller
 
             // Permanently delete the primary record using Eloquent
             DeleteRequestService::markPermanentlyDeletedFromBin($record, auth()->user());
+
+            $fuelSyncRiderId = null;
+            $fuelSyncBillingMonth = null;
+            if ($module === 'fuel_data' && $record instanceof FuelData) {
+                $fuelSyncRiderId = (int) $record->rider_id;
+                $fuelSyncBillingMonth = $record->billing_month;
+                // Clear any ledger still pointing at this fuel row before it is removed.
+                Transactions::where('reference_type', 'fuel')
+                    ->where('reference_id', $record->id)
+                    ->delete();
+            }
+
             $record->forceDelete();
+
+            if ($fuelSyncRiderId) {
+                app(FuelMonthlyLedgerService::class)->sync($fuelSyncRiderId, $fuelSyncBillingMonth);
+                $deletedItems[] = 'monthly fuel ledger synced';
+            }
 
             DB::commit();
 
@@ -785,5 +818,20 @@ class TrashController extends Controller
         }
 
         return response()->json($stats);
+    }
+
+    /**
+     * Rebuild monthly fuel ledger totals after recycle-bin restore/force-delete.
+     */
+    private function syncFuelMonthlyLedger(FuelData $fuelData): void
+    {
+        if (! $fuelData->rider_id || ! $fuelData->billing_month) {
+            return;
+        }
+
+        app(FuelMonthlyLedgerService::class)->sync(
+            (int) $fuelData->rider_id,
+            $fuelData->billing_month
+        );
     }
 }

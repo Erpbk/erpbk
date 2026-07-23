@@ -67,10 +67,22 @@ trait HasTrashFunctionality
             return redirect()->back();
         }
 
+        if (\App\Services\DeleteRequestService::hasPending($record)) {
+            Flash::error('This record has a pending delete request. Resolve it from Delete Requests.');
+            return redirect()->route('settings-panel.delete-requests.index');
+        }
+
         DB::beginTransaction();
         try {
             // Restore the record
             $record->restore();
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'deleted_by') && $record->deleted_by) {
+                $record->deleted_by = null;
+                $record->save();
+            }
+
+            \App\Services\DeleteRequestService::markRestoredFromBin($record, auth()->user());
             
             // Restore cascaded deletions if any
             $restoredItems = [];
@@ -134,10 +146,15 @@ trait HasTrashFunctionality
             return redirect()->back();
         }
 
+        if (\App\Services\DeleteRequestService::hasPending($record)) {
+            Flash::error('This record has a pending delete request. Resolve it from Delete Requests before permanent deletion.');
+            return redirect()->route('settings-panel.delete-requests.index');
+        }
+
         DB::beginTransaction();
         try {
             $deletedItems = [];
-            
+
             // Get cascaded deletions
             $cascadedDeletions = \App\Support\CompanyQuery::table('deletion_cascades')
                 ->where('primary_model', $modelClass)
@@ -175,6 +192,7 @@ trait HasTrashFunctionality
                 ->delete();
 
             // Permanently delete the record
+            \App\Services\DeleteRequestService::markPermanentlyDeletedFromBin($record, auth()->user());
             $record->forceDelete();
 
             DB::commit();

@@ -20,8 +20,9 @@
                 $account = $row->account;
                 $depth = $row->depth ?? 0;
                 $hasChildren = $account->relationLoaded('children') ? $account->children->isNotEmpty() : $account->children()->exists();
+                $accountPendingDeletion = record_is_pending_deletion($account);
             @endphp
-            <tr data-id="{{ $account->id }}">
+            <tr data-id="{{ $account->id }}" class="{{ $accountPendingDeletion ? 'table-warning' : '' }}">
                 <td class="account-name-cell ps-3">
                     <div class="account-name-wrap">
                         @for ($i = 0; $i < $depth; $i++)
@@ -43,6 +44,7 @@
                         @else
                         <span>{{ $account->name }}</span>
                         @endcan
+                        @include('delete_requests._pending_badge', ['model' => $account])
                     </div>
                 </td>
                 @if($vf('account_code'))<td class="text-nowrap">{{ $account->account_code ?? '—' }}</td>@endif
@@ -50,6 +52,9 @@
                 <td class="text-muted">—</td>
                 @if($vf('parent_id'))<td class="text-nowrap text-muted">{{ $account->parent->name ?? '—' }}</td>@endif
                 <td class="text-end pe-3">
+                    @if($accountPendingDeletion)
+                        @include('delete_requests._locked_cell', ['model' => $account])
+                    @else
                     <div class="btn-group btn-group-sm">
                         <button type="button" class="btn btn-outline-secondary btn-actions dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
                             <i class="fa fa-cog"></i>
@@ -77,6 +82,7 @@
                             @endcan
                         </ul>
                     </div>
+                    @endif
                 </td>
             </tr>
         @empty

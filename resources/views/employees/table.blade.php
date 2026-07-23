@@ -23,7 +23,7 @@
    </thead>
    <tbody>
       @foreach($data as $employee)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $employee->id }}">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
          @switch($key)
@@ -222,3 +222,4 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

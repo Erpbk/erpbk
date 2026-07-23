@@ -18,7 +18,7 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $r->id }}">
          @if($vf('name'))<td>{{$r->name}}</td>@endif
          @if($vf('garage_type'))<td @if($r->garage_type === 'internal') class="text-success" @else class="text-danger" @endif>{{ ($r->garage_type ?? 'external') === 'internal' ? 'Internal' : 'External' }}</td>@endif
          @if($vf('contact_person'))<td>{{$r->contact_person}}</td>@endif
@@ -73,3 +73,4 @@
       </div>
    </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

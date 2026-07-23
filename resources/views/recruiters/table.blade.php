@@ -16,7 +16,7 @@
     </thead>
     <tbody>
         @foreach($data as $r)
-        <tr class="text-center">
+      <tr class="text-center" data-id="{{ $r->id }}">
             @if($vf('name'))<td>
                 <a href="{{ route('recruiters.riders', $r->id) }}">{{$r->name}}</a>
                 <br />
@@ -77,3 +77,4 @@
         </div>
     </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

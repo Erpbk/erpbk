@@ -19,7 +19,7 @@
    </thead>
    <tbody>
       @forelse($data as $invoice)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $invoice->id }}">
          <td>{{ $invoice->id }}</td>
          <td><a href="javascript:void(0);" data-action="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a></td>
          <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
@@ -95,3 +95,4 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

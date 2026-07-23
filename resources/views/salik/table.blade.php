@@ -19,7 +19,7 @@
     </thead>
     <tbody>
         @foreach($data as $r)
-        <tr class="text-center">
+      <tr class="text-center" data-id="{{ $r->id }}">
             @if($vf('branch_id'))<td>{{ $r->branch?->name ?? 'N/A' }}</td>@endif
             @if($vf('transaction_id'))<td>{{ $r->transaction_id }}</td>@endif
             @if($r->rider)
@@ -76,3 +76,4 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

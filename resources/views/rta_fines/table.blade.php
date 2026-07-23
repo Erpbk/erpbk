@@ -25,7 +25,7 @@
    </thead>
    <tbody>
       @forelse($data as $r)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $r->id }}">
          @if($vf('trip_date'))<td>{{ App\Helpers\General::DateFormat($r->trip_date) }}</td>@endif
          @if($vf('trip_time'))<td>{{$r->trip_time}}</td>@endif
          @if($vf('billing_month'))<td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>@endif
@@ -148,3 +148,4 @@
       });
    };
 </script>
+@include('delete_requests._pending_table_script', ['items' => $data])

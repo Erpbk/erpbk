@@ -157,7 +157,8 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
+      @php $bikePendingDeletion = record_is_pending_deletion($r); @endphp
+      <tr class="text-center {{ $bikePendingDeletion ? 'table-warning' : '' }}">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
          @switch($key)
@@ -165,7 +166,10 @@
          <td tabindex="0">{{ $r->bike_code }}</td>
          @break
          @case('plate')
-         <td tabindex="0" class="text-start"><a href="{{ route('bikes.show', $r->id) }}">{{ $r->plate }}</a></td>
+         <td tabindex="0" class="text-start">
+            <a href="{{ route('bikes.show', $r->id) }}">{{ $r->plate }}</a>
+            @include('delete_requests._pending_badge', ['model' => $r])
+         </td>
          @break
          @case('rider_id')
          @php
@@ -262,6 +266,9 @@
          @break
          @case('action')
          <td tabindex="0" style="position: relative;">
+            @if($bikePendingDeletion)
+            @include('delete_requests._pending_badge', ['model' => $r])
+            @else
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -282,6 +289,7 @@
                   @endcan
                </div>
             </div>
+            @endif
          </td>
          @break
          @case('expiry_date')
@@ -333,3 +341,4 @@
 @endif
 
 <!-- Filter modal removed: using right-side sliding sidebar instead -->
+@include('delete_requests._pending_table_script', ['items' => $data])

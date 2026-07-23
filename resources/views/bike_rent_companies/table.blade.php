@@ -14,7 +14,7 @@
    </thead>
    <tbody>
       @foreach($data as $row)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $row->id }}">
           @if($vf('name'))<td>
               <a @if($row->customer_type == 'bike_rental')
                     href="{{ route('bikeRentCompanies.bikes', $row->id) }}" 
@@ -65,3 +65,4 @@
 @if(method_exists($data, 'links'))
     {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

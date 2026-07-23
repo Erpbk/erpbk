@@ -25,12 +25,17 @@
    </thead>
    <tbody>
       @forelse($data as $r)
-      <tr class="text-center">
+      @php $riderPendingDeletion = record_is_pending_deletion($r); @endphp
+      <tr class="text-center {{ $riderPendingDeletion ? 'table-warning' : '' }}">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
          @switch($key)
          @case('name')
-         <td class="text-start"><a href="{{ route('riders.show', $r->id) }}">{{ $r->name }}</a><br /></td>
+         <td class="text-start">
+            <a href="{{ route('riders.show', $r->id) }}">{{ $r->name }}</a>
+            @include('delete_requests._pending_badge', ['model' => $r])
+            <br />
+         </td>
          @break
          @case('contact_number')
          @php
@@ -110,6 +115,9 @@
          @break
          @case('action')
          <td style="position: relative;">
+            @if($riderPendingDeletion)
+            @include('delete_requests._pending_badge', ['model' => $r])
+            @else
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -117,9 +125,9 @@
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
                   @can('agreements_create')
                   @include('layouts.partials.module_contract_action', [
-                    'module' => 'riders',
-                    'recordId' => $r->id,
-                    'recordLabel' => $r->name . ' (' . $r->rider_id . ') — Contracts',
+                  'module' => 'riders',
+                  'recordId' => $r->id,
+                  'recordLabel' => $r->name . ' (' . $r->rider_id . ') — Contracts',
                   ])
                   @endcan
                   @can('riders_rider_edit')
@@ -134,6 +142,7 @@
                   @endcan
                </div>
             </div>
+            @endif
          </td>
          @break
          @default
@@ -180,3 +189,4 @@
 @endif
 
 <!-- Filter modal removed: using right-side sliding sidebar instead -->
+@include('delete_requests._pending_table_script', ['items' => $data])

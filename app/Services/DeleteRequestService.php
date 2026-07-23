@@ -1,0 +1,873 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\DeleteRequest;
+use App\Models\User;
+use App\Models\UserNotification;
+use App\Support\CompanyContext;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+
+class DeleteRequestService
+{
+    protected static bool $bypassing = false;
+
+    protected static bool $resolvingPendingIds = false;
+
+    protected static ?DeleteRequest $activeRootRequest = null;
+
+    /** @var array<string, array<int, int>> */
+    protected static array $pendingIdsCache = [];
+
+    protected static ?bool $enabledCache = null;
+
+    public static function bypass(bool $value = true): void
+    {
+        static::$bypassing = $value;
+    }
+
+    public static function isBypassing(): bool
+    {
+        return static::$bypassing;
+    }
+
+    public static function isResolvingPendingIds(): bool
+    {
+        return static::$resolvingPendingIds;
+    }
+
+    public static function enabled(): bool
+    {
+        if (static::$enabledCache !== null) {
+            return static::$enabledCache;
+        }
+
+        try {
+            static::$enabledCache = (bool) config('delete_approval.enabled', true)
+                && Schema::hasTable('delete_requests');
+        } catch (\Throwable $e) {
+            static::$enabledCache = false;
+        }
+
+        return static::$enabledCache;
+    }
+
+    /**
+     * Whether this delete should skip the approval queue (approve/reject execution only).
+     * Admins do NOT bypass by default — every user delete creates a request.
+     */
+    public static function shouldBypassApproval(?User $user = null): bool
+    {
+        if (static::$bypassing) {
+            return true;
+        }
+
+        // Optional escape hatch only if explicitly enabled in config/env.
+        if (config('delete_approval.admins_bypass', false)) {
+            $user = $user ?? Auth::user();
+
+            return $user instanceof User && $user->isAdmin();
+        }
+
+        return false;
+    }
+
+    public static function usesSoftDeletes(Model $model): bool
+    {
+        return in_array(SoftDeletes::class, class_uses_recursive($model), true);
+    }
+
+    /**
+     * @return array{key: string, name: string, display_columns: array<int, string>, show_route: ?string}
+     */
+    public static function resolveModule(Model $model): array
+    {
+        $class = get_class($model);
+        foreach (config('delete_approval.modules', []) as $key => $meta) {
+            if (($meta['model'] ?? null) === $class) {
+                return [
+                    'key' => (string) $key,
+                    'name' => (string) ($meta['name'] ?? Str::headline($key)),
+                    'display_columns' => array_values($meta['display_columns'] ?? []),
+                    'show_route' => $meta['show_route'] ?? null,
+                ];
+            }
+        }
+
+        $base = class_basename($model);
+
+        return [
+            'key' => Str::snake($base),
+            'name' => Str::headline($base),
+            'display_columns' => [],
+            'show_route' => null,
+        ];
+    }
+
+    public static function buildLabel(Model $model, array $displayColumns = []): string
+    {
+        foreach ($displayColumns as $column) {
+            $value = data_get($model, $column);
+            if ($value !== null && $value !== '') {
+                return (string) $value;
+            }
+        }
+
+        foreach (['name', 'title', 'plate', 'code', 'account_code', 'rider_id', 'email'] as $fallback) {
+            $value = data_get($model, $fallback);
+            if ($value !== null && $value !== '') {
+                return (string) $value;
+            }
+        }
+
+        return class_basename($model) . ' #' . $model->getKey();
+    }
+
+    public static function buildSnapshot(Model $model, array $displayColumns = []): array
+    {
+        $snapshot = [
+            'id' => $model->getKey(),
+            'class' => get_class($model),
+        ];
+
+        $columns = $displayColumns !== []
+            ? $displayColumns
+            : array_slice(array_keys($model->getAttributes()), 0, 12);
+
+        foreach ($columns as $column) {
+            if (array_key_exists($column, $model->getAttributes())) {
+                $snapshot[$column] = $model->getAttribute($column);
+            }
+        }
+
+        return $snapshot;
+    }
+
+    public static function clearPendingIdsCache(?string $modelClass = null): void
+    {
+        if ($modelClass === null) {
+            static::$pendingIdsCache = [];
+
+            return;
+        }
+
+        unset(static::$pendingIdsCache[$modelClass]);
+    }
+
+    public static function hasPending(Model $model): bool
+    {
+        if (! static::enabled() || ! $model->exists) {
+            return false;
+        }
+
+        return in_array((int) $model->getKey(), static::pendingIdsFor(get_class($model)), true);
+    }
+
+    public static function pendingRequestIdFor(Model $model): ?int
+    {
+        if (! static::enabled() || ! $model->exists) {
+            return null;
+        }
+
+        static::$resolvingPendingIds = true;
+        try {
+            $id = DeleteRequest::query()
+                ->pending()
+                ->where('deletable_type', get_class($model))
+                ->where('deletable_id', $model->getKey())
+                ->value('id');
+
+            return $id !== null ? (int) $id : null;
+        } finally {
+            static::$resolvingPendingIds = false;
+        }
+    }
+
+    /**
+     * Module show URL for admin review (same screen as the original module).
+     */
+    public static function moduleShowUrl(DeleteRequest $deleteRequest): ?string
+    {
+        $routeName = null;
+        foreach (config('delete_approval.modules', []) as $key => $meta) {
+            if ($key === $deleteRequest->module_key || ($meta['model'] ?? null) === $deleteRequest->deletable_type) {
+                $routeName = $meta['show_route'] ?? null;
+                break;
+            }
+        }
+
+        if (! $routeName || ! \Illuminate\Support\Facades\Route::has($routeName)) {
+            return null;
+        }
+
+        $companySlug = request()->route('company_slug') ?? null;
+        if (! $companySlug && request()->hasSession()) {
+            $companySlug = session('company_slug');
+        }
+        if (! $companySlug) {
+            try {
+                $companySlug = \App\Support\CompanyRouteContext::slug();
+            } catch (\Throwable $e) {
+                $companySlug = null;
+            }
+        }
+
+        $paramName = 'id';
+        try {
+            $route = app('router')->getRoutes()->getByName($routeName);
+            if ($route) {
+                foreach ($route->parameterNames() as $name) {
+                    if ($name !== 'company_slug') {
+                        $paramName = $name;
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // keep default id
+        }
+
+        $params = [$paramName => $deleteRequest->deletable_id];
+        if ($companySlug) {
+            $params['company_slug'] = $companySlug;
+        }
+
+        try {
+            $url = route($routeName, $params);
+        } catch (\Throwable $e) {
+            Log::warning('Could not build module show URL for delete request', [
+                'delete_request_id' => $deleteRequest->id,
+                'route' => $routeName,
+                'params' => $params,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        $separator = str_contains($url, '?') ? '&' : '?';
+
+        return $url . $separator . 'delete_request=' . $deleteRequest->id;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public static function pendingIdsFor(string $modelClass): array
+    {
+        if (! static::enabled()) {
+            return [];
+        }
+
+        if (array_key_exists($modelClass, static::$pendingIdsCache)) {
+            return static::$pendingIdsCache[$modelClass];
+        }
+
+        static::$resolvingPendingIds = true;
+        try {
+            $ids = DeleteRequest::query()
+                ->pending()
+                ->where('deletable_type', $modelClass)
+                ->pluck('deletable_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            // Include same-type IDs queued as cascades (e.g. sibling vouchers sharing a trans_code).
+            $cascadeRows = DeleteRequest::query()
+                ->pending()
+                ->whereNotNull('cascaded_records')
+                ->get(['cascaded_records']);
+
+            foreach ($cascadeRows as $row) {
+                foreach ($row->cascaded_records ?? [] as $cascaded) {
+                    if (($cascaded['type'] ?? null) === $modelClass && isset($cascaded['id'])) {
+                        $ids[] = (int) $cascaded['id'];
+                    }
+                }
+            }
+
+            static::$pendingIdsCache[$modelClass] = array_values(array_unique($ids));
+        } finally {
+            static::$resolvingPendingIds = false;
+        }
+
+        return static::$pendingIdsCache[$modelClass];
+    }
+
+    /**
+     * Hook from Model::deleting.
+     * Creates a pending delete request and CANCELS the actual delete until approved.
+     *
+     * @return bool|null false = abort delete; null = allow delete
+     */
+    public static function handleDeleting(Model $model): ?bool
+    {
+        if (! static::enabled() || ! static::usesSoftDeletes($model)) {
+            return null;
+        }
+
+        if (static::shouldBypassApproval()) {
+            return null;
+        }
+
+        // Permanent force-deletes (Recycle Bin) skip the queue.
+        if (method_exists($model, 'isForceDeleting') && $model->isForceDeleting()) {
+            return null;
+        }
+
+        // Controller cascade after a queued parent: record child, do not delete yet.
+        if (static::$activeRootRequest !== null) {
+            if (! static::$activeRootRequest->isPending()) {
+                static::$activeRootRequest = null;
+            } elseif (
+                static::$activeRootRequest->deletable_type === get_class($model)
+                && (int) static::$activeRootRequest->deletable_id === (int) $model->getKey()
+            ) {
+                return false;
+            } else {
+                static::$activeRootRequest->appendCascadedRecord(
+                    get_class($model),
+                    $model->getKey(),
+                    static::buildLabel($model, static::resolveModule($model)['display_columns'])
+                );
+
+                return false;
+            }
+        }
+
+        // Already pending — block any further delete attempts.
+        if (static::hasPending($model)) {
+            if (app()->bound('request')) {
+                request()->attributes->set('delete_approval_created', true);
+                request()->attributes->set(
+                    'delete_approval_request',
+                    static::lastCreatedFor($model)
+                );
+            }
+
+            return false;
+        }
+
+        $module = static::resolveModule($model);
+        $reasonKey = (string) config('delete_approval.reason_input', 'delete_reason');
+        $reason = request()->input($reasonKey) ?? request()->input('reason');
+
+        $deleteRequest = DeleteRequest::create([
+            'company_id' => $model->getAttribute('company_id') ?? CompanyContext::id(),
+            'module_key' => $module['key'],
+            'module_name' => $module['name'],
+            'deletable_type' => get_class($model),
+            'deletable_id' => $model->getKey(),
+            'record_label' => static::buildLabel($model, $module['display_columns']),
+            'record_snapshot' => static::buildSnapshot($model, $module['display_columns']),
+            'cascaded_records' => [],
+            'requested_by' => Auth::id(),
+            'reason' => $reason !== null && $reason !== '' ? (string) $reason : null,
+            'status' => DeleteRequest::STATUS_PENDING,
+        ]);
+
+        static::clearPendingIdsCache(get_class($model));
+        static::$activeRootRequest = $deleteRequest;
+
+        if (app()->bound('request')) {
+            request()->attributes->set('delete_approval_created', true);
+            request()->attributes->set('delete_approval_request', $deleteRequest);
+        }
+
+        ActivityLogger::custom('delete_requested', $module['key'], $model, [
+            'delete_request_id' => $deleteRequest->id,
+            'reason' => $deleteRequest->reason,
+            'label' => $deleteRequest->record_label,
+        ]);
+
+        try {
+            static::notifyAdministrators($deleteRequest);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify admins of delete request', [
+                'delete_request_id' => $deleteRequest->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if (app()->bound('request')) {
+            app()->terminating(function () {
+                static::$activeRootRequest = null;
+            });
+        }
+
+        // Abort soft/hard delete — record stays until admin approves.
+        return false;
+    }
+
+    public static function notifyAdministrators(DeleteRequest $deleteRequest): void
+    {
+        if (! Schema::hasTable('user_notifications')) {
+            return;
+        }
+
+        $admins = User::role(['Administrator', 'Super Admin'])->get();
+        if ($admins->isEmpty()) {
+            return;
+        }
+
+        $requesterName = $deleteRequest->requester?->name ?? 'A user';
+        $title = 'Delete request pending approval';
+        $body = sprintf(
+            '%s requested deletion of %s (%s #%s).',
+            $requesterName,
+            $deleteRequest->record_label ?: 'a record',
+            $deleteRequest->module_name,
+            $deleteRequest->deletable_id
+        );
+
+        foreach ($admins as $admin) {
+            if ((int) $admin->id === (int) $deleteRequest->requested_by) {
+                continue;
+            }
+
+            UserNotification::create([
+                'company_id' => $deleteRequest->company_id,
+                'user_id' => $admin->id,
+                'type' => 'delete_request_pending',
+                'title' => $title,
+                'body' => $body,
+                'data' => [
+                    'delete_request_id' => $deleteRequest->id,
+                    'module_key' => $deleteRequest->module_key,
+                    'module_name' => $deleteRequest->module_name,
+                    'deletable_id' => $deleteRequest->deletable_id,
+                ],
+            ]);
+
+            if (! empty($admin->email) && filter_var($admin->email, FILTER_VALIDATE_EMAIL)) {
+                try {
+                    Mail::raw(
+                        $body . "\n\nOpen Delete Requests in the Settings Panel to approve or reject.",
+                        function ($message) use ($admin, $title) {
+                            $message->to($admin->email)->subject($title);
+                        }
+                    );
+                } catch (\Throwable $mailError) {
+                    Log::warning('Delete request email notification failed', [
+                        'user_id' => $admin->id,
+                        'error' => $mailError->getMessage(),
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Approve: soft-delete only (move to Recycle Bin). Never permanently deletes.
+     * Related cascaded soft-deletes stay recoverable until Recycle Bin purge.
+     */
+    public static function approve(DeleteRequest $deleteRequest, ?User $admin = null, ?string $remarks = null): DeleteRequest
+    {
+        if (! $deleteRequest->isPending()) {
+            throw new \RuntimeException('Only pending delete requests can be approved.');
+        }
+
+        $admin = $admin ?? Auth::user();
+        $model = static::resolveDeletable($deleteRequest);
+
+        if (! $model) {
+            throw new \RuntimeException('The requested record no longer exists and cannot be moved to the Recycle Bin.');
+        }
+
+        if (! static::usesSoftDeletes($model)) {
+            throw new \RuntimeException('This record type does not support Recycle Bin soft-delete.');
+        }
+
+        $movedAt = now();
+
+        static::bypass(true);
+        try {
+            // Soft-delete primary record only — never forceDelete on approval.
+            if (method_exists($model, 'trashed') && ! $model->trashed()) {
+                if (Schema::hasColumn($model->getTable(), 'deleted_by') && $admin?->id) {
+                    $model->deleted_by = $admin->id;
+                    $model->save();
+                }
+                $model->delete();
+            }
+
+            // Soft-delete queued related records so they remain intact for restore.
+            foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+                $type = $cascaded['type'] ?? null;
+                $id = $cascaded['id'] ?? null;
+                if (! $type || ! $id || ! class_exists($type)) {
+                    continue;
+                }
+                /** @var Model|null $related */
+                $related = $type::withTrashed()->find($id);
+                if ($related && static::usesSoftDeletes($related) && method_exists($related, 'trashed') && ! $related->trashed()) {
+                    if (Schema::hasColumn($related->getTable(), 'deleted_by') && $admin?->id) {
+                        $related->deleted_by = $admin->id;
+                        $related->save();
+                    }
+                    $related->delete();
+                }
+            }
+
+            // Module-specific post soft-delete work (ledger, cascade audit rows, etc.).
+            static::afterApprovedSoftDelete($deleteRequest, $model, $admin);
+        } finally {
+            static::bypass(false);
+        }
+
+        $deleteRequest->update([
+            'status' => DeleteRequest::STATUS_APPROVED,
+            'reviewed_by' => $admin?->id,
+            'reviewed_at' => $movedAt,
+            'admin_remarks' => $remarks,
+            'moved_to_bin_at' => $movedAt,
+            'bin_outcome' => DeleteRequest::BIN_IN_RECYCLE_BIN,
+            'restored_by' => null,
+            'restored_at' => null,
+            'permanently_deleted_by' => null,
+            'permanently_deleted_at' => null,
+        ]);
+
+        static::clearPendingIdsCache($deleteRequest->deletable_type);
+        static::$activeRootRequest = null;
+
+        ActivityLogger::custom('moved_to_recycle_bin', $deleteRequest->module_key, $model, [
+            'delete_request_id' => $deleteRequest->id,
+            'requested_by' => $deleteRequest->requested_by,
+            'approved_by' => $admin?->id,
+            'moved_to_bin_at' => $movedAt->toDateTimeString(),
+            'admin_remarks' => $remarks,
+            'label' => $deleteRequest->record_label,
+            'outcome' => DeleteRequest::BIN_IN_RECYCLE_BIN,
+        ]);
+
+        return $deleteRequest->fresh(['requester', 'reviewer', 'restoredByUser', 'permanentlyDeletedByUser']);
+    }
+
+    /**
+     * Mark an approved delete request as restored from the Recycle Bin.
+     */
+    public static function markRestoredFromBin(Model $model, ?User $actor = null): ?DeleteRequest
+    {
+        if (! static::enabled()) {
+            return null;
+        }
+
+        $deleteRequest = static::latestApprovedInBinFor($model);
+        if (! $deleteRequest) {
+            return null;
+        }
+
+        $actor = $actor ?? Auth::user();
+        $restoredAt = now();
+
+        $deleteRequest->update([
+            'bin_outcome' => DeleteRequest::BIN_RESTORED,
+            'restored_by' => $actor?->id,
+            'restored_at' => $restoredAt,
+        ]);
+
+        ActivityLogger::custom('restored_from_recycle_bin', $deleteRequest->module_key, $model, [
+            'delete_request_id' => $deleteRequest->id,
+            'requested_by' => $deleteRequest->requested_by,
+            'approved_by' => $deleteRequest->reviewed_by,
+            'restored_by' => $actor?->id,
+            'restored_at' => $restoredAt->toDateTimeString(),
+            'moved_to_bin_at' => optional($deleteRequest->moved_to_bin_at)->toDateTimeString(),
+            'label' => $deleteRequest->record_label,
+            'outcome' => DeleteRequest::BIN_RESTORED,
+        ]);
+
+        return $deleteRequest->fresh(['requester', 'reviewer', 'restoredByUser']);
+    }
+
+    /**
+     * Mark an approved delete request as permanently deleted from the Recycle Bin.
+     */
+    public static function markPermanentlyDeletedFromBin(Model $model, ?User $actor = null): ?DeleteRequest
+    {
+        if (! static::enabled()) {
+            return null;
+        }
+
+        $deleteRequest = static::latestApprovedInBinFor($model)
+            ?? static::latestApprovedFor($model);
+        if (! $deleteRequest || $deleteRequest->wasPermanentlyDeleted()) {
+            return null;
+        }
+
+        $actor = $actor ?? Auth::user();
+        $purgedAt = now();
+
+        $deleteRequest->update([
+            'bin_outcome' => DeleteRequest::BIN_PERMANENTLY_DELETED,
+            'permanently_deleted_by' => $actor?->id,
+            'permanently_deleted_at' => $purgedAt,
+        ]);
+
+        ActivityLogger::custom('permanently_deleted_from_recycle_bin', $deleteRequest->module_key, $model, [
+            'delete_request_id' => $deleteRequest->id,
+            'requested_by' => $deleteRequest->requested_by,
+            'approved_by' => $deleteRequest->reviewed_by,
+            'permanently_deleted_by' => $actor?->id,
+            'permanently_deleted_at' => $purgedAt->toDateTimeString(),
+            'moved_to_bin_at' => optional($deleteRequest->moved_to_bin_at)->toDateTimeString(),
+            'label' => $deleteRequest->record_label,
+            'outcome' => DeleteRequest::BIN_PERMANENTLY_DELETED,
+        ]);
+
+        return $deleteRequest->fresh(['requester', 'reviewer', 'permanentlyDeletedByUser']);
+    }
+
+    public static function latestApprovedInBinFor(Model $model): ?DeleteRequest
+    {
+        return DeleteRequest::query()
+            ->where('deletable_type', get_class($model))
+            ->where('deletable_id', $model->getKey())
+            ->where('status', DeleteRequest::STATUS_APPROVED)
+            ->where('bin_outcome', DeleteRequest::BIN_IN_RECYCLE_BIN)
+            ->latest('id')
+            ->first();
+    }
+
+    public static function latestApprovedFor(Model $model): ?DeleteRequest
+    {
+        return DeleteRequest::query()
+            ->where('deletable_type', get_class($model))
+            ->where('deletable_id', $model->getKey())
+            ->where('status', DeleteRequest::STATUS_APPROVED)
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Reject: record was never deleted — just unlock it by clearing pending status.
+     */
+    public static function reject(DeleteRequest $deleteRequest, ?User $admin = null, ?string $remarks = null): DeleteRequest
+    {
+        if (! $deleteRequest->isPending()) {
+            throw new \RuntimeException('Only pending delete requests can be rejected.');
+        }
+
+        $admin = $admin ?? Auth::user();
+
+        // If an older flow soft-deleted before this fix, restore for safety.
+        static::bypass(true);
+        try {
+            $model = static::resolveDeletable($deleteRequest);
+            if ($model && method_exists($model, 'restore') && $model->trashed()) {
+                $model->restore();
+            }
+
+            if ($model && Schema::hasColumn($model->getTable(), 'deleted_by') && $model->deleted_by) {
+                $model->deleted_by = null;
+                $model->save();
+            }
+
+            foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+                $type = $cascaded['type'] ?? null;
+                $id = $cascaded['id'] ?? null;
+                if (! $type || ! $id || ! class_exists($type)) {
+                    continue;
+                }
+                /** @var Model|null $related */
+                $related = $type::withTrashed()->find($id);
+                if ($related && method_exists($related, 'restore') && $related->trashed()) {
+                    $related->restore();
+                }
+                if ($related && Schema::hasColumn($related->getTable(), 'deleted_by') && $related->deleted_by) {
+                    $related->deleted_by = null;
+                    $related->save();
+                }
+            }
+        } finally {
+            static::bypass(false);
+        }
+
+        $deleteRequest->update([
+            'status' => DeleteRequest::STATUS_REJECTED,
+            'reviewed_by' => $admin?->id,
+            'reviewed_at' => now(),
+            'admin_remarks' => $remarks,
+            'bin_outcome' => null,
+            'moved_to_bin_at' => null,
+        ]);
+
+        static::clearPendingIdsCache($deleteRequest->deletable_type);
+        static::$activeRootRequest = null;
+
+        $model = static::resolveDeletable($deleteRequest);
+
+        ActivityLogger::custom('delete_rejected', $deleteRequest->module_key, $model, [
+            'delete_request_id' => $deleteRequest->id,
+            'admin_remarks' => $remarks,
+            'label' => $deleteRequest->record_label,
+        ]);
+
+        return $deleteRequest->fresh(['requester', 'reviewer']);
+    }
+
+    public static function resolveDeletable(DeleteRequest $deleteRequest): ?Model
+    {
+        $type = $deleteRequest->deletable_type;
+        if (! $type || ! class_exists($type)) {
+            return null;
+        }
+
+        return $type::withTrashed()->find($deleteRequest->deletable_id);
+    }
+
+    /**
+     * Block updates on records that have a pending delete request.
+     */
+    public static function handleUpdating(Model $model): bool
+    {
+        if (! static::enabled() || static::$bypassing) {
+            return true;
+        }
+
+        if (static::hasPending($model)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public static function pendingMessage(?DeleteRequest $request = null): string
+    {
+        $id = $request?->id;
+        $suffix = $id ? " (Request #{$id})" : '';
+
+        return 'Delete request submitted and awaiting administrator approval.' . $suffix
+            . ' The record is locked (Pending Deletion) until reviewed.';
+    }
+
+    public static function lastCreatedFor(Model $model): ?DeleteRequest
+    {
+        return DeleteRequest::query()
+            ->where('deletable_type', get_class($model))
+            ->where('deletable_id', $model->getKey())
+            ->latest('id')
+            ->first();
+    }
+
+    /**
+     * Extra work after an approved soft-delete (still inside bypass).
+     */
+    protected static function afterApprovedSoftDelete(DeleteRequest $deleteRequest, Model $model, ?User $admin): void
+    {
+        if ($deleteRequest->module_key === 'vouchers' && $model instanceof \App\Models\Vouchers) {
+            static::finalizeApprovedVoucherDeletion($deleteRequest, $model, $admin);
+        }
+    }
+
+    /**
+     * Ensure sibling vouchers + transactions are soft-deleted, track cascades for
+     * Recycle Bin restore, and recalculate account ledgers.
+     */
+    protected static function finalizeApprovedVoucherDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\Vouchers $voucher,
+        ?User $admin
+    ): void {
+        $transCode = $voucher->trans_code;
+        $billingMonth = $voucher->billing_month;
+        $voucherIdentifier = $voucher->voucher_type . '-' . str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
+
+        $allVouchers = \App\Models\Vouchers::withTrashed()->where('trans_code', $transCode)->get();
+        foreach ($allVouchers as $sibling) {
+            if (! $sibling->trashed()) {
+                if (Schema::hasColumn($sibling->getTable(), 'deleted_by') && $admin?->id) {
+                    $sibling->deleted_by = $admin->id;
+                    $sibling->save();
+                }
+                $sibling->delete();
+            }
+        }
+
+        $relatedTransactions = \App\Models\Transactions::withTrashed()
+            ->where('trans_code', $transCode)
+            ->get();
+        $affectedAccounts = $relatedTransactions->pluck('account_id')->unique();
+
+        foreach ($relatedTransactions as $transaction) {
+            try {
+                \App\Models\DeletionCascade::logCascade(
+                    \App\Models\Vouchers::class,
+                    $voucher->id,
+                    $voucherIdentifier,
+                    \App\Models\Transactions::class,
+                    $transaction->id,
+                    "Transaction #{$transaction->id} - {$transaction->narration} (Trans Code: {$transaction->trans_code})",
+                    'hasMany',
+                    'transactions',
+                    'soft',
+                    'Cascade deletion from approved voucher delete request #' . $deleteRequest->id
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to track voucher cascade on approve', [
+                    'delete_request_id' => $deleteRequest->id,
+                    'transaction_id' => $transaction->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if (! $transaction->trashed()) {
+                if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $admin?->id) {
+                    $transaction->deleted_by = $admin->id;
+                    $transaction->save();
+                }
+                $transaction->delete();
+            }
+        }
+
+        foreach ($affectedAccounts as $accountId) {
+            if ($accountId && $billingMonth) {
+                static::recalculateLedgerAfterVoucherDeletion((int) $accountId, $billingMonth);
+            }
+        }
+    }
+
+    protected static function recalculateLedgerAfterVoucherDeletion(int $accountId, $billingMonth): void
+    {
+        \App\Support\CompanyQuery::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->delete();
+
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
+            ->where('account_id', $accountId)
+            ->where('billing_month', '<', $billingMonth)
+            ->orderBy('billing_month', 'desc')
+            ->first();
+
+        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+        $monthTransactions = \App\Models\Transactions::where('account_id', $accountId)
+            ->where('billing_month', $billingMonth)
+            ->get();
+
+        $debitTotal = $monthTransactions->sum('debit');
+        $creditTotal = $monthTransactions->sum('credit');
+        $closingBalance = $openingBalance + $debitTotal - $creditTotal;
+
+        if ($monthTransactions->count() > 0) {
+            \App\Support\CompanyQuery::insert('ledger_entries', [
+                'account_id' => $accountId,
+                'billing_month' => $billingMonth,
+                'opening_balance' => $openingBalance,
+                'debit_balance' => $debitTotal,
+                'credit_balance' => $creditTotal,
+                'closing_balance' => $closingBalance,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+}

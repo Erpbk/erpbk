@@ -67,6 +67,8 @@ $container = (isset($configData['contentLayout']) && $configData['contentLayout'
               @include('partials.module_top_bar_slider')
             @endif
 
+            @include('delete_requests._review_banner')
+            @include('delete_requests._pending_record_banner')
             @yield('content')
 
           </div>

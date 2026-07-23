@@ -356,6 +356,15 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::get('/api/statistics', [ActivityLogController::class, 'statistics'])->name('statistics');
         Route::get('/{activityLog}', [ActivityLogController::class, 'show'])->name('show');
     });
+    Route::prefix('delete-requests')->name('settings-panel.delete-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\DeleteRequestsController::class, 'index'])->name('index');
+        Route::get('/mine', [App\Http\Controllers\DeleteRequestsController::class, 'mine'])->name('mine');
+        Route::get('/notifications', [App\Http\Controllers\DeleteRequestsController::class, 'notifications'])->name('notifications');
+        Route::post('/notifications/{notification}/read', [App\Http\Controllers\DeleteRequestsController::class, 'markNotificationRead'])->name('notifications.read');
+        Route::get('/{deleteRequest}', [App\Http\Controllers\DeleteRequestsController::class, 'show'])->name('show');
+        Route::post('/{deleteRequest}/approve', [App\Http\Controllers\DeleteRequestsController::class, 'approve'])->name('approve');
+        Route::post('/{deleteRequest}/reject', [App\Http\Controllers\DeleteRequestsController::class, 'reject'])->name('reject');
+    });
     Route::prefix('trash')->name('settings-panel.trash.')->group(function () {
         Route::get('/', [App\Http\Controllers\TrashController::class, 'index'])->name('index');
         Route::get('/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('stats');

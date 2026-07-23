@@ -31,6 +31,7 @@ use App\Models\RtaFines;
 use App\Models\Vouchers;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
+use App\Services\DeleteRequestService;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\Loan;
 use App\Support\CompanyContext;
@@ -388,10 +389,22 @@ class TrashController extends Controller
             return redirect()->route('settings-panel.trash.index');
         }
 
+        if (DeleteRequestService::hasPending($record)) {
+            Flash::error('This record has a pending delete request. Approve or reject it from Delete Requests instead of restoring from the Recycle Bin.');
+            return redirect()->route('settings-panel.delete-requests.index');
+        }
+
         DB::beginTransaction();
         try {
             // Restore the primary record using Eloquent
             $record->restore();
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn($record->getTable(), 'deleted_by') && $record->deleted_by) {
+                $record->deleted_by = null;
+                $record->save();
+            }
+
+            DeleteRequestService::markRestoredFromBin($record, auth()->user());
 
             $restoredItems = [];
 
@@ -494,6 +507,11 @@ class TrashController extends Controller
         if (!$record) {
             Flash::error('Record not found in trash.');
             return redirect()->route('settings-panel.trash.index');
+        }
+
+        if (DeleteRequestService::hasPending($record)) {
+            Flash::error('This record has a pending delete request. Resolve the request before permanently deleting.');
+            return redirect()->route('settings-panel.delete-requests.index');
         }
 
         DB::beginTransaction();
@@ -622,6 +640,7 @@ class TrashController extends Controller
                 ->delete();
 
             // Permanently delete the primary record using Eloquent
+            DeleteRequestService::markPermanentlyDeletedFromBin($record, auth()->user());
             $record->forceDelete();
 
             DB::commit();

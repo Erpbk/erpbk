@@ -181,6 +181,15 @@ class Branch extends BaseModel
 
     public static function dropdown()
     {
-        return Branch::whereIn('id', app('user_branches'))->pluck('name', 'id')->prepend('select', '')->prepend('All', null)->toArray();
+        return Branch::whereIn('id', app('user_branches'))
+            ->get(['id', 'code', 'name'])
+            ->mapWithKeys(function ($branch) {
+                $label = trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''));
+
+                return [$branch->id => $label !== '' ? $label : (string) $branch->id];
+            })
+            ->prepend('select', '')
+            ->prepend('All', null)
+            ->toArray();
     }
 }

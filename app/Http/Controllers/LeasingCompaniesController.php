@@ -1046,7 +1046,11 @@ class LeasingCompaniesController extends AppBaseController
             return redirect()->back();
         }
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Bikes::query()->where('company', $leasingCompany->id);
+        $query = Bikes::query()
+            ->where('company', $leasingCompany->id)
+            ->with(['history' => function ($q) {
+                $q->orderByDesc('note_date')->orderByDesc('id');
+            }]);
         $bikes = $this->applyPagination($query, $paginationParams);
 
         return view('leasingCompanies.bikes', compact('bikes', 'leasingCompany'));

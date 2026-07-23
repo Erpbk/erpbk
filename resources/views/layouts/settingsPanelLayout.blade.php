@@ -88,6 +88,12 @@ $containerNav = 'container-fluid';
             <div>Profile</div>
           </a>
         </li>
+        <li class="menu-item {{ Request::routeIs('settings-panel.delete-requests.mine') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.delete-requests.mine', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-file-dislike"></i>
+            <div>My Delete Requests</div>
+          </a>
+        </li>
         @can('settings_email_view')
 
         @if($settingsIsCompanyAdmin)
@@ -130,6 +136,23 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
+        @can('settings_delete_requests_view')
+        <li class="menu-item {{ Request::is('settings-panel/delete-requests*') && !Request::is('settings-panel/delete-requests/mine') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.delete-requests.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-trash-x text-danger"></i>
+            <div>Delete Requests
+              @php
+                $pendingDeleteCount = \Illuminate\Support\Facades\Schema::hasTable('delete_requests')
+                  ? \App\Models\DeleteRequest::pending()->count()
+                  : 0;
+              @endphp
+              @if($pendingDeleteCount > 0)
+                <span class="badge bg-danger rounded-pill ms-1">{{ $pendingDeleteCount }}</span>
+              @endif
+            </div>
+          </a>
+        </li>
+        @endcan
 
         {{-- ERP Module Settings — mirrors main app sidebar (layouts/menu.blade.php) --}}
         <li class="menu-header small text-uppercase mt-3">
@@ -144,6 +167,12 @@ $containerNav = 'container-fluid';
           <a href="{{ route('settings-panel.profile', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-user"></i>
             <div>{{ __('Profile') }}</div>
+          </a>
+        </li>
+        <li class="menu-item {{ Request::routeIs('settings-panel.delete-requests.mine') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.delete-requests.mine', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-file-dislike"></i>
+            <div>{{ __('My Delete Requests') }}</div>
           </a>
         </li>
         @endif
@@ -236,6 +265,8 @@ $containerNav = 'container-fluid';
             });
           </script>
           @endif
+          @include('delete_requests._review_banner')
+          @include('delete_requests._pending_record_banner')
           @yield('content')
         </div>
         <div class="content-backdrop fade"></div>

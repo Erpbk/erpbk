@@ -221,6 +221,7 @@ return [
                 'Roles',
                 'Activity Logs',
                 'Recycle Bin',
+                'Delete Requests',
                 'Email',
             ],
         ],

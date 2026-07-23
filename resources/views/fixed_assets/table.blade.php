@@ -23,7 +23,7 @@
                     ? (float) $asset->acquisition_cost - (float) $lastPostedOrSkipped->accumulated_depreciation
                     : (float) $asset->acquisition_cost;
             @endphp
-            <tr class="text-center">
+            <tr class="text-center" data-id="{{ $asset->id }}">
                 @if($vf('asset_code'))<td>
                     <a href="javascript:void(0);" class="show-modal-right" data-size="xl" data-title="Asset Details" data-action="{{ route('fixed-assets.show', $asset->id) }}">
                         {{ $asset->asset_code }}
@@ -86,3 +86,4 @@
 @if(method_exists($data, 'links'))
     {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

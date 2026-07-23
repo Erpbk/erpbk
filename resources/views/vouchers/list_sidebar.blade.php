@@ -28,8 +28,9 @@
         @php
           $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
           $typeLabel = $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type;
+          $voucherPendingDeletion = record_is_pending_deletion($voucher);
         @endphp
-        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">
+        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body {{ $voucherPendingDeletion ? 'bg-warning-subtle' : '' }}" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">
           <div class="d-flex align-items-start pt-1">
             <input type="checkbox" class="form-check-input mt-0" onclick="event.preventDefault(); event.stopPropagation();" aria-label="Select">
           </div>
@@ -44,7 +45,11 @@
           @endif
           <div class="d-flex flex-column align-items-end flex-shrink-0 text-end">
             <span class="small fw-medium">{{ \App\Helpers\Currency::format($voucher->amount, 2) }}</span>
-            <span class="badge bg-label-success py-0" style="font-size: 0.65rem;">PUBLISHED</span>
+            @if($voucherPendingDeletion)
+              <span class="badge bg-warning text-dark py-0" style="font-size: 0.65rem;"><i class="ti ti-lock me-1"></i>PENDING DELETION</span>
+            @else
+              <span class="badge bg-label-success py-0" style="font-size: 0.65rem;">PUBLISHED</span>
+            @endif
           </div>
         </a>
       @endforeach

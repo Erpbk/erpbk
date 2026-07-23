@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Services\DeleteRequestService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
@@ -9,12 +10,18 @@ class TrashedRecordQuery
 {
     /**
      * Company-scoped soft-deleted records for recycle bin (branch filter excluded).
+     * Excludes rows that still have a pending delete-approval request.
      */
     public static function for(string $modelClass): Builder
     {
         $query = $modelClass::query()
             ->onlyTrashed()
             ->withoutGlobalScope('branch');
+
+        $pendingIds = DeleteRequestService::pendingIdsFor($modelClass);
+        if ($pendingIds !== []) {
+            $query->whereNotIn((new $modelClass)->getQualifiedKeyName(), $pendingIds);
+        }
 
         if (! CompanyContext::shouldApplyScope()) {
             return $query;

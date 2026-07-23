@@ -16,22 +16,25 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
-         @if($vf('name'))<td>{{$r->name}}<br /></td>@endif
+      @php $vendorPendingDeletion = record_is_pending_deletion($r); @endphp
+      <tr class="text-center {{ $vendorPendingDeletion ? 'table-warning' : '' }}">
+         @if($vf('name'))<td>{{$r->name}} @include('delete_requests._pending_badge', ['model' => $r])<br /></td>@endif
          @if($vf('email'))<td>{{$r->email }}</td>@endif
          @if($vf('contact_number'))<td>{{$r->contact_number }}</td>@endif
          @if($vf('status'))<td>
-            @if($r->status == 1)
+            @if($vendorPendingDeletion)
+               @include('delete_requests._pending_badge', ['model' => $r])
+            @elseif($r->status == 1)
             <span class="badge  bg-success">Active</span>
             @else
             <span class="badge  bg-danger">Inactive</span>
             @endif
          </td>@endif
          <td>
+            @if($vendorPendingDeletion)
+               <span class="text-muted small">Locked</span>
+            @else
             <div class='btn-group'>
-               <!-- <a href="javascript:void(0);" data-action="{{ route('items.show', $r->id) }}" class='btn btn-default btn-sm show-modal' data-size="lg" data-title="View">
-                  <i class="fa fa-eye"></i>
-                  </a> -->
                @can('vendors_edit')
                <a href="javascript:void(0);" data-action="{{ route('vendors.edit', $r->id) }}" class='btn btn-info btn-sm show-modal' data-size="lg" data-title="Update Vendors">
                   <i class="fa fa-edit"></i>
@@ -43,6 +46,7 @@
                </a>
                @endcan
             </div>
+            @endif
          </td>
          <td></td>
       </tr>
@@ -77,3 +81,4 @@
       </div>
    </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

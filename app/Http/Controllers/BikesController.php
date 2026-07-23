@@ -155,6 +155,7 @@ class BikesController extends AppBaseController
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+        $data->load('latestHistory');
         if ($request->ajax()) {
             $tableData = view('bikes.table', [
                 'data' => $data,
@@ -384,6 +385,7 @@ class BikesController extends AppBaseController
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+        $data->load('latestHistory');
 
         // Get table columns configuration
         $tableColumns = $this->getTableColumns();
@@ -794,12 +796,15 @@ class BikesController extends AppBaseController
                 } else {
                     $message .= "*Rental Company:* {$company->name}\n";
                 }
+                $returnDateFormatted = Carbon::parse($request->return_date)->format('d-m-Y');
                 if ($request->warehouse == 'Absconded') {
-                    $message .= "*Absconding Date:* {$request->return_date}\n";
+                    $message .= "*Absconding Date:* {$returnDateFormatted}\n";
                 } elseif ($request->warehouse == 'Theft') {
-                    $message .= "*Theft Date:* {$request->return_date}\n";
+                    $message .= "*Theft Date:* {$returnDateFormatted}\n";
+                } elseif ($request->warehouse == 'Impound') {
+                    $message .= "*Impound Date:* {$returnDateFormatted}\n";
                 } else {
-                    $message .= "*Return Date:* {$request->return_date}\n";
+                    $message .= "*Return Date:* {$returnDateFormatted}\n";
                 }
                 $message .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
                 if ($rider) {
@@ -807,17 +812,21 @@ class BikesController extends AppBaseController
                 }
                 $message .= "*Emirates:* {$bike->emirates}\n";
                 $riderHistoryNote = RiderHistoryLogger::assignModalRiderHistoryNote($request);
+                if ($riderHistoryNote !== null) {
+                    $message .= "*Note:* {$riderHistoryNote}\n";
+                }
 
                 // Status handling
                 if ($request->warehouse == 'Absconded') {
                     Riders::where('id', $bike->rider_id)
                         ->update(['status' => 5]);
                     $bike->update(['warehouse' => 'Absconded']);
-                    $this->updateBikeHistory2($bike, 'Absconded', $bike->rider_id, $message, 'Absconded');
+                    $this->updateBikeHistory($bike, 'Absconded', $bike->rider_id, $message, $request->return_date, 'Absconded');
                     if ($rider && $riderBefore) {
                         RiderHistoryLogger::bikeAssignStatusChange(
                             (int) $rider->id,
-                            $riderHistoryNote,
+                            'Bike return: Absconded',
+                            $riderHistoryNote ?? 'Rider Absconded',
                             $riderBefore,
                             array_merge($riderBefore, ['status' => 5]),
                             $request->return_date,
@@ -953,6 +962,39 @@ class BikesController extends AppBaseController
                         'warehouse' => 'Total Loss',
                         'customer_id' => null,
                     ]);
+                } elseif ($request->warehouse == 'Impound') {
+                    if ($rider) {
+                        $rider->update([
+                            'status' => 3,
+                            'designation' => null,
+                            'customer_id' => null,
+                        ]);
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Impound');
+                        if ($riderBefore) {
+                            RiderHistoryLogger::bikeAssignStatusChange(
+                                (int) $rider->id,
+                                'Bike return: Impound',
+                                $riderHistoryNote,
+                                $riderBefore,
+                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                $request->return_date,
+                                'bike_assign_return',
+                                $historyBranchId,
+                                ['warehouse_action' => 'Impound', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                                'Impound',
+                                $rider,
+                                $bike
+                            );
+                        }
+                    } else {
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Impound');
+                    }
+                    $bike->update([
+                        'rider_id' => null,
+                        'rental_company_id' => null,
+                        'warehouse' => 'Impound',
+                        'customer_id' => null,
+                    ]);
                 } else {
 
                     return response()->json([
@@ -1001,25 +1043,6 @@ class BikesController extends AppBaseController
             'return_date' => $return_date,
             'notes' => $notes,
             'updated_by' => $userid,
-        ];
-        $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
-        $lastHistory->update($update);
-    }
-
-    private function updateBikeHistory2($bike, $status, $rider_id, $notes, ?string $historyStatus = null)
-    {
-        $rider = Riders::find($rider_id);
-
-        $lastHistory = BikeHistory::where('bike_id', $bike->id)
-            ->where('rider_id', $rider_id)
-            ->whereNull('return_date')
-            ->latest('note_date')
-            ->first();
-
-        $resolvedStatus = $historyStatus ?? BikeHistoryLogger::historyStatusFromWarehouse($status);
-        $update = [
-            'warehouse' => $status,
-            'notes' => $notes,
         ];
         $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
         $lastHistory->update($update);
@@ -1167,7 +1190,7 @@ class BikesController extends AppBaseController
                     $historyMessage .= "*Company:* {$rentCompany->name}\n";
                 }
 
-                $historyMessage .= "*Assign Date:* {$request->note_date}\n";
+                $historyMessage .= '*Assign Date:* ' . Carbon::parse($request->note_date)->format('d-m-Y') . "\n";
                 $historyMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
                 if ($assignType == 'rider') {
                     $project = CompanyQuery::table('customers')->where('id', $customer_id)->first();
@@ -1301,18 +1324,21 @@ class BikesController extends AppBaseController
                 return response()->json(['errors' => ['error' => 'This vehicle is already marked as returned to the leasing company.']], 422);
             }
 
+            $assignFields = BikeCustomField::assignModalFields('change');
+            $notesField = $assignFields->firstWhere('field_key', 'notes');
+
             $rules = [
-                'leased_return_date' => 'nullable|date',
+                'leased_return_date' => 'required|date',
             ];
             if (Schema::hasColumn('bikes', 'leased_return_company_id')) {
                 $rules['leased_return_company_id'] = 'nullable|integer|exists:leasing_companies,id';
             }
+            if ($notesField && ($notesField->resolvedInputSpec()['required'] ?? false)) {
+                $rules['note'] = 'required';
+            }
             $request->validate($rules);
 
             $leasedReturnDate = $request->input('leased_return_date');
-            if ($leasedReturnDate === '' || $leasedReturnDate === null) {
-                $leasedReturnDate = null;
-            }
 
             $update = [
                 'leased_return_date' => $leasedReturnDate,
@@ -1326,12 +1352,52 @@ class BikesController extends AppBaseController
             $bike->fill($update);
             $bike->save();
 
+            $note = RiderHistoryLogger::assignModalRiderHistoryNote($request);
+            $leasingCompany = $bike->leasedReturnCompany
+                ?? $bike->LeasingCompany
+                ?? (isset($update['leased_return_company_id']) && $update['leased_return_company_id']
+                    ? \App\Models\LeasingCompanies::find($update['leased_return_company_id'])
+                    : null);
+            $returnDateFormatted = Carbon::parse($leasedReturnDate)->format('d-m-Y');
+            $historyNotes = "*Bike* 🏍️\n";
+            $historyNotes .= "────────────────\n";
+            $historyNotes .= "*Bike Plate:* {$bike->plate}\n";
+            $historyNotes .= '*Returned To:* ' . ($leasingCompany?->name ?? 'N/A') . "\n";
+            $historyNotes .= "*Return Date:* {$returnDateFormatted}\n";
+            $historyNotes .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
+            if ($note !== null) {
+                $historyNotes .= "*Note:* {$note}\n";
+            }
+
+            $historyData = [
+                'bike_id' => $bike->id,
+                'rider_id' => $bike->rider_id,
+                'rental_company_id' => $bike->rental_company_id,
+                'warehouse' => $bike->warehouse ?: 'Return',
+                'note_date' => $leasedReturnDate,
+                'return_date' => $leasedReturnDate,
+                'notes' => $historyNotes,
+                'customer_id' => $bike->customer_id,
+                'created_by' => Auth::id(),
+            ];
+            $historyData = array_merge(
+                $historyData,
+                BikeHistoryLogger::structuredBikeHistoryFields(
+                    $bike->fresh(),
+                    $bike->rider,
+                    'Returned to Leasing',
+                    $bike->customer_id
+                )
+            );
+            BikeHistory::create($historyData);
+
             return response()->json(['message' => 'Leasing return details saved.', 'reload' => true]);
         }
 
         $bike->load(['leasedReturnCompany', 'LeasingCompany']);
+        $assignFields = BikeCustomField::assignModalFields('change');
 
-        return view('bikes.leasing_return_modal', compact('bike', 'id'));
+        return view('bikes.leasing_return_modal', compact('bike', 'id', 'assignFields'));
     }
 
     /**
@@ -1374,6 +1440,7 @@ class BikesController extends AppBaseController
             $oldProject = $bike->customer;
             $newProject = Customers::find($newCustomerId);
             $changeDate = now()->setTimezone('Asia/Dubai')->toDateString();
+            $changeDateFormatted = Carbon::parse($changeDate)->format('d-m-Y');
             $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
             $riderBefore = RiderHistoryLogger::riderSnapshot($rider);
             $prevRiderCustomerId = $rider->customer_id;
@@ -1383,7 +1450,7 @@ class BikesController extends AppBaseController
             $returnMessage .= "*Bike No:* {$bike->plate}\n";
             $returnMessage .= "*ID:* {$rider->rider_id}\n";
             $returnMessage .= "*Name:* {$rider->name}\n";
-            $returnMessage .= "*Return Date:* {$changeDate}\n";
+            $returnMessage .= "*Return Date:* {$changeDateFormatted}\n";
             $returnMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
             $returnMessage .= '*Project:* ' . ($oldProject->name ?? '—') . "\n";
             $returnMessage .= "*Emirates:* {$bike->emirates}\n";
@@ -1394,7 +1461,7 @@ class BikesController extends AppBaseController
             $assignMessage .= "*Bike No:* {$bike->plate}\n";
             $assignMessage .= "*ID:* {$rider->rider_id}\n";
             $assignMessage .= "*Name:* {$rider->name}\n";
-            $assignMessage .= "*Assign Date:* {$changeDate}\n";
+            $assignMessage .= "*Assign Date:* {$changeDateFormatted}\n";
             $assignMessage .= '*Time:* ' . now()->setTimezone('Asia/Dubai')->format('h:i a') . "\n";
             $assignMessage .= '*Project:* ' . ($newProject->name ?? '—') . "\n";
             $assignMessage .= "*Emirates:* {$bike->emirates}\n";

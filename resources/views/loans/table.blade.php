@@ -16,7 +16,7 @@
     </thead>
     <tbody>
         @forelse($data as $loan)
-        <tr class="text-center">
+        <tr class="text-center" data-id="{{ $loan->id }}">
             @if($vf('loan_number'))<td><a href="{{ route('loans.show', $loan->id) }}">{{ $loan->loan_number }}</a></td>@endif
             @if($vf('bank_id'))<td>{{ $loan->bank?->name ?? '-' }}</td>@endif
             @if($vf('principal_amount'))<td>{{ number_format($loan->principal_amount, 2) }}</td>@endif
@@ -64,3 +64,4 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

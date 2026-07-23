@@ -61,6 +61,8 @@ class Kernel extends HttpKernel
       \App\Http\Middleware\AutoMarkInstallments::class,
       \App\Http\Middleware\ApplyDynamicModuleLabels::class,
       \App\Http\Middleware\LogUserActivity::class,
+      \App\Http\Middleware\AdjustDeleteApprovalResponse::class,
+      \App\Http\Middleware\BlockPendingDeletionEdits::class,
     ],
 
     'api' => [

@@ -244,7 +244,8 @@ class General
       'Absconded' => 'Absconded',
       'Vacation' => 'Vacation',
       'Theft' => 'Theft',
-      'Total Loss' => 'Total Loss'
+      'Total Loss' => 'Total Loss',
+      'Impound' => 'Impound',
     ];
     $list = '';
     foreach ($array as $key => $value) {

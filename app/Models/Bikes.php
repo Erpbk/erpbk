@@ -177,6 +177,11 @@ class Bikes extends BaseModel
   {
     return $this->hasMany(BikeHistory::class, 'bike_id', 'id');
   }
+
+  public function latestHistory()
+  {
+    return $this->hasOne(BikeHistory::class, 'bike_id')->latestOfMany(['note_date', 'id']);
+  }
   public function LeasingCompany()
   {
     return $this->belongsTo(LeasingCompanies::class, 'company');

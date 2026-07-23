@@ -95,6 +95,26 @@
       border: 1px solid #5c636a;
    }
 
+   .road-absconded {
+      background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+      border: 1px solid #842029;
+   }
+
+   .road-theft {
+      background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
+      border: 1px solid #4c2b8a;
+   }
+
+   .road-total-loss {
+      background: linear-gradient(135deg, #343a40 0%, #212529 100%);
+      border: 1px solid #1a1d20;
+   }
+
+   .road-impound {
+      background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);
+      border: 1px solid #d9480f;
+   }
+
 
    @keyframes pulse {
       0% {
@@ -137,7 +157,8 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
+      @php $bikePendingDeletion = record_is_pending_deletion($r); @endphp
+      <tr class="text-center {{ $bikePendingDeletion ? 'table-warning' : '' }}">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
          @switch($key)
@@ -145,7 +166,10 @@
          <td tabindex="0">{{ $r->bike_code }}</td>
          @break
          @case('plate')
-         <td tabindex="0" class="text-start"><a href="{{ route('bikes.show', $r->id) }}">{{ $r->plate }}</a></td>
+         <td tabindex="0" class="text-start">
+            <a href="{{ route('bikes.show', $r->id) }}">{{ $r->plate }}</a>
+            @include('delete_requests._pending_badge', ['model' => $r])
+         </td>
          @break
          @case('rider_id')
          @php
@@ -182,29 +206,56 @@
          <td tabindex="0">
             @php
             $isReturned = $hasLeasingReturn && !empty($r->leased_return_date);
+            $wKey = strtolower(trim((string) ($r->warehouse ?? '')));
+            $specialStatuses = [
+            'absconded' => ['Absconded', 'road-absconded'],
+            'theft' => ['Theft', 'road-theft'],
+            'total loss' => ['Total Loss', 'road-total-loss'],
+            'impound' => ['Impound', 'road-impound'],
+            ];
 
             if ($isReturned) {
             $statusLabel = 'Returned';
             $statusClass = 'road-returned';
             $statusTitle = 'Returned to leasing company';
-            } else {
-            $wKey = strtolower(trim((string) ($r->warehouse ?? '')));
-
-            // Road status derived from warehouse (same rules as before)
-            if ($wKey === 'active') {
+            } elseif (isset($specialStatuses[$wKey])) {
+            [$statusLabel, $statusClass] = $specialStatuses[$wKey];
+            $statusTitle = 'Status: ' . $statusLabel;
+            } elseif ($wKey === 'active') {
             $statusLabel = 'On Road';
             $statusClass = 'road-onroad';
+            $statusTitle = 'Status: On Road';
             } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
             $statusLabel = 'Off Road';
             $statusClass = 'road-offroad';
+            $statusTitle = 'Status: Off Road';
             } else {
             $statusLabel = 'On Road';
             $statusClass = 'road-onroadRed';
+            $statusTitle = 'Status: On Road';
             }
-            $statusTitle = 'Status: ' . $statusLabel;
+
+            $statusSince = null;
+            if ($isReturned && !empty($r->leased_return_date)) {
+            $statusSince = $r->leased_return_date;
+            } else {
+            $lastHist = $r->latestHistory;
+            if ($lastHist) {
+            $statusSince = $lastHist->return_date ?: $lastHist->note_date;
+            }
+            }
+
+            $daysSinceStatus = null;
+            if ($statusSince) {
+            $daysSinceStatus = (int) max(0, \Carbon\Carbon::parse($statusSince)->startOfDay()->diffInDays(now()->startOfDay()));
             }
             @endphp
-            <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
+            <div class="d-flex flex-column align-items-center gap-1">
+               <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
+               @if($daysSinceStatus !== null)
+               <small class="text-muted status-days" title="Days since status change">{{ $daysSinceStatus }} {{ $daysSinceStatus === 1 ? 'day' : 'days' }}</small>
+               @endif
+            </div>
          </td>
          @break
          @case('created_by')
@@ -215,6 +266,9 @@
          @break
          @case('action')
          <td tabindex="0" style="position: relative;">
+            @if($bikePendingDeletion)
+            @include('delete_requests._pending_badge', ['model' => $r])
+            @else
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -235,6 +289,7 @@
                   @endcan
                </div>
             </div>
+            @endif
          </td>
          @break
          @case('expiry_date')
@@ -286,3 +341,4 @@
 @endif
 
 <!-- Filter modal removed: using right-side sliding sidebar instead -->
+@include('delete_requests._pending_table_script', ['items' => $data])

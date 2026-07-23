@@ -531,10 +531,68 @@ class VouchersController extends Controller
 
         return response()->json(['errors' => ['error' => 'This voucher cannot be deleted from the Vouchers module.']], 403);
       }
-      $billingMonth = $voucher->billing_month;
 
-      // Get all related transactions before deletion for cascade tracking
       $relatedTransactions = Transactions::where('trans_code', $id)->get();
+
+      // Delete-approval workflow: create a request, keep voucher visible until admin approves.
+      if (\App\Services\DeleteRequestService::enabled()
+        && ! \App\Services\DeleteRequestService::shouldBypassApproval()
+      ) {
+        foreach ($vouchers as $pendingCheck) {
+          if (\App\Services\DeleteRequestService::hasPending($pendingCheck)) {
+            DB::rollBack();
+            $existing = \App\Services\DeleteRequestService::lastCreatedFor($pendingCheck);
+
+            return response()->json([
+              'message' => \App\Services\DeleteRequestService::pendingMessage($existing),
+            ]);
+          }
+        }
+
+        // Eloquent delete on the primary voucher fires the delete-request interceptor
+        // and aborts the actual soft-delete until approval.
+        $voucher->delete();
+
+        $deleteRequest = request()->attributes->get('delete_approval_request')
+          ?? \App\Services\DeleteRequestService::lastCreatedFor($voucher);
+
+        if (! $deleteRequest) {
+          DB::rollBack();
+
+          return response()->json([
+            'errors' => ['error' => 'Could not create delete request for this voucher.'],
+          ], 500);
+        }
+
+        foreach ($vouchers as $sibling) {
+          if ((int) $sibling->id === (int) $voucher->id) {
+            continue;
+          }
+          $siblingLabel = $sibling->voucher_type . '-' . str_pad((string) $sibling->id, 4, '0', STR_PAD_LEFT);
+          $deleteRequest->appendCascadedRecord(Vouchers::class, $sibling->id, $siblingLabel);
+        }
+
+        foreach ($relatedTransactions as $transaction) {
+          $deleteRequest->appendCascadedRecord(
+            Transactions::class,
+            $transaction->id,
+            "Transaction #{$transaction->id} - {$transaction->narration} (Trans Code: {$transaction->trans_code})"
+          );
+        }
+
+        \App\Services\DeleteRequestService::clearPendingIdsCache(Vouchers::class);
+        \App\Services\DeleteRequestService::clearPendingIdsCache(Transactions::class);
+
+        DB::commit();
+
+        return response()->json([
+          'message' => \App\Services\DeleteRequestService::pendingMessage($deleteRequest),
+          'delete_request_id' => $deleteRequest->id,
+          'pending_deletion' => true,
+        ]);
+      }
+
+      $billingMonth = $voucher->billing_month;
 
       // Get all accounts involved in this voucher's transactions
       $affectedAccounts = $relatedTransactions->pluck('account_id')->unique();
@@ -606,8 +664,12 @@ class VouchersController extends Controller
         }
       }
 
-      // Soft delete vouchers with trans_code filter
-      Vouchers::where('trans_code', $id)->delete();
+      // Soft-delete each voucher via Eloquent so model events remain consistent.
+      foreach ($vouchers as $voucherToDelete) {
+        if (! $voucherToDelete->trashed()) {
+          $voucherToDelete->delete();
+        }
+      }
 
       // ✅ FIX: Recalculate ledger for all affected accounts
       foreach ($affectedAccounts as $accountId) {
@@ -617,7 +679,7 @@ class VouchersController extends Controller
       }
 
       DB::commit();
-      return response()->json(['message' => 'Vouchers deleted successfully.']);
+      return response()->json(['message' => delete_outcome_message('Voucher')]);
     } catch (\Exception $e) {
       DB::rollBack();
       \Log::error("Error deleting Voucher trans_code: {$id} - " . $e->getMessage());

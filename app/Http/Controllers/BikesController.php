@@ -155,10 +155,14 @@ class BikesController extends AppBaseController
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        $data->load('latestHistory');
+        // Latest history only (notes + dates for status) — not full history rows.
+        $this->loadLatestHistoryForBikeTable($data);
+        // Get table columns configuration
+        $tableColumns = $this->getTableColumns();
         if ($request->ajax()) {
             $tableData = view('bikes.table', [
                 'data' => $data,
+                'tableColumns' => $tableColumns,
             ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
 
@@ -168,8 +172,6 @@ class BikesController extends AppBaseController
                 'paginationLinks' => $paginationLinks,
             ]);
         }
-        // Get table columns configuration
-        $tableColumns = $this->getTableColumns();
 
         $topBarData = $this->moduleTopBarListingData($request, 'bike_list');
         if (Schema::hasTable('bike_top_categories') && Schema::hasColumn('bikes', 'bike_top_option_id')) {
@@ -236,6 +238,7 @@ class BikesController extends AppBaseController
             'company',
             'customer_id',
             'bike_status',
+            'notes',
             'expiry_date',
             'created_by',
             'updated_by',
@@ -256,6 +259,13 @@ class BikesController extends AppBaseController
                 // Prevent the underlying DB columns from being appended separately below.
                 $added['warehouse'] = true;
                 $added['status'] = true;
+
+                continue;
+            }
+            if ($key === 'notes') {
+                // Notes from latest bike history (not bikes.notes).
+                $columns[] = ['data' => 'notes', 'title' => 'Notes'];
+                $added['notes'] = true;
 
                 continue;
             }
@@ -288,6 +298,27 @@ class BikesController extends AppBaseController
         ]);
 
         return \App\Support\RoleFieldAccess::filterTableColumns($columns, 'bike');
+    }
+
+    /**
+     * Eager-load only the latest history row (notes + status dates), not full histories.
+     *
+     * @param  \Illuminate\Contracts\Pagination\Paginator|\Illuminate\Support\Collection  $data
+     */
+    private function loadLatestHistoryForBikeTable($data): void
+    {
+        $data->load([
+            'latestHistory' => function ($q) {
+                // Qualify columns — latestOfMany joins and bare bike_id is ambiguous.
+                $q->select([
+                    'bike_histories.id',
+                    'bike_histories.bike_id',
+                    'bike_histories.notes',
+                    'bike_histories.return_date',
+                    'bike_histories.note_date',
+                ]);
+            },
+        ]);
     }
 
     /**
@@ -385,7 +416,7 @@ class BikesController extends AppBaseController
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        $data->load('latestHistory');
+        $this->loadLatestHistoryForBikeTable($data);
 
         // Get table columns configuration
         $tableColumns = $this->getTableColumns();
@@ -803,6 +834,8 @@ class BikesController extends AppBaseController
                     $message .= "*Theft Date:* {$returnDateFormatted}\n";
                 } elseif ($request->warehouse == 'Impound') {
                     $message .= "*Impound Date:* {$returnDateFormatted}\n";
+                } elseif ($request->warehouse == 'Accident') {
+                    $message .= "*Accident Date:* {$returnDateFormatted}\n";
                 } else {
                     $message .= "*Return Date:* {$returnDateFormatted}\n";
                 }
@@ -993,6 +1026,39 @@ class BikesController extends AppBaseController
                         'rider_id' => null,
                         'rental_company_id' => null,
                         'warehouse' => 'Impound',
+                        'customer_id' => null,
+                    ]);
+                } elseif ($request->warehouse == 'Accident') {
+                    if ($rider) {
+                        $rider->update([
+                            'status' => 3,
+                            'designation' => null,
+                            'customer_id' => null,
+                        ]);
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Accident');
+                        if ($riderBefore) {
+                            RiderHistoryLogger::bikeAssignStatusChange(
+                                (int) $rider->id,
+                                'Bike return: Accident',
+                                $riderHistoryNote,
+                                $riderBefore,
+                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                $request->return_date,
+                                'bike_assign_return',
+                                $historyBranchId,
+                                ['warehouse_action' => 'Accident', 'bike_id' => $bike->id, 'bike_plate' => $bike->plate],
+                                'Accident',
+                                $rider,
+                                $bike
+                            );
+                        }
+                    } else {
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Accident');
+                    }
+                    $bike->update([
+                        'rider_id' => null,
+                        'rental_company_id' => null,
+                        'warehouse' => 'Accident',
                         'customer_id' => null,
                     ]);
                 } else {

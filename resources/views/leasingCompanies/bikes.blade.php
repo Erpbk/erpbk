@@ -59,6 +59,11 @@
         border: 1px solid #d9480f;
     }
 
+    .road-accident {
+        background: linear-gradient(135deg, #b02a37 0%, #922b21 100%);
+        border: 1px solid #7b241c;
+    }
+
     .bike-note-cell {
         max-width: 220px;
         white-space: nowrap;
@@ -93,6 +98,8 @@
                         <th title="Chassis">Chassis</th>
                         <th title="Engine">Engine</th>
                         <th title="Expiry Date">Expiry Date</th>
+                        <th title="Assign Date">Assign Date</th>
+                        <th title="Return Date">Return Date</th>
                         <th title="Status">Status</th>
                         <th title="Note">Note</th>
                     </tr>
@@ -100,6 +107,7 @@
                 <tbody>
                     @foreach($bikes as $bike)
                     @php
+                    $latestHistory = $bike->history->first();
                     $isReturned = $hasLeasingReturn && !empty($bike->leased_return_date);
                     $wKey = strtolower(trim((string) ($bike->warehouse ?? '')));
                     $specialStatuses = [
@@ -107,6 +115,7 @@
                         'theft' => ['Theft', 'road-theft'],
                         'total loss' => ['Total Loss', 'road-total-loss'],
                         'impound' => ['Impound', 'road-impound'],
+                        'accident' => ['Accident', 'road-accident'],
                     ];
 
                     if ($isReturned) {
@@ -130,7 +139,7 @@
                         $statusTitle = 'Status: On Road';
                     }
 
-                    $latestNote = trim(str_replace('*', '', (string) ($bike->history->first()?->notes ?? '')));
+                    $latestNote = trim(str_replace('*', '', (string) ($latestHistory?->notes ?? '')));
                     @endphp
                     <tr class="text-center">
                         <td>
@@ -149,6 +158,20 @@
                         <td>
                             @if($bike->expiry_date)
                                 {{ \Carbon\Carbon::parse($bike->expiry_date)->format('d-m-Y') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>
+                            @if($latestHistory?->note_date)
+                                {{ \Carbon\Carbon::parse($latestHistory->note_date)->format('d-m-Y') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>
+                            @if($latestHistory?->return_date)
+                                {{ \Carbon\Carbon::parse($latestHistory->return_date)->format('d-m-Y') }}
                             @else
                                 -
                             @endif

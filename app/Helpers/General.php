@@ -237,22 +237,23 @@ class General
     return $list;
   }
 
-  public static function get_warehouse($id = 0)
-  {
-    $array = [
-      'Return' => 'Return',
-      'Absconded' => 'Absconded',
-      'Vacation' => 'Vacation',
-      'Theft' => 'Theft',
-      'Total Loss' => 'Total Loss',
-      'Impound' => 'Impound',
-    ];
-    $list = '';
-    foreach ($array as $key => $value) {
-      $list .= '<option ' . ($id == $key ? 'selected' : '') . ' value="' . $key . '">' . $value . '</option>';
+    public static function get_warehouse($id = 0)
+    {
+      $array = [
+        'Return' => 'Return',
+        'Absconded' => 'Absconded',
+        'Vacation' => 'Vacation',
+        'Theft' => 'Theft',
+        'Total Loss' => 'Total Loss',
+        'Impound' => 'Impound',
+        'Accident' => 'Accident',
+      ];
+      $list = '';
+      foreach ($array as $key => $value) {
+        $list .= '<option ' . ($id == $key ? 'selected' : '') . ' value="' . $key . '">' . $value . '</option>';
+      }
+      return $list;
     }
-    return $list;
-  }
 
   public static function get_sim_status($id = 0)
   {

@@ -50,9 +50,22 @@ $hasTopBarCards = $topBarSliderCategories->sum(fn ($c) => $c->options->count()) 
         $isCardActive = $selectedOptionId === (int) $option->id;
         $categoryColumn = trim((string) ($category->db_column ?? $category->rider_column ?? $category->bike_column ?? $category->employee_column ?? $category->cheque_column ?? ''));
         $sourceTable = (string) ($topBarConfig['source_table'] ?? '');
-        $optionTitle = $topBarOptionLabels[$option->name] ?? $option->name;
-        if ($sourceTable !== '' && $categoryColumn !== '' && \App\Support\TopBarNumericStatus::isNumericStatusColumn($sourceTable, $categoryColumn)) {
-        $optionTitle = \App\Support\TopBarNumericStatus::labelForValue($option->name);
+        $optionName = (string) $option->name;
+        $optionTitle = $topBarOptionLabels[$optionName] ?? $optionName;
+        // Only remap Active/Inactive for the module's actual status column — not other integer FKs (e.g. company).
+        $numericStatusColumn = $sourceTable !== ''
+        ? \App\Support\TopBarNumericStatus::resolveNumericStatusColumn($sourceTable)
+        : null;
+        if ($numericStatusColumn !== null && $categoryColumn === $numericStatusColumn) {
+        $optionTitle = \App\Support\TopBarNumericStatus::labelForValue($optionName);
+        } elseif (
+        !array_key_exists($optionName, $topBarOptionLabels)
+        && in_array($topBarModuleKey, ['bike_list', 'bikes'], true)
+        && $categoryColumn !== ''
+        ) {
+        // Display-only: resolve bikes FK/select values (e.g. company id → leasing company name).
+        // Does not change option ids, filters, or stats.
+        $optionTitle = \App\Models\BikeCustomField::displayLabelForFixedFieldValue($categoryColumn, $optionName);
         }
         @endphp
         <div

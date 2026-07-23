@@ -115,6 +115,11 @@
       border: 1px solid #d9480f;
    }
 
+   .road-accident {
+      background: linear-gradient(135deg, #b02a37 0%, #922b21 100%);
+      border: 1px solid #7b241c;
+   }
+
 
    @keyframes pulse {
       0% {
@@ -198,6 +203,20 @@
          @case('branch_id')
          <td tabindex="0">{{ $r->branch ? $r->branch->name .' ( '. $r->branch->code .' )' : '-' }}</td>
          @break
+         @case('notes')
+         @php
+         $latestNotes = $r->latestHistory?->notes;
+         $notesClean = $latestNotes
+            ? trim(strip_tags(str_replace(['*', '_', '~', '`'], '', $latestNotes)))
+            : null;
+         $notesPreview = $notesClean
+            ? \Illuminate\Support\Str::limit(preg_replace('/\s+/', ' ', $notesClean), 15)
+            : null;
+         @endphp
+         <td tabindex="0" style="white-space: normal; max-width: 120px;" @if($notesClean) title="{{ $notesClean }}" @endif>
+            {{ $notesPreview ?: '-' }}
+         </td>
+         @break
          @case('bike_status')
          <td tabindex="0">
             @php
@@ -208,6 +227,7 @@
             'theft' => ['Theft', 'road-theft'],
             'total loss' => ['Total Loss', 'road-total-loss'],
             'impound' => ['Impound', 'road-impound'],
+            'accident' => ['Accident', 'road-accident'],
             ];
 
             if ($isReturned) {

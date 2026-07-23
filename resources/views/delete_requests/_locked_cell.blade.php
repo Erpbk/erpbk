@@ -1,0 +1,1 @@
+@include('delete_requests._pending_badge', ['model' => $model])

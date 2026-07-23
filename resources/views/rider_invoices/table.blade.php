@@ -21,7 +21,7 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $r->id }}">
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
@@ -106,3 +106,4 @@
       </div>
    </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

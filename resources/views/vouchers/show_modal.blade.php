@@ -7,6 +7,7 @@ $i = 0;
 $fin_detail = $voucher->voucher_type === 'RFV' ? company_table('rta_fines')->where('id', $voucher->ref_id)->first() : null;
 $settings = company_table('settings')->pluck('value', 'name')->toArray();
 $__companySlug = \App\Support\CompanyRouteContext::slug();
+$voucherPendingDeletion = record_is_pending_deletion($voucher);
 $voucherRouteParams = static function ($voucherKey) use ($__companySlug): array {
   $params = ['voucher' => $voucherKey];
   if (!empty($__companySlug)) {
@@ -27,9 +28,16 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
   @if(empty($visaCreditEditEmbed))
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 pb-2 border-bottom">
     <div class="d-flex align-items-center gap-2">
-      <span class="badge bg-label-success">Published</span>
+      @if($voucherPendingDeletion)
+        @include('delete_requests._pending_badge', ['model' => $voucher])
+      @else
+        <span class="badge bg-label-success">Published</span>
+      @endif
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
+      @if($voucherPendingDeletion)
+        <span class="text-muted small"><i class="ti ti-lock me-1"></i>Locked — awaiting delete approval</span>
+      @else
       @can('vouchers_edit')
       @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
@@ -46,12 +54,13 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
           <form action="{{ route('vouchers.destroy', $voucherRouteParams($voucher->trans_code)) }}" id="formajax" >
               @csrf
               @method('Delete')
-              <button onclick="submit()" class='btn btn-sm btn-outline-danger'>
+              <button onclick="return confirm('Submit a delete request for this voucher? It will stay as Pending Deletion until approved.');" class='btn btn-sm btn-outline-danger'>
                 <i class="fa fa-trash my-1"></i> Delete
               </button>
           </form>
         </li>
       @endcan
+      @endif
       @endif
       <a href="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
       @can('email_create')

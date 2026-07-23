@@ -28,7 +28,7 @@
           };
         @endphp
         @foreach($data as $cheque)
-        <tr>
+        <tr data-id="{{ $cheque->id }}">
             @if($vf('reference'))<td>{{ $cheque->reference ?? '-' }}</td>@endif
             @if($vf('cheque_number'))<td>
                 <a href="javascript:void(0);" class="show-modal text-primary" data-size="xl"
@@ -197,3 +197,4 @@
     })
 </script>
 @endsection
+@include('delete_requests._pending_table_script', ['items' => $data])

@@ -22,7 +22,9 @@ use App\Services\Module\TopBarListingService;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+
 class AppServiceProvider extends ServiceProvider
 {
   /**
@@ -156,6 +158,28 @@ class AppServiceProvider extends ServiceProvider
       'employee' => \App\Models\Employee::class,
       'rider' => \App\Models\Riders::class,
     ]);
+
+    // Centralized delete-approval: must use wildcard events — Model::deleting()
+    // only listens on Illuminate\Database\Eloquent\Model, not subclasses.
+    // Wildcard listeners receive ($eventName, $payload).
+    Event::listen('eloquent.deleting: *', function ($event, $payload) {
+      $model = is_array($payload) ? ($payload[0] ?? null) : $payload;
+      if (! $model instanceof \Illuminate\Database\Eloquent\Model) {
+        return null;
+      }
+
+      return \App\Services\DeleteRequestService::handleDeleting($model);
+    });
+    Event::listen('eloquent.updating: *', function ($event, $payload) {
+      $model = is_array($payload) ? ($payload[0] ?? null) : $payload;
+      if (! $model instanceof \Illuminate\Database\Eloquent\Model) {
+        return null;
+      }
+
+      if (! \App\Services\DeleteRequestService::handleUpdating($model)) {
+        return false;
+      }
+    });
 
     app()->singleton('user_branches', function () {
       /** @var \App\Models\User|null $user */

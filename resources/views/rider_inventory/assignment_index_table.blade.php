@@ -17,7 +17,7 @@
         </thead>
         <tbody>
             @forelse($assignments as $row)
-            <tr>
+        <tr data-id="{{ $row->id }}">
                 <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                 <td>
                     @if($row->rider)
@@ -80,3 +80,4 @@
         </tbody>
     </table>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $assignments])

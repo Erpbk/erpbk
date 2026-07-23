@@ -135,3 +135,52 @@ if (! function_exists('field_lock')) {
             : ['readonly' => 'readonly'];
     }
 }
+
+if (! function_exists('delete_approval_enabled')) {
+    function delete_approval_enabled(): bool
+    {
+        return \App\Services\DeleteRequestService::enabled();
+    }
+}
+
+if (! function_exists('record_is_pending_deletion')) {
+    function record_is_pending_deletion($model): bool
+    {
+        return $model instanceof \Illuminate\Database\Eloquent\Model
+            && method_exists($model, 'isPendingDeletion')
+            && $model->isPendingDeletion();
+    }
+}
+
+if (! function_exists('pending_deletion_ids_for')) {
+    /**
+     * @return array<int, int> id => id
+     */
+    function pending_deletion_ids_for(string $modelClass): array
+    {
+        $ids = \App\Services\DeleteRequestService::pendingIdsFor($modelClass);
+
+        return array_combine($ids, $ids) ?: [];
+    }
+}
+
+
+if (! function_exists('delete_outcome_message')) {
+    /**
+     * User-facing message after a destroy action (pending approval vs recycle bin).
+     */
+    function delete_outcome_message(string $entityName = 'Record', ?string $recycleBinUrl = null): string
+    {
+        if (request()->attributes->get('delete_approval_created')) {
+            return \App\Services\DeleteRequestService::pendingMessage(
+                request()->attributes->get('delete_approval_request')
+            );
+        }
+
+        $link = $recycleBinUrl
+            ? ' <a href="' . e($recycleBinUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.'
+            : '';
+
+        return $entityName . ' moved to Recycle Bin.' . $link;
+    }
+}

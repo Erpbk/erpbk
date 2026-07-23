@@ -1,20 +1,20 @@
 @php
-  // Field-level visibility (respects Role → Field Permissions). A column is hidden
-  // everywhere in this module when its field is marked not-visible for the user.
-  $vfShow = static fn (string $field): bool => field_visible('voucher', $field);
-  $vfCols = [
-    'trans_date' => $vfShow('trans_date'),
-    'trans_code' => $vfShow('trans_code'),
-    'billing_month' => $vfShow('billing_month'),
-    'reference_number' => $vfShow('reference_number'),
-    'voucher_type' => $vfShow('voucher_type'),
-    'amount' => $vfShow('amount'),
-    'created_by' => $vfShow('created_by'),
-    'updated_by' => $vfShow('updated_by'),
-    'attach_file' => $vfShow('attach_file'),
-  ];
-  // colspan for the "no data" row = visible data columns + Voucher ID + Actions.
-  $vfColspan = count(array_filter($vfCols)) + 2;
+// Field-level visibility (respects Role → Field Permissions). A column is hidden
+// everywhere in this module when its field is marked not-visible for the user.
+$vfShow = static fn (string $field): bool => field_visible('voucher', $field);
+$vfCols = [
+'trans_date' => $vfShow('trans_date'),
+'trans_code' => $vfShow('trans_code'),
+'billing_month' => $vfShow('billing_month'),
+'reference_number' => $vfShow('reference_number'),
+'voucher_type' => $vfShow('voucher_type'),
+'amount' => $vfShow('amount'),
+'created_by' => $vfShow('created_by'),
+'updated_by' => $vfShow('updated_by'),
+'attach_file' => $vfShow('attach_file'),
+];
+// colspan for the "no data" row = visible data columns + Voucher ID + Actions.
+$vfColspan = count(array_filter($vfCols)) + 2;
 @endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
   <thead class="text-center">
@@ -58,7 +58,8 @@
     @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
-    <tr class="text-center">
+    @php $voucherPendingDeletion = record_is_pending_deletion($voucher); @endphp
+    <tr class="text-center {{ $voucherPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $voucher->id }}">
       <td>
         @php
         $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
@@ -95,6 +96,9 @@
         @endif
       </td>@endif
       <td style="position: relative;">
+        @if($voucherPendingDeletion)
+        @include('delete_requests._locked_cell', ['model' => $voucher])
+        @else
         <div class="dropdown">
           <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $voucher->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -132,6 +136,7 @@
             @endcan
             </ul>
           </div>
+          @endif
       </td>
       <td style="display:none;"></td>
       <td style="display:none;"></td>
@@ -158,7 +163,7 @@
 
 <script>
   function deleteVoucher(transCode) {
-    if (confirm('Are you sure you want to delete this voucher?')) {
+    if (confirm('Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.')) {
       $.ajax({
         url: @json(route('vouchers.destroy', $voucherRouteParams('___TC___'))).replace('___TC___', encodeURIComponent(transCode)),
         type: 'DELETE',
@@ -171,9 +176,9 @@
         },
         success: function(result) {
           if (typeof toastr !== 'undefined') {
-            toastr.success(result.message || 'Voucher deleted successfully');
+            toastr.success(result.message || 'Delete request submitted');
           } else {
-            alert('Voucher deleted successfully');
+            alert(result.message || 'Delete request submitted');
           }
           location.reload();
         },
@@ -221,3 +226,4 @@
     });
   })();
 </script>
+@include('delete_requests._pending_table_script', ['items' => $data])

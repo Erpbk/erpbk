@@ -23,7 +23,7 @@
    </thead>
    <tbody>
       @forelse($data as $r)
-      <tr class="text-center">
+      <tr class="text-center" data-id="{{ $r->id }}">
          @foreach($bankColumns as $col)
             <td>
                @if($col === 'name')
@@ -105,3 +105,4 @@
       </div>
    </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

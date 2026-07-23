@@ -65,11 +65,9 @@
     }
 
     .bike-note-cell {
-        max-width: 220px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        text-align: left;
+        min-width: 280px;
+        max-width: 420px;
+        white-space: pre-wrap;
     }
 </style>
 @section('page_content')
@@ -139,7 +137,11 @@
                         $statusTitle = 'Status: On Road';
                     }
 
-                    $latestNote = trim(str_replace('*', '', (string) ($latestHistory?->notes ?? '')));
+                    $latestNoteRaw = (string) ($latestHistory?->notes ?? '');
+                    $latestNote = '';
+                    if ($latestNoteRaw !== '' && preg_match('/(?:\*Note:\*|Note:)\s*(.+)$/is', $latestNoteRaw, $noteMatch)) {
+                        $latestNote = trim(str_replace('*', '', $noteMatch[1]));
+                    }
                     @endphp
                     <tr class="text-center">
                         <td>
@@ -179,9 +181,7 @@
                         <td>
                             <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
                         </td>
-                        <td class="bike-note-cell" title="{{ $latestNote !== '' ? $latestNote : '-' }}">
-                            {{ $latestNote !== '' ? $latestNote : '-' }}
-                        </td>
+                        <td class="bike-note-cell">{{ $latestNote !== '' ? $latestNote : '' }}</td>
                     </tr>
                     @endforeach
                 </tbody>

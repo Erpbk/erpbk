@@ -120,6 +120,14 @@
       border: 1px solid #7b241c;
    }
 
+   #dataTableBuilder td.bike-notes-cell {
+      white-space: pre-wrap;
+      min-width: 280px;
+      max-width: 420px;
+      text-align: left;
+      vertical-align: middle;
+   }
+
 
    @keyframes pulse {
       0% {
@@ -210,16 +218,13 @@
          @case('notes')
          @php
          $latestNotes = $r->latestHistory?->notes;
-         $notesClean = $latestNotes
-            ? trim(strip_tags(str_replace(['*', '_', '~', '`'], '', $latestNotes)))
-            : null;
-         $notesPreview = $notesClean
-            ? \Illuminate\Support\Str::limit(preg_replace('/\s+/', ' ', $notesClean), 15)
-            : null;
+         $notesClean = null;
+         if ($latestNotes && preg_match('/(?:\*Note:\*|Note:)\s*(.+)$/is', $latestNotes, $noteMatch)) {
+            $notesClean = trim(strip_tags(str_replace(['*', '_', '~', '`'], '', $noteMatch[1])));
+            $notesClean = $notesClean !== '' ? $notesClean : null;
+         }
          @endphp
-         <td tabindex="0" style="white-space: normal; max-width: 120px;" @if($notesClean) title="{{ $notesClean }}" @endif>
-            {{ $notesPreview ?: '-' }}
-         </td>
+         <td tabindex="0" class="bike-notes-cell">{{ $notesClean ?: '' }}</td>
          @break
          @case('bike_status')
          <td tabindex="0">

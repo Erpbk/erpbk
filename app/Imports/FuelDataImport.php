@@ -2,22 +2,13 @@
 
 namespace App\Imports;
 
-use App\Helpers\Account;
-use App\Support\GlobalAccounts;
 use App\Models\FuelData;
 use App\Models\FuelCards;
-use App\Models\Bikes;
-use App\Models\Riders;
-use App\Models\Transactions;
-use App\Models\BikeHistory;
-use App\Models\FuelCardHistory;
-use App\Models\Vouchers;
-use App\Services\TransactionService;
+use App\Services\FuelMonthlyLedgerService;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use DB;
-use Auth;
 use Carbon\Carbon;
 
 class FuelDataImport implements ToCollection
@@ -34,7 +25,7 @@ class FuelDataImport implements ToCollection
         $this->fuelAccountId = 1097; // Default fuel account ID, should be made dynamic
         $this->vatAccountId = 1023; // Default VAT account ID, should be made dynamic
         $this->failedRows = [];
-        $this->serviceChargeAmount = 25;
+        $this->serviceChargeAmount = FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE;
     }
 
     public function collection(Collection $rows)
@@ -42,8 +33,7 @@ class FuelDataImport implements ToCollection
         DB::beginTransaction();
 
         try {
-            $importedFuelIds = [];
-            $groupedData = []; // group by bike + rider + billing month
+            $riderMonthsToSync = []; // rider_id|Y-m-d => ['rider_id' => x, 'billing_month' => y]
             $rowCount = 0;
             $processedTransactionIds = []; // Track transaction IDs processed in this import
 
@@ -122,7 +112,6 @@ class FuelDataImport implements ToCollection
                         continue;
                     }
                     $billingMonthForStore = $billingMonthCarbon->startOfMonth()->toDateString();
-                    $billingMonthForLog = $billingMonthCarbon->format('F Y');
 
                     // Calculate values if not provided
                     $calculatedSubtotal = $subtotal ?? ($qty * $price);
@@ -195,17 +184,13 @@ class FuelDataImport implements ToCollection
                         'branch_id' => $rider->branch_id,
                     ];
 
-                    $fuelRecord = FuelData::create($fuelData);
+                    FuelData::create($fuelData);
                     $this->successCount++;
-                    $importedFuelIds[] = $fuelRecord->id;
 
-                    // Group for creating  ledger transactions
-                    $groupedData[] = [
-                        'account_id' => $riderAccountId,
-                        'branch_id' => $rider->branch_id,
-                        'rider_name' => $rider->name,
-                        'fuelData' => $fuelRecord,
-                        'transCode' => Account::trans_code(),
+                    $syncKey = $rider->id . '|' . $billingMonthForStore;
+                    $riderMonthsToSync[$syncKey] = [
+                        'rider_id' => (int) $rider->id,
+                        'billing_month' => $billingMonthForStore,
                     ];
                 } catch (\Exception $e) {
                     $this->addFailedRow($rowNumber, $row, 'Processing error', $e->getMessage());
@@ -213,9 +198,16 @@ class FuelDataImport implements ToCollection
                 }
             }
 
-            // Create ledger transactions
-            if (!empty($groupedData)) {
-                $this->recordTransactions($groupedData);
+            // Post/rebuild one monthly ledger set per rider + billing month
+            if (! empty($riderMonthsToSync)) {
+                $ledger = app(FuelMonthlyLedgerService::class);
+                foreach ($riderMonthsToSync as $monthKey) {
+                    $ledger->sync(
+                        $monthKey['rider_id'],
+                        $monthKey['billing_month'],
+                        $this->serviceChargeAmount
+                    );
+                }
             }
 
             DB::commit();
@@ -325,96 +317,5 @@ class FuelDataImport implements ToCollection
         // Split by hyphen and get the last part
         $parts = explode('-', $plate);
         return end($parts);
-    }
-
-    /**
-     * Create summary voucher for fuel transactions
-     */
-    private function recordTransactions($groups)
-    {
-        \Log::info("Recording transactions for " . count($groups) . " groups of fuel data");
-        $transactionService = new TransactionService();
-
-        foreach ($groups as $group) {
-            $riderAccountId = $group['account_id'];
-            $branchId = $group['branch_id'];
-            $fuelData = $group['fuelData'];
-            $transCode = $group['transCode'];
-            $riderName = $group['rider_name'];
-
-            $serviceCharges = $fuelData->service_charges;
-
-            if ($serviceCharges > 0) {
-                // Record service charge transaction if not already recorded for this billing month
-                $transactionService->recordTransaction([
-                    'account_id' => $riderAccountId,
-                    'branch_id' => $branchId,
-                    'reference_id' => $fuelData->id,
-                    'reference_type' => 'fuel',
-                    'trans_code' => $transCode,
-                    'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                    'narration' => "Monthly service charges for fuel transactions",
-                    'debit' => $this->serviceChargeAmount,
-                    'credit' => 0,
-                    'billing_month' => $fuelData->billing_month,
-                ]);
-                $transactionService->recordTransaction([
-                    'account_id' => GlobalAccounts::id('FUEL_ADMIN_CHARGES'),
-                    'branch_id' => $branchId,
-                    'reference_id' => $fuelData->id,
-                    'reference_type' => 'fuel',
-                    'trans_code' => $transCode,
-                    'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                    'narration' => 'Monthly service charges for fuel transactions',
-                    'debit' => 0,
-                    'credit' => $this->serviceChargeAmount,
-                    'billing_month' => $fuelData->billing_month,
-                ]);
-            }
-
-            // Debit rider account
-            $transactionService->recordTransaction([
-                'account_id' => $riderAccountId,
-                'branch_id' => $branchId,
-                'reference_id' => $fuelData->id,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                'narration' => "Fuel purchased by Rider ID: {$riderName}",
-                'debit' => $fuelData->total,
-                'credit' => 0,
-                'billing_month' => $fuelData->billing_month,
-            ]);
-
-            // Credit fuel account
-            $transactionService->recordTransaction([
-                'account_id' => $fuelData->card->fuelCompany->account_id,
-                'branch_id' => $branchId,
-                'reference_id' => $fuelData->id,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                'narration' => "Fuel purchased by Rider ID: {$fuelData->rider_id}",
-                'debit' => 0,
-                'credit' => $fuelData->total,
-                'billing_month' => $fuelData->billing_month,
-            ]);
-
-            if ($fuelData->vat_amount > 0) {
-                // Credit fuel account
-                $transactionService->recordTransaction([
-                    'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
-                    'branch_id' => $branchId,
-                    'reference_id' => $fuelData->id,
-                    'reference_type' => 'fuel',
-                    'trans_code' => $transCode,
-                    'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                    'narration' => "Fuel purchased by Rider ID: {$fuelData->rider_id}",
-                    'debit' => $fuelData->vat_amount,
-                    'credit' => 0,
-                    'billing_month' => $fuelData->billing_month,
-                ]);
-            }
-        }
     }
 }

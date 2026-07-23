@@ -124,6 +124,7 @@ class FuelData extends BaseModel
             'total_subtotal' => $transactions->sum('subtotal'),
             'total_vat' => $transactions->sum('vat_amount'),
             'total_amount' => $transactions->sum('total'),
+            'service_charges' => (float) $this->service_charges,
             'transactions' => $transactions
         ];
     }
@@ -167,12 +168,19 @@ class FuelData extends BaseModel
 
     public function getServiceChargesAttribute()
     {
-        // Service charge is posted as a credit to FUEL_ADMIN_CHARGES (not a separate rider debit).
-        return $this->rider->transactions()
-            ->where('reference_type', 'fuel')
-            ->where('billing_month', $this->billing_month)
+        // Service charge is credited to FUEL_ADMIN_CHARGES, not the rider account.
+        $fuelIds = self::where('rider_id', $this->rider_id)
+            ->whereDate('billing_month', $this->billing_month)
+            ->pluck('id');
+
+        if ($fuelIds->isEmpty()) {
+            return 0;
+        }
+
+        return (float) (Transactions::where('reference_type', 'fuel')
+            ->whereIn('reference_id', $fuelIds)
             ->where('narration', 'like', '%service charges%')
             ->where('credit', '>', 0)
-            ->value('credit') ?? 0;
+            ->value('credit') ?? 0);
     }
 }

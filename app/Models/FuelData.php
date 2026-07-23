@@ -167,10 +167,12 @@ class FuelData extends BaseModel
 
     public function getServiceChargesAttribute()
     {
+        // Service charge is posted as a credit to FUEL_ADMIN_CHARGES (not a separate rider debit).
         return $this->rider->transactions()
             ->where('reference_type', 'fuel')
             ->where('billing_month', $this->billing_month)
             ->where('narration', 'like', '%service charges%')
-            ->value('debit') ?? 0;
+            ->where('credit', '>', 0)
+            ->value('credit') ?? 0;
     }
 }

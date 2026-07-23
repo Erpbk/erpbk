@@ -83,44 +83,25 @@ class FuelMonthlyLedgerService
         $totalAmount = (float) $activeRows->sum('total');
         $totalVat = (float) $activeRows->sum('vat_amount');
         $txCount = $activeRows->count();
+        $serviceCharge = (float) ($serviceChargeAmount ?? self::DEFAULT_SERVICE_CHARGE);
+        $riderDebit = $totalAmount + max(0, $serviceCharge);
 
-        $serviceCharge = $serviceChargeAmount ?? self::DEFAULT_SERVICE_CHARGE;
-        if ($serviceCharge > 0) {
+        // One combined debit on the rider ledger (fuel total + service charge).
+        if ($riderDebit > 0) {
+            $narration = "Fuel purchased ({$txCount} txn)";
+            if ($serviceCharge > 0) {
+                $narration .= ' + service charges';
+            }
+            $narration .= " — {$riderName} — {$monthLabel}";
+
             Transactions::create([
                 'account_id' => $rider->account_id,
                 'reference_id' => $referenceId,
                 'reference_type' => 'fuel',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => 'Monthly service charges for fuel transactions',
-                'debit' => $serviceCharge,
-                'credit' => 0,
-                'billing_month' => $billingMonthDate,
-                'branch_id' => $branchId,
-            ]);
-            Transactions::create([
-                'account_id' => GlobalAccounts::id('FUEL_ADMIN_CHARGES'),
-                'reference_id' => $referenceId,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $transDate,
-                'narration' => 'Monthly service charges for fuel transactions',
-                'debit' => 0,
-                'credit' => $serviceCharge,
-                'billing_month' => $billingMonthDate,
-                'branch_id' => $branchId,
-            ]);
-        }
-
-        if ($totalAmount > 0) {
-            Transactions::create([
-                'account_id' => $rider->account_id,
-                'reference_id' => $referenceId,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $transDate,
-                'narration' => "Fuel purchased ({$txCount} txn) — {$riderName} — {$monthLabel}",
-                'debit' => $totalAmount,
+                'narration' => $narration,
+                'debit' => $riderDebit,
                 'credit' => 0,
                 'billing_month' => $billingMonthDate,
                 'branch_id' => $branchId,
@@ -151,6 +132,22 @@ class FuelMonthlyLedgerService
                 'narration' => "Fuel purchased by {$riderName} — {$monthLabel}",
                 'debit' => 0,
                 'credit' => $companyTotal,
+                'billing_month' => $billingMonthDate,
+                'branch_id' => $branchId,
+            ]);
+        }
+
+        // Credit service-charge income account separately.
+        if ($serviceCharge > 0) {
+            Transactions::create([
+                'account_id' => GlobalAccounts::id('FUEL_ADMIN_CHARGES'),
+                'reference_id' => $referenceId,
+                'reference_type' => 'fuel',
+                'trans_code' => $transCode,
+                'trans_date' => $transDate,
+                'narration' => 'Monthly service charges for fuel transactions',
+                'debit' => 0,
+                'credit' => $serviceCharge,
                 'billing_month' => $billingMonthDate,
                 'branch_id' => $branchId,
             ]);

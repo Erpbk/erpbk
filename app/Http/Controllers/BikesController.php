@@ -105,14 +105,7 @@ class BikesController extends AppBaseController
             $query->where('expiry_date', '<=', $toDate);
         }
 
-        if ($request->has('status') && ! empty($request->status)) {
-            $query->where('status', $request->status);
-        }
-
-        // Add warehouse filter
-        if ($request->has('warehouse') && ! empty($request->warehouse)) {
-            $query->where('warehouse', $request->warehouse);
-        }
+        $this->applyBikeRoadStatusFilter($query, $request);
 
         // Add quick search functionality
         if ($request->filled('quick_search')) {
@@ -322,6 +315,52 @@ class BikesController extends AppBaseController
     }
 
     /**
+     * Filter by road/status badge labels, mapped to warehouse (and leasing return) values.
+     */
+    private function applyBikeRoadStatusFilter($query, Request $request): void
+    {
+        if (! $request->filled('status')) {
+            return;
+        }
+
+        $status = (string) $request->input('status');
+
+        if ($status === 'returned') {
+            if (Schema::hasColumn('bikes', 'leased_return_date')) {
+                $query->whereNotNull('bikes.leased_return_date');
+            }
+
+            return;
+        }
+
+        $warehouseByStatus = [
+            'on_road' => ['Active'],
+            'off_road' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
+            'absconded' => ['Absconded'],
+            'theft' => ['Theft'],
+            'total_loss' => ['Total Loss'],
+            'impound' => ['Impound'],
+            'accident' => ['Accident'],
+        ];
+
+        if (! isset($warehouseByStatus[$status])) {
+            return;
+        }
+
+        $warehouses = $warehouseByStatus[$status];
+        if (count($warehouses) === 1) {
+            $query->where('bikes.warehouse', $warehouses[0]);
+        } else {
+            $query->whereIn('bikes.warehouse', $warehouses);
+        }
+
+        // Status badge prioritizes Returned over warehouse labels
+        if (Schema::hasColumn('bikes', 'leased_return_date')) {
+            $query->whereNull('bikes.leased_return_date');
+        }
+    }
+
+    /**
      * Fields that should appear in Bike table/column-control.
      * Source of truth: bike_field_category_assignments.is_visible
      */
@@ -382,14 +421,7 @@ class BikesController extends AppBaseController
             $query->where('expiry_date', '<=', $toDate);
         }
 
-        if ($request->has('status') && ! empty($request->status)) {
-            $query->where('status', $request->status);
-        }
-
-        // Add warehouse filter
-        if ($request->has('warehouse') && ! empty($request->warehouse)) {
-            $query->where('warehouse', $request->warehouse);
-        }
+        $this->applyBikeRoadStatusFilter($query, $request);
 
         // Add quick search functionality
         if ($request->filled('quick_search')) {
@@ -1312,13 +1344,19 @@ class BikesController extends AppBaseController
                         $bike
                     );
 
-                    $bike->update([
+                    $bikeUpdate = [
                         'rider_id' => $request->rider_id,
                         'rental_company_id' => null,
                         'company' => null,
                         'warehouse' => $request->warehouse ?? $bike->warehouse,
                         'customer_id' => $customer_id,
-                    ]);
+                    ];
+                    foreach (['leased_return_by', 'leased_return_date', 'leased_return_company_id'] as $col) {
+                        if (Schema::hasColumn('bikes', $col)) {
+                            $bikeUpdate[$col] = null;
+                        }
+                    }
+                    $bike->update($bikeUpdate);
                 } else {
                     $bike->update([
                         'rider_id' => null,

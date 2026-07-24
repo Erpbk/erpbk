@@ -398,7 +398,7 @@ class Riders extends BaseModel
    */
   public static function dropdownForBikeAssign(?int $branchId = null): array
   {
-    $query = self::query()->whereIn('status', [0, 1, 2, 3]);
+    $query = self::query()->whereIn('status', [0, 1, 2, 3, 4]);
 
     if ($branchId !== null && $branchId > 0) {
       $query->where(function ($q) use ($branchId) {

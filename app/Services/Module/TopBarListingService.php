@@ -109,7 +109,7 @@ class TopBarListingService
 
                 $stats[(int) $option->id] = match ($moduleKey) {
                     'riders' => $this->riderOptionStats($option, $category),
-                    'bike_list', 'bikes' => $this->bikeOptionStats($option),
+                    'bike_list', 'bikes' => $this->bikeOptionStats($option, $category),
                     'employees' => $this->employeeOptionStats($option, $category),
                     default => $this->defaultOptionStats($moduleKey, $option, $statusFilters, $request),
                 };
@@ -207,24 +207,92 @@ class TopBarListingService
     /**
      * @return array<string, int>
      */
-    protected function bikeOptionStats(Model $option): array
+    protected function bikeOptionStats(Model $option, Model $category): array
     {
-        if (!Schema::hasColumn('bikes', 'bike_top_option_id')) {
+        // Ensure category is available so column vs FK filter resolution matches click-filters.
+        if (!$option->relationLoaded('category') || $option->getRelation('category') === null) {
+            $option->setRelation('category', $category);
+        }
+
+        $base = $this->bikeStatsBaseQuery($option, $category);
+        if ($base === null) {
             return ['active' => 0, 'inactive' => 0];
         }
 
-        $optionId = (int) $option->id;
-
         return [
-            'active' => (int) Bikes::query()
-                ->where('bike_top_option_id', $optionId)
-                ->where('status', 1)
-                ->count(),
-            'inactive' => (int) Bikes::query()
-                ->where('bike_top_option_id', $optionId)
-                ->whereIn('status', TopBarNumericStatus::INACTIVE_VALUES)
+            'active' => (int) (clone $base)->where('bikes.status', 1)->count(),
+            'inactive' => (int) (clone $base)
+                ->whereIn('bikes.status', TopBarNumericStatus::INACTIVE_VALUES)
                 ->count(),
         ];
+    }
+
+    protected function bikeStatsBaseQuery(Model $option, Model $category): ?Builder
+    {
+        $column = trim((string) ($category->bike_column ?? ''));
+
+        if ($column === 'bike_top_option_id' || $column === '') {
+            if (!Schema::hasColumn('bikes', 'bike_top_option_id')) {
+                return null;
+            }
+
+            return Bikes::query()->where('bike_top_option_id', (int) $option->id);
+        }
+
+        if (!Schema::hasColumn('bikes', $column)) {
+            return null;
+        }
+
+        $base = Bikes::query();
+        $value = trim((string) $option->name);
+        if ($value === '') {
+            return null;
+        }
+
+        // FK / integer columns (company, branch_id, customer_id, …) store ids in option name.
+        if (in_array($column, ['company', 'branch_id', 'customer_id', 'rider_id', 'rental_company_id', 'vehicle_type', 'leased_return_company_id'], true)
+            || ($column !== 'status' && TopBarNumericStatus::isNumericStatusColumn('bikes', $column))) {
+            if (is_numeric($value)) {
+                return $base->where('bikes.'.$column, (int) $value);
+            }
+
+            if ($column === 'company') {
+                $companyId = \App\Models\LeasingCompanies::query()
+                    ->where('name', $value)
+                    ->value('id');
+                if ($companyId !== null) {
+                    return $base->where('bikes.company', $companyId);
+                }
+
+                return null;
+            }
+
+            if ($column === 'customer_id') {
+                $customerId = \App\Models\Customers::query()
+                    ->where('name', $value)
+                    ->value('id');
+                if ($customerId !== null) {
+                    return $base->where('bikes.customer_id', $customerId);
+                }
+
+                return null;
+            }
+        }
+
+        if ($column === 'status' && TopBarNumericStatus::isNumericStatusColumn('bikes', $column)) {
+            $mapped = TopBarNumericStatus::valueForLabel($value);
+            if ($mapped !== null) {
+                return $base->where('bikes.status', $mapped);
+            }
+
+            if (is_numeric($value)) {
+                return $base->where('bikes.status', (int) $value);
+            }
+
+            return null;
+        }
+
+        return $base->where('bikes.'.$column, $value);
     }
 
     /**

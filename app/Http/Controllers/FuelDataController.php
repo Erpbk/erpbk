@@ -7,14 +7,12 @@ use Illuminate\Http\Request;
 use App\Models\FuelCards;
 use App\Models\FuelData;
 use App\Models\Bikes;
-use App\Models\Transactions;
-use App\Models\FuelCardHistory;
 use Flash;
 use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
 use App\Imports\FuelDataImport;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Support\GlobalAccounts;
+use App\Services\FuelMonthlyLedgerService;
 
 
 class FuelDataController extends Controller
@@ -123,16 +121,15 @@ class FuelDataController extends Controller
             // Calculate values if not provided
             $subtotal = $request->subtotal ?? ($request->qty * $request->price);
             $total = $request->total ?? ($subtotal + $request->vat_amount);
-            $serviceCharges = $request->service_charges ?? 25; // Default service charge if not provided
+            $serviceCharges = (float) ($request->service_charges ?? FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE);
+            $billingMonth = $request->billing_month . '-01';
 
-
-
-            // Create fuel transaction
+            // Store individual fuel line (shown on monthly invoice)
             $fuelData = FuelData::create([
                 'trans_no' => $request->trans_no,
                 'trans_date' => $request->trans_date,
-                'billing_month' => $request->billing_month . '-01', // Convert to first day of month
-                'rider_id' => $card->assigned_to,
+                'billing_month' => $billingMonth,
+                'rider_id' => $rider->id,
                 'bike_no' => $bike->plate ?? null,
                 'card_no' => $card->card_number,
                 'auth_code' => $request->auth_code,
@@ -144,16 +141,13 @@ class FuelDataController extends Controller
                 'vat_amount' => $request->vat_amount,
                 'total' => $total,
             ]);
-            $transCode = \App\Helpers\Account::trans_code();
-            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges) ? $serviceCharges : 0;
-            if ($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
-                $rider->transactions()->where('reference_type', 'fuel')
-                    ->where('billing_month', $fuelData->billing_month)
-                    ->where('narration', 'like', "%service charge%")
-                    ->delete();
-            }
-            //Add ledger transactions against this fuel transaction
-            $this->recordTransaction($rider->account_id, $rider->branch_id, $fuelData, $transCode, $serviceCharges);
+
+            // Ledger: one monthly set of totals for this rider+invoice month
+            app(FuelMonthlyLedgerService::class)->sync(
+                (int) $rider->id,
+                $billingMonth,
+                $serviceCharges
+            );
 
             DB::commit();
 
@@ -290,11 +284,13 @@ class FuelDataController extends Controller
             // Calculate values if not provided
             $subtotal = $request->subtotal ?? ($request->qty * $request->price);
             $total = $request->total ?? ($subtotal + $request->vat_amount);
-            $request['billing_month'] = $request->billing_month . '-01'; // Convert to first day of month
+            $request['billing_month'] = $request->billing_month . '-01';
             $request['rider_id'] = $rider->id;
             $request['subtotal'] = $subtotal;
             $request['total'] = $total;
-            $serviceCharges = $request->service_charges ?? 25; // Default service charge if not provided
+            $serviceCharges = (float) ($request->service_charges ?? FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE);
+            $previousRiderId = (int) $fuelData->rider_id;
+            $previousBillingMonth = Carbon::parse($fuelData->billing_month)->startOfMonth()->toDateString();
 
             $fuelData->fill($request->all());
             if ($fuelData->isDirty()) {
@@ -307,19 +303,15 @@ class FuelDataController extends Controller
                 ], 200);
             }
 
-            Transactions::where('reference_id', $fuelData->id)
-                ->where('reference_type', 'fuel')
-                ->delete();
-            $transCode = \App\Helpers\Account::trans_code();
-            $serviceCharges = ($fuelData->service_charges == 0 || $fuelData->service_charges != $serviceCharges) ? $serviceCharges : 0;
-            if ($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
-                $rider->transactions()->where('reference_type', 'fuel')
-                    ->where('billing_month', $fuelData->billing_month)
-                    ->where('narration', 'like', "%service charge%")
-                    ->delete();
+            $newBillingMonth = Carbon::parse($fuelData->billing_month)->startOfMonth()->toDateString();
+            $newRiderId = (int) $fuelData->rider_id;
+
+            // Re-sync monthly ledger totals (old month if rider/month changed, then current)
+            $ledger = app(FuelMonthlyLedgerService::class);
+            if ($previousRiderId !== $newRiderId || $previousBillingMonth !== $newBillingMonth) {
+                $ledger->sync($previousRiderId, $previousBillingMonth, $serviceCharges);
             }
-            //Add ledger transactions against this fuel transaction
-            $this->recordTransaction($rider->account_id, $rider->branch_id, $fuelData, $transCode, $serviceCharges);
+            $ledger->sync($newRiderId, $newBillingMonth, $serviceCharges);
 
             DB::commit();
 
@@ -363,22 +355,12 @@ class FuelDataController extends Controller
                     'message' => 'Fuel transaction not found.'
                 ], 404);
             }
-            $rider = $fuelData->rider;
-            $billingMonth = $fuelData->billing_month;
-            $tranactionCount = $rider->transactions()->where('reference_type', 'fuel')->where('billing_month', $fuelData->billing_month)->count();
-            if ($tranactionCount == 1) {
-                $rider->transactions()->where('reference_type', 'fuel')
-                    ->where('billing_month', $billingMonth)
-                    ->where('narration', 'like', "%service charge%")
-                    ->delete();
-            }
-            // Delete associated ledger transactions
-            Transactions::where('reference_id', $fuelData->id)
-                ->where('reference_type', 'fuel')
-                ->delete();
+            $riderId = (int) $fuelData->rider_id;
+            $billingMonth = Carbon::parse($fuelData->billing_month)->startOfMonth()->toDateString();
 
-            // Delete the fuel transaction
+            // Delete the fuel line item, then rebuild monthly ledger totals
             $fuelData->delete();
+            app(FuelMonthlyLedgerService::class)->sync($riderId, $billingMonth);
 
             DB::commit();
 
@@ -398,77 +380,92 @@ class FuelDataController extends Controller
         }
     }
 
-    private function recordTransaction($riderAccountId, $branch_id, $fuelData, $transCode, $serviceCharges)
+    /**
+     * Show form to delete fuel data for a billing month (optional rider filter).
+     */
+    public function deleteMonthlyForm()
     {
-        //debit service charges to rider account if not already debited
-        if ($serviceCharges > 0 && $serviceCharges != $fuelData->service_charges) {
-            Transactions::create([
-                'account_id' => $riderAccountId,
-                'reference_id' => $fuelData->id,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                'narration' => 'Monthly service charges for fuel transactions',
-                'debit' => 25,
-                'credit' => 0,
-                'billing_month' => $fuelData->billing_month,
-                'branch_id' => $branch_id,
-            ]);
-            Transactions::create([
-                'account_id' => GlobalAccounts::id('FUEL_ADMIN_CHARGES'),
-                'reference_id' => $fuelData->id,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                'narration' => 'Fuel Service Charges',
-                'debit' => 0,
-                'credit' => 25,
-                'billing_month' => $fuelData->billing_month,
-                'branch_id' => $branch_id,
-            ]);
+        if (! user_can('fuel_cards_transactions_delete') && ! user_can('fuel_delete')) {
+            abort(403, 'Unauthorized action.');
         }
-        // Debit full amount to rider's account
-        Transactions::create([
-            'account_id' => $riderAccountId,
-            'reference_id' => $fuelData->id,
-            'reference_type' => 'fuel',
-            'trans_code' => $transCode,
-            'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-            'narration' => 'Fuel Purchased',
-            'debit' => $fuelData->total,
-            'credit' => 0,
-            'billing_month' => $fuelData->billing_month,
-            'branch_id' => $branch_id,
+
+        $riders = \App\Models\Riders::query()
+            ->orderBy('rider_id')
+            ->get(['id', 'rider_id', 'name']);
+
+        return view('fuel_data.delete_monthly', compact('riders'));
+    }
+
+    /**
+     * Delete fuel data for a billing month, optionally limited to one rider.
+     * Rebuilds monthly ledger totals for each affected rider.
+     */
+    public function deleteMonthly(Request $request)
+    {
+        if (! user_can('fuel_cards_transactions_delete') && ! user_can('fuel_delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete fuel transactions.',
+            ], 403);
+        }
+
+        $request->validate([
+            'billing_month' => 'required|date_format:Y-m',
+            'rider_id' => 'nullable|exists:riders,id',
+        ], [
+            'billing_month.required' => 'Billing month is required.',
+            'billing_month.date_format' => 'Billing month must be a valid month.',
         ]);
 
-        // Credit fuel account
-        Transactions::create([
-            'account_id' => $fuelData->card->fuelCompany->account_id,
-            'reference_id' => $fuelData->id,
-            'reference_type' => 'fuel',
-            'trans_code' => $transCode,
-            'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-            'narration' => 'Fuel purchased by rider',
-            'debit' => 0,
-            'credit' => $fuelData->total,
-            'billing_month' => $fuelData->billing_month,
-            'branch_id' => $branch_id,
-        ]);
+        $billingMonth = Carbon::createFromFormat('Y-m', $request->billing_month)->startOfMonth()->toDateString();
+        $riderId = $request->filled('rider_id') ? (int) $request->rider_id : null;
 
-        // Add entry for VAT if applicable
-        if ($fuelData->vat_amount > 0) {
-            Transactions::create([
-                'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
-                'reference_id' => $fuelData->id,
-                'reference_type' => 'fuel',
-                'trans_code' => $transCode,
-                'trans_date' => $fuelData->trans_date->format('Y-m-d'),
-                'narration' => 'VAT on Fuel purchased',
-                'debit' => $fuelData->vat_amount,
-                'credit' => 0,
-                'billing_month' => $fuelData->billing_month,
-                'branch_id' => $branch_id,
-            ]);
+        try {
+            DB::beginTransaction();
+
+            $query = FuelData::query()->whereDate('billing_month', $billingMonth);
+            if ($riderId) {
+                $query->where('rider_id', $riderId);
+            }
+
+            $affectedRiderIds = (clone $query)->distinct()->pluck('rider_id')->map(fn ($id) => (int) $id)->all();
+            $deletedCount = (clone $query)->count();
+
+            if ($deletedCount === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No fuel data found for the selected month'
+                        . ($riderId ? ' and rider.' : '.'),
+                ], 404);
+            }
+
+            $query->delete();
+
+            $ledger = app(FuelMonthlyLedgerService::class);
+            foreach ($affectedRiderIds as $affectedRiderId) {
+                $ledger->sync($affectedRiderId, $billingMonth);
+            }
+
+            DB::commit();
+
+            $monthLabel = Carbon::parse($billingMonth)->format('F Y');
+            $scope = $riderId
+                ? 'for the selected rider in ' . $monthLabel
+                : 'for all riders in ' . $monthLabel;
+
+            return response()->json([
+                'success' => true,
+                'message' => "Deleted {$deletedCount} fuel transaction(s) {$scope}.",
+                'reload' => true,
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete monthly fuel data: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+            ], 500);
         }
     }
 

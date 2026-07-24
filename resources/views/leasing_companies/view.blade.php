@@ -56,7 +56,7 @@ $balance = $debit - $credit;
         </a>
       </li>
       @endcan
-      @can('leasing_companies_payments_view')
+      {{-- @can('leasing_companies_payments_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('leasingCompanies.receipts')) active @endif d-flex align-items-center justify-content-center py-3"
           href="{{ route('leasingCompanies.receipts', $leasingCompany->id) }}">
@@ -71,7 +71,7 @@ $balance = $debit - $credit;
           <span class="fw-semibold">Payments</span>
         </a>
       </li>
-      @endcan
+      @endcan --}}
       @can('leasing_companies_ledger_view')
       <li class="nav-item" role="presentation">
         <a class="nav-link @if(Route::is('leasingCompany.ledger')) active @endif d-flex align-items-center justify-content-center py-3"

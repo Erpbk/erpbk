@@ -214,7 +214,9 @@
       var deleteOptionBtn = e.target.closest('.btn-delete-rider-top-option');
       if (deleteOptionBtn) {
         var optionId = deleteOptionBtn.getAttribute('data-option-id');
-        var optionName = deleteOptionBtn.getAttribute('data-option-name') || 'this option';
+        var optionName = deleteOptionBtn.getAttribute('data-option-label')
+          || deleteOptionBtn.getAttribute('data-option-name')
+          || 'this option';
         var doDelete = function() {
           var fd = new FormData();
           fd.append('_method', 'DELETE');

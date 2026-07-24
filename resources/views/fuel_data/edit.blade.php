@@ -1,4 +1,4 @@
-{!! Form::model($data, ['route' => ['fuel_data.update', $data->id], 'method' => 'post', 'id' => 'formajax', 'files' => true]) !!}
+{!! Form::model($data, ['route' => ['fuel_data.update', $data->id], 'method' => 'put', 'id' => 'formajax', 'files' => true]) !!}
     @csrf
     
    @include('fuel_data.fields')

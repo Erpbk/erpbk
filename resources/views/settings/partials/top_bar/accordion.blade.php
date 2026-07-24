@@ -45,16 +45,24 @@
         @else
         <ul class="list-group list-group-flush">
           @foreach($category->options as $option)
+          @php
+            $optionStoredName = (string) $option->name;
+            $optionDisplayName = $optionStoredName;
+            $bikeColumn = trim((string) ($category->bike_column ?? ''));
+            if ($bikeColumn !== '') {
+              $optionDisplayName = \App\Models\BikeCustomField::displayLabelForFixedFieldValue($bikeColumn, $optionStoredName);
+            }
+          @endphp
           <li class="list-group-item px-0 py-2 d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center">
               <i class="ti ti-point-filled me-1 text-muted"></i>
-              <span>{{ $option->name }}</span>
+              <span>{{ $optionDisplayName }}</span>
             </div>
             <div class="d-flex align-items-center gap-1">
-              <button type="button" class="btn btn-xs btn-outline-secondary btn-edit-rider-top-option" data-option-id="{{ $option->id }}" data-option-name="{{ $option->name }}" title="Edit option">
+              <button type="button" class="btn btn-xs btn-outline-secondary btn-edit-rider-top-option" data-option-id="{{ $option->id }}" data-option-name="{{ $optionStoredName }}" data-option-label="{{ $optionDisplayName }}" title="Edit option">
                 <i class="ti ti-pencil"></i>
               </button>
-              <button type="button" class="btn btn-xs btn-outline-danger btn-delete-rider-top-option" data-option-id="{{ $option->id }}" data-option-name="{{ $option->name }}" title="Delete option">
+              <button type="button" class="btn btn-xs btn-outline-danger btn-delete-rider-top-option" data-option-id="{{ $option->id }}" data-option-name="{{ $optionStoredName }}" data-option-label="{{ $optionDisplayName }}" title="Delete option">
                 <i class="ti ti-trash"></i>
               </button>
             </div>

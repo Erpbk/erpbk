@@ -319,10 +319,10 @@
                     <td><strong>VAT Amount:</strong></td>
                     <td class="num">{{ \App\Helpers\Currency::format($summary->total_vat, 2) }}</td>
                 </tr>
-                @if($transaction->service_charges > 0)
+                @if(($summary->service_charges ?? 0) > 0)
                 <tr>
                     <td><strong>Service Charges:</strong></td>
-                    <td class="num">{{ \App\Helpers\Currency::format($transaction->service_charges, 2) }}</td>
+                    <td class="num">{{ \App\Helpers\Currency::format($summary->service_charges, 2) }}</td>
                 </tr>
                 @endif
             </tbody>
@@ -340,7 +340,7 @@
             <div style="display: inline-block; padding: 12px 28px; background: #004aad; color: white; border-radius: 20px; text-align: center;
             box-shadow: 0 4px 10px rgba(0,74,173,0.2);">
                 <div style="font-size: 16px; margin-bottom: 5px; text-align: center;">Grand Total</div>
-                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($summary->total_amount + $transaction->service_charges, 2) }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ \App\Helpers\Currency::format($summary->total_amount + ($summary->service_charges ?? 0), 2) }}</div>
             </div>
         </div>
 

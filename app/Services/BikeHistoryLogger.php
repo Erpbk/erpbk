@@ -40,6 +40,7 @@ class BikeHistoryLogger
             'Theft' => 'Theft',
             'Total Loss' => 'Total Loss',
             'Impound' => 'Impound',
+            'Accident' => 'Accident',
             default => $key,
         };
     }

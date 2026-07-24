@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\FuelCards;
 use App\Models\FuelCardHistory;
+use App\Imports\FuelCardImport;
+use App\Exports\FuelCardExport;
 use Flash;
 use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
+use Maatwebsite\Excel\Facades\Excel;
 
 class FuelCardController extends Controller
 {
@@ -198,11 +201,74 @@ class FuelCardController extends Controller
         return response()->json(['message'=> 'Fuel Card Deleted successfully'],200);
     }
 
-    public function import(Request $request){
-        return redirect()->back();
+    public function import(Request $request)
+    {
+        if ($request->isMethod('get')) {
+            return view('fuel_cards.import');
+        }
+
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ], [
+            'file.required' => 'Excel file is required',
+        ]);
+
+        try {
+            $import = new FuelCardImport();
+            Excel::import($import, $request->file('file'));
+            $results = $import->getResults();
+            $stats = $results['stats'] ?? [];
+            $failed = $results['failed'] ?? [];
+
+            $message = 'Imported ' . ($stats['imported'] ?? 0) . ' of ' . ($stats['total'] ?? 0) . ' fuel cards.';
+            if (($stats['failed'] ?? 0) > 0) {
+                $message .= ' ' . $stats['failed'] . ' row(s) failed.';
+                $reasons = collect($failed)->take(5)->map(function ($row) {
+                    return 'Row ' . ($row['row_number'] ?? '?') . ': ' . ($row['reason'] ?? 'Unknown');
+                })->implode(' | ');
+                if ($reasons !== '') {
+                    $message .= ' ' . $reasons;
+                }
+            }
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => $message,
+                    'reload' => ($stats['imported'] ?? 0) > 0,
+                ]);
+            }
+
+            Flash::success($message);
+            return redirect()->route('fuelCards.index');
+        } catch (\Exception $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 500);
+            }
+            Flash::error('Import failed: ' . $e->getMessage());
+            return redirect()->back();
+        }
     }
 
-    public function export(Request $request){
-        return redirect()->back();
+    public function downloadTemplate()
+    {
+        $headers = ['Card Number', 'Fuel Company', 'Status'];
+
+        $callback = function () use ($headers) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $headers);
+            fputcsv($file, ['1234567890123456', 'Company Name', 'Inactive']);
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="fuel_card_import_template.csv"',
+        ]);
+    }
+
+    public function export(Request $request)
+    {
+        $filename = 'fuel_cards_export_' . now()->format('Y_m_d_H_i_s') . '.xlsx';
+        return Excel::download(new FuelCardExport, $filename);
     }
 }

@@ -506,18 +506,23 @@
                     </select>
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="warehouse">Filter by Warehouse</label>
-                    <select class="form-control " id="warehouse" name="warehouse">
+                    <label for="status">Filter by Status</label>
+                    <select class="form-control" id="status" name="status">
                         @php
-                        $warehouses = company_table('bikes')
-                        ->whereNotNull('warehouse')
-                        ->where('warehouse', '!=', '')
-                        ->pluck('warehouse')
-                        ->unique();
+                        $statusOptions = [
+                            'on_road' => 'On Road',
+                            'off_road' => 'Off Road',
+                            'returned' => 'Returned',
+                            'absconded' => 'Absconded',
+                            'theft' => 'Theft',
+                            'total_loss' => 'Total Loss',
+                            'impound' => 'Impound',
+                            'accident' => 'Accident',
+                        ];
                         @endphp
-                        <option value="" selected>Select</option>
-                        @foreach($warehouses as $warehouse)
-                        <option value="{{ $warehouse }}" {{ request('warehouse') == $warehouse ? 'selected' : '' }}>{{ $warehouse }}</option>
+                        <option value="">Select</option>
+                        @foreach($statusOptions as $value => $label)
+                        <option value="{{ $value }}" {{ request('status') === $value ? 'selected' : '' }}>{{ $label }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -528,14 +533,6 @@
                 <div class="form-group col-md-12">
                     <label for="expiry_date_to">Expiry Date To</label>
                     <input type="date" name="expiry_date_to" class="form-control" placeholder="Filter By Expiry Date To" value="{{ request('expiry_date_to') }}">
-                </div>
-                <div class="form-group col-md-12">
-                    <label for="status">Filter by Status</label>
-                    <select class="form-control " id="status" name="status">
-                        <option value="" selected>Select</option>
-                        <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
-                        <option value="3" {{ request('status') == 3 ? 'selected' : '' }}>Inactive</option>
-                    </select>
                 </div>
                 <div class="col-md-12 form-group text-center">
                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
@@ -654,11 +651,6 @@
         $('#emirates').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Emirates",
-            allowClear: true
-        });
-        $('#warehouse').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Warehouse",
             allowClear: true
         });
         $('#status').select2({

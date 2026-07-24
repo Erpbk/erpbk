@@ -8,6 +8,7 @@ use App\Helpers\Common;
 use App\Http\Requests\CreateLeasingCompaniesRequest;
 use App\Http\Requests\UpdateLeasingCompaniesRequest;
 use App\Models\Accounts;
+use App\Models\BikeHistory;
 use App\Models\Bikes;
 use App\Models\LeasingCompanies;
 use App\Models\LeasingCompanyInvoice;
@@ -24,6 +25,7 @@ use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class LeasingCompaniesController extends AppBaseController
@@ -1047,11 +1049,31 @@ class LeasingCompaniesController extends AppBaseController
         }
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Bikes::query()
-            ->where('company', $leasingCompany->id)
-            ->with(['history' => function ($q) {
-                $q->orderByDesc('note_date')->orderByDesc('id');
-            }]);
+            ->where('company', $leasingCompany->id);
         $bikes = $this->applyPagination($query, $paginationParams);
+
+        // Notes only for bikes returned via leasing return option
+        $returnedBikeIds = collect(method_exists($bikes, 'items') ? $bikes->items() : $bikes)
+            ->filter(fn ($bike) => ! empty($bike->leased_return_date))
+            ->pluck('id')
+            ->all();
+
+        if ($returnedBikeIds !== []) {
+            $historyQuery = BikeHistory::query()
+                ->whereIn('bike_id', $returnedBikeIds)
+                ->orderByDesc('note_date')
+                ->orderByDesc('id');
+
+            if (Schema::hasColumn('bike_histories', 'history_status')) {
+                $historyQuery->where('history_status', 'Returned to Leasing');
+            }
+
+            $leasingReturnHistories = $historyQuery->get()->unique('bike_id')->keyBy('bike_id');
+
+            foreach ($bikes as $bike) {
+                $bike->setRelation('leasingReturnHistory', $leasingReturnHistories->get($bike->id));
+            }
+        }
 
         return view('leasingCompanies.bikes', compact('bikes', 'leasingCompany'));
     }

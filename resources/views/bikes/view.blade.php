@@ -869,8 +869,7 @@
                 && !in_array($bikeWarehouse, $warehousesHideLeasingReturnBtn, true)
                 && !$leasedReturnCompleted;
                 $hideAssignForWarehouse = ['Total Loss'];
-                $showAssignRiderBlock = !in_array($bikeWarehouse, $hideAssignForWarehouse, true)
-                && !$leasedReturnCompleted;
+                $showAssignRiderBlock = !in_array($bikeWarehouse, $hideAssignForWarehouse, true);
                 $showChangeProject = !empty($bikes->rider_id)
                 && strtolower($bikeWarehouse) === 'active'
                 && !$leasedReturnCompleted;

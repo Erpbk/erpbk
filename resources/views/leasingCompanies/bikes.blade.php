@@ -88,7 +88,8 @@
                 <table class="table dataTable no-footer" id="dataTableBuilder">
                 <thead class="text-center">
                     <tr role="row">
-                        <th title="Leased Date">Leased Date</th>
+                        <th title="Lease Date">Lease Date</th>
+                        <th title="Return Date">Return Date</th>
                         <th title="Code">Code</th>
                         <th title="Plate">Plate</th>
                         <th title="Emirates">Emirates</th>
@@ -96,8 +97,6 @@
                         <th title="Chassis">Chassis</th>
                         <th title="Engine">Engine</th>
                         <th title="Expiry Date">Expiry Date</th>
-                        <th title="Assign Date">Assign Date</th>
-                        <th title="Return Date">Return Date</th>
                         <th title="Status">Status</th>
                         <th title="Note">Note</th>
                     </tr>
@@ -105,7 +104,6 @@
                 <tbody>
                     @foreach($bikes as $bike)
                     @php
-                    $latestHistory = $bike->history->first();
                     $isReturned = $hasLeasingReturn && !empty($bike->leased_return_date);
                     $wKey = strtolower(trim((string) ($bike->warehouse ?? '')));
                     $specialStatuses = [
@@ -137,16 +135,25 @@
                         $statusTitle = 'Status: On Road';
                     }
 
-                    $latestNoteRaw = (string) ($latestHistory?->notes ?? '');
                     $latestNote = '';
-                    if ($latestNoteRaw !== '' && preg_match('/(?:\*Note:\*|Note:)\s*(.+)$/is', $latestNoteRaw, $noteMatch)) {
-                        $latestNote = trim(str_replace('*', '', $noteMatch[1]));
+                    if ($isReturned) {
+                        $latestNoteRaw = (string) ($bike->leasingReturnHistory?->notes ?? '');
+                        if ($latestNoteRaw !== '' && preg_match('/(?:\*Note:\*|Note:)\s*(.+)$/is', $latestNoteRaw, $noteMatch)) {
+                            $latestNote = trim(str_replace('*', '', $noteMatch[1]));
+                        }
                     }
                     @endphp
                     <tr class="text-center">
                         <td>
                             @if($bike->leased_date)
                                 {{ \Carbon\Carbon::parse($bike->leased_date)->format('d-m-Y') }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td>
+                            @if($bike->leased_return_date)
+                                {{ \Carbon\Carbon::parse($bike->leased_return_date)->format('d-m-Y') }}
                             @else
                                 -
                             @endif
@@ -165,23 +172,9 @@
                             @endif
                         </td>
                         <td>
-                            @if($latestHistory?->note_date)
-                                {{ \Carbon\Carbon::parse($latestHistory->note_date)->format('d-m-Y') }}
-                            @else
-                                -
-                            @endif
-                        </td>
-                        <td>
-                            @if($latestHistory?->return_date)
-                                {{ \Carbon\Carbon::parse($latestHistory->return_date)->format('d-m-Y') }}
-                            @else
-                                -
-                            @endif
-                        </td>
-                        <td>
                             <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
                         </td>
-                        <td class="bike-note-cell">{{ $latestNote !== '' ? $latestNote : '' }}</td>
+                        <td class="bike-note-cell">{{ $latestNote }}</td>
                     </tr>
                     @endforeach
                 </tbody>

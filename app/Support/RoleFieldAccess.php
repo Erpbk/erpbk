@@ -148,6 +148,8 @@ class RoleFieldAccess
                 'agreement' => 'Agreements',
                 'asset' => 'Assets',
                 'visaexpense' => 'Visa Expense',
+                'installment' => 'Visa Expense',
+                'visaloan' => 'Visa Expense',
             ];
             if (isset($nameMap[$entityKey])) {
                 $resolved = self::moduleIdByName($nameMap[$entityKey]);
@@ -401,6 +403,8 @@ class RoleFieldAccess
             'sim_invoice' => 'Sims',
             'bike_registration' => 'Bikes',
             'loan_installment' => 'Loans',
+            'installment' => 'Visa Expense',
+            'visaloan' => 'Visa Expense',
             'billing_invoice' => 'Bike On Rent',
             'leasing_company_invoice' => 'Leasing Companies',
             'vat_return' => 'Vat',

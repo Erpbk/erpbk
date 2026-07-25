@@ -748,6 +748,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::resource('fuelCards', FuelCardController::class);
     Route::any('fuelcards/import', [FuelCardController::class, 'import'])->name('fuelCards.import');
+    Route::get('fuelcards/import_template', [FuelCardController::class, 'downloadTemplate'])->name('fuelCards.import_template');
     Route::get('fuelcards/export', [FuelCardController::class, 'export'])->name('fuelCards.export');
 
     Route::any('fuelcards/assign/{id}', [FuelCardHistoryController::class, 'assign'])->name('fuelCards.assign');

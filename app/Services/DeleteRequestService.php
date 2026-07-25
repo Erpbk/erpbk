@@ -765,6 +765,70 @@ class DeleteRequestService
         if ($deleteRequest->module_key === 'vouchers' && $model instanceof \App\Models\Vouchers) {
             static::finalizeApprovedVoucherDeletion($deleteRequest, $model, $admin);
         }
+
+        if ($deleteRequest->module_key === 'visa_installment_plans' && $model instanceof \App\Models\visa_installment_plan) {
+            static::finalizeApprovedVisaInstallmentDeletion($deleteRequest, $model, $admin);
+        }
+
+        if ($deleteRequest->module_key === 'visa_expenses' && $model instanceof \App\Models\visa_expenses) {
+            static::finalizeApprovedVisaExpenseDeletion($deleteRequest, $model, $admin);
+        }
+    }
+
+    /**
+     * After installment approval: soft-deletes already applied to cascaded vouchers/transactions.
+     * Recalculate liability ledger for the installment billing month.
+     */
+    protected static function finalizeApprovedVisaInstallmentDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\visa_installment_plan $installment,
+        ?User $admin
+    ): void {
+        $billingMonth = $installment->billing_month;
+        $billingMonthForLedger = (strlen((string) $billingMonth) <= 7)
+            ? $billingMonth . '-01'
+            : $billingMonth;
+
+        $liabilityAccount = null;
+        try {
+            $rider = \App\Models\Riders::find($installment->rider_id)
+                ?? \App\Models\ExpenseAccount::find($installment->rider_id)?->rider;
+            if ($rider) {
+                $liabilityAccount = \App\Models\Accounts::where('ref_id', $rider->id)
+                    ->where('account_type', 'Liability')
+                    ->orderBy('id')
+                    ->first();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Could not resolve liability account on installment approve', [
+                'delete_request_id' => $deleteRequest->id,
+                'installment_id' => $installment->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if (!$liabilityAccount) {
+            return;
+        }
+
+        static::recalculateLedgerAfterVoucherDeletion((int) $liabilityAccount->id, $billingMonthForLedger);
+    }
+
+    /**
+     * After visa expense approval: recalculate rider account ledger for the billing month.
+     */
+    protected static function finalizeApprovedVisaExpenseDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\visa_expenses $expense,
+        ?User $admin
+    ): void {
+        $riderAccountId = \App\Support\CompanyQuery::table('accounts')
+            ->where('ref_id', $expense->rider_id)
+            ->value('id');
+
+        if ($riderAccountId && $expense->billing_month) {
+            static::recalculateLedgerAfterVoucherDeletion((int) $riderAccountId, $expense->billing_month);
+        }
     }
 
     /**

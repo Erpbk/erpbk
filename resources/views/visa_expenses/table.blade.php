@@ -17,13 +17,20 @@
       </thead>
       <tbody>
          @foreach($data as $r)
-         <tr class="text-center" data-row-id="{{ $r->id }}">
+         @php
+         $expensePendingDeletion = record_is_pending_deletion($r);
+         $voucherPendingDeletion = $r->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
+         $rowPendingDeletion = $expensePendingDeletion || $voucherPendingDeletion;
+         @endphp
+         <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}" data-row-id="{{ $r->id }}">
             @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
                @can('visa_expense_edit')
+               @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
+               @endif
                @endcan
                <input
                   type="date"
@@ -34,9 +41,11 @@
             @if($vf('billing_month'))<td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
                @can('visa_expense_edit')
+               @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
                </a>
+               @endif
                @endcan
                <input
                   type="month"
@@ -50,9 +59,11 @@
             @if($vf('amount'))<td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
                @can('visa_expense_edit')
+               @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
                   <i class="fa fa-edit text-primary"></i>
                </a>
+               @endif
                @endcan
                <input
                   type="number"
@@ -66,9 +77,11 @@
                @if($r->expiry_date)
                <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
                @can('visa_expense_edit')
+               @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
                   <i class="fa fa-edit text-primary"></i>
                </a>
+               @endif
                @endcan
                <input
                   type="date"
@@ -87,9 +100,13 @@
                   @php
                   $voucherNumber = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
                   @endphp
-                  <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucherNumber }}</a>@if(!$loop->last), @endif
+                  <span class="d-inline-flex align-items-center gap-1">
+                     <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucherNumber }}</a>
+                     @include('delete_requests._pending_badge', ['model' => $voucher])
+                  </span>@if(!$loop->last), @endif
                   @endforeach
                   @can('visa_expense_edit')
+                  @if(!$rowPendingDeletion)
                   <a href="javascript:void(0);"
                      class="show-modal text-body-secondary"
                      data-size="xl"
@@ -98,6 +115,7 @@
                      title="Change credit / payment account only">
                      <i class="fa fa-edit text-primary"></i>
                   </a>
+                  @endif
                   @endcan
                   @else
                   <span class="text-muted">No voucher</span>
@@ -115,11 +133,16 @@
                @endif
             </td>@endif
             <td>
+               @if($expensePendingDeletion)
+               @include('delete_requests._locked_cell', ['model' => $r])
+               @elseif($voucherPendingDeletion)
+               @include('delete_requests._locked_cell', ['model' => $r->vouchers->first(fn ($v) => record_is_pending_deletion($v))])
+               @else
                <div class="dropdown">
-                  <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
-                  <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
+                  <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}">
                      @can('visa_expense_view')
                      <a href="{{ route('VisaExpense.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
                         View Expense Detail
@@ -137,6 +160,7 @@
                      @endcan
                   </div>
                </div>
+               @endif
             </td>
          </tr>
          @endforeach
@@ -151,6 +175,7 @@
    {!! $data->links('components.global-pagination') !!}
    @endif
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])
 <script>
    function visaInlineScope() {
       return document.getElementById('visa-expenses-inline-edit-scope');

@@ -12,6 +12,7 @@ use App\Models\Bikes;
 use App\Models\Riders;
 use App\Models\Banks;
 use App\Models\BikeRentCompany;
+use App\Models\LeasingCompanies;
 use App\Models\RtaFines;
 use App\Models\Accounts;
 use App\Models\Vouchers;
@@ -124,9 +125,22 @@ class RtaFinesController extends AppBaseController
         if ($request->filled('bike_id')) {
             $query->where('bike_id', $request->bike_id);
         }
+        if ($request->filled('company_id')) {
+            $companyId = $request->company_id;
+            $query->whereHas('bike', function ($bikeQuery) use ($companyId) {
+                if ($companyId === 'own') {
+                    $bikeQuery->where(function ($q) {
+                        $q->whereNull('company')->orWhere('company', 0);
+                    });
+                } else {
+                    $bikeQuery->where('company', $companyId);
+                }
+            });
+        }
 
         $topBarModuleKey = $status === 'paid' ? 'rta_fines_paid' : 'rta_fines_unpaid';
         $this->applyModuleTopBarFilters($query, $request, $topBarModuleKey);
+        $leasingCompanies = LeasingCompanies::orderBy('name')->get();
 
         // Paginated data
         // Apply pagination using the trait
@@ -148,6 +162,7 @@ class RtaFinesController extends AppBaseController
             ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
             ->orderBy('name', 'asc')
             ->get();
+
         $total_Amount =  $totalAmount + $serviceCharges + $adminFee;
         if ($request->ajax()) {
             $tableData = view('rta_fines.table', [
@@ -187,6 +202,7 @@ class RtaFinesController extends AppBaseController
             'serviceCharges' => $serviceCharges,
             'adminFee' => $adminFee,
             'total_Amount' => $total_Amount,
+            'leasingCompanies' => $leasingCompanies,
         ], $this->moduleTopBarListingData($request, $topBarModuleKey)));
     }
 

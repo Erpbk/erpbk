@@ -44,7 +44,7 @@ trait ManagesVisaInstallments
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!user_can('installment_view')) {
+        if (!user_can('visa_expense_view') && !user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -93,7 +93,7 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
-        if (!user_can('installment_create')) {
+        if (!user_can('visa_expense_create') && !user_can('installment_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -126,7 +126,7 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlan(Request $request, $company_slug)
     {
-        if (!user_can('installment_create')) {
+        if (!user_can('visa_expense_create') && !user_can('installment_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -138,7 +138,10 @@ trait ManagesVisaInstallments
             'installment_amounts' => 'required|array|min:1',
             'installment_amounts.*' => 'required|numeric|min:0',
             'reference_number' => 'required|string|max:255',
-            'branch_id' => 'required|integer',
+            'branch_id' => 'required|integer|exists:branches,id',
+        ], [
+            'branch_id.required' => 'Branch is required. Assign a branch to the rider or select one in the form.',
+            'installment_amounts.required' => 'Installment amounts are missing. Please regenerate the installment preview and try again.',
         ]);
 
         try {
@@ -164,13 +167,21 @@ trait ManagesVisaInstallments
             }
 
             if (abs($difference) > 0.01) {
-                Flash::error('The sum of individual installment amounts (' . number_format($sumOfInstallments, 2) . ') does not match the total amount (' . number_format($totalAmount, 2) . ').');
+                $message = 'The sum of individual installment amounts (' . number_format($sumOfInstallments, 2) . ') does not match the total amount (' . number_format($totalAmount, 2) . ').';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
                 return redirect()->back()->withInput();
             }
 
             // Validate number of installments matches the array length
             if (count($installmentAmounts) != $validated['number_of_installments']) {
-                Flash::error('Number of installment amounts does not match the selected number of installments.');
+                $message = 'Number of installment amounts does not match the selected number of installments.';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
                 return redirect()->back()->withInput();
             }
 
@@ -181,7 +192,17 @@ trait ManagesVisaInstallments
                 ->first();
 
             if (!$liabilityAccount) {
-                Flash::error('Liability account not found for this rider. Please create the liability account first.');
+                $liabilityAccount = Accounts::where('ref_id', $riderAccount)
+                    ->where('account_type', 'Liability')
+                    ->first();
+            }
+
+            if (!$liabilityAccount) {
+                $message = 'Liability account not found for this rider. Please create the liability account first.';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
                 return redirect()->back();
             }
             $rider = Riders::findOrFail($riderAccount);
@@ -301,10 +322,23 @@ trait ManagesVisaInstallments
             }
             $installmentDetails = rtrim($installmentDetails, ', ');
 
-            Flash::success($validated['number_of_installments'] . ' installment entries created successfully with individual amounts: ' . $installmentDetails . '. Total amount: ' . number_format($validated['total_amount'], 2));
+            $successMessage = $validated['number_of_installments'] . ' installment entries created successfully with individual amounts: ' . $installmentDetails . '. Total amount: ' . number_format($validated['total_amount'], 2);
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => strip_tags($successMessage),
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success($successMessage);
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => 'Error creating installment plan: ' . $e->getMessage(),
+                ], 500);
+            }
             Flash::error('Error creating installment plan: ' . $e->getMessage());
             return redirect()->back()->withInput();
         }
@@ -1071,7 +1105,7 @@ trait ManagesVisaInstallments
 
     public function deleteInstallment($company_slug, $id)
     {
-        if (!user_can('installment_delete')) {
+        if (!user_can('visa_expense_delete') && !user_can('installment_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1080,178 +1114,66 @@ trait ManagesVisaInstallments
 
             $installment = visa_installment_plan::findOrFail($id);
 
-            $installmentIdentifier = "Installment Plan #{$id} - Billing Month: {$installment->billing_month} (Amount: " . number_format($installment->amount, 2) . ")";
-
-            // Get related vouchers before deletion (only non-deleted vouchers)
             $relatedVouchers = Vouchers::where('ref_id', $installment->id)
                 ->where('voucher_type', 'VL')
                 ->get();
 
-            \Log::info("Found " . $relatedVouchers->count() . " vouchers to delete for installment {$id}", [
-                'voucher_ids' => $relatedVouchers->pluck('id')->toArray(),
-                'installment_id' => $installment->id
-            ]);
-
-            // Get related transactions before deletion
             $relatedTransactions = Transactions::where('reference_id', $installment->id)
                 ->where('reference_type', 'VL')
                 ->get();
 
-            // Track cascade deletions for vouchers BEFORE deletion
-            foreach ($relatedVouchers as $voucher) {
-                try {
-                    \Log::info("Attempting to track cascade deletion for voucher {$voucher->id}", [
-                        'primary_model' => visa_installment_plan::class,
-                        'primary_id' => $installment->id,
-                        'related_model' => Vouchers::class,
-                        'related_id' => $voucher->id,
-                    ]);
-
-                    $cascadeRecord = $this->trackCascadeDeletion(
-                        visa_installment_plan::class,
-                        $installment->id,
-                        $installmentIdentifier,
-                        Vouchers::class,
-                        $voucher->id,
-                        "Voucher #{$voucher->id} ({$voucher->voucher_type}-" . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) . ", Amount: " . number_format($voucher->amount, 2) . ")",
-                        'hasMany',
-                        'vouchers',
-                        'soft',
-                        'Cascade deletion from Installment Plan deletion - voucher'
-                    );
-
-                    if ($cascadeRecord && $cascadeRecord->id) {
-                        \Log::info("Cascade deletion tracked successfully for voucher {$voucher->id}, cascade record ID: {$cascadeRecord->id}");
-                    } else {
-                        \Log::warning("Cascade deletion tracking returned null for voucher {$voucher->id}");
-                    }
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage(), [
-                        'exception' => $e,
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                }
-            }
-
-            // Track cascade deletions for transactions
-            foreach ($relatedTransactions as $transaction) {
-                try {
-                    $this->trackCascadeDeletion(
-                        visa_installment_plan::class,
-                        $installment->id,
-                        $installmentIdentifier,
-                        Transactions::class,
-                        $transaction->id,
-                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
-                        'hasMany',
-                        'transactions',
-                        'soft',
-                        'Cascade deletion from Installment Plan deletion - transaction'
-                    );
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-                }
-            }
-
-            // Cascade delete vouchers related to this installment (soft delete with deleted_by)
-            // Note: Using delete() performs soft deletion since Vouchers model uses SoftDeletes trait
-            if ($relatedVouchers->count() > 0) {
-                foreach ($relatedVouchers as $voucher) {
-                    try {
-                        \Log::info("Soft deleting voucher {$voucher->id} for installment {$installment->id}");
-                        $voucher->deleted_by = auth()->id();
-                        $voucher->save();
-                        // Soft delete: sets deleted_at timestamp (does not permanently delete from database)
-                        $voucher->delete();
-                        \Log::info("Successfully soft deleted voucher {$voucher->id}");
-                    } catch (\Exception $e) {
-                        \Log::error("Failed to delete voucher {$voucher->id}: " . $e->getMessage(), [
-                            'exception' => $e,
-                            'trace' => $e->getTraceAsString()
-                        ]);
-                        throw $e; // Re-throw to trigger rollback
-                    }
-                }
-            } else {
-                \Log::warning("No vouchers found to delete for installment {$installment->id}");
-            }
-
-            // Double-check: Ensure all remaining vouchers are deleted (as a safety measure)
-            $remainingVouchers = Vouchers::where('ref_id', $installment->id)
-                ->where('voucher_type', 'VL')
-                ->whereNull('deleted_at')
-                ->get();
-
-            if ($remainingVouchers->count() > 0) {
-                \Log::warning("Found {$remainingVouchers->count()} remaining vouchers after deletion attempt, soft deleting them now");
-                foreach ($remainingVouchers as $voucher) {
-                    try {
-                        $voucher->deleted_by = auth()->id();
-                        $voucher->save();
-                        // Soft delete: sets deleted_at timestamp (does not permanently delete from database)
-                        $voucher->delete();
-                    } catch (\Exception $e) {
-                        \Log::error("Failed to delete remaining voucher {$voucher->id}: " . $e->getMessage());
-                        throw $e;
-                    }
-                }
-            }
-
-            // Delete related transactions
-            Transactions::where('reference_id', $installment->id)
-                ->where('reference_type', 'VL')
-                ->delete();
-
-            // Delete related ledger entries
-            ['riderAccount' => $riderAccount] = $this->resolveInstallmentRiderContext($installment);
-            $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
-                ->where('account_type', 'Liability')
-                ->where('parent_id', 1)
-                ->first();
-
-            if ($liabilityAccount) {
-                // Convert billing_month to proper date format for ledger_entries comparison
-                // billing_month in installment is stored as 'YYYY-MM', but ledger_entries expects 'YYYY-MM-DD'
-                $billingMonthForLedger = (strlen($installment->billing_month) <= 7) ?
-                    $installment->billing_month . '-01' : $installment->billing_month;
-
-                // Get ledger entry before deletion
-                $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $liabilityAccount->id)
-                    ->where('billing_month', $billingMonthForLedger)
+            $billingMonth = $installment->billing_month;
+            $liabilityAccountId = null;
+            try {
+                ['riderAccount' => $riderAccount] = $this->resolveInstallmentRiderContext($installment);
+                $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
+                    ->where('account_type', 'Liability')
+                    ->where('parent_id', 1)
                     ->first();
-
-                if ($ledgerEntry) {
-                    try {
-                        $this->trackCascadeDeletion(
-                            visa_installment_plan::class,
-                            $installment->id,
-                            $installmentIdentifier,
-                            \App\Models\LedgerEntry::class,
-                            $ledgerEntry->id,
-                            "Ledger Entry #{$ledgerEntry->id} (Account ID: {$liabilityAccount->id}, Billing Month: {$installment->billing_month})",
-                            'hasOne',
-                            'ledger_entry',
-                            'hard',
-                            'Cascade deletion from Installment Plan deletion - ledger entry'
-                        );
-                    } catch (\Exception $e) {
-                        \Log::error("Failed to track cascade deletion for ledger entry {$ledgerEntry->id}: " . $e->getMessage());
-                    }
+                if (!$liabilityAccount) {
+                    $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
+                        ->where('account_type', 'Liability')
+                        ->first();
                 }
-
-                \App\Support\CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $liabilityAccount->id)
-                    ->where('billing_month', $billingMonthForLedger)
-                    ->delete();
+                $liabilityAccountId = $liabilityAccount?->id;
+            } catch (\Throwable $e) {
+                \Log::warning('Could not resolve liability account before installment delete: ' . $e->getMessage());
             }
 
-            // Delete the installment (soft delete with deleted_by)
+            // Queue the installment first so related deletes attach as cascades
+            // and are NOT removed until an administrator approves.
             $installment->deleted_by = auth()->id();
             $installment->save();
             $installment->delete();
 
+            $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
+
+            // Model deletes (not query-builder) so delete-approval can intercept/cascade.
+            foreach ($relatedVouchers as $voucher) {
+                $voucher->deleted_by = auth()->id();
+                $voucher->save();
+                $voucher->delete();
+            }
+
+            foreach ($relatedTransactions as $transaction) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn($transaction->getTable(), 'deleted_by')) {
+                    $transaction->deleted_by = auth()->id();
+                    $transaction->save();
+                }
+                $transaction->delete();
+            }
+
+            // Ledger cleanup only when the delete actually happened (approval bypassed/disabled).
+            if (!$pendingQueued && $liabilityAccountId) {
+                $this->cleanupInstallmentLedgerAfterDelete($liabilityAccountId, $billingMonth);
+            }
+
             DB::commit();
+
+            if ($pendingQueued) {
+                // Pending flash is applied by AdjustDeleteApprovalResponse — no success message.
+                return redirect()->back();
+            }
 
             Flash::success('Installment deleted successfully along with voucher and transactions.');
             return redirect()->back();
@@ -1262,9 +1184,53 @@ trait ManagesVisaInstallments
         }
     }
 
+    /**
+     * Recalculate/remove liability ledger rows after an installment is actually deleted.
+     */
+    private function cleanupInstallmentLedgerAfterDelete($liabilityAccountId, $billingMonth): void
+    {
+        $billingMonthForLedger = (strlen((string) $billingMonth) <= 7)
+            ? $billingMonth . '-01'
+            : $billingMonth;
+
+        \App\Support\CompanyQuery::table('ledger_entries')
+            ->where('account_id', $liabilityAccountId)
+            ->where('billing_month', $billingMonthForLedger)
+            ->delete();
+
+        $lastLedger = \App\Support\CompanyQuery::table('ledger_entries')
+            ->where('account_id', $liabilityAccountId)
+            ->where('billing_month', '<', $billingMonthForLedger)
+            ->orderBy('billing_month', 'desc')
+            ->first();
+
+        $openingBalance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+        $monthTransactions = Transactions::where('account_id', $liabilityAccountId)
+            ->where('billing_month', $billingMonthForLedger)
+            ->get();
+
+        if ($monthTransactions->count() === 0) {
+            return;
+        }
+
+        $debitTotal = $monthTransactions->sum('debit');
+        $creditTotal = $monthTransactions->sum('credit');
+
+        \App\Support\CompanyQuery::insert('ledger_entries', [
+            'account_id' => $liabilityAccountId,
+            'billing_month' => $billingMonthForLedger,
+            'opening_balance' => $openingBalance,
+            'debit_balance' => $debitTotal,
+            'credit_balance' => $creditTotal,
+            'closing_balance' => $openingBalance + $debitTotal - $creditTotal,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     public function generateInstallmentInvoice($company_slug, $riderId)
     {
-        if (!user_can('installment_view')) {
+        if (!user_can('visa_expense_view') && !user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 

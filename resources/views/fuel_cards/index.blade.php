@@ -24,13 +24,13 @@
                                     <div class="action-dropdown-item-desc">Add a new Fuel Card</div>
                                 </div>
                             </a>
-                            <a class="action-dropdown-item" href="javascript:void(0);">
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Import Fuel Card Data" data-action="{{ route('fuelCards.import') }}">
                                 <i class="ti ti-file-upload"></i>
                                 <span>Import Fuel card Data</span>
                             </a>
                             @endcan
                             @can('fuel_cards_export_data_create')
-                            <a class="action-dropdown-item" href="javascript:void(0);">
+                            <a class="action-dropdown-item" href="{{ route('fuelCards.export') }}">
                                 <i class="ti ti-file-export"></i>
                                 <span>Export Fuel Card Data</span>
                             </a>

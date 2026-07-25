@@ -362,7 +362,7 @@
                     <label for="rta_account_id" class="required">Filter by Company</label>
                     <select class="form-control " id="company_id" name="company_id">
                         <option value="">Select</option>
-                        <option value="own">Own Vehicles</option>
+                        <option value="own" {{ request('company_id') == 'own' ? 'selected' : '' }}>Own Vehicles</option>
                         @foreach($leasingCompanies as $company)
                         <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach

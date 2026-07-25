@@ -175,5 +175,17 @@ return [
             'display_columns' => ['cheque_number', 'amount', 'status'],
             'show_route' => 'cheques.show',
         ],
+        'visa_expenses' => [
+            'model' => \App\Models\visa_expenses::class,
+            'name' => 'Visa Expenses',
+            'display_columns' => ['id', 'visa_status', 'billing_month', 'amount', 'payment_status'],
+            'show_route' => 'VisaExpense.viewvoucher',
+        ],
+        'visa_installment_plans' => [
+            'model' => \App\Models\visa_installment_plan::class,
+            'name' => 'Visa Installment Plans',
+            'display_columns' => ['id', 'billing_month', 'amount', 'status', 'reference_number'],
+            'show_route' => null,
+        ],
     ],
 ];

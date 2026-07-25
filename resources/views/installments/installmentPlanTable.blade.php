@@ -16,13 +16,20 @@
     </thead>
     <tbody>
         @forelse($data as $installment)
-        <tr class="text-center" data-status="{{ $installment->status }}">
+        @php
+        $installmentPendingDeletion = record_is_pending_deletion($installment);
+        $voucherPendingDeletion = $installment->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
+        $rowPendingDeletion = $installmentPendingDeletion || $voucherPendingDeletion;
+        @endphp
+        <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
             <td>
                 <span id="date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
                 @can('visa_expense_edit')
+                @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
+                @endif
                 @endcan
                 <input type="date"
                     id="date_input_{{ $installment->id }}"
@@ -35,7 +42,10 @@
                 <span id="voucher_ids_display_{{ $installment->id }}">
                     @if($installment->vouchers->isNotEmpty())
                     @foreach($installment->vouchers as $voucher)
-                    <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>@if(!$loop->last), @endif
+                    <span class="d-inline-flex align-items-center gap-1">
+                        <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>
+                        @include('delete_requests._pending_badge', ['model' => $voucher])
+                    </span>@if(!$loop->last), @endif
                     @endforeach
                     @else
                     {{ $installment->voucher_ids }}
@@ -45,9 +55,11 @@
             <td>
                 <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
                 @can('visa_expense_edit')
+                @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
+                @endif
                 @endcan
                 <input type="month"
                     id="billing_input_{{ $installment->id }}"
@@ -59,9 +71,11 @@
             <td>
                 <span id="amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
                 @can('visa_expense_edit')
+                @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
+                @endif
                 @endcan
                 <input type="number"
                     step="0.01"
@@ -74,9 +88,11 @@
             <td class="text-start" style="min-width: 260px;">
                 <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
                 @can('visa_expense_edit')
+                @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
                 </a>
+                @endif
                 @endcan
                 <textarea
                     id="narration_input_{{ $installment->id }}"
@@ -93,11 +109,16 @@
                 <span id="updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
             </td>
             <td>
+                @if($installmentPendingDeletion)
+                @include('delete_requests._locked_cell', ['model' => $installment])
+                @elseif($voucherPendingDeletion)
+                @include('delete_requests._locked_cell', ['model' => $installment->vouchers->first(fn ($v) => record_is_pending_deletion($v))])
+                @else
                 <div class="dropdown">
-                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown{{ $installment->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $installment->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown{{ $installment->id }}">
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
                         @canany(['visa_expense_edit', 'visa_expense_create'])
                         @if($installment->status === 'pending')
                         <a href="javascript:void(0);"
@@ -123,6 +144,7 @@
                         @endcan
                     </div>
                 </div>
+                @endif
             </td>
         </tr>
         @empty
@@ -514,29 +536,25 @@
                 return false;
             }
 
-            // Show confirmation dialog mentioning soft deletion and cascade tracking
+            // Show confirmation dialog for delete-approval workflow
             Swal.fire({
                 title: 'Delete Installment Plan?',
-                html: '<p>Are you sure you want to <strong>soft delete</strong> this installment plan?</p>' +
-                    '<p class="text-muted small">This will:</p>' +
+                html: '<p>Are you sure you want to request deletion of this installment plan?</p>' +
+                    '<p class="text-muted small">Until an administrator approves:</p>' +
                     '<ul class="text-start text-muted small">' +
-                    '<li>Soft delete the installment plan (can be recovered from trash)</li>' +
-                    '<li>Soft delete all related vouchers (cascade deletion)</li>' +
-                    '<li>Delete related transactions</li>' +
-                    '<li>Delete related ledger entries</li>' +
-                    '<li>Store cascade deletion records for tracking</li>' +
+                    '<li>The installment entry stays visible and locked</li>' +
+                    '<li>Related vouchers and transactions stay visible</li>' +
+                    '<li>Nothing is removed from accounts until approval</li>' +
                     '</ul>',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Yes, soft delete it',
+                confirmButtonText: 'Yes, submit delete request',
                 cancelButtonText: 'Cancel',
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Submit the deletion (route is GET, so we can use window.location)
-                    // The controller will handle soft deletion and cascade tracking
                     window.location.href = url;
                 }
             });
@@ -702,3 +720,4 @@
         </div>
     </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

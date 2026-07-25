@@ -107,7 +107,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
             @can('voucher_document')
             @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
             <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ url('voucher/attach_file/'.$voucher->id) }}" class='dropdown-item waves-effect show-modal'>
+                data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-file my-1"></i> Upload Document
               </a></li>
             @endif

@@ -30,11 +30,11 @@ class AdjustDeleteApprovalResponse
             }
         }
 
-        // Replace success flash when controllers still say "moved to Recycle Bin".
+        // Always replace any controller success flash with the single pending message.
         if (session()->has('flash_notification')) {
             session()->forget('flash_notification');
-            Flash::warning($message)->important();
         }
+        Flash::warning($message)->important();
 
         return $response;
     }

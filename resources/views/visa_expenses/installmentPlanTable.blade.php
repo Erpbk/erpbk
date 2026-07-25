@@ -1,165 +1,186 @@
 @push('third_party_stylesheets')
 @endpush
 <div id="visa-installments-inline-edit-scope">
-<table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
-    <thead class="text-center">
-        <tr role="row">
-            <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-            <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-            <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-            <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
-            <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
-            <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
-            <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
-            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
-        </tr>
-    </thead>
-    <tbody>
-        @forelse($data as $installment)
-        <tr class="text-center" data-status="{{ $installment->status }}">
-            <td>
-                <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                @can('visa_expense_edit')
-                <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
-                    <i class="fa fa-edit text-primary"></i>
-                </a>
-                @endcan
-                <input type="date"
-                    id="inst_date_input_{{ $installment->id }}"
-                    value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
-                    class="form-control form-control-sm d-none"
-                    onblur="saveDate({{ $installment->id }})"
-                    onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }})">
-            </td>
-            <td>
-                <span id="inst_voucher_ids_display_{{ $installment->id }}">
-                    @if($installment->vouchers->isNotEmpty())
-                    @foreach($installment->vouchers as $voucher)
-                    <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>@if(!$loop->last), @endif
-                    @endforeach
-                    @else
-                    {{ $installment->voucher_ids }}
+    <table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
+        <thead class="text-center">
+            <tr role="row">
+                <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
+                <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
+                <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
+                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
+                <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
+                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+                <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
+                <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
+                <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($data as $installment)
+            @php
+            $installmentPendingDeletion = record_is_pending_deletion($installment);
+            $voucherPendingDeletion = $installment->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
+            $rowPendingDeletion = $installmentPendingDeletion || $voucherPendingDeletion;
+            @endphp
+            <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
+                <td>
+                    <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
+                    @can('visa_expense_edit')
+                    @if(!$rowPendingDeletion)
+                    <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
                     @endif
-                </span>
-            </td>
-            <td>
-                <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                @can('visa_expense_edit')
-                <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
-                    <i class="fa fa-edit text-primary"></i>
-                </a>
-                @endcan
-                <input type="month"
-                    id="inst_billing_input_{{ $installment->id }}"
-                    value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
-                    class="form-control form-control-sm d-none"
-                    onblur="saveBillingMonth({{ $installment->id }})"
-                    onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
-            </td>
-            <td>
-                <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                @can('visa_expense_edit')
-                <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
-                    <i class="fa fa-edit text-primary"></i>
-                </a>
-                @endcan
-                <input type="number"
-                    step="0.01"
-                    id="inst_amount_input_{{ $installment->id }}"
-                    value="{{ $installment->amount }}"
-                    class="form-control form-control-sm d-none"
-                    onblur="saveAmount({{ $installment->id }})"
-                    onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
-            </td>
-            <td class="text-start" style="min-width: 260px;">
-                <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                @can('visa_expense_edit')
-                <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
-                    <i class="fa fa-edit text-primary"></i>
-                </a>
-                @endcan
-                <textarea
-                    id="inst_narration_input_{{ $installment->id }}"
-                    rows="2"
-                    data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
-                    class="form-control form-control-sm d-none"
-                    onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
-            </td>
-            <td>{!! $installment->status_badge !!}</td>
-            <td>
-                <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
-            </td>
-            <td>
-                <span id="inst_updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
-            </td>
-            <td>
-                <div class="dropdown">
-                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown{{ $installment->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown{{ $installment->id }}">
-                        @can('visa_expense_edit')
-                        @if($installment->status === 'pending')
-                        <a href="javascript:void(0);"
-                            onclick="markAsPaid({{ $installment->id }})"
-                            class='dropdown-item waves-effect'>
-                            <i class="fa fa-check me-2"></i> Mark as Paid
-                        </a>
+                    @endcan
+                    <input type="date"
+                        id="inst_date_input_{{ $installment->id }}"
+                        value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveDate({{ $installment->id }})"
+                        onkeypress="if(event.keyCode==13) saveDate({{ $installment->id }})">
+                </td>
+                <td>
+                    <span id="inst_voucher_ids_display_{{ $installment->id }}">
+                        @if($installment->vouchers->isNotEmpty())
+                        @foreach($installment->vouchers as $voucher)
+                        <span class="d-inline-flex align-items-center gap-1">
+                            <a href="{{ route('vouchers.show', $voucher->id) }}" target="_blank">{{ $voucher->formatted_id }}</a>
+                        </span>@if(!$loop->last), @endif
+                        @endforeach
                         @else
-                        <a href="javascript:void(0);"
-                            onclick="markAsPending({{ $installment->id }})"
-                            class='dropdown-item waves-effect'>
-                            <i class="fa fa-undo me-2"></i> Mark as Pending
-                        </a>
+                        {{ $installment->voucher_ids }}
                         @endif
-                        @endcan
-                        @can('visa_expense_delete')
-                        <div class="dropdown-divider"></div>
-                        <a href="javascript:void(0);"
-                            onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
-                            class='dropdown-item waves-effect text-danger'>
-                            <i class="fa fa-trash me-2"></i> Delete
-                        </a>
-                        @endcan
+                    </span>
+                </td>
+                <td>
+                    <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
+                    @can('visa_expense_edit')
+                    @if(!$rowPendingDeletion)
+                    <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
+                    @endif
+                    @endcan
+                    <input type="month"
+                        id="inst_billing_input_{{ $installment->id }}"
+                        value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveBillingMonth({{ $installment->id }})"
+                        onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
+                </td>
+                <td>
+                    <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
+                    @can('visa_expense_edit')
+                    @if(!$rowPendingDeletion)
+                    <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
+                    @endif
+                    @endcan
+                    <input type="number"
+                        step="0.01"
+                        id="inst_amount_input_{{ $installment->id }}"
+                        value="{{ $installment->amount }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveAmount({{ $installment->id }})"
+                        onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
+                </td>
+                <td class="text-start" style="min-width: 260px;">
+                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
+                    @can('visa_expense_edit')
+                    @if(!$rowPendingDeletion)
+                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
+                    @endif
+                    @endcan
+                    <textarea
+                        id="inst_narration_input_{{ $installment->id }}"
+                        rows="2"
+                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
+                </td>
+                <td>{!! $installment->status_badge !!}</td>
+                <td>
+                    <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
+                </td>
+                <td>
+                    <span id="inst_updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
+                </td>
+                <td>
+                    @if($installmentPendingDeletion)
+                    @include('delete_requests._locked_cell', ['model' => $installment])
+                    @elseif($voucherPendingDeletion)
+                    @include('delete_requests._locked_cell', ['model' => $installment->vouchers->first(fn ($v) => record_is_pending_deletion($v))])
+                    @else
+                    <div class="dropdown">
+                        <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $installment->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
+                            @can('visa_expense_edit')
+                            @if($installment->status === 'pending')
+                            <a href="javascript:void(0);"
+                                onclick="markAsPaid({{ $installment->id }})"
+                                class='dropdown-item waves-effect'>
+                                <i class="fa fa-check me-2"></i> Mark as Paid
+                            </a>
+                            @else
+                            <a href="javascript:void(0);"
+                                onclick="markAsPending({{ $installment->id }})"
+                                class='dropdown-item waves-effect'>
+                                <i class="fa fa-undo me-2"></i> Mark as Pending
+                            </a>
+                            @endif
+                            @endcan
+                            @can('visa_expense_delete')
+                            <div class="dropdown-divider"></div>
+                            <a href="javascript:void(0);"
+                                onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
+                                class='dropdown-item waves-effect text-danger'>
+                                <i class="fa fa-trash me-2"></i> Delete
+                            </a>
+                            @endcan
+                        </div>
                     </div>
-                </div>
-            </td>
-        </tr>
-        @empty
-        <tr>
-            <td colspan="9" class="text-center text-muted py-4">
-                <i class="fa fa-info-circle me-2"></i>
-                No installment plans found. <br>
-                <small>Click "Create Installment Plan" to get started.</small>
-            </td>
-        </tr>
-        @endforelse
-    </tbody>
-    @if($data->count() > 0)
-    <tfoot>
-        <tr class="bg-light">
-            <td colspan="3" class="text-end"><strong>Total Amount Reference:</strong></td>
-            <td class="text-center">
-                <strong>
-                    @php
-                    $totalAmount = $data->first()->total_amount ?? 0;
-                    $currentTotal = $data->sum('amount');
-                    $riderId = $data->first()->rider_id ?? null;
-                    $paidTotal = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
-                    $pendingTotalAll = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
-                    @endphp
-                    <span id="total-amount-reference">{{ number_format($totalAmount, 2) }}</span>
-                    <br>
-                    <small id="current-total-amount-container" class="text-warning">(Current: <span>{{ number_format($currentTotal, 2) }}</span>)</small>
-                </strong>
-            </td>
-            <td colspan="5"></td>
-        </tr>
-    </tfoot>
-    @endif
-</table>
-{!! $data->links('pagination') !!}
+                    @endif
+                </td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="9" class="text-center text-muted py-4">
+                    <i class="fa fa-info-circle me-2"></i>
+                    No installment plans found. <br>
+                    <small>Click "Create Installment Plan" to get started.</small>
+                </td>
+            </tr>
+            @endforelse
+        </tbody>
+        @if($data->count() > 0)
+        <tfoot>
+            <tr class="bg-light">
+                <td colspan="3" class="text-end"><strong>Total Amount Reference:</strong></td>
+                <td class="text-center">
+                    <strong>
+                        @php
+                        $totalAmount = $data->first()->total_amount ?? 0;
+                        $currentTotal = $data->sum('amount');
+                        $riderId = $data->first()->rider_id ?? null;
+                        $paidTotal = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
+                        $pendingTotalAll = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
+                        @endphp
+                        <span id="total-amount-reference">{{ number_format($totalAmount, 2) }}</span>
+                        <br>
+                        <small id="current-total-amount-container" class="text-warning">(Current: <span>{{ number_format($currentTotal, 2) }}</span>)</small>
+                    </strong>
+                </td>
+                <td colspan="5"></td>
+            </tr>
+        </tfoot>
+        @endif
+    </table>
+    {!! $data->links('pagination') !!}
 </div>
 
 <script>
@@ -541,29 +562,25 @@
                 return false;
             }
 
-            // Show confirmation dialog mentioning soft deletion and cascade tracking
+            // Show confirmation dialog for delete-approval workflow
             Swal.fire({
                 title: 'Delete Installment Plan?',
-                html: '<p>Are you sure you want to <strong>soft delete</strong> this installment plan?</p>' +
-                    '<p class="text-muted small">This will:</p>' +
+                html: '<p>Are you sure you want to request deletion of this installment plan?</p>' +
+                    '<p class="text-muted small">Until an administrator approves:</p>' +
                     '<ul class="text-start text-muted small">' +
-                    '<li>Soft delete the installment plan (can be recovered from trash)</li>' +
-                    '<li>Soft delete all related vouchers (cascade deletion)</li>' +
-                    '<li>Delete related transactions</li>' +
-                    '<li>Delete related ledger entries</li>' +
-                    '<li>Store cascade deletion records for tracking</li>' +
+                    '<li>The installment entry stays visible and locked</li>' +
+                    '<li>Related vouchers and transactions stay visible</li>' +
+                    '<li>Nothing is removed from accounts until approval</li>' +
                     '</ul>',
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonText: 'Yes, soft delete it',
+                confirmButtonText: 'Yes, submit delete request',
                 cancelButtonText: 'Cancel',
                 confirmButtonColor: '#dc3545',
                 cancelButtonColor: '#6c757d',
                 reverseButtons: true
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Submit the deletion (route is GET, so we can use window.location)
-                    // The controller will handle soft deletion and cascade tracking
                     window.location.href = url;
                 }
             });
@@ -732,3 +749,4 @@
         </div>
     </div>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $data])

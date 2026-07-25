@@ -55,6 +55,15 @@
                                 <span>Missing Salik Records</span>
                             </a>
                             @endcan
+                            @can('rta_saliks_salik_delete')
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Delete Monthly Saliks" data-action="{{ route('salik.deleteMonthlyForm') }}">
+                                <i class="ti ti-trash"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Delete Monthly Saliks</div>
+                                    <div class="action-dropdown-item-desc">Remove unpaid saliks for a billing month</div>
+                                </div>
+                            </a>
+                            @endcan
                         </div>
                     </div>
                 </div>
@@ -109,8 +118,8 @@
                     </select>
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="trip_date">Trip Date</label>
-                    <input type="date" name="trip_date" id="trip_date" class="form-control" value="{{ request('trip_date') }}">
+                    <label for="filter_trip_date">Trip Date</label>
+                    <input type="date" name="trip_date" id="filter_trip_date" class="form-control" value="{{ request('trip_date') }}">
                 </div>
                 <div class="form-group col-md-12">
                     <label for="plate">Plate</label>

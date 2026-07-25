@@ -37,7 +37,12 @@
             @if($pendingBannerRequestId)#{{ $pendingBannerRequestId }}@endif
             awaits administrator approval. Editing and further actions are disabled.
         </div>
-        @if(auth()->user()?->isAdmin() || user_can('settings_delete_requests_view'))
+        @php
+            $pendingBannerUser = auth()->user();
+            $canSeePendingDeleteLink = $pendingBannerUser instanceof \App\Models\User
+                && ($pendingBannerUser->isAdmin() || user_can('settings_delete_requests_view'));
+        @endphp
+        @if($canSeePendingDeleteLink)
             <a href="{{ route('settings-panel.delete-requests.show', $pendingBannerRequestId) }}" class="btn btn-sm btn-outline-warning">
                 Review Delete Request
             </a>

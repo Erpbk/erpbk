@@ -1,14 +1,14 @@
 <?php
 // Variables
 return [
-  "creatorName" => "FleetValu",
+  "creatorName" => "FleetValue",
   "creatorUrl" => "https://fleetvalu.com",
-  "templateName" => "FleetValu",
-  "templateSuffix" => "FleetValu ERP",
+  "templateName" => "FleetValue",
+  "templateSuffix" => "FleetValue ERP",
   "templateVersion" => "1.0.0",
   "templateFree" => false,
-  "templateDescription" => "FleetValu",
-  "templateKeyword" => "FleetValu",
+  "templateDescription" => "FleetValue",
+  "templateKeyword" => "FleetValue",
   "licenseUrl" => "https://themeforest.net/licenses/standard",
   "livePreview" => "https://demos.pixinvent.com/vuexy-html-admin-template/landing/",
   "productPage" => "https://fleetvalu.com",

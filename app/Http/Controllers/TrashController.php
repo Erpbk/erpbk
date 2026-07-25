@@ -463,6 +463,11 @@ class TrashController extends Controller
                 $restoredItems[] = 'monthly fuel ledger synced';
             }
 
+            if ($module === 'salik' && $record instanceof salik) {
+                $this->syncSalikMonthlyInvoice($record);
+                $restoredItems[] = 'monthly salik invoice synced';
+            }
+
             DB::commit();
 
             // Build restoration message
@@ -669,11 +674,33 @@ class TrashController extends Controller
                     ->delete();
             }
 
+            $salikSyncRiderId = null;
+            $salikSyncRentalCompanyId = null;
+            $salikSyncBillingMonth = null;
+            if ($module === 'salik' && $record instanceof salik) {
+                $salikSyncRiderId = $record->rider_id ? (int) $record->rider_id : null;
+                $salikSyncRentalCompanyId = $record->rental_company_id ? (int) $record->rental_company_id : null;
+                $salikSyncBillingMonth = $record->billing_month;
+                // Clear invoice ledger rows for this trip only (never payment vouchers).
+                Transactions::whereIn('reference_type', ['salik', 'Salik'])
+                    ->where('reference_id', $record->id)
+                    ->delete();
+            }
+
             $record->forceDelete();
 
             if ($fuelSyncRiderId) {
                 app(FuelMonthlyLedgerService::class)->sync($fuelSyncRiderId, $fuelSyncBillingMonth);
                 $deletedItems[] = 'monthly fuel ledger synced';
+            }
+
+            if ($salikSyncBillingMonth && ($salikSyncRiderId || $salikSyncRentalCompanyId)) {
+                app(SalikController::class)->syncMonthlyInvoiceTransactions(
+                    $salikSyncRiderId,
+                    $salikSyncBillingMonth,
+                    $salikSyncRentalCompanyId
+                );
+                $deletedItems[] = 'monthly salik invoice synced';
             }
 
             DB::commit();
@@ -832,6 +859,26 @@ class TrashController extends Controller
         app(FuelMonthlyLedgerService::class)->sync(
             (int) $fuelData->rider_id,
             $fuelData->billing_month
+        );
+    }
+
+    /**
+     * Rebuild monthly salik invoice after recycle-bin restore/force-delete.
+     */
+    private function syncSalikMonthlyInvoice(salik $salikRecord): void
+    {
+        if (! $salikRecord->billing_month) {
+            return;
+        }
+
+        if (! $salikRecord->rider_id && ! $salikRecord->rental_company_id) {
+            return;
+        }
+
+        app(SalikController::class)->syncMonthlyInvoiceTransactions(
+            $salikRecord->rider_id ? (int) $salikRecord->rider_id : null,
+            $salikRecord->billing_month,
+            $salikRecord->rental_company_id ? (int) $salikRecord->rental_company_id : null
         );
     }
 }

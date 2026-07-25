@@ -1,7 +1,10 @@
 @php
     $reviewDeleteRequest = null;
     $reviewRecord = null;
-    $canReviewDelete = auth()->check() && (auth()->user()->isAdmin() || user_can('settings_delete_requests_edit'));
+    // Company User only — admin guard resolves AdminUser (no isAdmin()).
+    $authUser = auth()->user();
+    $canReviewDelete = $authUser instanceof \App\Models\User
+        && ($authUser->isAdmin() || user_can('settings_delete_requests_edit'));
 
     if ($canReviewDelete && request()->filled('delete_request') && \App\Services\DeleteRequestService::enabled()) {
         $reviewDeleteRequest = \App\Models\DeleteRequest::with(['requester'])

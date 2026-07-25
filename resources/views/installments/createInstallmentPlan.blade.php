@@ -1,10 +1,24 @@
-﻿<form action="{{ route('Installments.createInstallmentPlan') }}" method="POST" id="installmentPlanForm">
+﻿<form action="{{ route('Installments.createInstallmentPlan') }}" method="POST" id="formajax" class="installment-plan-form">
     @csrf
     <input type="hidden" name="rider_id" value="{{ $account->id }}">
     @if(!empty($branchId))
     <input type="hidden" name="branch_id" value="{{ $branchId }}">
     @endif
     <div class="modal-body">
+        @if($errors->any())
+        <div class="alert alert-danger">
+            <ul class="mb-0">
+                @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
+        @if(empty($branchId) && (empty($branches) || $branches->isEmpty()))
+        <div class="alert alert-warning">
+            This rider has no branch. Assign a branch on the rider profile before creating an installment plan.
+        </div>
+        @endif
         <div class="row">
             <div class="col-md-12 mb-3">
                 <div class="card bg-light">
@@ -13,14 +27,24 @@
 
                             <div class="col-md-6">
                                 <h6>Rider Information</h6>
-                                <p><strong>Name:</strong> {{ $account->name ?? $rider->name ?? 'â€”' }}</p>
+                                <p><strong>Name:</strong> {{ $account->name ?? $rider->name ?? '—' }}</p>
                             </div>
                             <div class="col-md-6">
                                 <h6>Rider Branch</h6>
                                 @if($branch)
                                 <p><strong>Branch Name:</strong> {{ $branch->name }} - {{ $branch->code }}</p>
+                                @elseif(!empty($branches) && $branches->isNotEmpty())
+                                <div class="form-group mb-0">
+                                    <label for="branch_id" class="form-label">Branch <span class="text-danger">*</span></label>
+                                    <select name="branch_id" id="branch_id" class="form-select" required>
+                                        <option value="">Select branch</option>
+                                        @foreach($branches as $branchOption)
+                                        <option value="{{ $branchOption->id }}">{{ $branchOption->name }}@if($branchOption->code) - {{ $branchOption->code }}@endif</option>
+                                        @endforeach
+                                    </select>
+                                </div>
                                 @else
-                                <p class="text-muted mb-0">No branch is assigned to this rider.</p>
+                                <p class="text-danger mb-0">No branch is assigned to this rider. Add a branch on the rider profile first.</p>
                                 @endif
                             </div>
                         </div>
@@ -122,7 +146,10 @@
     </div>
     <div class="action-btn">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+        <button type="submit" class="btn btn-primary" id="submitBtn" disabled
+            @if(empty($branchId) && (empty($branches) || $branches->isEmpty()))
+            title="Assign a branch to this rider first"
+            @endif>
             <i class="fa fa-plus me-2"></i>Create Installment Plan
         </button>
     </div>
@@ -325,26 +352,38 @@
             adjustRemainingInstallments(index, newAmount);
         });
 
-        // Form validation
-        $('#installmentPlanForm').on('submit', function(e) {
+        // Form validation — keep in sync with #formajax global AJAX submitter
+        $('#formajax.installment-plan-form').on('submit', function(e) {
+            const $form = $(this);
             const totalAmountValue = parseFloat($('#total_amount').val());
             const numberOfInstallmentsValue = parseInt($('#number_of_installments').val());
             const billingMonth = $('#billing_month').val();
+            const branchId = $form.find('[name="branch_id"]').val();
+
+            if (!branchId) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                alert('Please select or assign a branch before creating the installment plan.');
+                return false;
+            }
 
             if (!totalAmountValue || !numberOfInstallmentsValue || !billingMonth) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 alert('Please fill in all required fields.');
                 return false;
             }
 
             if (totalAmountValue <= 0) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 alert('Total amount must be greater than zero.');
                 return false;
             }
 
             if (numberOfInstallmentsValue <= 0 || numberOfInstallmentsValue > 12) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 alert('Number of installments must be between 1 and 12.');
                 return false;
             }
@@ -360,17 +399,19 @@
                 installmentAmounts[lastIndex] = Math.round((installmentAmounts[lastIndex] + roundedDifference) * 100) / 100;
             } else if (Math.abs(roundedDifference) > 0.05) {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 alert('The sum of all installments must equal the total amount. Please adjust the installment amounts.');
                 return false;
             }
 
-            // Add hidden inputs for individual installment amounts
+            // Replace hidden installment amount inputs (avoid duplicates on retry)
+            $form.find('input[name^="installment_amounts"]').remove();
             installmentAmounts.forEach((amount, index) => {
                 $('<input>').attr({
                     type: 'hidden',
                     name: `installment_amounts[${index}]`,
                     value: amount.toFixed(2)
-                }).appendTo('#installmentPlanForm');
+                }).appendTo($form);
             });
 
             // Disable submit button to prevent double submission

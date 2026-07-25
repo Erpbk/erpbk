@@ -44,7 +44,7 @@ trait ManagesVisaInstallments
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!user_can('installment_view')) {
+        if (!user_can('visa_expense_view') && !user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -93,7 +93,7 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
-        if (!user_can('installment_create')) {
+        if (!user_can('visa_expense_create') && !user_can('installment_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -126,7 +126,7 @@ trait ManagesVisaInstallments
 
     public function createInstallmentPlan(Request $request, $company_slug)
     {
-        if (!user_can('installment_create')) {
+        if (!user_can('visa_expense_create') && !user_can('installment_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -138,7 +138,10 @@ trait ManagesVisaInstallments
             'installment_amounts' => 'required|array|min:1',
             'installment_amounts.*' => 'required|numeric|min:0',
             'reference_number' => 'required|string|max:255',
-            'branch_id' => 'required|integer',
+            'branch_id' => 'required|integer|exists:branches,id',
+        ], [
+            'branch_id.required' => 'Branch is required. Assign a branch to the rider or select one in the form.',
+            'installment_amounts.required' => 'Installment amounts are missing. Please regenerate the installment preview and try again.',
         ]);
 
         try {
@@ -164,13 +167,21 @@ trait ManagesVisaInstallments
             }
 
             if (abs($difference) > 0.01) {
-                Flash::error('The sum of individual installment amounts (' . number_format($sumOfInstallments, 2) . ') does not match the total amount (' . number_format($totalAmount, 2) . ').');
+                $message = 'The sum of individual installment amounts (' . number_format($sumOfInstallments, 2) . ') does not match the total amount (' . number_format($totalAmount, 2) . ').';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
                 return redirect()->back()->withInput();
             }
 
             // Validate number of installments matches the array length
             if (count($installmentAmounts) != $validated['number_of_installments']) {
-                Flash::error('Number of installment amounts does not match the selected number of installments.');
+                $message = 'Number of installment amounts does not match the selected number of installments.';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
                 return redirect()->back()->withInput();
             }
 
@@ -181,7 +192,17 @@ trait ManagesVisaInstallments
                 ->first();
 
             if (!$liabilityAccount) {
-                Flash::error('Liability account not found for this rider. Please create the liability account first.');
+                $liabilityAccount = Accounts::where('ref_id', $riderAccount)
+                    ->where('account_type', 'Liability')
+                    ->first();
+            }
+
+            if (!$liabilityAccount) {
+                $message = 'Liability account not found for this rider. Please create the liability account first.';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
                 return redirect()->back();
             }
             $rider = Riders::findOrFail($riderAccount);
@@ -301,10 +322,23 @@ trait ManagesVisaInstallments
             }
             $installmentDetails = rtrim($installmentDetails, ', ');
 
-            Flash::success($validated['number_of_installments'] . ' installment entries created successfully with individual amounts: ' . $installmentDetails . '. Total amount: ' . number_format($validated['total_amount'], 2));
+            $successMessage = $validated['number_of_installments'] . ' installment entries created successfully with individual amounts: ' . $installmentDetails . '. Total amount: ' . number_format($validated['total_amount'], 2);
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => strip_tags($successMessage),
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success($successMessage);
             return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => 'Error creating installment plan: ' . $e->getMessage(),
+                ], 500);
+            }
             Flash::error('Error creating installment plan: ' . $e->getMessage());
             return redirect()->back()->withInput();
         }
@@ -1264,7 +1298,7 @@ trait ManagesVisaInstallments
 
     public function generateInstallmentInvoice($company_slug, $riderId)
     {
-        if (!user_can('installment_view')) {
+        if (!user_can('visa_expense_view') && !user_can('installment_view')) {
             abort(403, 'Unauthorized action.');
         }
 

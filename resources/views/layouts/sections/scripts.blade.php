@@ -47,6 +47,21 @@
 @include('layouts.datatables_js')
 <script src="{{ asset('js/custom.js') }}"></script>
 <script src="{{ asset('js/application.js?id=1') }}"></script>
+<script>
+  window.__rfpDefaultEntity = @json($rfpDefaultEntity ?? null);
+  window.__rfpLocks = @json($rfpFieldLocks ?? new \stdClass());
+</script>
+<script src="{{ asset('js/field_permission_locks.js') }}"></script>
+<style>
+  .rfp-field-locked,
+  input[data-rfp-locked="1"],
+  select[data-rfp-locked="1"],
+  textarea[data-rfp-locked="1"] {
+    background-color: var(--bs-secondary-bg, #f5f5f9) !important;
+    cursor: not-allowed;
+    opacity: 0.85;
+  }
+</style>
 {{-- <script src="{{ asset('js/riderDynamicFileds.js') }}"></script> --}}
 
 <!-- END: Theme JS-->

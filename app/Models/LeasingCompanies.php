@@ -51,6 +51,30 @@ class LeasingCompanies extends BaseModel
   {
     return self::select('id', 'name')->pluck('name', 'id')->prepend('Select', '');
   }
+
+  /**
+   * Company select for bike forms: "own" (tenant company) plus leasing companies.
+   *
+   * @return array<string|int, string>
+   */
+  public static function dropdownWithOwnOption(): array
+  {
+    $currentCompany = view()->shared('currentCompany');
+    $companyName = trim((string) (
+      \App\Helpers\Common::getSetting('company_name')
+      ?: (is_object($currentCompany) ? ($currentCompany->name ?? '') : '')
+      ?: 'Own'
+    ));
+
+    if ($companyName === '') {
+      $companyName = 'Own';
+    }
+
+    $opts = self::select('id', 'name')->pluck('name', 'id')->toArray();
+
+    return ['' => 'Select', 'own' => $companyName] + $opts;
+  }
+
   function account()
   {
     return $this->hasOne(Accounts::class, 'id', 'account_id');

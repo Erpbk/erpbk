@@ -202,57 +202,44 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Build validation rules for dynamic rider fields based on settings.
+   * Build validation rules for dynamic rider fields based on Role Field Permissions.
    */
   private function dynamicFieldRules(): array
   {
     $rules = [];
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
-    $assignmentTable = (new RiderFieldCategoryAssignment)->getTable();
-    $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
-    $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
-    if ($hasRequiredColumn) {
-      $query = RiderFieldCategoryAssignment::query()->where('is_required', 1);
-      if ($hasVisibleColumn) {
-        $query->where(function ($q) {
-          $q->where('is_visible', 1)->orWhereNull('is_visible');
-        });
+    foreach (RiderCustomField::allFixedFieldKeys() as $fieldKey) {
+      if (! isset($riderColumns[$fieldKey])) {
+        continue;
       }
-      $query->get(['field_key'])->each(function ($assignment) use (&$rules, $riderColumns) {
-        $fieldKey = (string) $assignment->field_key;
-        if (! isset($riderColumns[$fieldKey])) {
-          return;
-        }
-        // Honor settings-required fields while allowing existing base rules to remain.
+      if (\App\Support\RoleFieldAccess::isRequired('rider', $fieldKey)
+        && \App\Support\RoleFieldAccess::canEdit('rider', $fieldKey)) {
         $rules[$fieldKey] = 'required';
-      });
+      }
     }
 
     RiderCustomField::query()
-      ->where('is_mandatory', 1)
       ->whereNotNull('category_id')
-      ->where(function ($q) {
-        $q->where('is_visible', 1)->orWhereNull('is_visible');
-      })
       ->get(['id'])
       ->each(function ($field) use (&$rules) {
-        $rules['custom_field_values.' . $field->id] = 'required';
+        $cfName = 'cf_' . $field->id;
+        if (\App\Support\RoleFieldAccess::isRequired('rider', $cfName)
+          && \App\Support\RoleFieldAccess::canEdit('rider', $cfName)) {
+          $rules['custom_field_values.' . $field->id] = 'required';
+        }
       });
 
     return $rules;
   }
 
   /**
-   * Build rider create/update validation rules from settings + rider table columns.
+   * Build rider create/update validation rules from Role Field Permissions + rider table columns.
    */
   private function riderValidationRules(?int $ignoreRiderId = null): array
   {
     $rules = Riders::$rules;
     $riderColumns = array_flip(Schema::getColumnListing('riders'));
-    $assignmentTable = (new RiderFieldCategoryAssignment)->getTable();
-    $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
-    $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
     $normalizePresenceRule = function ($rule, bool $required) {
       if (is_array($rule)) {
@@ -272,28 +259,16 @@ class RidersController extends AppBaseController
       return implode('|', $tokens);
     };
 
-    $assignmentColumns = ['field_key'];
-    if ($hasRequiredColumn) {
-      $assignmentColumns[] = 'is_required';
-    }
-    if ($hasVisibleColumn) {
-      $assignmentColumns[] = 'is_visible';
-    }
-    $assignments = RiderFieldCategoryAssignment::query()
-      ->get($assignmentColumns)
-      ->keyBy('field_key');
     $fixedKeys = RiderCustomField::allFixedFieldKeys();
 
     foreach ($fixedKeys as $fieldKey) {
       if (! isset($riderColumns[$fieldKey])) {
         continue;
       }
-      $assignment = $assignments->get($fieldKey);
-      // If there is no assignment row yet, default to visible + optional.
-      $isVisible = ! $hasVisibleColumn || ! $assignment || $assignment->is_visible === null ? true : (bool) $assignment->is_visible;
-      $isRequired = ($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false;
+      $isRequired = \App\Support\RoleFieldAccess::isRequired('rider', $fieldKey)
+        && \App\Support\RoleFieldAccess::canEdit('rider', $fieldKey);
       $baseRule = $rules[$fieldKey] ?? 'nullable';
-      $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+      $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isRequired);
     }
 
     if ($ignoreRiderId !== null) {
@@ -2015,8 +1990,16 @@ class RidersController extends AppBaseController
 
     $section = $request->input('section');
     $data = $request->except(['_token', 'section']);
+    $data = \App\Support\RoleFieldAccess::stripNonEditableInput($data, 'rider', is_array($rider->custom_field_values ?? null) ? $rider->custom_field_values : []);
     $data = SimAssigneeContactSync::stripManagedContactFromRequestData($data, $rider, 'rider');
     $prevFleetSupervisor = $rider->fleet_supervisor;
+
+    if ($data === []) {
+      return response()->json([
+        'success' => false,
+        'message' => 'No editable fields were submitted for this section.',
+      ], 422);
+    }
 
     try {
       // Update only the fields for the specific section

@@ -90,7 +90,11 @@ class BikesController extends AppBaseController
             $query->where('rider_id', $request->rider);
         }
         if ($request->has('company') && ! empty($request->company)) {
-            $query->where('company', $request->company);
+            if ($request->company === 'own') {
+                $query->where('bike_owner', 'Owned');
+            } else {
+                $query->where('company', $request->company);
+            }
         }
         if ($request->has('emirates') && ! empty($request->emirates)) {
             $query->where('emirates', $request->emirates);
@@ -204,7 +208,7 @@ class BikesController extends AppBaseController
         $filteredColumns = Schema::getColumnListing('bikes');
 
         // Columns to exclude
-        $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'leased_date', 'leased_return_by', 'leased_return_date', 'leased_return_company_id'];
+        $exclude = ['id', 'vehicle_type', 'created_at', 'updated_at', 'notes', 'traffic_file_number', 'registration_date', 'insurance_expiry', 'insurance_co', 'policy_no', 'leased_date', 'leased_return_by', 'leased_return_date', 'leased_return_company_id', 'bike_owner'];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);
@@ -362,7 +366,7 @@ class BikesController extends AppBaseController
 
     /**
      * Fields that should appear in Bike table/column-control.
-     * Source of truth: bike_field_category_assignments.is_visible
+     * Role Field Permissions (visible) control per-user visibility at render time.
      */
     private function getVisibleBikeFieldKeysForTable(): array
     {
@@ -370,14 +374,12 @@ class BikesController extends AppBaseController
             return [];
         }
 
-        $query = BikeFieldCategoryAssignment::query()->select('field_key');
-        if (Schema::hasColumn('bike_field_category_assignments', 'is_visible')) {
-            $query->where(function ($q) {
-                $q->whereNull('is_visible')->orWhere('is_visible', 1);
-            });
-        }
-
-        $keys = $query->pluck('field_key')->filter()->values()->all();
+        $keys = BikeFieldCategoryAssignment::query()
+            ->select('field_key')
+            ->pluck('field_key')
+            ->filter()
+            ->values()
+            ->all();
 
         return array_fill_keys($keys, true);
     }
@@ -406,7 +408,11 @@ class BikesController extends AppBaseController
             $query->where('rider_id', $request->rider);
         }
         if ($request->has('company') && ! empty($request->company)) {
-            $query->where('company', $request->company);
+            if ($request->company === 'own') {
+                $query->where('bike_owner', 'Owned');
+            } else {
+                $query->where('company', $request->company);
+            }
         }
         if ($request->has('emirates') && ! empty($request->emirates)) {
             $query->where('emirates', $request->emirates);
@@ -662,6 +668,18 @@ class BikesController extends AppBaseController
                 $input['leased_return_company_id'] = null;
             } elseif (is_numeric($v)) {
                 $input['leased_return_company_id'] = (int) $v;
+            }
+        }
+
+        // Company select drives ownership: "own" => Owned / null, else Leased / leasing company id.
+        if (array_key_exists('company', $input)) {
+            $company = $input['company'];
+            if ($company === 'own' || $company === '' || $company === null) {
+                $input['bike_owner'] = 'Owned';
+                $input['company'] = null;
+            } else {
+                $input['bike_owner'] = 'Leased';
+                $input['company'] = is_numeric($company) ? (int) $company : $company;
             }
         }
 

@@ -17,8 +17,6 @@
             <th>Billing Month</th>
             <th>Salik Count</th>
             <th>Amount ({{ \App\Helpers\Currency::code() }})</th>
-            <th>Payment From</th>
-            <th>Payment To</th>
             <th>Remarks</th>
             <th>Created By</th>
         </tr>
@@ -42,14 +40,12 @@
             <td>{{ $voucher->billing_month ? \App\Helpers\Common::MonthFormat($voucher->billing_month) : 'N/A' }}</td>
             <td><span class="badge bg-info">{{ $voucher->salik_count ?? 0 }}</span></td>
             <td class="num">{{ number_format($voucher->amount, 2) }}</td>
-            <td>{{ $accounts[$voucher->payment_from] ?? 'N/A' }}</td>
-            <td>{{ $accounts[$voucher->payment_to] ?? 'N/A' }}</td>
             <td class="text-start">{{ $voucher->remarks ?? '-' }}</td>
             <td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>
         </tr>
         @empty
         <tr>
-            <td colspan="10" class="text-center py-5">
+            <td colspan="8" class="text-center py-5">
                 <h3>No payment records found</h3>
                 <p class="text-muted">Try adjusting your filters or record a new salik payment.</p>
             </td>

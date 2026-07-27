@@ -2,7 +2,7 @@
 
 <input type="hidden" name="voucher_type" id="voucher_type" value="EXP">
 
-<div class="row mt-0 mb-2" id="expense-voucher-header">
+<div class="row mt-0 mb-2" id="expense-voucher-header" data-rfp-entity="expenses">
     <div class="form-group col-md-2">
         <label for="trans_date">Date</label>
         <input type="date" name="trans_date" class="form-control" placeholder="Transaction Date" value="{{ $voucher->trans_date ? \Carbon\Carbon::parse($voucher->trans_date)->format('Y-m-d') : date('Y-m-d') }}">

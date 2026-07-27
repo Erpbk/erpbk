@@ -8,6 +8,7 @@ $hiddenFieldKeys = [
 'previous_km',
 'customer_id',
 'rider_id',
+'bike_owner',
 ];
 $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @endphp
@@ -146,49 +147,9 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
             vehicleTypeEl.addEventListener('change', toggleCyclistFields);
         }
 
-        function toggleLeasedFields() {
-            var bikeOwnerEl = document.getElementById('bike_owner');
-            if (!bikeOwnerEl) return;
-
-            var isLeased = (bikeOwnerEl.value || '').toLowerCase() === 'leased';
-            document.querySelectorAll('.show-if-leased').forEach(function(el) {
-                el.style.display = isLeased ? '' : 'none';
-
-                // Hidden required inputs block form submission, so lift the
-                // attribute while hidden and restore it when shown again.
-                el.querySelectorAll('input, select, textarea').forEach(function(input) {
-                    if (isLeased) {
-                        if (input.dataset.leasedRequired === '1') {
-                            input.required = true;
-                        }
-                    } else {
-                        if (input.required) {
-                            input.dataset.leasedRequired = '1';
-                        }
-                        input.required = false;
-                    }
-                });
-            });
-        }
-
-        function bindLeasedToggle() {
-            var bikeOwnerEl = document.getElementById('bike_owner');
-            if (!bikeOwnerEl || bikeOwnerEl.dataset.leasedToggleBound === '1') {
-                return;
-            }
-            bikeOwnerEl.dataset.leasedToggleBound = '1';
-            bikeOwnerEl.addEventListener('change', toggleLeasedFields);
-            // select2 fires change through jQuery only, which native listeners miss.
-            if (window.jQuery) {
-                window.jQuery(bikeOwnerEl).on('change', toggleLeasedFields);
-            }
-        }
-
         function bootBikeForm(scope) {
             toggleCyclistFields();
             bindCyclistToggle();
-            toggleLeasedFields();
-            bindLeasedToggle();
             initBikeFormSelect2(scope);
         }
 

@@ -420,15 +420,9 @@ class RiderCustomField extends BaseModel
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
-        $assignmentsVisible = $assignmentsAll->filter(function ($a) {
-            $rawVisible = $a->getRawOriginal('is_visible');
-            return $rawVisible === null || (int) $rawVisible === 1;
-        })->values();
+        // Visibility/required are enforced per user via Role Field Permissions at render time.
         $customFieldsAll = self::with('category')
             ->whereIn('category_id', $categoryIds)
-            ->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
-            })
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -437,7 +431,7 @@ class RiderCustomField extends BaseModel
         $result = [];
         foreach ($categories as $cat) {
             $fields = [];
-            $categoryAssignments = $assignmentsVisible->where('category_id', $cat->id)->values();
+            $categoryAssignments = $assignmentsAll->where('category_id', $cat->id)->values();
 
             foreach ($categoryAssignments as $a) {
                 if (!isset($allowedFixedLookup[$a->field_key])) {
@@ -456,12 +450,6 @@ class RiderCustomField extends BaseModel
                 }
                 if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
                     $spec['options'] = $a->input_config['options'];
-                }
-                if (array_key_exists('is_required', $a->getAttributes())) {
-                    $rawRequired = $a->getRawOriginal('is_required');
-                    if ($rawRequired !== null) {
-                        $spec['required'] = (int) $rawRequired === 1;
-                    }
                 }
 
                 $fields[] = (object) [

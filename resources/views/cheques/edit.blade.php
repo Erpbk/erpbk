@@ -1,4 +1,4 @@
-<form action="{{ route('cheques.update', $cheque->id) }}" method="POST" enctype="multipart/form-data" id="formajax">
+<form action="{{ route('cheques.update', $cheque->id) }}" method="POST" enctype="multipart/form-data" id="formajax" data-rfp-entity="cheques">
     @csrf
     @method('PUT')
 

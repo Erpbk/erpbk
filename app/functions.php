@@ -130,9 +130,40 @@ if (! function_exists('field_lock')) {
             return [];
         }
 
-        return in_array($control, ['select', 'checkbox', 'radio', 'multiselect'], true)
+        $attrs = in_array($control, ['select', 'checkbox', 'radio', 'multiselect'], true)
             ? ['disabled' => 'disabled']
             : ['readonly' => 'readonly'];
+
+        // Marker for the global field-permission lock script (Select2, AJAX modals, etc.).
+        $attrs['data-rfp-locked'] = '1';
+
+        return $attrs;
+    }
+}
+
+if (! function_exists('field_input_name')) {
+    /**
+     * Normalize an HTML input name to a Role Field Permission field key.
+     * custom_field_values[7] / custom_field_values.7 => cf_7
+     */
+    function field_input_name(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return $name;
+        }
+        if (preg_match('/^custom_field_values\[(\d+)\]$/', $name, $m)
+            || preg_match('/^custom_field_values\.(\d+)$/', $name, $m)
+            || preg_match('/^voucher_custom_fields\[(\d+)\]$/', $name, $m)) {
+            return 'cf_' . $m[1];
+        }
+
+        // Strip array suffixes: debit_account_id[] => debit_account_id
+        if (str_ends_with($name, '[]')) {
+            $name = substr($name, 0, -2);
+        }
+
+        return $name;
     }
 }
 

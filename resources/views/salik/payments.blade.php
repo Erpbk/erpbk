@@ -107,7 +107,7 @@
             </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('salik.payments_table', ['data' => $data, 'accounts' => $accounts])
+            @include('salik.payments_table', ['data' => $data])
         </div>
     </div>
 </div>

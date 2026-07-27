@@ -240,6 +240,11 @@ class CustomizableBikeExport implements FromCollection, WithHeadings, WithMappin
                 return $bike->emirates;
 
             case 'company':
+                if (strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0) {
+                    $name = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+
+                    return $name !== '' ? $name : '-';
+                }
                 $company = \App\Support\CompanyQuery::table('leasing_companies')->where('id', $bike->company)->first();
                 return $company ? $company->name : '-';
 

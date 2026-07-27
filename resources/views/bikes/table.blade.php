@@ -152,7 +152,7 @@
          @php
          $tableCols = $tableColumns ?? [];
          $hasLeasingReturn = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by');
-         $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km'];
+         $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km', 'bike_owner'];
          $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
          $k = $c['data'] ?? ($c['key'] ?? null);
          return $k !== 'search' && $k !== 'control' && !in_array($k, $hiddenTableColumns, true)
@@ -205,9 +205,21 @@
          @break
          @case('company')
          @php
-         $company = company_table('leasing_companies')->where('id' , $r->company)->first();
+         $isOwnedBike = strcasecmp((string) ($r->bike_owner ?? ''), 'Owned') === 0;
+         if ($isOwnedBike) {
+            $companyLabel = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+            if ($companyLabel === '') {
+               $currentCompany = view()->shared('currentCompany');
+               $companyLabel = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+            }
+            if ($companyLabel === '') {
+               $companyLabel = '-';
+            }
+         } else {
+            $companyLabel = $company ? $company->name : '-';
+         }
          @endphp
-         <td tabindex="0">{{ $company ? $company->name : '-' }}</td>
+         <td tabindex="0">{{ $companyLabel }}</td>
          @break
          @case('customer_id')
          <td tabindex="0">{{ company_table('customers')->where('id' , $r->customer_id)->first()->name ?? '-' }}</td>

@@ -1034,17 +1034,21 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('salik/payment/records', [SalikController::class, 'getPaymentRecords'])->name('salik.payment.records');
     Route::post('salik/payment/calculate', [SalikController::class, 'calculatePaymentVoucher'])->name('salik.payment.calculate');
     Route::post('salik/payment/store', [SalikController::class, 'storePayment'])->name('salik.payment.store');
+    Route::get('salik/delete-monthly', [SalikController::class, 'deleteMonthlyForm'])->name('salik.deleteMonthlyForm');
+    Route::post('salik/delete-monthly', [SalikController::class, 'deleteMonthly'])->name('salik.deleteMonthly');
 
-    // Salik resource routes (legacy custom URLs kept for existing links)
-    Route::resource('salik', SalikController::class)->except(['store', 'edit', 'update', 'create', 'destroy']);
+    // Static path segments must be registered before salik/{salik} (resource show)
+    Route::get('salik/create', [SalikController::class, 'create'])->name('salik.create');
+    Route::get('salik/create/{id}', [SalikController::class, 'create'])->name('salik.create.legacy');
     Route::post('salik/store', [SalikController::class, 'store'])->name('salik.store');
     Route::get('salik/edit/{id}', [SalikController::class, 'edit'])->name('salik.edit');
     Route::post('/salik/{id}/update', [SalikController::class, 'update'])->name('salik.update');
-    Route::get('salik/create', [SalikController::class, 'create'])->name('salik.create');
-    Route::get('salik/create/{id}', [SalikController::class, 'create'])->name('salik.create.legacy');
     Route::any('salik/attach_file/{id}', [SalikController::class, 'fileUpload'])->name('salik.fileupload');
     Route::get('salik/delete/{id}', [SalikController::class, 'destroy'])->name('salik.delete');
     Route::get('salik/tickets/{id?}', [SalikController::class, 'tickets'])->name('salik.tickets');
     Route::get('salik/viewvoucher/{id}', [SalikController::class, 'viewvoucher'])->name('salik.viewvoucher');
     Route::post('salik/getriderbybikedate', [SalikController::class, 'getriderbybikedate'])->name('salik.getriderbybikedate');
+
+    // Salik resource routes (legacy custom URLs kept for existing links)
+    Route::resource('salik', SalikController::class)->except(['store', 'edit', 'update', 'create', 'destroy']);
 });

@@ -107,8 +107,21 @@ class LogUserActivity
                 continue;
             }
 
+            if ($value instanceof \Illuminate\Http\UploadedFile) {
+                $sanitized[$key] = [
+                    'name' => $value->getClientOriginalName(),
+                    'size' => $value->getSize(),
+                    'mime' => $value->getClientMimeType(),
+                ];
+                continue;
+            }
+
             if (is_array($value)) {
                 $sanitized[$key] = $this->sanitizeInput($value);
+                continue;
+            }
+
+            if (is_object($value)) {
                 continue;
             }
 

@@ -193,11 +193,40 @@ class salik extends BaseModel
 
     public static function normalizePaymentStatus(?string $status, bool $isPaid = false): string
     {
-        if ($isPaid || $status === 'paid') {
+        if ($isPaid || strtolower((string) $status) === 'paid') {
             return 'paid';
         }
 
         return 'unpaid';
+    }
+
+    public function isPaid(): bool
+    {
+        return self::normalizePaymentStatus($this->status, !empty($this->payment_voucher_id)) === 'paid';
+    }
+
+    public function scopeUnpaid($query)
+    {
+        return $query->where(function ($q) {
+            $q->where(function ($inner) {
+                $inner->whereNull('status')
+                    ->orWhereRaw('LOWER(status) <> ?', ['paid']);
+            })->where(function ($inner) {
+                $inner->whereNull('payment_voucher_id')
+                    ->orWhere('payment_voucher_id', 0);
+            });
+        });
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereRaw('LOWER(status) = ?', ['paid'])
+                ->orWhere(function ($inner) {
+                    $inner->whereNotNull('payment_voucher_id')
+                        ->where('payment_voucher_id', '!=', 0);
+                });
+        });
     }
 
     public function branch()

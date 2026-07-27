@@ -45,6 +45,7 @@
                 @endif
             </td>@endif
             <td>
+                @php $isPaid = \App\Models\salik::normalizePaymentStatus($r->status, !empty($r->payment_voucher_id)) === 'paid'; @endphp
                 <div class="dropdown">
                     <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -55,16 +56,18 @@
                             View
                         </a>
                         @endcan
-                        @can('rta_saliks_salik_edit')
-                        <a href="javascript:void(0);" data-action="{{ route('salik.edit' , $r->id) }}" data-size="lg" data-title="Update Salik" class='dropdown-item waves-effect show-modal'>
-                            Edit
-                        </a>
-                        @endcan
-                        @can('rta_saliks_salik_delete')
-                        <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.delete', $r->id) }}")' class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Ticket">
-                            Delete
-                        </a>
-                        @endcan
+                        @if(!$isPaid)
+                            @can('rta_saliks_salik_edit')
+                            <a href="javascript:void(0);" data-action="{{ route('salik.edit' , $r->id) }}" data-size="lg" data-title="Update Salik" class='dropdown-item waves-effect show-modal'>
+                                Edit
+                            </a>
+                            @endcan
+                            @can('rta_saliks_salik_delete')
+                            <a href="javascript:void(0);" onclick='confirmDelete("{{route('salik.delete', $r->id) }}")' class='dropdown-item confirm-modal' data-size="lg" data-title="Delete Ticket">
+                                Delete
+                            </a>
+                            @endcan
+                        @endif
                     </div>
                 </div>
 

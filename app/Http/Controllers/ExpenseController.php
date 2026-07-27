@@ -45,6 +45,35 @@ class ExpenseController extends AppBaseController
     }
 
     /**
+     * Build credit narration from debit lines:
+     * - same narration on all lines → one narration
+     * - different narrations → join unique values
+     */
+    private function buildCreditNarrationFromDebits(array $debitNarrations, array $amounts): string
+    {
+        $narrations = [];
+
+        foreach ($amounts as $index => $amount) {
+            if ((float) $amount <= 0) {
+                continue;
+            }
+
+            $narration = trim((string) ($debitNarrations[$index] ?? ''));
+            if ($narration === '') {
+                continue;
+            }
+
+            $narrations[] = $narration;
+        }
+
+        if ($narrations === []) {
+            return 'Expense Payment';
+        }
+
+        return implode(' | ', array_values(array_unique($narrations)));
+    }
+
+    /**
      * Flatten account tree into a list with depth for hierarchical display.
      */
     private function flattenAccountTree($nodes, $search = null, $depth = 0): \Illuminate\Support\Collection
@@ -454,7 +483,7 @@ class ExpenseController extends AppBaseController
                 'account_id' => $creditAccountId,
                 'debit' => 0,
                 'credit' => $grandTotal,
-                'narration' => $request->input('credit_narration', 'Expense Payment'),
+                'narration' => $this->buildCreditNarrationFromDebits($debitNarrations, $amounts),
                 'reference_id' => $voucher->id,
                 'reference_type' => 'Voucher',
                 'billing_month' => $request->input('billing_month') . '-01',
@@ -619,7 +648,7 @@ class ExpenseController extends AppBaseController
                 'account_id' => $creditAccountId,
                 'debit' => 0,
                 'credit' => $grandTotal,
-                'narration' => $request->input('credit_narration', 'Expense Payment'),
+                'narration' => $this->buildCreditNarrationFromDebits($debitNarrations, $amounts),
                 'reference_id' => $voucher->id,
                 'reference_type' => 'Voucher',
                 'billing_month' => $request->input('billing_month') . '-01',

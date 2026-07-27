@@ -39,12 +39,6 @@
                             <strong>{{ $fine->reference_number ?? 'N/A' }}</strong>
                         </div>
                     </div>
-                    <div class="border-bottom pb-2">
-                        <div class="d-flex justify-content-between">
-                            <span class="text-secondary">Voucher:</span>
-                            <a @if($fine->voucher_id) href="{{ route('vouchers.show', $fine->voucher_id ?? 0) }}" target="_blank" @else href="javascript:void(0);" @endif><strong>{{ $fine->voucher_id ? ($fine->voucher->voucher_type . '-' . str_pad($fine->voucher_id, 4, '0', STR_PAD_LEFT)) : 'N/A' }}</strong></a>
-                        </div>
-                    </div>
                     <div class="border-bottom pb-2 mb-2">
                         <div class="d-flex justify-content-between">
                             <span class="text-secondary">Paid By:</span>

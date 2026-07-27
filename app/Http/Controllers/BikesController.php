@@ -141,14 +141,31 @@ class BikesController extends AppBaseController
         }
 
         $statsQuery = clone $query;
+        $hasLeasedReturnDate = Schema::hasColumn('bikes', 'leased_return_date');
+        // Same warehouse mapping as applyBikeRoadStatusFilter() so cards match the status filter.
+        $warehouseByStatus = [
+            'on_road' => ['Active'],
+            'off_road' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
+            'absconded' => ['Absconded'],
+            'theft' => ['Theft'],
+            'total_loss' => ['Total Loss'],
+            'impound' => ['Impound'],
+            'accident' => ['Accident'],
+        ];
+
         $stats = [
             'total' => $statsQuery->count(),
-            'active' => $statsQuery->clone()->where('bikes.status', 1)->count(),
-            'inactive' => $statsQuery->clone()->whereIn('bikes.status', TopBarNumericStatus::INACTIVE_VALUES)->count(),
-            'onroad' => $statsQuery->clone()->where('bikes.warehouse', 'Active')->count(),
-            'offroad' => $statsQuery->clone()->whereIn('bikes.warehouse', ['Return', 'Vacation', 'Express Garage'])->count(),
-            'absconded' => $statsQuery->clone()->where('bikes.warehouse', 'Absconded')->count(),
+            'returned' => $hasLeasedReturnDate
+                ? $statsQuery->clone()->whereNotNull('bikes.leased_return_date')->count()
+                : 0,
         ];
+        foreach ($warehouseByStatus as $statusKey => $warehouses) {
+            $statusCountQuery = $statsQuery->clone()->whereIn('bikes.warehouse', $warehouses);
+            if ($hasLeasedReturnDate) {
+                $statusCountQuery->whereNull('bikes.leased_return_date');
+            }
+            $stats[$statusKey] = $statusCountQuery->count();
+        }
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);

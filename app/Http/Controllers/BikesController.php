@@ -366,7 +366,7 @@ class BikesController extends AppBaseController
 
     /**
      * Fields that should appear in Bike table/column-control.
-     * Source of truth: bike_field_category_assignments.is_visible
+     * Role Field Permissions (visible) control per-user visibility at render time.
      */
     private function getVisibleBikeFieldKeysForTable(): array
     {
@@ -374,14 +374,12 @@ class BikesController extends AppBaseController
             return [];
         }
 
-        $query = BikeFieldCategoryAssignment::query()->select('field_key');
-        if (Schema::hasColumn('bike_field_category_assignments', 'is_visible')) {
-            $query->where(function ($q) {
-                $q->whereNull('is_visible')->orWhere('is_visible', 1);
-            });
-        }
-
-        $keys = $query->pluck('field_key')->filter()->values()->all();
+        $keys = BikeFieldCategoryAssignment::query()
+            ->select('field_key')
+            ->pluck('field_key')
+            ->filter()
+            ->values()
+            ->all();
 
         return array_fill_keys($keys, true);
     }

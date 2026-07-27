@@ -250,8 +250,6 @@
                         <th>#</th>
                         <th>Field</th>
                         <th>Current category</th>
-                        <th class="text-center">Required</th>
-                        <th class="text-center">Show in employee form</th>
                         <th>Move to category</th>
                         <th class="text-end" style="width: 120px;">Actions</th>
                       </tr>
@@ -270,18 +268,6 @@
                           @else
                           <span class="badge bg-label-warning">Unassigned</span>
                           @endif
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox" class="form-check-input employee-field-required-toggle" id="req-all-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_required ?? false) ? 'checked' : '' }} title="Require this field in employee add/edit forms">
-                            <label class="form-check-label visually-hidden" for="req-all-{{ $row->field_key }}">Mark as required</label>
-                          </div>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox" class="form-check-input employee-field-visibility-toggle" id="vis-all-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_visible ?? true) ? 'checked' : '' }} title="Hide from Employee Add/Edit/View when unchecked">
-                            <label class="form-check-label visually-hidden" for="vis-all-{{ $row->field_key }}">Show in employee form</label>
-                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.employee-settings.update-field-assignment') }}" method="POST" class="d-flex justify-content-center employee-field-assignment-form">
@@ -311,7 +297,7 @@
                       </tr>
                       @empty
                       <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No employee fields found.</td>
+                        <td colspan="5" class="text-center text-muted py-3">No employee fields found.</td>
                       </tr>
                       @endforelse
                       @foreach(($customFields ?? collect()) as $customIndex => $customField)
@@ -327,26 +313,6 @@
                           @else
                           <span class="badge bg-label-warning">Unassigned</span>
                           @endif
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input employee-custom-required-toggle"
-                              data-id="{{ $customField->id }}"
-                              data-update-url="{{ route('settings-panel.employee-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
-                              data-is-visible-current="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($customField->is_mandatory ?? false) ? 'checked' : '' }}>
-                          </div>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input employee-custom-visibility-toggle"
-                              data-id="{{ $customField->id }}"
-                              data-update-url="{{ route('settings-panel.employee-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
-                              data-is-mandatory-current="{{ ($customField->is_mandatory ?? false) ? 1 : 0 }}"
-                              {{ ($customField->is_visible ?? true) ? 'checked' : '' }}>
-                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.employee-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
@@ -410,8 +376,6 @@
                         <th style="width: 36px;"></th>
                         <th>#</th>
                         <th>Field</th>
-                        <th class="text-center">Required</th>
-                        <th class="text-center">Show in employee form</th>
                         <th>Move to category</th>
                         <th class="text-end" style="width: 120px;">Actions</th>
                       </tr>
@@ -424,18 +388,6 @@
                         <td class="align-middle">
                           <span class="employee-fixed-field-label d-inline-block align-middle" data-field-key="{{ $row->field_key }}" title="Click to edit name">{{ $row->label }}</span>
                           <span class="text-muted ms-1">({{ $row->field_key }})</span>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox" class="form-check-input employee-field-required-toggle" id="req-{{ $group->category->id }}-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_required ?? false) ? 'checked' : '' }}>
-                            <label class="form-check-label visually-hidden" for="req-{{ $group->category->id }}-{{ $row->field_key }}">Mark as required</label>
-                          </div>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox" class="form-check-input employee-field-visibility-toggle" id="vis-{{ $group->category->id }}-{{ $row->field_key }}" data-field-key="{{ $row->field_key }}" {{ ($row->is_visible ?? true) ? 'checked' : '' }}>
-                            <label class="form-check-label visually-hidden" for="vis-{{ $group->category->id }}-{{ $row->field_key }}">Show in employee form</label>
-                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.employee-settings.update-field-assignment') }}" method="POST" class="d-flex justify-content-center employee-field-assignment-form">
@@ -465,7 +417,7 @@
                       @endforeach
                       @if($fixedCount === 0 && $categoryCustomFields->isEmpty())
                       <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No fields in this category.</td>
+                        <td colspan="5" class="text-center text-muted py-3">No fields in this category.</td>
                       </tr>
                       @endif
                     </tbody>
@@ -477,26 +429,6 @@
                         <td class="align-middle">
                           <span class="fw-semibold">{{ $customField->label }}</span>
                           <span class="badge bg-label-secondary ms-1">Custom</span>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input employee-custom-required-toggle"
-                              data-id="{{ $customField->id }}"
-                              data-update-url="{{ route('settings-panel.employee-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
-                              data-is-visible-current="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($customField->is_mandatory ?? false) ? 'checked' : '' }}>
-                          </div>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input employee-custom-visibility-toggle"
-                              data-id="{{ $customField->id }}"
-                              data-update-url="{{ route('settings-panel.employee-settings.update-custom-field-flags', ['id' => $customField->id]) }}"
-                              data-is-mandatory-current="{{ ($customField->is_mandatory ?? false) ? 1 : 0 }}"
-                              {{ ($customField->is_visible ?? true) ? 'checked' : '' }}>
-                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route('settings-panel.employee-settings.assign-custom-field-category', ['id' => $customField->id]) }}" method="POST" class="d-flex justify-content-center">
@@ -636,32 +568,8 @@
                 <div id="addEmployeeFieldConfigFields"></div>
               </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Is Mandatory</label>
-              <div class="d-flex gap-3">
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="1" class="form-check-input" id="addRiderMandatoryYes">
-                  <label class="form-check-label" for="addRiderMandatoryYes">Yes</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="addRiderMandatoryNo" checked>
-                  <label class="form-check-label" for="addRiderMandatoryNo">No</label>
-                </div>
-              </div>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Show in Rider Form</label>
-              <div class="d-flex gap-3">
-                <div class="form-check">
-                  <input type="radio" name="is_visible" value="1" class="form-check-input" id="addRiderVisibleYes" checked>
-                  <label class="form-check-label" for="addRiderVisibleYes">Yes</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="is_visible" value="0" class="form-check-input" id="addRiderVisibleNo">
-                  <label class="form-check-label" for="addRiderVisibleNo">No</label>
-                </div>
-              </div>
-            </div>
+            <input type="hidden" name="is_mandatory" value="0">
+            <input type="hidden" name="is_visible" value="1">
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
@@ -782,13 +690,7 @@
               <label class="form-label">Field Key</label>
               <input type="text" id="editRiderFixedFieldKeyText" class="form-control" readonly>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Show in employee form</label>
-              <div class="form-check form-switch mt-2">
-                <input type="checkbox" class="form-check-input" id="editRiderFixedFieldVisible" checked>
-                <label class="form-check-label" for="editRiderFixedFieldVisible">Visible in add/edit/view</label>
-              </div>
-            </div>
+            <input type="hidden" id="editRiderFixedFieldVisibleHidden" value="1">
             <div class="col-md-6">
               <label class="form-label">Display Label</label>
               <input type="text" name="display_label" id="editRiderFixedFieldLabel" class="form-control" maxlength="255" placeholder="Enter display label">
@@ -1016,32 +918,8 @@
                 </div>
               </div>
             </div>
-            <div class="col-md-6">
-              <label class="form-label">Is Mandatory</label>
-              <div class="d-flex gap-3 mt-2">
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="1" class="form-check-input" id="editRiderMandatoryYes">
-                  <label class="form-check-label" for="editRiderMandatoryYes">Yes</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="editRiderMandatoryNo">
-                  <label class="form-check-label" for="editRiderMandatoryNo">No</label>
-                </div>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <label class="form-label">Show in Rider Form</label>
-              <div class="d-flex gap-3 mt-2">
-                <div class="form-check">
-                  <input type="radio" name="is_visible" value="1" class="form-check-input" id="editRiderVisibleYes">
-                  <label class="form-check-label" for="editRiderVisibleYes">Yes</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="is_visible" value="0" class="form-check-input" id="editRiderVisibleNo">
-                  <label class="form-check-label" for="editRiderVisibleNo">No</label>
-                </div>
-              </div>
-            </div>
+            <input type="hidden" name="is_mandatory" value="0">
+            <input type="hidden" name="is_visible" value="1">
             <div class="col-12" id="editRiderConfigOptionsWrap" style="display: none;">
               <label class="form-label small text-uppercase text-muted">Configuration options</label>
               <div id="edit-employee-config-options-fields"></div>
@@ -1398,7 +1276,6 @@
       var keyTextInput = document.getElementById('editRiderFixedFieldKeyText');
       var labelInput = document.getElementById('editRiderFixedFieldLabel');
       var categoryInput = document.getElementById('editRiderFixedFieldCategoryId');
-      var visibleInput = document.getElementById('editRiderFixedFieldVisible');
       var typeInput = document.getElementById('editRiderFixedFieldType');
       var fixedConfigWrap = document.getElementById('editRiderFixedConfigOptionsWrap');
       var fixedConfigContainer = document.getElementById('edit-employee-fixed-config-options-fields');
@@ -1407,7 +1284,8 @@
       if (keyTextInput) keyTextInput.value = fieldKey;
       if (labelInput) labelInput.value = fieldLabel;
       if (categoryInput) categoryInput.value = categoryId;
-      if (visibleInput) visibleInput.checked = String(isVisible) === '1';
+      var visibleHiddenEl = document.getElementById('editRiderFixedFieldVisibleHidden');
+      if (visibleHiddenEl) visibleHiddenEl.value = String(isVisible) === '1' ? '1' : '0';
       if (typeInput) typeInput.value = inputType;
       if (fixedConfigWrap && fixedConfigContainer) {
         const typeMeta = dataTypesMeta[inputType] || {};
@@ -1446,20 +1324,6 @@
       if (defaultValueInput) defaultValueInput.value = editCustomFieldBtn.dataset.default_value || '';
       var inputFormatInput = document.getElementById('editEmployeeFieldInputFormat');
       if (inputFormatInput) inputFormatInput.value = editCustomFieldBtn.dataset.input_format || '';
-      var mandatoryYes = document.getElementById('editRiderMandatoryYes');
-      var mandatoryNo = document.getElementById('editRiderMandatoryNo');
-      if (mandatoryYes && mandatoryNo) {
-        var isMandatory = String(editCustomFieldBtn.dataset.is_mandatory || '0') === '1';
-        mandatoryYes.checked = isMandatory;
-        mandatoryNo.checked = !isMandatory;
-      }
-      var visibleYes = document.getElementById('editRiderVisibleYes');
-      var visibleNo = document.getElementById('editRiderVisibleNo');
-      if (visibleYes && visibleNo) {
-        var isVisible = String(editCustomFieldBtn.dataset.is_visible || '1') === '1';
-        visibleYes.checked = isVisible;
-        visibleNo.checked = !isVisible;
-      }
       var dupYes = document.getElementById('editRiderPreventDupYes');
       var dupNo = document.getElementById('editRiderPreventDupNo');
       if (dupYes && dupNo) {
@@ -1494,7 +1358,7 @@
         var form = this;
         var submitBtn = document.getElementById('editRiderFixedFieldSubmitBtn');
         var fieldKey = document.getElementById('editRiderFixedFieldKey') && document.getElementById('editRiderFixedFieldKey').value;
-        var isVisible = document.getElementById('editRiderFixedFieldVisible') && document.getElementById('editRiderFixedFieldVisible').checked ? 1 : 0;
+        var isVisible = document.getElementById('editRiderFixedFieldVisibleHidden') ? parseInt(document.getElementById('editRiderFixedFieldVisibleHidden').value, 10) : 1;
         if (!fieldKey) return;
         if (submitBtn) submitBtn.disabled = true;
 
@@ -2401,216 +2265,7 @@
         employeeFieldSortables.push(sortable);
       });
     }
-    document.addEventListener('change', function(e) {
-      var toggle = e.target.closest('.employee-field-visibility-toggle');
-      if (!toggle) return;
-
-      var fieldKey = toggle.getAttribute('data-field-key');
-      var isVisible = toggle.checked ? 1 : 0;
-      var row = toggle.closest('tr');
-
-      console.log('Toggle clicked for field:', fieldKey, 'New visibility:', isVisible);
-
-      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || (document.querySelector('.employee-field-assignment-form input[name="_token"]') && document.querySelector('.employee-field-assignment-form input[name="_token"]').value);
-
-      if (!csrf) {
-        console.error('CSRF token not found');
-        if (typeof Swal !== 'undefined') Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'error',
-          title: 'CSRF token missing.',
-          showConfirmButton: false,
-          timer: 3000
-        });
-        toggle.checked = !toggle.checked;
-        return;
-      }
-
-      console.log('CSRF token found, sending request...');
-
-      var formBody = new URLSearchParams();
-      formBody.append('_token', csrf);
-      formBody.append('field_key', fieldKey);
-      formBody.append('is_visible', String(isVisible));
-
-      fetch('{{ route("settings-panel.employee-settings.update-field-assignment-visibility") }}', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: formBody.toString()
-        })
-        .then(function(r) {
-          console.log('Response status:', r.status, r.statusText);
-          return r.json().then(function(data) {
-            console.log('Response data:', data);
-            return r.ok ? data : Promise.reject(data);
-          });
-        })
-        .then(function(data) {
-          console.log('Success:', data);
-          if (row) row.classList.toggle('table-secondary', !data.is_visible);
-          if (typeof Swal !== 'undefined') Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: data.message || 'Saved.',
-            showConfirmButton: false,
-            timer: 2000
-          });
-        })
-        .catch(function(err) {
-          console.error('Error:', err);
-          toggle.checked = !toggle.checked;
-          if (row) row.classList.toggle('table-secondary', !toggle.checked);
-
-          var errorMsg = 'Could not update.';
-          if (err && err.message) {
-            errorMsg = err.message;
-          } else if (err && typeof err === 'object') {
-            errorMsg = JSON.stringify(err);
-          }
-
-          if (typeof Swal !== 'undefined') Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'error',
-            title: errorMsg,
-            showConfirmButton: false,
-            timer: 5000
-          });
-        });
-    });
-
-    document.addEventListener('change', function(e) {
-      var toggle = e.target.closest('.employee-field-required-toggle');
-      if (!toggle) return;
-
-      var fieldKey = toggle.getAttribute('data-field-key');
-      var isRequired = toggle.checked ? 1 : 0;
-      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || (document.querySelector('.employee-field-assignment-form input[name="_token"]') && document.querySelector('.employee-field-assignment-form input[name="_token"]').value);
-
-      if (!csrf) {
-        if (typeof Swal !== 'undefined') Swal.fire({
-          toast: true,
-          position: 'top-end',
-          icon: 'error',
-          title: 'CSRF token missing.',
-          showConfirmButton: false,
-          timer: 3000
-        });
-        toggle.checked = !toggle.checked;
-        return;
-      }
-
-      var formBody = new URLSearchParams();
-      formBody.append('_token', csrf);
-      formBody.append('field_key', fieldKey);
-      formBody.append('is_required', String(isRequired));
-
-      fetch('{{ route("settings-panel.employee-settings.update-field-assignment-required") }}', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: formBody.toString()
-        })
-        .then(function(r) {
-          return r.json().then(function(data) {
-            return r.ok ? data : Promise.reject(data);
-          });
-        })
-        .then(function(data) {
-          if (typeof Swal !== 'undefined') Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: data.message || 'Saved.',
-            showConfirmButton: false,
-            timer: 2000
-          });
-        })
-        .catch(function(err) {
-          toggle.checked = !toggle.checked;
-
-          var errorMsg = 'Could not update.';
-          if (err && err.message) {
-            errorMsg = err.message;
-          } else if (err && typeof err === 'object') {
-            errorMsg = JSON.stringify(err);
-          }
-
-          if (typeof Swal !== 'undefined') Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'error',
-            title: errorMsg,
-            showConfirmButton: false,
-            timer: 5000
-          });
-        });
-    });
-
-    document.addEventListener('change', function(e) {
-      var toggle = e.target.closest('.employee-custom-required-toggle, .employee-custom-visibility-toggle');
-      if (!toggle) return;
-
-      var customFieldId = toggle.getAttribute('data-id');
-      var updateUrl = toggle.getAttribute('data-update-url');
-      if (!customFieldId || !updateUrl) return;
-
-      var csrf = (document.querySelector('meta[name="csrf-token"]') && document.querySelector('meta[name="csrf-token"]').getAttribute('content')) || (document.querySelector('.employee-field-assignment-form input[name="_token"]') && document.querySelector('.employee-field-assignment-form input[name="_token"]').value);
-      if (!csrf) {
-        toggle.checked = !toggle.checked;
-        return;
-      }
-
-      var fieldRequiredToggles = document.querySelectorAll('.employee-custom-required-toggle[data-id="' + customFieldId + '"]');
-      var fieldVisibleToggles = document.querySelectorAll('.employee-custom-visibility-toggle[data-id="' + customFieldId + '"]');
-      var isMandatory = fieldRequiredToggles.length ? (fieldRequiredToggles[0].checked ? 1 : 0) : 0;
-      var isVisible = fieldVisibleToggles.length ? (fieldVisibleToggles[0].checked ? 1 : 0) : 1;
-
-      var formBody = new URLSearchParams();
-      formBody.append('_token', csrf);
-      formBody.append('is_mandatory', String(isMandatory));
-      formBody.append('is_visible', String(isVisible));
-
-      fetch(updateUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          },
-          body: formBody.toString()
-        })
-        .then(function(r) {
-          return r.json().then(function(data) {
-            return r.ok ? data : Promise.reject(data);
-          });
-        })
-        .then(function(data) {
-          fieldRequiredToggles.forEach(function(el) {
-            el.checked = !!data.is_mandatory;
-            el.setAttribute('data-is-visible-current', data.is_visible ? '1' : '0');
-          });
-          fieldVisibleToggles.forEach(function(el) {
-            el.checked = !!data.is_visible;
-            el.setAttribute('data-is-mandatory-current', data.is_mandatory ? '1' : '0');
-          });
-        })
-        .catch(function() {
-          toggle.checked = !toggle.checked;
-        });
-    });
+    // Required/Visible toggles removed; field visibility/required now managed in Role Permissions.
 
     function getRiderStatusCsrf() {
       return getEmployeeCsrf();

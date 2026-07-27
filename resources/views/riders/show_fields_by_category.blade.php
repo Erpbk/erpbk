@@ -6,7 +6,7 @@
     });
   @endphp
   @if($rfpGroupVisible)
-  <div class="col-12">
+  <div class="col-12" data-rfp-entity="rider">
   <div class="card border mb-4">
     <div class="card-header">
       <b>{{ $group->category->label }}</b>

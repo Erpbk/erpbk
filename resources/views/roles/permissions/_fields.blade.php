@@ -3,7 +3,7 @@
         <tr>
             <th>Field Label</th>
             <th>Field Name</th>
-            <th class="text-center">Visible</th>
+            <th class="text-center">Show in Form</th>
             <th class="text-center">Editable</th>
             <th class="text-center">Required</th>
         </tr>

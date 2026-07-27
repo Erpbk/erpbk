@@ -60,14 +60,7 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
                   <label class="form-check-label" for="assignFieldShowChange">Return modal</label>
                 </div>
               </div>
-
-              <div class="col-md-2">
-                <div class="form-check mt-4">
-                  <input type="hidden" name="is_mandatory" value="0">
-                  <input type="checkbox" name="is_mandatory" value="1" class="form-check-input" id="assignFieldIsMandatoryModal">
-                  <label class="form-check-label" for="assignFieldIsMandatoryModal">Mandatory</label>
-                </div>
-              </div>
+                      <input type="hidden" name="is_mandatory" value="0">
 
               <div class="col-md-12">
                 <label class="form-label">Help Text</label>
@@ -107,8 +100,6 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
           <th>Field</th>
           <th>Modals</th>
           <th>Type</th>
-          <th class="text-center">Required</th>
-          <th class="text-center">Show in form</th>
           <th class="text-end">Actions</th>
         </tr>
       </thead>
@@ -158,16 +149,6 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
           </td>
           <td class="align-middle">
             <span class="badge bg-label-info">{{ $row->input_type ?? 'virtual' }}</span>
-          </td>
-          <td class="align-middle text-center">
-            <div class="form-check form-switch d-inline-block mb-0">
-              <input type="checkbox" class="form-check-input Sim-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="is_required" {{ $row->is_required ? 'checked' : '' }}>
-            </div>
-          </td>
-          <td class="align-middle text-center">
-            <div class="form-check form-switch d-inline-block mb-0">
-              <input type="checkbox" class="form-check-input Sim-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="is_visible" {{ $row->is_visible ? 'checked' : '' }}>
-            </div>
           </td>
           <td class="align-middle text-end">
             <button type="button"
@@ -240,16 +221,6 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
             <span class="text-muted">—</span>
             @endif
           </td>
-          <td class="align-middle text-center">
-            <div class="form-check form-switch d-inline-block mb-0">
-              <input type="checkbox" class="form-check-input Sim-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="is_required" {{ $isReq ? 'checked' : '' }}>
-            </div>
-          </td>
-          <td class="align-middle text-center">
-            <div class="form-check form-switch d-inline-block mb-0">
-              <input type="checkbox" class="form-check-input Sim-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="is_visible" {{ $row->is_visible ? 'checked' : '' }}>
-            </div>
-          </td>
           <td class="align-middle text-end">
             <button type="button"
               class="btn btn-sm btn-outline-primary btn-edit-Sim-assign-field"
@@ -275,7 +246,7 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
       @if($assignFields->isEmpty())
       <tbody>
         <tr>
-          <td colspan="7" class="text-center text-muted py-3">No assign fields configured yet.</td>
+          <td colspan="5" class="text-center text-muted py-3">No assign fields configured yet.</td>
         </tr>
       </tbody>
       @endif

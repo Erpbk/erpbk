@@ -18,6 +18,7 @@ $rfpEntity = 'employees';
 $rfpField = ($item->kind ?? '') === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 $rfpVisible = field_visible($rfpEntity, (string) $rfpField);
 $rfpEditable = field_editable($rfpEntity, (string) $rfpField);
+$rfpRequired = field_required($rfpEntity, (string) $rfpField);
 $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
 @endphp
 @if ($rfpVisible)
@@ -25,7 +26,7 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
     @if (($item->kind ?? '') === 'fixed')
         @php
         $spec = $item->spec ?? [];
-        $req = !empty($spec['required']);
+        $req = ($rfpRequired || !empty($spec['required'])) && $rfpEditable;
         $isReadonly = !empty($spec['readonly'])
             || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
         $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
@@ -83,7 +84,7 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
     @else
         @php
         $f = $item->field;
-        $req = $f->is_mandatory ?? false;
+        $req = $rfpRequired && $rfpEditable;
         $isReadonly = \App\Support\SimAssigneeContactSync::isManagedCustomFieldId((int) $f->id, 'employee_custom_fields');
         $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
         @endphp

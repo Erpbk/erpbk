@@ -28,20 +28,8 @@
                 @endforeach
               </select>
             </div>
-            <div class="col-md-3">
-              <div class="form-check mt-4">
-                <input type="hidden" name="is_visible" value="0">
-                <input type="checkbox" name="is_visible" value="1" id="editAssignIsVisible" class="form-check-input">
-                <label class="form-check-label" for="editAssignIsVisible">Show in form</label>
-              </div>
-            </div>
-            <div class="col-md-3">
-              <div class="form-check mt-4">
-                <input type="hidden" name="is_required" value="0">
-                <input type="checkbox" name="is_required" value="1" id="editAssignIsRequired" class="form-check-input">
-                <label class="form-check-label" for="editAssignIsRequired">Required</label>
-              </div>
-            </div>
+            <input type="hidden" name="is_visible" id="editAssignIsVisibleHidden" value="1">
+            <input type="hidden" name="is_required" id="editAssignIsRequiredHidden" value="0">
             <div class="col-md-3">
               <div class="form-check mt-4">
                 <input type="hidden" name="show_on_active" value="0">
@@ -81,13 +69,7 @@
                 @endforeach
               </select>
             </div>
-            <div class="col-md-4">
-              <div class="form-check mt-4">
-                <input type="hidden" name="is_mandatory" value="0">
-                <input type="checkbox" name="is_mandatory" value="1" id="editAssignCustomIsMandatory" class="form-check-input">
-                <label class="form-check-label" for="editAssignCustomIsMandatory">Mandatory</label>
-              </div>
-            </div>
+                      <input type="hidden" name="is_mandatory" value="0">
             <div class="col-md-4">
               <label class="form-label d-block">Show on modals</label>
               <div class="form-check">
@@ -109,20 +91,8 @@
               <label class="form-label">Input format</label>
               <input type="text" name="input_format" id="editAssignCustomInputFormat" class="form-control" maxlength="100">
             </div>
-            <div class="col-md-6">
-              <div class="form-check mt-4">
-                <input type="hidden" name="is_visible" value="0">
-                <input type="checkbox" name="is_visible" value="1" id="editAssignCustomIsVisible" class="form-check-input">
-                <label class="form-check-label" for="editAssignCustomIsVisible">Show in form</label>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="form-check mt-4">
-                <input type="hidden" name="is_required" value="0">
-                <input type="checkbox" name="is_required" value="1" id="editAssignCustomIsRequired" class="form-check-input">
-                <label class="form-check-label" for="editAssignCustomIsRequired">Required on modal</label>
-              </div>
-            </div>
+            <input type="hidden" name="is_visible" id="editAssignCustomIsVisibleHidden" value="1">
+            <input type="hidden" name="is_required" id="editAssignCustomIsRequiredHidden" value="0">
             <div class="col-md-12" id="editAssignCustomOptionsWrap">
               <label class="form-label">Dropdown options (one per line)</label>
               <input type="hidden" name="config_options" id="editAssignCustomConfigOptionsHidden" value="">
@@ -254,8 +224,10 @@
       var fieldKeyEl = document.getElementById('editAssignFieldKey');
       if (fieldKeyEl) fieldKeyEl.value = payload.field_key || '';
       document.getElementById('editAssignDisplayLabel').value = payload.display_label || '';
-      document.getElementById('editAssignIsVisible').checked = !!payload.is_visible;
-      document.getElementById('editAssignIsRequired').checked = !!payload.is_required;
+      var visHidden = document.getElementById('editAssignIsVisibleHidden');
+      if (visHidden) visHidden.value = payload.is_visible ? '1' : '1';
+      var reqHidden = document.getElementById('editAssignIsRequiredHidden');
+      if (reqHidden) reqHidden.value = payload.is_required ? '1' : '0';
       document.getElementById('editAssignShowActive').checked = !!payload.show_on_active;
       document.getElementById('editAssignShowChange').checked = !!payload.show_on_change;
       setSelectValue(document.getElementById('editAssignInputType'), payload.input_type || 'text');
@@ -269,11 +241,12 @@
       document.getElementById('editAssignCustomLabel').value = payload.label || '';
       document.getElementById('editAssignCustomHelpText').value = payload.help_text || '';
       setSelectValue(document.getElementById('editAssignCustomDataType'), payload.data_type || 'text');
-      document.getElementById('editAssignCustomIsMandatory').checked = !!payload.is_mandatory;
       document.getElementById('editAssignCustomDefaultValue').value = payload.default_value || '';
       document.getElementById('editAssignCustomInputFormat').value = payload.input_format || '';
-      document.getElementById('editAssignCustomIsVisible').checked = !!payload.is_visible;
-      document.getElementById('editAssignCustomIsRequired').checked = !!payload.is_required;
+      var custVisHidden = document.getElementById('editAssignCustomIsVisibleHidden');
+      if (custVisHidden) custVisHidden.value = payload.is_visible ? '1' : '1';
+      var custReqHidden = document.getElementById('editAssignCustomIsRequiredHidden');
+      if (custReqHidden) custReqHidden.value = payload.is_required ? '1' : '0';
       document.getElementById('editAssignCustomShowActive').checked = !!payload.show_on_active;
       document.getElementById('editAssignCustomShowChange').checked = !!payload.show_on_change;
       toggleAssignCustomOptionsWrap();

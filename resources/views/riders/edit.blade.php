@@ -79,7 +79,7 @@
     }
 </style>
 
-{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch', 'id' => 'rider-edit-form', 'class' => 'form-with-fixed-footer', 'data-reload-table' => '0']) !!}
+{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch', 'id' => 'rider-edit-form', 'class' => 'form-with-fixed-footer', 'data-reload-table' => '0', 'data-rfp-entity' => 'rider']) !!}
 <input type="hidden" id="redirect_url" value="{{route('riders.index')}}" />
 <div class="card-body card-body-with-footer">
     @include('riders.fields')
@@ -290,22 +290,31 @@
 <script>
     $(document).ready(function() {
         // Turn every select in the rider form into a Select2 (recruiter has its own tagging setup below).
-        $('#formajax select').not('#recruiter_select').not('.select2-hidden-accessible').each(function () {
+        var $riderForm = $('#rider-edit-form');
+        $riderForm.find('select').not('#recruiter_select').not('.select2-hidden-accessible').each(function () {
             var $s = $(this);
             var $empty = $s.find('option[value=""]').first();
             var hasEmpty = $empty.length > 0;
+            var locked = $s.prop('disabled') || $s.attr('data-rfp-locked') === '1';
             $s.select2({
                 width: '100%',
                 placeholder: hasEmpty ? ($empty.text() || 'Select') : 'Select',
-                allowClear: hasEmpty && !$s.prop('required')
+                allowClear: hasEmpty && !$s.prop('required') && !locked
             });
+            if (locked) {
+                $s.prop('disabled', true).trigger('change.select2');
+            }
         });
+
+        if (typeof window.applyFieldPermissionLocks === 'function') {
+            window.applyFieldPermissionLocks($riderForm[0] || document);
+        }
 
         // Initialize Select2 for recruiter field with tagging
         $('#recruiter_select').select2({
             tags: true,
             placeholder: 'Select or type a new recruiter',
-            allowClear: true,
+            allowClear: !$('#recruiter_select').prop('disabled'),
             width: '100%',
             createTag: function(params) {
                 var term = $.trim(params.term);
@@ -330,6 +339,9 @@
                 return data.text.replace(' (new)', '');
             }
         });
+        if ($('#recruiter_select').prop('disabled') || $('#recruiter_select').attr('data-rfp-locked') === '1') {
+            $('#recruiter_select').prop('disabled', true).trigger('change.select2');
+        }
 
         // Handle selection change to add new recruiters
         $('#recruiter_select').on('select2:select', function(e) {

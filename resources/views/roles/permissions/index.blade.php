@@ -231,13 +231,13 @@ if ($isCreate) {
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <h5 class="mb-0 fw-bold">Field Permissions</h5>
-                            <small class="text-muted">Define visibility, edit access and required fields.</small>
+                            <small class="text-muted">Define show-in-form, edit access and required fields per role.</small>
                         </div>
                         <span class="badge bg-label-primary" id="rfpSelectedModule">No module selected</span>
                     </div>
                     <div class="d-flex flex-wrap gap-3 mt-2 small text-muted rfp-legend">
-                        <span><span class="rfp-dot bg-success"></span> Visible &amp; Editable</span>
-                        <span><span class="rfp-dot bg-primary"></span> Visible (Read only)</span>
+                        <span><span class="rfp-dot bg-success"></span> Show in Form &amp; Editable</span>
+                        <span><span class="rfp-dot bg-primary"></span> Show in Form (Read only)</span>
                         <span><span class="rfp-dot bg-secondary"></span> Hidden</span>
                     </div>
                     <div class="input-group input-group-sm mt-2">

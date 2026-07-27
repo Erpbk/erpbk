@@ -12,6 +12,7 @@
       return $ts !== false && $ts <= strtotime(date('Y-m-d'));
   };
 @endphp
+<div data-rfp-entity="rider">
 <div class="card border">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
@@ -81,13 +82,13 @@
 
 </div>
 <!-- Edit Form for Personal Information -->
-<div class="card-body edit-form" id="edit-personal" style="display: none;">
-    <form class="section-form" data-section="personal">
+<div class="card-body edit-form" id="edit-personal" style="display: none;" data-rfp-entity="rider">
+    <form class="section-form" data-section="personal" data-rfp-entity="rider">
         @csrf
         <div class="row">
             <div class="col-md-3 form-group col-3">
                 <label class="required">Rider ID</label>
-                <input type="text" class="form-control form-control-sm" name="rider_id" value="{{ $result['rider_id'] ?? '' }}">
+                <input type="text" class="form-control form-control-sm" name="rider_id" value="{{ $result['rider_id'] ?? '' }}" @fieldReadonly('rider', 'rider_id')>
             </div>
             {{-- <div class="col-md-3 form-group col-3">
                     <label>Courier ID</label>
@@ -95,23 +96,23 @@
         </div> --}}
         <div class="col-md-3 form-group col-3">
             <label>Rider Name</label>
-            <input type="text" class="form-control form-control-sm" name="name" value="{{@$result['name']}}">
+            <input type="text" class="form-control form-control-sm" name="name" value="{{@$result['name']}}" @fieldReadonly('rider', 'name')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Rider Contact</label>
-            <input type="text" class="form-control form-control-sm" name="personal_contact" value="{{@$result['personal_contact']}}">
+            <input type="text" class="form-control form-control-sm" name="personal_contact" value="{{@$result['personal_contact']}}" @fieldReadonly('rider', 'personal_contact')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Date of Joining</label>
-            <input type="date" class="form-control form-control-sm" name="doj" value="{{@$result['doj']}}">
+            <input type="date" class="form-control form-control-sm" name="doj" value="{{@$result['doj']}}" @fieldReadonly('rider', 'doj')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Email ID</label>
-            <input type="email" class="form-control form-control-sm" name="email" value="{{@$result['email']}}">
+            <input type="email" class="form-control form-control-sm" name="email" value="{{@$result['email']}}" @fieldReadonly('rider', 'email')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Nationality</label>
-            <select class="form-control form-control-sm select2" name="nationality">
+            <select class="form-control form-control-sm select2" name="nationality" @fieldReadonly('rider', 'nationality')>
                 @foreach($countries as $id => $name)
                 <option value="{{$id}}" {{ ($result['nationality'] ?? null) == $id ? 'selected' : '' }}>{{$name}}</option>
                 @endforeach
@@ -119,19 +120,19 @@
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Passport</label>
-            <input type="text" class="form-control form-control-sm" name="passport" value="{{@$result['passport']}}">
+            <input type="text" class="form-control form-control-sm" name="passport" value="{{@$result['passport']}}" @fieldReadonly('rider', 'passport')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Passport Expiry</label>
-            <input type="date" class="form-control form-control-sm" name="passport_expiry" value="{{@$result['passport_expiry']}}">
+            <input type="date" class="form-control form-control-sm" name="passport_expiry" value="{{@$result['passport_expiry']}}" @fieldReadonly('rider', 'passport_expiry')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>Ethnicity</label>
-            <input type="text" class="form-control form-control-sm" name="ethnicity" value="{{@$result['ethnicity']}}">
+            <input type="text" class="form-control form-control-sm" name="ethnicity" value="{{@$result['ethnicity']}}" @fieldReadonly('rider', 'ethnicity')>
         </div>
         <div class="col-md-3 form-group col-3">
             <label>DOB</label>
-            <input type="date" class="form-control form-control-sm" name="dob" value="{{@$result['dob']}}">
+            <input type="date" class="form-control form-control-sm" name="dob" value="{{@$result['dob']}}" @fieldReadonly('rider', 'dob')>
         </div>
 </div>
 <div class="row mt-3">
@@ -521,6 +522,7 @@
         </form>
     </div>
 </div>
+</div>
 @endif
 
 {{-- <div class="row m-1 border">
@@ -704,6 +706,11 @@
                 width: '100%',
                 placeholder: 'Select an option'
             });
+
+  // After edit form is shown, re-apply field permission locks (incl. Select2).
+            if (typeof window.applyFieldPermissionLocks === 'function') {
+                window.applyFieldPermissionLocks(editForm[0] || document);
+            }
 
             // Change button text to Cancel
             $(this).html('<i class="ti ti-x me-1"></i>').removeClass('btn-primary').addClass('btn-secondary').addClass('cancel-edit');

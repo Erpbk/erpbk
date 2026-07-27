@@ -34,17 +34,18 @@ $rfpEntity = 'bike';
 $rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 $rfpVisible = field_visible($rfpEntity, (string) $rfpField);
 $rfpEditable = field_editable($rfpEntity, (string) $rfpField);
+$rfpRequired = field_required($rfpEntity, (string) $rfpField);
 $rfpLock = $rfpEditable ? [] : ['readonly' => 'readonly'];
 $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
 
 // Owned bikes store company=null; form uses sentinel value "own".
 if ($item->kind === 'fixed' && $item->field_key === 'company') {
-    $isOwned = $isEdit
-        && strcasecmp((string) ($bikes->bike_owner ?? ''), 'Owned') === 0
-        && ($bikes->company === null || $bikes->company === '');
-    if ($isOwned || old('company') === 'own') {
-        $value = 'own';
-    }
+$isOwned = $isEdit
+&& strcasecmp((string) ($bikes->bike_owner ?? ''), 'Owned') === 0
+&& ($bikes->company === null || $bikes->company === '');
+if ($isOwned || old('company') === 'own') {
+$value = 'own';
+}
 }
 @endphp
 
@@ -192,7 +193,7 @@ if ($item->kind === 'fixed' && $item->field_key === 'company') {
     @else
     @php
     $f = $item->field;
-    $req = $f->is_mandatory ?? false;
+    $req = $rfpRequired && $rfpEditable;
     @endphp
     {!! Form::label($name, $f->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     @if ($f->help_text)

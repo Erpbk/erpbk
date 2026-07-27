@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Cash & Banks (module_key cash_banks): form column order, labels, and category grouping.
- * module_field_category_assignments.is_visible controls which schema fields appear on create/edit.
+ * Role Field Permissions (visible) control which fields each user sees on create/edit.
  */
 class BankFormLayout
 {
@@ -76,20 +76,6 @@ class BankFormLayout
     }
 
     /**
-     * @return bool  True if the field should appear on bank create/edit (default when no assignment row).
-     */
-    protected static function assignmentShownOnForm(?ModuleFieldCategoryAssignment $row): bool
-    {
-        if (!$row) {
-            return true;
-        }
-
-        $raw = $row->getRawOriginal('is_visible');
-
-        return $raw === null || (int) $raw === 1;
-    }
-
-    /**
      * @return array{useCategories: bool, groups: list<array{title: string|null, fields: list<array{key: string, label: string}>}>}
      */
     public static function formGroups(): array
@@ -112,10 +98,6 @@ class BankFormLayout
             ->whereIn('field_key', $fieldKeys)
             ->get()
             ->keyBy('field_key');
-
-        $fieldKeys = array_values(array_filter($fieldKeys, function (string $key) use ($assignments): bool {
-            return self::assignmentShownOnForm($assignments->get($key));
-        }));
 
         $categoriesById = $categories->keyBy('id');
 

@@ -619,12 +619,14 @@ class RoleFieldAccess
             return $allow;
         }
 
-        // If at least one of the user's roles has no explicit row, it defaults to
-        // visible+editable, so the most-permissive union stays permissive.
+        // Visibility stays most-permissive: a role with no row still defaults to visible.
         $someRoleDefaults = $entry['seen'] < count($roleIds);
-
         $visible = $someRoleDefaults || $entry['visible'];
-        $editable = ($someRoleDefaults || $entry['editable']) && $visible;
+
+        // Editable uses the union of EXPLICIT rows only (OR in loadModule).
+        // A role that saved editable=0 must lock the field; another role without a
+        // row must not silently re-grant edit rights.
+        $editable = $entry['editable'] && $visible;
         $required = $entry['required'] && $visible;
 
         return ['visible' => $visible, 'editable' => $editable, 'required' => $required];
@@ -666,6 +668,73 @@ class RoleFieldAccess
     public static function editableAttrs(string $entityKey, string $fieldName): string
     {
         return self::canEdit($entityKey, $fieldName) ? '' : 'readonly disabled';
+    }
+
+    /**
+     * Fields the current user may see but not edit for an entity (visible + !editable).
+     * Used by the global form-lock script and Blade helpers.
+     *
+     * @return array<string, true> field_name => true
+     */
+    public static function nonEditableFieldMap(string $entityKey): array
+    {
+        if (self::isAdmin() || self::roleIds() === [] || self::moduleId($entityKey) === null) {
+            return [];
+        }
+
+        $moduleId = self::moduleId($entityKey);
+        $map = self::loadModule($moduleId);
+        $out = [];
+        foreach (array_keys($map) as $field) {
+            if (self::canView($entityKey, $field) && !self::canEdit($entityKey, $field)) {
+                $out[$field] = true;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Resolve RoleFieldAccess entity slug from an ERP / route module key.
+     */
+    public static function entityKeyFromModuleKey(?string $moduleKey): ?string
+    {
+        if ($moduleKey === null || $moduleKey === '') {
+            return null;
+        }
+
+        $moduleKey = str_replace('-', '_', strtolower(trim($moduleKey)));
+
+        $aliases = [
+            'riders' => 'rider',
+            'riders_list' => 'rider',
+            'bikes' => 'bike',
+            'bike_list' => 'bike',
+            'customers' => 'customer',
+            'vendors' => 'vendor',
+            'suppliers' => 'supplier',
+            'garages' => 'garage',
+            'accounts' => 'account',
+            'vouchers' => 'voucher',
+            'cash_banks' => 'bank',
+            'banks' => 'bank',
+            'sims' => 'sim',
+            'fuel_cards' => 'fuel',
+            'loans' => 'loan',
+            'items_list' => 'item',
+            'items' => 'item',
+            'recruiters' => 'recruiter',
+            'leasing_companies' => 'leasing',
+            'fixed_assets' => 'assets',
+            'cheques' => 'cheques',
+            'employees' => 'employees',
+            'expenses' => 'expenses',
+            'bike_registration' => 'bike_registration',
+        ];
+
+        $entity = $aliases[$moduleKey] ?? $moduleKey;
+
+        return self::moduleId($entity) !== null ? $entity : null;
     }
 
     /**

@@ -599,14 +599,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                             @endforeach
                           </select>
                         </div>
-
-                        <div class="col-md-2">
-                          <div class="form-check mt-4">
-                            <input type="hidden" name="is_mandatory" value="0">
-                            <input type="checkbox" name="is_mandatory" value="1" class="form-check-input" id="bikeFieldIsMandatoryModal">
-                            <label class="form-check-label" for="bikeFieldIsMandatoryModal">Mandatory</label>
-                          </div>
-                        </div>
+                      <input type="hidden" name="is_mandatory" value="0">
 
                         <div class="col-md-12">
                           <label class="form-label">Help Text</label>
@@ -687,8 +680,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                         <th style="width: 48px;" class="text-center" title="{{ __('Drag to reorder') }}"></th>
                         <th>Field</th>
                         <th>Current category</th>
-                        <th class="text-center">Required</th>
-                        <th class="text-center">Show in form</th>
                         <th>Move to category</th>
                         <th class="text-end">Actions</th>
                       </tr>
@@ -723,34 +714,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                         </td>
                         <td class="align-middle">
                           <span class="badge bg-label-info">{{ $categoryLabel }}</span>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input bike-field-required-toggle"
-                              data-field-key="{{ $row->field_key }}"
-                              data-category-id="{{ $row->category_id }}"
-                              data-display-label="{{ $row->display_label }}"
-                              data-input-type="{{ $row->input_type }}"
-                              data-input-config-options="{{ $inputOptions }}"
-                              data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($row->is_required ?? false) ? 'checked' : '' }}
-                              title="Require this value when the field is shown on add/edit forms">
-                          </div>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input bike-field-visibility-toggle"
-                              data-field-key="{{ $row->field_key }}"
-                              data-category-id="{{ $row->category_id }}"
-                              data-display-label="{{ $row->display_label }}"
-                              data-input-type="{{ $row->input_type }}"
-                              data-input-config-options="{{ $inputOptions }}"
-                              data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}
-                              title="Show this field on add/edit forms when checked">
-                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
@@ -878,7 +841,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                     @if(($fixedList ?? collect())->isEmpty() && ($customFields ?? collect())->isEmpty())
                     <tbody>
                       <tr>
-                        <td colspan="7" class="text-center text-muted py-3">No bike fields configured yet.</td>
+                        <td colspan="5" class="text-center text-muted py-3">No bike fields configured yet.</td>
                       </tr>
                     </tbody>
                     @endif
@@ -902,8 +865,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                       <tr>
                         <th style="width: 60px;"></th>
                         <th>Field</th>
-                        <th class="text-center">Required</th>
-                        <th class="text-center">Show in form</th>
                         <th>Move to category</th>
                         <th class="text-end">Actions</th>
                       </tr>
@@ -929,34 +890,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                           @if(($moduleKey ?? '') === 'attendance' && \App\Support\AttendanceFieldScope::isRiderOnlyField($row->field_key))
                           <span class="badge bg-label-info ms-1">Rider only</span>
                           @endif
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input bike-field-required-toggle"
-                              data-field-key="{{ $row->field_key }}"
-                              data-category-id="{{ $row->category_id }}"
-                              data-display-label="{{ $row->display_label }}"
-                              data-input-type="{{ $row->input_type }}"
-                              data-input-config-options="{{ $inputOptions }}"
-                              data-is-visible-current="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
-                              {{ ($row->is_required ?? false) ? 'checked' : '' }}
-                              title="Require this value when the field is shown on add/edit forms">
-                          </div>
-                        </td>
-                        <td class="align-middle text-center">
-                          <div class="form-check form-switch d-inline-block mb-0">
-                            <input type="checkbox"
-                              class="form-check-input bike-field-visibility-toggle"
-                              data-field-key="{{ $row->field_key }}"
-                              data-category-id="{{ $row->category_id }}"
-                              data-display-label="{{ $row->display_label }}"
-                              data-input-type="{{ $row->input_type }}"
-                              data-input-config-options="{{ $inputOptions }}"
-                              data-is-required-current="{{ ($row->is_required ?? false) ? 1 : 0 }}"
-                              {{ ($row->is_visible ?? true) ? 'checked' : '' }}
-                              title="Show this field on add/edit forms when checked">
-                          </div>
                         </td>
                         <td class="align-middle">
                           <form action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
@@ -1117,21 +1050,8 @@ $attendanceRefType = $attendanceRefType ?? null;
                         </select>
                       </div>
 
-                      <div class="col-md-4">
-                        <div class="form-check mt-4">
-                          <input type="hidden" name="is_visible" value="0">
-                          <input type="checkbox" name="is_visible" value="1" id="editBikeFixedIsVisible" class="form-check-input">
-                          <label class="form-check-label" for="editBikeFixedIsVisible">Visible</label>
-                        </div>
-                      </div>
-
-                      <div class="col-md-4">
-                        <div class="form-check mt-4">
-                          <input type="hidden" name="is_required" value="0">
-                          <input type="checkbox" name="is_required" value="1" id="editBikeFixedIsRequired" class="form-check-input">
-                          <label class="form-check-label" for="editBikeFixedIsRequired">Required</label>
-                        </div>
-                      </div>
+                      <input type="hidden" name="is_visible" id="editBikeFixedIsVisibleHidden" value="1">
+                      <input type="hidden" name="is_required" id="editBikeFixedIsRequiredHidden" value="0">
 
                       <div class="col-md-4">
                         <label class="form-label">Input type</label>
@@ -1197,14 +1117,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                           @endforeach
                         </select>
                       </div>
-
-                      <div class="col-md-4">
-                        <div class="form-check mt-4">
-                          <input type="hidden" name="is_mandatory" value="0">
-                          <input type="checkbox" name="is_mandatory" value="1" id="editBikeCustomIsMandatory" class="form-check-input">
-                          <label class="form-check-label" for="editBikeCustomIsMandatory">Mandatory</label>
-                        </div>
-                      </div>
+                      <input type="hidden" name="is_mandatory" value="0">
 
                       <div class="col-md-4">
                         <label class="form-label">Category</label>
@@ -1330,7 +1243,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                   </tr>
                   @empty
                   <tr>
-                    <td colspan="7" class="text-center text-muted py-4">No document types yet. Add one to define required module documents.</td>
+                    <td colspan="5" class="text-center text-muted py-4">No document types yet. Add one to define required module documents.</td>
                   </tr>
                   @endforelse
                 </tbody>
@@ -2227,16 +2140,10 @@ $attendanceRefType = $attendanceRefType ?? null;
         catSelect.value = categoryId;
       }
 
-      var visEl = document.getElementById('editBikeFixedIsVisible');
-      var reqEl = document.getElementById('editBikeFixedIsRequired');
-      if (visEl) {
-        visEl.checked = String(btn.dataset.isVisible) === '1';
-        visEl.disabled = false;
-      }
-      if (reqEl) {
-        reqEl.checked = String(btn.dataset.isRequired) === '1';
-        reqEl.disabled = false;
-      }
+      var visHidden = document.getElementById('editBikeFixedIsVisibleHidden');
+      if (visHidden) visHidden.value = String(btn.dataset.isVisible) === '1' ? '1' : '0';
+      var reqHidden = document.getElementById('editBikeFixedIsRequiredHidden');
+      if (reqHidden) reqHidden.value = String(btn.dataset.isRequired) === '1' ? '1' : '0';
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
       bikeUpdateFixedTypeUI(btn.dataset.inputType || 'text');
 
@@ -2260,7 +2167,6 @@ $attendanceRefType = $attendanceRefType ?? null;
       document.getElementById('editBikeCustomLabel').value = btn.dataset.fieldLabel || '';
       document.getElementById('editBikeCustomHelpText').value = btn.dataset.helpText || '';
       document.getElementById('editBikeCustomDataType').value = btn.dataset.dataType || '';
-      document.getElementById('editBikeCustomIsMandatory').checked = String(btn.dataset.isMandatory) === '1';
 
       const categoryId = btn.dataset.categoryId || '';
       const catSelect = document.getElementById('editBikeCustomCategoryId');
@@ -2291,160 +2197,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     }
   });
 
-  function bikeSyncFieldToggles(fieldKey, type, value) {
-    const selector = type === 'required' ?
-      '.bike-field-required-toggle[data-field-key="' + fieldKey + '"]' :
-      '.bike-field-visibility-toggle[data-field-key="' + fieldKey + '"]';
-    document.querySelectorAll(selector).forEach(function(el) {
-      el.checked = !!value;
-    });
-  }
-
-  function bikeUpdateFieldToggle(toggleEl, changedKey, changedValue) {
-    const csrf = '{{ csrf_token() }}';
-    const fieldKey = toggleEl.dataset.fieldKey || '';
-    const categoryId = toggleEl.dataset.categoryId || '';
-
-    const payload = new URLSearchParams();
-    payload.append('_token', csrf);
-    payload.append('field_key', fieldKey);
-    payload.append('category_id', categoryId);
-    payload.append('display_label', toggleEl.dataset.displayLabel || '');
-    payload.append('input_type', toggleEl.dataset.inputType || '');
-    payload.append('input_config_options', toggleEl.dataset.inputConfigOptions || '');
-
-    const isRequired = changedKey === 'is_required' ?
-      changedValue :
-      Number(toggleEl.dataset.isRequiredCurrent || 0);
-    const isVisible = changedKey === 'is_visible' ?
-      changedValue :
-      Number(toggleEl.dataset.isVisibleCurrent || 1);
-
-    payload.append('is_required', String(isRequired));
-    payload.append('is_visible', String(isVisible));
-
-    return fetch("{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}", {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'X-CSRF-TOKEN': csrf,
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-      },
-      body: payload.toString(),
-    }).then(function(response) {
-      return response.json().then(function(data) {
-        return response.ok ? data : Promise.reject(data);
-      });
-    });
-  }
-
-  if (!window.__bikeCustomFieldToggleChangeBound) {
-    window.__bikeCustomFieldToggleChangeBound = true;
-
-    document.addEventListener('change', function(e) {
-      var toggle = e.target.closest('.bike-custom-required-toggle, .bike-custom-visibility-toggle');
-      if (!toggle) return;
-
-      var customFieldId = toggle.getAttribute('data-id');
-      var updateUrl = toggle.getAttribute('data-update-url');
-      if (!customFieldId || !updateUrl) return;
-
-      var csrf = '{{ csrf_token() }}';
-      var fieldRequiredToggles = document.querySelectorAll('.bike-custom-required-toggle[data-id="' + customFieldId + '"]');
-      var fieldVisibleToggles = document.querySelectorAll('.bike-custom-visibility-toggle[data-id="' + customFieldId + '"]');
-      var isMandatory = fieldRequiredToggles.length ? (fieldRequiredToggles[0].checked ? 1 : 0) : 0;
-      var isVisible = fieldVisibleToggles.length ? (fieldVisibleToggles[0].checked ? 1 : 0) : 1;
-      var originalChecked = toggle.checked;
-
-      toggle.disabled = true;
-
-      var formBody = new URLSearchParams();
-      formBody.append('_token', csrf);
-      formBody.append('is_mandatory', String(isMandatory));
-      formBody.append('is_visible', String(isVisible));
-
-      fetch(updateUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRF-TOKEN': csrf,
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          body: formBody.toString(),
-        })
-        .then(function(r) {
-          return r.json().then(function(data) {
-            return r.ok ? data : Promise.reject(data);
-          });
-        })
-        .then(function(data) {
-          fieldRequiredToggles.forEach(function(el) {
-            el.checked = !!data.is_mandatory;
-            el.setAttribute('data-is-visible-current', data.is_visible ? '1' : '0');
-          });
-          fieldVisibleToggles.forEach(function(el) {
-            el.checked = !!data.is_visible;
-            el.setAttribute('data-is-mandatory-current', data.is_mandatory ? '1' : '0');
-          });
-        })
-        .catch(function() {
-          toggle.checked = !originalChecked;
-        })
-        .finally(function() {
-          toggle.disabled = false;
-        });
-    });
-  }
-
-  if (!window.__moduleFieldToggleChangeBound) {
-    window.__moduleFieldToggleChangeBound = true;
-
-    document.addEventListener('change', function(e) {
-      const toggle = e.target.closest('.bike-field-required-toggle, .bike-field-visibility-toggle');
-      if (!toggle) return;
-      if (toggle.dataset.updating === '1') return;
-
-      const isRequiredToggle = toggle.classList.contains('bike-field-required-toggle');
-      const changedKey = isRequiredToggle ? 'is_required' : 'is_visible';
-      const changedType = isRequiredToggle ? 'required' : 'visibility';
-      const originalChecked = !toggle.checked;
-
-      toggle.dataset.updating = '1';
-      toggle.disabled = true;
-
-      bikeUpdateFieldToggle(toggle, changedKey, toggle.checked ? 1 : 0)
-        .then(function(data) {
-          const isRequired = Number(data.is_required ? 1 : 0);
-          const isVisible = Number(data.is_visible ? 1 : 0);
-
-          document.querySelectorAll('.bike-field-required-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
-            .forEach(function(el) {
-              el.dataset.isRequiredCurrent = String(isRequired);
-            });
-
-          document.querySelectorAll('.bike-field-visibility-toggle[data-field-key="' + toggle.dataset.fieldKey + '"]')
-            .forEach(function(el) {
-              el.dataset.isVisibleCurrent = String(isVisible);
-            });
-
-          if (isRequiredToggle) {
-            toggle.checked = !!isRequired;
-            bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isRequired);
-          } else {
-            toggle.checked = !!isVisible;
-            bikeSyncFieldToggles(toggle.dataset.fieldKey, changedType, isVisible);
-          }
-        })
-        .catch(function() {
-          toggle.checked = originalChecked;
-        })
-        .finally(function() {
-          toggle.disabled = false;
-          delete toggle.dataset.updating;
-        });
-    });
+  // Required/Visible toggles removed; field visibility/required now managed in Role Permissions.
   }
 
   function initBikeFieldSortables() {

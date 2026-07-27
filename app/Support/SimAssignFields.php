@@ -75,7 +75,6 @@ class SimAssignFields
 
         $query = SimAssignFieldAssignment::query()
             ->with('customField')
-            ->where('is_visible', true)
             ->orderBy('display_order')
             ->orderBy('id');
 

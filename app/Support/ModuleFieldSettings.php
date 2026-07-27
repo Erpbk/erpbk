@@ -14,9 +14,10 @@ class ModuleFieldSettings
             return collect();
         }
 
+        // Form inclusion is controlled per role via Field Permissions (visible),
+        // not via Module Settings is_visible.
         return ModuleFieldCategoryAssignment::query()
             ->where('module_key', $moduleKey)
-            ->where('is_visible', true)
             ->get();
     }
 
@@ -76,45 +77,22 @@ class ModuleFieldSettings
     }
 
     /**
-     * Schema column keys that should be validated as required, based on module field settings.
-     * When no assignments exist yet for the module, all schema columns are treated as required (legacy behaviour).
+     * Schema column keys that should be validated as required for the current user,
+     * based on Role Field Permissions (required + visible + editable).
      *
      * @return list<string>
      */
     public static function requiredSchemaFieldKeysForValidation(string $moduleKey): array
     {
         $schemaList = ModuleFieldSource::schemaFieldKeysForModule($moduleKey);
-        if ($schemaList === [] || !Schema::hasTable('module_field_category_assignments')) {
-            return $schemaList;
+        if ($schemaList === []) {
+            return [];
         }
 
-        if (ModuleFieldCategoryAssignment::query()->where('module_key', $moduleKey)->doesntExist()) {
-            return $schemaList;
-        }
-
-        $table = (new ModuleFieldCategoryAssignment())->getTable();
-        $cols = Schema::getColumnListing($table);
-        $hasRequired = in_array('is_required', $cols, true);
-        $hasVisible = in_array('is_visible', $cols, true);
-
-        $allowed = array_fill_keys($schemaList, true);
-        $select = ['field_key'];
-        if ($hasRequired) {
-            $select[] = 'is_required';
-        }
-        if ($hasVisible) {
-            $select[] = 'is_visible';
-        }
-
+        $entityKey = self::entityKeyForModule($moduleKey);
         $required = [];
-        foreach (ModuleFieldCategoryAssignment::query()->where('module_key', $moduleKey)->get($select) as $row) {
-            $key = (string) $row->field_key;
-            if (!isset($allowed[$key])) {
-                continue;
-            }
-            $visible = !$hasVisible || $row->is_visible === null ? true : (bool) $row->is_visible;
-            $req = $hasRequired && (bool) $row->is_required;
-            if ($visible && $req) {
+        foreach ($schemaList as $key) {
+            if (RoleFieldAccess::isRequired($entityKey, $key) && RoleFieldAccess::canEdit($entityKey, $key)) {
                 $required[] = $key;
             }
         }
@@ -123,7 +101,7 @@ class ModuleFieldSettings
     }
 
     /**
-     * Whether a schema field is marked required (and visible) in module field settings.
+     * Whether a schema field is required for the current user via Field Permissions.
      */
     public static function isSchemaFieldRequired(string $moduleKey, string $fieldKey): bool
     {
@@ -131,7 +109,8 @@ class ModuleFieldSettings
     }
 
     /**
-     * Apply module field assignment required/visible flags to validation rules (same pattern as riders/employees).
+     * Apply role Field Permissions required flags to validation rules.
+     * Non-editable fields are never required (user cannot fill them).
      *
      * @param  array<string, string|array<int, mixed>>  $baseRules
      * @param  array{fields?: list<string>, ignore_id?: int|null}  $options
@@ -152,13 +131,9 @@ class ModuleFieldSettings
             $schemaKeys = array_values(array_filter($schemaKeys, fn ($key) => isset($allowed[$key])));
         }
 
-        if ($schemaKeys === [] || !Schema::hasTable('module_field_category_assignments')) {
+        if ($schemaKeys === []) {
             return $baseRules;
         }
-
-        $assignmentTable = (new ModuleFieldCategoryAssignment())->getTable();
-        $hasRequiredColumn = Schema::hasColumn($assignmentTable, 'is_required');
-        $hasVisibleColumn = Schema::hasColumn($assignmentTable, 'is_visible');
 
         $normalizePresenceRule = function ($rule, bool $required) {
             if (is_array($rule)) {
@@ -178,40 +153,40 @@ class ModuleFieldSettings
             return implode('|', $tokens);
         };
 
-        $assignmentColumns = ['field_key'];
-        if ($hasRequiredColumn) {
-            $assignmentColumns[] = 'is_required';
-        }
-        if ($hasVisibleColumn) {
-            $assignmentColumns[] = 'is_visible';
-        }
-
-        $assignments = ModuleFieldCategoryAssignment::query()
-            ->where('module_key', $moduleKey)
-            ->get($assignmentColumns)
-            ->keyBy('field_key');
-
+        $entityKey = self::entityKeyForModule($moduleKey);
         $rules = $baseRules;
-        $hasAnyAssignment = $assignments->isNotEmpty();
 
         foreach ($schemaKeys as $fieldKey) {
             if (!isset($columns[$fieldKey])) {
                 continue;
             }
 
-            $assignment = $assignments->get($fieldKey);
-            $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null
-                ? true
-                : (bool) $assignment->is_visible;
-            $isRequired = !$hasAnyAssignment
-                ? true
-                : (($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false);
+            $isRequired = RoleFieldAccess::isRequired($entityKey, $fieldKey)
+                && RoleFieldAccess::canEdit($entityKey, $fieldKey);
 
             $baseRule = $rules[$fieldKey] ?? 'nullable';
-            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isRequired);
         }
 
         return $rules;
+    }
+
+    /**
+     * Map module_key (settings) to RoleFieldAccess entity slug.
+     */
+    protected static function entityKeyForModule(string $moduleKey): string
+    {
+        $moduleKey = str_replace('-', '_', strtolower(trim($moduleKey)));
+
+        return match ($moduleKey) {
+            'riders' => 'rider',
+            'bikes' => 'bike',
+            'vendors' => 'vendor',
+            'customers' => 'customer',
+            'cash_banks', 'banks' => 'bank',
+            'sims' => 'sim',
+            default => $moduleKey,
+        };
     }
 }
 

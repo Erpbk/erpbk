@@ -137,7 +137,6 @@
                     <th>#</th>
                     <th>Label</th>
                     <th>Data type</th>
-                    <th>Mandatory</th>
                     <th class="text-end" style="width: 120px;">Actions</th>
                   </tr>
                 </thead>
@@ -347,19 +346,7 @@
                 <div id="addVoucherFieldConfigFields"></div>
               </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Is Mandatory</label>
-              <div class="d-flex gap-3">
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="1" class="form-check-input" id="addVoucherMandatoryYes">
-                  <label class="form-check-label" for="addVoucherMandatoryYes">Yes</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="addVoucherMandatoryNo" checked>
-                  <label class="form-check-label" for="addVoucherMandatoryNo">No</label>
-                </div>
-              </div>
-            </div>
+            <input type="hidden" name="is_mandatory" value="0">
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
@@ -395,12 +382,7 @@
               @endforeach
             </select>
           </div>
-          <div class="mb-3">
-            <div class="form-check">
-              <input type="checkbox" name="is_mandatory" value="1" class="form-check-input" id="editVoucherFieldMandatory">
-              <label class="form-check-label" for="editVoucherFieldMandatory">Is mandatory</label>
-            </div>
-          </div>
+          <input type="hidden" name="is_mandatory" value="0">
           <div id="edit-voucher-config-options-container" style="display: none;">
             <label class="form-label small text-uppercase text-muted">Configuration options</label>
             <div id="edit-voucher-config-options-fields"></div>
@@ -727,7 +709,6 @@
       document.getElementById('addVoucherFieldConfigFields').innerHTML = '';
       document.getElementById('addVoucherFieldOptionsContainer').style.display = 'none';
       document.getElementById('addVoucherFieldConfigOptionsWrap').style.display = 'none';
-      document.getElementById('addVoucherMandatoryNo').checked = true;
       document.getElementById('addVoucherPreventDupNo').checked = true;
       showAddVoucherFieldOptions();
       var count = document.querySelectorAll('#voucherCustomFieldsTbody tr[data-id]').length;
@@ -740,7 +721,7 @@
       var form = this;
       var submitBtn = document.getElementById('addVoucherFieldSubmitBtn');
       var fd = new FormData(form);
-      fd.set('is_mandatory', form.querySelector('[name="is_mandatory"]:checked').value === '1' ? '1' : '0');
+      fd.set('is_mandatory', '0');
       fd.set('prevent_duplicate_values', form.querySelector('[name="prevent_duplicate_values"]:checked').value);
       var config = {};
       form.querySelectorAll('[name^="config["]').forEach(function(inp) {
@@ -827,7 +808,7 @@
       var id = form.querySelector('[name="id"]').value;
       var fd = new FormData(form);
       fd.set('_method', 'PUT');
-      fd.set('is_mandatory', form.querySelector('#editVoucherFieldMandatory').checked ? '1' : '0');
+      fd.set('is_mandatory', '0');
       var config = {};
       form.querySelectorAll('[name^="config["]').forEach(function(inp) {
         var m = (inp.getAttribute('name') || '').match(/config\[([^\]]+)\]/);
@@ -891,7 +872,6 @@
         document.getElementById('editVoucherFieldId').value = editBtn.dataset.id;
         document.getElementById('editVoucherFieldLabel').value = editBtn.dataset.label;
         document.getElementById('editVoucherFieldDataType').value = editBtn.dataset.type;
-        document.getElementById('editVoucherFieldMandatory').checked = editBtn.dataset.mandatory === '1';
         buildConfigFields('edit-voucher-config-options-fields', editBtn.dataset.type, config);
         document.getElementById('edit-voucher-config-options-container').style.display = (dataTypes[editBtn.dataset.type] && dataTypes[editBtn.dataset.type].config && dataTypes[editBtn.dataset.type].config.length) ? 'block' : 'none';
         new bootstrap.Modal(document.getElementById('editVoucherFieldModal')).show();

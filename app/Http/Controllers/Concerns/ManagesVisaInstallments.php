@@ -346,7 +346,7 @@ trait ManagesVisaInstallments
 
     public function payInstallment(Request $request)
     {
-        if (!auth()->user()->hasAnyPermission(['installment_edit', 'visaloan_edit'])) {
+        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -388,7 +388,7 @@ trait ManagesVisaInstallments
 
     public function updateInstallmentField(Request $request)
     {
-        if (!auth()->user()->hasAnyPermission(['installment_edit', 'visaloan_edit'])) {
+        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -561,7 +561,7 @@ trait ManagesVisaInstallments
 
     public function finalizePayment(Request $request)
     {
-        if (!user_can('installment_edit')) {
+        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1674,7 +1674,7 @@ trait ManagesVisaInstallments
      */
     public function recalculateInstallments(Request $request)
     {
-        if (!user_can('installment_edit')) {
+        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
             abort(403, 'Unauthorized action.');
         }
 

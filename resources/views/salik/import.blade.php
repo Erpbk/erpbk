@@ -19,8 +19,10 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-6"><h1>Import Salik Records</h1></div>
-            <div class="col-sm-6 text-right">
-                <a class="btn btn-primary float-right" href="{{ route('salik.index') }}">Back to Salik List</a>
+            <div class="col-sm-6">
+                <div class="d-flex justify-content-end">
+                    <a class="btn btn-primary" href="{{ route('salik.index') }}">Back to Salik List</a>
+                </div>
             </div>
         </div>
     </div>

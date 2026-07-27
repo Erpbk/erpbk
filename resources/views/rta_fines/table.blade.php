@@ -10,7 +10,7 @@
          @if($vf('ticket_no'))<th title="Ticket No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ticket No: activate to sort column ascending" aria-sort="descending">Ticket No</th>@endif
          @if($vf('is_impound'))<th title="impound" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Ticket No: activate to sort column ascending" aria-sort="descending">Impound</th>@endif
          @if($vf('attachment'))<th title="Attachment" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending" aria-sort="descending">Attachment</th>@endif
-         <th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher No: activate to sort column ascending">Voucher No</th>
+         @if(Route::is('rtaFines.paid'))<th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher No: activate to sort column ascending">Voucher No</th>@endif
          @if($vf('rider_id'))<th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Rider Id</th>@endif
          <th title="Rider" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Name</th>
          @if($vf('plate_no'))<th title="Plate No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Plate No: activate to sort column ascending">Plate No</th>@endif
@@ -31,8 +31,6 @@
          @if($vf('billing_month'))<td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>@endif
          @php
          $fileUrl = $r->paid_voucher_id ? asset('storage/' . $r->attachment) : asset('storage/' . $r->attachment_path);
-         $voucher = $r->paid_voucher_id ? $r->paidVoucher : $r->voucher;
-         $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
          @endphp
          @if($vf('ticket_no'))<td><a data-action="{{ route('rtaFines.show',$r->id) }}" href="javascript:void(0);" class="show-modal-right">{{$r->ticket_no}}</a></td>@endif
          @if($vf('is_impound'))<td>
@@ -44,7 +42,13 @@
             @endif
          </td>@endif
          @if($vf('attachment'))<td><a href="{{ $fileUrl }}" target="_blank"><i class="fa fa-file"></i></a></td>@endif
+         @if(Route::is('rtaFines.paid'))
+         @php
+            $voucher = $r->paidVoucher;
+            $voucherNumber = $voucher ? $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) : null;
+         @endphp
          <td><a href="{{ route('vouchers.show', $voucher?->id ?? 0) }}" target="_blank">{{ $voucherNumber }}</a></td>
+         @endif
          @if($vf('rider_id'))<td>{{ $r->rider?->rider_id ?? '' }}</td>@endif
          <td>
             @if ($r->rider)

@@ -284,9 +284,9 @@ class AttendanceController extends Controller
     {
         $users = null;
         if ($refType === 'employee') {
-            $users = Employee::active()->select('id', 'name')->get();
+            $users = Employee::select('id', 'name')->get();
         } else {
-            $users = Riders::active()->select('id', 'name')->get();
+            $users = Riders::select('id', 'name')->get();
         }
 
         return response()->json($users);

@@ -187,8 +187,8 @@
     }
 
     .total-card {
-        flex: 1 1 calc(16% - 8px);
-        min-width: 120px;
+        flex: 1 1 calc(11% - 8px);
+        min-width: 110px;
         background: #fff;
         border: 1px solid #e5e7eb;
         border-left-width: 4px;
@@ -278,6 +278,51 @@
 
     .total-offroad .label {
         color: #c142bb;
+    }
+
+    .total-returned {
+        border-left-color: #17a2b8;
+        background: linear-gradient(180deg, rgba(23, 162, 184, 0.06), rgba(23, 162, 184, 0.02));
+    }
+
+    .total-returned .label {
+        color: #17a2b8;
+    }
+
+    .total-theft {
+        border-left-color: #fd7e14;
+        background: linear-gradient(180deg, rgba(253, 126, 20, 0.06), rgba(253, 126, 20, 0.02));
+    }
+
+    .total-theft .label {
+        color: #fd7e14;
+    }
+
+    .total-loss {
+        border-left-color: #343a40;
+        background: linear-gradient(180deg, rgba(52, 58, 64, 0.06), rgba(52, 58, 64, 0.02));
+    }
+
+    .total-loss .label {
+        color: #343a40;
+    }
+
+    .total-impound {
+        border-left-color: #b8860b;
+        background: linear-gradient(180deg, rgba(184, 134, 11, 0.06), rgba(184, 134, 11, 0.02));
+    }
+
+    .total-impound .label {
+        color: #b8860b;
+    }
+
+    .total-accident {
+        border-left-color: #e83e8c;
+        background: linear-gradient(180deg, rgba(232, 62, 140, 0.06), rgba(232, 62, 140, 0.02));
+    }
+
+    .total-accident .label {
+        color: #e83e8c;
     }
 
     /* Responsive adjustments */
@@ -573,28 +618,26 @@
         <div class="totals-cards">
             <div class="total-card total-bikes">
                 <div class="label"><i class="fa fa-motorcycle"></i>Total Bikes</div>
-                <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
+                <div class="value" id="stat_total">{{ $stats['total'] ?? 0 }}</div>
             </div>
-            <div class="total-card total-active">
-                <div class="label"><i class="fa fa-check-circle"></i>Active</div>
-                <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
+            @php
+            $statusCards = [
+                'on_road' => ['label' => 'On Road', 'icon' => 'fa fa-road', 'class' => 'total-onroad'],
+                'off_road' => ['label' => 'Off Road', 'icon' => 'fa fa-ban', 'class' => 'total-offroad'],
+                'returned' => ['label' => 'Returned', 'icon' => 'fa fa-undo', 'class' => 'total-returned'],
+                'absconded' => ['label' => 'Absconded', 'icon' => 'fa fa-user-secret', 'class' => 'total-absconded'],
+                'theft' => ['label' => 'Theft', 'icon' => 'fa fa-exclamation-triangle', 'class' => 'total-theft'],
+                'total_loss' => ['label' => 'Total Loss', 'icon' => 'fa fa-times-circle', 'class' => 'total-loss'],
+                'impound' => ['label' => 'Impound', 'icon' => 'fa fa-lock', 'class' => 'total-impound'],
+                'accident' => ['label' => 'Accident', 'icon' => 'fa fa-ambulance', 'class' => 'total-accident'],
+            ];
+            @endphp
+            @foreach($statusCards as $statusKey => $card)
+            <div class="total-card {{ $card['class'] }}">
+                <div class="label"><i class="{{ $card['icon'] }}"></i>{{ $card['label'] }}</div>
+                <div class="value" id="stat_{{ $statusKey }}">{{ $stats[$statusKey] ?? 0 }}</div>
             </div>
-            <div class="total-card total-inactive">
-                <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
-                <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
-            </div>
-            <div class="total-card total-onroad">
-                <div class="label"><i class="fa fa-building"></i>Onroad</div>
-                <div class="value" id="total_hours">{{ $stats['onroad'] ?? 0 }}</div>
-            </div>
-            <div class="total-card total-offroad">
-                <div class="label"><i class="fa fa-building"></i>Offroad</div>
-                <div class="value" id="total_hours">{{ $stats['offroad'] ?? 0 }}</div>
-            </div>
-            <div class="total-card total-absconded">
-                <div class="label"><i class="fa fa-user-secret"></i>Absconded</div>
-                <div class="value" id="total_hours">{{ $stats['absconded'] ?? 0 }}</div>
-            </div>
+            @endforeach
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             <div class="bikes-table-container">

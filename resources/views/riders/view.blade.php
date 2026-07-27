@@ -275,7 +275,11 @@ if(isset($riders)){
 $result = $riders->toArray();
 }
 if(isset($result)){
-$account = App\Models\ExpenseAccount::where('rider_id', $result['id'])->first();
+$account = App\Models\ExpenseAccount::where('rider_id', $result['id'])
+    ->whereNotNull('renewal_category_id')
+    ->orderByDesc('id')
+    ->first()
+    ?? App\Models\ExpenseAccount::where('rider_id', $result['id'])->orderByDesc('id')->first();
 }
 $companySlug = request()->route('company_slug');
 
@@ -611,21 +615,33 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
+                @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
                 @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
-                @if(!empty($riders))
+                @isset($result)
                 @can('visa_expense_view')
                 @php
-                $account = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
+                // Prefer a dedicated visa expense account (renewal category), then any linked expense account.
+                $visaExpenseAccount = $account
+                    ?? company_table('expense_accounts')
+                        ->where('rider_id', $result['id'])
+                        ->whereNotNull('renewal_category_id')
+                        ->orderByDesc('id')
+                        ->first()
+                    ?? company_table('expense_accounts')
+                        ->where('rider_id', $result['id'])
+                        ->orderByDesc('id')
+                        ->first();
                 @endphp
-                @if($account)
+                @if($visaExpenseAccount)
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
-                    href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($account->id, $account->rider_id) }}">
+                    href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($visaExpenseAccount->id, $visaExpenseAccount->rider_id ?? $result['id']) }}">
                     <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
                   </a>
                 </li>
                 @endif
                 @endcan
+                @endif
                 @endif
                 @endif
 

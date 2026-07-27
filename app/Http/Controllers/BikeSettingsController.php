@@ -37,6 +37,7 @@ class BikeSettingsController extends Controller
         'previous_km',
         'customer_id',
         'rider_id',
+        'bike_owner',
         'custom_field_values',
         'warehouse',
         'rental_company_id',

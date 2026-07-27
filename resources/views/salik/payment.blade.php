@@ -18,10 +18,20 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-4 form-group">
-                    <label>Leasing Company <span class="text-danger">*</span></label>
+                    <label>Company <span class="text-danger">*</span></label>
                     <select id="leasing_company_id" class="form-select select2" required>
-                        <option value="">Select leasing company</option>
-                        <option value="own">Own Vehicles</option>
+                        <option value="">Select Bike company</option>
+                        @php
+                        $ownCompanyName = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+                        if ($ownCompanyName === '') {
+                            $currentCompany = view()->shared('currentCompany');
+                            $ownCompanyName = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+                        }
+                        if ($ownCompanyName === '') {
+                            $ownCompanyName = 'Own Vehicles';
+                        }
+                        @endphp
+                        <option value="own">{{ $ownCompanyName }}</option>
                         @foreach($leasingCompanies as $company)
                         <option value="{{ $company->id }}">{{ $company->name }}</option>
                         @endforeach
@@ -106,7 +116,7 @@
 @section('page-script')
 <script>
 $(function () {
-    $('.select2').select2({ allowClear: true, placeholder: 'Select leasing company' });
+    $('.select2').select2({ allowClear: true, placeholder: 'Select Bike company' });
 
     $('#loadSalikRecords').on('click', function () {
         var billingMonth = $('#billing_month_filter').val();

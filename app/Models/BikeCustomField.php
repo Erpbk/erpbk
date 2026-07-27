@@ -143,6 +143,7 @@ class BikeCustomField extends BaseModel
             'previous_km',
             'customer_id',
             'rider_id',
+            'bike_owner',
             'warehouse',
             'rental_company_id',
             'leased_return_company_id',
@@ -200,7 +201,8 @@ class BikeCustomField extends BaseModel
 
     public static function isAlwaysRequiredFixedField(string $fieldKey): bool
     {
-        return $fieldKey === 'bike_owner';
+        // Ownership is chosen via the company select ("own" vs leasing company).
+        return $fieldKey === 'company';
     }
 
     /**
@@ -290,7 +292,9 @@ class BikeCustomField extends BaseModel
                 $opts = Branch::dropdown();
                 break;
             case 'leasing_companies':
-                $opts = LeasingCompanies::dropdown();
+                $opts = $fieldKey === 'company'
+                    ? LeasingCompanies::dropdownWithOwnOption()
+                    : LeasingCompanies::dropdown();
                 break;
             case 'customers':
                 $opts = Customers::pluck('name', 'id')->prepend('Select', '')->toArray();

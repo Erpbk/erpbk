@@ -30,19 +30,22 @@ $cyclistHideFields = [
 
 $wrapperExtraClass = ($item->kind === 'fixed' && in_array($item->field_key, $cyclistHideFields, true)) ? ' hide-if-cyclist' : '';
 
-// These fields only apply to leased bikes (toggled by the bike_owner select).
-$leasedOnlyFields = [
-'leased_date',
-'company',
-];
-$wrapperExtraClass .= ($item->kind === 'fixed' && in_array($item->field_key, $leasedOnlyFields, true)) ? ' show-if-leased' : '';
-
 $rfpEntity = 'bike';
 $rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 $rfpVisible = field_visible($rfpEntity, (string) $rfpField);
 $rfpEditable = field_editable($rfpEntity, (string) $rfpField);
 $rfpLock = $rfpEditable ? [] : ['readonly' => 'readonly'];
 $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
+
+// Owned bikes store company=null; form uses sentinel value "own".
+if ($item->kind === 'fixed' && $item->field_key === 'company') {
+    $isOwned = $isEdit
+        && strcasecmp((string) ($bikes->bike_owner ?? ''), 'Owned') === 0
+        && ($bikes->company === null || $bikes->company === '');
+    if ($isOwned || old('company') === 'own') {
+        $value = 'own';
+    }
+}
 @endphp
 
 @if ($rfpVisible)
@@ -51,7 +54,7 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
     @php
     $spec = $item->spec ?? [];
     $req = !empty($spec['required']);
-    $fieldId = in_array($item->field_key, ['vehicle_type', 'bike_owner'], true) ? $item->field_key : null;
+    $fieldId = $item->field_key === 'vehicle_type' ? $item->field_key : null;
     @endphp
 
     @if (($spec['type'] ?? 'text') === 'select')
@@ -73,13 +76,13 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
     }
     }
 
-    if (!empty($parsedOptions)) {
+    if (!empty($parsedOptions) && $item->field_key !== 'company') {
     foreach ($parsedOptions as $opt) {
     $opts[$opt] = $opt;
     }
     // Skip dropdown-key-based options since we already have explicit options.
-    } elseif ($item->field_key === 'bike_owner') {
-    $opts = \App\Models\BikeCustomField::bikeOwnerSelectOptions();
+    } elseif ($item->field_key === 'company') {
+    $opts = \App\Models\LeasingCompanies::dropdownWithOwnOption();
     } else {
     switch ($dropdownKey) {
     case 'vehicle_models':

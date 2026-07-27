@@ -88,8 +88,6 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             'plate' => 8,
             'amount' => 9,
             'billing_month' => 10,
-            'admin_charges' => 12,
-            'details' => 14,
         ];
     }
 
@@ -201,25 +199,14 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                         ? $this->cell($row, 'billing_month')
                         : null;
 
-                    if ($this->isMapped('admin_charges')) {
-                        $adminCell = $this->cell($row, 'admin_charges');
-                        // Non-empty Excel value wins (including 0); empty cell → global default
-                        $adminCharge = !$this->isBlank($adminCell)
-                            ? (float) $adminCell
-                            : (float) $this->adminChargePerSalik;
-                    } else {
-                        $adminCharge = (float) $this->adminChargePerSalik;
-                    }
+                    $adminCharge = (float) $this->adminChargePerSalik;
 
                     $salikVatPercent = (float) $this->salikVatPercent;
                     $adminVatPercent = (float) $this->adminVatPercent;
                     $salikVatAmount = round($transactionAmount * $salikVatPercent / 100, 2);
                     $adminVatAmount = round($adminCharge * $adminVatPercent / 100, 2);
 
-                    $detailsRaw = $this->isMapped('details') ? $this->cell($row, 'details') : null;
-                    $details = !$this->isBlank($detailsRaw)
-                        ? $detailsRaw
-                        : ($tripDate ? 'Salik Charges - ' . $tripDate->format('M-Y') : 'Salik Charges');
+                    $details = $tripDate ? 'Salik Charges - ' . $tripDate->format('M-Y') : 'Salik Charges';
 
                     $totalVat = $salikVatAmount + $adminVatAmount;
                     $totalAmount = $transactionAmount + $adminCharge + $totalVat;

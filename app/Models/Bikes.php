@@ -92,7 +92,7 @@ class Bikes extends BaseModel
     'model' => 'nullable|string|max:100',
     'model_type' => 'nullable|string|max:100',
     'engine' => 'nullable|string|max:100',
-    'company' => 'nullable',
+    'company' => 'required',
     'rider_id' => 'nullable',
     'notes' => 'nullable|string|max:65535',
     'created_by' => 'nullable',
@@ -114,7 +114,7 @@ class Bikes extends BaseModel
     'leased_return_by' => 'nullable|date',
     'leased_return_date' => 'nullable|date',
     'leased_return_company_id' => 'nullable|integer|exists:leasing_companies,id',
-    'bike_owner' => 'required|string|in:Owned,Leased',
+    'bike_owner' => 'nullable|string|in:Owned,Leased',
   ];
   public static function dropdown()
   {

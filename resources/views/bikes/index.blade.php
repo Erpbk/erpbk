@@ -483,7 +483,17 @@
                         ->get();
                         @endphp
                         <option value="" selected>Select</option>
-                        <option value="own">Own Vehicles</option>
+                        @php
+                        $ownCompanyName = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+                        if ($ownCompanyName === '') {
+                            $currentCompany = view()->shared('currentCompany');
+                            $ownCompanyName = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+                        }
+                        if ($ownCompanyName === '') {
+                            $ownCompanyName = 'Own Vehicles';
+                        }
+                        @endphp
+                        <option value="own" {{ request('company') == 'own' ? 'selected' : '' }}>{{ $ownCompanyName }}</option>
                         @foreach($companies as $company)
                         <option value="{{ $company->id }}" {{ request('company') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach

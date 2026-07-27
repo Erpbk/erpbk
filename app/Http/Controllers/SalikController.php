@@ -1326,8 +1326,6 @@ class SalikController extends AppBaseController
             'col_amount' => 'required|integer|min:1',
             'col_transaction_post_date' => 'nullable|integer|min:1',
             'col_billing_month' => 'nullable|integer|min:1',
-            'col_admin_charges' => 'nullable|integer|min:1',
-            'col_details' => 'nullable|integer|min:1',
         ]);
 
         $columnMap = [
@@ -1341,8 +1339,6 @@ class SalikController extends AppBaseController
             'amount' => (int) $request->col_amount,
             'transaction_post_date' => $request->filled('col_transaction_post_date') ? (int) $request->col_transaction_post_date : null,
             'billing_month' => $request->filled('col_billing_month') ? (int) $request->col_billing_month : null,
-            'admin_charges' => $request->filled('col_admin_charges') ? (int) $request->col_admin_charges : null,
-            'details' => $request->filled('col_details') ? (int) $request->col_details : null,
         ];
 
         $uniqueCheck = $columnMap;
@@ -2146,6 +2142,56 @@ class SalikController extends AppBaseController
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
         }
+    }
+
+    public function paymentRecords(Request $request)
+    {
+        if (!user_can('rta_saliks_payment_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $query = Vouchers::where('voucher_type', 'SV')
+            ->withCount('salikPayments as salik_count');
+
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+
+        if ($request->filled('billing_month')) {
+            $bm = Carbon::parse($request->billing_month . '-01')->format('Y-m-d');
+            $query->where('billing_month', $bm);
+        }
+
+        if ($request->filled('trans_date_from')) {
+            $query->where('trans_date', '>=', $request->trans_date_from);
+        }
+
+        if ($request->filled('trans_date_to')) {
+            $query->where('trans_date', '<=', $request->trans_date_to);
+        }
+
+        $paginationParams = $this->getPaginationParams($request);
+
+        $totalCount = (clone $query)->count();
+        $totalAmount = (clone $query)->sum('amount');
+        $totalSaliks = (int) (clone $query)->sum(
+            DB::raw('(SELECT COUNT(*) FROM saliks WHERE saliks.payment_voucher_id = vouchers.id)')
+        );
+
+        $data = $this->applyPagination($query->orderByDesc('trans_date'), $paginationParams);
+
+        if ($request->ajax()) {
+            $tableHtml = view('salik.payments_table', compact('data'))->render();
+            $paginationLinks = method_exists($data, 'links') ? $data->links('components.global-pagination')->render() : '';
+
+            return response()->json([
+                'tableData' => $tableHtml,
+                'paginationLinks' => $paginationLinks,
+                'total' => method_exists($data, 'total') ? $data->total() : $data->count(),
+            ]);
+        }
+
+        return view('salik.payments', compact('data', 'totalCount', 'totalAmount', 'totalSaliks'));
     }
 
     /**

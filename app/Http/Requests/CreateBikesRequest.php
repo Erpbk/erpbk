@@ -5,8 +5,10 @@ namespace App\Http\Requests;
 use App\Models\Bikes;
 use App\Models\BikeCustomField;
 use App\Models\BikeFieldCategoryAssignment;
+use App\Models\LeasingCompanies;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Validator;
 
 class CreateBikesRequest extends FormRequest
 {
@@ -115,6 +117,25 @@ class CreateBikesRequest extends FormRequest
             }
         }
 
+        // bike_owner is derived from company select; never required from the form.
+        $rules['bike_owner'] = 'nullable|string|in:Owned,Leased';
+
         return $rules;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $company = $this->input('company');
+            if ($company === null || $company === '') {
+                return;
+            }
+            if ($company === 'own') {
+                return;
+            }
+            if (! LeasingCompanies::whereKey($company)->exists()) {
+                $validator->errors()->add('company', 'Selected company is invalid.');
+            }
+        });
     }
 }

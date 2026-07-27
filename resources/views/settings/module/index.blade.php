@@ -138,18 +138,8 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 <label class="form-label">Display label</label>
                 <input type="text" name="display_label" class="form-control">
               </div>
-              <div class="col-md-3">
-                <div class="form-check mt-4">
-                  <input class="form-check-input" type="checkbox" name="is_visible" value="1" checked>
-                  <label class="form-check-label">Visible</label>
-                </div>
-              </div>
-              <div class="col-md-3">
-                <div class="form-check mt-4">
-                  <input class="form-check-input" type="checkbox" name="is_required" value="1">
-                  <label class="form-check-label">Required</label>
-                </div>
-              </div>
+              <input type="hidden" name="is_visible" value="1">
+              <input type="hidden" name="is_required" value="0">
               <div class="col-md-6">
                 <button type="submit" class="btn btn-primary mt-3">Save assignment</button>
               </div>
@@ -163,8 +153,6 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                     <th>Field label</th>
                     <th>Category</th>
                     <th>Display label</th>
-                    <th>Visible</th>
-                    <th>Required</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -174,12 +162,10 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                     <td>{{ $row->field_label }}</td>
                     <td>{{ optional($row->category)->label }}</td>
                     <td>{{ $row->display_label }}</td>
-                    <td>{{ $row->is_visible ? 'Yes' : 'No' }}</td>
-                    <td>{{ $row->is_required ? 'Yes' : 'No' }}</td>
                   </tr>
                   @empty
                   <tr>
-                    <td colspan="6" class="text-muted text-center">No field assignments yet.</td>
+                    <td colspan="4" class="text-muted text-center">No field assignments yet.</td>
                   </tr>
                   @endforelse
                 </tbody>
@@ -214,12 +200,7 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                 <label class="form-label">Help text</label>
                 <input type="text" name="help_text" class="form-control">
               </div>
-              <div class="col-md-4">
-                <div class="form-check mt-4">
-                  <input class="form-check-input" type="checkbox" name="is_mandatory" value="1">
-                  <label class="form-check-label">Mandatory</label>
-                </div>
-              </div>
+              <input type="hidden" name="is_mandatory" value="0">
               <div class="col-md-12">
                 <button type="submit" class="btn btn-primary">Add custom field</button>
               </div>
@@ -232,7 +213,6 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                     <th>Label</th>
                     <th>Type</th>
                     <th>Category</th>
-                    <th>Mandatory</th>
                     <th width="120">Delete</th>
                   </tr>
                 </thead>
@@ -242,7 +222,6 @@ $settingsCompanySlug = request()->route('company_slug') ?? session('company_slug
                     <td>{{ $field->label }}</td>
                     <td>{{ $field->data_type }}</td>
                     <td>{{ optional($field->category)->label }}</td>
-                    <td>{{ $field->is_mandatory ? 'Yes' : 'No' }}</td>
                     <td>
                       <form action="{{ route('settings-panel.module-settings.destroy-field', ['company_slug' => $settingsCompanySlug, 'module' => $moduleKey, 'id' => $field->id]) }}" method="POST" onsubmit="return confirm('Delete this custom field?')">
                         @csrf

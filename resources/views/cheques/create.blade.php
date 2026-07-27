@@ -1,4 +1,4 @@
-<form action="{{ route('cheques.store') }}" method="POST" enctype="multipart/form-data" id="formajax">
+<form action="{{ route('cheques.store') }}" method="POST" enctype="multipart/form-data" id="formajax" data-rfp-entity="cheques">
     @csrf
     
     <!-- Step 1: Type Selection -->

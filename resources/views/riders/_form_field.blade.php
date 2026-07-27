@@ -16,17 +16,25 @@ $rfpEntity = 'rider';
 $rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
 $rfpVisible = field_visible($rfpEntity, (string) $rfpField);
 $rfpEditable = field_editable($rfpEntity, (string) $rfpField);
-$rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
+$rfpRequired = field_required($rfpEntity, (string) $rfpField);
+$rfpInputLock = field_lock($rfpEntity, (string) $rfpField, 'input');
+$rfpSelectLock = field_lock($rfpEntity, (string) $rfpField, 'select');
 @endphp
 @if ($rfpVisible)
-<div class="form-group col-sm-4">
+<div class="form-group col-sm-4" data-rfp-entity="rider" data-rfp-field="{{ $rfpField }}">
   @if ($item->kind === 'fixed')
   @php
   $spec = $item->spec;
-  $req = !empty($spec['required']);
+  $req = ($rfpRequired || !empty($spec['required'])) && $rfpEditable;
   $isReadonly = !empty($spec['readonly'])
   || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
-  $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
+  $readonlyAttrs = $isReadonly
+    ? (['readonly' => 'readonly', 'data-rfp-locked' => '1'] + ($rfpEditable ? [] : $rfpInputLock))
+    : $rfpInputLock;
+  // Date/datetime ignore readonly in some browsers — force disabled when locked.
+  if (!$rfpEditable && in_array(($spec['type'] ?? ''), ['date', 'datetime'], true)) {
+    $readonlyAttrs = $rfpSelectLock;
+  }
   @endphp
   @if (($spec['type'] ?? 'text') === 'select')
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
@@ -81,6 +89,9 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
   }
   $selectAttributes = $selectAttributes + $rfpSelectLock;
   @endphp
+  @if (!$rfpEditable && $value !== null && $value !== '')
+  <input type="hidden" name="{{ $item->field_key }}" value="{{ $value }}" />
+  @endif
   {!! Form::select($item->field_key, $opts, $value, $selectAttributes) !!}
   @if ($item->field_key === 'rider_id')
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
@@ -91,7 +102,7 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
   @elseif (($spec['type'] ?? '') === 'checkbox')
   <div class="form-check mt-4">
     <input type="hidden" name="{{ $item->field_key }}" value="{{ in_array($item->field_key, ['vat'], true) ? '2' : '0' }}" />
-    {!! Form::checkbox($item->field_key, $spec['value'] ?? 1, $value == 1 || $value === true, ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key]) !!}
+    {!! Form::checkbox($item->field_key, $spec['value'] ?? 1, $value == 1 || $value === true, ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key] + $rfpSelectLock) !!}
     {!! Form::label('field_' . $item->field_key, $item->label, ['class' => 'form-check-label fw-bold pt-0' . ($req ? ' required' : '')]) !!}
   </div>
   @else
@@ -107,9 +118,14 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
   @else
   @php
   $f = $item->field;
-  $req = $f->is_mandatory ?? false;
+  $req = $rfpRequired && $rfpEditable;
   $isReadonly = \App\Support\SimAssigneeContactSync::isManagedCustomFieldId((int) $f->id, 'rider_custom_fields');
-  $readonlyAttrs = ($isReadonly || !$rfpEditable) ? ['readonly' => 'readonly'] : [];
+  $readonlyAttrs = $isReadonly
+    ? (['readonly' => 'readonly', 'data-rfp-locked' => '1'] + ($rfpEditable ? [] : $rfpInputLock))
+    : $rfpInputLock;
+  if (!$rfpEditable && in_array(($f->data_type ?? ''), ['date', 'datetime'], true)) {
+    $readonlyAttrs = $rfpSelectLock;
+  }
   @endphp
   {!! Form::label($name, $f->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
   @if ($f->help_text)
@@ -138,12 +154,15 @@ $rfpSelectLock = $rfpEditable ? [] : ['disabled' => true];
   if ($line !== '') $dd[$line] = $line;
   }
   @endphp
+  @if (!$rfpEditable && $value !== null && $value !== '')
+  <input type="hidden" name="{{ $name }}" value="{{ $value }}" />
+  @endif
   {!! Form::select($name, $dd, $value, ['class' => 'form-select', 'placeholder' => 'Select'] + ($req ? ['required' => true] : []) + $rfpSelectLock) !!}
   @break
   @case('checkbox')
   <div class="form-check mt-2">
     <input type="hidden" name="{{ $name }}" value="0" />
-    {!! Form::checkbox($name, '1', filter_var($value, FILTER_VALIDATE_BOOLEAN), ['class' => 'form-check-input', 'id' => 'cf_' . $f->id]) !!}
+    {!! Form::checkbox($name, '1', filter_var($value, FILTER_VALIDATE_BOOLEAN), ['class' => 'form-check-input', 'id' => 'cf_' . $f->id] + $rfpSelectLock) !!}
     <label class="form-check-label fw-bold" for="cf_{{ $f->id }}">Yes</label>
   </div>
   @break

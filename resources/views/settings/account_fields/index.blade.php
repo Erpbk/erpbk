@@ -101,7 +101,6 @@
                     <th>#</th>
                     <th>Label</th>
                     <th>Data type</th>
-                    <th>Mandatory</th>
                     <th class="text-end" style="width: 100px;">Actions</th>
                   </tr>
                 </thead>
@@ -111,7 +110,6 @@
                     <td>{{ $idx + 1 }}</td>
                     <td>{{ $f['label'] }}</td>
                     <td><span class="badge bg-label-secondary">{{ $f['data_type'] }}</span></td>
-                    <td>{{ $f['is_mandatory'] ? 'Yes' : 'No' }}</td>
                     <td class="text-end"><span class="text-muted small">—</span></td>
                   </tr>
                   @endforeach
@@ -136,7 +134,6 @@
                     <th>#</th>
                     <th>Label</th>
                     <th>Data type</th>
-                    <th>Mandatory</th>
                     <th class="text-end" style="width: 120px;">Actions</th>
                   </tr>
                 </thead>
@@ -242,19 +239,7 @@
                 <div id="addFieldConfigFields"></div>
               </div>
             </div>
-            <div class="mb-3">
-              <label class="form-label">Is Mandatory</label>
-              <div class="d-flex gap-3">
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="1" class="form-check-input" id="addMandatoryYes">
-                  <label class="form-check-label" for="addMandatoryYes">Yes</label>
-                </div>
-                <div class="form-check">
-                  <input type="radio" name="is_mandatory" value="0" class="form-check-input" id="addMandatoryNo" checked>
-                  <label class="form-check-label" for="addMandatoryNo">No</label>
-                </div>
-              </div>
-            </div>
+            <input type="hidden" name="is_mandatory" value="0">
           </div>
         </div>
         <div class="modal-footer border-0 pt-0">
@@ -290,12 +275,7 @@
               @endforeach
             </select>
           </div>
-          <div class="mb-3">
-            <div class="form-check">
-              <input type="checkbox" name="is_mandatory" value="1" class="form-check-input" id="editFieldMandatory">
-              <label class="form-check-label" for="editFieldMandatory">Is mandatory</label>
-            </div>
-          </div>
+          <input type="hidden" name="is_mandatory" value="0">
           <div id="edit-config-options-container" style="display: none;">
             <label class="form-label small text-uppercase text-muted">Configuration options</label>
             <div id="edit-config-options-fields"></div>
@@ -442,7 +422,6 @@
       document.getElementById('addFieldConfigOptionsWrap').style.display = 'none';
       document.getElementById('addFieldInputFormatWrap').style.display = 'none';
       document.getElementById('addFieldDefaultValueWrap').style.display = 'none';
-      document.getElementById('addMandatoryNo').checked = true;
       document.getElementById('addPreventDupNo').checked = true;
       showAddFieldDynamicSections();
       var count = document.querySelectorAll('#customFieldsTbody tr[data-id]').length;
@@ -460,7 +439,7 @@
       var form = this;
       var submitBtn = document.getElementById('addFieldSubmitBtn');
       var fd = new FormData(form);
-      fd.set('is_mandatory', form.querySelector('[name="is_mandatory"]:checked').value === '1' ? '1' : '0');
+      fd.set('is_mandatory', '0');
       fd.set('prevent_duplicate_values', form.querySelector('[name="prevent_duplicate_values"]:checked').value);
       var config = {};
       form.querySelectorAll('[name^="config["]').forEach(function(inp) {
@@ -554,7 +533,7 @@
       var id = form.querySelector('[name="id"]').value;
       var fd = new FormData(form);
       fd.set('_method', 'PUT');
-      fd.set('is_mandatory', form.querySelector('#editFieldMandatory').checked ? '1' : '0');
+      fd.set('is_mandatory', '0');
       var config = {};
       form.querySelectorAll('[name^="config["]').forEach(function(inp) {
         var name = inp.getAttribute('name');
@@ -624,7 +603,6 @@
         document.getElementById('editFieldId').value = id;
         document.getElementById('editFieldLabel').value = label;
         document.getElementById('editFieldDataType').value = type;
-        document.getElementById('editFieldMandatory').checked = mandatory === '1';
         buildConfigFields('edit-config-options-fields', type, config);
         document.getElementById('edit-config-options-container').style.display = (dataTypes[type] && dataTypes[type].config && dataTypes[type].config.length) ? 'block' : 'none';
         new bootstrap.Modal(document.getElementById('editCustomFieldModal')).show();

@@ -52,56 +52,44 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Required custom + fixed fields from employee settings (same pattern as riders dynamicFieldRules).
+     * Required custom + fixed fields from Role Field Permissions.
      */
     private function employeeDynamicFieldRules(): array
     {
         $rules = [];
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
-        $assignmentTable = (new EmployeeFieldCategoryAssignment())->getTable();
-        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
-        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
-        if ($hasRequiredColumn) {
-            $query = EmployeeFieldCategoryAssignment::query()->where('is_required', 1);
-            if ($hasVisibleColumn) {
-                $query->where(function ($q) {
-                    $q->where('is_visible', 1)->orWhereNull('is_visible');
-                });
+        foreach (EmployeeCustomField::allFixedFieldKeys() as $fieldKey) {
+            if (!isset($employeeColumns[$fieldKey])) {
+                continue;
             }
-            $query->get(['field_key'])->each(function ($assignment) use (&$rules, $employeeColumns) {
-                $fieldKey = (string) $assignment->field_key;
-                if (!isset($employeeColumns[$fieldKey])) {
-                    return;
-                }
+            if (\App\Support\RoleFieldAccess::isRequired('employees', $fieldKey)
+                && \App\Support\RoleFieldAccess::canEdit('employees', $fieldKey)) {
                 $rules[$fieldKey] = 'required';
-            });
+            }
         }
 
         EmployeeCustomField::query()
-            ->where('is_mandatory', 1)
             ->whereNotNull('category_id')
-            ->where(function ($q) {
-                $q->where('is_visible', 1)->orWhereNull('is_visible');
-            })
             ->get(['id'])
             ->each(function ($field) use (&$rules) {
-                $rules['custom_field_values.' . $field->id] = 'required';
+                $cfName = 'cf_' . $field->id;
+                if (\App\Support\RoleFieldAccess::isRequired('employees', $cfName)
+                    && \App\Support\RoleFieldAccess::canEdit('employees', $cfName)) {
+                    $rules['custom_field_values.' . $field->id] = 'required';
+                }
             });
 
         return $rules;
     }
 
     /**
-     * Build employee create/update validation from Employee Settings assignments (same as riders).
+     * Build employee create/update validation from Role Field Permissions.
      */
     private function employeeValidationRules(?int $ignoreEmployeeId = null): array
     {
         $rules = Employee::$rules;
         $employeeColumns = array_flip(Schema::getColumnListing('employees'));
-        $assignmentTable = (new EmployeeFieldCategoryAssignment())->getTable();
-        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
-        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
 
         $normalizePresenceRule = function ($rule, bool $required) {
             if (is_array($rule)) {
@@ -121,30 +109,16 @@ class EmployeeController extends Controller
             return implode('|', $tokens);
         };
 
-        $assignmentColumns = ['field_key'];
-        if ($hasRequiredColumn) {
-            $assignmentColumns[] = 'is_required';
-        }
-        if ($hasVisibleColumn) {
-            $assignmentColumns[] = 'is_visible';
-        }
-
-        $assignments = EmployeeFieldCategoryAssignment::query()
-            ->get($assignmentColumns)
-            ->keyBy('field_key');
         $fixedKeys = EmployeeCustomField::allFixedFieldKeys();
 
         foreach ($fixedKeys as $fieldKey) {
             if (!isset($employeeColumns[$fieldKey])) {
                 continue;
             }
-            $assignment = $assignments->get($fieldKey);
-            $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null
-                ? true
-                : (bool) $assignment->is_visible;
-            $isRequired = ($assignment && $hasRequiredColumn) ? (bool) $assignment->is_required : false;
+            $isRequired = \App\Support\RoleFieldAccess::isRequired('employees', $fieldKey)
+                && \App\Support\RoleFieldAccess::canEdit('employees', $fieldKey);
             $baseRule = $rules[$fieldKey] ?? 'nullable';
-            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isVisible && $isRequired);
+            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isRequired);
         }
 
         $rules['account'] = 'nullable|in:new,existing';
@@ -1064,10 +1038,21 @@ class EmployeeController extends Controller
 
         // Update employee
         $sectionData = \App\Support\SimAssigneeContactSync::stripManagedContactFromRequestData(
-            $request->all(),
+            $request->except(['_token', 'section', '_method']),
             $employee,
             'employee'
         );
+        $sectionData = \App\Support\RoleFieldAccess::stripNonEditableInput(
+            $sectionData,
+            'employees',
+            is_array($employee->custom_field_values ?? null) ? $employee->custom_field_values : []
+        );
+        if ($sectionData === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No editable fields were submitted for this section.',
+            ], 422);
+        }
         try {
             $employee->update($sectionData);
         } catch (UniqueConstraintViolationException $e) {
@@ -1213,6 +1198,13 @@ class EmployeeController extends Controller
                 'success' => false,
                 'message' => 'Contact is updated automatically when a SIM is assigned or returned.',
             ], 422);
+        }
+
+        if (! \App\Support\RoleFieldAccess::canEdit('employees', $column)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to edit this field.',
+            ], 403);
         }
 
         if (!Schema::hasColumn('employees', $column)) {

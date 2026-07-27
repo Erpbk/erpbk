@@ -485,11 +485,7 @@ class BikeCustomField extends BaseModel
             ->orderBy('id')
             ->get();
 
-        $assignmentsVisible = $assignmentsAll->filter(function ($a) {
-            $rawVisible = $a->getRawOriginal('is_visible');
-            return $rawVisible === null || (int) $rawVisible === 1;
-        })->values();
-
+        $assignmentsVisible = $assignmentsAll;
         $specs = self::fixedFieldInputSpecs();
 
         $assignOnlyIds = self::assignOnlyCustomFieldIds();
@@ -497,11 +493,7 @@ class BikeCustomField extends BaseModel
             ->whereIn('category_id', $categoryIds)
             ->when($assignOnlyIds !== [], fn($q) => $q->whereNotIn('id', $assignOnlyIds));
 
-        if (Schema::hasColumn('bike_custom_fields', 'is_visible')) {
-            $customFieldsQuery->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
-            });
-        }
+        // Visibility/required are enforced per user via Role Field Permissions at render time.
 
         $customFieldsAll = $customFieldsQuery
             ->orderBy('display_order')
@@ -532,8 +524,7 @@ class BikeCustomField extends BaseModel
                     $spec['type'] = $a->input_type === 'dropdown' ? 'select' : $a->input_type;
                 }
 
-                $spec['required'] = self::isAlwaysRequiredFixedField($fieldKey)
-                    || (bool) ($a->is_required ?? false);
+                $spec['required'] = self::isAlwaysRequiredFixedField($fieldKey);
 
                 if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
                     $spec['options'] = $a->input_config['options'];
@@ -652,7 +643,6 @@ class BikeCustomField extends BaseModel
 
         $query = BikeAssignFieldAssignment::query()
             ->with('customField')
-            ->where('is_visible', true)
             ->orderBy('display_order')
             ->orderBy('id');
 

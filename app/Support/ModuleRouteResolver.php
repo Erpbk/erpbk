@@ -15,14 +15,22 @@ class ModuleRouteResolver
     protected static array $routeAliases = [
         'bikes' => 'bike_list',
         'bike' => 'bike_list',
+        'riders' => 'riders',
         'rider' => 'riders',
         'cheque' => 'cheques',
+        'cheques' => 'cheques',
         'employee' => 'employees',
+        'employees' => 'employees',
         'customer' => 'customers',
+        'customers' => 'customers',
         'vendor' => 'vendors',
+        'vendors' => 'vendors',
         'garage' => 'garages',
+        'garages' => 'garages',
         'sim' => 'sims',
+        'sims' => 'sims',
         'expense' => 'expenses',
+        'expenses' => 'expenses',
         'rtaFines' => 'rta_fines_unpaid',
     ];
 

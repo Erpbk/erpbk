@@ -20,26 +20,6 @@
         {{ $dataTypes[$field->data_type]['label'] ?? $field->data_type }}
       </span>
     </td>
-    <td class="align-middle text-center">
-      <div class="form-check form-switch d-inline-block mb-0">
-        <input type="checkbox"
-               class="form-check-input rider-custom-required-toggle"
-               data-id="{{ $field->id }}"
-               data-update-url="{{ route('settings-panel.rider-settings.update-custom-field-flags', $field->id) }}"
-               data-is-visible-current="{{ ($field->is_visible ?? true) ? 1 : 0 }}"
-               {{ ($field->is_mandatory ?? false) ? 'checked' : '' }}>
-      </div>
-    </td>
-    <td class="align-middle text-center">
-      <div class="form-check form-switch d-inline-block mb-0">
-        <input type="checkbox"
-               class="form-check-input rider-custom-visibility-toggle"
-               data-id="{{ $field->id }}"
-               data-update-url="{{ route('settings-panel.rider-settings.update-custom-field-flags', $field->id) }}"
-               data-is-mandatory-current="{{ ($field->is_mandatory ?? false) ? 1 : 0 }}"
-               {{ ($field->is_visible ?? true) ? 'checked' : '' }}>
-      </div>
-    </td>
     <td class="text-end align-middle">
       <div class="btn-group btn-group-sm" role="group">
         <button type="button"
@@ -75,10 +55,6 @@
                   document.getElementById('editRiderFieldEphi').checked = !!privacy.ephi;
                   document.getElementById('editRiderPreventDupYes').checked = this.dataset.preventDuplicate === '1';
                   document.getElementById('editRiderPreventDupNo').checked = this.dataset.preventDuplicate !== '1';
-                  document.getElementById('editRiderMandatoryYes').checked = this.dataset.isMandatory === '1';
-                  document.getElementById('editRiderMandatoryNo').checked = this.dataset.isMandatory !== '1';
-                  document.getElementById('editRiderVisibleYes').checked = this.dataset.isVisible !== '0';
-                  document.getElementById('editRiderVisibleNo').checked = this.dataset.isVisible === '0';
                   var cfgInput = document.getElementById('editRiderFieldConfigJson');
                   if (cfgInput) cfgInput.value = this.dataset.config || '{}';
                   if (typeof document.getElementById('editRiderFieldDataType').dispatchEvent === 'function') {
@@ -101,7 +77,7 @@
   </tr>
 @empty
   <tr>
-    <td colspan="8" class="text-center text-muted py-4">
+    <td colspan="6" class="text-center text-muted py-4">
       No rider custom fields defined yet.
     </td>
   </tr>

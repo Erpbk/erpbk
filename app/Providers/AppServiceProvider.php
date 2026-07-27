@@ -80,7 +80,7 @@ class AppServiceProvider extends ServiceProvider
     // Inline attribute helpers for hardcoded inputs:
     //   <input ... @fieldReadonly('rider', 'phone') @fieldRequired('rider', 'phone')>
     Blade::directive('fieldReadonly', function ($expression) {
-      return "<?php echo field_editable($expression) ? '' : 'readonly disabled'; ?>";
+      return "<?php echo field_editable($expression) ? '' : 'readonly disabled data-rfp-locked=\"1\"'; ?>";
     });
     Blade::directive('fieldRequired', function ($expression) {
       return "<?php echo field_required($expression) ? 'required' : ''; ?>";
@@ -103,6 +103,33 @@ class AppServiceProvider extends ServiceProvider
 
     View::composer('*', function ($view) {
       static $topBarShared = false;
+      static $rfpLocksShared = false;
+
+      if (!$rfpLocksShared && Auth::check()) {
+        $rfpLocksShared = true;
+        $moduleKey = ModuleRouteResolver::fromRequest();
+        $defaultEntity = \App\Support\RoleFieldAccess::entityKeyFromModuleKey($moduleKey);
+        $locks = [];
+        if ($defaultEntity) {
+          $map = \App\Support\RoleFieldAccess::nonEditableFieldMap($defaultEntity);
+          if ($map !== []) {
+            $locks[$defaultEntity] = $map;
+          }
+        }
+        // Always expose common entities that appear in modals across pages.
+        foreach (['rider', 'employees', 'bike', 'account', 'customer', 'vendor', 'sim', 'cheques', 'expenses', 'voucher', 'bank'] as $entity) {
+          if (isset($locks[$entity])) {
+            continue;
+          }
+          $map = \App\Support\RoleFieldAccess::nonEditableFieldMap($entity);
+          if ($map !== []) {
+            $locks[$entity] = $map;
+          }
+        }
+        View::share('rfpDefaultEntity', $defaultEntity);
+        View::share('rfpFieldLocks', $locks);
+      }
+
       if ($topBarShared) {
         return;
       }

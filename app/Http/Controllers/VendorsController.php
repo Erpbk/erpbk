@@ -90,7 +90,7 @@ class VendorsController extends AppBaseController
    */
   public function store(CreateVendorsRequest $request)
   {
-    $input = $request->all();
+    $input = \App\Support\RoleFieldAccess::stripNonEditableInput($request->all(), 'vendor');
 
     //Adding Account and setting reference
     $parentAccount = \App\Support\GlobalAccounts::id('VENDORS');
@@ -182,7 +182,10 @@ class VendorsController extends AppBaseController
       return redirect(route('vendors.index'));
     }
 
-    $vendor = $this->vendorsRepository->update($request->all(), $id);
+    $vendor = $this->vendorsRepository->update(
+      \App\Support\RoleFieldAccess::stripNonEditableInput($request->all(), 'vendor'),
+      $id
+    );
     $vendor->account->status = $vendor->status;
     $vendor->save();
 

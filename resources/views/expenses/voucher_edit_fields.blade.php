@@ -13,6 +13,18 @@
         <input type="month" name="billing_month" class="form-control" value="{{ $voucher->billing_month ? \Carbon\Carbon::parse($voucher->billing_month)->format('Y-m') : date('Y-m') }}" required>
     </div>
 
+    <div class="form-group col-md-3">
+        <label for="credit_account_id">Bank/Cash Account <span class="text-danger">*</span></label>
+        <select name="credit_account_id" id="credit_account_id" class="form-control select2" required>
+            <option value="">Select Bank/Cash Account</option>
+            @foreach($bankCashAccounts as $id => $name)
+                @if($id !== '')
+                <option value="{{ $id }}" {{ isset($creditEntry) && $creditEntry['account_id'] == $id ? 'selected' : '' }}>{{ $name }}</option>
+                @endif
+            @endforeach
+        </select>
+    </div>
+
     <div class="form-group col-md-2">
         <label for="reference_number">Reference # <span class="text-danger">*</span></label>
         <input type="text" name="reference_number" class="form-control" id="reference_number" placeholder="Reference Number" value="{{ $voucher->reference_number }}" required>
@@ -123,33 +135,6 @@
 
 <hr class="mt-0">
 
-<h6 class="mb-2">Credit Entry (Bank/Cash)</h6>
-
-<div class="row g-2 mb-1 fw-semibold small text-muted px-1 expense-voucher-col-header">
-    <div class="col-md-3">Account <span class="text-danger">*</span></div>
-    <div class="col-md-3">Narration</div>
-    <div class="col-md-2">Amount</div>
-</div>
-
-<div class="expense-credit-entry row g-2 mb-2 align-items-start">
-    <div class="col-md-3">
-        <select name="credit_account_id" id="credit_account_id" class="form-control select2" required>
-            <option value="">Select Bank/Cash Account</option>
-            @foreach($bankCashAccounts as $id => $name)
-                @if($id !== '')
-                <option value="{{ $id }}" {{ isset($creditEntry) && $creditEntry['account_id'] == $id ? 'selected' : '' }}>{{ $name }}</option>
-                @endif
-            @endforeach
-        </select>
-    </div>
-    <div class="col-md-3">
-        <textarea name="credit_narration" id="credit_narration" class="form-control credit-narration expense-narration-auto" rows="2" placeholder="Narration">{{ $creditEntry['narration'] ?? 'Expense Payment' }}</textarea>
-    </div>
-    <div class="col-md-2">
-        <input type="number" step="any" id="credit_amount" class="form-control fw-bold" placeholder="Amount" readonly>
-    </div>
-</div>
-
 <div class="row mt-3">
     <div class="col-md-6"></div>
     <div class="col-md-6">
@@ -226,7 +211,7 @@
         initSelect2($('#expense-voucher-header'));
         initSelect2($('#payment_type'));
         initSelect2($('#expense-voucher-rows'));
-        initSelect2($('.expense-credit-entry'));
+        initSelect2($('#credit_account_id'));
         initNarrationFields($formRoot);
         calculateTotals();
 
@@ -288,7 +273,6 @@
         $('#subtotal_amount').val(subtotal.toFixed(2));
         $('#total_vat_amount').val(totalVat.toFixed(2));
         $('#expense_total').val(grandTotal.toFixed(2));
-        $('#credit_amount').val(grandTotal > 0 ? grandTotal.toFixed(2) : '');
     };
 
     boot();

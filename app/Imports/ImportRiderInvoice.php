@@ -204,20 +204,22 @@ class ImportRiderInvoice implements ToCollection
 
                     $qty = (float) str_replace(',', '', $row[$columnIndex] ?? 0);
 
-                    if ($qty <= 0) {
+                    if ($qty == 0) {
                         continue;
                     }
 
                     $rate = $item?->price ?? 1;
 
+                    // Amount uses exact qty; DB qty is rounded up (away from zero) as int
                     $amount = $qty * $rate;
+                    $storedQty = (int) ($qty > 0 ? ceil($qty) : floor($qty));
 
                     $subtotal += $amount;
 
                     $itemsData[] = [
                         'inv_id' => $invoice->id,
                         'item_id' => $itemId,
-                        'qty' => $qty,
+                        'qty' => $storedQty,
                         'rate' => $rate,
                         'amount' => $amount,
                         'branch_id' => $rider->branch_id,
@@ -255,14 +257,20 @@ class ImportRiderInvoice implements ToCollection
                 |--------------------------------------------------------------------------
                 | Transactions
                 |--------------------------------------------------------------------------
+                | Positive total: Debit Salary / Credit Rider (and Debit VAT if any)
+                | Negative total: reverse sides so debit/credit stay non-negative
                 */
 
-                if ($status == 0) {
+                // Match save/update: VAT + salary(subtotal) + rider(total); only unpaid
+                if ($status == 0 && $total != 0) {
 
                     $transCode = Account::trans_code();
+                    $absTotal = abs($total);
+                    $absSubtotal = abs($subtotal);
+                    $isNegativeTotal = $total < 0;
 
-                    // VAT Debit
-                    if ($vat > 0) {
+                    if ($vat != 0) {
+                        $absVat = abs($vat);
 
                         $transactionService->recordTransaction([
                             'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
@@ -271,13 +279,13 @@ class ImportRiderInvoice implements ToCollection
                             'trans_code' => $transCode,
                             'trans_date' => $invoiceDate,
                             'narration' => 'VAT - Rider Invoice #'.$invoice->id,
-                            'debit' => $vat,
-                            'credit' => 0,
+                            'debit' => $vat > 0 ? $absVat : 0,
+                            'credit' => $vat < 0 ? $absVat : 0,
                             'billing_month' => $billingMonth,
                         ]);
                     }
 
-                    // Credit Rider
+                    // Rider: credit when payable to rider; debit when total is negative
                     $transactionService->recordTransaction([
                         'account_id' => $rider->account_id,
                         'reference_id' => $invoice->id,
@@ -285,12 +293,12 @@ class ImportRiderInvoice implements ToCollection
                         'trans_code' => $transCode,
                         'trans_date' => $invoiceDate,
                         'narration' => 'Rider Invoice #'.$invoice->id,
-                        'debit' => 0,
-                        'credit' => $total,
+                        'debit' => $isNegativeTotal ? $absTotal : 0,
+                        'credit' => $isNegativeTotal ? 0 : $absTotal,
                         'billing_month' => $billingMonth,
                     ]);
 
-                    // Debit Salary Account
+                    // Salary: ex-VAT subtotal (VAT posted separately) — matches save/update
                     $transactionService->recordTransaction([
                         'account_id' => $salaryAccountId,
                         'reference_id' => $invoice->id,
@@ -298,8 +306,8 @@ class ImportRiderInvoice implements ToCollection
                         'trans_code' => $transCode,
                         'trans_date' => $invoiceDate,
                         'narration' => 'Salary Debit - Rider Invoice #'.$invoice->id,
-                        'debit' => $total,
-                        'credit' => 0,
+                        'debit' => $isNegativeTotal ? 0 : $absSubtotal,
+                        'credit' => $isNegativeTotal ? $absSubtotal : 0,
                         'billing_month' => $billingMonth,
                     ]);
                 }

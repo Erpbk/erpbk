@@ -20,14 +20,14 @@ $editActions = [
 }
 
 // Map voucher type to field-rendering endpoint (with rider id)
-// PAY opens Payments (PV) create against the rider's latest unpaid invoice
+// PAY opens Payments (PV) create against the rider's unpaid invoices
 $urls = [
 'PN' => route('riders.penalty', ['id' => $rider->id ?? 0]),
 'INC' => route('riders.incentive', ['id' => $rider->id ?? 0]),
 'AL' => route('riders.advanceloan', ['id' => $rider->id ?? 0]),
 'COD' => route('riders.cod', ['id' => $rider->id ?? 0]),
 'VC' => route('riders.vendorcharges', ['id' => $rider->id ?? 0]),
-'PAY' => route('riders.payment', ['id' => $rider->id ?? 0]),
+'PAY' => route('payments.create', ['invoice_type' => 'rider', 'rider_id' => $rider->id ?? 0]),
 ];
 
 // If editing, get the voucher type from the voucher

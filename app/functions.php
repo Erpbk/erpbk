@@ -48,6 +48,16 @@ if (! function_exists('ga_id')) {
     }
 }
 
+if (! function_exists('ga_name')) {
+    /**
+     * Resolve a global account display name by code from the chart of accounts.
+     */
+    function ga_name(string $code): string
+    {
+        return \App\Support\GlobalAccounts::name($code);
+    }
+}
+
 /*
 |--------------------------------------------------------------------------
 | Field-level permission helpers (single source of truth)

@@ -2974,12 +2974,20 @@ class RidersController extends AppBaseController
 
   public function payment($company_slug, $rider_id)
   {
-    $rider = Riders::find($rider_id);
-    $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
-    $accounts = Accounts::dropdown(null);
-    $bank_accounts = Accounts::bankAccountsDropdown();
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider)) {
+      Flash::error('Rider not found');
 
-    return view('riders.payment-modal', compact('rider', 'account', 'accounts', 'bank_accounts'));
+      return redirect(route('riders.index'));
+    }
+
+    // PAY uses the shared Payments (PV) form against unpaid rider invoices.
+    request()->merge([
+      'invoice_type' => 'rider',
+      'rider_id' => $rider->id,
+    ]);
+
+    return app(PaymentController::class)->create();
   }
 
   public function storepayment(Request $request)

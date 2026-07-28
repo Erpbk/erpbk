@@ -8,9 +8,7 @@
 
 <body>
     <style>
-        @include('rider_invoices.partials.invoice_brand_styles')
-
-        * {
+        @include('rider_invoices.partials.invoice_brand_styles') * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -41,7 +39,7 @@
             background: #eef2f5;
         }
 
-        body > .rider-invoice-layout {
+        body>.rider-invoice-layout {
             height: 100vh;
             height: 100dvh;
         }
@@ -197,6 +195,14 @@
             margin-bottom: 8px;
         }
 
+        .summary-table tr {
+            background-color: #fff !important;
+        }
+
+        .summary-table tr td {
+            text-align: left !important;
+        }
+
         .invoice-toolbar {
             background: transparent;
             border: none;
@@ -243,6 +249,7 @@
         }
 
         @media print {
+
             html,
             body {
                 height: auto;
@@ -315,9 +322,9 @@
         <div class="invoice-scroll-area">
             <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">
                 @if(View::exists($templateView))
-                    @include($templateView)
+                @include($templateView)
                 @else
-                    <div class="p-4 text-center text-danger">Invoice template view is missing on the server.</div>
+                <div class="p-4 text-center text-danger">Invoice template view is missing on the server.</div>
                 @endif
             </div>
         </div>

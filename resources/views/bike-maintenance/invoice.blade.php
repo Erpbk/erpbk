@@ -238,26 +238,29 @@
                 </div>
                 <div style="display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: center;">
                     <div style="font-weight: 600; color: #555;">Bike:</div>
-                    <div>{{ $maintenance->bike->emirates }}-{{ $maintenance->bike->plate }}</div>
-                    @if($maintenance->rider_id)
+                    <div>{{ $maintenance->bike->emirates ?? '' }}-{{ $maintenance->bike->plate ?? '' }}</div>
+
+                    @if($maintenance->rider)
                     <div style="font-weight: 600; color: #555;">Leasing Company:</div>
-                    <div>{{ $maintenance->bike->LeasingCompany->name ?? '' }}</div>
+                    <div>{{ $maintenance->bike?->LeasingCompany?->name ?? '' }}</div>
                     <div style="font-weight: 600; color: #555;">Rider:</div>
-                    <div>
-                        {{ $maintenance->rider ? $maintenance->rider->rider_id .'-'.$maintenance->rider->name : 'No Rider Assigned' }}
-                    </div>
+                    <div>{{ $maintenance->rider->rider_id }}-{{ $maintenance->rider->name }}</div>
                     <div style="font-weight: 600; color: #555;">Rider Contact:</div>
-                    <div>{{ $maintenance->bike->rider ? $maintenance->bike->rider->company_contact : '' }}</div>
-                    <div style="font-weight: 600; color: #555;">Garage:</div>
-                    <div>{{ $maintenance->garage ? $maintenance->garage->name : '' }}</div>
-                    @else
+                    <div>{{ $maintenance->rider->company_contact ?? $maintenance->bike?->rider?->company_contact ?? '' }}</div>
+                    @elseif($maintenance->rentalCompany)
                     <div style="font-weight: 600; color: #555;">User:</div>
                     <div>{{ $maintenance->rentalCompany->name ?? '' }}</div>
                     <div style="font-weight: 600; color: #555;">User Contact:</div>
-                    <div>{{ $maintenance->bike->rider ? $maintenance->rentalCompany->company_contact : '' }}</div>
+                    <div>{{ $maintenance->rentalCompany->company_contact ?? '' }}</div>
                     <div style="font-weight: 600; color: #555;">Address:</div>
-                    <div>{{ $maintenance->garage ? $maintenance->rentalCompany->address : '' }}</div>
+                    <div>{{ $maintenance->rentalCompany->address ?? '' }}</div>
+                    @else
+                    <div style="font-weight: 600; color: #555;">Assigned To:</div>
+                    <div>No User Assigned</div>
                     @endif
+
+                    <div style="font-weight: 600; color: #555;">Garage:</div>
+                    <div>{{ $maintenance->garage?->name ?? '' }}</div>
                 </div>
             </div>
             
@@ -301,22 +304,22 @@
         <div class="details-grid">
             <div class="detail-item">
                 <span class="detail-label">Previous KM Reading:</span>
-                <span class="detail-value">{{ number_format($maintenance->previous_km, 0) }} KM</span>
+                <span class="detail-value">{{ number_format($maintenance->previous_km ?? 0, 0) }} KM</span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Overdue KM:</span>
-                <span class="detail-value {{ $maintenance->overdue_km > 0 ? 'text-danger' : 'text-success' }}">
-                    {{ number_format($maintenance->overdue_km, 1) }} KM
+                <span class="detail-value {{ ($maintenance->overdue_km ?? 0) > 0 ? 'text-danger' : 'text-success' }}">
+                    {{ number_format($maintenance->overdue_km ?? 0, 1) }} KM
                 </span>
             </div>
             <div class="detail-item">
                 <span class="detail-label">Current KM Reading:</span>
-                <span class="detail-value">{{ number_format($maintenance->current_km, 0) }} KM</span>
+                <span class="detail-value">{{ number_format($maintenance->current_km ?? 0, 0) }} KM</span>
             </div>
-            @if($maintenance->overdue_km > 0)
+            @if(($maintenance->overdue_km ?? 0) > 0)
                 <div class="detail-item">
                     <span class="detail-label">Overdue Cost Per KM:</span>
-                    <span class="detail-value">{{ \App\Helpers\Currency::format($maintenance->overdue_cost_per_km, 2) }}</span>
+                    <span class="detail-value">{{ \App\Helpers\Currency::format($maintenance->overdue_cost_per_km ?? 0, 2) }}</span>
                 </div>
             @else
                 <div class="detail-item">
@@ -325,11 +328,11 @@
             <div class="detail-item">
                 <span class="detail-label">Maintenance Interval:</span>
                 @php
-                    $maintenance_km = max(0,$maintenance->bike->maintenance_km);
+                    $maintenance_km = max(0, (float) ($maintenance->bike?->maintenance_km ?? 0));
                 @endphp
                 <span class="detail-value">{{ number_format($maintenance_km, 2) }} KM</span>
             </div>
-            @if($maintenance->overdue_km > 0)
+            @if(($maintenance->overdue_km ?? 0) > 0)
                 <div class="detail-item">
                     <span class="detail-label">Overdue KM:</span>
                     <span class="detail-value">{{ $maintenance->overdue_km  }}</span>
@@ -340,7 +343,7 @@
             @endif
             <div class="detail-item">
                 <span class="detail-label">Next Service:</span>
-                <span class="detail-value">{{ number_format($maintenance_km + $maintenance->current_km, 2) }} KM</span>
+                <span class="detail-value">{{ number_format($maintenance_km + (float) ($maintenance->current_km ?? 0), 2) }} KM</span>
             </div>
         </div>
 

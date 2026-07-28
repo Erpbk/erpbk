@@ -118,6 +118,10 @@ class Items extends BaseModel
 
   public function getAvailableInventory()
   {
-    return InventoryPurchase::where('item_id', $this->id)->where('remaining_quantity','>',0)->get();
+    return InventoryPurchase::where('item_id', $this->id)
+      ->where('remaining_quantity', '>', 0)
+      ->orderBy('purchase_date', 'asc')
+      ->orderBy('id', 'asc')
+      ->get();
   }
 }

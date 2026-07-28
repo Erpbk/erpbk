@@ -4,7 +4,7 @@
             <th><input type="checkbox" id="checkAllSaliks"></th>
             <th>Transaction ID</th>
             <th>Plate</th>
-            <th>Leasing Company</th>
+            <th>Company</th>
             <th>Rider</th>
             <th>Trip Date</th>
             <th>Salik Amount</th>
@@ -15,11 +15,32 @@
     </thead>
     <tbody>
         @forelse($records as $record)
+        @php
+            $bike = $record->bike;
+            $isOwnedBike = $bike && (
+                strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0
+                || !$bike->leasingCompany
+            );
+            if (!$bike) {
+                $companyLabel = '-';
+            } elseif ($isOwnedBike) {
+                $companyLabel = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+                if ($companyLabel === '') {
+                    $currentCompany = view()->shared('currentCompany');
+                    $companyLabel = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+                }
+                if ($companyLabel === '') {
+                    $companyLabel = '-';
+                }
+            } else {
+                $companyLabel = $bike->leasingCompany->name;
+            }
+        @endphp
         <tr>
             <td><input type="checkbox" class="salik-checkbox" value="{{ $record->id }}"></td>
             <td>{{ $record->transaction_id }}</td>
             <td>{{ $record->plate }}</td>
-            <td>{{ $record->bike?->leasingCompany?->name ?? 'Own Bike' }}</td>
+            <td>{{ $companyLabel }}</td>
             <td>{{ $record->rider ? $record->rider->rider_id . ' - ' . $record->rider->name : 'N/A' }}</td>
             <td>{{ \App\Helpers\General::DateFormat($record->trip_date) }}</td>
             <td>{{ \App\Helpers\Currency::format($record->amount, 2) }}</td>

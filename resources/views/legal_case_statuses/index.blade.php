@@ -203,8 +203,6 @@
                         data: data
                     };
                 }).catch(function() {
-
-
                     return {
                         ok: response.ok,
                         data: {
@@ -214,39 +212,22 @@
                     };
                 });
             })
-
-
-
-
             .then(function(result) {
-
-
                 if (!result.ok || !result.data || result.data.success !== true) {
-                    throw new Error((re s ult.data && resu l t.data.message) ? result.data.message : 'Delete failed.');
+                    throw new Error((result.data && result.data.message) ? result.data.message : 'Delete failed.');
                 }
                 var row = triggerBtn ? triggerBtn.closest('tr[data-id]') : null;
                 if (row) {
-
-
-
-
-
-                    row.remo ve();
-
-
-
+                    row.remove();
                 }
                 Swal.fire({
-                    icon: 'succe  ss',
-                    title: 'Dele   ted',
+                    icon: 'success',
+                    title: 'Deleted',
                     text: result.data.message || 'Visa status deleted successfully.',
-                    time r: 1600,
-                    showConf irmButton: f alse
-
-
-
+                    timer: 1600,
+                    showConfirmButton: false
                 });
-                retu rn result.data;
+                return result.data;
             });
     }
 

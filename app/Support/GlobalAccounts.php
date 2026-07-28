@@ -26,6 +26,11 @@ final class GlobalAccounts
         return app(GlobalAccountResolver::class)->account($code);
     }
 
+    public static function name(string $code): string
+    {
+        return self::account($code)->name ?? $code;
+    }
+
     public static function requireExists(array $codes): void
     {
         app(GlobalAccountResolver::class)->requireExists($codes);

@@ -242,29 +242,35 @@ class LegalCaseStatusController extends Controller
         try {
             $visaStatus = LegalCaseStatus::findOrFail($id);
 
-            // Check if this status is being used in legal_cases
-            $isUsed = \App\Support\CompanyQuery::table('legal_cases')->where('case_status', $visaStatus->name)->exists();
+            // Active references block permanent deletion, so soft-delete the status instead.
+            $hasActiveReferences = \App\Support\CompanyQuery::table('legal_cases')
+                ->where('case_status', $visaStatus->name)
+                ->whereNull('deleted_at')
+                ->exists();
 
-            if ($isUsed) {
+            if ($hasActiveReferences) {
+                $visaStatus->delete();
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json([
-                        'success' => false,
-                        'message' => 'Cannot delete this visa status as it is being used in legal cases.',
-                    ], 422);
+                        'success' => true,
+                        'message' => 'Legal Case Status is still referenced by active legal cases and was soft deleted instead.',
+                        'id' => (int) $id,
+                        'soft_deleted' => true,
+                    ]);
                 }
-                Flash::error('Cannot delete this visa status as it is being used in legal cases.');
-                return redirect()->back();
+                Flash::success('Legal Case Status is still referenced by active legal cases and was soft deleted instead.');
+                return $this->redirectAfterAction($request);
             }
 
-            $visaStatus->delete();
+            $visaStatus->forceDelete();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Visa Status deleted successfully.',
+                    'message' => 'Legal Case Status deleted successfully.',
                     'id' => (int) $id,
                 ]);
             }
-            Flash::success('Visa Status deleted successfully.');
+            Flash::success('Legal Case Status deleted successfully.');
             return $this->redirectAfterAction($request);
         } catch (\Exception $e) {
             if ($request->ajax() || $request->wantsJson()) {

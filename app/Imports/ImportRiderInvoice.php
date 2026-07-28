@@ -6,6 +6,7 @@ use App\Helpers\Account;
 use App\Helpers\Common;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
+use App\Models\Branch;
 use App\Models\Items;
 use App\Models\RiderInvoiceItem;
 use App\Models\RiderInvoices;
@@ -27,7 +28,7 @@ class ImportRiderInvoice implements ToCollection
      */
     public function collection(Collection $rows)
     {
-        $maxColumns = 30;
+        $maxColumns = 40;
 
         $rows = $rows->map(function ($row) use ($maxColumns) {
             $rowArray = is_array($row) ? $row : $row->toArray();
@@ -37,11 +38,14 @@ class ImportRiderInvoice implements ToCollection
 
         /*
         |--------------------------------------------------------------------------
-        | Item Columns
+        | Fixed columns (0-14) then item qty columns from index 15
+        | 0 Invoice Date | 1 ID | 2 Rider_Name | 3 Rejection | 4 Login Hours
+        | 5 Zone | 6 Working Days | 7 Perf_Attendance | 8 Off | 9 Performance
+        | 10 Billing Month | 11 Description | 12 Status | 13 Notes | 14 branch_id
         |--------------------------------------------------------------------------
         */
 
-        $itemStartIndex = 14;
+        $itemStartIndex = 15;
         $itemColumns = [];
 
         for ($col = $itemStartIndex; $col < $maxColumns; $col++) {
@@ -160,6 +164,34 @@ class ImportRiderInvoice implements ToCollection
 
                 /*
                 |--------------------------------------------------------------------------
+                | Branch
+                |--------------------------------------------------------------------------
+                */
+
+                $rawBranch = $row[14] ?? null;
+
+                if ($rawBranch === null || trim((string) $rawBranch) === '') {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row('.($index + 1).') - branch_id is required in the sheet.',
+                    ]);
+                }
+
+                if (! is_numeric($rawBranch)) {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row('.($index + 1).") - Invalid branch_id '{$rawBranch}'.",
+                    ]);
+                }
+
+                $branchId = (int) $rawBranch;
+
+                if (! Branch::where('id', $branchId)->exists()) {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row('.($index + 1).") - branch_id {$branchId} not found.",
+                    ]);
+                }
+
+                /*
+                |--------------------------------------------------------------------------
                 | Create Invoice
                 |--------------------------------------------------------------------------
                 */
@@ -179,7 +211,7 @@ class ImportRiderInvoice implements ToCollection
                     'descriptions' => $row[11],
                     'notes' => $row[13],
                     'status' => $status,
-                    'branch_id' => $rider->branch_id,
+                    'branch_id' => $branchId,
                 ]);
 
                 /*
@@ -222,7 +254,7 @@ class ImportRiderInvoice implements ToCollection
                         'qty' => $storedQty,
                         'rate' => $rate,
                         'amount' => $amount,
-                        'branch_id' => $rider->branch_id,
+                        'branch_id' => $branchId,
                         'company_id' => $rider->company_id,
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -282,6 +314,7 @@ class ImportRiderInvoice implements ToCollection
                             'debit' => $vat > 0 ? $absVat : 0,
                             'credit' => $vat < 0 ? $absVat : 0,
                             'billing_month' => $billingMonth,
+                            'branch_id' => $branchId,
                         ]);
                     }
 
@@ -296,6 +329,7 @@ class ImportRiderInvoice implements ToCollection
                         'debit' => $isNegativeTotal ? $absTotal : 0,
                         'credit' => $isNegativeTotal ? 0 : $absTotal,
                         'billing_month' => $billingMonth,
+                        'branch_id' => $branchId,
                     ]);
 
                     // Salary: ex-VAT subtotal (VAT posted separately) — matches save/update
@@ -309,6 +343,7 @@ class ImportRiderInvoice implements ToCollection
                         'debit' => $isNegativeTotal ? 0 : $absSubtotal,
                         'credit' => $isNegativeTotal ? $absSubtotal : 0,
                         'billing_month' => $billingMonth,
+                        'branch_id' => $branchId,
                     ]);
                 }
             });

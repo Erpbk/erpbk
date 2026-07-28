@@ -187,7 +187,7 @@ class RiderInvoicesController extends AppBaseController
             $riderInvoice->load([
                 'items',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
                 },
             ]);
 
@@ -243,7 +243,7 @@ class RiderInvoicesController extends AppBaseController
         $riderInvoice->load([
             'items',
             'rider' => function ($query) {
-                $query->withTrashed()->with(['sim', 'vendor']);
+                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
             },
         ]);
 
@@ -970,7 +970,7 @@ class RiderInvoicesController extends AppBaseController
             $invoice->load([
                 'items',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
                 },
             ]);
 

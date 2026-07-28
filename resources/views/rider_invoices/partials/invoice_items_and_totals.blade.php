@@ -43,7 +43,7 @@
         <td class="num">{{ number_format($val->amount, 2) }}</td>
         <td>{{ number_format($vatRate, 0) }}%</td>
         <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
-        <td class="num">{{ number_format($running_total, 2) }}</td>
+        <td class="num" style="font-weight: 700;">{{ number_format($running_total, 2) }}</td>
     </tr>
     @endforeach
     @php $items_total = $running_total; @endphp

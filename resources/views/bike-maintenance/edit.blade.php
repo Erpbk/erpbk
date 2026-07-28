@@ -160,6 +160,15 @@
                     ]) !!}
                 </div>
             </div>
+
+            <div class="form-group col-md-3 d-flex align-items-end">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch"
+                        name="overdue_paidby" value="Rider" id="charge_overdue_rider"
+                        @if(($maintenance->overdue_paidby ?? null) === 'Rider') checked @endif>
+                    <label class="form-check-label fw-bold" for="charge_overdue_rider">Charge Overdue to Rider</label>
+                </div>
+            </div>
         </div>
     </div>
     

@@ -3273,8 +3273,7 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Unified voucher modal for rider: supports types AL, COD, PN, PAY, VC
-   * Incentive remains separate as requested.
+   * Unified voucher modal for rider: AL, COD, PN, INC, PAY, VC.
    */
   public function voucher($company_slug, $rider_id)
   {
@@ -3287,7 +3286,14 @@ class RidersController extends AppBaseController
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $voucherTypes = VoucherType::activeCodeLabelMapForModule('riders');
+    $riderVoucherCodes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
+    $activeTypes = VoucherType::activeCodeLabelMapForModule('riders');
+    $voucherTypes = [];
+    foreach ($riderVoucherCodes as $code) {
+      if (isset($activeTypes[$code])) {
+        $voucherTypes[$code] = $activeTypes[$code];
+      }
+    }
 
     return view('riders.voucher-modal', compact('rider', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
   }

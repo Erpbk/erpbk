@@ -57,6 +57,8 @@ $totalOrders = $deliveryFeeItem->qty;
 
 @php
 $finalAmount = $items_total - $total_deductions + $total_additions;
+$ledger_deductions = $ledger_deductions ?? [];
+$ledger_additions = $ledger_additions ?? [];
 @endphp
 
 <table>
@@ -65,110 +67,88 @@ $finalAmount = $items_total - $total_deductions + $total_additions;
     </tr>
     @if($rider_balance > 0)
     <tr>
-        <td colspan="4">Previous Balance (Deduction)</td>
+        <td colspan="4" style="text-align: left;">Previous Balance (Deduction)</td>
         <td class="num">-{{ number_format(abs($rider_balance), 2) }}</td>
     </tr>
     @endif
-    @if($fines > 0)
+    @forelse($ledger_deductions as $deduction)
     <tr>
-        <td colspan="4">RTA Fine Charges</td>
-        <td class="num">-{{ number_format($fines, 2) }}</td>
+        <td colspan="4" style="text-align: left;">{{ $deduction['label'] }}</td>
+        <td class="num">-{{ number_format($deduction['amount'], 2) }}</td>
     </tr>
-    @endif
-    @if($salik > 0)
-    <tr>
-        <td colspan="4">Salik Charges</td>
-        <td class="num">-{{ number_format($salik, 2) }}</td>
-    </tr>
-    @endif
-    @if($cod > 0)
-    <tr>
-        <td colspan="4">COD Amount</td>
-        <td class="num">-{{ number_format($cod, 2) }}</td>
-    </tr>
-    @endif
-    @if($penalty > 0)
-    <tr>
-        <td colspan="4">Penalty Amount</td>
-        <td class="num">-{{ number_format($penalty, 2) }}</td>
-    </tr>
-    @endif
-    @if($advance_salary > 0)
-    <tr>
-        <td colspan="4">Advance Loan</td>
-        <td class="num">-{{ number_format($advance_salary, 2) }}</td>
-    </tr>
-    @endif
-    @if($vendor_charges > 0)
-    <tr>
-        <td colspan="4">Vendor Charges</td>
-        <td class="num">-{{ number_format($vendor_charges, 2) }}</td>
-    </tr>
-    @endif
-    <tr class="accent-total">
-        <td colspan="4" style="text-align: left; padding: 8px;">Total Deductions</td>
-        <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">-{{ number_format($total_deductions, 2) }}</td>
-    </tr>
-</table>
-
-@if($incentive > 0)
-<table>
-    <tr>
-        <th colspan="5" class="secondary-header">Additions</th>
-    </tr>
-    @if($rider_balance < 0)
+    @empty
+    @if($rider_balance <= 0)
         <tr>
-        <td colspan="4" style="text-align: left;">Previous Balance (Addition)</td>
-        <td class="num" style="text-align: right !important;">+{{ number_format(abs($rider_balance), 2) }}</td>
+        <td colspan="5" style="text-align: center;">No ledger deductions for this billing month</td>
         </tr>
         @endif
-        <tr>
-            <td colspan="4" style="text-align: left;">Incentive Amount</td>
-            <td class="num" style="text-align: right !important;">+{{ number_format($incentive, 2) }}</td>
-        </tr>
+        @endforelse
         <tr class="accent-total">
-            <td colspan="4" style="text-align: left; padding: 8px !important;">Total Additions</td>
-            <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">+{{ number_format($total_additions, 2) }}</td>
+            <td colspan="4" style="text-align: left; padding: 8px;">Total Deductions</td>
+            <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">-{{ number_format($total_deductions, 2) }}</td>
         </tr>
 </table>
-@endif
-@php
-$totalBeforeTax = $total;
-$vatAmount = $riderInvoice->vat > 0 ? $total * $vat_percentage / 100 : 0;
-$paid_amount = 0;
-if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
-$paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
-->whereDate('billing_month', $riderInvoice->billing_month)
-->sum('amount');
-}
-$rider_balance_final = $paid_amount - $finalAmount;
-@endphp
 
-<table class="summary-table">
-    <tr class="light-header">
-        <td style="padding: 6px;">Total Amount before charges:</td>
-        <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($totalBeforeTax, 2) }}</td>
-    </tr>
-    @if($vatAmount > 0)
-    <tr class="light-header">
-        <td style="padding: 6px;">Add: VAT - {{ $vat_percentage }}%</td>
-        <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($vatAmount, 2) }}</td>
-    </tr>
+@if(($rider_balance < 0) || count($ledger_additions)> 0)
+    <table>
+        <tr>
+            <th colspan="5" class="secondary-header">Additions</th>
+        </tr>
+        @if($rider_balance < 0)
+            <tr>
+            <td colspan="4" style="text-align: left;">Previous Balance (Addition)</td>
+            <td class="num" style="text-align: right !important;">+{{ number_format(abs($rider_balance), 2) }}</td>
+            </tr>
+            @endif
+            @foreach($ledger_additions as $addition)
+            <tr>
+                <td colspan="4" style="text-align: left;">{{ $addition['label'] }}</td>
+                <td class="num" style="text-align: right !important;">+{{ number_format($addition['amount'], 2) }}</td>
+            </tr>
+            @endforeach
+            <tr class="accent-total">
+                <td colspan="4" style="text-align: left; padding: 8px !important;">Total Additions</td>
+                <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">+{{ number_format($total_additions, 2) }}</td>
+            </tr>
+    </table>
     @endif
-    <tr class="success-highlight">
-        <td style="padding: 8px; font-size: 14px;">TOTAL AMOUNT AFTER CHARGES:</td>
-        <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">{{ number_format($finalAmount, 2) }}</td>
-    </tr>
-    <tr class="amount-highlight">
-        <td style="padding: 6px;">Paid Amount to Rider:</td>
-        <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($paid_amount, 2) }}</td>
-    </tr>
-    <tr class="amount-highlight">
-        <td style="padding: 6px;">Rider Balance:</td>
-        <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($rider_balance_final, 2) }}</td>
-    </tr>
-</table>
+    @php
+    $totalBeforeTax = $total;
+    $vatAmount = $riderInvoice->vat > 0 ? $total * $vat_percentage / 100 : 0;
+    $paid_amount = 0;
+    if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
+    $paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
+    ->whereDate('billing_month', $riderInvoice->billing_month)
+    ->sum('amount');
+    }
+    $rider_balance_final = $paid_amount - $finalAmount;
+    @endphp
 
-<div class="footer-note">
-    {{ $riderInvoice->notes ?? 'Note : If a rider\'s monthly orders are less than 400 or if they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.' }}
-</div>
+    <table class="summary-table">
+        <tr class="light-header">
+            <td style="padding: 6px;">Total Amount before charges:</td>
+            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($totalBeforeTax, 2) }}</td>
+        </tr>
+        @if($vatAmount > 0)
+        <tr class="light-header">
+            <td style="padding: 6px;">Add: VAT - {{ $vat_percentage }}%</td>
+            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($vatAmount, 2) }}</td>
+        </tr>
+        @endif
+        <tr class="success-highlight">
+            <td style="padding: 8px; font-size: 14px;">TOTAL AMOUNT AFTER CHARGES:</td>
+            <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">{{ number_format($finalAmount, 2) }}</td>
+        </tr>
+        <tr class="amount-highlight">
+            <td style="padding: 6px;">Paid Amount to Rider:</td>
+            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($paid_amount, 2) }}</td>
+        </tr>
+        <tr class="amount-highlight">
+            <td style="padding: 6px;">Rider Balance:</td>
+            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($rider_balance_final, 2) }}</td>
+        </tr>
+    </table>
+
+    <div class="footer-note">
+        {{ $riderInvoice->notes ?? 'Note : If a rider\'s monthly orders are less than 400 or if they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.' }}
+    </div>

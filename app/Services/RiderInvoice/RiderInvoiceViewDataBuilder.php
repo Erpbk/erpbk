@@ -12,6 +12,40 @@ use Illuminate\Support\Facades\DB;
 
 class RiderInvoiceViewDataBuilder
 {
+    /**
+     * Ledger reference types that are invoice earnings/settlements — not deduction/addition lines.
+     */
+    private const EXCLUDED_REFERENCE_TYPES = [
+        'Invoice',
+        'RiderInvoice',
+        'PAY',
+        'PV',
+        'RV',
+        'RI',
+    ];
+
+    /**
+     * Display labels for known rider-ledger deduction/addition types.
+     *
+     * @var array<string, string>
+     */
+    private const REFERENCE_TYPE_LABELS = [
+        'salik' => 'Salik Charges',
+        'Salik' => 'Salik Charges',
+        'Salik Voucher' => 'Salik Charges',
+        'Salik Payment' => 'Salik Charges',
+        'RTA FINE' => 'RTA Fine Charges',
+        'RTA_FINE' => 'RTA Fine Charges',
+        'RTA' => 'RTA Fine Charges',
+        'PN' => 'Penalty Amount',
+        'AL' => 'Advance Loan',
+        'VL' => 'Loan',
+        'COD' => 'COD Amount',
+        'VC' => 'Vendor Charges',
+        'fuel' => 'Fuel Card Charges',
+        'INC' => 'Incentive Amount',
+    ];
+
     public static function display(mixed $value, string $default = ''): string
     {
         if ($value === null || $value === '') {
@@ -49,6 +83,21 @@ class RiderInvoiceViewDataBuilder
         return is_array($label) ? '—' : self::display($label, '—');
     }
 
+    public static function ledgerEntryLabel(string $referenceType): string
+    {
+        if (isset(self::REFERENCE_TYPE_LABELS[$referenceType])) {
+            return self::REFERENCE_TYPE_LABELS[$referenceType];
+        }
+
+        $voucherLabel = General::VoucherType($referenceType);
+
+        if (is_string($voucherLabel) && $voucherLabel !== '') {
+            return $voucherLabel;
+        }
+
+        return $referenceType !== '' ? $referenceType : 'Other';
+    }
+
     /**
      * @param  array<string, mixed>  $settings
      * @return array<string, string>
@@ -62,6 +111,66 @@ class RiderInvoiceViewDataBuilder
         }
 
         return $normalized;
+    }
+
+    /**
+     * Pull rider-account ledger nets for the invoice billing month, grouped by reference_type.
+     * Debit surplus = deduction; credit surplus = addition.
+     *
+     * @return array{deductions: list<array{label: string, amount: float}>, additions: list<array{label: string, amount: float}>}
+     */
+    private function ledgerAdjustmentsForMonth(?int $accountId, string $monthStart): array
+    {
+        $deductionsByLabel = [];
+        $additionsByLabel = [];
+
+        if (! $accountId) {
+            return ['deductions' => [], 'additions' => []];
+        }
+
+        $rows = Transactions::query()
+            ->where('account_id', $accountId)
+            ->where('billing_month', $monthStart)
+            ->where(function ($query) {
+                $query->whereNull('reference_type')
+                    ->orWhereNotIn('reference_type', self::EXCLUDED_REFERENCE_TYPES);
+            })
+            ->selectRaw('reference_type, SUM(debit) as debit_sum, SUM(credit) as credit_sum')
+            ->groupBy('reference_type')
+            ->get();
+
+        foreach ($rows as $row) {
+            $debit = (float) ($row->debit_sum ?? 0);
+            $credit = (float) ($row->credit_sum ?? 0);
+            $net = round($debit - $credit, 2);
+
+            if (abs($net) < 0.005) {
+                continue;
+            }
+
+            $label = self::ledgerEntryLabel(trim((string) ($row->reference_type ?? '')));
+
+            if ($net > 0) {
+                $deductionsByLabel[$label] = ($deductionsByLabel[$label] ?? 0) + $net;
+            } else {
+                $additionsByLabel[$label] = ($additionsByLabel[$label] ?? 0) + abs($net);
+            }
+        }
+
+        $deductions = [];
+        foreach ($deductionsByLabel as $label => $amount) {
+            $deductions[] = ['label' => $label, 'amount' => round((float) $amount, 2)];
+        }
+
+        $additions = [];
+        foreach ($additionsByLabel as $label => $amount) {
+            $additions[] = ['label' => $label, 'amount' => round((float) $amount, 2)];
+        }
+
+        return [
+            'deductions' => $deductions,
+            'additions' => $additions,
+        ];
     }
 
     /**
@@ -79,30 +188,47 @@ class RiderInvoiceViewDataBuilder
         $deliveryfee = company_table('items')->where('name', 'Delivery fees')->first();
         $totalOrders = 0;
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
-        $riderId = $riderInvoice->rider?->id;
+        $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
+        $accountId = $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null;
 
-        if ($riderId) {
-            $fines = company_table('rta_fines')->where('billing_month', $riderInvoice->billing_month)->where('rider_id', $riderId)->sum('total_amount');
-            $salik = company_table('saliks')->where('billing_month', $billing_month)->where('rider_id', $riderId)->sum('total_amount');
-            $cod = company_table('vouchers')->where('ref_id', $riderId)->where('voucher_type', 'COD')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
-            $penalty = company_table('vouchers')->where('ref_id', $riderId)->where('voucher_type', 'PN')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
-            $incentive = company_table('vouchers')->where('ref_id', $riderId)->where('voucher_type', 'INC')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
-            $advance_salary = company_table('vouchers')->where('ref_id', $riderId)->where('voucher_type', 'AL')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
-            $vendor_charges = company_table('vouchers')->where('ref_id', $riderId)->where('voucher_type', 'VC')->where('billing_month', $riderInvoice->billing_month)->sum('amount');
-        } else {
-            $fines = $salik = $cod = $penalty = $incentive = $advance_salary = $vendor_charges = 0;
-        }
+        $ledger = $this->ledgerAdjustmentsForMonth($accountId, $monthStart);
+        $ledger_deductions = $ledger['deductions'];
+        $ledger_additions = $ledger['additions'];
 
+        // Previous balance from rider ledger before this billing month (carry-forward).
         $rider_balance = 0;
-        if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
-            $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
-            $rider_balance = Transactions::where('account_id', $riderInvoice->rider->account_id)
+        if ($accountId) {
+            $rider_balance = (float) Transactions::where('account_id', $accountId)
                 ->whereDate('billing_month', '<', $monthStart)
                 ->sum(DB::raw('debit - credit'));
         }
 
-        $total_deductions = ($fines > 0 ? $fines : 0) + ($salik > 0 ? $salik : 0) + ($cod > 0 ? $cod : 0) + ($penalty > 0 ? $penalty : 0) + ($advance_salary > 0 ? $advance_salary : 0) + ($vendor_charges > 0 ? $vendor_charges : 0) + ($rider_balance > 0 ? $rider_balance : 0);
-        $total_additions = ($incentive > 0 ? $incentive : 0) + ($rider_balance < 0 ? abs($rider_balance) : 0);
+        $monthDeductionsTotal = array_sum(array_column($ledger_deductions, 'amount'));
+        $monthAdditionsTotal = array_sum(array_column($ledger_additions, 'amount'));
+
+        $total_deductions = $monthDeductionsTotal + ($rider_balance > 0 ? $rider_balance : 0);
+        $total_additions = $monthAdditionsTotal + ($rider_balance < 0 ? abs($rider_balance) : 0);
+
+        // Legacy scalar keys (for any views still referencing named deduction vars).
+        $amountByLabel = static function (array $rows, string $label): float {
+            foreach ($rows as $row) {
+                if (($row['label'] ?? '') === $label) {
+                    return (float) ($row['amount'] ?? 0);
+                }
+            }
+
+            return 0.0;
+        };
+
+        $fines = $amountByLabel($ledger_deductions, 'RTA Fine Charges');
+        $salik = $amountByLabel($ledger_deductions, 'Salik Charges');
+        $cod = $amountByLabel($ledger_deductions, 'COD Amount');
+        $penalty = $amountByLabel($ledger_deductions, 'Penalty Amount');
+        $advance_salary = $amountByLabel($ledger_deductions, 'Advance Loan')
+            + $amountByLabel($ledger_deductions, 'Loan');
+        $vendor_charges = $amountByLabel($ledger_deductions, 'Vendor Charges');
+        $fuel_charges = $amountByLabel($ledger_deductions, 'Fuel Card Charges');
+        $incentive = $amountByLabel($ledger_additions, 'Incentive Amount');
 
         $companyId = $riderInvoice->company_id ?? CompanyContext::id();
         $brand = app(AgreementPdfBranding::class)->forCompany($companyId);
@@ -117,6 +243,8 @@ class RiderInvoiceViewDataBuilder
             'deliveryfee' => $deliveryfee,
             'totalOrders' => $totalOrders,
             'billing_month' => $billing_month,
+            'ledger_deductions' => $ledger_deductions,
+            'ledger_additions' => $ledger_additions,
             'fines' => $fines,
             'salik' => $salik,
             'cod' => $cod,
@@ -124,6 +252,7 @@ class RiderInvoiceViewDataBuilder
             'incentive' => $incentive,
             'advance_salary' => $advance_salary,
             'vendor_charges' => $vendor_charges,
+            'fuel_charges' => $fuel_charges,
             'rider_balance' => $rider_balance,
             'total_deductions' => $total_deductions,
             'total_additions' => $total_additions,

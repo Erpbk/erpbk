@@ -257,7 +257,14 @@ class BikeMaintenanceController extends Controller
                         )
                     );
                 } else {
-                    $lineCost = (float) $item->cost * $qty;
+                    $itemCost = (float) $item->cost;
+                    if ($chargeTo === 'Company' && $rate > $itemCost) {
+                        throw new \Exception(
+                            'Cannot charge company more than item cost. Item: '.$item->name.' Cost: '.$itemCost
+                        );
+                    }
+
+                    $lineCost = $itemCost * $qty;
                     $rows[] = [
                         'bike_maintenance_id' => $maintenance->id,
                         'item_id' => $item->id,

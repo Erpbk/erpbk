@@ -246,21 +246,27 @@ class LicenseStatusController extends Controller
         try {
             $LicenseStatus = LicenseStatus::findOrFail($id);
 
-            // Check if this status is being used in license_expenses
-            $isUsed = \App\Support\CompanyQuery::table('license_expenses')->where('license_status', $LicenseStatus->name)->exists();
+            // Active references block permanent deletion, so soft-delete the status instead.
+            $hasActiveReferences = \App\Support\CompanyQuery::table('license_expenses')
+                ->where('license_status', $LicenseStatus->name)
+                ->whereNull('deleted_at')
+                ->exists();
 
-            if ($isUsed) {
+            if ($hasActiveReferences) {
+                $LicenseStatus->delete();
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json([
-                        'success' => false,
-                        'message' => 'Cannot delete this License Status as it is being used in License Expenses.',
-                    ], 422);
+                        'success' => true,
+                        'message' => 'License Status is still referenced by active license expenses and was soft deleted instead.',
+                        'id' => (int) $id,
+                        'soft_deleted' => true,
+                    ]);
                 }
-                Flash::error('Cannot delete this License Status as it is being used in License Expenses.');
-                return redirect()->back();
+                Flash::success('License Status is still referenced by active license expenses and was soft deleted instead.');
+                return $this->redirectAfterAction($request);
             }
 
-            $LicenseStatus->delete();
+            $LicenseStatus->forceDelete();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,

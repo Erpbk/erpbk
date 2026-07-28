@@ -150,7 +150,7 @@
                     </div>
                     <!--col-->
                     <div class="col-md-2 form-group">
-                        <input type="text" class="form-control form-control amount" readonly name="amount[]" value="{{ \App\Helpers\Currency::format($item->amount, 2) }}" placeholder="0.00" data-numeric-value="{{ number_format(round($item->amount, 2), 2, '.', '') }}">
+                        <input type="text" class="form-control form-control amount" readonly name="amount[]" value="{{ number_format(round($item->amount, 2), 2, '.', '') }}" placeholder="0.00" data-numeric-value="{{ number_format(round($item->amount, 2), 2, '.', '') }}">
                     </div>
                     <!--col-->
                     <div class="form-group col-md-1 d-flex align-items-end">

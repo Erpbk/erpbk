@@ -90,29 +90,34 @@ class RiderInvoicesRepository extends BaseRepository
 
         foreach ($request['item_ids'] as $key => $val) {
 
-            if (! empty($request['item_ids'][$key]) && $request['amount'][$key] > 0) {
-
-                // Clean amount value - remove AED prefix and comma formatting
-                $amountValue = $request['amount'][$key];
-                if (is_string($amountValue) && strpos($amountValue, 'AED') !== false) {
-                    $amountValue = str_replace('AED', '', $amountValue);
-                    $amountValue = str_replace(',', '', $amountValue);
-                    $amountValue = trim($amountValue);
-                }
-
-                // Ensure amount is numeric and round to 2 decimals for consistency with display/totals
-                $amountValue = is_numeric($amountValue) ? round((float) $amountValue, 2) : 0;
-
-                $dta['item_id'] = $request['item_ids'][$key];
-                $dta['qty'] = $request['qty'][$key] ?? 0;
-                $dta['rate'] = $request['rate'][$key];
-                $dta['amount'] = $amountValue;
-                // $dta['tax'] = $request['tax'][$key];
-                $dta['discount'] = $request['discount'][$key];
-                $dta['inv_id'] = $invoice->id;
-                RiderInvoiceItem::create($dta);
+            if (empty($request['item_ids'][$key])) {
+                continue;
             }
+
+            // Form amount may include line VAT (JS). Recalculate ex-VAT like import for DB + GL.
+            $qty = (float) str_replace(',', '', (string) ($request['qty'][$key] ?? 0));
+            $rate = (float) str_replace(',', '', (string) ($request['rate'][$key] ?? 0));
+            $discount = (float) str_replace(',', '', (string) ($request['discount'][$key] ?? 0));
+
+            if ($qty == 0) {
+                continue;
+            }
+
+            $amountValue = round(($qty * $rate) - $discount, 2);
+            $storedQty = (int) ($qty > 0 ? ceil($qty) : floor($qty));
+
+            RiderInvoiceItem::create([
+                'item_id' => $request['item_ids'][$key],
+                'qty' => $storedQty,
+                'rate' => $rate,
+                'amount' => $amountValue,
+                'discount' => $discount,
+                'tax' => $request['tax'][$key] ?? 0,
+                'inv_id' => $invoice->id,
+            ]);
         }
+
+        $invoice->refresh();
         $rider_amount = RiderInvoiceItem::where('inv_id', $invoice->id)->sum('amount');
         $total = $rider_amount;
         $vat = 0;
@@ -122,63 +127,68 @@ class RiderInvoicesRepository extends BaseRepository
         }
         $transactionService = new TransactionService;
 
-        if ($id) {
-            // Delete all existing transactions for this invoice to prevent duplicates
-            // Get the trans_code before deletion so we can reuse it
+        $isUnpaid = (int) $invoice->status === 0;
+
+        if ($id && $isUnpaid) {
+            // Delete existing unpaid invoice GL only (match import: no GL for paid)
             $oldTransCode = Transactions::where('reference_type', 'Invoice')
                 ->where('reference_id', $id)
                 ->value('trans_code');
 
-            // Delete all transactions for this specific invoice
             Transactions::where('reference_type', 'Invoice')
                 ->where('reference_id', $id)
                 ->delete();
 
-            // Reuse the old trans_code if it exists, otherwise generate a new one
             $trans_code = $oldTransCode ? $oldTransCode : Account::trans_code();
         } else {
             $trans_code = Account::trans_code();
         }
 
-        if ($invoice->vat > 0) {
+        // Match import: post GL only for unpaid invoices
+        if ($isUnpaid && $total != 0) {
+            $absTotal = abs($total);
+            $absSubtotal = abs($rider_amount);
+            $isNegativeTotal = $total < 0;
 
-            $transactionData = [
-                'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'), // VAT Account asked to set by Adnan 08-05-2025
+            if ($vat != 0) {
+                $absVat = abs($vat);
+                $transactionService->recordTransaction([
+                    'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
+                    'reference_id' => $invoice->id,
+                    'reference_type' => 'Invoice',
+                    'trans_code' => $trans_code,
+                    'trans_date' => $invoice->inv_date,
+                    'narration' => 'Rider Invoice #'.$invoice->id.' - '.$invoice->descriptions,
+                    'debit' => $vat > 0 ? $absVat : 0,
+                    'credit' => $vat < 0 ? $absVat : 0,
+                    'billing_month' => $invoice->billing_month,
+                ]);
+            }
+
+            $transactionService->recordTransaction([
+                'account_id' => $invoice->rider->account_id,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'Invoice',
                 'trans_code' => $trans_code,
                 'trans_date' => $invoice->inv_date,
                 'narration' => 'Rider Invoice #'.$invoice->id.' - '.$invoice->descriptions,
-                'debit' => $vat ?? 0,
+                'debit' => $isNegativeTotal ? $absTotal : 0,
+                'credit' => $isNegativeTotal ? 0 : $absTotal,
                 'billing_month' => $invoice->billing_month,
-            ];
-            $transactionService->recordTransaction($transactionData);
+            ]);
+
+            $transactionService->recordTransaction([
+                'account_id' => GlobalAccounts::id('SALARY_ACCOUNT'),
+                'reference_id' => $invoice->id,
+                'reference_type' => 'Invoice',
+                'trans_code' => $trans_code,
+                'trans_date' => $invoice->inv_date,
+                'narration' => 'Rider Invoice #'.$invoice->id.' - '.$invoice->descriptions,
+                'debit' => $isNegativeTotal ? 0 : $absSubtotal,
+                'credit' => $isNegativeTotal ? $absSubtotal : 0,
+                'billing_month' => $invoice->billing_month,
+            ]);
         }
-
-        $transactionData = [
-            'account_id' => $invoice->rider->account_id,
-            'reference_id' => $invoice->id,
-            'reference_type' => 'Invoice',
-            'trans_code' => $trans_code,
-            'trans_date' => $invoice->inv_date,
-            'narration' => 'Rider Invoice #'.$invoice->id.' - '.$invoice->descriptions,
-            // 'debit' => $request['dr_amount'][$key] ?? 0,
-            'credit' => $total ?? 0,
-            'billing_month' => $invoice->billing_month,
-        ];
-        $transactionService->recordTransaction($transactionData);
-
-        $transactionData = [
-            'account_id' => GlobalAccounts::id('SALARY_ACCOUNT'),
-            'reference_id' => $invoice->id,
-            'reference_type' => 'Invoice',
-            'trans_code' => $trans_code,
-            'trans_date' => $invoice->inv_date,
-            'narration' => 'Rider Invoice #'.$invoice->id.' - '.$invoice->descriptions,
-            'debit' => $rider_amount ?? 0,
-            'billing_month' => $invoice->billing_month,
-        ];
-        $transactionService->recordTransaction($transactionData);
 
         $invoice->total_amount = $total;
         $invoice->vat = $vat;

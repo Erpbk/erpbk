@@ -264,21 +264,27 @@ class VisaStatusController extends Controller
         try {
             $visaStatus = VisaStatus::findOrFail($id);
 
-            // Check if this status is being used in visa_expenses
-            $isUsed = \App\Support\CompanyQuery::table('visa_expenses')->where('visa_status', $visaStatus->name)->exists();
+            // Active references block permanent deletion, so soft-delete the status instead.
+            $hasActiveReferences = \App\Support\CompanyQuery::table('visa_expenses')
+                ->where('visa_status', $visaStatus->name)
+                ->whereNull('deleted_at')
+                ->exists();
 
-            if ($isUsed) {
+            if ($hasActiveReferences) {
+                $visaStatus->delete();
                 if ($request->ajax() || $request->wantsJson()) {
                     return response()->json([
-                        'success' => false,
-                        'message' => 'Cannot delete this visa status as it is being used in visa expenses.',
-                    ], 422);
+                        'success' => true,
+                        'message' => 'Visa Status is still referenced by active visa expenses and was soft deleted instead.',
+                        'id' => (int) $id,
+                        'soft_deleted' => true,
+                    ]);
                 }
-                Flash::error('Cannot delete this visa status as it is being used in visa expenses.');
-                return redirect()->back();
+                Flash::success('Visa Status is still referenced by active visa expenses and was soft deleted instead.');
+                return $this->redirectAfterAction($request);
             }
 
-            $visaStatus->delete();
+            $visaStatus->forceDelete();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,

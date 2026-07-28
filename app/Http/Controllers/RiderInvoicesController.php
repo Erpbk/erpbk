@@ -360,10 +360,8 @@ class RiderInvoicesController extends AppBaseController
                 'message' => 'Rider Invoices not found',
             ], 404);
         }
-        $payment = Payment::where('payee_account_id', $riderInvoices->rider->account_id)
-            ->where('reference', 'like', '%' . $riderInvoices->inv_number . '%')
-            ->exists();
-        if ($payment) {
+
+        if ($this->invoiceHasPayment($riderInvoices)) {
             return response()->json([
                 'message' => 'Cannot Delete Invoice. Payment has already been Made',
             ], 500);
@@ -439,6 +437,63 @@ class RiderInvoicesController extends AppBaseController
         }
 
         return redirect(route('riderInvoices.index'));
+    }
+
+    /**
+     * Whether the invoice has been paid / partially paid and must not be deleted.
+     */
+    private function invoiceHasPayment(RiderInvoices $invoice): bool
+    {
+        // Paid (1) or partially paid (3) — set by Payment module / mark-as-paid
+        if (in_array((int) $invoice->status, [1, 3], true)) {
+            return true;
+        }
+
+        // Manual mark-as-paid / paid-import GL (reference_type RiderInvoice)
+        if (Transactions::where('reference_type', 'RiderInvoice')
+            ->where('reference_id', $invoice->id)
+            ->exists()) {
+            return true;
+        }
+
+        $invoiceNumber = $invoice->invoice_number; // RINV-0001
+        $accountId = $invoice->rider?->account_id;
+        $invoiceRefPatterns = array_values(array_filter([
+            $invoiceNumber,
+            'Rider Invoice #'.$invoice->id,
+            'Invoice #'.$invoice->id,
+            'RINV-'.str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT),
+        ]));
+
+        // Payment module records (payments table) linked to this invoice
+        if ($accountId && ! empty($invoiceRefPatterns)) {
+            $hasPaymentRecord = Payment::where('payee_account_id', $accountId)
+                ->where(function ($q) use ($invoiceRefPatterns) {
+                    foreach ($invoiceRefPatterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                })
+                ->exists();
+
+            if ($hasPaymentRecord) {
+                return true;
+            }
+        }
+
+        // Payment vouchers: RI (mark-as-paid) and PV (Payment module)
+        return CompanyQuery::table('vouchers')
+            ->whereIn('voucher_type', ['RI', 'PV'])
+            ->where(function ($q) use ($invoice, $invoiceRefPatterns) {
+                $q->where('remarks', 'like', '%Rider Invoice #'.$invoice->id.'%')
+                    ->orWhere('remarks', 'like', '%Invoice #'.$invoice->id.'%');
+
+                foreach ($invoiceRefPatterns as $pattern) {
+                    $q->orWhere('reference_number', 'like', '%'.$pattern.'%')
+                        ->orWhere('remarks', 'like', '%'.$pattern.'%');
+                }
+            })
+            ->exists();
     }
 
     /**
@@ -530,10 +585,10 @@ class RiderInvoicesController extends AppBaseController
                             continue;
                         }
 
-                        // ✅ Check if invoice is paid - skip paid invoices
-                        if ($riderInvoice->status == 1) {
+                        // ✅ Skip invoices that have payment (paid / partial / payment GL / voucher)
+                        if ($this->invoiceHasPayment($riderInvoice)) {
                             $skippedCount++;
-                            $skippedInvoices[] = "Invoice ID {$invoiceId} (paid)";
+                            $skippedInvoices[] = "Invoice ID {$invoiceId} (payment exists)";
 
                             continue;
                         }
@@ -612,7 +667,7 @@ class RiderInvoicesController extends AppBaseController
                     $messageParts[] = "Successfully deleted {$deletedCount} invoice(s).";
                 }
                 if ($skippedCount > 0) {
-                    $messageParts[] = "Skipped {$skippedCount} paid invoice(s) (cannot be deleted).";
+                    $messageParts[] = "Skipped {$skippedCount} invoice(s) with payment (cannot be deleted).";
                 }
                 if (! empty($errors)) {
                     $messageParts[] = 'Errors: ' . implode(', ', $errors);

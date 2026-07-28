@@ -6,12 +6,13 @@
             @if($vf('transaction_id'))<th title="Transaction ID" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transaction ID: activate to sort column ascending">Transaction ID</th>@endif
             <th title="Charged To" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Charged To: activate to sort column ascending">Charged To</th>
             @if($vf('billing_month'))<th title="Admin Charges" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Admin Charges: activate to sort column ascending">Billing Month</th>@endif
+            @if($vf('plate'))<th title="Plate No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Plate No: activate to sort column ascending">Plate No</th>@endif
+            <th title="Company" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Company: activate to sort column ascending">Company</th>
             @if($vf('trip_date'))<th title="Trip Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Trip Date: activate to sort column ascending">Trip Date</th>@endif
             @if($vf('trip_time'))<th title="Trip Time" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Trip Time: activate to sort column ascending">Trip Time</th>@endif
             @if($vf('toll_gate'))<th title="Toll Gate" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Toll Gate: activate to sort column ascending">Toll Gate</th>@endif
             @if($vf('direction'))<th title="Direction" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Direction: activate to sort column ascending">Direction</th>@endif
             @if($vf('tag_number'))<th title="Tag Number" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Tag Number: activate to sort column ascending">Tag Number</th>@endif
-            @if($vf('plate'))<th title="Plate No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Plate No: activate to sort column ascending">Plate No</th>@endif
             @if($vf('total_amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1">Total Amount</th>@endif
             @if($vf('status'))<th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1">Status</th>@endif
             <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
@@ -30,12 +31,29 @@
             <td>N/A</td>
             @endif
             @if($vf('billing_month'))<td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M-Y') : 'N/A' }}</td>@endif
+            @if($vf('plate'))<td>{{ $r->plate }}</td>@endif
+            @php
+                $bike = $r->bike;
+                $isOwnedBike = $bike && strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0;
+                if ($isOwnedBike) {
+                    $companyLabel = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+                    if ($companyLabel === '') {
+                        $currentCompany = view()->shared('currentCompany');
+                        $companyLabel = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+                    }
+                    if ($companyLabel === '') {
+                        $companyLabel = '-';
+                    }
+                } else {
+                    $companyLabel = $bike?->leasingCompany?->name ?? '-';
+                }
+            @endphp
+            <td>{{ $companyLabel }}</td>
             @if($vf('trip_date'))<td>{{ App\Helpers\General::DateFormat($r->trip_date) }}</td>@endif
             @if($vf('trip_time'))<td>{{ $r->trip_time }}</td>@endif
             @if($vf('toll_gate'))<td>{{ $r->toll_gate }}</td>@endif
             @if($vf('direction'))<td>{{ $r->direction }}</td>@endif
             @if($vf('tag_number'))<td>{{ $r->tag_number }}</td>@endif
-            @if($vf('plate'))<td>{{ $r->plate }}</td>@endif
             @if($vf('total_amount'))<td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>@endif
             @if($vf('status'))<td>
                 @if(\App\Models\salik::normalizePaymentStatus($r->status, !empty($r->payment_voucher_id)) === 'paid')

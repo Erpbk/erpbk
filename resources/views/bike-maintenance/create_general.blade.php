@@ -15,7 +15,7 @@
                         data-rider-id="{{ $bike->rider?->id ?? null }}"
                         data-rental-company-id="{{ $bike->rentalCompany?->id ?? null }}"
                         data-isgaragecustomer = "{{ ($bike->rentalCompany?->customer_type ) == 'garage' ? 1 : 0 }}"
-                        data-previous-km="{{ $bike->previous_km }}"
+                        data-previous-km="{{ $bike->current_km }}"
                         data-maintenance-km="{{ $bike->maintenance_km }}"
                         @if($bikee && $bikee->id == $bike->id) selected @endif>
                             {{ $bike->emirates.'-'.$bike->plate }}
@@ -64,19 +64,16 @@
                 </select>
             </div>
 
-            {{-- Overdue Paid By
+            {{-- Maintenance Type --}}
             <div class="form-group col-md-3">
-                <div class="form-check mt-5">
-                    {!! Form::checkbox('overdue_paidby', 'User', null, [
-                        'class' => 'form-check-input',
-                        'id' => 'charge_rider'
-                    ]) !!}
-                    {!! Form::label('charge_rider', 'Charge Overdue to Rider', [
-                        'class' => 'fw-bold'
-                    ]) !!}
-                </div>
-            </div> --}}
-            <div class="col-md-3"></div>
+                {!! Form::label('maintenance_type', 'Maintenance Type', ['class' => 'required']) !!}
+                <select name="maintenance_type" id="maintenance_type" class="form-control select2" required>
+                    <option value="">Select</option>
+                    <option value="Scheduled">Scheduled</option>
+                    <option value="Repairs">Repairs</option>
+                </select>
+            </div>
+
             {{-- Description --}}
             <div class="form-group col-md-6">
                 {!! Form::label('description', 'Notes') !!}
@@ -87,14 +84,14 @@
                 ]) !!}
             </div>
         </div>
-        <div class="row my-5">
+        <div class="row my-5" id="odometer-fields" style="display: none;">
             {{-- Previous KM --}}
             <div class="form-group col-md-2">
                 {!! Form::label('previous_km', 'Previous Reading') !!}
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('previous_km', null, [
-                        'class' => 'form-control', 
+                        'class' => 'form-control odometer-input', 
                         'step' => 'any', 
                         'readonly' => true,
                         'min' => '0',
@@ -109,10 +106,9 @@
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('current_km',  null, [
-                        'class' => 'form-control', 
+                        'class' => 'form-control odometer-input', 
                         'step' => 'any', 
                         'min' => '0',
-                        'required' => true,
                         'id' => 'current_km',
                     ]) !!}
                 </div>
@@ -124,9 +120,8 @@
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('maintenance_km', 2000, [
-                        'class' => 'form-control', 
+                        'class' => 'form-control odometer-input', 
                         'step' => 'any', 
-                        'required' => true,
                         'min' => '0',
                         'id' => 'maintenance_km',
                     ]) !!}
@@ -139,7 +134,7 @@
                 <div class="input-group">
                     <span class="input-group-text">KM</span>
                     {!! Form::number('overdue_km', null, [
-                        'class' => 'form-control', 
+                        'class' => 'form-control odometer-input', 
                         'step' => 'any',
                         'readonly' => true,
                         'id' => 'overdue_km'
@@ -149,13 +144,12 @@
 
             {{-- Overdue Cost Per KM --}}
             <div class="form-group col-md-2">
-                {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM', ['class' => 'required']) !!}
+                {!! Form::label('overdue_cost_per_km', 'Cost Per Overdue KM') !!}
                 <div class="input-group">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                     {!! Form::number('overdue_cost_per_km', 1, [
-                        'class' => 'form-control', 
+                        'class' => 'form-control odometer-input', 
                         'step' => '0.01', 
-                        'required' => true,
                         'min' => '0',
                         'id' => 'cost_per_km',
                         'placeholder' => '0.00'
@@ -169,7 +163,7 @@
                 <div class="input-group">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                     {!! Form::number('overdue_cost', null, [
-                        'class' => 'form-control', 
+                        'class' => 'form-control odometer-input', 
                         'step' => '0.01',
                         'readonly' => true,
                         'id' => 'overdue_cost'
@@ -328,6 +322,29 @@ $(document).ready(function() {
     
     // Initial calculations
     calculateOverdue();
+
+    function toggleOdometerFields() {
+        const type = $('#maintenance_type').val();
+        const $odometer = $('#odometer-fields');
+        const isScheduled = type === 'Scheduled';
+
+        if (isScheduled) {
+            $odometer.show();
+            $('#current_km, #maintenance_km, #cost_per_km').prop('required', true);
+        } else {
+            $odometer.hide();
+            $('#current_km, #maintenance_km, #cost_per_km').prop('required', false);
+            if (type === 'Repairs') {
+                $('#current_km, #overdue_km, #overdue_cost').val('');
+                $('#cost_per_km').val('0');
+                $('#overdue_km').val('0');
+                $('#overdue_cost').val('0.00');
+            }
+        }
+    }
+
+    $('#maintenance_type').on('change', toggleOdometerFields);
+    toggleOdometerFields();
 
     $('.row').each(function() {
         setItemTotal($(this));

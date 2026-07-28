@@ -9,6 +9,7 @@ use App\Models\BikeMaintenance;
 use App\Models\BikeMaintenanceItem;
 use App\Models\Bikes;
 use App\Models\Garages;
+use App\Models\InventoryPurchase;
 use App\Models\Items;
 use App\Models\Transactions;
 use App\Traits\GlobalPagination;
@@ -75,135 +76,16 @@ class BikeMaintenanceController extends Controller
                 throw new \Exception('Cannot perform maintenance for a garage customer in an external garage. Please select an internal garage.');
             }
             $this->validateFinancials($request);
-            $bike->update([
-                'previous_km' => $validated['current_km'],
-                'maintenance_km' => $validated['maintenance_km'],
-            ]);
-            if ($validated['previous_km'] == null) {
-                $validated['previous_km'] = $validated['current_km'];
-            }
+            [$validated, $maintenanceKm] = $this->applyMaintenanceTypeRules($validated, $bike);
             $maintenance = BikeMaintenance::create($validated);
-            // Create maintenance items if present
-            if ($request->filled('item_id')) {
-                $rows = [];
-                if ($garage->garage_type == 'internal') {
-                    foreach ($request->item_id as $index => $itemId) {
-                        $item = Items::findOrFail($itemId);
-                        if ($item->is_maintained) {
-                            $available_stock = $item->available;
-                            if ($available_stock <= 0) {
-                                throw new \Exception('The item: '.$item->name.' is out of stock.');
-                            }
-                            if ($available_stock < $request->quantity[$index]) {
-                                throw new \Exception('Only '.$available_stock.' units of '.$item->name.' are available.');
-                            }
-                            $remaining = $request->quantity[$index];
-                            $inventory = $item->getAvailableInventory();
-                            foreach ($inventory as $purchase) {
-                                if ($remaining <= 0) {
-                                    break;
-                                }
-                                $qty_from_this_purchase = min($remaining, $purchase->remaining_quantity);
-                                if ($request->charge_to[$index] == 'User') {
-                                    if ($request->charge_to[$index] < $purchase->unit_cost) {
-                                        throw new \Exception('Cannot charge less then item cost. Item: '.$item->name.' Cost: '.$item->unit_cost);
-                                    }
-                                    $rows[] = [
-                                        'bike_maintenance_id' => $maintenance->id,
-                                        'item_id' => $item->id,
-                                        'inventory_purchase_id' => $purchase->id,
-                                        'item_name' => $item->name ?? 'unknown',
-                                        'quantity' => $qty_from_this_purchase,
-                                        'rate' => $request->rate[$index] ?? 0,
-                                        'discount' => $request->discount[$index] ?? 0,
-                                        'vat' => $request->vat[$index] ?? 0,
-                                        'vat_amount' => $request->vat_amount[$index] ?? 0,
-                                        'total_amount' => $request->item_total[$index] ?? 0,
-                                        'cost' => $purchase->unit_cost,
-                                        'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
-                                        'profit' => ($request->rate[$index] * $qty_from_this_purchase) - ($purchase->unit_cost * $qty_from_this_purchase),
-                                        'charge_to' => $request->charge_to[$index],
-                                        'branch_id' => $bike->branch_id ?? null,
-                                        'company_id' => $bike->company_id,
-                                        'created_at' => now(),
-                                        'updated_at' => now(),
-                                    ];
-                                } else {
-                                    $rows[] = [
-                                        'bike_maintenance_id' => $maintenance->id,
-                                        'item_id' => $item->id,
-                                        'inventory_purchase_id' => $purchase->id,
-                                        'item_name' => $item->name ?? 'unknown',
-                                        'quantity' => $qty_from_this_purchase,
-                                        'rate' => $purchase->unit_cost,
-                                        'discount' => 0,
-                                        'vat' => 0,
-                                        'vat_amount' => 0,
-                                        'total_amount' => $qty_from_this_purchase * $purchase->unit_cost,
-                                        'cost' => $purchase->unit_cost,
-                                        'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
-                                        'profit' => 0,
-                                        'charge_to' => $request->charge_to[$index],
-                                        'branch_id' => $bike->branch_id ?? null,
-                                        'company_id' => $bike->company_id,
-                                        'created_at' => now(),
-                                        'updated_at' => now(),
-                                    ];
-                                }
-                                $purchase->decrement('remaining_quantity', $qty_from_this_purchase);
-                                $remaining -= $qty_from_this_purchase;
-                            }
-                        } else {
-                            $rows[] = [
-                                'bike_maintenance_id' => $maintenance->id,
-                                'item_id' => $item->id,
-                                'item_name' => $item->name ?? 'unknown',
-                                'quantity' => $request->quantity[$index],
-                                'rate' => $request->rate[$index] ?? 0,
-                                'discount' => $request->discount[$index] ?? 0,
-                                'vat' => $request->vat[$index] ?? 0,
-                                'vat_amount' => $request->vat_amount[$index] ?? 0,
-                                'total_amount' => $request->item_total[$index] ?? 0,
-                                'cost' => $item->cost,
-                                'total_cost' => $item->cost * $request->rate[$index],
-                                'profit' => ($request->rate[$index] * $request->quantity[$index]) - ($item->cost * $request->rate[$index]),
-                                'charge_to' => $request->charge_to[$index],
-                                'branch_id' => $bike->branch_id ?? null,
-                                'company_id' => $bike->company_id,
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ];
-                        }
-                    }
-                } else {
-                    $itemIds = array_filter($request->item_id ?? []);
-                    $itemsMap = Items::whereIn('id', $itemIds)
-                        ->pluck('name', 'id'); // [id => name]
-                    foreach ($request->item_id as $index => $itemId) {
-                        $rows[] = [
-                            'bike_maintenance_id' => $maintenance->id,
-                            'item_id' => $itemId,
-                            'item_name' => $itemsMap[$itemId] ?? 'unknown',
-                            'quantity' => $request->quantity[$index] ?? 1,
-                            'rate' => $request->rate[$index] ?? 0,
-                            'discount' => $request->discount[$index] ?? 0,
-                            'vat' => $request->vat[$index] ?? 0,
-                            'vat_amount' => $request->vat_amount[$index] ?? 0,
-                            'total_amount' => $request->item_total[$index] ?? 0,
-                            'charge_to' => $request->charge_to[$index],
-                            'branch_id' => $bike->branch_id ?? null,
-                            'company_id' => $bike->company_id,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
-                    }
-                }
+
+            $rows = $this->buildMaintenanceItemRows($request, $maintenance, $bike, $garage);
+            if (! empty($rows)) {
                 BikeMaintenanceItem::insert($rows);
-                \Log::info('rows: ', $rows);
-                \Log::info('items: ', BikeMaintenanceItem::latest()->take(2)->get()->toArray());
             }
+
             $maintenance->update(['total_cost' => $maintenance->cost]);
-            \Log::info('Maintenance created with data', BikeMaintenance::latest()->first()->toArray());
+            $this->syncBikeMeterFields($bike, $maintenanceKm);
             $data = $this->billData($maintenance);
             if (! empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
@@ -285,125 +167,18 @@ class BikeMaintenanceController extends Controller
         DB::beginTransaction();
         try {
             $this->validateFinancials($request);
-            $bike->update([
-                'previous_km' => $validated['current_km'],
-                'current_km' => null,
-                'maintenance_km' => $validated['maintenance_km'],
-            ]);
+            [$validated, $maintenanceKm] = $this->applyMaintenanceTypeRules($validated, $bike);
             $this->restoreInventoryQuantities($maintenance->id);
             $maintenance->update($validated);
             BikeMaintenanceItem::where('bike_maintenance_id', $maintenance->id)->delete();
-            // Create maintenance items if present
-            if ($request->filled('item_id')) {
 
-                $rows = [];
-                if ($garage->garage_type == 'internal') {
-                    foreach ($request->item_id as $index => $itemId) {
-                        $item = Items::findOrFail($itemId);
-                        $available_stock = $item->available;
-                        if ($item->is_maintained) {
-                            if ($available_stock <= 0) {
-                                throw new \Exception('The item: '.$item->name.' is out of stock.');
-                            }
-                            if ($available_stock < $request->quantity[$index]) {
-                                throw new \Exception('Only '.$available_stock.' units of '.$item->name.' are available.');
-                            }
-                            $remaining = $request->quantity[$index];
-                            $inventory = $item->getAvailableInventory();
-                            foreach ($inventory as $purchase) {
-                                if ($remaining <= 0) {
-                                    break;
-                                }
-                                $qty_from_this_purchase = min($remaining, $purchase->remaining_quantity);
-                                if ($request->charge_to[$index] == 'User') {
-                                    if ($request->charge_to[$index] < $purchase->unit_cost) {
-                                        throw new \Exception('Cannot charge less then item cost. Item: '.$item->name.' Cost: '.$item->unit_cost);
-                                    }
-                                    $rows[] = [
-                                        'bike_maintenance_id' => $maintenance->id,
-                                        'item_id' => $item->id,
-                                        'inventory_purchase_id' => $purchase->id,
-                                        'item_name' => $item->name ?? 'unknown',
-                                        'quantity' => $qty_from_this_purchase,
-                                        'rate' => $request->rate[$index] ?? 0,
-                                        'discount' => $request->discount[$index] ?? 0,
-                                        'vat' => $request->vat[$index] ?? 0,
-                                        'vat_amount' => $request->vat_amount[$index] ?? 0,
-                                        'total_amount' => $request->item_total[$index] ?? 0,
-                                        'cost' => $purchase->unit_cost,
-                                        'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
-                                        'profit' => ($request->rate[$index] * $qty_from_this_purchase) - ($purchase->unit_cost * $qty_from_this_purchase),
-                                        'charge_to' => $request->charge_to[$index],
-                                        'created_at' => now(),
-                                        'updated_at' => now(),
-                                    ];
-                                } else {
-                                    $rows[] = [
-                                        'bike_maintenance_id' => $maintenance->id,
-                                        'item_id' => $item->id,
-                                        'inventory_purchase_id' => $purchase->id,
-                                        'item_name' => $item->name ?? 'unknown',
-                                        'quantity' => $qty_from_this_purchase,
-                                        'rate' => $purchase->unit_cost,
-                                        'discount' => 0,
-                                        'vat' => 0,
-                                        'vat_amount' => 0,
-                                        'total_amount' => $qty_from_this_purchase * $purchase->unit_cost,
-                                        'cost' => $purchase->unit_cost,
-                                        'total_cost' => $purchase->unit_cost * $qty_from_this_purchase,
-                                        'profit' => 0,
-                                        'charge_to' => $request->charge_to[$index],
-                                        'created_at' => now(),
-                                        'updated_at' => now(),
-                                    ];
-                                }
-                                $purchase->update(['remaining_quantity' => ($purchase->remaining_quantity - $qty_from_this_purchase)]);
-                                $remaining -= $qty_from_this_purchase;
-                            }
-                        } else {
-                            $rows[] = [
-                                'bike_maintenance_id' => $maintenance->id,
-                                'item_id' => $item->id,
-                                'item_name' => $item->name ?? 'unknown',
-                                'quantity' => $request->quantity[$index],
-                                'rate' => $request->rate[$index] ?? 0,
-                                'discount' => $request->discount[$index] ?? 0,
-                                'vat' => $request->vat[$index] ?? 0,
-                                'vat_amount' => $request->vat_amount[$index] ?? 0,
-                                'total_amount' => $request->item_total[$index] ?? 0,
-                                'cost' => $item->cost,
-                                'total_cost' => $item->cost * $request->rate[$index],
-                                'profit' => ($request->rate[$index] * $request->quantity[$index]) - ($item->cost * $request->rate[$index]),
-                                'charge_to' => $request->charge_to[$index],
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ];
-                        }
-                    }
-                } else {
-                    $itemIds = array_filter($request->item_id ?? []);
-                    $itemsMap = Items::whereIn('id', $itemIds)
-                        ->pluck('name', 'id'); // [id => name]
-                    foreach ($request->item_id as $index => $itemId) {
-                        $rows[] = [
-                            'bike_maintenance_id' => $maintenance->id,
-                            'item_id' => $itemId,
-                            'item_name' => $itemsMap[$itemId] ?? 'unknown',
-                            'quantity' => $request->quantity[$index] ?? 1,
-                            'rate' => $request->rate[$index] ?? 0,
-                            'discount' => $request->discount[$index] ?? 0,
-                            'vat' => $request->vat[$index] ?? 0,
-                            'vat_amount' => $request->vat_amount[$index] ?? 0,
-                            'total_amount' => $request->item_total[$index] ?? 0,
-                            'charge_to' => $request->charge_to[$index],
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
-                    }
-                }
+            $rows = $this->buildMaintenanceItemRows($request, $maintenance, $bike, $garage);
+            if (! empty($rows)) {
                 BikeMaintenanceItem::insert($rows);
             }
+
             $maintenance->update(['total_cost' => $maintenance->cost]);
+            $this->syncBikeMeterFields($bike, $maintenanceKm);
             $data = $this->billData($maintenance);
             if (! empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
@@ -440,9 +215,211 @@ class BikeMaintenanceController extends Controller
         }
     }
 
+    /**
+     * Build bike_maintenance_items rows from the request.
+     * Always stores the selling rate entered on the form.
+     */
+    private function buildMaintenanceItemRows(Request $request, BikeMaintenance $maintenance, Bikes $bike, Garages $garage): array
+    {
+        if (! $request->filled('item_id')) {
+            return [];
+        }
+
+        $rows = [];
+        $now = now();
+
+        if ($garage->garage_type == 'internal') {
+            foreach ($request->item_id as $index => $itemId) {
+                $item = Items::findOrFail($itemId);
+                $qty = (float) ($request->quantity[$index] ?? 0);
+                $rate = (float) ($request->rate[$index] ?? 0);
+                $discount = (float) ($request->discount[$index] ?? 0);
+                $vat = (float) ($request->vat[$index] ?? 0);
+                $vatAmount = (float) ($request->vat_amount[$index] ?? 0);
+                $itemTotal = (float) ($request->item_total[$index] ?? 0);
+                $chargeTo = $request->charge_to[$index];
+
+                if ($item->is_maintained) {
+                    $rows = array_merge(
+                        $rows,
+                        $this->buildMaintainedItemRows(
+                            $maintenance,
+                            $bike,
+                            $item,
+                            $qty,
+                            $rate,
+                            $discount,
+                            $vat,
+                            $vatAmount,
+                            $itemTotal,
+                            $chargeTo,
+                            $now
+                        )
+                    );
+                } else {
+                    $lineCost = (float) $item->cost * $qty;
+                    $rows[] = [
+                        'bike_maintenance_id' => $maintenance->id,
+                        'item_id' => $item->id,
+                        'item_name' => $item->name ?? 'unknown',
+                        'quantity' => $qty,
+                        'rate' => $rate,
+                        'discount' => $discount,
+                        'vat' => $vat,
+                        'vat_amount' => $vatAmount,
+                        'total_amount' => $itemTotal,
+                        'cost' => $item->cost,
+                        'total_cost' => $lineCost,
+                        'profit' => ($rate * $qty - $discount) - $lineCost,
+                        'charge_to' => $chargeTo,
+                        'branch_id' => $bike->branch_id ?? null,
+                        'company_id' => $bike->company_id,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
+                }
+            }
+        } else {
+            $itemIds = array_filter($request->item_id ?? []);
+            $itemsMap = Items::whereIn('id', $itemIds)->pluck('name', 'id');
+            foreach ($request->item_id as $index => $itemId) {
+                $rows[] = [
+                    'bike_maintenance_id' => $maintenance->id,
+                    'item_id' => $itemId,
+                    'item_name' => $itemsMap[$itemId] ?? 'unknown',
+                    'quantity' => $request->quantity[$index] ?? 1,
+                    'rate' => $request->rate[$index] ?? 0,
+                    'discount' => $request->discount[$index] ?? 0,
+                    'vat' => $request->vat[$index] ?? 0,
+                    'vat_amount' => $request->vat_amount[$index] ?? 0,
+                    'total_amount' => $request->item_total[$index] ?? 0,
+                    'charge_to' => $request->charge_to[$index],
+                    'branch_id' => $bike->branch_id ?? null,
+                    'company_id' => $bike->company_id,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Consume FIFO inventory for a maintained item and build line rows.
+     */
+    private function buildMaintainedItemRows(
+        BikeMaintenance $maintenance,
+        Bikes $bike,
+        Items $item,
+        float $qty,
+        float $rate,
+        float $discount,
+        float $vat,
+        float $vatAmount,
+        float $itemTotal,
+        string $chargeTo,
+        $now
+    ): array {
+        $availableStock = $item->available;
+        if ($availableStock <= 0) {
+            throw new \Exception('The item: '.$item->name.' is out of stock.');
+        }
+        if ($availableStock < $qty) {
+            throw new \Exception('Only '.$availableStock.' units of '.$item->name.' are available.');
+        }
+
+        $remaining = $qty;
+        $inventory = $item->getAvailableInventory();
+        $slices = [];
+
+        foreach ($inventory as $purchase) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $qtyFromPurchase = min($remaining, (float) $purchase->remaining_quantity);
+            $unitCost = (float) $purchase->unit_cost;
+
+            if ($rate < $unitCost) {
+                throw new \Exception(
+                    'Cannot charge less than item cost. Item: '.$item->name.' Cost: '.$unitCost
+                );
+            }
+
+            if ($chargeTo === 'Company' && $rate > $unitCost) {
+                throw new \Exception(
+                    'Cannot charge company more than item cost. Item: '.$item->name.' Cost: '.$unitCost
+                );
+            }
+
+            $slices[] = [
+                'purchase' => $purchase,
+                'qty' => $qtyFromPurchase,
+                'unit_cost' => $unitCost,
+            ];
+            $remaining -= $qtyFromPurchase;
+        }
+
+        if ($remaining > 0) {
+            throw new \Exception('Only '.($qty - $remaining).' units of '.$item->name.' could be allocated from inventory.');
+        }
+
+        $rows = [];
+        $sliceCount = count($slices);
+        $allocatedDiscount = 0.0;
+        $allocatedVatAmount = 0.0;
+        $allocatedTotal = 0.0;
+
+        foreach ($slices as $i => $slice) {
+            $isLast = ($i === $sliceCount - 1);
+            $share = $qty > 0 ? ($slice['qty'] / $qty) : 0;
+
+            if ($isLast) {
+                $sliceDiscount = round($discount - $allocatedDiscount, 2);
+                $sliceVatAmount = round($vatAmount - $allocatedVatAmount, 2);
+                $sliceTotal = round($itemTotal - $allocatedTotal, 2);
+            } else {
+                $sliceDiscount = round($discount * $share, 2);
+                $sliceVatAmount = round($vatAmount * $share, 2);
+                $sliceTotal = round($itemTotal * $share, 2);
+                $allocatedDiscount += $sliceDiscount;
+                $allocatedVatAmount += $sliceVatAmount;
+                $allocatedTotal += $sliceTotal;
+            }
+
+            $lineCost = $slice['unit_cost'] * $slice['qty'];
+            $sliceRevenue = ($rate * $slice['qty']) - $sliceDiscount;
+
+            $rows[] = [
+                'bike_maintenance_id' => $maintenance->id,
+                'item_id' => $item->id,
+                'inventory_purchase_id' => $slice['purchase']->id,
+                'item_name' => $item->name ?? 'unknown',
+                'quantity' => $slice['qty'],
+                'rate' => $rate,
+                'discount' => $sliceDiscount,
+                'vat' => $vat,
+                'vat_amount' => $sliceVatAmount,
+                'total_amount' => $sliceTotal,
+                'cost' => $slice['unit_cost'],
+                'total_cost' => $lineCost,
+                'profit' => $sliceRevenue - $lineCost,
+                'charge_to' => $chargeTo,
+                'branch_id' => $bike->branch_id ?? null,
+                'company_id' => $bike->company_id,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+
+            $slice['purchase']->decrement('remaining_quantity', $slice['qty']);
+        }
+
+        return $rows;
+    }
+
     private function billData(BikeMaintenance $maintenance)
     {
-        // Eager load everything including nested accounts
         $maintenance->load([
             'bike',
             'rider.account',
@@ -462,64 +439,91 @@ class BikeMaintenanceController extends Controller
         $items = $maintenance->maintenanceItems;
         $userItems = $items->where('charge_to', 'User');
         $companyItems = $items->where('charge_to', 'Company');
+        $isInternal = $maintenance->garage && $maintenance->garage->garage_type === 'internal';
 
         if ($items->isEmpty()) {
             $missing[] = 'No items Added in the Bill';
         }
 
-        $profit = $maintenance->maintenanceItems->sum('profit');
-        $total = $maintenance->total_cost - $maintenance->maintenanceItems->sum('profit');
+        $profit = (float) $items->sum('profit');
+        $cogs = (float) $items->sum('total_cost');
+        $vat = (float) $items->sum('vat_amount');
+        $gross = (float) $items->sum('total_amount');
 
-        if ($userItems->isNotEmpty()) {
+        // Internal: Cr garage at COGS, Cr profit, Cr VAT; Dr payers at gross (incl. VAT).
+        // External: Dr payers at ex-VAT, Dr VAT purchase, Cr garage at gross.
+        if ($isInternal) {
+            $garageCredit = $cogs;
+            $userTotal = (float) $userItems->sum('total_amount');
+            $companyTotal = (float) $companyItems->sum('total_amount');
+        } else {
+            $garageCredit = $gross;
+            $profit = 0;
+            $userTotal = (float) ($userItems->sum('total_amount') - $userItems->sum('vat_amount'));
+            $companyTotal = (float) ($companyItems->sum('total_amount') - $companyItems->sum('vat_amount'));
+        }
 
+        $overdueAmount = round(
+            (float) ($maintenance->overdue_km ?? 0) * (float) ($maintenance->overdue_cost_per_km ?? 0),
+            2
+        );
+        $needsUserAccount = $userItems->isNotEmpty() || $overdueAmount > 0;
+
+        if ($needsUserAccount) {
             if (! $maintenance->rider_id && ! $maintenance->rental_company_id) {
-                \Log::info('maintenance data', $maintenance->toArray());
-                $missing[] = 'No User found for this maintenance but maintenance items charged to User';
+                $missing[] = 'No User found for this maintenance but amounts are charged to User/Rider';
             }
-
-            $userTotal = $userItems->sum('total_amount');
 
             if ($maintenance->rider && $maintenance->rider->account) {
                 $userAccount = $maintenance->rider->account;
             } elseif ($maintenance->rentalCompany && $maintenance->rentalCompany->account) {
                 $userAccount = $maintenance->rentalCompany->account;
             } else {
+                $missing[] = 'No account found for the assigned rider or rental company';
             }
         }
 
         foreach ($items as $item) {
-            $itemTotal = $item->quantity * $item->rate;
-            $discount = $item->discount ?? 0;
-            $itemTotal -= $discount;
-            $vatAmount = $itemTotal * ($item->vat / 100);
-            $itemTotal += $vatAmount;
-            if (round($item->total_amount, 2) != round($itemTotal, 2)) {
+            // Split inventory rows use proportional totals; skip strict per-slice recalc.
+            if ($item->inventory_purchase_id) {
+                continue;
+            }
+            $line = (float) $item->quantity * (float) $item->rate;
+            $line -= (float) ($item->discount ?? 0);
+            $vatAmount = $line * ((float) $item->vat / 100);
+            $line += $vatAmount;
+            if (round((float) $item->total_amount, 2) != round($line, 2)) {
                 $missing[] = 'Item total amount mismatch for item: '.$item->item_name;
             }
         }
 
-        if ($companyItems->isNotEmpty()) {
+        $needsCompanyAccount = $companyItems->isNotEmpty();
 
-            $companyTotal = $companyItems->sum('total_amount');
-            $acc = GlobalAccounts::account('BIKE_MAINTENANCE_ACCOUNT');
-            if (! $acc) {
-                $missing[] = 'Company Bike Maintennace Account not found ID:'.GlobalAccounts::id('BIKE_MAINTENANCE_ACCOUNT');
+        if ($needsCompanyAccount) {
+            $companyAccountId = GlobalAccounts::idOrNull('BIKE_MAINTENANCE_ACCOUNT');
+            if (! $companyAccountId) {
+                $missing[] = 'Company Bike Maintenance Account not configured (BIKE_MAINTENANCE_ACCOUNT)';
             } else {
-                $companyAccount = $acc;
+                $companyAccount = Accounts::withoutGlobalScopes(['company', 'branch'])->find($companyAccountId);
+                if (! $companyAccount) {
+                    $missing[] = 'Company Bike Maintenance Account not found';
+                }
+            }
+            if ($companyItems->isEmpty()) {
+                $companyTotal = 0;
             }
         }
 
-        $vat = $items->sum('vat_amount');
-
         if ($vat > 0) {
-            if ($maintenance->garage->garage_type == 'internal') {
-                $vatAccount = Accounts::find(GlobalAccounts::id('VAT_ON_SALES'));
-            } // VAT on Sales
-            else {
-                $vatAccount = Accounts::find(GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'));
-            } // VAT on Purchase
-            if (! $vatAccount) {
-                $missing[] = 'VAT Account not Found. ID(sale):'.GlobalAccounts::id('VAT_ON_SALES').' ID(purchase):'.GlobalAccounts::id('VAT_PURCHASE_ACCOUNT');
+            $vatCode = $isInternal ? 'VAT_ON_SALES' : 'VAT_PURCHASE_ACCOUNT';
+            $vatAccountId = GlobalAccounts::idOrNull($vatCode);
+            if (! $vatAccountId) {
+                $missing[] = 'VAT Account not Found ('.$vatCode.')';
+            } else {
+                $vatAccount = Accounts::withoutGlobalScopes(['company', 'branch'])->find($vatAccountId);
+                if (! $vatAccount) {
+                    $missing[] = 'VAT Account not Found ('.$vatCode.')';
+                }
             }
         }
 
@@ -529,8 +533,14 @@ class BikeMaintenanceController extends Controller
             $garageAccount = $maintenance->garage->account;
         }
 
-        $data = [
-            'total' => $total,
+        if ($profit > 0 || $overdueAmount > 0) {
+            if (! GlobalAccounts::idOrNull('GARAGE_INCOME_ACCOUNT')) {
+                $missing[] = 'Garage Income Account not configured (GARAGE_INCOME_ACCOUNT)';
+            }
+        }
+
+        return [
+            'total' => $garageCredit,
             'profit' => $profit,
             'user_amount' => $userTotal,
             'user_account' => $userAccount,
@@ -539,102 +549,101 @@ class BikeMaintenanceController extends Controller
             'vat_amount' => $vat,
             'vat_account' => $vatAccount,
             'garage_account' => $garageAccount,
+            'overdue_amount' => $overdueAmount,
             'description' => "Maintenance Performed on bike: {$maintenance->bike->emirates}-{$maintenance->bike->plate}",
             'missing' => $missing,
         ];
-
-        return $data;
     }
 
     private function chargeInvoice(BikeMaintenance $maintenance, $data, $transcode = null)
     {
-
         $transCode = $transcode ?? Account::trans_code();
-        if ($data['user_amount'] && $data['user_amount'] > 0) {
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $maintenance->maintenance_date,
-                'reference_id' => $maintenance->id,
-                'reference_type' => 'Bike Maintenance',
-                'account_id' => $data['user_account']->id,
-                'credit' => 0,
-                'debit' => $data['user_amount'],
-                'billing_month' => $maintenance->billing_month,
-                'narration' => $data['description'],
-            ]);
-        }
-        if ($data['company_amount'] && $data['company_amount'] > 0) {
-
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $maintenance->maintenance_date,
-                'reference_id' => $maintenance->id,
-                'reference_type' => 'Bike Maintenance',
-                'account_id' => $data['company_account']->id,
-                'credit' => 0,
-                'debit' => $data['company_amount'],
-                'billing_month' => $maintenance->billing_month,
-                'narration' => $data['description'],
-            ]);
-        }
-        Transactions::create([
+        $base = [
             'trans_code' => $transCode,
             'trans_date' => $maintenance->maintenance_date,
             'reference_id' => $maintenance->id,
             'reference_type' => 'Bike Maintenance',
+            'billing_month' => $maintenance->billing_month,
+            'narration' => $data['description'],
+        ];
+
+        if ($data['user_amount'] && $data['user_amount'] > 0) {
+            Transactions::create(array_merge($base, [
+                'account_id' => $data['user_account']->id,
+                'credit' => 0,
+                'debit' => $data['user_amount'],
+            ]));
+        }
+
+        if ($data['company_amount'] && $data['company_amount'] > 0) {
+            Transactions::create(array_merge($base, [
+                'account_id' => $data['company_account']->id,
+                'credit' => 0,
+                'debit' => $data['company_amount'],
+            ]));
+        }
+
+        Transactions::create(array_merge($base, [
             'account_id' => $data['garage_account']->id,
             'credit' => $data['total'],
             'debit' => 0,
-            'billing_month' => $maintenance->billing_month,
-            'narration' => $data['description'],
-        ]);
+        ]));
+
         if ($data['profit'] > 0) {
             $profitAcc = GlobalAccounts::account('GARAGE_INCOME_ACCOUNT');
-            if (! $profitAcc) {
-                throw new \Exception('Garage Income Account not find');
-            }
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $maintenance->maintenance_date,
-                'reference_id' => $maintenance->id,
-                'reference_type' => 'Bike Maintenance',
+            Transactions::create(array_merge($base, [
                 'account_id' => $profitAcc->id,
                 'credit' => $data['profit'],
                 'debit' => 0,
-                'billing_month' => $maintenance->billing_month,
-                'narration' => $data['description'],
-            ]);
+            ]));
         }
+
         if ($data['vat_amount'] > 0) {
             if ($maintenance->garage->garage_type == 'internal') {
-                $vatAcc = GlobalAccounts::id('VAT_ON_SALES'); // VAT on Sale
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $maintenance->maintenance_date,
-                    'reference_id' => $maintenance->id,
-                    'reference_type' => 'Bike Maintenance',
-                    'account_id' => $vatAcc,
+                Transactions::create(array_merge($base, [
+                    'account_id' => GlobalAccounts::id('VAT_ON_SALES'),
                     'credit' => $data['vat_amount'],
                     'debit' => 0,
-                    'billing_month' => $maintenance->billing_month,
-                    'narration' => $data['description'],
-                ]);
+                ]));
             } else {
-                $vatAcc = GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'); // VAT on Purchase
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $maintenance->maintenance_date,
-                    'reference_id' => $maintenance->id,
-                    'reference_type' => 'Bike Maintenance',
-                    'account_id' => $vatAcc,
+                Transactions::create(array_merge($base, [
+                    'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                     'credit' => 0,
                     'debit' => $data['vat_amount'],
-                    'billing_month' => $maintenance->billing_month,
-                    'narration' => $data['description'],
-                ]);
+                ]));
             }
-
         }
+
+        if (($data['overdue_amount'] ?? 0) > 0) {
+            $overdueNarration = $data['description'].' (Overdue KM charge)';
+            Transactions::create(array_merge($base, [
+                'account_id' => $data['user_account']->id,
+                'credit' => 0,
+                'debit' => $data['overdue_amount'],
+                'narration' => $overdueNarration,
+            ]));
+
+            $incomeAcc = GlobalAccounts::account('GARAGE_INCOME_ACCOUNT');
+            Transactions::create(array_merge($base, [
+                'account_id' => $incomeAcc->id,
+                'credit' => $data['overdue_amount'],
+                'debit' => 0,
+                'narration' => $overdueNarration,
+            ]));
+        }
+    }
+
+    /**
+     * Overdue is always charged to the rider when cost > 0.
+     */
+    private function resolveOverduePaidBy(array $validated): ?string
+    {
+        $overdueCost = round(
+            (float) ($validated['overdue_km'] ?? 0) * (float) ($validated['overdue_cost_per_km'] ?? 0),
+            2
+        );
+
+        return $overdueCost > 0 ? 'Rider' : null;
     }
 
     /**
@@ -653,22 +662,8 @@ class BikeMaintenanceController extends Controller
 
             $path = $bikeMaintenance->attachment;
             $bike = $bikeMaintenance->bike;
-            $prev = $bikeMaintenance->previous_km;
-            $maintenance = BikeMaintenance::where('bike_id', $bike->id)
-                ->where('id', '!=', $bikeMaintenance->id)
-                ->orderby('maintenance_date', 'desc')
-                ->first();
-            if ($maintenance) {
-                $bike->update([
-                    'previous_km' => $maintenance->current_km,
-                    'maintenance_km' => $maintenance->maintenance_km,
-                ]);
-            } else {
-                $bike->update([
-                    'previous_km' => null,
-                ]);
-            }
             $bikeMaintenance->delete();
+            $this->syncBikeMeterFields($bike);
             if ($path) {
                 Storage::delete($path);
             }
@@ -692,14 +687,14 @@ class BikeMaintenanceController extends Controller
             'rider_id' => 'nullable|exists:riders,id',
             'rental_company_id' => 'nullable|exists:bike_rent_companies,id',
             'garage_id' => 'required|exists:garages,id',
+            'maintenance_type' => 'required|in:Scheduled,Repairs',
             'maintenance_date' => 'required|date|before:tomorrow',
-            'previous_km' => 'nullable|numeric|min:1',
-            'current_km' => 'required|numeric|min:0',
-            'maintenance_km' => 'required|numeric|min:100',
+            'previous_km' => 'nullable|numeric|min:0',
+            'current_km' => 'nullable|numeric|min:0|required_if:maintenance_type,Scheduled',
+            'maintenance_km' => 'nullable|numeric|min:100|required_if:maintenance_type,Scheduled',
             'overdue_cost_per_km' => 'nullable|numeric|min:0',
             'overdue_km' => 'nullable|numeric|min:0',
             'overdue_cost' => 'nullable|numeric|min:0',
-            'overdue_paidby' => 'nullable|in:Company,User',
             'description' => 'nullable|string',
             'billing_month' => 'required|date_format:Y-m',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:2048',
@@ -720,11 +715,76 @@ class BikeMaintenanceController extends Controller
             'total_cost' => 'nullable|numeric|min:0',
         ], [
             'bike_id.required' => 'Please Select A Bike',
+            'maintenance_type.required' => 'Please Select Maintenance Type',
+            'current_km.required_if' => 'Current Reading is required for Scheduled maintenance',
+            'maintenance_km.required_if' => 'Maintenance Interval is required for Scheduled maintenance',
             'item_id.*.required' => 'Item Field Cannot Be Empty',
             'quantity.*.required' => 'Quantity Field Cannot be Empty',
             'rate.*.required' => 'Rate Field Cannot Be Empty',
             'charge_to.*.required' => 'You Must Choose Who will be Charged for every Item',
         ]);
+    }
+
+    /**
+     * Apply Scheduled vs Repairs rules for odometer / overdue fields.
+     * maintenance_type is form-only and is not persisted.
+     * Bike meter fields are synced separately via syncBikeMeterFields().
+     *
+     * @return array{0: array, 1: float|int|string|null} [validated, maintenanceKmForBikeSync]
+     */
+    private function applyMaintenanceTypeRules(array $validated, Bikes $bike): array
+    {
+        $type = $validated['maintenance_type'] ?? '';
+        $maintenanceKm = $validated['maintenance_km'] ?? null;
+        unset($validated['maintenance_type'], $validated['maintenance_km'], $validated['overdue_cost']);
+
+        if ($type === 'Repairs') {
+            $validated['previous_km'] = 0;
+            $validated['current_km'] = 0;
+            $validated['overdue_km'] = 0;
+            $validated['overdue_cost_per_km'] = 0;
+            $validated['overdue_paidby'] = null;
+
+            return [$validated, null];
+        }
+
+        // Scheduled: previous reading defaults to bike's last scheduled reading (current_km)
+        if (($validated['previous_km'] ?? null) === null || $validated['previous_km'] === '') {
+            $validated['previous_km'] = $bike->current_km ?? 0;
+        }
+        $validated['overdue_paidby'] = $this->resolveOverduePaidBy($validated);
+
+        return [$validated, $maintenanceKm];
+    }
+
+    /**
+     * Rebuild bike meter fields from scheduled maintenance history.
+     * bikes.current_km  = latest scheduled reading
+     * bikes.previous_km = scheduled reading before that
+     * Repairs (current_km = 0) are ignored.
+     */
+    private function syncBikeMeterFields(Bikes $bike, $maintenanceKm = null): void
+    {
+        $scheduled = BikeMaintenance::where('bike_id', $bike->id)
+            ->where('current_km', '>', 0)
+            ->orderByDesc('maintenance_date')
+            ->orderByDesc('id')
+            ->limit(2)
+            ->get();
+
+        $latest = $scheduled->get(0);
+        $prior = $scheduled->get(1);
+
+        $data = [
+            'current_km' => $latest?->current_km,
+            'previous_km' => $prior?->current_km ?? ($latest?->previous_km),
+        ];
+
+        if ($maintenanceKm !== null) {
+            $data['maintenance_km'] = $maintenanceKm;
+        }
+
+        $bike->update($data);
     }
 
     private function stats($maintenances)
@@ -750,7 +810,7 @@ class BikeMaintenanceController extends Controller
                 ->map(fn ($group) => $group->count())
                 ->avg() ?? 0,
             'overdue_cost' => $maintenances->where('overdue_km', '>', 0)->sum(fn ($m) => $m->overdue_km * $m->overdue_cost_per_km),
-            'overdue_charged' => $maintenances->where('overdue_km', '>', 0)->where('overdue_paidby', 'Rider')->sum(fn ($m) => $m->overdue_km * $m->overdue_cost_per_km),
+            'overdue_charged' => $maintenances->where('overdue_km', '>', 0)->sum(fn ($m) => $m->overdue_km * $m->overdue_cost_per_km),
             'maint_cost' => $maintenances->sum('total_cost'),
 
         ];
@@ -767,6 +827,11 @@ class BikeMaintenanceController extends Controller
             $discount = (float) ($request->discount[$index] ?? 0);
             $vat = (float) ($request->vat[$index] ?? 0);
             $frontendTotal = (float) ($request->item_total[$index] ?? 0);
+            $chargeTo = $request->charge_to[$index] ?? null;
+
+            if ($chargeTo === 'Company' && $vat > 0) {
+                throw new \Exception('Cannot charge VAT to yourself (row '.($index + 1).').');
+            }
 
             $line = $qty * $rate;
             $line -= $discount;
@@ -780,12 +845,15 @@ class BikeMaintenanceController extends Controller
 
             $itemsTotal += $calculated;
         }
-        \Log::info('itemsTotal: '.$itemsTotal.' ,cost: '.$request->total_cost);
+
         if (round($itemsTotal, 2) !== round((float) $request->total_cost, 2)) {
             throw new \Exception('Maintenance total mismatch.');
         }
 
-        // Validate overdue
+        if ($request->maintenance_type === 'Repairs') {
+            return;
+        }
+
         $overdue = (float) $request->overdue_km;
         $perKm = (float) $request->overdue_cost_per_km;
         $overdueCalculated = round($overdue * $perKm, 2);

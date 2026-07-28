@@ -72,11 +72,7 @@
                 <small class="text-danger">
                     {{ \App\Helpers\Currency::format($overdue_cost, 2) }}
                 </small><br>
-                @if($maintenance->overdue_paidby === 'Rider')
-                <small class="text-muted">Charged</small>
-                @else
-                <small class="text-muted no-wrap">Not Charged</small>
-                @endif
+                <small class="text-muted">Charged to Rider</small>
                 @endif
             </td>
             <td>

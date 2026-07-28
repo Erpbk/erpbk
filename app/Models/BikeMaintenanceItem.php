@@ -13,6 +13,7 @@ class BikeMaintenanceItem extends BaseModel
     public $fillable = [
         'bike_maintenance_id',
         'item_id',
+        'inventory_purchase_id',
         'item_name',
         'quantity',
         'rate',
@@ -20,6 +21,9 @@ class BikeMaintenanceItem extends BaseModel
         'vat',
         'vat_amount',
         'total_amount',
+        'cost',
+        'total_cost',
+        'profit',
         'charge_to',
         'branch_id',
         'company_id',

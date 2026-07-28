@@ -467,6 +467,10 @@ class BikeMaintenanceController extends Controller
             (float) ($maintenance->overdue_km ?? 0) * (float) ($maintenance->overdue_cost_per_km ?? 0),
             2
         );
+        $chargeOverdueToRider = $overdueAmount > 0 && $maintenance->overdue_paidby === 'Rider';
+        if (! $chargeOverdueToRider) {
+            $overdueAmount = 0;
+        }
         $needsUserAccount = $userItems->isNotEmpty() || $overdueAmount > 0;
 
         if ($needsUserAccount) {
@@ -634,7 +638,7 @@ class BikeMaintenanceController extends Controller
     }
 
     /**
-     * Overdue is always charged to the rider when cost > 0.
+     * Charge overdue to rider only when the form toggle is set and overdue cost > 0.
      */
     private function resolveOverduePaidBy(array $validated): ?string
     {
@@ -643,7 +647,11 @@ class BikeMaintenanceController extends Controller
             2
         );
 
-        return $overdueCost > 0 ? 'Rider' : null;
+        if ($overdueCost > 0 && ($validated['overdue_paidby'] ?? null) === 'Rider') {
+            return 'Rider';
+        }
+
+        return null;
     }
 
     /**
@@ -695,6 +703,7 @@ class BikeMaintenanceController extends Controller
             'overdue_cost_per_km' => 'nullable|numeric|min:0',
             'overdue_km' => 'nullable|numeric|min:0',
             'overdue_cost' => 'nullable|numeric|min:0',
+            'overdue_paidby' => 'nullable|in:Rider',
             'description' => 'nullable|string',
             'billing_month' => 'required|date_format:Y-m',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:2048',
@@ -810,7 +819,7 @@ class BikeMaintenanceController extends Controller
                 ->map(fn ($group) => $group->count())
                 ->avg() ?? 0,
             'overdue_cost' => $maintenances->where('overdue_km', '>', 0)->sum(fn ($m) => $m->overdue_km * $m->overdue_cost_per_km),
-            'overdue_charged' => $maintenances->where('overdue_km', '>', 0)->sum(fn ($m) => $m->overdue_km * $m->overdue_cost_per_km),
+            'overdue_charged' => $maintenances->where('overdue_km', '>', 0)->where('overdue_paidby', 'Rider')->sum(fn ($m) => $m->overdue_km * $m->overdue_cost_per_km),
             'maint_cost' => $maintenances->sum('total_cost'),
 
         ];

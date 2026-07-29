@@ -123,6 +123,19 @@ class ReportController extends Controller
 
     $page = (int) ($request->get('page') ?: 1);
     $totalCount = $result->count();
+
+    // Overall stats across all filtered riders (independent of pagination)
+    $allRiderAccountMap = (clone $result)->pluck('account_id', 'id');
+    $allRiderIds = $allRiderAccountMap->keys()->filter()->values()->all();
+    $allAccountIds = $allRiderAccountMap->filter()->unique()->values()->all();
+    $overallStats = $this->aggregateRiderReportStats(
+      $allRiderIds,
+      $allAccountIds,
+      $fromMonth,
+      $toMonth,
+      $salikMonthValues
+    );
+
     $result = $result->orderBy('rider_id')->forPage($page, $perPage)->get();
 
     $riderIds = $result->pluck('id')->filter()->values()->all();
@@ -141,6 +154,9 @@ class ReportController extends Controller
     $voucherByRider = [];
     $rtaTotals = collect();
     $salikTotals = collect();
+    $fuelTotals = collect();
+    $visaTotals = collect();
+    $jvByAccount = collect();
     $previousBalances = collect();
     $paidByAccount = collect();
 
@@ -185,6 +201,23 @@ class ReportController extends Controller
         ->select('rider_id', DB::raw('SUM(total_amount) as total'))
         ->groupBy('rider_id')
         ->pluck('total', 'rider_id');
+
+      $fuelTotals = company_table('fuel_data')
+        ->whereIn('rider_id', $riderIds)
+        ->whereNull('deleted_at')
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->select('rider_id', DB::raw('SUM(total) as total'))
+        ->groupBy('rider_id')
+        ->pluck('total', 'rider_id');
+
+      $visaTotals = $this->visaInstallmentTotalsByRider(
+        $riderIds,
+        $accountIds,
+        $fromMonth,
+        $toMonth,
+        $salikMonthValues
+      );
     }
 
     if (!empty($accountIds)) {
@@ -201,6 +234,24 @@ class ReportController extends Controller
         ->select('payee_account_id', DB::raw('SUM(amount) as total'))
         ->groupBy('payee_account_id')
         ->pluck('total', 'payee_account_id');
+
+      // JV entries posted against rider ledger accounts (imported JV + journal vouchers)
+      $jvByAccount = Transactions::whereIn('account_id', $accountIds)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->where(function ($q) {
+          $q->where('reference_type', 'JV')
+            ->orWhere(function ($inner) {
+              $inner->where('reference_type', 'Voucher')
+                ->whereIn('reference_id', company_table('vouchers')
+                  ->where('voucher_type', 'JV')
+                  ->whereNull('deleted_at')
+                  ->select('id'));
+            });
+        })
+        ->select('account_id', DB::raw('SUM(debit - credit) as total'))
+        ->groupBy('account_id')
+        ->pluck('total', 'account_id');
     }
 
     $data = '';
@@ -209,8 +260,11 @@ class ReportController extends Controller
     $sumCod = 0;
     $sumRta = 0;
     $sumSalik = 0;
+    $sumFuel = 0;
+    $sumJv = 0;
     $sumAdvance = 0;
     $sumPenalty = 0;
+    $sumVisa = 0;
     $sumIncentive = 0;
     $sumPrevious = 0;
     $sumPayable = 0;
@@ -226,6 +280,11 @@ class ReportController extends Controller
       $cod = (float) ($vouchers['COD'] ?? 0);
       $rta = (float) ($rtaTotals[$riderId] ?? 0);
       $salik = (float) ($salikTotals[$riderId] ?? 0);
+      $fuel = (float) ($fuelTotals[$riderId] ?? 0);
+      $visa = (float) ($visaTotals[$riderId] ?? 0);
+      $jv = $rider->account_id
+        ? (float) ($jvByAccount[$rider->account_id] ?? 0)
+        : 0.0;
       $advance = (float) ($vouchers['AL'] ?? 0);
       $penalty = (float) ($vouchers['PN'] ?? 0);
       $incentive = (float) ($vouchers['INC'] ?? 0);
@@ -236,8 +295,21 @@ class ReportController extends Controller
         ? (float) ($previousBalances[$rider->account_id] ?? 0)
         : 0.0;
 
-      // Payable = Total - VC - COD - RTA - Salik - Advance - Penalty + Incentive - Previous Balance
-      $payable = $totalAmount - $vc - $cod - $rta - $salik - $advance - $penalty + $incentive - $previousBalance;
+      $components = $this->riderReportPayableComponents(
+        $totalAmount,
+        $vc,
+        $cod,
+        $rta,
+        $salik,
+        $fuel,
+        $advance,
+        $penalty,
+        $visa,
+        $jv,
+        $incentive,
+        $previousBalance
+      );
+      $payable = $components['payable'];
       $balance = $payable - $paid;
       $pendingPct = abs($payable) > 0.00001 ? ($paid / $payable) * 100 : 0;
 
@@ -289,6 +361,9 @@ class ReportController extends Controller
       $data .= '<td align="center">' . $fmt($cod) . '</td>';
       $data .= '<td align="center">' . $fmt($rta) . '</td>';
       $data .= '<td align="center">' . $fmt($salik) . '</td>';
+      $data .= '<td align="center">' . $fmt($fuel) . '</td>';
+      $data .= '<td align="center">' . $fmt($visa) . '</td>';
+      $data .= '<td align="center">' . $fmt($jv) . '</td>';
       $data .= '<td align="center">' . $fmt($advance) . '</td>';
       $data .= '<td align="center">' . $fmt($penalty) . '</td>';
       $data .= '<td align="center">' . $fmt($incentive) . '</td>';
@@ -304,6 +379,9 @@ class ReportController extends Controller
       $sumCod += $cod;
       $sumRta += $rta;
       $sumSalik += $salik;
+      $sumFuel += $fuel;
+      $sumVisa += $visa;
+      $sumJv += $jv;
       $sumAdvance += $advance;
       $sumPenalty += $penalty;
       $sumIncentive += $incentive;
@@ -314,7 +392,6 @@ class ReportController extends Controller
     }
 
     $sumPendingPct = abs($sumPayable) > 0.00001 ? ($sumPaid / $sumPayable) * 100 : 0;
-    $sumDeductions = $sumVc + $sumCod + $sumRta + $sumSalik + $sumAdvance + $sumPenalty;
 
     if ($result->count() > 0) {
       $fmt = static fn ($n) => number_format((float) $n, 2);
@@ -325,6 +402,9 @@ class ReportController extends Controller
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumCod) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumRta) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumSalik) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumFuel) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVisa) . '</td>';
+      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumJv) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumAdvance) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPenalty) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumIncentive) . '</td>';
@@ -344,16 +424,263 @@ class ReportController extends Controller
     return [
       'data' => $data,
       'riders_count' => $totalCount,
-      'total_amount' => $sumTotalAmount,
-      'total_deductions' => $sumDeductions,
-      'total_payable' => $sumPayable,
-      'total_paid' => $sumPaid,
-      'total_balance' => $sumBalance,
+      'total_amount' => $overallStats['total_amount'],
+      'total_additions' => $overallStats['total_additions'],
+      'total_deductions' => $overallStats['total_deductions'],
+      'total_payable' => $overallStats['total_payable'],
+      'total_paid' => $overallStats['total_paid'],
+      'total_balance' => $overallStats['total_balance'],
       'paginationLinks' => $paginationLinks,
       'totalCount' => $totalCount,
       'perPage' => $perPage,
       'page' => $page,
     ];
+  }
+
+  /**
+   * Aggregate rider-report totals for the given rider/account set and billing period.
+   *
+   * @param  array<int, int|string>  $riderIds
+   * @param  array<int, int|string>  $accountIds
+   * @param  array<int, string>  $salikMonthValues
+   * @return array{total_amount: float, total_additions: float, total_deductions: float, total_payable: float, total_paid: float, total_balance: float}
+   */
+  private function aggregateRiderReportStats(array $riderIds, array $accountIds, string $fromMonth, string $toMonth, array $salikMonthValues): array
+  {
+    $zeros = [
+      'total_amount' => 0.0,
+      'total_additions' => 0.0,
+      'total_deductions' => 0.0,
+      'total_payable' => 0.0,
+      'total_paid' => 0.0,
+      'total_balance' => 0.0,
+    ];
+
+    if (empty($riderIds)) {
+      return $zeros;
+    }
+
+    $totalAmount = (float) company_table('rider_invoices')
+      ->whereIn('rider_id', $riderIds)
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->sum('total_amount');
+
+    $voucherSums = company_table('vouchers')
+      ->whereIn('ref_id', $riderIds)
+      ->whereIn('voucher_type', ['VC', 'COD', 'AL', 'PN', 'INC'])
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->select('voucher_type', DB::raw('SUM(amount) as total'))
+      ->groupBy('voucher_type')
+      ->pluck('total', 'voucher_type');
+
+    $vc = (float) ($voucherSums['VC'] ?? 0);
+    $cod = (float) ($voucherSums['COD'] ?? 0);
+    $advance = (float) ($voucherSums['AL'] ?? 0);
+    $penalty = (float) ($voucherSums['PN'] ?? 0);
+    $incentive = (float) ($voucherSums['INC'] ?? 0);
+
+    $rta = (float) company_table('rta_fines')
+      ->whereIn('rider_id', $riderIds)
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->sum('total_amount');
+
+    $salik = (float) company_table('saliks')
+      ->whereIn('rider_id', $riderIds)
+      ->where(function ($q) use ($fromMonth, $toMonth, $salikMonthValues) {
+        $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
+          $dateQ->whereDate('billing_month', '>=', $fromMonth)
+            ->whereDate('billing_month', '<=', $toMonth);
+        })->orWhereIn('billing_month', $salikMonthValues);
+      })
+      ->sum('total_amount');
+
+    $fuel = (float) company_table('fuel_data')
+      ->whereIn('rider_id', $riderIds)
+      ->whereNull('deleted_at')
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->sum('total');
+
+    $visa = (float) $this->visaInstallmentTotalsByRider(
+      $riderIds,
+      $accountIds,
+      $fromMonth,
+      $toMonth,
+      $salikMonthValues
+    )->sum();
+
+    $jv = 0.0;
+    $previous = 0.0;
+    $paid = 0.0;
+
+    if (!empty($accountIds)) {
+      $previous = (float) (Transactions::whereIn('account_id', $accountIds)
+        ->whereDate('billing_month', '<', $fromMonth)
+        ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
+        ->value('balance') ?? 0);
+
+      $paid = (float) (\App\Models\Payment::whereIn('payee_account_id', $accountIds)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->sum('amount'));
+
+      $jv = (float) (Transactions::whereIn('account_id', $accountIds)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->where(function ($q) {
+          $q->where('reference_type', 'JV')
+            ->orWhere(function ($inner) {
+              $inner->where('reference_type', 'Voucher')
+                ->whereIn('reference_id', company_table('vouchers')
+                  ->where('voucher_type', 'JV')
+                  ->whereNull('deleted_at')
+                  ->select('id'));
+            });
+        })
+        ->selectRaw('COALESCE(SUM(debit - credit), 0) as total')
+        ->value('total') ?? 0);
+    }
+
+    $components = $this->riderReportPayableComponents(
+      $totalAmount,
+      $vc,
+      $cod,
+      $rta,
+      $salik,
+      $fuel,
+      $advance,
+      $penalty,
+      $visa,
+      $jv,
+      $incentive,
+      $previous
+    );
+
+    return [
+      'total_amount' => $totalAmount,
+      'total_additions' => $components['additions'],
+      'total_deductions' => $components['deductions'],
+      'total_payable' => $components['payable'],
+      'total_paid' => $paid,
+      'total_balance' => $components['payable'] - $paid,
+    ];
+  }
+
+  /**
+   * Payable = invoice total + additions - deductions.
+   * Additions: incentive + previous balance + JV credits (net credit).
+   * Deductions: VC, COD, RTA, Salik, Fuel, Advance, Penalty, Visa installment + JV debits (net debit).
+   *
+   * @return array{additions: float, deductions: float, payable: float, jv_deduction: float, jv_addition: float}
+   */
+  private function riderReportPayableComponents(
+    float $totalAmount,
+    float $vc,
+    float $cod,
+    float $rta,
+    float $salik,
+    float $fuel,
+    float $advance,
+    float $penalty,
+    float $visa,
+    float $jvNet,
+    float $incentive,
+    float $previousBalance
+  ): array {
+    $jvDeduction = $jvNet > 0 ? $jvNet : 0.0;
+    $jvAddition = $jvNet < 0 ? abs($jvNet) : 0.0;
+
+    $deductions = $vc + $cod + $rta + $salik + $fuel + $advance + $penalty + $visa + $jvDeduction;
+    $additions = $incentive + $previousBalance + $jvAddition;
+
+    return [
+      'additions' => $additions,
+      'deductions' => $deductions,
+      'payable' => $totalAmount + $additions - $deductions,
+      'jv_deduction' => $jvDeduction,
+      'jv_addition' => $jvAddition,
+    ];
+  }
+
+  /**
+   * visa_installment_plans.rider_id may be riders.id, accounts.id, or expense_accounts.id.
+   *
+   * @param  array<int, int|string>  $riderIds
+   * @param  array<int, int|string>  $accountIds
+   * @param  array<int, string>  $monthValues
+   * @return \Illuminate\Support\Collection<int|string, float>
+   */
+  private function visaInstallmentTotalsByRider(
+    array $riderIds,
+    array $accountIds,
+    string $fromMonth,
+    string $toMonth,
+    array $monthValues
+  ) {
+    if (empty($riderIds)) {
+      return collect();
+    }
+
+    $riderIdInts = array_map('intval', $riderIds);
+    $keyToRiderId = [];
+    foreach ($riderIdInts as $riderId) {
+      $keyToRiderId[$riderId] = $riderId;
+    }
+
+    if (!empty($accountIds)) {
+      $accounts = \App\Models\Accounts::whereIn('id', array_filter($accountIds))
+        ->get(['id', 'ref_id']);
+      foreach ($accounts as $account) {
+        $refId = (int) $account->ref_id;
+        if ($refId && in_array($refId, $riderIdInts, true)) {
+          $keyToRiderId[(int) $account->id] = $refId;
+        }
+      }
+    }
+
+    $expenseRows = company_table('expense_accounts')
+      ->whereIn('rider_id', $riderIds)
+      ->get(['id', 'rider_id', 'account_id']);
+
+    foreach ($expenseRows as $row) {
+      $mappedRider = (int) $row->rider_id;
+      $keyToRiderId[(int) $row->id] = $mappedRider;
+      if (!empty($row->account_id)) {
+        $keyToRiderId[(int) $row->account_id] = $mappedRider;
+      }
+    }
+
+    $keys = array_values(array_unique(array_filter(array_keys($keyToRiderId))));
+    if ($keys === []) {
+      return collect();
+    }
+
+    $rows = company_table('visa_installment_plans')
+      ->whereIn('rider_id', $keys)
+      ->whereNull('deleted_at')
+      ->where(function ($q) use ($fromMonth, $toMonth, $monthValues) {
+        $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
+          $dateQ->whereDate('billing_month', '>=', $fromMonth)
+            ->whereDate('billing_month', '<=', $toMonth);
+        })->orWhereIn('billing_month', $monthValues);
+      })
+      ->select('rider_id', DB::raw('SUM(amount) as total'))
+      ->groupBy('rider_id')
+      ->get();
+
+    $totals = [];
+    foreach ($rows as $row) {
+      $mapped = $keyToRiderId[(int) $row->rider_id] ?? null;
+      if (!$mapped) {
+        continue;
+      }
+      $totals[$mapped] = ($totals[$mapped] ?? 0.0) + (float) $row->total;
+    }
+
+    return collect($totals);
   }
 
   public function rider_report_detail(Request $request, $company_slug, $rider)
@@ -441,8 +768,73 @@ class ReportController extends Controller
       ->orderBy('id')
       ->get();
 
+    $fuelInvoices = company_table('fuel_data')
+      ->where('rider_id', $riderModel->id)
+      ->whereNull('deleted_at')
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->select(
+        'inv_id',
+        'billing_month',
+        DB::raw('MIN(trans_date) as trans_date'),
+        DB::raw('COUNT(*) as line_count'),
+        DB::raw('SUM(qty) as total_qty'),
+        DB::raw('SUM(total) as total_amount')
+      )
+      ->groupBy('inv_id', 'billing_month')
+      ->orderBy('billing_month')
+      ->orderBy('inv_id')
+      ->get();
+
+    $visaInstallmentKeys = [(int) $riderModel->id];
+    if ($riderModel->account_id) {
+      $visaInstallmentKeys[] = (int) $riderModel->account_id;
+    }
+    $expenseRows = company_table('expense_accounts')
+      ->where('rider_id', $riderModel->id)
+      ->get(['id', 'account_id']);
+    foreach ($expenseRows as $row) {
+      $visaInstallmentKeys[] = (int) $row->id;
+      if (!empty($row->account_id)) {
+        $visaInstallmentKeys[] = (int) $row->account_id;
+      }
+    }
+    $visaInstallmentKeys = array_values(array_unique(array_filter($visaInstallmentKeys)));
+
+    $visaInstallments = company_table('visa_installment_plans')
+      ->whereIn('rider_id', $visaInstallmentKeys)
+      ->whereNull('deleted_at')
+      ->where(function ($q) use ($fromMonth, $toMonth, $salikMonthValues) {
+        $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
+          $dateQ->whereDate('billing_month', '>=', $fromMonth)
+            ->whereDate('billing_month', '<=', $toMonth);
+        })->orWhereIn('billing_month', $salikMonthValues);
+      })
+      ->orderBy('billing_month')
+      ->orderBy('id')
+      ->get();
+
+    $jvEntries = collect();
     $payments = collect();
     if ($riderModel->account_id) {
+      $jvEntries = Transactions::where('account_id', $riderModel->account_id)
+        ->whereDate('billing_month', '>=', $fromMonth)
+        ->whereDate('billing_month', '<=', $toMonth)
+        ->where(function ($q) {
+          $q->where('reference_type', 'JV')
+            ->orWhere(function ($inner) {
+              $inner->where('reference_type', 'Voucher')
+                ->whereIn('reference_id', company_table('vouchers')
+                  ->where('voucher_type', 'JV')
+                  ->whereNull('deleted_at')
+                  ->select('id'));
+            });
+        })
+        ->orderBy('billing_month')
+        ->orderBy('trans_date')
+        ->orderBy('id')
+        ->get();
+
       $payments = \App\Models\Payment::where('payee_account_id', $riderModel->account_id)
         ->whereDate('billing_month', '>=', $fromMonth)
         ->whereDate('billing_month', '<=', $toMonth)
@@ -459,21 +851,43 @@ class ReportController extends Controller
         ->value('balance');
     }
 
+    $jvNet = (float) $jvEntries->sum(fn ($row) => (float) $row->debit - (float) $row->credit);
+    $components = $this->riderReportPayableComponents(
+      (float) $invoices->sum('total_amount'),
+      (float) $vouchersByType['VC']->sum('amount'),
+      (float) $vouchersByType['COD']->sum('amount'),
+      (float) $rtaFines->sum('total_amount'),
+      (float) $saliks->sum('total_amount'),
+      (float) $fuelInvoices->sum('total_amount'),
+      (float) $vouchersByType['AL']->sum('amount'),
+      (float) $vouchersByType['PN']->sum('amount'),
+      (float) $visaInstallments->sum('amount'),
+      $jvNet,
+      (float) $vouchersByType['INC']->sum('amount'),
+      $previousBalance
+    );
+
     $totals = [
       'invoices' => (float) $invoices->sum('total_amount'),
       'vc' => (float) $vouchersByType['VC']->sum('amount'),
       'cod' => (float) $vouchersByType['COD']->sum('amount'),
       'rta' => (float) $rtaFines->sum('total_amount'),
       'salik' => (float) $saliks->sum('total_amount'),
+      'fuel' => (float) $fuelInvoices->sum('total_amount'),
+      'visa' => (float) $visaInstallments->sum('amount'),
+      'jv' => $jvNet,
+      'jv_deduction' => $components['jv_deduction'],
+      'jv_addition' => $components['jv_addition'],
       'advance' => (float) $vouchersByType['AL']->sum('amount'),
       'penalty' => (float) $vouchersByType['PN']->sum('amount'),
       'incentive' => (float) $vouchersByType['INC']->sum('amount'),
       'paid' => (float) $payments->sum('amount'),
       'previous_balance' => $previousBalance,
+      'deductions' => $components['deductions'],
+      'additions' => $components['additions'],
+      'payable' => $components['payable'],
     ];
 
-    $totals['deductions'] = $totals['vc'] + $totals['cod'] + $totals['rta'] + $totals['salik'] + $totals['advance'] + $totals['penalty'];
-    $totals['payable'] = $totals['invoices'] - $totals['deductions'] + $totals['incentive'] - $totals['previous_balance'];
     $totals['balance'] = $totals['payable'] - $totals['paid'];
     $totals['pending_pct'] = abs($totals['payable']) > 0.00001
       ? ($totals['paid'] / $totals['payable']) * 100
@@ -488,6 +902,9 @@ class ReportController extends Controller
       'vouchersByType' => $vouchersByType,
       'rtaFines' => $rtaFines,
       'saliks' => $saliks,
+      'fuelInvoices' => $fuelInvoices,
+      'visaInstallments' => $visaInstallments,
+      'jvEntries' => $jvEntries,
       'payments' => $payments,
       'totals' => $totals,
       'settings' => company_table('settings')->pluck('value', 'name')->toArray(),

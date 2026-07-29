@@ -108,7 +108,6 @@ $items = \App\Models\Items::dropdown('customer');
                 {!! Form::number('item_qty[]', $itm->quantity, [
                 'class' => 'form-control qty',
                 'step' => 'any',
-                'min' => '0.01',
                 'required' => true
                 ]) !!}
             </div>
@@ -116,7 +115,6 @@ $items = \App\Models\Items::dropdown('customer');
                 {!! Form::number('item_rate[]', $itm->rate, [
                 'class' => 'form-control rate',
                 'step' => 'any',
-                'min' => '0',
                 'required' => true
                 ]) !!}
             </div>

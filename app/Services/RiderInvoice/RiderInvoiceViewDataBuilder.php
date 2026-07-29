@@ -4,6 +4,7 @@ namespace App\Services\RiderInvoice;
 
 use App\Helpers\Common;
 use App\Helpers\General;
+use App\Models\Payment;
 use App\Models\RiderInvoices;
 use App\Models\Transactions;
 use App\Services\Agreements\AgreementPdfBranding;
@@ -181,12 +182,8 @@ class RiderInvoiceViewDataBuilder
         $settings = $this->normalizeSettings(
             company_table('settings')->pluck('value', 'name')->toArray()
         );
-        $total = 0;
-        $total_qty = 0;
-        $running_total = 0;
         $vat_percentage = self::display(Common::getSetting('vat_percentage'), '0');
         $deliveryfee = company_table('items')->where('name', 'Delivery fees')->first();
-        $totalOrders = 0;
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
         $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
         $accountId = $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null;
@@ -196,18 +193,18 @@ class RiderInvoiceViewDataBuilder
         $ledger_additions = $ledger['additions'];
 
         // Previous balance from rider ledger before this billing month (carry-forward).
-        $rider_balance = 0;
+        $rider_balance = 0.0;
         if ($accountId) {
-            $rider_balance = (float) Transactions::where('account_id', $accountId)
+            $rider_balance = round((float) Transactions::where('account_id', $accountId)
                 ->whereDate('billing_month', '<', $monthStart)
-                ->sum(DB::raw('debit - credit'));
+                ->sum(DB::raw('debit - credit')), 2);
         }
 
         $monthDeductionsTotal = array_sum(array_column($ledger_deductions, 'amount'));
         $monthAdditionsTotal = array_sum(array_column($ledger_additions, 'amount'));
 
-        $total_deductions = $monthDeductionsTotal + ($rider_balance > 0 ? $rider_balance : 0);
-        $total_additions = $monthAdditionsTotal + ($rider_balance < 0 ? abs($rider_balance) : 0);
+        $total_deductions = round($monthDeductionsTotal + ($rider_balance > 0 ? $rider_balance : 0), 2);
+        $total_additions = round($monthAdditionsTotal + ($rider_balance < 0 ? abs($rider_balance) : 0), 2);
 
         // Legacy scalar keys (for any views still referencing named deduction vars).
         $amountByLabel = static function (array $rows, string $label): float {
@@ -230,6 +227,41 @@ class RiderInvoiceViewDataBuilder
         $fuel_charges = $amountByLabel($ledger_deductions, 'Fuel Card Charges');
         $incentive = $amountByLabel($ledger_additions, 'Incentive Amount');
 
+        $items = $riderInvoice->items ?? collect();
+
+        // Item figures are the single source of truth for the invoice money math.
+        $total = round((float) $items->sum('amount'), 2);
+        $total_qty = round((float) $items->sum('qty'), 2);
+
+        $totalOrders = 0;
+        if ($deliveryfee && isset($deliveryfee->id)) {
+            $totalOrders = (float) ($items->firstWhere('item_id', $deliveryfee->id)->qty ?? 0);
+        }
+
+        // Use the VAT stored on the invoice so totals stay stable when the
+        // global vat_percentage setting changes after the invoice was raised.
+        $storedVat = round((float) ($riderInvoice->vat ?? 0), 2);
+        $appliesVat = abs($storedVat) > 0.004;
+        $vatAmount = $appliesVat
+            ? $storedVat
+            : 0.0;
+        $effectiveVatRate = ($appliesVat && abs($total) > 0.004)
+            ? round($vatAmount / $total * 100, 2)
+            : 0.0;
+
+        $items_total = round($total + $vatAmount, 2);
+        $finalAmount = round($items_total - $total_deductions + $total_additions, 2);
+
+        $paid_amount = 0.0;
+        if ($accountId) {
+            $paid_amount = round((float) Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart)
+                ->sum('amount'), 2);
+        }
+
+        // Amount still payable to the rider for this invoice.
+        $rider_balance_final = round($finalAmount - $paid_amount, 2);
+
         $companyId = $riderInvoice->company_id ?? CompanyContext::id();
         $brand = app(AgreementPdfBranding::class)->forCompany($companyId);
 
@@ -238,8 +270,10 @@ class RiderInvoiceViewDataBuilder
             'brand' => $brand,
             'total' => $total,
             'total_qty' => $total_qty,
-            'running_total' => $running_total,
+            'running_total' => 0,
             'vat_percentage' => $vat_percentage,
+            'invoice_vat_rate' => $effectiveVatRate,
+            'invoice_applies_vat' => $appliesVat,
             'deliveryfee' => $deliveryfee,
             'totalOrders' => $totalOrders,
             'billing_month' => $billing_month,
@@ -256,11 +290,12 @@ class RiderInvoiceViewDataBuilder
             'rider_balance' => $rider_balance,
             'total_deductions' => $total_deductions,
             'total_additions' => $total_additions,
-            'totalBeforeTax' => 0,
-            'finalAmount' => 0,
-            'paid_amount' => 0,
-            'rider_balance_final' => 0,
-            'items_total' => 0,
+            'totalBeforeTax' => $total,
+            'vatAmount' => $vatAmount,
+            'finalAmount' => $finalAmount,
+            'paid_amount' => $paid_amount,
+            'rider_balance_final' => $rider_balance_final,
+            'items_total' => $items_total,
             'invoiceNumber' => General::inv_sch($riderInvoice->id, $riderInvoice->created_at),
             'riderStatusLabel' => self::riderStatusLabel($riderInvoice->rider?->status),
         ];

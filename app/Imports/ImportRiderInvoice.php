@@ -242,16 +242,15 @@ class ImportRiderInvoice implements ToCollection
 
                     $rate = $item?->price ?? 1;
 
-                    // Amount uses exact qty; DB qty is rounded up (away from zero) as int
-                    $amount = $qty * $rate;
-                    $storedQty = (int) ($qty > 0 ? ceil($qty) : floor($qty));
+                    $qty = round($qty, 2);
+                    $amount = round($qty * $rate, 2);
 
                     $subtotal += $amount;
 
                     $itemsData[] = [
                         'inv_id' => $invoice->id,
                         'item_id' => $itemId,
-                        'qty' => $storedQty,
+                        'qty' => $qty,
                         'rate' => $rate,
                         'amount' => $amount,
                         'branch_id' => $branchId,

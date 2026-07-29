@@ -1,22 +1,26 @@
 @php
-    $serviceFrom = date('d-m-y', strtotime($riderInvoice->billing_month));
-    $serviceTo = date('t-m-y', strtotime($riderInvoice->billing_month));
-    $branch = $riderInvoice->rider->branch ?? null;
-    $branchLabel = $branch
-        ? trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''))
-        : '';
-    $bikePlate = $riderInvoice->rider->bikes?->plate
-        ?? $riderInvoice->bike?->plate
-        ?? '';
+$serviceFrom = $riderInvoice->service_period_from
+? $riderInvoice->service_period_from->format('d-m-y')
+: date('d-m-y', strtotime($riderInvoice->billing_month));
+$serviceTo = $riderInvoice->service_period_to
+? $riderInvoice->service_period_to->format('d-m-y')
+: date('t-m-y', strtotime($riderInvoice->billing_month));
+$branch = $riderInvoice->rider->branch ?? null;
+$branchLabel = $branch
+? trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''))
+: '';
+$bikePlate = $riderInvoice->rider->bikes?->plate
+?? $riderInvoice->bike?->plate
+?? '';
 @endphp
 
 <table class="no-border" width="100%">
     <tr>
         <td width="33.33%" class="no-border">
             @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
+            <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
             @else
-                <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
+            <img src="{{ URL::asset('assets/img/logo-full.png') }}" width="150" alt="logo" />
             @endif
         </td>
         <td width="66.67%" class="no-border" style="text-align: center;">
@@ -45,7 +49,7 @@
     </tr>
     <tr>
         <td class="label-cell">Joining Date</td>
-        <td class="value-cell">{{ $riderInvoice->rider->doj ?? '' }}</td>
+        <td class="value-cell">{{ date('d-m-Y', strtotime($riderInvoice->rider->doj ?? '')) ?? '' }}</td>
         <td class="label-cell">Billing Month:</td>
         <td class="value-cell">{{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</td>
     </tr>
@@ -99,6 +103,8 @@
     </tr>
 </table>
 
+@include('rider_invoices.partials.invoice_description_summary')
+
 @if($riderInvoice->items && $riderInvoice->items->count() > 0)
-    @include('rider_invoices.partials.invoice_items_and_totals')
+@include('rider_invoices.partials.invoice_items_and_totals')
 @endif

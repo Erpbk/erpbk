@@ -1,13 +1,11 @@
 @php
 $running_total = 0;
-$totalOrders = 0;
-
-if (! empty($deliveryfee) && isset($deliveryfee->id)) {
-$deliveryFeeItem = $riderInvoice->items->firstWhere('item_id', $deliveryfee->id);
-if ($deliveryFeeItem && $deliveryFeeItem->qty > 0) {
-$totalOrders = $deliveryFeeItem->qty;
-}
-}
+$ledger_deductions = $ledger_deductions ?? [];
+$ledger_additions = $ledger_additions ?? [];
+$vatRate = $invoice_applies_vat ? $invoice_vat_rate : 0;
+$qtyText = static fn ($qty) => (float) $qty == 0
+? '-'
+: rtrim(rtrim(number_format((float) $qty, 2), '0'), '.');
 @endphp
 
 <table class="items-table">
@@ -27,26 +25,22 @@ $totalOrders = $deliveryFeeItem->qty;
     </tr>
     @foreach($riderInvoice->items as $key => $val)
     @php
-    $total += $val->amount;
-    $total_qty += $val->qty;
-    $vatRate = $riderInvoice->vat > 0 ? $vat_percentage : 0;
-    $vatAmtRow = $riderInvoice->vat > 0 ? $val->amount * $vatRate / 100 : 0;
-    $rowTotal = $val->amount + $vatAmtRow;
-    $running_total += $rowTotal;
+    $rowAmount = round((float) $val->amount, 2);
+    $vatAmtRow = $invoice_applies_vat ? round($rowAmount * $vatRate / 100, 2) : 0;
+    $running_total = round($running_total + $rowAmount + $vatAmtRow, 2);
     @endphp
     <tr>
         <td>{{ $key + 1 }}</td>
         <td>{{ $val->riderInv_item }} {{ \App\Models\Items::where('id', $val->item_id)->value('name') }}</td>
         <td>{{ strtoupper(date('M\'y', strtotime($riderInvoice->billing_month))) }}</td>
-        <td class="num">{{ $val->qty == 0 ? '-' : $val->qty }}</td>
-        <td class="num">{{ $val->rate == 0 ? '-' : number_format($val->rate, 2) }}</td>
-        <td class="num" style="text-align: center;">{{ number_format($val->amount, 2) }}</td>
+        <td class="num">{{ $qtyText($val->qty) }}</td>
+        <td class="num">{{ (float) $val->rate == 0 ? '-' : number_format((float) $val->rate, 2) }}</td>
+        <td class="num" style="text-align: center;">{{ number_format($rowAmount, 2) }}</td>
         <td>{{ number_format($vatRate, 0) }}%</td>
         <td class="num" style="text-align: center;">{{ number_format($vatAmtRow, 2) }}</td>
         <td class="num" style="font-weight: 700;text-align: center;">{{ number_format($running_total, 2) }}</td>
     </tr>
     @endforeach
-    @php $items_total = $running_total; @endphp
     <tr class="accent-total">
         <td colspan="3" style="text-align: right; padding: 8px;">Total Orders ({{ date('M-Y', strtotime($riderInvoice->billing_month)) }})</td>
         <td class="num">{{ number_format($totalOrders, 0) }}</td>
@@ -54,12 +48,6 @@ $totalOrders = $deliveryFeeItem->qty;
         <td class="num" style="padding: 8px; font-size: 14px; text-align: center;">{{ number_format($items_total, 2) }}</td>
     </tr>
 </table>
-
-@php
-$finalAmount = $items_total - $total_deductions + $total_additions;
-$ledger_deductions = $ledger_deductions ?? [];
-$ledger_additions = $ledger_additions ?? [];
-@endphp
 
 <table>
     <tr>
@@ -112,26 +100,15 @@ $ledger_additions = $ledger_additions ?? [];
             </tr>
     </table>
     @endif
-    @php
-    $totalBeforeTax = $total;
-    $vatAmount = $riderInvoice->vat > 0 ? $total * $vat_percentage / 100 : 0;
-    $paid_amount = 0;
-    if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
-    $paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
-    ->whereDate('billing_month', $riderInvoice->billing_month)
-    ->sum('amount');
-    }
-    $rider_balance_final = $paid_amount - $finalAmount;
-    @endphp
 
     <table class="summary-table">
         <tr class="light-header">
             <td style="padding: 6px;">Total Amount before charges:</td>
             <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($totalBeforeTax, 2) }}</td>
         </tr>
-        @if($vatAmount > 0)
+        @if($invoice_applies_vat)
         <tr class="light-header">
-            <td style="padding: 6px;">Add: VAT - {{ $vat_percentage }}%</td>
+            <td style="padding: 6px;">Add: VAT - {{ number_format($invoice_vat_rate, 0) }}%</td>
             <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($vatAmount, 2) }}</td>
         </tr>
         @endif

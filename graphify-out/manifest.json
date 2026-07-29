@@ -740,7 +740,7 @@
     "semantic_hash": "17a5b1c03cbda556be58c1aef6c02d20"
   },
   "app/Http/Controllers/RiderInvoicesController.php": {
-    "mtime": 1785329375.690868,
+    "mtime": 1785332081.9900775,
     "ast_hash": "467f6a6449d1a0aba366017e338e85fa",
     "semantic_hash": ""
   },
@@ -750,12 +750,12 @@
     "semantic_hash": "c2f46b668c648dfd303ac87de2c8bd1f"
   },
   "app/Http/Controllers/RidersController.php": {
-    "mtime": 1785329375.7151494,
+    "mtime": 1785332082.0434082,
     "ast_hash": "ad6b0a446cb998cacc38ac29e1394b04",
     "semantic_hash": "ad6b0a446cb998cacc38ac29e1394b04"
   },
   "app/Http/Controllers/RolePermissionController.php": {
-    "mtime": 1785329375.7231066,
+    "mtime": 1785332082.0434082,
     "ast_hash": "7068adb02ff711a61c4dace536308a06",
     "semantic_hash": ""
   },
@@ -810,7 +810,7 @@
     "semantic_hash": "26fa02f7c38a75e1d743ce480137ecb7"
   },
   "app/Http/Controllers/SupplierInvoicesController.php": {
-    "mtime": 1785329375.690868,
+    "mtime": 1785332081.9900775,
     "ast_hash": "4d8fe00547b6e343839b854ebe510dab",
     "semantic_hash": ""
   },
@@ -1430,7 +1430,7 @@
     "semantic_hash": "ed4fe5ac4d57fcd8462079286c7b3fd5"
   },
   "app/Imports/ImportRiderInvoice.php": {
-    "mtime": 1785329375.704177,
+    "mtime": 1785332082.0101664,
     "ast_hash": "cbb925c8f0f7b2caad7369a4f486c021",
     "semantic_hash": ""
   },
@@ -2595,7 +2595,7 @@
     "semantic_hash": "298fdec1eef652dc81aafc7e7f6b0517"
   },
   "app/Services/Agreements/AgreementLetterheadLayout.php": {
-    "mtime": 1785329375.709163,
+    "mtime": 1785332082.0434082,
     "ast_hash": "9a842e79f938225be991c727217c8718",
     "semantic_hash": "9a842e79f938225be991c727217c8718"
   },
@@ -2805,7 +2805,7 @@
     "semantic_hash": "dd5cb738f15aaa221dd8650886a7b941"
   },
   "app/Services/RiderInvoice/RiderInvoiceViewDataBuilder.php": {
-    "mtime": 1785329375.690868,
+    "mtime": 1785332081.9930694,
     "ast_hash": "482a31072812c5392442d3b319ccc495",
     "semantic_hash": ""
   },
@@ -2945,7 +2945,7 @@
     "semantic_hash": "aea25c61d7002e4f2b43fc421513fa4f"
   },
   "app/Support/GlobalAccounts.php": {
-    "mtime": 1785329375.690868,
+    "mtime": 1785332081.9930694,
     "ast_hash": "83a1a966adc6388d9029c0d88c5e2a83",
     "semantic_hash": "83a1a966adc6388d9029c0d88c5e2a83"
   },
@@ -3315,7 +3315,7 @@
     "semantic_hash": "1981b815020eab323299c7e89891ed16"
   },
   "app/functions.php": {
-    "mtime": 1785329375.7031806,
+    "mtime": 1785332082.0101664,
     "ast_hash": "b34af93a1103bc0056ea539a6cc06a90",
     "semantic_hash": "b34af93a1103bc0056ea539a6cc06a90"
   },
@@ -3345,7 +3345,7 @@
     "semantic_hash": "acd93cd76b752b55d306e836a612e8d6"
   },
   "config/agreement_letterhead.php": {
-    "mtime": 1785329375.7081664,
+    "mtime": 1785332082.0180454,
     "ast_hash": "65a9a8e439853047ef7094cf8ed30163",
     "semantic_hash": "65a9a8e439853047ef7094cf8ed30163"
   },
@@ -3540,7 +3540,7 @@
     "semantic_hash": "cb8954d6f4a7771a748c7a34aeb8c176"
   },
   "config/snappy.php": {
-    "mtime": 1785329375.6958566,
+    "mtime": 1785332082.0091693,
     "ast_hash": "9ab1bb36ad5dde2f418b06551be10668",
     "semantic_hash": ""
   },
@@ -6745,7 +6745,7 @@
     "semantic_hash": "df832eaf5bb6bc5527f2709a47eac60b"
   },
   "resources/views/agreements/pdf/letterhead.blade.php": {
-    "mtime": 1785329375.7714603,
+    "mtime": 1785332082.0533845,
     "ast_hash": "057203481ec05f9d01f362b93b7c8910",
     "semantic_hash": "057203481ec05f9d01f362b93b7c8910"
   },
@@ -7525,9 +7525,9 @@
     "semantic_hash": "eb45cfb5e63d8cb475ed7a7c52231c22"
   },
   "resources/views/customer_invoices/fields.blade.php": {
-    "mtime": 1784710059.480724,
-    "ast_hash": "ecdbc0e6e6daebdd570bb87c4298bd9b",
-    "semantic_hash": "ecdbc0e6e6daebdd570bb87c4298bd9b"
+    "mtime": 1785332950.7008476,
+    "ast_hash": "f442eb51189ba78a0fc9f986b7cee962",
+    "semantic_hash": ""
   },
   "resources/views/customer_invoices/index.blade.php": {
     "mtime": 1784902543.333194,
@@ -8015,7 +8015,7 @@
     "semantic_hash": "4975e801c6e0bc449caa0aa61baa413e"
   },
   "resources/views/expenses/voucher_fields.blade.php": {
-    "mtime": 1785329375.719776,
+    "mtime": 1785332082.0434082,
     "ast_hash": "b567a6bf330a42e076b358fd0cf02328",
     "semantic_hash": "b567a6bf330a42e076b358fd0cf02328"
   },
@@ -9625,17 +9625,17 @@
     "semantic_hash": "439576354df0eff5791a9af4b2785ed9"
   },
   "resources/views/rider_invoices/partials/invoice_items_and_totals.blade.php": {
-    "mtime": 1785329375.7231066,
+    "mtime": 1785332082.0434082,
     "ast_hash": "3100b289d75449acdedda96941bdecdd",
     "semantic_hash": ""
   },
   "resources/views/rider_invoices/partials/invoice_items_classic.blade.php": {
-    "mtime": 1785329375.6938603,
+    "mtime": 1785332081.9981985,
     "ast_hash": "d12ea8aa32e07cfc1ffa6397e7228d31",
     "semantic_hash": ""
   },
   "resources/views/rider_invoices/pdf.blade.php": {
-    "mtime": 1785329375.6968546,
+    "mtime": 1785332082.0091693,
     "ast_hash": "efe11a79879f57f69c05624588192559",
     "semantic_hash": ""
   },
@@ -9720,7 +9720,7 @@
     "semantic_hash": "0fc356d27d7f903777cab07dff0d2b4c"
   },
   "resources/views/riders/_form_field.blade.php": {
-    "mtime": 1785329375.6988466,
+    "mtime": 1785332082.0101664,
     "ast_hash": "4f35171008e360c49976ea8642579d3f",
     "semantic_hash": "4f35171008e360c49976ea8642579d3f"
   },
@@ -9995,7 +9995,7 @@
     "semantic_hash": "f13915687f4bd70eedcb23be1b9b3d11"
   },
   "resources/views/riders/voucher-modal.blade.php": {
-    "mtime": 1785329375.6988466,
+    "mtime": 1785332082.0101664,
     "ast_hash": "6b5bb1020a97a1f9441b9a1308172f83",
     "semantic_hash": "6b5bb1020a97a1f9441b9a1308172f83"
   },
@@ -10035,7 +10035,7 @@
     "semantic_hash": "f1e5b7dec656b2427bb86e5d9fe32f72"
   },
   "resources/views/roles/permissions/index.blade.php": {
-    "mtime": 1785329375.707169,
+    "mtime": 1785332082.01673,
     "ast_hash": "4b0cce0c1f02284585cfeabb25b8560c",
     "semantic_hash": ""
   },
@@ -10080,7 +10080,7 @@
     "semantic_hash": "fa1a9a2ad24a43f639508c43abe7b996"
   },
   "resources/views/rta_fines/index.blade.php": {
-    "mtime": 1785329375.6948576,
+    "mtime": 1785332082.006177,
     "ast_hash": "26387a27e436c0437e30eae74d10df23",
     "semantic_hash": "26387a27e436c0437e30eae74d10df23"
   },
@@ -10225,7 +10225,7 @@
     "semantic_hash": "a3a1bff34fe50ea2f1916b2d1312b998"
   },
   "resources/views/settings/agreements/edit.blade.php": {
-    "mtime": 1785329375.7231066,
+    "mtime": 1785332082.0434082,
     "ast_hash": "4848af43d62047274974d9eb3f2e9981",
     "semantic_hash": "4848af43d62047274974d9eb3f2e9981"
   },
@@ -10950,7 +10950,7 @@
     "semantic_hash": "a68437c0f6fd4a0c7d21a975338a4251"
   },
   "resources/views/users/index.blade.php": {
-    "mtime": 1785329375.7081664,
+    "mtime": 1785332082.01673,
     "ast_hash": "a565afe31174ea137525d450caa6ee41",
     "semantic_hash": "a565afe31174ea137525d450caa6ee41"
   },
@@ -11265,7 +11265,7 @@
     "semantic_hash": "b4623f9effc6f9ee09aaaf2f56f3e14c"
   },
   "resources/views/vouchers/index.blade.php": {
-    "mtime": 1785329375.7081664,
+    "mtime": 1785332082.01673,
     "ast_hash": "20030af28466f1556d42a8451a8bb670",
     "semantic_hash": "20030af28466f1556d42a8451a8bb670"
   },
@@ -11330,7 +11330,7 @@
     "semantic_hash": "ed41f762c23f628c1b6e20c82786e431"
   },
   "resources/views/vouchers/table.blade.php": {
-    "mtime": 1785329375.692863,
+    "mtime": 1785332081.9981985,
     "ast_hash": "a9d6d5533d66ebdb7cf8898a30ed7add",
     "semantic_hash": ""
   },

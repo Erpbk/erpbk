@@ -1,6 +1,6 @@
 @php
 $employeeCategories = $employeeCategories ?? \App\Models\EmployeeCategory::orderBy('display_order')->orderBy('id')->get();
-$fieldsByCategory = $fieldsByCategory ?? \App\Models\EmployeeCustomField::fieldsByCategoryForForm(true);
+$fieldsByCategory = $fieldsByCategory ?? \App\Models\EmployeeCustomField::fieldsByCategoryForForm();
 $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @endphp
 

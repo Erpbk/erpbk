@@ -156,7 +156,44 @@ class RoleFieldAccess
             }
         }
 
+        // Some entities are sub-modules of the permission tree rather than top-level modules
+        // (e.g. "Cheques" lives under "Cash & Banks"). Their field permissions are stored
+        // against the sub-module's own permission id, so resolve those too.
+        if ($resolved === null) {
+            $resolved = self::subModuleId($entityKey);
+        }
+
         return self::$moduleIdCache[$entityKey] = $resolved;
+    }
+
+    /**
+     * Resolve a non-top-level permission node whose slug matches the entity key.
+     *
+     * Only an unambiguous match counts: names such as "Inventory" appear under several
+     * parents, and silently picking one would apply another module's field rules.
+     */
+    protected static function subModuleId(string $entityKey): ?int
+    {
+        try {
+            $candidates = [];
+            $nodes = Permission::query()->get(['id', 'name', 'parent_id']);
+            foreach ($nodes as $node) {
+                $name = (string) $node->name;
+                if (preg_match('/_(view|create|edit|delete)$/', $name)) {
+                    continue;
+                }
+                if ((int) ($node->parent_id ?? 0) === 0) {
+                    continue;
+                }
+                if (RoleModuleFieldResolver::slugForModule($node) === $entityKey) {
+                    $candidates[] = (int) $node->id;
+                }
+            }
+
+            return count($candidates) === 1 ? $candidates[0] : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -566,7 +603,11 @@ class RoleFieldAccess
 
         if ($roleIds !== []) {
             try {
+                // Roles are already company-specific, so the rows are selected by role_id alone.
+                // The company scope is skipped on purpose: rows saved with a missing or stale
+                // company_id would otherwise be dropped and the granted field would stay hidden.
                 $rows = RoleFieldPermission::query()
+                    ->withoutGlobalScope('company')
                     ->where('module_id', $moduleId)
                     ->whereIn('role_id', $roleIds)
                     ->get(['field_name', 'visible', 'editable', 'required']);

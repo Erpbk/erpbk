@@ -654,6 +654,110 @@
             </table>
             @endif
 
+            {{-- Fuel invoices --}}
+            @if($fuelInvoices->isNotEmpty())
+            <div class="section-title">Fuel Invoices <span class="count">{{ $fuelInvoices->count() }}</span></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Invoice</th>
+                        <th>Date</th>
+                        <th>Month</th>
+                        <th style="text-align:right;">Lines</th>
+                        <th style="text-align:right;">Qty</th>
+                        <th style="text-align:right;">Total ({{ $currency }})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($fuelInvoices as $i => $row)
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>{{ $row->inv_id ?: '—' }}</td>
+                        <td>{{ $fmtDate($row->trans_date) }}</td>
+                        <td>{{ $fmtMonth($row->billing_month) }}</td>
+                        <td class="num">{{ (int) $row->line_count }}</td>
+                        <td class="num">{{ $fmt($row->total_qty) }}</td>
+                        <td class="num">{{ $fmt($row->total_amount) }}</td>
+                    </tr>
+                    @endforeach
+                    <tr class="row-total">
+                        <td colspan="6" style="text-align:right;">Total</td>
+                        <td class="num">{{ $fmt($totals['fuel']) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            @endif
+
+            {{-- Visa installments --}}
+            @if($visaInstallments->isNotEmpty())
+            <div class="section-title">Visa Installments <span class="count">{{ $visaInstallments->count() }}</span></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Date</th>
+                        <th>Month</th>
+                        <th>Reference</th>
+                        <th>Status</th>
+                        <th style="text-align:right;">Amount ({{ $currency }})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($visaInstallments as $i => $row)
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>{{ $fmtDate($row->date) }}</td>
+                        <td>{{ $fmtMonth($row->billing_month) }}</td>
+                        <td>{{ $row->reference_number ?: '—' }}</td>
+                        <td class="status-text">{{ ucfirst((string) ($row->status ?: '—')) }}</td>
+                        <td class="num">{{ $fmt($row->amount) }}</td>
+                    </tr>
+                    @endforeach
+                    <tr class="row-total">
+                        <td colspan="5" style="text-align:right;">Total</td>
+                        <td class="num">{{ $fmt($totals['visa']) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            @endif
+
+            {{-- JV against rider account --}}
+            @if($jvEntries->isNotEmpty())
+            <div class="section-title">Journal Vouchers (JV) <span class="count">{{ $jvEntries->count() }}</span></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width:40px;">#</th>
+                        <th>Date</th>
+                        <th>Month</th>
+                        <th>Narration / Code</th>
+                        <th style="text-align:right;">Debit</th>
+                        <th style="text-align:right;">Credit</th>
+                        <th style="text-align:right;">Net ({{ $currency }})</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($jvEntries as $i => $row)
+                    @php $net = (float) $row->debit - (float) $row->credit; @endphp
+                    <tr>
+                        <td>{{ $i + 1 }}</td>
+                        <td>{{ $fmtDate($row->trans_date) }}</td>
+                        <td>{{ $fmtMonth($row->billing_month) }}</td>
+                        <td>{{ trim(($row->narration ?: '') . ' ' . ($row->trans_code ? '(' . $row->trans_code . ')' : '')) ?: '—' }}</td>
+                        <td class="num">{{ $fmt($row->debit) }}</td>
+                        <td class="num">{{ $fmt($row->credit) }}</td>
+                        <td class="num">{{ $fmt($net) }}</td>
+                    </tr>
+                    @endforeach
+                    <tr class="row-total">
+                        <td colspan="6" style="text-align:right;">Total</td>
+                        <td class="num">{{ $fmt($totals['jv']) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            @endif
+
             {{-- Payments --}}
             @if($payments->isNotEmpty())
             <div class="section-title">Payments <span class="count">{{ $payments->count() }}</span></div>
@@ -717,6 +821,24 @@
                         <td class="num">-{{ $fmt($totals['salik']) }}</td>
                     </tr>
                     @endif
+                    @if($totals['fuel'] != 0)
+                    <tr>
+                        <td>Less: Fuel</td>
+                        <td class="num">-{{ $fmt($totals['fuel']) }}</td>
+                    </tr>
+                    @endif
+                    @if(($totals['visa'] ?? 0) != 0)
+                    <tr>
+                        <td>Less: Visa Installment</td>
+                        <td class="num">-{{ $fmt($totals['visa']) }}</td>
+                    </tr>
+                    @endif
+                    @if(($totals['jv_deduction'] ?? 0) != 0)
+                    <tr>
+                        <td>Less: Journal Voucher (JV)</td>
+                        <td class="num">-{{ $fmt($totals['jv_deduction']) }}</td>
+                    </tr>
+                    @endif
                     @if($totals['advance'] != 0)
                     <tr>
                         <td>Less: Advance</td>
@@ -739,9 +861,21 @@
                         <td class="num">+{{ $fmt($totals['incentive']) }}</td>
                     </tr>
                     @endif
+                    @if($totals['previous_balance'] != 0)
                     <tr>
-                        <td>Previous Balance</td>
-                        <td class="num">{{ $fmt($totals['previous_balance']) }}</td>
+                        <td>Add: Previous Balance</td>
+                        <td class="num">+{{ $fmt($totals['previous_balance']) }}</td>
+                    </tr>
+                    @endif
+                    @if(($totals['jv_addition'] ?? 0) != 0)
+                    <tr>
+                        <td>Add: Journal Voucher (JV)</td>
+                        <td class="num">+{{ $fmt($totals['jv_addition']) }}</td>
+                    </tr>
+                    @endif
+                    <tr class="row-subtotal">
+                        <td>Total Additions</td>
+                        <td class="num">+{{ $fmt($totals['additions']) }}</td>
                     </tr>
                     <tr class="row-payable">
                         <td>Payable</td>

@@ -80,7 +80,5 @@ yarn-error.log
 *.sql
 *.sqlite
 
-# Graphify — keep graph, skip local cache/cost/root
-/graphify-out/cache/
-/graphify-out/cost.json
-/graphify-out/.graphify_root
+# Graphify — generated locally; run `graphify update .` after clone/pull
+/graphify-out/

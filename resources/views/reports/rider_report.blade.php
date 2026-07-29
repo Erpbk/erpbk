@@ -360,6 +360,9 @@
         ['data' => 'cod', 'title' => 'COD'],
         ['data' => 'rta_fine', 'title' => 'RTA Fine'],
         ['data' => 'salik_fee', 'title' => 'Salik FEE'],
+        ['data' => 'fuel', 'title' => 'Fuel'],
+        ['data' => 'visa_installment', 'title' => 'Visa Installment'],
+        ['data' => 'jv', 'title' => 'JV'],
         ['data' => 'advance', 'title' => 'Advance'],
         ['data' => 'penalty', 'title' => 'Penalty'],
         ['data' => 'incentive', 'title' => 'Incentive'],
@@ -396,6 +399,10 @@
                             <div class="label"><i class="ti ti-coins"></i> Total Amount</div>
                             <div class="value" id="sum_total_amount">0.00</div>
                         </div>
+                        <div class="total-card total-4">
+                            <div class="label"><i class="ti ti-plus"></i> Total Additions</div>
+                            <div class="value" id="sum_total_additions">0.00</div>
+                        </div>
                         <div class="total-card total-red">
                             <div class="label"><i class="ti ti-minus"></i> Total Deductions</div>
                             <div class="value" id="sum_total_deductions">0.00</div>
@@ -430,6 +437,9 @@
                                 <th title="COD" style="text-align: center;">COD</th>
                                 <th title="RTA Fine" style="text-align: center;">RTA Fine</th>
                                 <th title="Salik FEE" style="text-align: center;">Salik</th>
+                                <th title="Fuel" style="text-align: center;">Fuel</th>
+                                <th title="Visa Installment" style="text-align: center;">Visa Inst.</th>
+                                <th title="Journal Voucher" style="text-align: center;">JV</th>
                                 <th title="Advance" style="text-align: center;">Advance</th>
                                 <th title="Penalty" style="text-align: center;">Penalty</th>
                                 <th title="Incentive" style="text-align: center;">Incentive</th>
@@ -642,6 +652,7 @@
         if (typeof data.total_amount !== 'undefined') {
             $('#sum_riders_count').text(parseInt(data.riders_count || 0, 10).toLocaleString());
             $('#sum_total_amount').text(formatMoney(data.total_amount));
+            $('#sum_total_additions').text(formatMoney(data.total_additions));
             $('#sum_total_deductions').text(formatMoney(data.total_deductions));
             $('#sum_total_payable').text(formatMoney(data.total_payable));
             $('#sum_total_paid').text(formatMoney(data.total_paid));
@@ -770,7 +781,7 @@
                         }
                     }
                     $("#get_data").html(data.data || '');
-                    updateTotalsBar(data);
+                    // Keep overall stats bar unchanged on page navigation
                     if (data.paginationLinks) {
                         $('#paginationLinks').html(data.paginationLinks);
                     }

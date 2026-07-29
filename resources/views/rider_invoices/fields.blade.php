@@ -21,6 +21,24 @@
             name="inv_date"
             placeholder="Invoice Date">
     </div>
+    <div class="col-md-2 form-group">
+        <label>Service Period From</label>
+        <input type="date"
+            class="form-control"
+            name="service_period_from"
+            id="service_period_from"
+            required
+            value="{{ old('service_period_from', isset($invoice) ? optional($invoice->service_period_from)->format('Y-m-d') ?? date('Y-m-01', strtotime($invoice->billing_month)) : date('Y-m-01')) }}">
+    </div>
+    <div class="col-md-2 form-group">
+        <label>Service Period To</label>
+        <input type="date"
+            class="form-control"
+            name="service_period_to"
+            id="service_period_to"
+            required
+            value="{{ old('service_period_to', isset($invoice) ? optional($invoice->service_period_to)->format('Y-m-d') ?? date('Y-m-t', strtotime($invoice->billing_month)) : date('Y-m-t')) }}">
+    </div>
     <!--col-->
     <div class="col-md-4 form-group">
         <label>Rider</label>
@@ -248,5 +266,20 @@ $(document).ready(function() {
         setItemTotal($(this));
     });
     setTotal();
+
+    $('#billing_month').on('change', function() {
+        var billingMonth = $(this).val();
+        if (!billingMonth) {
+            return;
+        }
+
+        var parts = billingMonth.split('-');
+        var year = parseInt(parts[0], 10);
+        var month = parseInt(parts[1], 10);
+        var lastDay = new Date(year, month, 0).getDate();
+
+        $('#service_period_from').val(billingMonth + '-01');
+        $('#service_period_to').val(billingMonth + '-' + String(lastDay).padStart(2, '0'));
+    });
 });
 </script>

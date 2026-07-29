@@ -46,7 +46,6 @@
 
         #modalTopbody {
             overflow: hidden;
-            padding: 0 !important;
         }
 
         #modalTopbody .rider-invoice-layout {

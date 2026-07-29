@@ -117,15 +117,15 @@ $qtyText = static fn ($qty) => (float) $qty == 0
             <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">{{ number_format($finalAmount, 2) }}</td>
         </tr>
         <tr class="amount-highlight">
-            <td style="padding: 6px;">Paid Amount to Rider:</td>
+            <td style="padding: 6px;">Paid Amount:</td>
             <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($paid_amount, 2) }}</td>
         </tr>
         <tr class="amount-highlight">
-            <td style="padding: 6px;">Rider Balance:</td>
+            <td style="padding: 6px;">Balance:</td>
             <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($rider_balance_final, 2) }}</td>
         </tr>
     </table>
 
     <div class="footer-note">
-        {{ $riderInvoice->notes ?? 'Note : If a rider\'s monthly orders are less than 400 or if they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.' }}
+        {{ $riderInvoice->notes ?? 'Note : If a rider\Driver\'s monthly orders are less than 400 or if they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.' }}
     </div>

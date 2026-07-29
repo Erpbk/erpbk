@@ -51,6 +51,14 @@
                     <td class="no-border">{{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</td>
                 </tr>
                 <tr class="no-border">
+                    <td class="no-border inv-label" style="text-align: right; padding-right: 12px;">Service Period</td>
+                    <td class="no-border">
+                        {{ $riderInvoice->service_period_from?->format('d-m-Y') ?? date('d-m-Y', strtotime($riderInvoice->billing_month)) }}
+                        to
+                        {{ $riderInvoice->service_period_to?->format('d-m-Y') ?? date('t-m-Y', strtotime($riderInvoice->billing_month)) }}
+                    </td>
+                </tr>
+                <tr class="no-border">
                     <td class="no-border inv-label" style="text-align: right; padding-right: 12px;">Zone</td>
                     <td class="no-border">{{ $riderInvoice->zone }}</td>
                 </tr>
@@ -62,6 +70,8 @@
         </td>
     </tr>
 </table>
+
+@include('rider_invoices.partials.invoice_description_summary')
 
 @if($riderInvoice->items && $riderInvoice->items->count() > 0)
     @include('rider_invoices.partials.invoice_items_classic')

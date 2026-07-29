@@ -8,9 +8,7 @@
 
 <body>
     <style>
-        @include('rider_invoices.partials.invoice_brand_styles')
-
-        * {
+        @include('rider_invoices.partials.invoice_brand_styles') * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -41,14 +39,13 @@
             background: #eef2f5;
         }
 
-        body > .rider-invoice-layout {
+        body>.rider-invoice-layout {
             height: 100vh;
             height: 100dvh;
         }
 
         #modalTopbody {
             overflow: hidden;
-            padding: 0 !important;
         }
 
         #modalTopbody .rider-invoice-layout {
@@ -127,6 +124,38 @@
             width: 30%;
         }
 
+        .invoice-box.invoice-layout-modern .primary-header,
+        .invoice-box.invoice-layout-modern .secondary-header,
+        .invoice-box.invoice-layout-modern .light-header,
+        .invoice-box.invoice-layout-modern .accent-total,
+        .invoice-box.invoice-layout-modern .success-highlight,
+        .invoice-box.invoice-layout-modern .amount-highlight,
+        .invoice-box.invoice-layout-modern .items-table th {
+            background: #c6d9f1;
+            color: #000;
+            font-weight: 700;
+        }
+
+        .invoice-box.invoice-layout-modern .label-cell {
+            font-weight: 700;
+            background: #fff;
+            color: #000;
+        }
+
+        .invoice-box.invoice-layout-modern .value-cell {
+            background: #fff;
+            color: #000;
+        }
+
+        .invoice-box.invoice-layout-modern .items-table tbody tr:nth-child(even) {
+            background: #fff;
+        }
+
+        .invoice-box.invoice-layout-modern th,
+        .invoice-box.invoice-layout-modern td {
+            border-color: #b8c4d4;
+        }
+
         .invoice-box .yellow {
             background: var(--inv-surface-soft);
             color: var(--inv-primary);
@@ -137,7 +166,7 @@
         }
 
         .invoice-box .red {
-            color: var(--inv-secondary);
+            color: #c00;
             font-weight: 600;
         }
 
@@ -163,6 +192,14 @@
 
         .invoice-box .summary-table {
             margin-bottom: 8px;
+        }
+
+        .summary-table tr {
+            background-color: #fff !important;
+        }
+
+        .summary-table tr td {
+            text-align: left !important;
         }
 
         .invoice-toolbar {
@@ -211,6 +248,7 @@
         }
 
         @media print {
+
             html,
             body {
                 height: auto;
@@ -281,11 +319,11 @@
         </div>
 
         <div class="invoice-scroll-area">
-            <div class="invoice-box">
+            <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">
                 @if(View::exists($templateView))
-                    @include($templateView)
+                @include($templateView)
                 @else
-                    <div class="p-4 text-center text-danger">Invoice template view is missing on the server.</div>
+                <div class="p-4 text-center text-danger">Invoice template view is missing on the server.</div>
                 @endif
             </div>
         </div>

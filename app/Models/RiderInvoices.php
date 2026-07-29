@@ -15,6 +15,8 @@ class RiderInvoices extends BaseModel
         'company_id',
         'branch_id',
         'inv_date',
+        'service_period_from',
+        'service_period_to',
         'rider_id',
         'vendor_id',
         'zone',
@@ -39,6 +41,8 @@ class RiderInvoices extends BaseModel
 
     protected $casts = [
         'inv_date' => 'date',
+        'service_period_from' => 'date',
+        'service_period_to' => 'date',
         'zone' => 'string',
         'perfect_attendance' => 'float',
         'performance' => 'string',
@@ -71,6 +75,8 @@ class RiderInvoices extends BaseModel
 
     public static array $rules = [
         'inv_date' => 'required',
+        'service_period_from' => 'required|date',
+        'service_period_to' => 'required|date|after_or_equal:service_period_from',
         'rider_id' => 'required',
         'vendor_id' => 'nullable',
         'zone' => 'required|string|max:191',

@@ -1,3 +1,10 @@
+@php
+    $vatRate = $invoice_applies_vat ? $invoice_vat_rate : 0;
+    $qtyText = static fn ($qty) => (float) $qty == 0
+        ? '-'
+        : rtrim(rtrim(number_format((float) $qty, 2), '0'), '.');
+@endphp
+
 <table class="items-table" style="margin-bottom: 0;">
     <thead>
         <tr>
@@ -11,39 +18,27 @@
         </tr>
     </thead>
     <tbody>
-        @php $running_total = 0; $tax_total = 0; @endphp
         @foreach($riderInvoice->items as $key => $val)
         @php
-            $total += $val->amount;
-            $vatRate = $riderInvoice->vat > 0 ? $vat_percentage : 0;
-            $vatAmtRow = $riderInvoice->vat > 0 ? $val->amount * $vatRate / 100 : 0;
-            $rowTotal = $val->amount + $vatAmtRow;
-            $running_total += $rowTotal;
-            $tax_total += $vatAmtRow;
+            $rowAmount = round((float) $val->amount, 2);
+            $vatAmtRow = $invoice_applies_vat ? round($rowAmount * $vatRate / 100, 2) : 0;
+            $rowTotal = round($rowAmount + $vatAmtRow, 2);
         @endphp
         <tr>
             <td class="num">{{ $key + 1 }}</td>
             <td>{{ $val->riderInv_item }} {{ \App\Models\Items::where('id', $val->item_id)->value('name') }}</td>
-            <td class="num">{{ $val->qty == 0 ? '-' : $val->qty }}</td>
-            <td class="num">{{ $val->rate == 0 ? '-' : number_format($val->rate, 2) }}</td>
-            <td class="num">{{ number_format($val->amount, 2) }}</td>
+            <td class="num">{{ $qtyText($val->qty) }}</td>
+            <td class="num">{{ (float) $val->rate == 0 ? '-' : number_format((float) $val->rate, 2) }}</td>
+            <td class="num">{{ number_format($rowAmount, 2) }}</td>
             <td class="num">{{ number_format($vatAmtRow, 2) }}@if($vatRate > 0) ({{ number_format($vatRate, 0) }}%)@endif</td>
             <td class="num">{{ number_format($rowTotal, 2) }}</td>
         </tr>
         @endforeach
-        @php $items_total = $running_total; @endphp
     </tbody>
 </table>
 
 @php
-    $finalAmount = $items_total - $total_deductions + $total_additions;
-    $paid_amount = 0;
-    if ($riderInvoice->rider && $riderInvoice->rider->account_id) {
-        $paid_amount = \App\Models\Payment::where('payee_account_id', $riderInvoice->rider->account_id)
-            ->whereDate('billing_month', $riderInvoice->billing_month)
-            ->sum('amount');
-    }
-    $balanceDue = max(0, $finalAmount - $paid_amount);
+    $balanceDue = max(0, $rider_balance_final);
 @endphp
 
 <table style="margin-top: 0;">
@@ -61,9 +56,9 @@
         </td>
         <td style="width: 45%; vertical-align: top; border: none; padding-right: 0;">
             <table style="margin: 0;">
-                <tr><td>Taxable Amount</td><td class="num">{{ \App\Helpers\Currency::format($total, 2) }}</td></tr>
-                @if($riderInvoice->vat > 0)
-                <tr><td>Total VAT</td><td class="num">{{ \App\Helpers\Currency::format($tax_total, 2) }}</td></tr>
+                <tr><td>Taxable Amount</td><td class="num">{{ \App\Helpers\Currency::format($totalBeforeTax, 2) }}</td></tr>
+                @if($invoice_applies_vat)
+                <tr><td>Total VAT</td><td class="num">{{ \App\Helpers\Currency::format($vatAmount, 2) }}</td></tr>
                 @endif
                 <tr class="inv-total-row"><td><strong>Total</strong></td><td class="num"><strong>{{ \App\Helpers\Currency::format($finalAmount, 2) }}</strong></td></tr>
                 <tr><td>Received Amount</td><td class="num">{{ \App\Helpers\Currency::format($paid_amount, 2) }}</td></tr>

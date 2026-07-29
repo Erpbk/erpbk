@@ -58,9 +58,13 @@
 
 @isset($customFields)
 @foreach($customFields as $field)
+@continue(! field_visible('account', 'cf_' . $field->id))
 @php
 $value = isset($accounts) ? (data_get($accounts->custom_field_values, $field->id) ?? $field->default_value) : ($field->default_value ?? '');
 $config = $field->config ?? [];
+$cfKey = 'cf_' . $field->id;
+$cfEditable = field_editable('account', $cfKey);
+$cfRequired = (field_required('account', $cfKey) || $field->is_mandatory) && $cfEditable;
 if ($field->data_type === 'checkbox') {
 $checked = isset($accounts)
 ? ($value === '1' || $value === true || $value === 'on')
@@ -73,21 +77,21 @@ $options = is_array($config['options']) ? $config['options'] : array_filter(arra
 $name = 'custom_field_values[' . $field->id . ']';
 @endphp
 <div class="form-group col-sm-6">
-  <label for="custom_field_{{ $field->id }}">{{ $field->label }}@if($field->is_mandatory)<span class="text-danger">*</span>@endif</label>
+  <label for="custom_field_{{ $field->id }}">{{ $field->label }}@if($cfRequired)<span class="text-danger">*</span>@endif</label>
   @if($field->data_type === 'text')
-  <input type="text" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" placeholder="{{ $config['placeholder'] ?? '' }}" maxlength="{{ $config['max_length'] ?? 255 }}" @if($field->is_mandatory) required @endif>
+  <input type="text" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" placeholder="{{ $config['placeholder'] ?? '' }}" maxlength="{{ $config['max_length'] ?? 255 }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @elseif($field->data_type === 'textarea')
-  <textarea name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" rows="{{ $config['rows'] ?? 4 }}" placeholder="{{ $config['placeholder'] ?? '' }}" @if($field->is_mandatory) required @endif>{{ old($name, is_scalar($value) ? $value : '') }}</textarea>
+  <textarea name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" rows="{{ $config['rows'] ?? 4 }}" placeholder="{{ $config['placeholder'] ?? '' }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>{{ old($name, is_scalar($value) ? $value : '') }}</textarea>
   @elseif($field->data_type === 'number')
-  <input type="number" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" step="{{ $config['step'] ?? 1 }}" @isset($config['min']) min="{{ $config['min'] }}" @endisset @isset($config['max']) max="{{ $config['max'] }}" @endisset @if($field->is_mandatory) required @endif>
+  <input type="number" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" step="{{ $config['step'] ?? 1 }}" @isset($config['min']) min="{{ $config['min'] }}" @endisset @isset($config['max']) max="{{ $config['max'] }}" @endisset @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @elseif($field->data_type === 'decimal')
-  <input type="number" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" step="{{ isset($config['decimals']) ? '0.' . str_repeat('0', $config['decimals'] - 1) . '1' : '0.01' }}" @isset($config['min']) min="{{ $config['min'] }}" @endisset @isset($config['max']) max="{{ $config['max'] }}" @endisset @if($field->is_mandatory) required @endif>
+  <input type="number" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" step="{{ isset($config['decimals']) ? '0.' . str_repeat('0', $config['decimals'] - 1) . '1' : '0.01' }}" @isset($config['min']) min="{{ $config['min'] }}" @endisset @isset($config['max']) max="{{ $config['max'] }}" @endisset @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @elseif($field->data_type === 'date')
-  <input type="date" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" @if($field->is_mandatory) required @endif>
+  <input type="date" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @elseif($field->data_type === 'datetime')
-  <input type="datetime-local" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" @if($field->is_mandatory) required @endif>
+  <input type="datetime-local" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @elseif($field->data_type === 'dropdown')
-  <select name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control form-select" @if($field->is_mandatory) required @endif>
+  <select name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control form-select" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
     <option value="">Select</option>
     @foreach($options as $opt)
     <option value="{{ $opt }}" @if((string)old($name, is_scalar($value) ? $value : '' )===(string)$opt) selected @endif>{{ $opt }}</option>
@@ -96,15 +100,15 @@ $name = 'custom_field_values[' . $field->id . ']';
   @elseif($field->data_type === 'checkbox')
   <div class="form-check">
     <input type="hidden" name="{{ $name }}" value="0">
-    <input type="checkbox" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-check-input" value="1" @if($checked ?? false) checked @endif>
+    <input type="checkbox" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-check-input" value="1" @if($checked ?? false) checked @endif @fieldReadonly('account', $cfKey)>
     <label for="custom_field_{{ $field->id }}" class="form-check-label pt-0">Yes</label>
   </div>
   @elseif($field->data_type === 'email')
-  <input type="email" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" placeholder="{{ $config['placeholder'] ?? '' }}" @if($field->is_mandatory) required @endif>
+  <input type="email" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" placeholder="{{ $config['placeholder'] ?? '' }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @elseif($field->data_type === 'url')
-  <input type="url" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" placeholder="{{ $config['placeholder'] ?? '' }}" @if($field->is_mandatory) required @endif>
+  <input type="url" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" placeholder="{{ $config['placeholder'] ?? '' }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @else
-  <input type="text" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" @if($field->is_mandatory) required @endif>
+  <input type="text" name="{{ $name }}" id="custom_field_{{ $field->id }}" class="form-control" value="{{ old($name, is_scalar($value) ? $value : '') }}" @if($cfRequired) required @endif @fieldReadonly('account', $cfKey)>
   @endif
   @if($field->help_text)
   <p class="form-text text-muted small mb-0">{{ $field->help_text }}</p>

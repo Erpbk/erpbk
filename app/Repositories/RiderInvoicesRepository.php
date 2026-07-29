@@ -15,6 +15,8 @@ class RiderInvoicesRepository extends BaseRepository
 {
     protected $fieldSearchable = [
         'inv_date',
+        'service_period_from',
+        'service_period_to',
         'rider_id',
         'vendor_id',
         'zone',
@@ -103,12 +105,12 @@ class RiderInvoicesRepository extends BaseRepository
                 continue;
             }
 
+            $qty = round($qty, 2);
             $amountValue = round(($qty * $rate) - $discount, 2);
-            $storedQty = (int) ($qty > 0 ? ceil($qty) : floor($qty));
 
             RiderInvoiceItem::create([
                 'item_id' => $request['item_ids'][$key],
-                'qty' => $storedQty,
+                'qty' => $qty,
                 'rate' => $rate,
                 'amount' => $amountValue,
                 'discount' => $discount,
@@ -118,12 +120,12 @@ class RiderInvoicesRepository extends BaseRepository
         }
 
         $invoice->refresh();
-        $rider_amount = RiderInvoiceItem::where('inv_id', $invoice->id)->sum('amount');
+        $rider_amount = round((float) RiderInvoiceItem::where('inv_id', $invoice->id)->sum('amount'), 2);
         $total = $rider_amount;
         $vat = 0;
         if ($invoice->rider->vat == 1) {
-            $vat = $total * (Common::getSetting('vat_percentage') / 100);
-            $total = $total + $vat;
+            $vat = round($rider_amount * ((float) Common::getSetting('vat_percentage') / 100), 2);
+            $total = round($rider_amount + $vat, 2);
         }
         $transactionService = new TransactionService;
 

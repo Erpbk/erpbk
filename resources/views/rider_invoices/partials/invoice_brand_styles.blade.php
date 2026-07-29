@@ -130,3 +130,37 @@
 .invoice-box .items-table tbody tr:nth-child(even) {
     background: var(--inv-surface);
 }
+
+.invoice-box.invoice-layout-modern .primary-header,
+.invoice-box.invoice-layout-modern .secondary-header,
+.invoice-box.invoice-layout-modern .light-header,
+.invoice-box.invoice-layout-modern .accent-total,
+.invoice-box.invoice-layout-modern .success-highlight,
+.invoice-box.invoice-layout-modern .amount-highlight,
+.invoice-box.invoice-layout-modern .items-table th {
+    background: #c6d9f1;
+    color: #000;
+    font-weight: 700;
+}
+
+.invoice-box.invoice-layout-modern .label-cell {
+    font-weight: 700;
+    background: #fff;
+    color: #000;
+    width: 20%;
+}
+
+.invoice-box.invoice-layout-modern .value-cell {
+    width: 30%;
+    background: #fff;
+    color: #000;
+}
+
+.invoice-box.invoice-layout-modern .items-table tbody tr:nth-child(even) {
+    background: #fff;
+}
+
+.invoice-box.invoice-layout-modern th,
+.invoice-box.invoice-layout-modern td {
+    border-color: #b8c4d4;
+}

@@ -465,9 +465,9 @@
     "semantic_hash": "828ba2ec7cb443f8c569257124e7b7c6"
   },
   "app/Http/Controllers/CustomerInvoicesController.php": {
-    "mtime": 1784712025.7674236,
-    "ast_hash": "c11f56e199d2c36447d953ff5de58c47",
-    "semantic_hash": "c11f56e199d2c36447d953ff5de58c47"
+    "mtime": 1785333278.4736643,
+    "ast_hash": "267dba0fd10641b4c38ee75a819f5bf7",
+    "semantic_hash": ""
   },
   "app/Http/Controllers/CustomersController.php": {
     "mtime": 1784712025.7684276,
@@ -675,9 +675,9 @@
     "semantic_hash": "7c76ffa1be6c5e1847a161d8f3869b6f"
   },
   "app/Http/Controllers/PaymentController.php": {
-    "mtime": 1784712025.8274722,
-    "ast_hash": "3896d1c9fbb9e37e867b6247d47e32e2",
-    "semantic_hash": "3896d1c9fbb9e37e867b6247d47e32e2"
+    "mtime": 1785334916.8052342,
+    "ast_hash": "0cf27243b378b89c358f8aef35585460",
+    "semantic_hash": ""
   },
   "app/Http/Controllers/PermissionsController.php": {
     "mtime": 1784902540.193551,
@@ -1765,9 +1765,9 @@
     "semantic_hash": "5d5b502cd24159f77ceec019b00c3531"
   },
   "app/Models/Employee.php": {
-    "mtime": 1784712026.4768,
-    "ast_hash": "a9a1c8b823aa057b4ef0fbe80647ff99",
-    "semantic_hash": "a9a1c8b823aa057b4ef0fbe80647ff99"
+    "mtime": 1785334944.721137,
+    "ast_hash": "509d2b6b8a0600d7fac4efd6928e3e17",
+    "semantic_hash": ""
   },
   "app/Models/EmployeeCategory.php": {
     "mtime": 1784712026.4778154,
@@ -7525,8 +7525,8 @@
     "semantic_hash": "eb45cfb5e63d8cb475ed7a7c52231c22"
   },
   "resources/views/customer_invoices/fields.blade.php": {
-    "mtime": 1785332950.7008476,
-    "ast_hash": "f442eb51189ba78a0fc9f986b7cee962",
+    "mtime": 1785333115.033401,
+    "ast_hash": "b426fef6802f7b4c2cb06eafa5750d0e",
     "semantic_hash": ""
   },
   "resources/views/customer_invoices/index.blade.php": {
@@ -9135,9 +9135,9 @@
     "semantic_hash": "7f57689f2ddfb5be25da25ffce90c782"
   },
   "resources/views/payments/fields.blade.php": {
-    "mtime": 1784710061.005765,
-    "ast_hash": "e05516f4d74a16f7b45a1742de6a5503",
-    "semantic_hash": "e05516f4d74a16f7b45a1742de6a5503"
+    "mtime": 1785334945.0964456,
+    "ast_hash": "5fc9324a03c101676b92ed9fb3f9785b",
+    "semantic_hash": ""
   },
   "resources/views/payments/index.blade.php": {
     "mtime": 1784710061.0117521,

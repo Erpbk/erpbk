@@ -5,7 +5,7 @@
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 9523 nodes · 18285 edges · 1888 communities (1194 shown, 694 thin omitted)
+- 9523 nodes · 18285 edges · 1890 communities (1197 shown, 693 thin omitted)
 - Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 2630 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
@@ -24,7 +24,7 @@
 - Illuminate\Database\Migrations\Migration
 - RidersController.php
 - .view
-- LedgerDataTable
+- RiderInvoices
 - EmployeeSettingsController
 - GlobalAccounts
 - Illuminate\Http\Request
@@ -45,12 +45,12 @@
 - LegalCaseController
 - Riders
 - ExpenseAccount
-- Illuminate\Database\Eloquent\Relations\BelongsTo
+- FixedAsset
 - DeleteRequest
 - AgreementTemplate
 - WhatsApp Bike Notification Service
 - BikeRegistrationController
-- RiderInventoryAssignment
+- Illuminate\Database\Eloquent\Relations\BelongsTo
 - TestCase
 - user_can
 - DashboardCardRegistry
@@ -60,7 +60,7 @@
 - Attendance
 - ModuleSettingsController
 - static
-- UserEmailService
+- HasActiveStatus.php
 - Controller
 - Branch
 - ActivityLogger
@@ -93,7 +93,7 @@
 - PermissionTreeBuilder
 - Helpers
 - Roles
-- Illuminate\Validation\Rule
+- CreateSimsRequest
 - Items
 - Loan
 - CompanyQuery
@@ -144,8 +144,8 @@
 - DeployDatabaseWaiter
 - AgreementPdfService
 - ChequeCustomField
-- .index
-- CreateVendorsRequest
+- FuelCompaniesController
+- CompanyAuthRedirect.php
 - TablerIconLibrary
 - BaseRepository
 - Illuminate\Console\Command
@@ -154,21 +154,21 @@
 - ChequeCategory
 - TopBarNumericStatus
 - .prettierrc.json
+- .index
 - LeasingCompanyInvoicesRepository
-- ModuleTopBarSettingsController
 - RiderFieldCategoryAssignment
 - RiderDefaultCategoryService
 - GlobalAccountResolver
 - CustomerInvoiceItem
 - InventoryAdjustmentController
-- RolesController
+- ModuleTopBarSettingsController
 - ModuleAgreementController
-- Company Isolation Setup (Single ERPBK DB)
+- RolesController
 - SimHistory
-- AgreementCategory
+- Company Isolation Setup (Single ERPBK DB)
 - SendWhatsAppNotificationJob.php
 - ModuleIconService
-- BikeAssignFieldAssignment
+- AgreementCategory
 - composer.json
 - BaseModel
 - CreateEmployeeInvoicesRequest
@@ -188,18 +188,18 @@
 - MigrateConnectionRunner.php
 - artisan
 - AccountsDataTable
-- EmployeeTopOption
+- BikeAssignFieldAssignment
 - FilesController
 - PermissionsController
 - FuelDataImport
 - ImportBikes
 - ActiveStatusValidator
-- DeletionCascade
+- EmployeeTopOption
 - AccountsRepository
 - AccountsReportController
 - TenantModulePermissionsSync.php
 - ChequeDocumentType
-- RTAFineImport
+- DeletionCascade
 - riderhiringController
 - ImageService
 - Carbon\Carbon
@@ -207,7 +207,7 @@
 - ChequeTopCategory
 - UserNotification
 - DropdownsController
-- FuelCards.php
+- RTAFineImport
 - ImportRiderActivities
 - ModuleTopBarFieldValueResolver
 - require-dev
@@ -220,8 +220,8 @@
 - GlobalAccountNotConfiguredException.php
 - PermissionsController.php
 - CompanyAuthController
+- BelongsToCompany.php
 - .handle
-- AgreementPlaceholderResolver
 - config
 - psr-4
 - contentNavbarLayout.blade.php
@@ -258,14 +258,14 @@
 - RiderActivitiesRepository
 - RiderAttendanceRepository
 - RiderEmailsRepository
-- ActivityLogController
+- AgreementPlaceholderResolver
 - RtaFinesRepository
 - SalikRepository
 - SimsRepository
 - SuppliersRepository
 - UserRepository
 - VendorsRepository
-- PolicyPage
+- ActivityLogController
 - EventServiceProvider
 - .build
 - assertApiResponse
@@ -282,12 +282,12 @@
 - _vehicle_top_tab_content.blade.php
 - visa_statuses/index.blade.php
 - UpdateBikeRentCompaniesRequest
+- PolicyPage
 - BikeTopOption
-- DropdownsRepository
-- EnsureAdminPanelPermissions.php
+- SupplierInvoicesRepository
 - TrustHosts
 - AuthServiceProvider
-- TrashedRecordQuery
+- DropdownsRepository
 - VisaExpenseAccess
 - VoucherAccess
 - bike_registration/account_index.blade.php
@@ -334,7 +334,7 @@
 - erp_permissions/index.blade.php
 - admin/permissions/index.blade.php
 - admin/users/index.blade.php
-- Foreign Key Refactor Verification Report
+- EnsureAdminPanelPermissions.php
 - Kernel
 - EncryptCookies
 - PreventRequestsDuringMaintenance
@@ -342,7 +342,7 @@
 - TrustProxies
 - ValidateSignature
 - VerifyCsrfToken
-- UpdateCustomersRequest
+- TrashedRecordQuery
 - asset_categories/index.blade.php
 - attendance/index.blade.php
 - banks/index.blade.php
@@ -350,14 +350,16 @@
 - bike_rent_companies/index.blade.php
 - branches/index.blade.php
 - customers/index.blade.php
+- Foreign Key Refactor Verification Report
+- UpdateCustomersRequest
 - UpdateEmployeeInvoicesRequest
 - UpdateFilesRequest
 - UpdateItemsRequest
 - UpdateLeasingCompaniesRequest
 - LoanRepository
+- 2026_04_24_120000_sync_dropdown_permissions.php
 - UpdateRiderActivitiesRequest
 - CreateRiderInvoicesRequest
-- 2026_04_24_120000_sync_dropdown_permissions.php
 - UpdateRiderInvoicesRequest
 - CreateSupplierInvoicesRequest
 - UpdateSupplierInvoicesRequest
@@ -365,19 +367,17 @@
 - CreateFilesRequest
 - EnsureCompanyAdministratorForSettings.php
 - CreateAccountsRequest
+- CreateGaragesRequest
 - CreateLeasingCompaniesRequest
 - CreateRiderActivitiesRequest
 - CreateRiderAttendanceRequest
-- CreateRidersRequest
-- CreateRolesRequest
-- CreateRtaFinesRequest
 - migrations_tenant/2026_05_20_150000_add_parent_id_to_permissions_and_sync_modules.php
 - migrations_tenant/2026_06_10_100002_sync_rider_inventory_permissions.php
 - migrations_tenant/2026_06_17_100002_sync_asset_permissions.php
 - migrations_tenant/2026_06_20_100000_sync_installments_and_visa_expense_menu_permissions.php
-- CreateSuppliersRequest
+- CreateRidersRequest
 - migrations_tenant/2026_07_11_195000_reset_tenant_permissions_from_config.php
-- CreateUserRequest
+- CreateRolesRequest
 - dropdowns/index.blade.php
 - employee_invoices/index.blade.php
 - employees/view.blade.php
@@ -548,7 +548,7 @@
 - accounts._ledger_entries_rows
 - accounts.show_fields
 - agreements.partials.contract-document-panel
-- StoreVisaExpenseRequest.php
+- CreateRtaFinesRequest
 - banks._field_input
 - banks.show_fields
 - bike_histories.show_fields
@@ -563,15 +563,15 @@
 - bootstrap-daterangepicker
 - bootstrap-maxlength
 - bootstrap-select
-- bs-stepper
+- CreateSuppliersRequest
 - cheques._cheque_top_view_cards
 - clipboard
 - content._document_expiry_alerts
 - customers.show_fields
 - datatables.net-bs5
-- datatables.net-buttons
+- CreateUserRequest
 - datatables.net-fixedcolumns-bs5
-- datatables.net-responsive
+- StoreVisaExpenseRequest.php
 - datatables.net-responsive-bs5
 - departments.show_fields
 - deploy.sh
@@ -586,12 +586,12 @@
 - fixed_assets.partials.acquisition_voucher_fields
 - fuel_cards.fields
 - @fullcalendar/core
-- @fullcalendar/list
+- UpdateLoanRequest
 - @fullcalendar/timegrid
 - garage_items.table
 - garages.show_fields
 - highlight.js
-- jkanban
+- UpdateRecruitersRequest
 - jquery-datatables-checkboxes
 - jquery.repeater
 - jquery-sticky
@@ -601,12 +601,12 @@
 - leaflet
 - leasing_companies.show_fields
 - mapbox-gl
-- UpdateLoanRequest
+- masonry-layout
 - nouislider
 - pdfmake
 - perfect-scrollbar
-- UpdateRecruitersRequest
-- rateyo
+- quill
+- UpdateRolesRequest
 - select2
 - shepherd.js
 - @simonwep/pickr
@@ -875,10 +875,8 @@
 - vouchers/show_modal.blade.php
 - vendorcharges_fields.blade.php
 - start.sh
-- UpdateRolesRequest
 - UpdateSuppliersRequest
 - CreateBikeRentCompaniesRequest
-- CreateSimsRequest
 - CreateVouchersRequest
 - StoreLicenseExpenseRequest
 - UpdateLicenseExpenseRequest
@@ -896,7 +894,11 @@
 - migrations_tenant/2026_06_10_120001_sync_rider_inventory_contract_permissions.php
 - 2026_06_13_100000_sync_license_expense_permissions.php
 - foreign_key_matrix.md
+- datatables.net-buttons-bs5
+- datatables.net-select-bs5
+- hammerjs
 - numeral
+- plyr
 - @yaireo/tagify
 
 ## God Nodes (most connected - your core abstractions)
@@ -926,15 +928,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (1888 total, 694 thin omitted)
+## Communities (1890 total, 693 thin omitted)
 
 ### Community 0 - "Illuminate\Foundation\Http\FormRequest"
 Cohesion: 0.06
-Nodes (11): CreateCustomersRequest, CreateGaragesRequest, CreateItemsRequest, CreateLoanRequest, CreateRecruitersRequest, UpdateAccountsRequest, UpdateGaragesRequest, UpdateRiderAttendanceRequest (+3 more)
+Nodes (11): CreateCustomersRequest, CreateItemsRequest, CreateLoanRequest, CreateRecruitersRequest, CreateVendorsRequest, UpdateAccountsRequest, UpdateGaragesRequest, UpdateRiderAttendanceRequest (+3 more)
 
 ### Community 1 - "Illuminate\Database\Eloquent\Model"
-Cohesion: 0.03
-Nodes (24): BankAccount, EmployeeInvoiceItem, FuelCompany, ItemCategory, JobStatus, LedgerEntry, liveactivities, ModelHasPermission (+16 more)
+Cohesion: 0.04
+Nodes (21): BankAccount, EmployeeInvoiceItem, Garages, ItemCategory, JobStatus, LedgerEntry, liveactivities, ModelHasPermission (+13 more)
 
 ### Community 2 - "DOMElement"
 Cohesion: 0.08
@@ -942,7 +944,7 @@ Nodes (6): AgreementLetterheadPaginator, DOMDocument, DOMElement, DOMNode, Agree
 
 ### Community 3 - "GlobalPagination.php"
 Cohesion: 0.05
-Nodes (6): AppBaseController, InstallmentsController, VendorsController, App\Imports\RiderAttendance, Garages, Illuminate\Http\RedirectResponse
+Nodes (5): LedgerDataTable, AppBaseController, InstallmentsController, VendorsController, App\Imports\RiderAttendance
 
 ### Community 5 - "Bikes"
 Cohesion: 0.06
@@ -952,13 +954,17 @@ Nodes (4): BikeHistory, Bikes, BikeHistoryLogger, RiderHistoryLogger
 Cohesion: 0.03
 Nodes (3): AddSoftDeletesToMultipleTables, AddSoftDeletesToMultipleTables, Illuminate\Database\Migrations\Migration
 
+### Community 7 - "RidersController.php"
+Cohesion: 0.03
+Nodes (6): GloballyUniqueAuthEmail, Illuminate\Contracts\Validation\ValidationRule, Illuminate\Database\Eloquent\Collection, Illuminate\Database\Eloquent\Relations\HasOne, Illuminate\Validation\Rule, Illuminate\Validation\Validator
+
 ### Community 8 - ".view"
 Cohesion: 0.05
 Nodes (7): GaragesController, RecruitersController, ReportController, RiderActivitiesController, RiderAttendanceController, RiderInventoryReportController, handlePaginationResponse()
 
-### Community 9 - "LedgerDataTable"
+### Community 9 - "RiderInvoices"
 Cohesion: 0.04
-Nodes (12): DepartmentsDataTable, DropdownsDataTable, LedgerDataTable, RiderEmailsDataTable, RiderInvoicesDataTable, UploadFilesDataTable, Departments, Dropdowns (+4 more)
+Nodes (14): DepartmentsDataTable, DropdownsDataTable, RiderEmailsDataTable, RiderInvoicesDataTable, UploadFilesDataTable, Departments, Dropdowns, RiderAttendance (+6 more)
 
 ### Community 10 - "EmployeeSettingsController"
 Cohesion: 0.07
@@ -981,8 +987,8 @@ Cohesion: 0.04
 Nodes (5): RiderAttendanceDataTable, Common, LeasingCompaniesController, LeasingCompanies, LeasingCompanyInvoice
 
 ### Community 15 - "Transactions"
-Cohesion: 0.06
-Nodes (10): ImportRiderAttendance, ImportRiderInvoice, RiderActivities, RiderInvoices, Transactions, RiderInvoicesRepository, SupplierInvoicesRepository, Illuminate\Pagination\LengthAwarePaginator (+2 more)
+Cohesion: 0.09
+Nodes (7): ImportRiderAttendance, ImportRiderInvoice, RiderActivities, Transactions, Illuminate\Pagination\LengthAwarePaginator, Illuminate\Support\Collection, Maatwebsite\Excel\Concerns\ToCollection
 
 ### Community 17 - "Closure"
 Cohesion: 0.13
@@ -998,7 +1004,7 @@ Nodes (4): EmployeeController, Unique, Employee, Illuminate\Database\UniqueConst
 
 ### Community 21 - "dependencies"
 Cohesion: 0.04
-Nodes (55): animate.css, aos, apexcharts-clevision, autosize, block-ui, bloodhound-js, chart.js, cleave.js (+47 more)
+Nodes (55): animate.css, aos, apexcharts-clevision, autosize, block-ui, bloodhound-js, bs-stepper, chart.js (+47 more)
 
 ### Community 22 - "BikeMaintenance"
 Cohesion: 0.14
@@ -1009,8 +1015,8 @@ Cohesion: 0.08
 Nodes (4): FilesDataTable, SupplierController, Files, Supplier
 
 ### Community 24 - "AssetCategory"
-Cohesion: 0.05
-Nodes (8): AssetCategoryController, FixedAssetController, AssetCategory, AssetCategoryAccountService, Accounts, VehiclesCategoryService, down(), foreignKeyExists()
+Cohesion: 0.06
+Nodes (7): AssetCategoryController, AssetCategory, AssetCategoryAccountService, Accounts, VehiclesCategoryService, down(), foreignKeyExists()
 
 ### Community 25 - "Banks"
 Cohesion: 0.03
@@ -1021,16 +1027,16 @@ Cohesion: 0.04
 Nodes (52): admin-lte, ajv, alpinejs, axios, @babel/core, babel-loader, @babel/plugin-proposal-object-rest-spread, @babel/plugin-syntax-dynamic-import (+44 more)
 
 ### Community 27 - "LegalCaseController"
-Cohesion: 0.07
+Cohesion: 0.06
 Nodes (7): LegalCaseController, LegalCaseStatusController, StoreLegalCaseRequest, UpdateLegalCaseRequest, legal_cases, LegalCaseAccount, LegalCaseStatus
 
 ### Community 29 - "ExpenseAccount"
 Cohesion: 0.04
-Nodes (8): VisaexpenseController, VisaRenewalCategoryController, ExpenseAccount, visa_expenses, VisaRenewalCategory, VisaExpensesRepository, VisaRenewalCategoryService, Illuminate\Database\Eloquent\Relations\HasMany
+Nodes (9): VisaexpenseController, VisaRenewalCategoryController, ExpenseAccount, visa_expenses, VisaRenewalCategory, VisaExpensesRepository, CompanyAuthRedirect, VisaRenewalCategoryService (+1 more)
 
-### Community 30 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
-Cohesion: 0.05
-Nodes (10): AssetDepreciationSchedule, FixedAsset, RiderHistory, RiderInvoiceAccountAssignment, VoucherTypeModuleAssignment, DepreciationScheduleService, Carbon, FixedAssetDepreciationPostingService (+2 more)
+### Community 30 - "FixedAsset"
+Cohesion: 0.07
+Nodes (7): FixedAssetController, AssetDepreciationSchedule, FixedAsset, DepreciationScheduleService, Carbon, FixedAssetDepreciationPostingService, FixedAssetVoucherService
 
 ### Community 31 - "DeleteRequest"
 Cohesion: 0.08
@@ -1045,20 +1051,20 @@ Cohesion: 0.06
 Nodes (31): 1. Start the Service, 2. Scan QR Code, 3. Get Your Group ID, 4. Configure Group ID, 5. Restart the Service, API Endpoints, Chrome/Chromium Issues on Linux, Development Mode (+23 more)
 
 ### Community 34 - "BikeRegistrationController"
-Cohesion: 0.06
-Nodes (7): BikeRegistrationController, BikeRegistrationStatusController, BikeRegistration, BikeRegistrationAccount, BikeRegistrationDetail, BikeRegistrationStatus, BikeRegistrationsRepository
+Cohesion: 0.08
+Nodes (6): BikeRegistrationController, BikeRegistration, BikeRegistrationAccount, BikeRegistrationDetail, BikeRegistrationStatus, BikeRegistrationsRepository
 
-### Community 35 - "RiderInventoryAssignment"
-Cohesion: 0.11
-Nodes (4): RiderInventoryController, RiderInventoryAssignment, RiderInventoryContract, RiderInventoryLossService
+### Community 35 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
+Cohesion: 0.06
+Nodes (8): RiderInventoryController, RiderHistory, RiderInventoryAssignment, RiderInventoryContract, RiderInvoiceAccountAssignment, VoucherTypeModuleAssignment, RiderInventoryLossService, Illuminate\Database\Eloquent\Relations\BelongsTo
 
 ### Community 36 - "TestCase"
 Cohesion: 0.06
 Nodes (14): RouteServiceProvider, CreatesApplication, Illuminate\Foundation\Support\Providers\RouteServiceProvider, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase, AuthenticationTest, EmailVerificationTest, PasswordConfirmationTest (+6 more)
 
 ### Community 37 - "user_can"
-Cohesion: 0.05
-Nodes (13): user_can(), FuelCompaniesController, RiderInventoryItemController, SimCompaniesController, VisaStatusController, CreateFuelCompaniesRequest, CreateSimCompaniesRequest, UpdateFuelCompaniesRequest (+5 more)
+Cohesion: 0.06
+Nodes (9): user_can(), BikeRegistrationStatusController, RiderInventoryItemController, SimCompaniesController, VisaStatusController, CreateSimCompaniesRequest, UpdateSimCompaniesRequest, RiderInventoryItem (+1 more)
 
 ### Community 38 - "DashboardCardRegistry"
 Cohesion: 0.07
@@ -1088,6 +1094,10 @@ Nodes (5): ModuleSettingsController, Accounts, Closure, ModuleCustomField, Modul
 Cohesion: 0.08
 Nodes (4): self, VoucherType, bootBranchScope(), static
 
+### Community 45 - "HasActiveStatus.php"
+Cohesion: 0.11
+Nodes (5): FuelCardImport, FuelCompany, getStatusLabel(), isActive(), isInactive()
+
 ### Community 46 - "Controller"
 Cohesion: 0.06
 Nodes (17): AdminBlogsController, AdminDashboardController, AdminLoginController, AdminTestimonialsController, LoginBasic, RegisterBasic, BikesImportController, Controller (+9 more)
@@ -1105,8 +1115,8 @@ Cohesion: 0.05
 Nodes (10): AdminUserDataTable, AdminPermissionsController, AdminRolesController, AdminUsersController, AdminPermission, AdminRole, AdminUser, AdminPermissionTreeBuilder (+2 more)
 
 ### Community 50 - "CompanyContext"
-Cohesion: 0.09
-Nodes (12): UserEmailSettingsController, Exists, StoreEmailAccountRequest, Exists, UpdateEmailAccountRequest, applyCompanyScopeConstraint(), bootBelongsToCompany(), hasCompanyColumn() (+4 more)
+Cohesion: 0.08
+Nodes (9): UserEmailSettingsController, Exists, StoreEmailAccountRequest, Exists, UpdateEmailAccountRequest, Throwable, UserEmailService, ModuleLabelService (+1 more)
 
 ### Community 51 - "GarageItem"
 Cohesion: 0.09
@@ -1187,10 +1197,6 @@ Nodes (3): PermissionTreeBuilder, Permission, Spatie\Permission\Models\Permissio
 ### Community 77 - "Roles"
 Cohesion: 0.13
 Nodes (5): RolesDataTable, BelongsToMany, HasOne, Roles, RolesRepository
-
-### Community 78 - "Illuminate\Validation\Rule"
-Cohesion: 0.05
-Nodes (6): GloballyUniqueAuthEmail, Illuminate\Contracts\Validation\ValidationRule, Illuminate\Database\Eloquent\Collection, Illuminate\Database\Eloquent\Relations\HasOne, Illuminate\Support\Facades\View, Illuminate\Validation\Rule
 
 ### Community 79 - "Items"
 Cohesion: 0.06
@@ -1316,6 +1322,10 @@ Nodes (3): RiderEmailsController, CreateRiderEmailsRequest, UpdateRiderEmailsReq
 Cohesion: 0.17
 Nodes (6): DeployCheckCommand, Handler, DeployDatabaseWaiter, Illuminate\Foundation\Exceptions\Handler, Symfony\Component\Console\Output\OutputInterface, Throwable
 
+### Community 130 - "FuelCompaniesController"
+Cohesion: 0.11
+Nodes (4): FuelCompaniesController, CreateFuelCompaniesRequest, UpdateFuelCompaniesRequest, FuelCompaniesRepository
+
 ### Community 132 - "TablerIconLibrary"
 Cohesion: 0.07
 Nodes (4): ModuleMenuIconController, ModuleMenuIcon, SettingsPanelMenuRegistry, TablerIconLibrary
@@ -1332,7 +1342,7 @@ Nodes (3): MigrateAllDatabases, MigrateDoctorCommand, DeployDatabaseConfig
 Cohesion: 0.13
 Nodes (14): arrowParens, bracketSpacing, htmlWhitespaceSensitivity, insertPragma, jsxSingleQuote, printWidth, proseWrap, quoteProps (+6 more)
 
-### Community 140 - "LeasingCompanyInvoicesRepository"
+### Community 141 - "LeasingCompanyInvoicesRepository"
 Cohesion: 0.17
 Nodes (3): LeasingCompanyInvoiceItem, LeasingCompaniesRepository, LeasingCompanyInvoicesRepository
 
@@ -1340,7 +1350,7 @@ Nodes (3): LeasingCompanyInvoiceItem, LeasingCompaniesRepository, LeasingCompany
 Cohesion: 0.26
 Nodes (3): VerifyGlobalAccountsCommand, GlobalAccountResolver, Accounts
 
-### Community 149 - "Company Isolation Setup (Single ERPBK DB)"
+### Community 151 - "Company Isolation Setup (Single ERPBK DB)"
 Cohesion: 0.15
 Nodes (12): Adding More Company Routes, Admin Approval, Architecture Overview, Company Isolation Setup (Single ERPBK DB), Environment, Fresh / empty central database, Laravel Cloud (central + admin DB), Migrations (+4 more)
 
@@ -1392,13 +1402,13 @@ Nodes (10): flash::message, settings.partials._module_general_label_form, settin
 Cohesion: 0.24
 Nodes (3): AdminMigrate, MainMigrate, MigrateConnectionRunner
 
-### Community 180 - "DeletionCascade"
-Cohesion: 0.18
-Nodes (5): DeletionCascade, getCascadedDeletions(), getDeletionChain(), getPrimaryDeletion(), trackCascadeDeletion()
-
 ### Community 183 - "TenantModulePermissionsSync.php"
 Cohesion: 0.08
 Nodes (8): up(), up(), up(), up(), up(), up(), up(), up()
+
+### Community 186 - "DeletionCascade"
+Cohesion: 0.18
+Nodes (5): DeletionCascade, getCascadedDeletions(), getDeletionChain(), getPrimaryDeletion(), trackCascadeDeletion()
 
 ### Community 189 - "Carbon\Carbon"
 Cohesion: 0.16
@@ -1427,6 +1437,10 @@ Nodes (7): vouchers._custom_fields_section, vouchers.default_fields, vouchers.fu
 ### Community 201 - "webpack.mix.js"
 Cohesion: 0.25
 Nodes (5): { EnvironmentPlugin, IgnorePlugin }, glob, mix, path, sassOptions
+
+### Community 208 - "BelongsToCompany.php"
+Cohesion: 0.52
+Nodes (5): applyCompanyScopeConstraint(), bootBelongsToCompany(), hasCompanyColumn(), resolveScopedCompanyId(), shouldApplyCompanyScope()
 
 ### Community 210 - "config"
 Cohesion: 0.29
@@ -1547,10 +1561,6 @@ Nodes (4): settings.partials.top_bar.accordion, settings.partials.top_bar.modals
 ### Community 269 - "visa_statuses/index.blade.php"
 Cohesion: 0.40
 Nodes (4): flash::message, visa_renewal_categories.settings_panel, visa_renewal_categories.settings_script, visa_statuses.table
-
-### Community 276 - "TrashedRecordQuery"
-Cohesion: 0.60
-Nodes (6): TrashedRecordQuery, forceDestroyTrash(), getTrashConfig(), getTrashModelClass(), restoreTrash(), trash()
 
 ### Community 279 - "bike_registration/account_index.blade.php"
 Cohesion: 0.50
@@ -1676,7 +1686,11 @@ Nodes (3): flash::message, visa_expenses.installmentPlanTable, visa_expenses.tab
 Cohesion: 0.50
 Nodes (3): delete_requests._locked_cell, delete_requests._pending_badge, delete_requests._pending_table_script
 
-### Community 325 - "Foreign Key Refactor Verification Report"
+### Community 341 - "TrashedRecordQuery"
+Cohesion: 0.60
+Nodes (6): TrashedRecordQuery, forceDestroyTrash(), getTrashConfig(), getTrashModelClass(), restoreTrash(), trash()
+
+### Community 382 - "Foreign Key Refactor Verification Report"
 Cohesion: 0.33
 Nodes (5): Foreign Key Refactor Verification Report, Implemented Artifacts, Remaining Operational Step, Runtime Safety Notes, Validation Executed
 
@@ -1687,16 +1701,16 @@ Nodes (3): jquery, jquery, jquery
 ## Knowledge Gaps
 - **1115 isolated node(s):** `arrowParens`, `bracketSpacing`, `htmlWhitespaceSensitivity`, `insertPragma`, `jsxSingleQuote` (+1110 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **694 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **693 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `BaseModel` connect `BaseModel` to `Illuminate\Database\Eloquent\Model`, `GlobalPagination.php`, `BikeSettingsController`, `Bikes`, `RidersController.php`, `LedgerDataTable`, `EmployeeSettingsController`, `GlobalAccounts`, `LeasingCompaniesController`, `Transactions`, `Vouchers`, `Employee`, `LoansController`, `BikeMaintenance`, `Supplier`, `AssetCategory`, `Banks`, `LegalCaseController`, `Riders`, `ExpenseAccount`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `DeleteRequest`, `AgreementTemplate`, `BikeRegistrationController`, `RiderInventoryAssignment`, `user_can`, `ModuleFieldSource`, `RiderInvoiceTemplate`, `Attendance`, `ModuleSettingsController`, `static`, `Controller`, `Branch`, `ActivityLogger`, `AdminPermission`, `CompanyContext`, `GarageItem`, `RolePermissionController`, `ManagesVisaInstallments.php`, `SimCompany`, `Settings`, `Sims`, `EmployeeHistory`, `RiderActivityImportMappingService`, `Accounts`, `BikeRentCompany`, `EmailAccount`, `VatController`, `SalikController`, `LicenseexpenseController`, `RiderSettingsController`, `AccountsController`, `InventoryPurchase`, `Roles`, `Items`, `Loan`, `Customers`, `SimAssignFieldAssignment`, `UserTableSettings`, `FuelData`, `salik`, `Receipt`, `Company`, `EmployeeDocumentType`, `EmployeeCategory`, `PassportHandoverHistory`, `BikeCategory`, `BikeCustomField`, `DeleteRequestService`, `Cheques`, `RiderTopCategory`, `UserController`, `ModuleTopBarSettingsService`, `BikeFieldCategoryAssignment`, `ChequesSettingsController`, `RiderCustomField`, `VoucherSettingsController`, `ChequeCustomField`, `.index`, `ChequeCategory`, `LeasingCompanyInvoicesRepository`, `RiderFieldCategoryAssignment`, `CustomerInvoiceItem`, `InventoryAdjustmentController`, `SimHistory`, `AgreementCategory`, `BikeAssignFieldAssignment`, `ModuleSettingCategory`, `ChequeFieldCategoryAssignment`, `RiderCategory`, `EmployeeTopOption`, `DeletionCascade`, `ChequeDocumentType`, `riderhiringController`, `ChequeTopCategory`, `UserNotification`, `PolicyPage`, `BikeTopOption`?**
+- **Why does `BaseModel` connect `BaseModel` to `Illuminate\Database\Eloquent\Model`, `BikeSettingsController`, `Bikes`, `RidersController.php`, `RiderInvoices`, `EmployeeSettingsController`, `GlobalAccounts`, `LeasingCompaniesController`, `Transactions`, `Vouchers`, `Employee`, `LoansController`, `BikeMaintenance`, `Supplier`, `AssetCategory`, `Banks`, `LegalCaseController`, `Riders`, `ExpenseAccount`, `FixedAsset`, `DeleteRequest`, `AgreementTemplate`, `BikeRegistrationController`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `user_can`, `ModuleFieldSource`, `RiderInvoiceTemplate`, `Attendance`, `ModuleSettingsController`, `static`, `HasActiveStatus.php`, `Controller`, `Branch`, `ActivityLogger`, `AdminPermission`, `GarageItem`, `RolePermissionController`, `ManagesVisaInstallments.php`, `SimCompany`, `Settings`, `Sims`, `EmployeeHistory`, `RiderActivityImportMappingService`, `Accounts`, `BikeRentCompany`, `EmailAccount`, `VatController`, `SalikController`, `LicenseexpenseController`, `RiderSettingsController`, `AccountsController`, `InventoryPurchase`, `Roles`, `Items`, `Loan`, `Customers`, `SimAssignFieldAssignment`, `UserTableSettings`, `FuelData`, `salik`, `Receipt`, `Company`, `EmployeeDocumentType`, `EmployeeCategory`, `PassportHandoverHistory`, `BikeCategory`, `BikeCustomField`, `DeleteRequestService`, `Cheques`, `RiderTopCategory`, `UserController`, `ModuleTopBarSettingsService`, `BikeFieldCategoryAssignment`, `ChequesSettingsController`, `RiderCustomField`, `VoucherSettingsController`, `ChequeCustomField`, `ChequeCategory`, `.index`, `LeasingCompanyInvoicesRepository`, `RiderFieldCategoryAssignment`, `CustomerInvoiceItem`, `InventoryAdjustmentController`, `SimHistory`, `AgreementCategory`, `ModuleSettingCategory`, `ChequeFieldCategoryAssignment`, `RiderCategory`, `BikeAssignFieldAssignment`, `EmployeeTopOption`, `ChequeDocumentType`, `DeletionCascade`, `riderhiringController`, `ChequeTopCategory`, `UserNotification`, `BelongsToCompany.php`, `PolicyPage`, `BikeTopOption`?**
   _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `Riders` connect `Riders` to `AgreementPdfService`, `Illuminate\Database\Eloquent\Model`, `GlobalPagination.php`, `Bikes`, `RidersController.php`, `.view`, `GlobalAccounts`, `Illuminate\Http\Request`, `LeasingCompaniesController`, `Transactions`, `Vouchers`, `SendWhatsAppNotificationJob.php`, `BikeAssignFieldAssignment`, `LegalCaseController`, `BaseModel`, `ExpenseAccount`, `.log`, `TopBarListingService`, `BikeRegistrationController`, `RiderInventoryAssignment`, `user_can`, `Attendance`, `static`, `FilesController`, `ImportBikes`, `ActiveStatusValidator`, `ManagesVisaInstallments.php`, `Sims`, `RTAFineImport`, `RiderActivityImportMappingService`, `Maatwebsite\Excel\Concerns\WithHeadings`, `LicenseexpenseController`, `ImportRiderActivities`, `SalikImport`, `.syncMonthlyInvoiceTransactions`, `Items`, `Illuminate\Validation\Rule`, `CompanyQuery`, `AgreementPlaceholderResolver`, `FuelData`, `RidersRepository`, `.getAttnActivity`, `PassportHandoverHistory`, `PublicStorageDisk`, `RiderTopCategory`, `.store`, `SimAssigneeContactSync`?**
+- **Why does `Riders` connect `Riders` to `AgreementPdfService`, `Illuminate\Database\Eloquent\Model`, `GlobalPagination.php`, `Bikes`, `RidersController.php`, `.view`, `RiderInvoices`, `GlobalAccounts`, `Illuminate\Http\Request`, `LeasingCompaniesController`, `Transactions`, `Vouchers`, `SendWhatsAppNotificationJob.php`, `LegalCaseController`, `BaseModel`, `ExpenseAccount`, `.log`, `TopBarListingService`, `BikeRegistrationController`, `Illuminate\Database\Eloquent\Relations\BelongsTo`, `Attendance`, `static`, `HasActiveStatus.php`, `BikeAssignFieldAssignment`, `FilesController`, `ImportBikes`, `ActiveStatusValidator`, `ManagesVisaInstallments.php`, `Sims`, `RiderActivityImportMappingService`, `RTAFineImport`, `Maatwebsite\Excel\Concerns\WithHeadings`, `LicenseexpenseController`, `ImportRiderActivities`, `SalikImport`, `.syncMonthlyInvoiceTransactions`, `Items`, `CompanyQuery`, `FuelData`, `RidersRepository`, `.getAttnActivity`, `PassportHandoverHistory`, `PublicStorageDisk`, `RiderTopCategory`, `.store`, `AgreementPlaceholderResolver`, `SimAssigneeContactSync`?**
   _High betweenness centrality (0.029) - this node is a cross-community bridge._
-- **Why does `User` connect `User` to `Illuminate\Database\Eloquent\Model`, `RidersController.php`, `.view`, `LeasingCompaniesController`, `Closure`, `Supplier`, `ExpenseAccount`, `TestCase`, `user_can`, `DashboardCardRegistry`, `static`, `UserEmailService`, `Branch`, `ActivityLogger`, `AdminPermission`, `CompanyContext`, `ManagesVisaInstallments.php`, `RoleFieldAccess`, `EmailAccount`, `UserNotification`, `EnsureCompanyAdministratorForSettings.php`, `UserDataTable`, `Illuminate\Validation\Rule`, `CompanyAuthController`, `FortifyServiceProvider.php`, `Company`, `DeleteRequestService`, `UserController`, `ActivityLogController`?**
+- **Why does `User` connect `User` to `Illuminate\Database\Eloquent\Model`, `RidersController.php`, `.view`, `LeasingCompaniesController`, `Closure`, `Supplier`, `ExpenseAccount`, `TestCase`, `user_can`, `DashboardCardRegistry`, `static`, `Branch`, `ActivityLogger`, `AdminPermission`, `CompanyContext`, `ManagesVisaInstallments.php`, `RoleFieldAccess`, `EmailAccount`, `UserNotification`, `UserDataTable`, `CompanyAuthController`, `BelongsToCompany.php`, `FortifyServiceProvider.php`, `Company`, `EnsureCompanyAdministratorForSettings.php`, `DeleteRequestService`, `UserController`, `ActivityLogController`?**
   _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **Are the 218 inferred relationships involving `user_can()` (e.g. with `.index()` and `.__construct()`) actually correct?**
   _`user_can()` has 218 INFERRED edges - model-reasoned connections that need verification._

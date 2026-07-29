@@ -79,3 +79,8 @@ yarn-error.log
 # Misc
 *.sql
 *.sqlite
+
+# Graphify — keep graph, skip local cache/cost/root
+/graphify-out/cache/
+/graphify-out/cost.json
+/graphify-out/.graphify_root

@@ -24,6 +24,7 @@ use App\Services\TransactionService;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Database\QueryException;
@@ -260,14 +261,14 @@ class RiderInvoicesController extends AppBaseController
             $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
         }
 
-        $pdf = \PDF::loadView('rider_invoices.pdf', array_merge(
+        $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
             app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
             [
                 'riderInvoice' => $riderInvoice,
                 'activeTemplate' => $activeTemplate,
                 'templateView' => $templateView,
             ]
-        ));
+        ))->setPaper('a4', 'portrait');
 
         return $pdf->download('Rider-Invoice-' . $invoiceNumber . '.pdf');
     }
@@ -987,14 +988,14 @@ class RiderInvoicesController extends AppBaseController
                 $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
             }
 
-            $pdf = \PDF::loadView('rider_invoices.pdf', array_merge(
+            $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
                 app(RiderInvoiceViewDataBuilder::class)->build($invoice),
                 [
                     'riderInvoice' => $invoice,
                     'activeTemplate' => $activeTemplate,
                     'templateView' => $templateView,
                 ]
-            ));
+            ))->setPaper('a4', 'portrait');
 
             $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
                 $message->to([$toEmail]);

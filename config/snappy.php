@@ -1,5 +1,29 @@
 <?php
 
+/**
+ * Resolve a wkhtmltopdf/wkhtmltoimage binary path.
+ *
+ * The path is handed to a shell, so anything containing spaces (such as the
+ * default Windows "C:\Program Files\..." location) has to be quoted or the
+ * shell splits it into separate arguments. Falls back to the binary name and
+ * lets the system PATH resolve it.
+ */
+$wkhtmlBinary = static function (string $envKey, string $name): string {
+    $binary = env($envKey);
+
+    if (! is_string($binary) || trim($binary) === '') {
+        return PHP_OS_FAMILY === 'Windows' ? $name.'.exe' : $name;
+    }
+
+    $binary = trim($binary);
+
+    if (str_contains($binary, ' ') && ! str_starts_with($binary, '"')) {
+        return '"'.$binary.'"';
+    }
+
+    return $binary;
+};
+
 return [
 
     /*
@@ -35,7 +59,7 @@ return [
 
     'pdf' => [
         'enabled' => true,
-        'binary'  => env('WKHTML_PDF_BINARY', 'C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf'),
+        'binary'  => $wkhtmlBinary('WKHTML_PDF_BINARY', 'wkhtmltopdf'),
         'timeout' => false,
         'options' => [],
         'env'     => [],
@@ -43,7 +67,7 @@ return [
 
     'image' => [
         'enabled' => true,
-        'binary'  => env('WKHTML_IMG_BINARY', '/usr/local/bin/wkhtmltoimage'),
+        'binary'  => $wkhtmlBinary('WKHTML_IMG_BINARY', 'wkhtmltoimage'),
         'timeout' => false,
         'options' => [],
         'env'     => [],

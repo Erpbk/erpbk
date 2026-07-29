@@ -1,0 +1,47 @@
+# Dependencies
+vendor/
+vendor1/
+node_modules/
+**/node_modules/
+app/node_modules/
+
+# Laravel runtime / generated
+storage/
+bootstrap/cache/
+public/hot
+public/storage
+public/build/
+
+# Theme / third-party frontend assets (noise for code graph)
+public/assets/
+public/css/
+public/js/
+public/vendor/
+
+# Docker / local tooling
+docker/
+app/docker/
+
+# Graphify own output
+graphify-out/
+
+# Caches, logs, dumps
+*.log
+*.sql
+*.sqlite
+.phpunit.result.cache
+.coverage/
+*.zip
+*.tar.gz
+*.rar
+
+# Minified / generated front-end
+*.min.js
+*.min.css
+*.map
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

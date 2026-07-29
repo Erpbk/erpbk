@@ -70,31 +70,108 @@
 
         <!-- Payee Account (Debit) -->
         <div class="form-group col-md-3">
-            {!! Form::label('account_id', 'Receiving Account:') !!}
-            @if(isset($leasingCompany))
-                {!! Form::hidden('payee_account_id', $leasingCompany->account_id)!!}
-                {!! Form::text('leasing-company-name', $leasingCompany->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
-            @elseif(isset($customer))
-                {!! Form::hidden('payee_account_id', $customer->account_id)!!}
-                {!! Form::text('customer-name', $customer->name ?? '-', ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+            @php
+                $payeeFieldLabel = match ($invoiceType ?? null) {
+                    'employee' => 'Payee (Employee):',
+                    'rider' => 'Payee (Rider):',
+                    'sim' => 'Payee (Vendor):',
+                    'supplier' => 'Payee (Supplier):',
+                    'leasingCompany' => 'Payee (Leasing Company):',
+                    'customer' => 'Payee (Customer):',
+                    default => 'Receiving Account:',
+                };
+                $selectedPayeeId = old('payee_account_id', isset($payment) ? $payment->payee_account_id : '');
+                $payeeOptions = collect($payeeOptions ?? []);
+                $lockedPayee = $lockedPayee ?? null;
+
+                // Backward-compatible fallbacks from older controller variables
+                if (!$lockedPayee && !empty($leasingCompany) && !empty($leasingCompany->account_id)) {
+                    $lockedPayee = [
+                        'account_id' => $leasingCompany->account_id,
+                        'entity_id' => $leasingCompany->id,
+                        'name' => $leasingCompany->name ?: '-',
+                        'account_code' => optional($leasingCompany->account)->account_code,
+                        'label' => trim((optional($leasingCompany->account)->account_code ? optional($leasingCompany->account)->account_code . ' - ' : '') . ($leasingCompany->name ?: '-')),
+                    ];
+                }
+                if (!$lockedPayee && !empty($customer) && !empty($customer->account_id)) {
+                    $lockedPayee = [
+                        'account_id' => $customer->account_id,
+                        'entity_id' => $customer->id,
+                        'name' => $customer->name ?: '-',
+                        'account_code' => optional($customer->account)->account_code,
+                        'label' => trim((optional($customer->account)->account_code ? optional($customer->account)->account_code . ' - ' : '') . ($customer->name ?: '-')),
+                    ];
+                }
+
+                if (!$selectedPayeeId && $lockedPayee) {
+                    $selectedPayeeId = $lockedPayee['account_id'] ?? null;
+                }
+                if (!$selectedPayeeId && $payeeOptions->count() === 1) {
+                    $selectedPayeeId = $payeeOptions->first()['account_id'] ?? null;
+                }
+            @endphp
+            {!! Form::label('account_id', $payeeFieldLabel) !!}
+            @if(!empty($lockedPayee))
+                {!! Form::hidden('payee_account_id', $lockedPayee['account_id'], [
+                    'data-customer-id' => $lockedPayee['entity_id'] ?? '',
+                    'data-customer-name' => $lockedPayee['name'] ?? '',
+                ]) !!}
+                {!! Form::text('payee-name', $lockedPayee['label'] ?? ($lockedPayee['name'] ?? '-'), ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+            @elseif($payeeOptions->isNotEmpty())
+                <select name="payee_account_id" class="form-control select2" required>
+                    <option value="">-- Select Payee --</option>
+                    @foreach($payeeOptions as $payee)
+                        <option data-customerId="{{ $payee['entity_id'] }}"
+                                data-customerName="{{ $payee['name'] }}"
+                                value="{{ $payee['account_id'] }}"
+                                {{ (string) $selectedPayeeId === (string) $payee['account_id'] ? 'selected' : '' }}>
+                            {{ $payee['label'] ?? $payee['name'] }}
+                        </option>
+                    @endforeach
+                </select>
             @elseif(isset($accountIds))
-                <select name="payee_account_id" class="form-control" required>
+                @php
+                    $payeesForSelect = \App\Models\Accounts::withoutGlobalScope('branch')
+                        ->whereIn('id', array_filter((array) $accountIds))
+                        ->orderBy('name')
+                        ->get();
+                    if ($selectedPayeeId && !$payeesForSelect->contains('id', (int) $selectedPayeeId)) {
+                        $currentPayee = \App\Models\Accounts::withoutGlobalScope('branch')->find($selectedPayeeId);
+                        if ($currentPayee) {
+                            $payeesForSelect = $payeesForSelect->prepend($currentPayee);
+                        }
+                    }
+                @endphp
+                <select name="payee_account_id" class="form-control select2" required>
                     <option value="">-- Select Receiving Account --</option>
-                    @foreach(\App\Models\Accounts::whereIn('id', $accountIds)->get() as $payee)
+                    @foreach($payeesForSelect as $payee)
                         <option data-customerId="{{ $payee->ref_id }}"
                                 data-customerName="{{ $payee->name }}"
                                 value="{{ $payee->id }}"
-                                {{ old('payee_account_id', isset($payment) ? $payment->payee_account_id : '') == $payee->id ? 'selected' : '' }}>
-                            {{ $payee->account_code }} - {{ $payee->name }}
+                                {{ (string) $selectedPayeeId === (string) $payee->id ? 'selected' : '' }}>
+                            {{ trim(($payee->account_code ? $payee->account_code . ' - ' : '') . ($payee->name ?: '-')) }}
                         </option>
                     @endforeach
                 </select>
             @else
+                @php
+                    $payeesForSelect = \App\Models\Accounts::active()->orderBy('name')->get();
+                    if ($selectedPayeeId && !$payeesForSelect->contains('id', (int) $selectedPayeeId)) {
+                        $currentPayee = \App\Models\Accounts::withoutGlobalScope('branch')->find($selectedPayeeId);
+                        if ($currentPayee) {
+                            $payeesForSelect = $payeesForSelect->prepend($currentPayee);
+                        }
+                    }
+                @endphp
                 <select name="payee_account_id" class="form-control select2" required>
                     <option value="">-- Select Receiving Account --</option>
-                    @foreach(\App\Models\Accounts::active()->get() as $payee)
-                        <option value="{{ $payee->id }}" {{ old('payee_account_id', isset($payment) ? $payment->payee_account_id : '') == $payee->id ? 'selected' : '' }}>
-                            {{ $payee->account_code.'-'.$payee->name }}
+                    @foreach($payeesForSelect as $payee)
+                        <option data-customerId="{{ $payee->ref_id }}"
+                                data-customerName="{{ $payee->name }}"
+                                value="{{ $payee->id }}"
+                                {{ (string) $selectedPayeeId === (string) $payee->id ? 'selected' : '' }}>
+                            {{ trim(($payee->account_code ? $payee->account_code . ' - ' : '') . ($payee->name ?: '-')) }}
                         </option>
                     @endforeach
                 </select>

@@ -174,7 +174,6 @@ $items = \App\Models\Items::dropdown('customer');
                 {!! Form::number('item_rate[]', 0, [
                 'class' => 'form-control rate',
                 'step' => 'any',
-                'min' => '0',
                 'required' => true
                 ]) !!}
             </div>

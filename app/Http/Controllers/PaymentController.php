@@ -77,11 +77,14 @@ class PaymentController extends Controller
         $customerId = request()->input('customer_id') ?? null;
         $supplierId = request()->input('supplier_id') ?? null;
         $payment = null;
-        $accountds = null;
+        $accountIds = null;
         $leasingIds = null;
         $supplierIds = null;
         $invoiceType = null;
         $existingInvoices = null;
+        $invoices = null;
+        $payeeOptions = collect();
+        $lockedPayee = null;
         $employeePayment = request()->input('employee_payment') || request()->input('invoice_type') == 'employee';
         $riderPayment = request()->input('rider_payment') || request()->input('invoice_type') == 'rider';
         $simPayment = request()->input('sim_payment') || request()->input('invoice_type') == 'sim';
@@ -95,7 +98,7 @@ class PaymentController extends Controller
             $accountIds = Supplier::pluck('account_id')->toArray();
         }
         if ($leasingCompanyId) {
-            $invoices = LeasingCompanyInvoice::with('leasingCompany')
+            $invoices = LeasingCompanyInvoice::with('leasingCompany.account')
                 ->where('leasing_company_id', $leasingCompanyId)
                 ->where(function ($q) {
                     $q->where('status', 0)
@@ -104,7 +107,7 @@ class PaymentController extends Controller
                 ->get();
             $accountIds = LeasingCompanies::where('id', $leasingCompanyId)->pluck('account_id')->toArray();
         } elseif ($leasingIds) {
-            $invoices = LeasingCompanyInvoice::with('leasingCompany')
+            $invoices = LeasingCompanyInvoice::with('leasingCompany.account')
                 ->whereIn('leasing_company_id', $leasingIds)
                 ->where(function ($q) {
                     $q->where('status', 0)
@@ -112,7 +115,7 @@ class PaymentController extends Controller
                 })
                 ->get();
         } elseif ($supplierId) {
-            $invoices = SupplierInvoices::with('supplier')
+            $invoices = SupplierInvoices::with('supplier.account')
                 ->where('is_invoice', true)
                 ->where('supplier_id', $supplierId)
                 ->where(function ($q) {
@@ -122,7 +125,7 @@ class PaymentController extends Controller
                 ->get();
             $accountIds = Supplier::where('id', $supplierId)->pluck('account_id')->toArray();
         } elseif ($supplierIds) {
-            $invoices = SupplierInvoices::with('supplier')
+            $invoices = SupplierInvoices::with('supplier.account')
                 ->where('is_invoice', true)
                 ->whereIn('supplier_id', $supplierIds)
                 ->where(function ($q) {
@@ -134,33 +137,32 @@ class PaymentController extends Controller
             $invoiceType = 'employee';
             $selectedInvoice = null;
             if (request()->input('invoice_id')) {
-                $selectedInvoice = EmployeeInvoices::with('employee')->find(request()->input('invoice_id'));
+                $selectedInvoice = EmployeeInvoices::with('employee.account')->find(request()->input('invoice_id'));
             }
             if ($selectedInvoice) {
-                $invoices = EmployeeInvoices::with('employee')
+                $invoices = EmployeeInvoices::with('employee.account')
                     ->where('employee_id', $selectedInvoice->employee_id)
                     ->where('status', '!=', 1)
                     ->get();
             } else {
-                $invoices = EmployeeInvoices::with('employee')
+                $invoices = EmployeeInvoices::with('employee.account')
                     ->where('status', '!=', 1)
                     ->get();
             }
-            $accountIds = [];
-            foreach ($invoices as $invoice) {
-                if ($invoice->employee && $invoice->employee->account_id) {
-                    $accountIds[] = $invoice->employee->account_id;
-                }
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'employee');
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            if ($selectedInvoice && $selectedInvoice->employee) {
+                $lockedPayee = $this->makePayeeOption($selectedInvoice->employee);
+            } elseif ($payeeOptions->count() === 1) {
+                $lockedPayee = $payeeOptions->first();
             }
-            $accountIds = array_values(array_unique($accountIds));
         } elseif ($riderPayment) {
             $invoiceType = 'rider';
             $selectedInvoice = null;
-            $accountIds = [];
             if (request()->input('invoice_id')) {
-                $selectedInvoice = RiderInvoices::with('rider')->find(request()->input('invoice_id'));
+                $selectedInvoice = RiderInvoices::with('rider.account')->find(request()->input('invoice_id'));
             }
-            $invoiceQuery = RiderInvoices::with('rider')
+            $invoiceQuery = RiderInvoices::with('rider.account')
                 ->payable()
                 ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'));
             if ($riderId) {
@@ -169,79 +171,106 @@ class PaymentController extends Controller
                 $invoiceQuery->where('rider_id', $selectedInvoice->rider_id);
             }
             $invoices = $invoiceQuery->orderBy('billing_month', 'desc')->get();
-            foreach ($invoices as $invoice) {
-                if ($invoice->rider && $invoice->rider->account_id) {
-                    $accountIds[] = $invoice->rider->account_id;
-                }
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'rider');
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            if ($riderId) {
+                $lockedPayee = $this->makePayeeOption(Riders::with('account')->find($riderId));
+            } elseif ($selectedInvoice && $selectedInvoice->rider) {
+                $lockedPayee = $this->makePayeeOption($selectedInvoice->rider);
+            } elseif ($payeeOptions->count() === 1) {
+                $lockedPayee = $payeeOptions->first();
             }
-            $accountIds = array_values(array_unique($accountIds));
         } elseif ($simPayment) {
             $invoiceType = 'sim';
             $selectedInvoice = null;
             if (request()->input('invoice_id')) {
-                $selectedInvoice = SimInvoice::with('vendor')->find(request()->input('invoice_id'));
+                $selectedInvoice = SimInvoice::with('vendor.account')->find(request()->input('invoice_id'));
             }
             if ($selectedInvoice) {
-                $invoices = SimInvoice::with('vendor')
+                $invoices = SimInvoice::with('vendor.account')
                     ->where('vendor_id', $selectedInvoice->vendor_id)
                     ->where('status', '!=', 1)
                     ->get();
             } else {
-                $invoices = SimInvoice::with('vendor')
+                $invoices = SimInvoice::with('vendor.account')
                     ->where('status', '!=', 1)
                     ->whereHas('vendor', fn ($q) => $q->whereNotNull('account_id'))
                     ->orderBy('billing_month', 'desc')
                     ->get();
             }
-            $accountIds = [];
-            foreach ($invoices as $invoice) {
-                if ($invoice->vendor && $invoice->vendor->account_id) {
-                    $accountIds[] = $invoice->vendor->account_id;
-                }
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'sim');
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            if ($selectedInvoice && $selectedInvoice->vendor) {
+                $lockedPayee = $this->makePayeeOption($selectedInvoice->vendor);
+            } elseif ($payeeOptions->count() === 1) {
+                $lockedPayee = $payeeOptions->first();
             }
-            $accountIds = array_values(array_unique($accountIds));
-        } else {
-            $invoices = null;
         }
+
+        $banks = Banks::with('account')->active()->get();
+
         if ($accountId) {
             $bank = Banks::with('account')->find($accountId);
-            $banks = Banks::with('account')->active()->get();
 
-            return view('payments.create', compact('bank', 'banks', 'payment'));
-        } elseif ($leasingCompanyId || $leasingIds) {
-            $leasingCompany = LeasingCompanies::find($leasingCompanyId ?? 0);
-            $banks = Banks::with('account')->active()->get();
-            $invoiceType = 'leasingCompany';
-
-            return view('payments.create', compact('leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType'));
-        } elseif ($supplierId || $supplierIds) {
-            $leasingCompany = Supplier::find($supplierId ?? 0);
-            $banks = Banks::with('account')->active()->get();
-            $invoiceType = 'supplier';
-
-            return view('payments.create', compact('leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType'));
-        } elseif ($employeePayment) {
-            $banks = Banks::with('account')->active()->get();
-
-            return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
-        } elseif ($riderPayment) {
-            $banks = Banks::with('account')->active()->get();
-
-            return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
-        } elseif ($simPayment) {
-            $banks = Banks::with('account')->active()->get();
-
-            return view('payments.create', compact('banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices'));
-        } elseif ($customerId) {
-            $customer = Customers::find($customerId);
-            $banks = Banks::with('account')->active()->get();
-
-            return view('payments.create', compact('customer', 'banks', 'payment'));
-        } else {
-            $banks = Banks::with('account')->active()->get();
-
-            return view('payments.create', compact('banks', 'payment'));
+            return view('payments.create', compact('bank', 'banks', 'payment', 'payeeOptions', 'lockedPayee'));
         }
+
+        if ($leasingCompanyId || $leasingIds) {
+            $invoiceType = 'leasingCompany';
+            $leasingCompany = LeasingCompanies::with('account')->find($leasingCompanyId);
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'leasingCompany');
+            if ($payeeOptions->isEmpty() && $leasingIds) {
+                $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                    LeasingCompanies::with('account')->whereIn('id', $leasingIds)->get()
+                );
+            }
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $leasingCompany ? $this->makePayeeOption($leasingCompany) : null;
+            if (!$lockedPayee && $payeeOptions->count() === 1) {
+                $lockedPayee = $payeeOptions->first();
+            }
+
+            return view('payments.create', compact(
+                'leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'payeeOptions', 'lockedPayee'
+            ));
+        }
+
+        if ($supplierId || $supplierIds) {
+            $invoiceType = 'supplier';
+            $supplier = Supplier::with('account')->find($supplierId);
+            $leasingCompany = $supplier; // backward-compatible with existing view checks
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'supplier');
+            if ($payeeOptions->isEmpty() && $supplierIds) {
+                $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                    Supplier::with('account')->whereIn('id', $supplierIds)->get()
+                );
+            }
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $supplier ? $this->makePayeeOption($supplier) : null;
+            if (!$lockedPayee && $payeeOptions->count() === 1) {
+                $lockedPayee = $payeeOptions->first();
+            }
+
+            return view('payments.create', compact(
+                'leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'payeeOptions', 'lockedPayee'
+            ));
+        }
+
+        if ($employeePayment || $riderPayment || $simPayment) {
+            return view('payments.create', compact(
+                'banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices', 'payeeOptions', 'lockedPayee'
+            ));
+        }
+
+        if ($customerId) {
+            $customer = Customers::with('account')->find($customerId);
+            $lockedPayee = $this->makePayeeOption($customer);
+            $invoiceType = 'customer';
+
+            return view('payments.create', compact('customer', 'banks', 'payment', 'payeeOptions', 'lockedPayee', 'invoiceType'));
+        }
+
+        return view('payments.create', compact('banks', 'payment', 'payeeOptions', 'lockedPayee'));
     }
 
     public function store(Request $request)
@@ -573,6 +602,9 @@ class PaymentController extends Controller
         $existingInvoices = null;
         $accountIds = null;
         $invoiceType = null;
+        $payeeOptions = collect();
+        $lockedPayee = null;
+
         if ((str_contains($payment->reference, 'LCI'))) {
             $invoice_numbers = explode(' ', $payment->reference);
             $invoiceIds = [];
@@ -582,18 +614,24 @@ class PaymentController extends Controller
                     $invoiceIds[] = $invoiceId;
                 }
             }
-            $existingInvoices = LeasingCompanyInvoice::with('leasingCompany')
+            $existingInvoices = LeasingCompanyInvoice::with('leasingCompany.account')
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = LeasingCompanyInvoice::with('leasingCompany')
+            $invoices = LeasingCompanyInvoice::with('leasingCompany.account')
                 ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
                 ->where(function ($query) use ($invoiceIds) {
                     $query->whereIn('status', [0, 3])
                         ->WhereNotIn('id', $invoiceIds);
                 })
                 ->get();
-            $accountIds = $existingInvoices->pluck('leasingCompany.account_id')->toArray();
             $invoiceType = 'leasingCompany';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'leasingCompany'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
         }
         if ((str_contains($payment->reference, 'SUP'))) {
             $invoice_numbers = explode(' ', $payment->reference);
@@ -604,11 +642,11 @@ class PaymentController extends Controller
                     $invoiceIds[] = $invoiceId;
                 }
             }
-            $existingInvoices = SupplierInvoices::with('supplier')
+            $existingInvoices = SupplierInvoices::with('supplier.account')
                 ->where('is_invoice', true)
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = SupplierInvoices::with('supplier')
+            $invoices = SupplierInvoices::with('supplier.account')
                 ->where('is_invoice', true)
                 ->whereIn('supplier_id', $existingInvoices->pluck('supplier_id'))
                 ->where(function ($query) use ($invoiceIds) {
@@ -616,8 +654,14 @@ class PaymentController extends Controller
                         ->WhereNotIn('id', $invoiceIds);
                 })
                 ->get();
-            $accountIds = $existingInvoices->pluck('supplier.account_id')->toArray();
             $invoiceType = 'supplier';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'supplier'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
         }
         if ((str_contains($payment->reference, 'EMP_INV'))) {
             $invoice_numbers = explode(' ', $payment->reference);
@@ -636,8 +680,14 @@ class PaymentController extends Controller
                 ->where('status', '!=', 1)
                 ->whereNotIn('id', $invoiceIds)
                 ->get();
-            $accountIds = $existingInvoices->pluck('employee.account_id')->toArray();
             $invoiceType = 'employee';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'employee'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
         }
         if ((str_contains($payment->reference, 'SIMI'))) {
             $invoice_numbers = explode(' ', $payment->reference);
@@ -648,21 +698,60 @@ class PaymentController extends Controller
                     $invoiceIds[] = $invoiceId;
                 }
             }
-            $existingInvoices = SimInvoice::with('vendor')
+            $existingInvoices = SimInvoice::with('vendor.account')
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = SimInvoice::with('vendor')
+            $invoices = SimInvoice::with('vendor.account')
                 ->whereIn('vendor_id', $existingInvoices->pluck('vendor_id'))
                 ->where('status', '!=', 1)
                 ->whereNotIn('id', $invoiceIds)
                 ->get();
-            $accountIds = $existingInvoices->pluck('vendor.account_id')->toArray();
             $invoiceType = 'sim';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'sim'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
         }
+        if ((str_contains($payment->reference, 'RINV'))) {
+            $invoice_numbers = explode(' ', $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                if (preg_match('/RINV-?0*(\d+)/i', $invoice_number, $matches)) {
+                    $invoiceIds[] = (int) $matches[1];
+                }
+            }
+            $existingInvoices = RiderInvoices::with('rider.account')
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = RiderInvoices::with('rider.account')
+                ->whereIn('rider_id', $existingInvoices->pluck('rider_id'))
+                ->payable()
+                ->whereNotIn('id', $invoiceIds)
+                ->get();
+            $invoiceType = 'rider';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'rider'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
+        }
+
+        // For module-linked payments, always surface the entity name for the saved payee.
+        if ($invoiceType && !$lockedPayee && $payment->payee_account_id) {
+            $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
+        }
+
         $banks = Banks::active()->get();
         $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
 
-        return view('payments.edit', compact('payment', 'banks', 'accountIds', 'existingInvoices', 'invoices', 'invoiceType'));
+        return view('payments.edit', compact(
+            'payment', 'banks', 'accountIds', 'existingInvoices', 'invoices', 'invoiceType', 'payeeOptions', 'lockedPayee'
+        ));
     }
 
     public function update(Request $request, $comapny_slug, $id)
@@ -1151,6 +1240,109 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Build unique payee options from invoice-linked module entities.
+     */
+    private function buildPayeeOptionsFromInvoices($invoices, string $invoiceType)
+    {
+        $entities = collect();
+        foreach (collect($invoices) as $invoice) {
+            $entity = match ($invoiceType) {
+                'leasingCompany' => $invoice->leasingCompany ?? null,
+                'supplier' => $invoice->supplier ?? null,
+                'employee' => $invoice->employee ?? null,
+                'rider' => $invoice->rider ?? null,
+                'sim' => $invoice->vendor ?? null,
+                'customer' => $invoice->customer ?? null,
+                default => null,
+            };
+            if ($entity) {
+                $entities->push($entity);
+            }
+        }
+
+        return $this->buildPayeeOptionsFromEntities($entities);
+    }
+
+    /**
+     * Build unique payee options from a collection of entities (rider/employee/etc).
+     */
+    private function buildPayeeOptionsFromEntities($entities)
+    {
+        $options = collect();
+        foreach (collect($entities) as $entity) {
+            $option = $this->makePayeeOption($entity);
+            if ($option) {
+                $options->put((int) $option['account_id'], $option);
+            }
+        }
+
+        return $options->values()->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+    }
+
+    /**
+     * Normalize a module entity into a payee option array.
+     */
+    private function makePayeeOption($entity): ?array
+    {
+        if (!$entity || empty($entity->account_id)) {
+            return null;
+        }
+
+        $account = null;
+        if (method_exists($entity, 'relationLoaded') && $entity->relationLoaded('account')) {
+            $account = $entity->getRelation('account');
+        }
+        if (!$account) {
+            $account = Accounts::withoutGlobalScope('branch')->find($entity->account_id);
+        }
+
+        $name = $entity->name ?: ($account->name ?? null);
+        if (!$name && $account && $account->ref_name && $account->ref_id) {
+            $ref = \App\Helpers\Accounts::getRef([
+                'ref_name' => $account->ref_name,
+                'ref_id' => $account->ref_id,
+            ]);
+            $name = $ref->name ?? null;
+        }
+
+        return [
+            'account_id' => (int) $entity->account_id,
+            'entity_id' => (int) $entity->id,
+            'name' => $name ?: '-',
+            'account_code' => $account->account_code ?? '',
+            'label' => trim(($account->account_code ? $account->account_code . ' - ' : '') . ($name ?: '-')),
+        ];
+    }
+
+    /**
+     * Resolve payee display from a chart-of-accounts id (fallback).
+     */
+    private function makePayeeOptionFromAccountId($accountId): ?array
+    {
+        $account = Accounts::withoutGlobalScope('branch')->find($accountId);
+        if (!$account) {
+            return null;
+        }
+
+        $name = $account->name;
+        if ((!$name || is_numeric($name)) && $account->ref_name && $account->ref_id) {
+            $ref = \App\Helpers\Accounts::getRef([
+                'ref_name' => $account->ref_name,
+                'ref_id' => $account->ref_id,
+            ]);
+            $name = $ref->name ?? $name;
+        }
+
+        return [
+            'account_id' => (int) $account->id,
+            'entity_id' => (int) ($account->ref_id ?? 0),
+            'name' => $name ?: '-',
+            'account_code' => $account->account_code ?? '',
+            'label' => trim(($account->account_code ? $account->account_code . ' - ' : '') . ($name ?: '-')),
+        ];
+    }
+
     public function clone($comapny_slug, $id)
     {
 
@@ -1167,7 +1359,9 @@ class PaymentController extends Controller
         $banks = Banks::active()->get();
         $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
         $payment->amount = $payment->amount - $payment->bank_charges;
+        $payeeOptions = collect();
+        $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
 
-        return view('payments.create', compact('payment', 'banks'));
+        return view('payments.create', compact('payment', 'banks', 'payeeOptions', 'lockedPayee'));
     }
 }

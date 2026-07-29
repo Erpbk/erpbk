@@ -140,7 +140,7 @@ class Employee extends BaseModel
 
     public function account()
     {
-        return $this->hasOne(Accounts::class, 'account_id');
+        return $this->belongsTo(Accounts::class, 'account_id');
     }
 
     public function creator()

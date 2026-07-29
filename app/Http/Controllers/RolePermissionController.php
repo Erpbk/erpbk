@@ -6,6 +6,7 @@ use App\Helpers\IConstants;
 use App\Models\RoleFieldPermission;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
+use App\Support\RoleFieldAccess;
 use App\Support\RoleModuleFieldResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -162,7 +163,7 @@ class RolePermissionController extends AppBaseController
      * returning each with its action => leaf id map. The module itself counts when it owns leaves directly.
      *
      * @param  Collection<int, Collection<int, Permission>>  $byParent
-     * @return list<array{id: int, name: string, is_root: bool, actions: array<string, int|null>}>
+     * @return list<array{id: int, name: string, permission: Permission, is_root: bool, actions: array<string, int|null>}>
      */
     private function submodulesFor(Collection $byParent, Permission $root): array
     {
@@ -193,6 +194,7 @@ class RolePermissionController extends AppBaseController
                 $out[] = [
                     'id' => (int) $node->id,
                     'name' => $node->name,
+                    'permission' => $node,
                     'is_root' => (int) $node->id === (int) $root->id,
                     'actions' => $actions,
                 ];
@@ -305,19 +307,24 @@ class RolePermissionController extends AppBaseController
                 $required = false;
             }
 
-            RoleFieldPermission::query()->updateOrCreate(
-                [
-                    'role_id' => (int) $role->id,
-                    'module_id' => $moduleId,
-                    'field_name' => $fieldName,
-                ],
-                [
-                    'company_id' => $companyId !== null ? (int) $companyId : null,
-                    'visible' => $visible,
-                    'editable' => $editable,
-                    'required' => $required,
-                ]
-            );
+            // role_field_permissions is unique on (role_id, module_id, field_name), so the
+            // existing row must be matched without the company scope: a row carrying a stale
+            // company_id would otherwise be invisible here and the insert would collide.
+            RoleFieldPermission::query()
+                ->withoutGlobalScope('company')
+                ->updateOrCreate(
+                    [
+                        'role_id' => (int) $role->id,
+                        'module_id' => $moduleId,
+                        'field_name' => $fieldName,
+                    ],
+                    [
+                        'company_id' => $companyId !== null ? (int) $companyId : null,
+                        'visible' => $visible,
+                        'editable' => $editable,
+                        'required' => $required,
+                    ]
+                );
         }
     }
 
@@ -365,7 +372,7 @@ class RolePermissionController extends AppBaseController
         $assigned = $role ? $this->assignedPermissionIds($role) : [];
 
         $savedFieldPerms = $role
-            ? RoleFieldPermission::query()->where('role_id', $role->id)->get()->groupBy('module_id')
+            ? RoleFieldPermission::query()->withoutGlobalScope('company')->where('role_id', $role->id)->get()->groupBy('module_id')
             : collect();
 
         $moduleRows = [];
@@ -377,6 +384,7 @@ class RolePermissionController extends AppBaseController
 
         foreach ($topModules as $module) {
             $subNodes = $this->submodulesFor($byParent, $module);
+            $moduleSlug = RoleModuleFieldResolver::slugForModule($module);
             $submodules = [];
             $modLeafTotal = 0;
             $modLeafEnabled = 0;
@@ -396,11 +404,29 @@ class RolePermissionController extends AppBaseController
                         $modLeafEnabled++;
                     }
                 }
+
+                // A sub-module backed by its own entity (e.g. Cheques under Cash & Banks) owns a
+                // separate field set, including its custom fields. Without its own row in this
+                // panel those fields can never be granted or hidden.
+                $ownFields = $node['is_root'] || ! $this->ownsEnforcedFieldSet($node, $moduleSlug)
+                    ? []
+                    : RoleModuleFieldResolver::fieldsForModule($node['permission']);
+
                 $submodules[] = [
+                    'id' => $node['id'],
                     'name' => $node['name'],
                     'is_root' => $node['is_root'],
                     'actions' => $actions,
+                    'has_fields' => $ownFields !== [],
+                    'field_count' => count($ownFields),
                 ];
+
+                if ($ownFields !== []) {
+                    [$subTotal, $subEnabled] = $this->fieldToggleCounts($ownFields, $savedFieldPerms->get($node['id']));
+                    $fieldTotal += $subTotal;
+                    $fieldEnabled += $subEnabled;
+                    $fieldStats[$node['id']] = ['total' => $subTotal, 'enabled' => $subEnabled];
+                }
             }
 
             $moduleTotal += $modLeafTotal;
@@ -409,18 +435,8 @@ class RolePermissionController extends AppBaseController
             $isFlat = count($submodules) === 1 && ($submodules[0]['is_root'] ?? false);
 
             $fields = RoleModuleFieldResolver::fieldsForModule($module);
-            $hasFields = $fields !== [];
 
-            $savedForModule = ($savedFieldPerms->get($module->id) ?? collect())->keyBy('field_name');
-            $mEnabled = 0;
-            $mTotal = count($fields) * 3;
-            foreach ($fields as $field) {
-                $saved = $savedForModule->get($field['name']);
-                $visible = $saved ? (bool) $saved->visible : true;
-                $editable = $saved ? (bool) $saved->editable : true;
-                $required = $saved ? (bool) $saved->required : false;
-                $mEnabled += ($visible ? 1 : 0) + ($editable ? 1 : 0) + ($required ? 1 : 0);
-            }
+            [$mTotal, $mEnabled] = $this->fieldToggleCounts($fields, $savedFieldPerms->get($module->id));
             $fieldTotal += $mTotal;
             $fieldEnabled += $mEnabled;
             $fieldStats[$module->id] = ['total' => $mTotal, 'enabled' => $mEnabled];
@@ -432,7 +448,7 @@ class RolePermissionController extends AppBaseController
                 'leaf_total' => $modLeafTotal,
                 'leaf_enabled' => $modLeafEnabled,
                 'submodules' => $submodules,
-                'has_fields' => $hasFields,
+                'has_fields' => $fields !== [],
                 'field_count' => count($fields),
             ];
         }
@@ -456,6 +472,49 @@ class RolePermissionController extends AppBaseController
     }
 
     /**
+     * Whether a sub-module deserves its own Field Permissions panel.
+     *
+     * Only entities the field system actually knows about qualify, and only when the runtime
+     * resolves that entity to this exact permission — otherwise the panel would offer toggles
+     * that are never consulted (most sub-modules simply reuse their parent's table).
+     *
+     * @param  array{id: int, permission: Permission}  $node
+     */
+    private function ownsEnforcedFieldSet(array $node, ?string $parentSlug): bool
+    {
+        $slug = RoleModuleFieldResolver::slugForModule($node['permission']);
+        if ($slug === null || $slug === $parentSlug || ! isset(RoleModuleFieldResolver::map()[$slug])) {
+            return false;
+        }
+
+        return RoleFieldAccess::moduleId($slug) === (int) $node['id'];
+    }
+
+    /**
+     * Count the field toggles shown for a module and how many are currently on.
+     * Unsaved fields default to visible + editable, matching {@see RoleFieldAccess}.
+     *
+     * @param  list<array{name: string}>  $fields
+     * @param  Collection<int, RoleFieldPermission>|null  $savedRows
+     * @return array{0: int, 1: int}
+     */
+    private function fieldToggleCounts(array $fields, ?Collection $savedRows): array
+    {
+        $saved = ($savedRows ?? collect())->keyBy('field_name');
+        $enabled = 0;
+
+        foreach ($fields as $field) {
+            $row = $saved->get($field['name']);
+            $visible = $row ? (bool) $row->visible : true;
+            $editable = $row ? (bool) $row->editable : true;
+            $required = $row ? (bool) $row->required : false;
+            $enabled += ($visible ? 1 : 0) + ($editable ? 1 : 0) + ($required ? 1 : 0);
+        }
+
+        return [count($fields) * 3, $enabled];
+    }
+
+    /**
      * Build the field-permissions HTML/JSON for a module (role optional = defaults).
      */
     private function moduleFieldsResponse($moduleId, ?int $roleId)
@@ -469,6 +528,7 @@ class RolePermissionController extends AppBaseController
         $saved = collect();
         if ($roleId !== null) {
             $saved = RoleFieldPermission::query()
+                ->withoutGlobalScope('company')
                 ->where('role_id', $roleId)
                 ->where('module_id', $module->id)
                 ->get()

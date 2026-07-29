@@ -1,5 +1,5 @@
 @php
-$fieldsByCategory = $fieldsByCategory ?? \App\Models\RiderCustomField::fieldsByCategoryForForm(true);
+$fieldsByCategory = $fieldsByCategory ?? \App\Models\RiderCustomField::fieldsByCategoryForForm();
 $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
 @endphp
 

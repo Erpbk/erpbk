@@ -175,7 +175,7 @@ class RoleModuleFieldResolver
 
         // 3) Custom fields stored in the generic module_custom_fields table (keyed by module_key).
         if (Schema::hasTable('module_custom_fields')) {
-            $moduleKeys = array_values(array_unique(array_filter([$tableModule, $slug])));
+            $moduleKeys = self::genericModuleKeys($tableModule, $slug);
             $generic = ModuleCustomField::query()
                 ->whereIn('module_key', $moduleKeys)
                 ->orderBy('display_order')
@@ -197,6 +197,24 @@ class RoleModuleFieldResolver
         }
 
         return $fields;
+    }
+
+    /**
+     * module_custom_fields.module_key holds the ERP module key used by the Settings screens
+     * ("items", "sims"), which is not always the permission slug or the ModuleFieldSource key
+     * ("item", "items_list"). Match on every equivalent spelling so custom fields created there
+     * are offered in the Field Permissions panel instead of silently staying unmanageable.
+     *
+     * @return list<string>
+     */
+    protected static function genericModuleKeys(string $tableModule, string $slug): array
+    {
+        $keys = [$tableModule, $slug, ModuleFieldSource::resolveSourceTable($tableModule)];
+
+        return array_values(array_unique(array_filter(array_map(
+            fn ($key) => $key === null ? null : ErpModuleRegistry::settingsFieldsModuleKey((string) $key),
+            $keys
+        ))));
     }
 
     /**

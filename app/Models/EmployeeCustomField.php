@@ -341,11 +341,12 @@ class EmployeeCustomField extends BaseModel
 
     /**
      * Build fields by category for the rider create/edit form: fixed fields (with display_label and order from assignments)
-     * plus optional custom fields per category. Each item: kind 'fixed'|'custom', and fixed has field_key, label, spec; custom has field (model).
+     * plus custom fields per category. Each item: kind 'fixed'|'custom', and fixed has field_key, label, spec; custom has field (model).
      *
-     * @param  bool  $includeCustomFields  When false (default), only schema-backed (fixed) fields are returned.
+     * Every configured custom field is returned; per-user visibility is decided by the renderer
+     * through Role Field Permissions, so filtering here would make granted fields unreachable.
      */
-    public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
+    public static function fieldsByCategoryForForm(): array
     {
         self::bootstrapFieldCategories();
 
@@ -397,13 +398,11 @@ class EmployeeCustomField extends BaseModel
                 ];
             }
 
-            if ($includeCustomFields) {
-                foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
-                    $fields[] = (object) [
-                        'kind' => 'custom',
-                        'field' => $cf,
-                    ];
-                }
+            foreach ($customFieldsAll->where('category_id', $cat->id)->values() as $cf) {
+                $fields[] = (object) [
+                    'kind' => 'custom',
+                    'field' => $cf,
+                ];
             }
 
             if ($fields === []) {

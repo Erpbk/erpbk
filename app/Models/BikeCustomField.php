@@ -470,9 +470,10 @@ class BikeCustomField extends BaseModel
      * Build fields grouped by category for the Bike create/edit form.
      * Returns items: kind=fixed|custom.
      *
-     * @param  bool  $includeCustomFields  When false (default), only schema-backed (fixed) fields are returned.
+     * Every configured custom field is returned; per-user visibility is decided by the renderer
+     * through Role Field Permissions, so filtering here would make granted fields unreachable.
      */
-    public static function fieldsByCategoryForForm(bool $includeCustomFields = false): array
+    public static function fieldsByCategoryForForm(): array
     {
         $categories = BikeCategory::orderBy('display_order')->orderBy('id')->get();
         $categoryIds = $categories->pluck('id')->all();
@@ -544,13 +545,11 @@ class BikeCustomField extends BaseModel
                 ];
             }
 
-            if ($includeCustomFields) {
-                foreach (($customFieldsAll[$cat->id] ?? collect()) as $cf) {
-                    $fields[] = (object) [
-                        'kind' => 'custom',
-                        'field' => $cf,
-                    ];
-                }
+            foreach (($customFieldsAll[$cat->id] ?? collect()) as $cf) {
+                $fields[] = (object) [
+                    'kind' => 'custom',
+                    'field' => $cf,
+                ];
             }
 
             if ($fields === []) {

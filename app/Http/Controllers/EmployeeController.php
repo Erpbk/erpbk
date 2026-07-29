@@ -46,9 +46,9 @@ class EmployeeController extends Controller
         $this->middleware('permission:employees_ledger_view')->only('ledger');
     }
 
-    private function employeeFieldsByCategory(bool $includeCustomFields = true): array
+    private function employeeFieldsByCategory(): array
     {
-        return EmployeeCustomField::fieldsByCategoryForForm($includeCustomFields);
+        return EmployeeCustomField::fieldsByCategoryForForm();
     }
 
     /**

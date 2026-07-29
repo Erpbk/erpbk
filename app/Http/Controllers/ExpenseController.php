@@ -205,13 +205,14 @@ class ExpenseController extends AppBaseController
     {
         $input = $request->except(['custom_field_values']);
         $input['account_type'] = 'Expense';
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
 
         $account = $this->accountsRepository->create($input);
         $account->account_code = $account->account_code ?: str_pad($account->id, 4, '0', STR_PAD_LEFT);
         $account->is_locked = 0;
         $account->save();
 
-        $this->saveCustomFieldValues($account, $request->input('custom_field_values', []));
+        $this->saveCustomFieldValues($account, $this->editableCustomFieldValues($request));
 
         return response()->json(['message' => 'Expense account added successfully.']);
     }
@@ -247,11 +248,13 @@ class ExpenseController extends AppBaseController
             return redirect()->route('expenses.index')->with('error', 'Account not found.');
         }
 
+        $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
         $input = $request->except(['custom_field_values']);
+        $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
         $accounts = $this->accountsRepository->update($input, $id);
 
         if ($accounts) {
-            $this->saveCustomFieldValues($accounts, $request->input('custom_field_values', []));
+            $this->saveCustomFieldValues($accounts, $this->editableCustomFieldValues($request, $existingCustom));
             $row = \App\Helpers\Accounts::getRef(['ref_name' => $accounts->ref_name, 'ref_id' => $accounts->ref_id]);
             if (isset($row)) {
                 $row->name = $accounts->name;
@@ -345,6 +348,24 @@ class ExpenseController extends AppBaseController
             return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
         }
         return app(AccountsController::class)->toggleStatus($request, $id);
+    }
+
+    /**
+     * Submitted custom field values reduced to the ones the current user may edit.
+     * Values of locked fields are kept as stored so an update never wipes them.
+     *
+     * @param  array<int|string, mixed>  $existing
+     * @return array<int|string, mixed>
+     */
+    private function editableCustomFieldValues(Request $request, array $existing = []): array
+    {
+        $stripped = \App\Support\RoleFieldAccess::stripNonEditableInput(
+            ['custom_field_values' => $request->input('custom_field_values', [])],
+            'account',
+            $existing
+        );
+
+        return $stripped['custom_field_values'] ?? [];
     }
 
     private function saveCustomFieldValues(Accounts $account, array $values): void

@@ -193,8 +193,18 @@ if ($isCreate) {
                                     <div class="rfp-col-act">Delete</div>
                                 </div>
                                 @foreach ($m['submodules'] as $sub)
-                                <div class="rfp-sub-row d-flex align-items-center px-3 py-2">
-                                    <div class="rfp-col-name ps-3 fw-medium">{{ $sub['name'] }}</div>
+                                <div class="rfp-sub-row d-flex align-items-center px-3 py-2 {{ $sub['has_fields'] ? 'rfp-selectable' : '' }}"
+                                    @if ($sub['has_fields']) data-module-id="{{ $sub['id'] }}" @endif>
+                                    <div class="rfp-col-name ps-3 fw-medium">
+                                        @if ($sub['has_fields'])
+                                        <button type="button" class="btn btn-link p-0 text-start text-decoration-none rfp-module-select fw-medium">
+                                            {{ $sub['name'] }}
+                                        </button>
+                                        <i class="ti ti-list-details text-muted ms-1" title="{{ $sub['field_count'] }} fields"></i>
+                                        @else
+                                        {{ $sub['name'] }}
+                                        @endif
+                                    </div>
                                     @foreach ($actions as $action)
                                     @php $act = $sub['actions'][$action] ?? null; @endphp
                                     <div class="rfp-col-act">
@@ -368,9 +378,15 @@ if ($isCreate) {
         font-weight: 700;
     }
 
-    .rfp-page .rfp-flat-row.active {
+    .rfp-page .rfp-flat-row.active,
+    .rfp-page .rfp-sub-row.active {
         background: rgba(105, 108, 255, .16);
         box-shadow: inset 4px 0 0 var(--bs-primary);
+    }
+
+    .rfp-page .rfp-sub-row.active .rfp-module-select {
+        color: var(--bs-primary);
+        font-weight: 700;
     }
 
     .rfp-page .rfp-flat-row.active .rfp-module-select {

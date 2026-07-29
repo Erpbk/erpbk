@@ -33,19 +33,3 @@ $isPaid = (int) $riderInvoice->status === 1;
         @endif
     </div>
 </div>
-
-@if(isset($templates) && $templates->count() > 0 && Route::has('riderInvoices.updateTemplate'))
-<div class="template-selector no-print">
-    <form method="POST" action="{{ route('riderInvoices.updateTemplate', ['company_slug' => $companySlug, 'id' => $riderInvoice->id]) }}" id="riderInvoiceTemplateForm" class="d-flex align-items-center gap-2 flex-wrap">
-        @csrf
-        <label for="template_id" class="mb-0 text-muted small fw-semibold">Invoice Template:</label>
-        <select name="template_id" id="template_id" class="form-select form-select-sm" style="width: auto; min-width: 200px;">
-            @foreach($templates as $tpl)
-            <option value="{{ $tpl->id }}" @selected((int) ($riderInvoice->template_id ?? ($activeTemplate->id ?? 0)) === (int) $tpl->id)>
-                {{ $tpl->template_name }}@if($tpl->is_default) (Default)@endif
-            </option>
-            @endforeach
-        </select>
-    </form>
-</div>
-@endif

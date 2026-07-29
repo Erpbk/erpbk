@@ -16,6 +16,7 @@ use App\Repositories\SupplierInvoicesRepository;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use DB;
 use Flash;
@@ -362,7 +363,8 @@ class SupplierInvoicesController extends AppBaseController
             ]);
 
             $res = SupplierInvoices::with(['supplierInv_item'])->where('id', $id)->get();
-            $pdf = \PDF::loadView('invoices.supplier_invoices.show', ['res' => $res]);
+            $pdf = Pdf::loadView('invoices.supplier_invoices.show', ['res' => $res])
+                ->setPaper('a4', 'portrait');
 
             Mail::send('emails.general', $data, function ($message) use ($request, $pdf) {
                 $message->to([$request->email_to]);

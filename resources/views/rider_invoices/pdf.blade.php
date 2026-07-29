@@ -17,6 +17,8 @@
         .sign-box span { display: block; margin-top: 8px; }
         .yellow { font-weight: bold; }
 
+        tr { page-break-inside: avoid; }
+
         /* Classic / brand defaults */
         th,
         .primary-header,

@@ -75,7 +75,7 @@ class ImportRiderVoucherOnly implements ToCollection
 
                 $accountId = $account->id;
                 $rider = Riders::where('rider_id', $riderExternalId)->first();
-                if (!$rider || !in_array($rider->branch_id, app('user_branches'))) {
+                if (!$rider) {
                     throw ValidationException::withMessages([
                         'file' => "Row({$rowNum}) - Rider ID {$riderExternalId} not found."
                     ]);

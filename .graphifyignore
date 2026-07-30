@@ -8,6 +8,7 @@ app/node_modules/
 # Laravel runtime / generated
 storage/
 bootstrap/cache/
+public/
 public/hot
 public/storage
 public/build/
@@ -24,6 +25,39 @@ app/docker/
 
 # Graphify own output
 graphify-out/
+
+# Schema / seed noise (not app logic)
+database/migrations/
+database/migrations_tenant/
+database/migrations_admin/
+database/seeders/
+database/factories/
+app/database/
+
+# Tests
+tests/
+
+# Separate mini-service
+whatsapp-service/
+
+# Docs / lockfile metadata / tooling config (explode into noisy nodes)
+*.md
+package.json
+package-lock.json
+composer.json
+composer.lock
+.prettierrc.json
+webpack.mix.js
+vite.config.js
+tailwind.config.js
+postcss.config.js
+phpunit.xml
+phpunit.xml.dist
+
+# Temp / scratch files
+tmp_*.php
+*_tmp.php
+*.tmp.php
 
 # Caches, logs, dumps
 *.log
@@ -45,3 +79,6 @@ graphify-out/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# NOTE: resources/views/ is intentionally kept so scripts/graphify-link-views.php
+# can attach controller view('…') calls to blade nodes via "renders" edges.

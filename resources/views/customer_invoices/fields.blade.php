@@ -35,6 +35,15 @@
         'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
         ]) !!}
         <small class="text-muted">Max: 5MB</small>
+        @if(!empty($invoice?->attachment))
+            <div class="mt-1">
+                <small class="text-muted">Current file:</small>
+                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="d-inline-block text-primary">
+                    <i class="fa fa-paperclip"></i> {{ basename($invoice->attachment) }}
+                </a>
+                <small class="text-muted d-block">Leave empty to keep the existing attachment.</small>
+            </div>
+        @endif
     </div>
 
     {{-- Period From --}}

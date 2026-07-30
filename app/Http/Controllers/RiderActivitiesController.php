@@ -321,7 +321,8 @@ class RiderActivitiesController extends AppBaseController
                 if ($status === 'active') {
                     $q->where('status', 1);
                 } elseif ($status === 'inactive') {
-                    $q->whereIn('status', [0, 2, 3]);
+                    $q->where('status', '!=', 1)
+                        ->whereNotIn('status', [4, 5]);
                 } elseif ($status === 'vacation') {
                     $q->where('status', 4);
                 } elseif ($status === 'absconded') {

@@ -116,19 +116,49 @@ class TopBarFilterService
 
         $table = $this->resolveSourceTable($config);
         $raw = $request->input($statusParam);
-        $keys = is_array($raw) ? $raw : [(string) $raw];
+        $keys = is_array($raw) ? $raw : [$raw];
+        $keys = array_values(array_filter(array_map(
+            static fn ($key) => is_string($key) || is_numeric($key) ? trim((string) $key) : '',
+            $keys
+        ), static fn ($key) => $key !== ''));
 
-        $query->where(function (Builder $q) use ($keys, $statusFilters, $table) {
-            foreach ($keys as $key) {
-                $rule = $statusFilters[(string) $key] ?? null;
-                if (!is_array($rule)) {
-                    continue;
-                }
-                $column = $this->qualifyColumn($table, (string) ($rule['column'] ?? 'status'));
-                $operator = strtolower((string) ($rule['operator'] ?? '='));
-                $value = $rule['value'] ?? null;
+        if ($keys === []) {
+            return;
+        }
 
-                if ($operator === 'in' && is_array($value)) {
+        $clauses = [];
+        foreach ($keys as $key) {
+            $rule = $statusFilters[(string) $key] ?? null;
+            if (!is_array($rule)) {
+                continue;
+            }
+
+            $column = $this->qualifyColumn($table, (string) ($rule['column'] ?? 'status'));
+            $operator = strtolower((string) ($rule['operator'] ?? '='));
+            $value = $rule['value'] ?? null;
+
+            if ($operator === 'in' && (!is_array($value) || $value === [])) {
+                continue;
+            }
+
+            $clauses[] = [
+                'column' => $column,
+                'operator' => $operator,
+                'value' => $value,
+            ];
+        }
+
+        if ($clauses === []) {
+            return;
+        }
+
+        $query->where(function (Builder $q) use ($clauses) {
+            foreach ($clauses as $clause) {
+                $column = $clause['column'];
+                $operator = $clause['operator'];
+                $value = $clause['value'];
+
+                if ($operator === 'in') {
                     $q->orWhereIn($column, $value);
                 } elseif ($operator === '!=') {
                     $q->orWhere($column, '!=', $value);
@@ -171,8 +201,10 @@ class TopBarFilterService
             $operator = strtolower((string) ($rule['operator'] ?? '='));
             $value = $rule['value'] ?? null;
 
-            if ($operator === 'in' && is_array($value)) {
-                $query->whereIn($column, $value);
+            if ($operator === 'in') {
+                if (is_array($value) && $value !== []) {
+                    $query->whereIn($column, $value);
+                }
             } elseif ($operator === '!=') {
                 $query->where($column, '!=', $value);
             } else {
@@ -461,6 +493,12 @@ class TopBarFilterService
         }
 
         if ($table !== null && TopBarNumericStatus::isNumericStatusColumn($table, $columnForSchema)) {
+            if (TopBarNumericStatus::isInactiveLabel($value)) {
+                $query->where($qualifiedColumn, '!=', 1);
+
+                return;
+            }
+
             $mapped = TopBarNumericStatus::valueForLabel($value);
             if ($mapped !== null) {
                 $query->where($qualifiedColumn, $mapped);

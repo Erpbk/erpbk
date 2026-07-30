@@ -189,6 +189,10 @@ class TopBarListingService
         }
 
         if (TopBarNumericStatus::isNumericStatusColumn('riders', $column)) {
+            if (TopBarNumericStatus::isInactiveLabel((string) $option->name)) {
+                return $base->where($column, '!=', 1);
+            }
+
             $mapped = TopBarNumericStatus::valueForLabel((string) $option->name);
             if ($mapped !== null) {
                 return $base->where($column, $mapped);
@@ -222,7 +226,7 @@ class TopBarListingService
         return [
             'active' => (int) (clone $base)->where('bikes.status', 1)->count(),
             'inactive' => (int) (clone $base)
-                ->whereIn('bikes.status', TopBarNumericStatus::INACTIVE_VALUES)
+                ->where('bikes.status', '!=', 1)
                 ->count(),
         ];
     }

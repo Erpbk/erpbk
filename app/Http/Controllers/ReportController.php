@@ -221,9 +221,10 @@ class ReportController extends Controller
     }
 
     if (!empty($accountIds)) {
+      // Rider accounts are liabilities: credit increases amount owed to rider.
       $previousBalances = Transactions::whereIn('account_id', $accountIds)
         ->whereDate('billing_month', '<', $fromMonth)
-        ->select('account_id', DB::raw('SUM(debit - credit) as balance'))
+        ->select('account_id', DB::raw('SUM(credit - debit) as balance'))
         ->groupBy('account_id')
         ->pluck('balance', 'account_id');
 
@@ -516,7 +517,7 @@ class ReportController extends Controller
     if (!empty($accountIds)) {
       $previous = (float) (Transactions::whereIn('account_id', $accountIds)
         ->whereDate('billing_month', '<', $fromMonth)
-        ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
+        ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')
         ->value('balance') ?? 0);
 
       $paid = (float) (\App\Models\Payment::whereIn('payee_account_id', $accountIds)
@@ -842,9 +843,10 @@ class ReportController extends Controller
 
     $previousBalance = 0.0;
     if ($riderModel->account_id) {
+      // Rider accounts are liabilities: credit increases amount owed to rider.
       $previousBalance = (float) Transactions::where('account_id', $riderModel->account_id)
         ->whereDate('billing_month', '<', $fromMonth)
-        ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
+        ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')
         ->value('balance');
     }
 

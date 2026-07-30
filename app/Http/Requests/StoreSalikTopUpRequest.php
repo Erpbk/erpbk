@@ -5,17 +5,19 @@ namespace App\Http\Requests;
 use App\Rules\ActiveBank;
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreFuelCompanyTopUpRequest extends FormRequest
+class StoreSalikTopUpRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return user_can('fuel_cards_companies_create') || user_can('fuel_cards_companies_edit');
+        $canManageSalik = user_can('rta_saliks_salik_create') || user_can('rta_saliks_salik_edit');
+        $canManagePayment = user_can('rta_saliks_payment_create') || user_can('rta_saliks_payment_edit');
+
+        return $canManageSalik || $canManagePayment;
     }
 
     public function rules(): array
     {
         return [
-            'fuel_company_id' => 'required|numeric|exists:fuel_companies,id',
             'bank_id' => ['required', 'numeric', 'exists:banks,id', new ActiveBank],
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
             'date_of_payment' => 'required|date',
@@ -30,7 +32,6 @@ class StoreFuelCompanyTopUpRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'fuel_company_id.required' => 'Please select a fuel company.',
             'bank_id.required' => 'Please select a bank account to credit.',
             'amount_type.required' => 'Payment mode is required.',
             'date_of_payment.required' => 'Payment date is required.',

@@ -32,7 +32,6 @@
         <div class="row mt-2">
             <div class="col-md-12">
                 <h6 class="bg-light p-2 mb-3 mb-0">Payment Voucher (PV)</h6>
-                <p class="small text-muted mb-3">Debit the fuel company wallet and credit the selected bank account.</p>
             </div>
         </div>
 

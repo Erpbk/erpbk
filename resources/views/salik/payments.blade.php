@@ -36,6 +36,17 @@
                                 </div>
                             </a>
                             @endcan
+                            @canany(['rta_saliks_payment_create', 'rta_saliks_salik_create', 'rta_saliks_payment_edit', 'rta_saliks_salik_edit'])
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);"
+                               data-size="lg" data-title="Salik Top-Up"
+                               data-action="{{ route('salik.topUp.create') }}">
+                                <i class="ti ti-wallet"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Top-Up</div>
+                                    <div class="action-dropdown-item-desc">Create a payment voucher to top up Salik wallet</div>
+                                </div>
+                            </a>
+                            @endcanany
                         </div>
                     </div>
                 </div>

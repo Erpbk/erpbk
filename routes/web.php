@@ -1038,6 +1038,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('salik/import/{salik_account_id}', [SalikController::class, 'importForm'])->name('salik.import.form.legacy');
     Route::post('salik/import', [SalikController::class, 'import'])->name('salik.import');
     Route::post('salik/test-import', [SalikController::class, 'testImport'])->name('salik.test.import');
+    Route::get('salik/top-up/create', [SalikController::class, 'createTopUp'])->name('salik.topUp.create');
+    Route::post('salik/top-up', [SalikController::class, 'storeTopUp'])->name('salik.topUp.store');
     Route::get('salik/payment', [SalikController::class, 'paymentForm'])->name('salik.payment');
     Route::post('salik/payment/records', [SalikController::class, 'getPaymentRecords'])->name('salik.payment.records');
     Route::post('salik/payment/calculate', [SalikController::class, 'calculatePaymentVoucher'])->name('salik.payment.calculate');

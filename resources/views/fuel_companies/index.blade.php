@@ -30,7 +30,7 @@
                                 </div>
                             </a>
                             @endcan
-                            @can('cash_&_banks_payments_create')
+                            @if(user_can('fuel_cards_companies_create') || user_can('fuel_cards_companies_edit'))
                             <a class="action-dropdown-item show-modal" href="javascript:void(0);"
                                data-size="lg" data-title="Fuel Company Top-Up"
                                data-action="{{ route('fuelCompanies.topUp.create') }}">
@@ -40,7 +40,7 @@
                                     <div class="action-dropdown-item-desc">Create a payment voucher to top up a fuel company</div>
                                 </div>
                             </a>
-                            @endcan
+                            @endif
                         </div>
                     </div>
                 </div>

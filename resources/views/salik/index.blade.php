@@ -45,6 +45,17 @@
                                 </div>
                             </a>
                             @endcan
+                            @if((user_can('rta_saliks_salik_create') || user_can('rta_saliks_salik_edit')) && (user_can('rta_saliks_payment_create') || user_can('rta_saliks_payment_edit')))
+                            <a class="action-dropdown-item show-modal" href="javascript:void(0);"
+                               data-size="lg" data-title="Salik Top-Up"
+                               data-action="{{ route('salik.topUp.create') }}">
+                                <i class="ti ti-wallet"></i>
+                                <div>
+                                    <div class="action-dropdown-item-text">Top-Up</div>
+                                    <div class="action-dropdown-item-desc">Create a payment voucher to top up Salik wallet</div>
+                                </div>
+                            </a>
+                            @endif
                             @can('rta_saliks_salik_create')
                             <a class="action-dropdown-item" href="{{ route('salik.import.form') }}">
                                 <i class="ti ti-file-upload"></i>

@@ -21,7 +21,10 @@ use App\Models\Transactions;
 use App\Models\salik;
 use App\Models\BikeHistory;
 use App\Models\FailedSalikImport;
+use App\Http\Requests\StoreSalikTopUpRequest;
+use App\Models\Banks;
 use App\Repositories\SalikRepository;
+use App\Services\SalikTopUpService;
 use App\Services\TransactionService;
 use Carbon\Carbon;
 use Flash;
@@ -1858,6 +1861,79 @@ class SalikController extends AppBaseController
     }
 
 
+
+    public function createTopUp()
+    {
+        if (! $this->canTopUp()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            $salikAssetAccount = GlobalAccounts::account('SALIK_ASSET_ACCOUNT');
+        } catch (\Exception $e) {
+            Flash::error($e->getMessage());
+
+            return redirect()->route('salik.index');
+        }
+
+        $banks = Banks::active()->with('account')->orderBy('name')->get();
+        $salikAssetLabel = trim(
+            ($salikAssetAccount->account_code ? $salikAssetAccount->account_code.' — ' : '')
+            .($salikAssetAccount->name ?: 'Salik Asset')
+        );
+
+        return view('salik.top_up', [
+            'banks' => $banks,
+            'salikAssetAccount' => $salikAssetAccount,
+            'salikAssetLabel' => $salikAssetLabel,
+        ]);
+    }
+
+    public function storeTopUp(StoreSalikTopUpRequest $request, SalikTopUpService $topUpService)
+    {
+        try {
+            $topUpService->create($request->validated() + [
+                'attachment' => $request->file('attachment'),
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => 'Salik top-up payment voucher created successfully.',
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success('Salik top-up payment voucher created successfully.');
+
+            return redirect(route('salik.index'));
+        } catch (\InvalidArgumentException $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
+        } catch (\Exception $e) {
+            \Log::error('Salik top-up failed: '.$e->getMessage()."\n".$e->getTraceAsString());
+
+            if ($request->ajax()) {
+                return response()->json(['message' => 'An error occurred: '.$e->getMessage()], 500);
+            }
+
+            Flash::error('Error occurred: '.$e->getMessage());
+
+            return redirect()->back()->withInput();
+        }
+    }
+
+    protected function canTopUp(): bool
+    {
+        $canManageSalik = user_can('rta_saliks_salik_create') || user_can('rta_saliks_salik_edit');
+        $canManagePayment = user_can('rta_saliks_payment_create') || user_can('rta_saliks_payment_edit');
+
+        return $canManageSalik || $canManagePayment;
+    }
 
     public function paymentForm(Request $request)
     {

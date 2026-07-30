@@ -35,6 +35,15 @@
         'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
         ]) !!}
         <small class="text-muted">Max: 5MB</small>
+        @if(!empty($invoice?->attachment))
+            <div class="mt-1">
+                <small class="text-muted">Current file:</small>
+                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="d-inline-block text-primary">
+                    <i class="fa fa-paperclip"></i> {{ basename($invoice->attachment) }}
+                </a>
+                <small class="text-muted d-block">Leave empty to keep the existing attachment.</small>
+            </div>
+        @endif
     </div>
 
     {{-- Period From --}}
@@ -122,15 +131,12 @@ $items = \App\Models\Items::dropdown('customer');
                 {!! Form::number('item_vat[]', $itm->vat, [
                 'class' => 'form-control vat',
                 'step' => 'any',
-                'min' => '0',
-                'max' => '100'
                 ]) !!}
             </div>
             <div class="form-group col-md-2">
                 {!! Form::number('item_vatAmount[]', $itm->vat_amount, [
                 'class' => 'form-control vat_amount',
                 'step' => 'any',
-                'min' => '0',
                 ]) !!}
             </div>
             <div class="form-group col-md-2">
@@ -181,15 +187,12 @@ $items = \App\Models\Items::dropdown('customer');
                 {!! Form::number('item_vat[]', 0, [
                 'class' => 'form-control vat',
                 'step' => 'any',
-                'min' => '0',
-                'max' => '100'
                 ]) !!}
             </div>
             <div class="form-group col-md-2">
                 {!! Form::number('item_vatAmount[]', 0, [
                 'class' => 'form-control vat_amount',
                 'step' => 'any',
-                'min' => '0',
                 ]) !!}
             </div>
             <div class="form-group col-md-2">

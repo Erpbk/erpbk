@@ -54,6 +54,11 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown">
+                     @canany(['customers_invoices_edit', 'bike_on_rent_invoices_edit'])
+                     <a href="javascript:void(0);" data-action="{{ route('customer_invoice.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
+                        <i class="fa fa-edit mx-1 text-primary"></i> Edit
+                     </a>
+                     @endcanany
                      @canany(['customers_invoices_create', 'bike_on_rent_invoices_create'])
                      <a href="javascript:void(0);" data-action="{{ route('customer_invoice.clone', $invoice) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice">
                         <i class="fa fa-copy mx-1 text-primary"></i> Clone

@@ -72,7 +72,7 @@ class CustomerInvoicesController extends Controller
             'item_rate' => 'required|array|min:1',
             'item_rate.*' => 'numeric',
             'item_vat' => 'nullable|array',
-            'item_vat.*' => 'numeric|min:0|max:100',
+            'item_vat.*' => 'numeric',
         ]);
 
         try {
@@ -174,7 +174,7 @@ class CustomerInvoicesController extends Controller
             ]);
 
             //Credit VAT Account
-            if ($invoice->vat > 0) {
+            if ((float) $invoice->vat != 0.0) {
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $invoice->inv_date,
@@ -227,9 +227,16 @@ class CustomerInvoicesController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit($company_slug, $id)
+    public function edit(Request $request, $company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
+        if (!$invoice) {
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Invoice not found'], 404);
+            }
+            Flash::error('Invoice not found');
+            return redirect()->back();
+        }
         $invoice->load('items');
         return view('customer_invoices.edit', compact('invoice'));
     }
@@ -262,7 +269,7 @@ class CustomerInvoicesController extends Controller
             'item_rate' => 'required|array|min:1',
             'item_rate.*' => 'numeric',
             'item_vat' => 'nullable|array',
-            'item_vat.*' => 'numeric|min:0|max:100',
+            'item_vat.*' => 'numeric',
         ]);
 
         try {
@@ -270,11 +277,10 @@ class CustomerInvoicesController extends Controller
 
             $invoice = CustomerInvoices::findOrFail($id);
 
-            // Handle attachment (replace if new uploaded)
+            // Handle attachment (replace only if a new file is uploaded; keep existing otherwise)
             $attachmentPath = $invoice->attachment;
 
             if ($request->hasFile('attachment')) {
-                // delete old file (optional but recommended)
                 if ($invoice->attachment && Storage::disk('public')->exists($invoice->attachment)) {
                     Storage::disk('public')->delete($invoice->attachment);
                 }
@@ -317,7 +323,7 @@ class CustomerInvoicesController extends Controller
             }
 
             // Update invoice
-            $invoice->update([
+            $invoiceData = [
                 'customer_id' => $request->customer_id,
                 'inv_date' => $request->inv_date,
                 'billing_month' => $request->billing_month . '-01',
@@ -329,8 +335,14 @@ class CustomerInvoicesController extends Controller
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
-                'attachment' => $attachmentPath,
-            ]);
+            ];
+
+            // Only change attachment when a new file was uploaded
+            if ($request->hasFile('attachment')) {
+                $invoiceData['attachment'] = $attachmentPath;
+            }
+
+            $invoice->update($invoiceData);
 
             // 🔥 IMPORTANT: Delete old items
             $invoice->items()->delete();
@@ -340,8 +352,17 @@ class CustomerInvoicesController extends Controller
                 $invoice->items()->create($itemData);
             }
 
-            $transactions = Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->get();
-            $transCode = $transactions->first()->trans_code;
+            // Replace existing ledger entries for this invoice
+            $transactions = Transactions::where([
+                'reference_id' => $invoice->id,
+                'reference_type' => 'CI',
+            ])->get();
+            $transCode = optional($transactions->first())->trans_code ?: \App\Helpers\Account::trans_code();
+            Transactions::where([
+                'reference_id' => $invoice->id,
+                'reference_type' => 'CI',
+            ])->delete();
+
             $customerAccountId = (int) Customers::where('id', $request->customer_id)->value('account_id');
             if ($customerAccountId <= 0) {
                 throw new \RuntimeException('Selected customer has no linked account.');
@@ -374,8 +395,8 @@ class CustomerInvoicesController extends Controller
                 'narration' => 'Invoice CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) . ' : ' . $invoice->description,
             ]);
 
-            //Credit VAT Account
-            if ($invoice->vat > 0) {
+            //Credit VAT Account (supports negative VAT for credit-style lines)
+            if ((float) $invoice->vat != 0.0) {
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $invoice->inv_date,
@@ -391,6 +412,13 @@ class CustomerInvoicesController extends Controller
             }
 
             DB::commit();
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => 'Invoice updated successfully!',
+                    'reload' => true,
+                ]);
+            }
 
             return redirect()->route('customer_invoices.show', $invoice)
                 ->with('success', 'Invoice updated successfully!');

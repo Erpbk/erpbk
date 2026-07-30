@@ -643,7 +643,7 @@ class DashboardCardRegistry
         }
 
         $active = (int) (clone $base)->whereIn($statusCol, TopBarNumericStatus::ACTIVE_VALUES)->count();
-        $inactive = (int) (clone $base)->whereIn($statusCol, TopBarNumericStatus::INACTIVE_VALUES)->count();
+        $inactive = (int) (clone $base)->whereNotIn($statusCol, TopBarNumericStatus::ACTIVE_VALUES)->count();
 
         return [$active, $inactive];
     }

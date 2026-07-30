@@ -739,6 +739,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('fuelCompanies/trash', [FuelCompaniesController::class, 'trash'])->name('fuelCompanies.trash');
     Route::post('fuelCompanies/trash/{id}/restore', [FuelCompaniesController::class, 'restoreTrash'])->name('fuelCompanies.restore');
     Route::delete('fuelCompanies/trash/{id}/force-destroy', [FuelCompaniesController::class, 'forceDestroyTrash'])->name('fuelCompanies.force-destroy');
+    Route::get('fuelCompanies/top-up/create', [FuelCompaniesController::class, 'createTopUp'])->name('fuelCompanies.topUp.create');
+    Route::post('fuelCompanies/top-up', [FuelCompaniesController::class, 'storeTopUp'])->name('fuelCompanies.topUp.store');
     Route::resource('fuelCompanies', FuelCompaniesController::class);
     Route::delete('fuelCompanies/delete/{id}', [FuelCompaniesController::class, 'destroy'])->name('fuelCompanies.delete');
 

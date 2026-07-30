@@ -3,10 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateFuelCompaniesRequest;
+use App\Http\Requests\StoreFuelCompanyTopUpRequest;
 use App\Http\Requests\UpdateFuelCompaniesRequest;
 use App\Models\Accounts;
+use App\Models\Banks;
 use App\Models\FuelCompany;
 use App\Repositories\FuelCompaniesRepository;
+use App\Services\FuelCompanyTopUpService;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
@@ -27,14 +30,21 @@ class FuelCompaniesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!user_can('fuel_view')) {
+        if (!user_can('fuel_cards_companies_view')) {
             abort(403, 'Unauthorized action.');
         }
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = FuelCompany::query()
-            ->with('account')
-            ->orderBy('id', 'desc');
+        $baseQuery = FuelCompany::query()->with('account');
+
+        $statsQuery = clone $baseQuery;
+        $stats = [
+            'total' => (clone $statsQuery)->count(),
+            'active' => (clone $statsQuery)->where('status', 1)->count(),
+            'inactive' => (clone $statsQuery)->where('status', '!=', 1)->count(),
+        ];
+
+        $query = (clone $baseQuery)->orderBy('id', 'desc');
 
         if ($request->filled('name')) {
             $query->where('name', 'like', '%' . $request->name . '%');
@@ -56,15 +66,19 @@ class FuelCompaniesController extends AppBaseController
             return response()->json([
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
+                'stats' => $stats,
             ]);
         }
 
-        return view('fuel_companies.index', ['data' => $data]);
+        return view('fuel_companies.index', [
+            'data' => $data,
+            'stats' => $stats,
+        ]);
     }
 
     public function create()
     {
-        if (!user_can('fuel_create')) {
+        if (!user_can('fuel_cards_companies_create')) {
             abort(403, 'Unauthorized action.');
         }
         return view('fuel_companies.create');
@@ -72,7 +86,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function store(CreateFuelCompaniesRequest $request)
     {
-        if (!user_can('fuel_create')) {
+        if (!user_can('fuel_cards_companies_create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -124,9 +138,67 @@ class FuelCompaniesController extends AppBaseController
         }
     }
 
+    public function createTopUp()
+    {
+        if (! $this->canTopUp()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $fuelCompanies = FuelCompany::with('account')
+            ->active()
+            ->whereNotNull('account_id')
+            ->orderBy('name')
+            ->get();
+
+        $banks = Banks::active()->with('account')->orderBy('name')->get();
+
+        return view('fuel_companies.top_up', [
+            'fuelCompanies' => $fuelCompanies,
+            'banks' => $banks,
+        ]);
+    }
+
+    public function storeTopUp(StoreFuelCompanyTopUpRequest $request, FuelCompanyTopUpService $topUpService)
+    {
+        try {
+            $topUpService->create($request->validated() + [
+                'attachment' => $request->file('attachment'),
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'message' => 'Fuel company top-up payment voucher created successfully.',
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success('Fuel company top-up payment voucher created successfully.');
+
+            return redirect(route('fuelCompanies.index'));
+        } catch (\InvalidArgumentException $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
+        } catch (\Exception $e) {
+            \Log::error('Fuel company top-up failed: '.$e->getMessage()."\n".$e->getTraceAsString());
+
+            if ($request->ajax()) {
+                return response()->json(['message' => 'An error occurred: '.$e->getMessage()], 500);
+            }
+
+            Flash::error('Error occurred: '.$e->getMessage());
+
+            return redirect()->back()->withInput();
+        }
+    }
+
     public function show($company_slug, $id)
     {
-        if (!user_can('fuel_view')) {
+        if (!user_can('fuel_cards_companies_view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -143,7 +215,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!user_can('fuel_edit')) {
+        if (!user_can('fuel_cards_companies_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -158,7 +230,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function update($company_slug, $id, UpdateFuelCompaniesRequest $request)
     {
-        if (!user_can('fuel_edit')) {
+        if (!user_can('fuel_cards_companies_edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -184,7 +256,7 @@ class FuelCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!user_can('fuel_delete')) {
+        if (!user_can('fuel_cards_companies_delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -249,6 +321,11 @@ class FuelCompaniesController extends AppBaseController
         return response()->json([
             'message' => 'Fuel company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=fuel_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
         ]);
+    }
+
+    protected function canTopUp(): bool
+    {
+        return user_can('fuel_cards_companies_create') || user_can('fuel_cards_companies_edit');
     }
 
     protected function getTrashModelClass()

@@ -221,9 +221,10 @@ class ReportController extends Controller
     }
 
     if (!empty($accountIds)) {
+      // Rider accounts are liabilities: credit increases amount owed to rider.
       $previousBalances = Transactions::whereIn('account_id', $accountIds)
         ->whereDate('billing_month', '<', $fromMonth)
-        ->select('account_id', DB::raw('SUM(debit - credit) as balance'))
+        ->select('account_id', DB::raw('SUM(credit - debit) as balance'))
         ->groupBy('account_id')
         ->pluck('balance', 'account_id');
 
@@ -311,7 +312,6 @@ class ReportController extends Controller
       );
       $payable = $components['payable'];
       $balance = $payable - $paid;
-      $pendingPct = abs($payable) > 0.00001 ? ($paid / $payable) * 100 : 0;
 
       $statusOptionLabel = !empty($rider->rider_status_option) ? $rider->rider_status_option : null;
       if (!$statusOptionLabel) {
@@ -371,7 +371,6 @@ class ReportController extends Controller
       $data .= '<td align="center">' . $fmt($payable) . '</td>';
       $data .= '<td align="center">' . $fmt($paid) . '</td>';
       $data .= '<td align="center">' . $fmt($balance) . '</td>';
-      $data .= '<td align="center">' . number_format($pendingPct, 2) . '%</td>';
       $data .= '</tr>';
 
       $sumTotalAmount += $totalAmount;
@@ -391,12 +390,12 @@ class ReportController extends Controller
       $sumBalance += $balance;
     }
 
-    $sumPendingPct = abs($sumPayable) > 0.00001 ? ($sumPaid / $sumPayable) * 100 : 0;
-
     if ($result->count() > 0) {
       $fmt = static fn ($n) => number_format((float) $n, 2);
+      // One cell per column (no colspan) so column re-ordering / hiding stays aligned.
       $data .= '<tr class="font-weight-bold total-row">';
-      $data .= '<td colspan="7" style="text-align:center;font-weight:700;color:#000;">Totals</td>';
+      $data .= '<td style="font-weight:700;color:#000;">Totals</td>';
+      $data .= str_repeat('<td></td>', 6);
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumTotalAmount) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVc) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumCod) . '</td>';
@@ -412,7 +411,6 @@ class ReportController extends Controller
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPayable) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumPaid) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumBalance) . '</td>';
-      $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . number_format($sumPendingPct, 2) . '%</td>';
       $data .= '</tr>';
     }
 
@@ -519,7 +517,7 @@ class ReportController extends Controller
     if (!empty($accountIds)) {
       $previous = (float) (Transactions::whereIn('account_id', $accountIds)
         ->whereDate('billing_month', '<', $fromMonth)
-        ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
+        ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')
         ->value('balance') ?? 0);
 
       $paid = (float) (\App\Models\Payment::whereIn('payee_account_id', $accountIds)
@@ -845,9 +843,10 @@ class ReportController extends Controller
 
     $previousBalance = 0.0;
     if ($riderModel->account_id) {
+      // Rider accounts are liabilities: credit increases amount owed to rider.
       $previousBalance = (float) Transactions::where('account_id', $riderModel->account_id)
         ->whereDate('billing_month', '<', $fromMonth)
-        ->selectRaw('COALESCE(SUM(debit - credit), 0) as balance')
+        ->selectRaw('COALESCE(SUM(credit - debit), 0) as balance')
         ->value('balance');
     }
 

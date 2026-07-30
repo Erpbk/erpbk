@@ -39,6 +39,7 @@ class UserTableSettings extends BaseModel
     {
         return self::where('user_id', $userId)
             ->where('table_identifier', $tableIdentifier)
+            ->orderByDesc('id')
             ->first();
     }
 

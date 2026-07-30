@@ -355,7 +355,7 @@
         ['data' => 'designation', 'title' => 'Designation'],
         ['data' => 'project', 'title' => 'Project'],
         ['data' => 'billing_month', 'title' => 'Billing Month'],
-        ['data' => 'total_amount', 'title' => 'Total Amount'],
+        ['data' => 'total_amount', 'title' => 'Invoice'],
         ['data' => 'vendor_charges', 'title' => 'Vendor Charges'],
         ['data' => 'cod', 'title' => 'COD'],
         ['data' => 'rta_fine', 'title' => 'RTA Fine'],
@@ -370,7 +370,6 @@
         ['data' => 'payable', 'title' => 'Payable'],
         ['data' => 'paid_amount', 'title' => 'Paid Amount'],
         ['data' => 'balance', 'title' => 'Balance'],
-        ['data' => 'pending_amount', 'title' => 'Pending %'],
         ];
         @endphp
         @include('components.column-control-panel', [
@@ -432,7 +431,7 @@
                                 <th title="Designation">Designation</th>
                                 <th title="Project">Project</th>
                                 <th title="Billing Month">Billing Month</th>
-                                <th title="Total Amount" style="text-align: center;">Total</th>
+                                <th title="Invoice" style="text-align: center;">Invoice</th>
                                 <th title="Vendor Charges" style="text-align: center;">Vendor Charges</th>
                                 <th title="COD" style="text-align: center;">COD</th>
                                 <th title="RTA Fine" style="text-align: center;">RTA Fine</th>
@@ -447,7 +446,6 @@
                                 <th title="Payable" style="text-align: center;">Payable</th>
                                 <th title="Paid Amount" style="text-align: center;">Paid</th>
                                 <th title="Balance" style="text-align: center;">Balance</th>
-                                <th title="Pending %" style="text-align: center;">Pending %</th>
                             </tr>
                         </thead>
                         <tbody id="get_data"></tbody>
@@ -641,6 +639,173 @@
         });
     });
 
+    /**
+     * The shared column-control panel moves cells by their original position, so a
+     * second pass (for example after the tbody is re-rendered by AJAX) permutes an
+     * already-permuted header and leaves it out of sync with the data. Here every
+     * cell is tagged with its column key, so ordering and visibility can be applied
+     * repeatedly and always produce the same layout for header and body alike.
+     */
+    window.RiderReportColumns = (function() {
+        const COLUMN_KEYS = @json(array_values(array_column($tableColumns, 'data')));
+        let scheduled = null;
+
+        function getTable() {
+            return document.getElementById('dataTableBuilder');
+        }
+
+        function tagCells(table) {
+            table.querySelectorAll('thead th').forEach(function(th, index) {
+                if (!th.dataset.columnKey && COLUMN_KEYS[index]) {
+                    th.dataset.columnKey = COLUMN_KEYS[index];
+                }
+            });
+
+            // Freshly rendered rows always arrive in the canonical column order.
+            table.querySelectorAll('tbody tr').forEach(function(row) {
+                if (row.children.length !== COLUMN_KEYS.length) {
+                    return;
+                }
+                Array.from(row.children).forEach(function(cell, index) {
+                    if (!cell.dataset.columnKey) {
+                        cell.dataset.columnKey = COLUMN_KEYS[index];
+                    }
+                });
+            });
+        }
+
+        function readLayout() {
+            const items = document.querySelectorAll('#columnList .column-item');
+            const order = [];
+            const hidden = [];
+
+            items.forEach(function(item) {
+                const key = item.dataset.columnKey;
+                if (!key || COLUMN_KEYS.indexOf(key) === -1) {
+                    return;
+                }
+                order.push(key);
+                const checkbox = item.querySelector('.column-visibility-checkbox');
+                if (checkbox && !checkbox.checked) {
+                    hidden.push(key);
+                }
+            });
+
+            COLUMN_KEYS.forEach(function(key) {
+                if (order.indexOf(key) === -1) {
+                    order.push(key);
+                }
+            });
+
+            return {
+                order: order,
+                hidden: hidden
+            };
+        }
+
+        function apply() {
+            const table = getTable();
+            if (!table) {
+                return;
+            }
+
+            tagCells(table);
+
+            const layout = readLayout();
+            const rows = [table.querySelector('thead tr')].concat(
+                Array.from(table.querySelectorAll('tbody tr'))
+            );
+
+            rows.forEach(function(row) {
+                if (!row) {
+                    return;
+                }
+
+                const cells = new Map();
+                Array.from(row.children).forEach(function(cell) {
+                    if (cell.dataset.columnKey) {
+                        cells.set(cell.dataset.columnKey, cell);
+                    }
+                });
+
+                // Skip rows that are not a plain one-cell-per-column row (e.g. messages).
+                if (cells.size !== row.children.length) {
+                    return;
+                }
+
+                const ordered = document.createDocumentFragment();
+                layout.order.forEach(function(key) {
+                    const cell = cells.get(key);
+                    if (!cell) {
+                        return;
+                    }
+                    cell.classList.toggle('column-hidden', layout.hidden.indexOf(key) !== -1);
+                    ordered.appendChild(cell);
+                });
+
+                row.appendChild(ordered);
+            });
+        }
+
+        function scheduleApply() {
+            if (scheduled) {
+                return;
+            }
+            scheduled = window.requestAnimationFrame(function() {
+                scheduled = null;
+                apply();
+            });
+        }
+
+        function patchController() {
+            const controller = window.ColumnController;
+            if (!controller) {
+                return false;
+            }
+
+            if (!controller.riderReportPatched) {
+                controller.riderReportPatched = true;
+
+                controller.applyColumnOrder = function() {
+                    apply();
+                };
+
+                controller.toggleColumnVisibility = function() {
+                    scheduleApply();
+                    this.updateColumnStats();
+                    if (!this.isInitialLoad) {
+                        this.saveSettings();
+                    }
+                };
+            }
+
+            apply();
+            return true;
+        }
+
+        // Tag the header immediately so no later pass can key cells off an
+        // already re-ordered DOM.
+        if (getTable()) {
+            tagCells(getTable());
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            if (patchController()) {
+                return;
+            }
+            let attempts = 0;
+            const timer = setInterval(function() {
+                if (patchController() || ++attempts > 40) {
+                    clearInterval(timer);
+                }
+            }, 50);
+        });
+
+        return {
+            apply: apply
+        };
+    })();
+
     function formatMoney(value) {
         return parseFloat(value || 0).toLocaleString(undefined, {
             minimumFractionDigits: 2,
@@ -711,6 +876,7 @@
                     }
                 } finally {
                     $('#loading-overlay').removeClass('show');
+                    window.RiderReportColumns.apply();
                     if (window.ColumnController && typeof window.ColumnController.reapplySettings === 'function') {
                         setTimeout(function() {
                             window.ColumnController.reapplySettings();
@@ -732,7 +898,7 @@
                 }
 
                 if (!$('#get_data').children().length) {
-                    $('#get_data').html('<tr><td colspan="20"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                    $('#get_data').html('<tr><td colspan="22"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
                 }
             }
         });
@@ -787,6 +953,7 @@
                     }
                 } finally {
                     $('#loading-overlay').removeClass('show');
+                    window.RiderReportColumns.apply();
                     if (window.ColumnController && typeof window.ColumnController.reapplySettings === 'function') {
                         setTimeout(function() {
                             window.ColumnController.reapplySettings();
@@ -807,7 +974,7 @@
                     errorMessage = 'Server error occurred. Please try again.';
                 }
 
-                $('#get_data').html('<tr><td colspan="20"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                $('#get_data').html('<tr><td colspan="22"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
             }
         });
     }

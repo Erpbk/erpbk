@@ -72,7 +72,7 @@ class CustomerInvoicesController extends Controller
             'item_rate' => 'required|array|min:1',
             'item_rate.*' => 'numeric',
             'item_vat' => 'nullable|array',
-            'item_vat.*' => 'numeric|min:0|max:100',
+            'item_vat.*' => 'numeric|max:100',
         ]);
 
         try {
@@ -262,7 +262,7 @@ class CustomerInvoicesController extends Controller
             'item_rate' => 'required|array|min:1',
             'item_rate.*' => 'numeric',
             'item_vat' => 'nullable|array',
-            'item_vat.*' => 'numeric|min:0|max:100',
+            'item_vat.*' => 'numeric|max:100',
         ]);
 
         try {

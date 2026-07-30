@@ -18,4 +18,8 @@ Only use Read/Grep/Glob directly when:
 
 - If `graphify-out/wiki/index.md` exists, navigate it instead of reading raw files
 - Read `graphify-out/GRAPH_REPORT.md` only for broad architecture review when query/path/explain do not surface enough context
-- After modifying code files, run `graphify update .` to keep the graph current (AST-only, no API cost)
+- After modifying code files, keep the graph current with:
+  - `powershell -File scripts/graphify-update.ps1` (preferred: AST update + view→blade linker)
+  - or `graphify update .` then `php scripts/graphify-link-views.php`
+  - use `-Force` on the wrapper if graphify refuses a smaller rebuild after ignore-rule changes
+- Git hooks (post-commit / post-checkout) auto-rebuild the graph in the background. After `graphify hook install`, re-run `powershell -File scripts/install-graphify-hooks.ps1` so those hooks also run the view linker.

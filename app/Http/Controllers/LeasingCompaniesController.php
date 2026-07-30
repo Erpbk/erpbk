@@ -103,13 +103,9 @@ class LeasingCompaniesController extends AppBaseController
     {
         $input = $request->all();
 
-        // Adding Account and setting reference
-        $parentAccount = Accounts::where('name', 'Leasing Companies')->where('account_type', 'Liability')->first();
-        if (! $parentAccount) {
-            Flash::error('Parent account "Leasing Companies" not found.');
-        }
-
         try {
+            // Adding Account and setting reference
+            $parentAccount = \App\Support\GlobalAccounts::account('LEASING_COMPANIES');
             DB::beginTransaction();
             $leasingCompanies = $this->leasingCompaniesRepository->create($input);
             $account = new Accounts;

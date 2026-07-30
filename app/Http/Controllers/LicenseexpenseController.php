@@ -1062,10 +1062,7 @@ class LicenseexpenseController extends AppBaseController
      */
     private function LicenseExpensePaymentAccountOptions()
     {
-        $bank = Accounts::where('name', 'cash & bank')->first();
-        if (!$bank) {
-            return collect();
-        }
+        $bank = \App\Support\GlobalAccounts::account('BANK');
 
         return Accounts::query()
             ->where('status', 1)

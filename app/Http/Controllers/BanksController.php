@@ -121,22 +121,12 @@ class BanksController extends AppBaseController
       $banks = $this->banksRepository->create($input);
 
       //Adding Account and setting reference
-      $parentId = Accounts::where('name', 'Current Assets')->where('account_type', 'Asset')->first()->id;
-      $parentAccount = Accounts::where('name', 'Cash & Bank')->where('account_type', 'Asset')->where('parent_id', $parentId)->first();
-      if (!$parentAccount) {
-        if($request->ajax()) {
-          return response()->json([
-            'message' => 'Parent account "Cash & Bank" not found.',
-          ], 500);
-        }
-        Flash::error('Parent account "Cash & Bank" not found.');
-        return redirect()->back();
-      }
+      $parentId = \App\Support\GlobalAccounts::id('BANK');
       $account = new Accounts();
       $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
       $account->account_type = 'Asset';
       $account->name = $banks->name;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentId;
       $account->ref_name = 'Bank';
       $account->ref_id = $banks->id;
       $account->status = $banks->status;

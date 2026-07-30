@@ -72,6 +72,8 @@ use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderCategory;
+use App\Models\RiderTopCategory;
+use App\Models\RiderTopOption;
 
 class RidersController extends AppBaseController
 {
@@ -83,6 +85,73 @@ class RidersController extends AppBaseController
   private function applyCompanyScope($query)
   {
     return CompanyScope::apply($query, 'riders.company_id');
+  }
+
+  /**
+   * Status options from Rider Settings (rider_status top category) for the index filter.
+   *
+   * @return list<array{value: string, label: string}>
+   */
+  private function riderTopStatusFilterOptions(): array
+  {
+    $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
+    if (! $category) {
+      return [];
+    }
+
+    $reserved = ['active', 'inactive'];
+
+    return RiderTopOption::where('category_id', $category->id)
+      ->where('is_active', true)
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get(['name'])
+      ->map(function ($option) {
+        $name = trim((string) $option->name);
+
+        return [
+          'value' => $name,
+          'label' => $name,
+        ];
+      })
+      ->filter(function (array $row) use ($reserved) {
+        return $row['value'] !== '' && ! in_array(strtolower($row['value']), $reserved, true);
+      })
+      ->values()
+      ->all();
+  }
+
+  /**
+   * Active/Inactive = bike warehouse assignment; other values = riders.rider_status label.
+   */
+  private function applyBikeAssignmentStatusFilter($query, Request $request): void
+  {
+    if (! $request->filled('bike_assignment_status')) {
+      return;
+    }
+
+    $status = trim((string) $request->bike_assignment_status);
+    if ($status === '') {
+      return;
+    }
+
+    if ($status === 'Active') {
+      $query->whereHas('bikes', function ($q) {
+        $q->where('warehouse', 'Active');
+      });
+
+      return;
+    }
+
+    if ($status === 'Inactive') {
+      $query->whereDoesntHave('bikes', function ($q) {
+        $q->where('warehouse', 'Active');
+      });
+
+      return;
+    }
+
+    $query->where('riders.rider_status', $status);
   }
 
   /**
@@ -355,20 +424,7 @@ class RidersController extends AppBaseController
     if ($riderStatusKeys !== []) {
       TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
-    // Filter by bike assignment status (Active/Inactive based on bike assignment)
-    if ($request->filled('bike_assignment_status')) {
-      if ($request->bike_assignment_status === 'Active') {
-        // Riders who have an active bike assigned
-        $query->whereHas('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      } elseif ($request->bike_assignment_status === 'Inactive') {
-        // Riders who don't have an active bike assigned
-        $query->whereDoesntHave('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      }
-    }
+    $this->applyBikeAssignmentStatusFilter($query, $request);
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
@@ -410,6 +466,7 @@ class RidersController extends AppBaseController
     return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
+      'riderTopStatusFilterOptions' => $this->riderTopStatusFilterOptions(),
     ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
@@ -473,17 +530,7 @@ class RidersController extends AppBaseController
       TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
 
-    if ($request->filled('bike_assignment_status')) {
-      if ($request->bike_assignment_status === 'Active') {
-        $query->whereHas('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      } elseif ($request->bike_assignment_status === 'Inactive') {
-        $query->whereDoesntHave('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      }
-    }
+    $this->applyBikeAssignmentStatusFilter($query, $request);
 
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
@@ -577,20 +624,14 @@ class RidersController extends AppBaseController
                 ['name' => 'Riders', 'account_type' => 'Liability', 'parent_id' => null],
                 ['name' => 'Riders', 'account_type' => 'Liability', 'account_code' => Account::code()]
               ); */
-      $parentAccount = Accounts::where('name', 'Riders')->where('account_type', 'Liability')->first();
-      if (! $parentAccount) {
-        return response()->json([
-          'success' => false,
-          'message' => 'Parent account "Riders" not found.',
-        ], 422);
-      }
+      $parentAccount = \App\Support\GlobalAccounts::id('RIDERS');
       $account = new Accounts;
       $account->account_code = 'RD' . str_pad($riders->rider_id, 4, '0', STR_PAD_LEFT);
       $account->name = $riders->name;
       $account->account_type = 'Liability';
       $account->ref_name = 'Rider';
       $account->company_id = auth()->user()->company_id;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentAccount;
       $account->ref_id = $riders->id;
       $account->branch_id = $riders->branch_id;
       $account->save();

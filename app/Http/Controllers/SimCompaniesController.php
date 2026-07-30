@@ -77,20 +77,9 @@ class SimCompaniesController extends AppBaseController
         }
 
         $input = $request->all();
-        $currentLiabilities = Accounts::where('name', 'Sims (Company)')->where('account_type', 'Liability')->first();
-        if (!$currentLiabilities) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Parent account "Sims (Company)" not found.',
-            ], 422);
-            if ($request->ajax()) {
-                return response()->json(['message' => $message], 422);
-            }
-            Flash::error($message);
-            return redirect()->back();
-        }
 
         try {
+            $currentLiabilities = \App\Support\GlobalAccounts::account('SIM_COMPANIES');
             DB::beginTransaction();
             $input['created_by'] = auth()->id();
             $simCompany = $this->simCompaniesRepository->create($input);

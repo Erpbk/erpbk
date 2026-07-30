@@ -1,4 +1,9 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
+@php
+    $party = $employee ?? $rider ?? null;
+    $partyLabel = isset($employee) ? 'Employee' : 'Rider';
+    $party_account = $party->account ?? null;
+@endphp
 
 <div class="row mt-0 mb-2">
     <div class="form-group col-md-3">
@@ -18,14 +23,11 @@
 <div class="scrollbar">
     <h5>Penalty Voucher</h5>
 
-    @php
-    $rider_account = $rider->account;
-    @endphp
     <div class="row">
         <div class="form-group col-md-3">
-            <label for="exampleInputEmail1">Rider</label>
-            <input type="hidden" name="account_id[]" value="{{ $rider_account->id ?? '' }}" />
-            <input type="text" name="rider_name" class="form-control" value="{{ $rider->name ?? '' }}" readonly>
+            <label for="exampleInputEmail1">{{ $partyLabel }}</label>
+            <input type="hidden" name="account_id[]" value="{{ $party_account->id ?? '' }}" />
+            <input type="text" name="party_name" class="form-control" value="{{ $party->name ?? '' }}" readonly>
         </div>
         <div class="form-group col-md-4">
             <label>Narration</label>
@@ -46,7 +48,7 @@
             </div>
             <div class="form-group col-md-4">
                 <label>Narration</label>
-                <textarea name="narration[]" class="form-control" rows="10" placeholder="Penalty Amount Given" style="height: 40px !important;">Penalty Amount Given to {{ $rider->name ?? 'Rider' }}</textarea>
+                <textarea name="narration[]" class="form-control" rows="10" placeholder="Penalty Amount Given" style="height: 40px !important;">Penalty Amount Given to {{ $party->name ?? $partyLabel }}</textarea>
             </div>
             <div class="form-group col-md-2">
                 <label>Amount (Cr)</label>

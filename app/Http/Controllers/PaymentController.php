@@ -9,6 +9,7 @@ use App\Models\Accounts;
 use App\Models\Banks;
 use App\Models\Cheques;
 use App\Models\Customers;
+use App\Models\Employee;
 use App\Models\EmployeeInvoices;
 use App\Models\LeasingCompanies;
 use App\Models\LeasingCompanyInvoice;
@@ -136,22 +137,24 @@ class PaymentController extends Controller
         } elseif ($employeePayment) {
             $invoiceType = 'employee';
             $selectedInvoice = null;
+            $employeeId = request()->input('employee_id') ?? null;
             if (request()->input('invoice_id')) {
                 $selectedInvoice = EmployeeInvoices::with('employee.account')->find(request()->input('invoice_id'));
             }
-            if ($selectedInvoice) {
-                $invoices = EmployeeInvoices::with('employee.account')
-                    ->where('employee_id', $selectedInvoice->employee_id)
-                    ->where('status', '!=', 1)
-                    ->get();
-            } else {
-                $invoices = EmployeeInvoices::with('employee.account')
-                    ->where('status', '!=', 1)
-                    ->get();
+            $invoiceQuery = EmployeeInvoices::with('employee.account')
+                ->where('status', '!=', 1)
+                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'));
+            if ($employeeId) {
+                $invoiceQuery->where('employee_id', $employeeId);
+            } elseif ($selectedInvoice) {
+                $invoiceQuery->where('employee_id', $selectedInvoice->employee_id);
             }
+            $invoices = $invoiceQuery->get();
             $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'employee');
             $accountIds = $payeeOptions->pluck('account_id')->all();
-            if ($selectedInvoice && $selectedInvoice->employee) {
+            if ($employeeId) {
+                $lockedPayee = $this->makePayeeOption(Employee::with('account')->find($employeeId));
+            } elseif ($selectedInvoice && $selectedInvoice->employee) {
                 $lockedPayee = $this->makePayeeOption($selectedInvoice->employee);
             } elseif ($payeeOptions->count() === 1) {
                 $lockedPayee = $payeeOptions->first();

@@ -102,16 +102,7 @@ class CustomersController extends AppBaseController
       Flash::error('Customer already exists.');
       return redirect()->back();
     }
-    $parentAccount = Accounts::where('name', 'Customer')->where('account_type', 'Asset')->first();
-    if (!$parentAccount) {
-      if ($request->ajax()) {
-        return response()->json([
-          'message' => 'Parent account "Customer" not found.',
-        ], 500);
-      }
-      Flash::error('Parent account "Customer" not found.');
-      return redirect(route('customers.index'));
-    }
+    $parentAccount = \App\Support\GlobalAccounts::id('CUSTOMER_PARENT');
     try {
       $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'customer');
       $customers = $this->customersRepository->create($input);
@@ -119,7 +110,7 @@ class CustomersController extends AppBaseController
       $account->account_code = 'CS' . str_pad($customers->id, 4, '0', STR_PAD_LEFT);
       $account->account_type = 'Asset';
       $account->name = $customers->name;
-      $account->parent_id = $parentAccount->id;
+      $account->parent_id = $parentAccount;
       $account->ref_name = 'Customer';
       $account->ref_id = $customers->id;
       $account->status = $customers->status;

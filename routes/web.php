@@ -339,6 +339,12 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::resource('customer_invoices', CustomerInvoicesController::class);
 
     Route::get('employees/payments', [EmployeeController::class, 'payment'])->name('employee.payment');
+    Route::get('employees/advanceloan/{id}', [EmployeeController::class, 'advanceloan'])->name('employees.advanceloan');
+    Route::get('employees/penalty/{id}', [EmployeeController::class, 'penalty'])->name('employees.penalty');
+    Route::get('employees/incentive/{id}', [EmployeeController::class, 'incentive'])->name('employees.incentive');
+    Route::post('employees/storeadvanceloan', [EmployeeController::class, 'storeadvanceloan'])->name('employees.storeadvanceloan');
+    Route::post('employees/storepenalty', [EmployeeController::class, 'storepenalty'])->name('employees.storepenalty');
+    Route::post('employees/storeincentive', [EmployeeController::class, 'storeincentive'])->name('employees.storeincentive');
     Route::resource('employees', EmployeeController::class);
     Route::get('/employees/{id}/ledger', [EmployeeController::class, 'ledger'])->name('employee.ledger');
     Route::get('/employees/{id}/files', [EmployeeController::class, 'files'])->name('employee.files');

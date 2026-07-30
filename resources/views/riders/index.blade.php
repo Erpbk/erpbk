@@ -145,6 +145,18 @@
             </div>
             <div class="filter-body" id="searchTopbody">
                 <form id="filterForm" action="{{ route('riders.index') }}" method="GET">
+                    {{-- Preserve top-bar filters when applying sidebar filters --}}
+                    @if(request()->filled('rider_top_option_id'))
+                        <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
+                    @endif
+                    @foreach((array) request('rider_status', []) as $statusKey)
+                        @if($statusKey !== null && $statusKey !== '')
+                            <input type="hidden" name="rider_status[]" value="{{ $statusKey }}">
+                        @endif
+                    @endforeach
+                    @if(request()->filled('quick_search'))
+                        <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
+                    @endif
                     <div class="row">
                         <div class="form-group col-md-12">
                             <label for="id">Rider Id</label>

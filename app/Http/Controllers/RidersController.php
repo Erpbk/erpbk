@@ -328,38 +328,35 @@ class RidersController extends AppBaseController
       ->orderBy('days_count', 'asc')
       ->with('branch');
     $this->applyCompanyScope($query);
-    if ($request->has('rider_id') && ! empty($request->rider_id)) {
+    if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
-    if ($request->has('branch_id') && ! empty($request->branch_id)) {
+    if ($request->filled('branch_id')) {
       $query->where('riders.branch_id', $request->branch_id);
     }
-    if ($request->has('name') && ! empty($request->name)) {
-      $query->where('name', 'like', '%' . $request->name . '%');
+    if ($request->filled('name')) {
+      $query->where('riders.name', 'like', '%' . $request->name . '%');
     }
-    if ($request->has('fleet_supervisor') && ! empty($request->fleet_supervisor)) {
-      $query->where('fleet_supervisor', $request->fleet_supervisor);
+    if ($request->filled('fleet_supervisor')) {
+      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
     }
-    if ($request->has('hub') && ! empty($request->hub)) {
-      $query->where('hub', $request->hub);
+    if ($request->filled('hub')) {
+      $query->where('riders.hub', $request->hub);
     }
-    if ($request->has('customer_id') && ! empty($request->customer_id)) {
-      $query->where('customer_id', $request->customer_id);
+    if ($request->filled('customer_id')) {
+      $query->where('riders.customer_id', $request->customer_id);
     }
     $this->applyModuleTopBarFilters($query, $request, 'riders');
-    if ($request->has('attendance') && ! empty($request->attendance)) {
-      $query->where('attendance', $request->attendance);
+    if ($request->filled('attendance')) {
+      $query->where('riders.attendance', $request->attendance);
     }
-    // Filter by rider status (active = 1, inactive = 0 or 2)
+    // Filter by rider status (active = 1, inactive = not 1)
     $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
     if ($riderStatusKeys !== []) {
       TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
     }
-    // if ($request->has('status') && !empty($request->status)) {
-    //   $query->where('status', $request->status);
-    // }
     // Filter by bike assignment status (Active/Inactive based on bike assignment)
-    if ($request->has('bike_assignment_status') && ! empty($request->bike_assignment_status)) {
+    if ($request->filled('bike_assignment_status')) {
       if ($request->bike_assignment_status === 'Active') {
         // Riders who have an active bike assigned
         $query->whereHas('bikes', function ($q) {
@@ -375,34 +372,36 @@ class RidersController extends AppBaseController
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
-      $query->leftJoin('customers', 'riders.customer_id', '=', 'customers.id')
-        ->leftJoin('bikes', 'riders.id', '=', 'bikes.rider_id')
-        ->where(function ($q) use ($search) {
-          $q->where('riders.name', 'like', "%{$search}%")
-            ->orWhere('riders.rider_id', 'like', "%{$search}%")
-            ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-            ->orWhere('riders.customer_id', 'like', "%{$search}%")
-            ->orWhere('customers.name', 'like', "%{$search}%");
-          if (stripos($search, 'active') !== false) {
-            $q->orWhereExists(function ($subQuery) {
-              $subQuery->select(\DB::raw(1))
-                ->from('bikes')
-                ->whereRaw('bikes.rider_id = riders.id')
-                ->where('bikes.warehouse', '=', 'Active');
-            });
-          }
-          if (stripos($search, 'inactive') !== false) {
-            $q->orWhere(function ($subQ) {
-              $subQ->whereNotExists(function ($subQuery) {
-                $subQuery->select(\DB::raw(1))
-                  ->from('bikes')
-                  ->whereRaw('bikes.rider_id = riders.id')
-                  ->where('bikes.warehouse', '=', 'Active');
-              });
-            });
-          }
-        });
-      $query->select($indexSelect);
+      // Use exists/subqueries instead of joins to avoid ambiguous columns
+      // when combined with other filters (customer_id, status, etc.).
+      $query->where(function ($q) use ($search) {
+        $q->where('riders.name', 'like', "%{$search}%")
+          ->orWhere('riders.rider_id', 'like', "%{$search}%")
+          ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
+          ->orWhere('riders.customer_id', 'like', "%{$search}%")
+          ->orWhereExists(function ($subQuery) use ($search) {
+            $subQuery->select(\DB::raw(1))
+              ->from('customers')
+              ->whereColumn('customers.id', 'riders.customer_id')
+              ->where('customers.name', 'like', "%{$search}%");
+          });
+        if (stripos($search, 'active') !== false) {
+          $q->orWhereExists(function ($subQuery) {
+            $subQuery->select(\DB::raw(1))
+              ->from('bikes')
+              ->whereColumn('bikes.rider_id', 'riders.id')
+              ->where('bikes.warehouse', '=', 'Active');
+          });
+        }
+        if (stripos($search, 'inactive') !== false) {
+          $q->orWhereNotExists(function ($subQuery) {
+            $subQuery->select(\DB::raw(1))
+              ->from('bikes')
+              ->whereColumn('bikes.rider_id', 'riders.id')
+              ->where('bikes.warehouse', '=', 'Active');
+          });
+        }
+      });
     }
 
     // Apply pagination using the trait
@@ -448,63 +447,75 @@ class RidersController extends AppBaseController
       ->orderBy('riders.id', 'desc');
     $this->applyCompanyScope($query);
 
-    if ($request->has('rider_id') && ! empty($request->rider_id)) {
+    if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
-    if ($request->has('name') && ! empty($request->name)) {
-      $query->where('name', 'like', '%' . $request->name . '%');
+    if ($request->filled('name')) {
+      $query->where('riders.name', 'like', '%' . $request->name . '%');
     }
-    if ($request->has('fleet_supervisor') && ! empty($request->fleet_supervisor)) {
-      $query->where('fleet_supervisor', $request->fleet_supervisor);
+    if ($request->filled('fleet_supervisor')) {
+      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
     }
-    if ($request->has('hub') && ! empty($request->hub)) {
-      $query->where('hub', $request->hub);
+    if ($request->filled('hub')) {
+      $query->where('riders.hub', $request->hub);
     }
-    if ($request->has('customer_id') && ! empty($request->customer_id)) {
-      $query->where('customer_id', $request->customer_id);
+    if ($request->filled('customer_id')) {
+      $query->where('riders.customer_id', $request->customer_id);
     }
     $this->applyModuleTopBarFilters($query, $request, 'riders');
-    if ($request->has('attendance') && ! empty($request->attendance)) {
-      $query->where('attendance', $request->attendance);
+    if ($request->filled('attendance')) {
+      $query->where('riders.attendance', $request->attendance);
     }
 
-    // Filter by rider status (active = 1, inactive = 0 or 2)
+    // Filter by rider status (active = 1, inactive = not 1)
     $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
     if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'status', $riderStatusKeys);
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
+    }
+
+    if ($request->filled('bike_assignment_status')) {
+      if ($request->bike_assignment_status === 'Active') {
+        $query->whereHas('bikes', function ($q) {
+          $q->where('warehouse', 'Active');
+        });
+      } elseif ($request->bike_assignment_status === 'Inactive') {
+        $query->whereDoesntHave('bikes', function ($q) {
+          $q->where('warehouse', 'Active');
+        });
+      }
     }
 
     if ($request->filled('quick_search')) {
       $search = $request->input('quick_search');
 
-      $query->leftJoin('customers', 'riders.customer_id', '=', 'customers.id')
-        ->leftJoin('bikes', 'riders.id', '=', 'bikes.rider_id')
-        ->where(function ($q) use ($search) {
-          $q->where('riders.name', 'like', "%{$search}%")
-            ->orWhere('riders.rider_id', 'like', "%{$search}%")
-            ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-            ->orWhere('riders.customer_id', 'like', "%{$search}%")
-            ->orWhere('customers.name', 'like', "%{$search}%");
-          if (stripos($search, 'active') !== false) {
-            $q->orWhereExists(function ($subQuery) {
-              $subQuery->select(\DB::raw(1))
-                ->from('bikes')
-                ->whereRaw('bikes.rider_id = riders.id')
-                ->where('bikes.warehouse', '=', 'Active');
-            });
-          }
-          if (stripos($search, 'inactive') !== false) {
-            $q->orWhere(function ($subQ) {
-              $subQ->whereNotExists(function ($subQuery) {
-                $subQuery->select(\DB::raw(1))
-                  ->from('bikes')
-                  ->whereRaw('bikes.rider_id = riders.id')
-                  ->where('bikes.warehouse', '=', 'Active');
-              });
-            });
-          }
-        });
-      $query->select($indexSelect);
+      $query->where(function ($q) use ($search) {
+        $q->where('riders.name', 'like', "%{$search}%")
+          ->orWhere('riders.rider_id', 'like', "%{$search}%")
+          ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
+          ->orWhere('riders.customer_id', 'like', "%{$search}%")
+          ->orWhereExists(function ($subQuery) use ($search) {
+            $subQuery->select(\DB::raw(1))
+              ->from('customers')
+              ->whereColumn('customers.id', 'riders.customer_id')
+              ->where('customers.name', 'like', "%{$search}%");
+          });
+        if (stripos($search, 'active') !== false) {
+          $q->orWhereExists(function ($subQuery) {
+            $subQuery->select(\DB::raw(1))
+              ->from('bikes')
+              ->whereColumn('bikes.rider_id', 'riders.id')
+              ->where('bikes.warehouse', '=', 'Active');
+          });
+        }
+        if (stripos($search, 'inactive') !== false) {
+          $q->orWhereNotExists(function ($subQuery) {
+            $subQuery->select(\DB::raw(1))
+              ->from('bikes')
+              ->whereColumn('bikes.rider_id', 'riders.id')
+              ->where('bikes.warehouse', '=', 'Active');
+          });
+        }
+      });
     }
 
     // Apply pagination using the trait

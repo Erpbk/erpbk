@@ -10,8 +10,13 @@ class TopBarNumericStatus
     /** @var list<int|string> */
     public const ACTIVE_VALUES = [1];
 
-    /** @var list<int|string> */
-    public const INACTIVE_VALUES = [0, 2];
+    /**
+     * Non-active numeric statuses shared across modules.
+     * Riders: 0/2/3 = inactive/off bike, 4 = vacation, 5 = absconded.
+     *
+     * @var list<int|string>
+     */
+    public const INACTIVE_VALUES = [0, 2, 3, 4, 5];
 
     public const ACTIVE_KEY = 'active';
 
@@ -70,8 +75,8 @@ class TopBarNumericStatus
             ],
             self::INACTIVE_KEY => [
                 'column' => $column,
-                'operator' => 'in',
-                'value' => self::INACTIVE_VALUES,
+                'operator' => '!=',
+                'value' => 1,
             ],
         ];
     }
@@ -99,7 +104,7 @@ class TopBarNumericStatus
             return 'Active';
         }
 
-        if (in_array($normalized, [0, 2, '0', '2', 'inactive'], true)) {
+        if (in_array($normalized, [0, 2, 3, 4, 5, '0', '2', '3', '4', '5', 'inactive'], true)) {
             return 'Inactive';
         }
 
@@ -114,8 +119,16 @@ class TopBarNumericStatus
             'active', '1' => 1,
             'inactive', '0' => 0,
             '2' => 2,
+            '3' => 3,
+            '4' => 4,
+            '5' => 5,
             default => is_numeric($key) ? (int) $key : null,
         };
+    }
+
+    public static function isInactiveLabel(string $label): bool
+    {
+        return in_array(strtolower(trim($label)), ['inactive', '0'], true);
     }
 
     public static function applyStatusKey(Builder $query, string $column, string $statusKey): void
@@ -127,7 +140,8 @@ class TopBarNumericStatus
         }
 
         if ($statusKey === self::INACTIVE_KEY) {
-            $query->whereIn($column, self::INACTIVE_VALUES);
+            // Match top-bar inactive counts: anything that is not active.
+            $query->where($column, '!=', 1);
 
             return;
         }
@@ -138,12 +152,17 @@ class TopBarNumericStatus
      */
     public static function applyActiveInactiveOrGroup(Builder $query, string $column, array $statusKeys): void
     {
+        $statusKeys = self::normalizeStatusKeys($statusKeys);
+        if ($statusKeys === []) {
+            return;
+        }
+
         $query->where(function (Builder $q) use ($column, $statusKeys) {
             foreach ($statusKeys as $statusKey) {
                 if ($statusKey === self::ACTIVE_KEY) {
                     $q->orWhere($column, 1);
                 } elseif ($statusKey === self::INACTIVE_KEY) {
-                    $q->orWhereIn($column, self::INACTIVE_VALUES);
+                    $q->orWhere($column, '!=', 1);
                 }
             }
         });
@@ -161,7 +180,16 @@ class TopBarNumericStatus
 
         $keys = is_array($raw) ? $raw : [$raw];
 
-        return array_values(array_filter($keys, fn ($key) => in_array($key, [self::ACTIVE_KEY, self::INACTIVE_KEY], true)));
+        return array_values(array_filter(array_map(
+            static function ($key) {
+                if (!is_string($key) && !is_numeric($key)) {
+                    return '';
+                }
+
+                return strtolower(trim((string) $key));
+            },
+            $keys
+        ), static fn ($key) => in_array($key, [self::ACTIVE_KEY, self::INACTIVE_KEY], true)));
     }
 
     /**
@@ -177,10 +205,13 @@ class TopBarNumericStatus
         }
 
         $inactiveValues = $inactive['value'] ?? null;
+        $inactiveOperator = strtolower((string) ($inactive['operator'] ?? '='));
 
-        return ($active['value'] ?? null) == 1
-            || (is_array($inactiveValues)
+        $inactiveMatches = ($inactiveOperator === '!=' && (int) ($inactive['value'] ?? -1) === 1)
+            || ($inactiveOperator === 'in' && is_array($inactiveValues)
                 && array_map('intval', $inactiveValues) === array_map('intval', self::INACTIVE_VALUES));
+
+        return ($active['value'] ?? null) == 1 && $inactiveMatches;
     }
 
     /**

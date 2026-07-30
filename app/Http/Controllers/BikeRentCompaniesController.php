@@ -125,26 +125,10 @@ class BikeRentCompaniesController extends AppBaseController
         }
 
         $input = $request->all();
-        if($input['customer_type'] == 'bike_rental') {
-            $customersAsset = Accounts::where('name', 'Customers (Vehicle Rental)')->where('account_type', 'Asset')->first();
-            if (!$customersAsset) {
-                $message = 'Chart of accounts is missing a "Customers (Vehicle Rental)" (Asset) head under Assets. Add it in Chart of Accounts.';
-                if ($request->ajax()) {
-                    return response()->json(['message' => $message], 422);
-                }
-                Flash::error($message);
-                return redirect()->back();
-            }
-        }else {
-            $customersAsset = Accounts::where('name', 'Customers (Garage)')->where('account_type', 'Asset')->first();
-            if (!$customersAsset) {
-                $message = 'Chart of accounts is missing a "Customers (Garage)" (Asset) head under Assets. Add it in Chart of Accounts first.';
-                if ($request->ajax()) {
-                    return response()->json(['message' => $message], 422);
-                }
-                Flash::error($message);
-                return redirect()->back();
-            }
+        if ($input['customer_type'] == 'bike_rental') {
+            $customersAsset = \App\Support\GlobalAccounts::id('VEHICLE_RENTAL_CUSTOMERS');
+        } else {
+            $customersAsset = \App\Support\GlobalAccounts::id('GARAGE_CUSTOMERS');
         }
         try {
             DB::beginTransaction();
@@ -152,15 +136,16 @@ class BikeRentCompaniesController extends AppBaseController
             $bikeRentCompany = $this->bikeRentCompaniesRepository->create($input);
 
             $account = new Accounts();
-            if($bikeRentCompany->customer_type == 'bike_rental') {
+            if ($bikeRentCompany->customer_type == 'bike_rental') {
                 $account->account_code = 'BR' . str_pad((string) $bikeRentCompany->id, 4, '0', STR_PAD_LEFT);
-            }else {
+                $account->ref_name = 'BikeRentCompany';
+            } else {
                 $account->account_code = 'GC' . str_pad((string) $bikeRentCompany->id, 4, '0', STR_PAD_LEFT);
+                $account->ref_name = 'GarageCustomer';
             }
-            $account->ref_name = 'BikeRentCompany';
             $account->account_type = 'Asset';
             $account->name = $bikeRentCompany->name;
-            $account->parent_id = $customersAsset->id;
+            $account->parent_id = $customersAsset;
             $account->ref_id = $bikeRentCompany->id;
             $account->status = (int) $bikeRentCompany->status;
             $account->branch_id = $bikeRentCompany->branch_id;

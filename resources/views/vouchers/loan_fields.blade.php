@@ -1,13 +1,15 @@
 @php
-$rider_account = $rider->account;
+    $party = $employee ?? $rider ?? null;
+    $partyLabel = isset($employee) ? 'Employee' : 'Rider';
+    $party_account = $party->account ?? null;
 @endphp
 
-{{-- Debit: rider liability account --}}
+{{-- Debit: party liability account --}}
 <div class="row">
     <div class="form-group col-md-3">
-        <label>Rider Account</label>
-        <input type="hidden" name="account_id[]" value="{{ $rider_account->id ?? '' }}" />
-        <input type="text" class="form-control" value="{{ $rider_account->name ?? '' }}" disabled>
+        <label>{{ $partyLabel }} Account</label>
+        <input type="hidden" name="account_id[]" value="{{ $party_account->id ?? '' }}" />
+        <input type="text" class="form-control" value="{{ $party_account->name ?? '' }}" disabled>
     </div>
     <div class="form-group col-md-4">
         <label>Narration</label>
@@ -31,7 +33,7 @@ $rider_account = $rider->account;
     </div>
     <div class="form-group col-md-4">
         <label>Narration</label>
-        <textarea name="narration[]" class="form-control" rows="1" style="height: 40px !important;" required>Advance Loan Given to {{ $rider->name }}</textarea>
+        <textarea name="narration[]" class="form-control" rows="1" style="height: 40px !important;" required>Advance Loan Given to {{ $party->name ?? $partyLabel }}</textarea>
     </div>
     <div class="form-group col-md-2">
         <label>Amount (Cr)</label>

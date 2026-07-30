@@ -17,7 +17,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Models\Accounts;
 use App\Models\Payment;
+use App\Models\Vouchers;
+use App\Models\VoucherType;
 use App\DataTables\LedgerDataTable;
+use App\Helpers\Account;
+use App\Support\GlobalAccounts;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -44,6 +48,49 @@ class EmployeeController extends Controller
         $this->middleware('permission:employees_document_view')->only('files');
         $this->middleware('permission:employees_attendance_view')->only('attendance');
         $this->middleware('permission:employees_ledger_view')->only('ledger');
+        $this->middleware('permission:employees_voucher_view')->only(
+            'voucher',
+            'incentive',
+            'penalty',
+            'advanceloan'
+        );
+        $this->middleware('permission:employees_voucher_create')->only(
+            'storeincentive',
+            'storepenalty',
+            'storeadvanceloan'
+        );
+    }
+
+    /**
+     * Normalize billing month input to first day of month (Y-m-01).
+     */
+    private function normalizeBillingMonth($input): string
+    {
+        if (empty($input)) {
+            return date('Y-m-01');
+        }
+        if (preg_match('/^\d{4}-\d{2}$/', $input)) {
+            return $input . '-01';
+        }
+        $ts = strtotime($input);
+        if ($ts !== false) {
+            return date('Y-m-01', $ts);
+        }
+
+        return date('Y-m-01');
+    }
+
+    /**
+     * Resolve employee for voucher actions (branch-aware, matches BranchScope).
+     */
+    private function findAccessibleEmployee(int $id): ?Employee
+    {
+        $employee = Employee::find($id);
+        if (empty($employee) || (! empty($employee->branch_id) && ! in_array($employee->branch_id, app('user_branches')))) {
+            return null;
+        }
+
+        return $employee;
     }
 
     private function employeeFieldsByCategory(): array
@@ -879,10 +926,381 @@ class EmployeeController extends Controller
         return view('employees.send_email', compact('employee'));
     }
 
-    public function voucher($comapny_slug, $id)
+    /**
+     * Unified voucher modal for employee: AL, PN, INC, PAY.
+     */
+    public function voucher($company_slug, $id)
     {
-        $employee = Employee::findOrFail($id);
-        return view('employees.voucher', compact('employee'));
+        $employee = $this->findAccessibleEmployee((int) $id);
+        if (empty($employee)) {
+            Flash::error('Employee not Found');
+            return redirect(route('employees.index'));
+        }
+
+        $account = $employee->account;
+        $accounts = Accounts::dropdown(null);
+        $bank_accounts = Accounts::bankAccountsDropdown();
+        $employeeVoucherCodes = ['AL', 'PN', 'INC', 'PAY'];
+        $activeTypes = VoucherType::activeCodeLabelMapForModule('employees');
+        $voucherTypes = [];
+        foreach ($employeeVoucherCodes as $code) {
+            if (isset($activeTypes[$code])) {
+                $voucherTypes[$code] = $activeTypes[$code];
+            }
+        }
+
+        return view('employees.voucher-modal', compact('employee', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
+    }
+
+    public function incentive($company_slug, $id)
+    {
+        $employee = $this->findAccessibleEmployee((int) $id);
+        if (empty($employee)) {
+            return response('<div class="alert alert-danger modal-load-error"><p>Employee not found.</p></div>', 404);
+        }
+        $account = $employee->account;
+        $accounts = Accounts::dropdown(null);
+        $bank_accounts = Accounts::bankAccountsDropdown();
+
+        return view('employees.incentive-modal', compact('employee', 'account', 'accounts', 'bank_accounts'));
+    }
+
+    public function penalty($company_slug, $id)
+    {
+        $employee = $this->findAccessibleEmployee((int) $id);
+        if (empty($employee)) {
+            return response('<div class="alert alert-danger modal-load-error"><p>Employee not found.</p></div>', 404);
+        }
+        $account = $employee->account;
+        $accounts = Accounts::dropdown(null);
+        $bank_accounts = Accounts::bankAccountsDropdown();
+
+        return view('employees.penalty-modal', compact('employee', 'account', 'accounts', 'bank_accounts'));
+    }
+
+    public function advanceloan($company_slug, $id)
+    {
+        $employee = $this->findAccessibleEmployee((int) $id);
+        if (empty($employee)) {
+            return response('<div class="alert alert-danger modal-load-error"><p>Employee not found.</p></div>', 404);
+        }
+        $account = $employee->account;
+        $accounts = Accounts::dropdown(null);
+        $bank_accounts = Accounts::bankAccountsDropdown();
+
+        return view('employees.advanceloan-modal', compact('employee', 'account', 'accounts', 'bank_accounts'));
+    }
+
+    public function storeadvanceloan(Request $request)
+    {
+        try {
+            if (! VoucherType::isCodeAllowedForModule('AL', 'employees')) {
+                return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Employees module. Please assign it in Voucher Settings.']], 422);
+            }
+            DB::beginTransaction();
+
+            $request->validate([
+                'account_id' => 'required|array|min:2',
+                'account_id.*' => 'required|integer',
+                'dr_amount' => 'required|array',
+                'dr_amount.*' => 'required|numeric|min:0',
+                'narration' => 'required|array|min:2',
+                'narration.*' => 'required|string',
+                'branch_id' => 'required|numeric|exists:branches,id',
+            ]);
+
+            $employeeAccountId = $request->account_id[0];
+            if (empty($employeeAccountId)) {
+                throw new \Exception('Employee account ID is required');
+            }
+
+            $employeeAccount = Accounts::find($employeeAccountId);
+            if (! $employeeAccount) {
+                throw new \Exception('Employee account not found with ID: ' . $employeeAccountId);
+            }
+
+            $creditAccountId = $request->account_id[1] ?? GlobalAccounts::id('ADVANCE_LOAN');
+            $employeeAmount = $request->dr_amount[0] ?? 0;
+            $creditAmount = $request->dr_amount[1] ?? 0;
+            if ($creditAmount == 0) {
+                $creditAmount = $employeeAmount;
+            }
+
+            $transCode = Account::trans_code();
+            $voucherData = [
+                'trans_date' => $request->trans_date ?? date('Y-m-d'),
+                'voucher_type' => 'AL',
+                'payment_type' => $request->payment_type ?? 1,
+                'payment_from' => GlobalAccounts::id('ADVANCE_LOAN'),
+                'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+                'amount' => $employeeAmount,
+                'remarks' => 'Advance Loan to Employee',
+                'ref_id' => $employeeAccount->ref_id ?: $employeeAccount->id,
+                'reference_number' => $request->reference_number ?? null,
+                'trans_code' => $transCode,
+                'Created_By' => auth()->id(),
+                'status' => 1,
+                'branch_id' => $request->branch_id,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+            ];
+
+            $voucher = Vouchers::create($voucherData);
+
+            Transactions::create([
+                'account_id' => $employeeAccountId,
+                'reference_id' => $voucher->id,
+                'reference_type' => 'AL',
+                'trans_code' => $transCode,
+                'trans_date' => $voucherData['trans_date'],
+                'narration' => $request->narration[0] ?? 'Advance Loan Received',
+                'debit' => $employeeAmount,
+                'branch_id' => $request->branch_id,
+                'billing_month' => $voucherData['billing_month'],
+                'Created_By' => auth()->id(),
+            ]);
+
+            Transactions::create([
+                'account_id' => $creditAccountId,
+                'reference_id' => $voucher->id,
+                'reference_type' => 'AL',
+                'trans_code' => $transCode,
+                'trans_date' => $voucherData['trans_date'],
+                'narration' => $request->narration[1] ?? 'Advance Loan Given to ' . $employeeAccount->name,
+                'credit' => $creditAmount,
+                'billing_month' => $voucherData['billing_month'],
+                'Created_By' => auth()->id(),
+                'branch_id' => $request->branch_id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance loan recorded successfully',
+                'voucher_id' => $voucher->id,
+                'trans_code' => $transCode,
+                'reload' => true,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Employee advance loan error', [
+                'request_data' => $request->all(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error recording advance loan: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function storepenalty(Request $request)
+    {
+        try {
+            if (! VoucherType::isCodeAllowedForModule('PN', 'employees')) {
+                return response()->json(['errors' => ['error' => 'Penalty voucher type (PN) is not assigned to the Employees module. Please assign it in Voucher Settings.']], 422);
+            }
+            DB::beginTransaction();
+
+            $request->validate([
+                'account_id' => 'required|array|min:2',
+                'account_id.*' => 'required|integer',
+                'dr_amount' => 'required|array',
+                'dr_amount.*' => 'required|numeric|min:0',
+                'narration' => 'required|array|min:2',
+                'narration.*' => 'required|string',
+                'branch_id' => 'required|numeric|exists:branches,id',
+            ]);
+
+            $employeeAccountId = $request->account_id[0];
+            if (empty($employeeAccountId)) {
+                throw new \Exception('Employee account ID is required');
+            }
+
+            $employeeAccount = Accounts::find($employeeAccountId);
+            if (! $employeeAccount) {
+                throw new \Exception('Employee account not found with ID: ' . $employeeAccountId);
+            }
+
+            $creditAccountId = $request->account_id[1];
+            $employeeAmount = $request->dr_amount[0] ?? 0;
+            $creditAmount = $request->dr_amount[1] ?? 0;
+            if ($creditAmount == 0) {
+                $creditAmount = $employeeAmount;
+            }
+
+            $transCode = Account::trans_code();
+            $voucherData = [
+                'trans_date' => $request->trans_date ?? date('Y-m-d'),
+                'voucher_type' => 'PN',
+                'payment_type' => $request->payment_type ?? 1,
+                'payment_from' => GlobalAccounts::id('PENALTY_ACCOUNT'),
+                'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+                'amount' => $employeeAmount,
+                'remarks' => 'Penalty Amount to Employee',
+                'ref_id' => $employeeAccount->ref_id ?: $employeeAccount->id,
+                'reference_number' => $request->reference_number ?? null,
+                'trans_code' => $transCode,
+                'Created_By' => auth()->id(),
+                'status' => 1,
+                'branch_id' => $request->branch_id,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+            ];
+
+            $voucher = Vouchers::create($voucherData);
+
+            Transactions::create([
+                'account_id' => $employeeAccountId,
+                'reference_id' => $voucher->id,
+                'reference_type' => 'PN',
+                'trans_code' => $transCode,
+                'trans_date' => $voucherData['trans_date'],
+                'narration' => $request->narration[0] ?? 'Penalty Amount Received',
+                'debit' => $employeeAmount,
+                'billing_month' => $voucherData['billing_month'],
+                'Created_By' => auth()->id(),
+                'branch_id' => $request->branch_id,
+            ]);
+
+            Transactions::create([
+                'account_id' => $creditAccountId,
+                'reference_id' => $voucher->id,
+                'reference_type' => 'PN',
+                'trans_code' => $transCode,
+                'trans_date' => $voucherData['trans_date'],
+                'narration' => $request->narration[1] ?? 'Penalty Amount Given to ' . $employeeAccount->name,
+                'credit' => $creditAmount,
+                'billing_month' => $voucherData['billing_month'],
+                'Created_By' => auth()->id(),
+                'branch_id' => $request->branch_id,
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Penalty amount recorded successfully',
+                'voucher_id' => $voucher->id,
+                'trans_code' => $transCode,
+                'reload' => true,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Employee penalty error', [
+                'request_data' => $request->all(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error recording penalty amount: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function storeincentive(Request $request)
+    {
+        try {
+            if (! VoucherType::isCodeAllowedForModule('INC', 'employees')) {
+                return response()->json(['errors' => ['error' => 'Incentive voucher type (INC) is not assigned to the Employees module. Please assign it in Voucher Settings.']], 422);
+            }
+            DB::beginTransaction();
+
+            $request->validate([
+                'account_id' => 'required|array|min:2',
+                'account_id.*' => 'required|integer',
+                'dr_amount' => 'required|array',
+                'dr_amount.*' => 'required|numeric|min:0',
+                'narration' => 'required|array|min:2',
+                'narration.*' => 'required|string',
+                'branch_id' => 'required|numeric|exists:branches,id',
+            ]);
+
+            $employeeAccountId = $request->account_id[0];
+            if (empty($employeeAccountId)) {
+                throw new \Exception('Employee account ID is required');
+            }
+
+            $employeeAccount = Accounts::find($employeeAccountId);
+            if (! $employeeAccount) {
+                throw new \Exception('Employee account not found with ID: ' . $employeeAccountId);
+            }
+
+            $creditAccountId = $request->account_id[1];
+            $employeeAmount = $request->dr_amount[0] ?? 0;
+            $creditAmount = $request->dr_amount[1] ?? 0;
+            if ($creditAmount == 0) {
+                $creditAmount = $employeeAmount;
+            }
+
+            $transCode = Account::trans_code();
+            $voucherData = [
+                'trans_date' => $request->trans_date ?? date('Y-m-d'),
+                'voucher_type' => 'INC',
+                'payment_type' => $request->payment_type ?? 1,
+                'payment_from' => GlobalAccounts::id('INCENTIVE_ACCOUNT'),
+                'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+                'amount' => $employeeAmount,
+                'remarks' => 'Incentive Amount to Employee',
+                'ref_id' => $employeeAccount->ref_id ?: $employeeAccount->id,
+                'trans_code' => $transCode,
+                'Created_By' => auth()->id(),
+                'status' => 1,
+                'branch_id' => $request->branch_id,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+            ];
+
+            $voucher = Vouchers::create($voucherData);
+
+            // Debit incentive expense; credit employee liability (same as riders)
+            Transactions::create([
+                'account_id' => $creditAccountId,
+                'reference_id' => $voucher->id,
+                'reference_type' => 'INC',
+                'trans_code' => $transCode,
+                'trans_date' => $voucherData['trans_date'],
+                'narration' => $request->narration[0] ?? 'Incentive Amount Received',
+                'branch_id' => $request->branch_id,
+                'debit' => $employeeAmount,
+                'billing_month' => $voucherData['billing_month'],
+                'Created_By' => auth()->id(),
+            ]);
+
+            Transactions::create([
+                'account_id' => $employeeAccountId,
+                'reference_id' => $voucher->id,
+                'reference_type' => 'INC',
+                'trans_code' => $transCode,
+                'trans_date' => $voucherData['trans_date'],
+                'narration' => $request->narration[1] ?? 'Incentive Amount Given to ' . $employeeAccount->name,
+                'credit' => $creditAmount,
+                'branch_id' => $request->branch_id,
+                'billing_month' => $voucherData['billing_month'],
+                'Created_By' => auth()->id(),
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Incentive amount recorded successfully',
+                'voucher_id' => $voucher->id,
+                'trans_code' => $transCode,
+                'reload' => true,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Employee incentive error', [
+                'request_data' => $request->all(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error recording incentive amount: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -965,10 +1383,11 @@ class EmployeeController extends Controller
         ], 200);
     }
 
-    public function ledger($comapny_slug, $id, LedgerDataTable $ledgerDataTable)
+    public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
     {
-        $employee = Employee::findOrFail($id);
-        if (empty($employee) || !in_array($employee->branch_id, app('user_branches'))) {
+        $employee = Employee::find($id);
+        // Align with BranchScope: NULL branch_id is allowed; only reject out-of-scope branches.
+        if (empty($employee) || (! empty($employee->branch_id) && ! in_array($employee->branch_id, app('user_branches')))) {
             Flash::error('Employee not Found');
             return redirect(route('employees.index'));
         }

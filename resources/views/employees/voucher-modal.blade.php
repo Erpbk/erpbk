@@ -82,8 +82,11 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                 branchInput.name = 'branch_id';
                 form.prepend(branchInput);
             }
-            if (!branchInput.value) {
+            // Prefer employee branch; keep existing value only when employee has none
+            if (employeeBranchId) {
                 branchInput.value = employeeBranchId;
+            } else if (!branchInput.value) {
+                branchInput.value = '';
             }
 
             $(temp).find('script').each(function() {

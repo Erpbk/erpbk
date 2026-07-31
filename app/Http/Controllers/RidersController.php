@@ -2679,7 +2679,7 @@ class RidersController extends AppBaseController
       }
 
       // Get the second account (credit account - should be Advance Loan account)
-      $creditAccountId = $request->account_id[1] ?? GlobalAccounts::id('ADVANCE_LOAN');
+      $creditAccountId = $request->account_id[1];
 
       // Get amounts
       $riderAmount = $request->dr_amount[0] ?? 0;
@@ -2698,7 +2698,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'AL', // Advance Loan
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('ADVANCE_LOAN'),
+        'payment_from' => $creditAccountId,
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Advance Loan to Rider',

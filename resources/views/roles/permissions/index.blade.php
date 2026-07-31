@@ -573,6 +573,7 @@ if ($isCreate) {
 
         // ---- Right panel: load module fields ----
         function loadModuleFields(moduleId, moduleName) {
+            moduleId = String(moduleId);
             currentModuleId = moduleId;
             $('.rfp-selectable').removeClass('active');
             $('.rfp-selectable[data-module-id="' + moduleId + '"]').addClass('active');
@@ -596,18 +597,29 @@ if ($isCreate) {
         $(document).on('click', '.rfp-module-select', function(e) {
             e.preventDefault();
             var $sel = $(this).closest('.rfp-selectable');
-            loadModuleFields($sel.data('module-id'), $(this).text().trim());
+            loadModuleFields($sel.attr('data-module-id'), $(this).text().trim());
         });
 
         // Clicking anywhere on a module row/header selects it (except on the toggles or the name button, which handle themselves).
         $(document).on('click', '.rfp-flat-row, .rfp-module-head', function(e) {
             if ($(e.target).closest('.form-check, .rfp-module-select').length) return;
             var $sel = $(this).closest('.rfp-selectable');
-            if (!$sel.length || $sel.data('module-id') == null) return;
-            loadModuleFields($sel.data('module-id'), $sel.find('.rfp-module-select').first().text().trim());
+            var moduleId = $sel.attr('data-module-id');
+            if (!$sel.length || moduleId == null || moduleId === '') return;
+            loadModuleFields(moduleId, $sel.find('.rfp-module-select').first().text().trim());
         });
 
         // ---- Field permission rules ----
+        // Use attr() (not jQuery .data()) so field names are never type-coerced
+        // ("true"/"false"/numerics) and module ids stay stable string keys.
+        function rowModuleId($tr) {
+            return String($tr.attr('data-module-id') || '');
+        }
+
+        function rowFieldName($tr) {
+            return String($tr.attr('data-field-name') || '');
+        }
+
         function readRow($tr) {
             return {
                 visible: $tr.find('.rfp-field-visible').is(':checked'),
@@ -621,31 +633,53 @@ if ($isCreate) {
             var $editable = $tr.find('.rfp-field-editable');
             var $required = $tr.find('.rfp-field-required');
             if (!visible) {
+                // Remember editable intent so re-showing the field does not silently
+                // leave it read-only (which then gets persisted and locks the form).
+                if ($editable.attr('data-prev-editable') === undefined) {
+                    $editable.attr('data-prev-editable', $editable.is(':checked') ? '1' : '0');
+                }
+                if ($required.attr('data-prev-required') === undefined) {
+                    $required.attr('data-prev-required', $required.is(':checked') ? '1' : '0');
+                }
                 $editable.prop('checked', false).prop('disabled', true);
                 $required.prop('checked', false).prop('disabled', true);
             } else {
                 $editable.prop('disabled', false);
                 $required.prop('disabled', false);
+                var prevEditable = $editable.attr('data-prev-editable');
+                if (prevEditable !== undefined) {
+                    $editable.prop('checked', prevEditable === '1');
+                    $editable.removeAttr('data-prev-editable');
+                }
+                var prevRequired = $required.attr('data-prev-required');
+                if (prevRequired !== undefined) {
+                    $required.prop('checked', prevRequired === '1');
+                    $required.removeAttr('data-prev-required');
+                }
             }
         }
 
         function storeRow($tr) {
-            var mid = $tr.data('module-id');
-            var name = $tr.data('field-name');
+            var mid = rowModuleId($tr);
+            var name = rowFieldName($tr);
+            if (!mid || !name) return;
             if (!fieldState[mid]) fieldState[mid] = {};
             fieldState[mid][name] = readRow($tr);
         }
 
         function applyStateToDom(moduleId) {
-            var state = fieldState[moduleId];
+            var state = fieldState[String(moduleId)];
             if (!state) return;
             $('#rfpFieldPanel .rfp-field-row').each(function() {
                 var $tr = $(this);
-                var s = state[$tr.data('field-name')];
+                var s = state[rowFieldName($tr)];
                 if (!s) return;
                 $tr.find('.rfp-field-visible').prop('checked', s.visible);
                 $tr.find('.rfp-field-editable').prop('checked', s.editable);
                 $tr.find('.rfp-field-required').prop('checked', s.required);
+                $tr.find('.rfp-field-editable, .rfp-field-required')
+                    .removeAttr('data-prev-editable')
+                    .removeAttr('data-prev-required');
                 enforceRow($tr);
             });
         }
@@ -658,8 +692,9 @@ if ($isCreate) {
                 total += 3;
                 enabled += (r.visible ? 1 : 0) + (r.editable ? 1 : 0) + (r.required ? 1 : 0);
             });
-            if (total > 0 || !RFP.fieldStats[moduleId]) {
-                RFP.fieldStats[moduleId] = {
+            var mid = String(moduleId);
+            if (total > 0 || !RFP.fieldStats[mid]) {
+                RFP.fieldStats[mid] = {
                     total: total,
                     enabled: enabled
                 };
@@ -671,34 +706,36 @@ if ($isCreate) {
             var $tr = $(this).closest('.rfp-field-row');
             enforceRow($tr);
             storeRow($tr);
-            syncModuleFieldStats($tr.data('module-id'));
+            syncModuleFieldStats(rowModuleId($tr));
         });
 
         $(document).on('change', '.rfp-field-editable', function() {
             var $tr = $(this).closest('.rfp-field-row');
             if ($(this).is(':checked')) {
                 $tr.find('.rfp-field-visible').prop('checked', true);
+                $tr.find('.rfp-field-editable').removeAttr('data-prev-editable');
                 enforceRow($tr);
             }
             storeRow($tr);
-            syncModuleFieldStats($tr.data('module-id'));
+            syncModuleFieldStats(rowModuleId($tr));
         });
 
         $(document).on('change', '.rfp-field-required', function() {
             var $tr = $(this).closest('.rfp-field-row');
             if ($(this).is(':checked')) {
                 $tr.find('.rfp-field-visible').prop('checked', true);
+                $tr.find('.rfp-field-required').removeAttr('data-prev-required');
                 enforceRow($tr);
             }
             storeRow($tr);
-            syncModuleFieldStats($tr.data('module-id'));
+            syncModuleFieldStats(rowModuleId($tr));
         });
 
         // ---- Field search ----
         function filterFields() {
             var term = $('#rfpFieldSearch').val().toLowerCase().trim();
             $('#rfpFieldPanel .rfp-field-row').each(function() {
-                var hay = ($(this).data('field-label') || '').toString();
+                var hay = ($(this).attr('data-field-label') || '').toString();
                 $(this).toggle(!term || hay.indexOf(term) !== -1);
             });
         }
@@ -725,9 +762,17 @@ if ($isCreate) {
                 (RFP.isCreate ? 'Creating...' : 'Saving...')
             );
 
+            // Only persist fields the admin actually changed. Re-saving every row from the
+            // panel was overwriting untouched fields (e.g. locking middle fields as
+            // read-only when only a custom field permission was edited).
             if (currentModuleId !== null) {
                 $('#rfpFieldPanel .rfp-field-row').each(function() {
-                    storeRow($(this));
+                    var $tr = $(this);
+                    var mid = rowModuleId($tr);
+                    var name = rowFieldName($tr);
+                    if (fieldState[mid] && fieldState[mid].hasOwnProperty(name)) {
+                        storeRow($tr);
+                    }
                 });
             }
 

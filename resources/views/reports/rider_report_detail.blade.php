@@ -666,6 +666,8 @@
                         <th>Month</th>
                         <th style="text-align:right;">Lines</th>
                         <th style="text-align:right;">Qty</th>
+                        <th style="text-align:right;">Lines Total</th>
+                        <th style="text-align:right;">Svc Charge</th>
                         <th style="text-align:right;">Total ({{ $currency }})</th>
                     </tr>
                 </thead>
@@ -678,11 +680,13 @@
                         <td>{{ $fmtMonth($row->billing_month) }}</td>
                         <td class="num">{{ (int) $row->line_count }}</td>
                         <td class="num">{{ $fmt($row->total_qty) }}</td>
+                        <td class="num">{{ $fmt($row->lines_total ?? ($row->total_amount - ($row->service_charges ?? 0))) }}</td>
+                        <td class="num">{{ $fmt($row->service_charges ?? 0) }}</td>
                         <td class="num">{{ $fmt($row->total_amount) }}</td>
                     </tr>
                     @endforeach
                     <tr class="row-total">
-                        <td colspan="6" style="text-align:right;">Total</td>
+                        <td colspan="8" style="text-align:right;">Total</td>
                         <td class="num">{{ $fmt($totals['fuel']) }}</td>
                     </tr>
                 </tbody>
@@ -739,7 +743,7 @@
                 </thead>
                 <tbody>
                     @foreach($jvEntries as $i => $row)
-                    @php $net = (float) $row->debit - (float) $row->credit; @endphp
+                    @php $net = (float) $row->credit - (float) $row->debit; @endphp
                     <tr>
                         <td>{{ $i + 1 }}</td>
                         <td>{{ $fmtDate($row->trans_date) }}</td>

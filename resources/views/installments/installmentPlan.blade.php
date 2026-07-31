@@ -32,12 +32,20 @@
                 <div class="card h-100">
                     <div class="card-body d-flex align-items-end">
                         <div class="w-100">
+                            @php
+                                $installmentStats = $installmentStats ?? [
+                                    'unpaid_amount' => 0,
+                                    'paid_amount' => 0,
+                                    'paid_count' => 0,
+                                    'unpaid_count' => 0,
+                                ];
+                            @endphp
                             <div class="row gy-3">
                                 <div class="col-md-3 col-6">
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-cash"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('status' , 'pending')->where('rider_id', $account->id)->sum('amount') }}</h5>
+                                            <h5 class="mb-0">{{ number_format((float) $installmentStats['unpaid_amount'], 2) }}</h5>
                                             <small>Total Unpaid Amount</small>
                                         </div>
                                     </div>
@@ -46,7 +54,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-info me-4 p-2"><i class="menu-icon tf-icons ti ti-cash"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('status' , 'paid')->where('rider_id', $account->id)->sum('amount') }}</h5>
+                                            <h5 class="mb-0">{{ number_format((float) $installmentStats['paid_amount'], 2) }}</h5>
                                             <small>Total Paid Amount</small>
                                         </div>
                                     </div>
@@ -55,7 +63,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-success me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'paid')->get()->count() }}</h5>
+                                            <h5 class="mb-0">{{ (int) $installmentStats['paid_count'] }}</h5>
                                             <small>Paid Expense</small>
                                         </div>
                                     </div>
@@ -64,7 +72,7 @@
                                     <div class="d-flex align-items-center">
                                         <div class="badge rounded bg-label-danger me-4 p-2"><i class="menu-icon tf-icons ti ti-receipt"></i></div>
                                         <div class="card-info">
-                                            <h5 class="mb-0">{{ company_table('visa_installment_plans')->where('rider_id' , $account->id)->where('status' , 'pending')->get()->count() }}</h5>
+                                            <h5 class="mb-0">{{ (int) $installmentStats['unpaid_count'] }}</h5>
                                             <small>Unpaid Expenses</small>
                                         </div>
                                     </div>

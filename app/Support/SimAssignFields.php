@@ -10,7 +10,10 @@ class SimAssignFields
 {
     public static function humanizeFieldKey(string $key): string
     {
-        return ucwords(str_replace(['_', '-'], ' ', $key));
+        return match ($key) {
+            'doj' => 'Date of Joining',
+            default => ucwords(str_replace(['_', '-'], ' ', $key)),
+        };
     }
 
     /**

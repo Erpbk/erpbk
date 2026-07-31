@@ -10,6 +10,9 @@
     </thead>
     <tbody>
         @forelse ($rows as $row)
+        @php
+            $fieldDomId = 'rfp-' . $moduleId . '-' . preg_replace('/[^A-Za-z0-9_\-]/', '_', (string) $row['name']);
+        @endphp
         <tr class="rfp-field-row" data-module-id="{{ $moduleId }}" data-field-name="{{ $row['name'] }}"
             data-field-label="{{ \Illuminate\Support\Str::lower($row['label']) }} {{ \Illuminate\Support\Str::lower($row['name']) }}">
             <td>
@@ -22,18 +25,21 @@
             <td class="text-center">
                 <div class="form-check form-switch d-inline-flex justify-content-center m-0">
                     <input type="checkbox" class="form-check-input rfp-field-visible" role="switch"
+                        id="{{ $fieldDomId }}-visible"
                         {{ $row['visible'] ? 'checked' : '' }}>
                 </div>
             </td>
             <td class="text-center">
                 <div class="form-check form-switch d-inline-flex justify-content-center m-0">
                     <input type="checkbox" class="form-check-input rfp-field-editable" role="switch"
+                        id="{{ $fieldDomId }}-editable"
                         {{ $row['editable'] ? 'checked' : '' }} {{ $row['visible'] ? '' : 'disabled' }}>
                 </div>
             </td>
             <td class="text-center">
                 <div class="form-check d-inline-flex justify-content-center m-0">
                     <input type="checkbox" class="form-check-input rfp-field-required"
+                        id="{{ $fieldDomId }}-required"
                         {{ $row['required'] ? 'checked' : '' }} {{ $row['visible'] ? '' : 'disabled' }}>
                 </div>
             </td>

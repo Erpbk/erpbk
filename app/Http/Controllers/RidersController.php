@@ -388,8 +388,35 @@ class RidersController extends AppBaseController
     }
 
     if ($ignoreRiderId !== null) {
-      $rules['rider_id'] = ['required', Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId)];
-      $rules['name'] = ['required', 'string', 'max:191', Rule::unique('riders', 'name')->ignore($ignoreRiderId)];
+      // Keep unique constraints on update, but do not force required — Field Permissions decide that.
+      $riderIdRule = $rules['rider_id'] ?? 'nullable';
+      $riderIdTokens = is_array($riderIdRule) ? $riderIdRule : explode('|', (string) $riderIdRule);
+      $riderIdTokens = array_values(array_filter($riderIdTokens, function ($token) {
+        return ! (is_string($token) && (str_starts_with($token, 'unique:') || $token === 'required' || $token === 'nullable'));
+      }));
+      $riderIdRequired = \App\Support\RoleFieldAccess::isRequired('rider', 'rider_id')
+        && \App\Support\RoleFieldAccess::canEdit('rider', 'rider_id');
+      array_unshift($riderIdTokens, $riderIdRequired ? 'required' : 'nullable');
+      $riderIdTokens[] = Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId);
+      $rules['rider_id'] = $riderIdTokens;
+
+      $nameRule = $rules['name'] ?? 'nullable|string|max:191';
+      $nameTokens = is_array($nameRule) ? $nameRule : explode('|', (string) $nameRule);
+      $nameTokens = array_values(array_filter($nameTokens, function ($token) {
+        return ! (is_string($token) && (str_starts_with($token, 'unique:') || $token === 'required' || $token === 'nullable'));
+      }));
+      $nameRequired = \App\Support\RoleFieldAccess::isRequired('rider', 'name')
+        && \App\Support\RoleFieldAccess::canEdit('rider', 'name');
+      array_unshift($nameTokens, $nameRequired ? 'required' : 'nullable');
+      if (! in_array('string', $nameTokens, true)) {
+        $nameTokens[] = 'string';
+      }
+      if (! in_array('max:191', $nameTokens, true)) {
+        $nameTokens[] = 'max:191';
+      }
+      $nameTokens[] = Rule::unique('riders', 'name')->ignore($ignoreRiderId);
+      $rules['name'] = $nameTokens;
+
       $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
       $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
       $passportTokens = array_values(array_filter($passportTokens, function ($token) {

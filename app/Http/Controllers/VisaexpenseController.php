@@ -645,6 +645,7 @@ class VisaexpenseController extends AppBaseController
             ->orderBy('date', 'asc');
         $this->applyInstallmentRiderScope($installmentQuery, $account);
         $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
+        $installmentStats = $this->installmentPlanSummary($account);
 
         if ($request->ajax()) {
             $tableData = view('visa_expenses.table', [
@@ -663,6 +664,7 @@ class VisaexpenseController extends AppBaseController
         return view('visa_expenses.index', [
             'data' => $data,
             'installmentData' => $installmentData,
+            'installmentStats' => $installmentStats,
             'account' => $account,
             'visaStatuses' => $visaStatuses,
             'riders' => $riders,

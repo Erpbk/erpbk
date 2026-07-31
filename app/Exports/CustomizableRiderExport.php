@@ -96,7 +96,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
             'data' => 'personal_contact'
         ],
         'doj' => [
-            'title' => 'Joining Date',
+            'title' => 'Date of Joining',
             'data' => 'doj'
         ],
         'dob' => [

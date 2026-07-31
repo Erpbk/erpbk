@@ -10,7 +10,7 @@
         {!! Form::text('name', null, ['class' => 'form-control', 'maxlength' => 191, 'required']) !!}
     </div>
     <div class="form-group col-sm-4">
-        {!! Form::label('doj', 'Date Of Joining:',['class'=>'required']) !!}
+        {!! Form::label('doj', 'Date of Joining:',['class'=>'required']) !!}
         {!! Form::date('doj', null, ['class' => 'form-control','id'=>'doj','required']) !!}
     </div>
     <div class="form-group col-sm-4">

@@ -157,6 +157,7 @@ class ModuleFieldSource
             'working_hours' => 'Working Hours',
             'cancelled_orders' => 'Cancelled Orders',
             'rejected_orders' => 'Rejected Orders',
+            'doj' => 'Date of Joining',
             default => ucwords(str_replace('_', ' ', $column)),
         };
     }
@@ -169,6 +170,7 @@ class ModuleFieldSource
         return match ($key) {
             'branch_id' => 'Branch',
             'customer_id' => 'Project',
+            'doj' => 'Date of Joining',
             default => ucwords(str_replace(['_', '-'], ' ', $key)),
         };
     }

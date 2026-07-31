@@ -170,9 +170,8 @@
                         $paidTotal = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
                         $pendingTotalAll = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
                         @endphp
-                        <span id="total-amount-reference">{{ number_format($totalAmount, 2) }}</span>
+                        <span id="total-amount-reference">{{ number_format($currentTotal, 2) }}</span>
                         <br>
-                        <small id="current-total-amount-container" class="text-warning">(Current: <span>{{ number_format($currentTotal, 2) }}</span>)</small>
                     </strong>
                 </td>
                 <td colspan="5"></td>

@@ -73,6 +73,7 @@ trait ManagesVisaInstallments
         // Apply pagination using the trait
 
         $data = $this->applyPagination($query, $paginationParams);
+        $installmentStats = $this->installmentPlanSummary($account);
 
         if ($request->ajax()) {
             $tableData = view('installments.installmentPlanTable', [
@@ -88,7 +89,7 @@ trait ManagesVisaInstallments
 
         $riders = Riders::findOrFail($account->rider_id);
 
-        return view('installments.installmentPlan', compact('data', 'account', 'riders'));
+        return view('installments.installmentPlan', compact('data', 'account', 'riders', 'installmentStats'));
     }
 
     public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
@@ -1321,6 +1322,22 @@ trait ManagesVisaInstallments
         }
 
         abort(404, 'Visa expense account not found.');
+    }
+
+    /**
+     * @return array{unpaid_amount: float, paid_amount: float, paid_count: int, unpaid_count: int}
+     */
+    private function installmentPlanSummary(ExpenseAccount $account): array
+    {
+        $base = visa_installment_plan::query();
+        $this->applyInstallmentRiderScope($base, $account);
+
+        return [
+            'unpaid_amount' => (float) (clone $base)->where('status', visa_installment_plan::STATUS_PENDING)->sum('amount'),
+            'paid_amount' => (float) (clone $base)->where('status', visa_installment_plan::STATUS_PAID)->sum('amount'),
+            'paid_count' => (int) (clone $base)->where('status', visa_installment_plan::STATUS_PAID)->count(),
+            'unpaid_count' => (int) (clone $base)->where('status', visa_installment_plan::STATUS_PENDING)->count(),
+        ];
     }
 
     /**

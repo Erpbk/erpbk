@@ -81,6 +81,53 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Resolve branch for employee voucher stores from request, employee, or account.
+     */
+    private function resolveVoucherBranchId(Request $request): ?int
+    {
+        if ($request->filled('branch_id')) {
+            return (int) $request->branch_id;
+        }
+
+        $accountId = is_array($request->account_id)
+            ? ($request->account_id[0] ?? null)
+            : $request->account_id;
+
+        if (empty($accountId)) {
+            return null;
+        }
+
+        $account = Accounts::find($accountId);
+        if (! $account) {
+            return null;
+        }
+
+        if (! empty($account->ref_id)) {
+            $employeeBranchId = Employee::where('id', $account->ref_id)->value('branch_id');
+            if (! empty($employeeBranchId)) {
+                return (int) $employeeBranchId;
+            }
+        }
+
+        if (! empty($account->branch_id)) {
+            return (int) $account->branch_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Fill missing branch_id on voucher requests from the employee/account.
+     */
+    private function mergeVoucherBranchId(Request $request): void
+    {
+        $branchId = $this->resolveVoucherBranchId($request);
+        if ($branchId !== null) {
+            $request->merge(['branch_id' => $branchId]);
+        }
+    }
+
+    /**
      * Resolve employee for voucher actions (branch-aware, matches BranchScope).
      */
     private function findAccessibleEmployee(int $id): ?Employee
@@ -999,6 +1046,8 @@ class EmployeeController extends Controller
             }
             DB::beginTransaction();
 
+            $this->mergeVoucherBranchId($request);
+
             $request->validate([
                 'account_id' => 'required|array|min:2',
                 'account_id.*' => 'required|integer',
@@ -1006,7 +1055,7 @@ class EmployeeController extends Controller
                 'dr_amount.*' => 'required|numeric|min:0',
                 'narration' => 'required|array|min:2',
                 'narration.*' => 'required|string',
-                'branch_id' => 'required|numeric|exists:branches,id',
+                'branch_id' => 'nullable|numeric|exists:branches,id',
             ]);
 
             $employeeAccountId = $request->account_id[0];
@@ -1040,7 +1089,7 @@ class EmployeeController extends Controller
                 'trans_code' => $transCode,
                 'Created_By' => auth()->id(),
                 'status' => 1,
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
@@ -1054,7 +1103,7 @@ class EmployeeController extends Controller
                 'trans_date' => $voucherData['trans_date'],
                 'narration' => $request->narration[0] ?? 'Advance Loan Received',
                 'debit' => $employeeAmount,
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
                 'billing_month' => $voucherData['billing_month'],
                 'Created_By' => auth()->id(),
             ]);
@@ -1069,7 +1118,7 @@ class EmployeeController extends Controller
                 'credit' => $creditAmount,
                 'billing_month' => $voucherData['billing_month'],
                 'Created_By' => auth()->id(),
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
             ]);
 
             DB::commit();
@@ -1103,6 +1152,8 @@ class EmployeeController extends Controller
             }
             DB::beginTransaction();
 
+            $this->mergeVoucherBranchId($request);
+
             $request->validate([
                 'account_id' => 'required|array|min:2',
                 'account_id.*' => 'required|integer',
@@ -1110,7 +1161,7 @@ class EmployeeController extends Controller
                 'dr_amount.*' => 'required|numeric|min:0',
                 'narration' => 'required|array|min:2',
                 'narration.*' => 'required|string',
-                'branch_id' => 'required|numeric|exists:branches,id',
+                'branch_id' => 'nullable|numeric|exists:branches,id',
             ]);
 
             $employeeAccountId = $request->account_id[0];
@@ -1144,7 +1195,7 @@ class EmployeeController extends Controller
                 'trans_code' => $transCode,
                 'Created_By' => auth()->id(),
                 'status' => 1,
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
@@ -1160,7 +1211,7 @@ class EmployeeController extends Controller
                 'debit' => $employeeAmount,
                 'billing_month' => $voucherData['billing_month'],
                 'Created_By' => auth()->id(),
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
             ]);
 
             Transactions::create([
@@ -1173,7 +1224,7 @@ class EmployeeController extends Controller
                 'credit' => $creditAmount,
                 'billing_month' => $voucherData['billing_month'],
                 'Created_By' => auth()->id(),
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
             ]);
 
             DB::commit();
@@ -1207,6 +1258,8 @@ class EmployeeController extends Controller
             }
             DB::beginTransaction();
 
+            $this->mergeVoucherBranchId($request);
+
             $request->validate([
                 'account_id' => 'required|array|min:2',
                 'account_id.*' => 'required|integer',
@@ -1214,7 +1267,7 @@ class EmployeeController extends Controller
                 'dr_amount.*' => 'required|numeric|min:0',
                 'narration' => 'required|array|min:2',
                 'narration.*' => 'required|string',
-                'branch_id' => 'required|numeric|exists:branches,id',
+                'branch_id' => 'nullable|numeric|exists:branches,id',
             ]);
 
             $employeeAccountId = $request->account_id[0];
@@ -1247,7 +1300,7 @@ class EmployeeController extends Controller
                 'trans_code' => $transCode,
                 'Created_By' => auth()->id(),
                 'status' => 1,
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
@@ -1261,7 +1314,7 @@ class EmployeeController extends Controller
                 'trans_code' => $transCode,
                 'trans_date' => $voucherData['trans_date'],
                 'narration' => $request->narration[0] ?? 'Incentive Amount Received',
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
                 'debit' => $employeeAmount,
                 'billing_month' => $voucherData['billing_month'],
                 'Created_By' => auth()->id(),
@@ -1275,7 +1328,7 @@ class EmployeeController extends Controller
                 'trans_date' => $voucherData['trans_date'],
                 'narration' => $request->narration[1] ?? 'Incentive Amount Given to ' . $employeeAccount->name,
                 'credit' => $creditAmount,
-                'branch_id' => $request->branch_id,
+                'branch_id' => $request->input('branch_id') ?: null,
                 'billing_month' => $voucherData['billing_month'],
                 'Created_By' => auth()->id(),
             ]);

@@ -80,7 +80,7 @@ $items = \App\Models\Items::dropdown('customer');
         <div class="form-group col-md-3">
             {!! Form::label('item', 'Item') !!}
         </div>
-        <div class="form-group col-md-1">
+        <div class="form-group col-md-2">
             {!! Form::label('quantity', 'Qty') !!}
         </div>
         <div class="form-group col-md-2">
@@ -89,7 +89,7 @@ $items = \App\Models\Items::dropdown('customer');
         <div class="form-group col-md-1">
             {!! Form::label('vat', 'VAT (%)') !!}
         </div>
-        <div class="form-group col-md-2">
+        <div class="form-group col-md-1">
             {!! Form::label('vat', 'VAT Amount') !!}
         </div>
         <div class="form-group col-md-2">
@@ -113,7 +113,7 @@ $items = \App\Models\Items::dropdown('customer');
                     @endforeach
                 </select>
             </div>
-            <div class="form-group col-md-1">
+            <div class="form-group col-md-2">
                 {!! Form::number('item_qty[]', $itm->quantity, [
                 'class' => 'form-control qty',
                 'step' => 'any',
@@ -133,7 +133,7 @@ $items = \App\Models\Items::dropdown('customer');
                 'step' => 'any',
                 ]) !!}
             </div>
-            <div class="form-group col-md-2">
+            <div class="form-group col-md-1">
                 {!! Form::number('item_vatAmount[]', $itm->vat_amount, [
                 'class' => 'form-control vat_amount',
                 'step' => 'any',
@@ -168,7 +168,7 @@ $items = \App\Models\Items::dropdown('customer');
                     @endforeach
                 </select>
             </div>
-            <div class="form-group col-md-1">
+            <div class="form-group col-md-2">
                 {!! Form::number('item_qty[]', 1, [
                 'class' => 'form-control qty',
                 'step' => 'any',
@@ -189,7 +189,7 @@ $items = \App\Models\Items::dropdown('customer');
                 'step' => 'any',
                 ]) !!}
             </div>
-            <div class="form-group col-md-2">
+            <div class="form-group col-md-1">
                 {!! Form::number('item_vatAmount[]', 0, [
                 'class' => 'form-control vat_amount',
                 'step' => 'any',

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Riders;
 use App\Models\Transactions;
+use App\Services\FuelMonthlyLedgerService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -202,14 +204,7 @@ class ReportController extends Controller
         ->groupBy('rider_id')
         ->pluck('total', 'rider_id');
 
-      $fuelTotals = company_table('fuel_data')
-        ->whereIn('rider_id', $riderIds)
-        ->whereNull('deleted_at')
-        ->whereDate('billing_month', '>=', $fromMonth)
-        ->whereDate('billing_month', '<=', $toMonth)
-        ->select('rider_id', DB::raw('SUM(total) as total'))
-        ->groupBy('rider_id')
-        ->pluck('total', 'rider_id');
+      $fuelTotals = $this->fuelChargeTotalsByRider($riderIds, $fromMonth, $toMonth);
 
       $visaTotals = $this->visaInstallmentTotalsByRider(
         $riderIds,
@@ -236,7 +231,7 @@ class ReportController extends Controller
         ->groupBy('payee_account_id')
         ->pluck('total', 'payee_account_id');
 
-      // JV entries posted against rider ledger accounts (imported JV + journal vouchers)
+      // JV on liability rider accounts: credit increases payable (addition), debit reduces it (deduction).
       $jvByAccount = Transactions::whereIn('account_id', $accountIds)
         ->whereDate('billing_month', '>=', $fromMonth)
         ->whereDate('billing_month', '<=', $toMonth)
@@ -250,7 +245,7 @@ class ReportController extends Controller
                   ->select('id'));
             });
         })
-        ->select('account_id', DB::raw('SUM(debit - credit) as total'))
+        ->select('account_id', DB::raw('SUM(credit - debit) as total'))
         ->groupBy('account_id')
         ->pluck('total', 'account_id');
     }
@@ -495,12 +490,7 @@ class ReportController extends Controller
       })
       ->sum('total_amount');
 
-    $fuel = (float) company_table('fuel_data')
-      ->whereIn('rider_id', $riderIds)
-      ->whereNull('deleted_at')
-      ->whereDate('billing_month', '>=', $fromMonth)
-      ->whereDate('billing_month', '<=', $toMonth)
-      ->sum('total');
+    $fuel = (float) $this->fuelChargeTotalsByRider($riderIds, $fromMonth, $toMonth)->sum();
 
     $visa = (float) $this->visaInstallmentTotalsByRider(
       $riderIds,
@@ -538,7 +528,7 @@ class ReportController extends Controller
                   ->select('id'));
             });
         })
-        ->selectRaw('COALESCE(SUM(debit - credit), 0) as total')
+        ->selectRaw('COALESCE(SUM(credit - debit), 0) as total')
         ->value('total') ?? 0);
     }
 
@@ -569,8 +559,11 @@ class ReportController extends Controller
 
   /**
    * Payable = invoice total + additions - deductions.
-   * Additions: incentive + previous balance + JV credits (net credit).
-   * Deductions: VC, COD, RTA, Salik, Fuel, Advance, Penalty, Visa installment + JV debits (net debit).
+   * Additions: incentive + positive previous balance + positive JV (net credit).
+   * Deductions: VC, COD, RTA, Salik, Fuel, Advance, Penalty, Visa installment
+   *             + absolute negative JV (net debit) + absolute negative previous balance.
+   * JV / previous balance use liability convention: SUM(credit - debit).
+   * Positive = addition, negative = deduction.
    *
    * @return array{additions: float, deductions: float, payable: float, jv_deduction: float, jv_addition: float}
    */
@@ -588,11 +581,13 @@ class ReportController extends Controller
     float $incentive,
     float $previousBalance
   ): array {
-    $jvDeduction = $jvNet > 0 ? $jvNet : 0.0;
-    $jvAddition = $jvNet < 0 ? abs($jvNet) : 0.0;
+    $jvAddition = $jvNet > 0 ? $jvNet : 0.0;
+    $jvDeduction = $jvNet < 0 ? abs($jvNet) : 0.0;
+    $previousAddition = $previousBalance > 0 ? $previousBalance : 0.0;
+    $previousDeduction = $previousBalance < 0 ? abs($previousBalance) : 0.0;
 
-    $deductions = $vc + $cod + $rta + $salik + $fuel + $advance + $penalty + $visa + $jvDeduction;
-    $additions = $incentive + $previousBalance + $jvAddition;
+    $deductions = $vc + $cod + $rta + $salik + $fuel + $advance + $penalty + $visa + $jvDeduction + $previousDeduction;
+    $additions = $incentive + $previousAddition + $jvAddition;
 
     return [
       'additions' => $additions,
@@ -601,6 +596,94 @@ class ReportController extends Controller
       'jv_deduction' => $jvDeduction,
       'jv_addition' => $jvAddition,
     ];
+  }
+
+  /**
+   * Fuel charged to the rider = fuel_data line totals + monthly service charge.
+   * Service charge is posted once per rider-month by FuelMonthlyLedgerService
+   * (default AED 25); use the posted ledger amount when present.
+   *
+   * @param  array<int, int|string>  $riderIds
+   * @return Collection<int|string, float>
+   */
+  private function fuelChargeTotalsByRider(array $riderIds, string $fromMonth, string $toMonth): Collection
+  {
+    if ($riderIds === []) {
+      return collect();
+    }
+
+    $lineTotals = company_table('fuel_data')
+      ->whereIn('rider_id', $riderIds)
+      ->whereNull('deleted_at')
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->select('rider_id', DB::raw('SUM(total) as total'))
+      ->groupBy('rider_id')
+      ->pluck('total', 'rider_id');
+
+    $anchors = company_table('fuel_data')
+      ->whereIn('rider_id', $riderIds)
+      ->whereNull('deleted_at')
+      ->whereDate('billing_month', '>=', $fromMonth)
+      ->whereDate('billing_month', '<=', $toMonth)
+      ->select(
+        'rider_id',
+        DB::raw('DATE_FORMAT(billing_month, "%Y-%m-01") as month_key'),
+        DB::raw('MIN(id) as anchor_id')
+      )
+      ->groupBy('rider_id', DB::raw('DATE_FORMAT(billing_month, "%Y-%m-01")'))
+      ->get();
+
+    $postedByAnchor = collect();
+    if ($anchors->isNotEmpty()) {
+      $postedByAnchor = Transactions::where('reference_type', 'fuel')
+        ->whereIn('reference_id', $anchors->pluck('anchor_id')->all())
+        ->where('narration', 'like', '%service charges%')
+        ->where('credit', '>', 0)
+        ->pluck('credit', 'reference_id');
+    }
+
+    $serviceByRider = [];
+    foreach ($anchors as $anchor) {
+      $charge = (float) ($postedByAnchor[$anchor->anchor_id]
+        ?? FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE);
+      $serviceByRider[$anchor->rider_id] = ($serviceByRider[$anchor->rider_id] ?? 0.0) + $charge;
+    }
+
+    $totals = collect();
+    foreach ($lineTotals as $riderId => $total) {
+      $totals[$riderId] = (float) $total + (float) ($serviceByRider[$riderId] ?? 0.0);
+    }
+
+    return $totals;
+  }
+
+  /**
+   * Monthly fuel service charge for one rider-month (posted ledger amount, else default).
+   */
+  private function fuelServiceChargeForRiderMonth(int $riderId, $billingMonth): float
+  {
+    $billingMonthDate = Carbon::parse($billingMonth)->startOfMonth()->toDateString();
+
+    $anchorId = company_table('fuel_data')
+      ->where('rider_id', $riderId)
+      ->whereNull('deleted_at')
+      ->whereDate('billing_month', $billingMonthDate)
+      ->min('id');
+
+    if (! $anchorId) {
+      return 0.0;
+    }
+
+    $posted = Transactions::where('reference_type', 'fuel')
+      ->where('reference_id', $anchorId)
+      ->where('narration', 'like', '%service charges%')
+      ->where('credit', '>', 0)
+      ->value('credit');
+
+    return $posted !== null
+      ? (float) $posted
+      : FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE;
   }
 
   /**
@@ -784,6 +867,24 @@ class ReportController extends Controller
       ->orderBy('inv_id')
       ->get();
 
+    $serviceAppliedMonths = [];
+    foreach ($fuelInvoices as $row) {
+      $monthKey = Carbon::parse($row->billing_month)->format('Y-m');
+      $serviceCharge = $this->fuelServiceChargeForRiderMonth(
+        (int) $riderModel->id,
+        $row->billing_month
+      );
+      // Service charge is once per rider-month; only attach it to the first invoice of that month.
+      if (isset($serviceAppliedMonths[$monthKey])) {
+        $serviceCharge = 0.0;
+      } else {
+        $serviceAppliedMonths[$monthKey] = true;
+      }
+      $row->service_charges = $serviceCharge;
+      $row->lines_total = (float) $row->total_amount;
+      $row->total_amount = (float) $row->total_amount + $serviceCharge;
+    }
+
     $visaInstallmentKeys = [(int) $riderModel->id];
     if ($riderModel->account_id) {
       $visaInstallmentKeys[] = (int) $riderModel->account_id;
@@ -850,7 +951,7 @@ class ReportController extends Controller
         ->value('balance');
     }
 
-    $jvNet = (float) $jvEntries->sum(fn ($row) => (float) $row->debit - (float) $row->credit);
+    $jvNet = (float) $jvEntries->sum(fn ($row) => (float) $row->credit - (float) $row->debit);
     $components = $this->riderReportPayableComponents(
       (float) $invoices->sum('total_amount'),
       (float) $vouchersByType['VC']->sum('amount'),

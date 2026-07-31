@@ -2983,7 +2983,7 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'PN', // Penalty
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('PENALTY_ACCOUNT'),
+        'payment_from' => $creditAccountId,
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'Penalty Amount to Rider',

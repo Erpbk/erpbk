@@ -64,7 +64,7 @@ $value = isset($accounts) ? (data_get($accounts->custom_field_values, $field->id
 $config = $field->config ?? [];
 $cfKey = 'cf_' . $field->id;
 $cfEditable = field_editable('account', $cfKey);
-$cfRequired = (field_required('account', $cfKey) || $field->is_mandatory) && $cfEditable;
+$cfRequired = field_required('account', $cfKey) && $cfEditable;
 if ($field->data_type === 'checkbox') {
 $checked = isset($accounts)
 ? ($value === '1' || $value === true || $value === 'on')

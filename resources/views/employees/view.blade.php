@@ -427,7 +427,7 @@ $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : '
                   <i class="ti ti-calendar-due ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Date Of Joining:</span><br>
+                  <span>Date of Joining:</span><br>
                   <b class="float-right" data-employee-field="doj">
                     @if($employee?->doj)
                     {{ \Carbon\Carbon::parse($employee->doj)->format('d M Y') }}

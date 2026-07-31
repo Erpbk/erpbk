@@ -80,7 +80,7 @@
                             <b>Bike Number</b> <span class="float-right">@isset($result){{$riders->bikes->plate??'not-set'}}@endisset</span>
                          </li>
                          <li class="list-group-item">
-                            <b>Date Of Joining</b> <a class="float-right">@isset($result){{App\Helpers\CommonHelper::DateFormat($result['doj'])??'not-set'}}@endisset</a>
+                            <b>Date of Joining</b> <a class="float-right">@isset($result){{App\Helpers\CommonHelper::DateFormat($result['doj'])??'not-set'}}@endisset</a>
                          </li>
                          <li class="list-group-item @if(@$result['status'] == 1) text-success @else text-danger @endif" >
                             <b>Status</b> <a class="float-right">@isset($result){{App\Helpers\CommonHelper::RiderStatus($result['status'])??'not-set'}}@endisset</a>

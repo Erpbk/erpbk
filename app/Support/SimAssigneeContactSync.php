@@ -218,6 +218,8 @@ class SimAssigneeContactSync
             ? RiderCustomField::class
             : EmployeeCustomField::class;
 
+        // Only the SIM-synced company/phone field — not user fields like "Personal Contact"
+        // or "Home Contact", which previously matched a broad "%contact%" LIKE and stayed locked.
         $exactLabels = ['company contact', 'contact', 'company phone', 'mobile number', 'sim number', 'phone'];
 
         $field = $modelClass::query()
@@ -225,10 +227,6 @@ class SimAssigneeContactSync
                 foreach ($exactLabels as $label) {
                     $q->orWhereRaw('LOWER(TRIM(label)) = ?', [$label]);
                 }
-                $q->orWhere(function ($inner) {
-                    $inner->whereRaw('LOWER(label) LIKE ?', ['%contact%'])
-                        ->whereIn('data_type', ['text', 'tel', 'number']);
-                });
             })
             ->orderBy('display_order')
             ->orderBy('id')

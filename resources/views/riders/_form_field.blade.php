@@ -25,7 +25,8 @@ $rfpSelectLock = field_lock($rfpEntity, (string) $rfpField, 'select');
   @if ($item->kind === 'fixed')
   @php
   $spec = $item->spec;
-  $req = ($rfpRequired || !empty($spec['required'])) && $rfpEditable;
+  // Required is controlled only by Role Field Permissions (not hardcoded $spec['required']).
+  $req = $rfpRequired && $rfpEditable;
   $isReadonly = !empty($spec['readonly'])
   || \App\Support\SimAssigneeContactSync::isManagedFixedFieldKey($item->field_key ?? null);
   $readonlyAttrs = $isReadonly

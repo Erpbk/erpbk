@@ -172,7 +172,6 @@
                         @endphp
                         <span id="total-amount-reference">{{ number_format($totalAmount, 2) }}</span>
                         <br>
-                        <small id="current-total-amount-container" class="text-warning">(Current: <span>{{ number_format($currentTotal, 2) }}</span>)</small>
                     </strong>
                 </td>
                 <td colspan="5"></td>

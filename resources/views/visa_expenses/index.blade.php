@@ -89,22 +89,30 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
         @endif
       </div>
     </div>
+    @php
+      $installmentStats = $installmentStats ?? [
+          'unpaid_amount' => 0,
+          'paid_amount' => 0,
+          'paid_count' => 0,
+          'unpaid_count' => 0,
+      ];
+    @endphp
     <div class="totals-cards pt-3">
       <div class="total-card total-red">
         <div class="label">Total Unpaid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) company_table('visa_installment_plans')->where('status', 'pending')->where('rider_id', $account->rider_id)->sum('amount'), 2) }}</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $installmentStats['unpaid_amount'], 2) }}</div>
       </div>
       <div class="total-card total-green">
         <div class="label">Total Paid Amount</div>
-        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) company_table('visa_installment_plans')->where('status', 'paid')->where('rider_id', $account->rider_id)->sum('amount'), 2) }}</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $installmentStats['paid_amount'], 2) }}</div>
       </div>
       <div class="total-card total-red">
         <div class="label">Unpaid Installments</div>
-        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id', $account->rider_id)->where('status', 'pending')->count() }}</div>
+        <div class="value">{{ (int) $installmentStats['unpaid_count'] }}</div>
       </div>
       <div class="total-card total-green">
         <div class="label">Paid Installments</div>
-        <div class="value">{{ company_table('visa_installment_plans')->where('rider_id', $account->rider_id)->where('status', 'paid')->count() }}</div>
+        <div class="value">{{ (int) $installmentStats['paid_count'] }}</div>
       </div>
     </div>
     <div class="card-body table-responsive px-2 py-0">

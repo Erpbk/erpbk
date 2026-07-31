@@ -54,7 +54,8 @@ $value = 'own';
     @if ($item->kind === 'fixed')
     @php
     $spec = $item->spec ?? [];
-    $req = !empty($spec['required']);
+    // Required is controlled only by Role Field Permissions (not hardcoded $spec['required']).
+    $req = $rfpRequired && $rfpEditable;
     $fieldId = $item->field_key === 'vehicle_type' ? $item->field_key : null;
     @endphp
 

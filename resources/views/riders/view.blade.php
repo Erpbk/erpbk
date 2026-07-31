@@ -462,7 +462,7 @@ $companySlug = request()->route('company_slug');
                   <i class="ti ti-calendar-due ti-sm me-1_5"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Date Of Joining:</span><br> <b class="float-right">@isset($result){{App\Helpers\General::DateFormat($result['doj'])??'not-set'}}@endisset</b>
+                  <span>Date of Joining:</span><br> <b class="float-right">@isset($result){{App\Helpers\General::DateFormat($result['doj'])??'not-set'}}@endisset</b>
                 </div>
               </li>
               <!-- <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">

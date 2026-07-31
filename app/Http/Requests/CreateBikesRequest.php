@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use App\Models\Bikes;
 use App\Models\BikeCustomField;
-use App\Models\BikeFieldCategoryAssignment;
 use App\Models\LeasingCompanies;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Schema;
@@ -37,11 +36,6 @@ class CreateBikesRequest extends FormRequest
             unset($rules['leased_return_company_id']);
         }
 
-        $assignmentTable = (new BikeFieldCategoryAssignment())->getTable();
-
-        $hasRequiredColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_required');
-        $hasVisibleColumn = Schema::hasTable($assignmentTable) && Schema::hasColumn($assignmentTable, 'is_visible');
-
         $normalizePresenceRule = function ($rule, bool $required) {
             if (is_array($rule)) {
                 $tokens = array_values(array_filter($rule, function ($item) {
@@ -59,18 +53,6 @@ class CreateBikesRequest extends FormRequest
             return implode('|', $tokens);
         };
 
-        $assignmentColumns = ['field_key'];
-        if ($hasRequiredColumn) {
-            $assignmentColumns[] = 'is_required';
-        }
-        if ($hasVisibleColumn) {
-            $assignmentColumns[] = 'is_visible';
-        }
-
-        $assignments = BikeFieldCategoryAssignment::query()
-            ->get($assignmentColumns)
-            ->keyBy('field_key');
-
         $fixedKeys = BikeCustomField::allFixedFieldKeys();
 
         foreach ($fixedKeys as $fieldKey) {
@@ -78,33 +60,25 @@ class CreateBikesRequest extends FormRequest
                 continue;
             }
 
-            $assignment = $assignments->get($fieldKey);
-            $isVisible = !$hasVisibleColumn || !$assignment || $assignment->is_visible === null
-                ? true
-                : (bool) $assignment->is_visible;
-
-            $isRequired = BikeCustomField::isAlwaysRequiredFixedField($fieldKey)
-                || (($assignment && $hasRequiredColumn)
-                    ? (bool) $assignment->is_required
-                    : false);
+            // Required comes only from Role Field Permissions (not Module Settings / hardcoded specs).
+            $isRequired = \App\Support\RoleFieldAccess::isRequired('bike', $fieldKey)
+                && \App\Support\RoleFieldAccess::canEdit('bike', $fieldKey)
+                && \App\Support\RoleFieldAccess::canView('bike', $fieldKey);
 
             $baseRule = $rules[$fieldKey] ?? 'nullable';
-            $rules[$fieldKey] = $normalizePresenceRule(
-                $baseRule,
-                BikeCustomField::isAlwaysRequiredFixedField($fieldKey) || ($isVisible && $isRequired)
-            );
+            $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isRequired);
         }
 
-        // Custom fields mandatory flags (only visible fields)
-        $mandatoryCustomQuery = BikeCustomField::query()->where('is_mandatory', 1);
-        if (Schema::hasColumn('bike_custom_fields', 'is_visible')) {
-            $mandatoryCustomQuery->where(function ($q) {
-                $q->where('is_visible', true)->orWhereNull('is_visible');
+        BikeCustomField::query()
+            ->get(['id'])
+            ->each(function ($field) use (&$rules) {
+                $cfName = 'cf_' . $field->id;
+                if (\App\Support\RoleFieldAccess::isRequired('bike', $cfName)
+                    && \App\Support\RoleFieldAccess::canEdit('bike', $cfName)
+                    && \App\Support\RoleFieldAccess::canView('bike', $cfName)) {
+                    $rules['custom_field_values.' . $field->id] = 'required';
+                }
             });
-        }
-        $mandatoryCustomQuery->get(['id'])->each(function ($field) use (&$rules) {
-            $rules['custom_field_values.' . $field->id] = 'required';
-        });
 
         // Bike-specific: cyclist vehicle type disables some required fields
         $vehicleTypeId = $this->input('vehicle_type');

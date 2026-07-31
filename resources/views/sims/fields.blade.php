@@ -1,8 +1,7 @@
 @php
-use App\Support\ModuleFieldSettings;
 $simEntity = 'sim';
 $simFieldRequired = static function (string $key) use ($simEntity) {
-    return field_required($simEntity, $key) || ModuleFieldSettings::isSchemaFieldRequired('sims', $key);
+    return field_required($simEntity, $key);
 };
 $reqAttrs = static function (string $key) use ($simEntity, $simFieldRequired) {
     $attrs = [];

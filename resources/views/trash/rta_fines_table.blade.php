@@ -26,7 +26,7 @@
          $voucherNumber = null;
 
          if ($r->status) {
-         $voucher = company_table('vouchers')
+         $voucher = company_table_with_trashed('vouchers')
          ->where('ref_id', $r->id)
          ->where('voucher_type', 'RFV')
          ->orderByDesc('id')

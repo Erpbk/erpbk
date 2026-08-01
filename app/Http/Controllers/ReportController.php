@@ -241,7 +241,6 @@ class ReportController extends Controller
               $inner->where('reference_type', 'Voucher')
                 ->whereIn('reference_id', company_table('vouchers')
                   ->where('voucher_type', 'JV')
-                  ->whereNull('deleted_at')
                   ->select('id'));
             });
         })
@@ -524,7 +523,6 @@ class ReportController extends Controller
               $inner->where('reference_type', 'Voucher')
                 ->whereIn('reference_id', company_table('vouchers')
                   ->where('voucher_type', 'JV')
-                  ->whereNull('deleted_at')
                   ->select('id'));
             });
         })
@@ -614,7 +612,6 @@ class ReportController extends Controller
 
     $lineTotals = company_table('fuel_data')
       ->whereIn('rider_id', $riderIds)
-      ->whereNull('deleted_at')
       ->whereDate('billing_month', '>=', $fromMonth)
       ->whereDate('billing_month', '<=', $toMonth)
       ->select('rider_id', DB::raw('SUM(total) as total'))
@@ -623,7 +620,6 @@ class ReportController extends Controller
 
     $anchors = company_table('fuel_data')
       ->whereIn('rider_id', $riderIds)
-      ->whereNull('deleted_at')
       ->whereDate('billing_month', '>=', $fromMonth)
       ->whereDate('billing_month', '<=', $toMonth)
       ->select(
@@ -667,7 +663,6 @@ class ReportController extends Controller
 
     $anchorId = company_table('fuel_data')
       ->where('rider_id', $riderId)
-      ->whereNull('deleted_at')
       ->whereDate('billing_month', $billingMonthDate)
       ->min('id');
 
@@ -741,7 +736,6 @@ class ReportController extends Controller
 
     $rows = company_table('visa_installment_plans')
       ->whereIn('rider_id', $keys)
-      ->whereNull('deleted_at')
       ->where(function ($q) use ($fromMonth, $toMonth, $monthValues) {
         $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
           $dateQ->whereDate('billing_month', '>=', $fromMonth)
@@ -851,7 +845,6 @@ class ReportController extends Controller
 
     $fuelInvoices = company_table('fuel_data')
       ->where('rider_id', $riderModel->id)
-      ->whereNull('deleted_at')
       ->whereDate('billing_month', '>=', $fromMonth)
       ->whereDate('billing_month', '<=', $toMonth)
       ->select(
@@ -902,7 +895,6 @@ class ReportController extends Controller
 
     $visaInstallments = company_table('visa_installment_plans')
       ->whereIn('rider_id', $visaInstallmentKeys)
-      ->whereNull('deleted_at')
       ->where(function ($q) use ($fromMonth, $toMonth, $salikMonthValues) {
         $q->where(function ($dateQ) use ($fromMonth, $toMonth) {
           $dateQ->whereDate('billing_month', '>=', $fromMonth)
@@ -925,7 +917,6 @@ class ReportController extends Controller
               $inner->where('reference_type', 'Voucher')
                 ->whereIn('reference_id', company_table('vouchers')
                   ->where('voucher_type', 'JV')
-                  ->whereNull('deleted_at')
                   ->select('id'));
             });
         })

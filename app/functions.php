@@ -29,12 +29,35 @@ if (! function_exists('user_avatar_url')) {
 
 if (! function_exists('company_table')) {
     /**
-     * Tenant-safe query builder: filters by current company_id and excludes NULL company_id rows.
+     * Tenant-safe query builder: filters by current company_id, excludes NULL company_id
+     * rows, and excludes soft-deleted rows when the table has a deleted_at column.
      * Use instead of DB::table() in company routes, views, reports, and settings.
+     *
+     * Pass $withTrashed = true (or use company_table_with_trashed) to include recycle-bin rows.
      */
-    function company_table(string $table, ?string $connection = null): Builder
+    function company_table(string $table, ?string $connection = null, bool $withTrashed = false): Builder
     {
-        return CompanyQuery::table($table, $connection);
+        return CompanyQuery::table($table, $connection, $withTrashed);
+    }
+}
+
+if (! function_exists('company_table_with_trashed')) {
+    /**
+     * Same as company_table(), but includes soft-deleted rows.
+     */
+    function company_table_with_trashed(string $table, ?string $connection = null): Builder
+    {
+        return CompanyQuery::tableWithTrashed($table, $connection);
+    }
+}
+
+if (! function_exists('company_table_only_trashed')) {
+    /**
+     * Soft-deleted rows only (recycle bin style listings via the query builder).
+     */
+    function company_table_only_trashed(string $table, ?string $connection = null): Builder
+    {
+        return CompanyQuery::tableOnlyTrashed($table, $connection);
     }
 }
 

@@ -13,11 +13,20 @@ class CompanyQuery
      */
     private static array $companyColumnCache = [];
 
-    public static function table(string $table, ?string $connection = null): Builder
+    /**
+     * @var array<string, bool>
+     */
+    private static array $deletedAtColumnCache = [];
+
+    public static function table(string $table, ?string $connection = null, bool $withTrashed = false): Builder
     {
         $query = $connection
             ? DB::connection($connection)->table($table)
             : DB::table($table);
+
+        if (! $withTrashed) {
+            $query = self::applySoftDeleteScope($query, $table, $connection);
+        }
 
         if (! self::shouldApplyScope()) {
             return $query;
@@ -29,7 +38,7 @@ class CompanyQuery
         }
 
         $connectionName = $connection ?: (DB::getDefaultConnection() ?: config('database.default'));
-        if (!self::hasCompanyIdColumn($table, $connectionName)) {
+        if (! self::hasCompanyIdColumn($table, $connectionName)) {
             return $query;
         }
 
@@ -40,6 +49,29 @@ class CompanyQuery
         $companyColumn = self::qualifiedCompanyColumn($table);
 
         return $query->where($companyColumn, $companyId)->whereNotNull($companyColumn);
+    }
+
+    /**
+     * Same as table(), but includes soft-deleted rows (for recycle bin / restore flows).
+     */
+    public static function tableWithTrashed(string $table, ?string $connection = null): Builder
+    {
+        return self::table($table, $connection, true);
+    }
+
+    /**
+     * Only soft-deleted rows (recycle bin listings that use the query builder).
+     */
+    public static function tableOnlyTrashed(string $table, ?string $connection = null): Builder
+    {
+        $query = self::table($table, $connection, true);
+        $connectionName = $connection ?: (DB::getDefaultConnection() ?: config('database.default'));
+
+        if (! self::hasDeletedAtColumn($table, $connectionName)) {
+            return $query->whereRaw('0 = 1');
+        }
+
+        return $query->whereNotNull(self::qualifiedDeletedAtColumn($table));
     }
 
     public static function insert(string $table, array $values, ?string $connection = null): bool
@@ -62,6 +94,16 @@ class CompanyQuery
         $payload = self::prepareInsertPayload($table, $values, $connection);
 
         return $query->insertGetId($payload, $sequence);
+    }
+
+    private static function applySoftDeleteScope(Builder $query, string $table, ?string $connection): Builder
+    {
+        $connectionName = $connection ?: (DB::getDefaultConnection() ?: config('database.default'));
+        if (! self::hasDeletedAtColumn($table, $connectionName)) {
+            return $query;
+        }
+
+        return $query->whereNull(self::qualifiedDeletedAtColumn($table));
     }
 
     private static function shouldApplyScope(): bool
@@ -88,9 +130,23 @@ class CompanyQuery
         return self::$companyColumnCache[$cacheKey];
     }
 
+    private static function hasDeletedAtColumn(string $table, string $connection): bool
+    {
+        $tableName = self::baseTableName($table);
+        $cacheKey = $connection . ':' . $tableName;
+
+        if (array_key_exists($cacheKey, self::$deletedAtColumnCache)) {
+            return self::$deletedAtColumnCache[$cacheKey];
+        }
+
+        self::$deletedAtColumnCache[$cacheKey] = Schema::connection($connection)->hasColumn($tableName, 'deleted_at');
+
+        return self::$deletedAtColumnCache[$cacheKey];
+    }
+
     private static function prepareInsertPayload(string $table, array $values, ?string $connection): array
     {
-        if (!self::shouldAttachCompanyIdToInsert($table, $connection)) {
+        if (! self::shouldAttachCompanyIdToInsert($table, $connection)) {
             return $values;
         }
 
@@ -99,7 +155,7 @@ class CompanyQuery
             return $values;
         }
 
-        if (!self::isListOfRows($values)) {
+        if (! self::isListOfRows($values)) {
             if (empty($values['company_id'])) {
                 $values['company_id'] = $companyId;
             } elseif ($values['company_id'] === null) {
@@ -125,7 +181,7 @@ class CompanyQuery
     private static function shouldAttachCompanyIdToInsert(string $table, ?string $connection): bool
     {
         $companyId = self::resolveCompanyId();
-        if ($companyId === null || !self::shouldApplyScope()) {
+        if ($companyId === null || ! self::shouldApplyScope()) {
             return false;
         }
 
@@ -148,11 +204,17 @@ class CompanyQuery
         return self::tableAlias($table) . '.company_id';
     }
 
+    private static function qualifiedDeletedAtColumn(string $table): string
+    {
+        return self::tableAlias($table) . '.deleted_at';
+    }
+
     private static function tableAlias(string $table): string
     {
         $normalized = trim(preg_replace('/\s+/', ' ', $table) ?? $table);
         if (stripos($normalized, ' as ') !== false) {
             $parts = preg_split('/\s+as\s+/i', $normalized);
+
             return trim((string) end($parts));
         }
 
@@ -169,6 +231,7 @@ class CompanyQuery
         $normalized = trim(preg_replace('/\s+/', ' ', $table) ?? $table);
         if (stripos($normalized, ' as ') !== false) {
             $parts = preg_split('/\s+as\s+/i', $normalized);
+
             return trim((string) ($parts[0] ?? $normalized));
         }
 

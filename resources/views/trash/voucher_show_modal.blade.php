@@ -104,7 +104,7 @@
                 @php
                 $totalD = 0;
                 $totalC = 0;
-                $fin_detail = company_table('rta_fines')->where('id' , $voucher->ref_id)->first();
+                $fin_detail = company_table_with_trashed('rta_fines')->where('id' , $voucher->ref_id)->first();
                 @endphp
                 @if($voucher->transactions && $voucher->transactions->count() > 0)
                 @foreach($voucher->transactions as $item)

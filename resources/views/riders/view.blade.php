@@ -727,17 +727,6 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                <!-- Action items with lower priority -->
-                @can('riders_voucher_create')
-                <li class="nav-item nav-priority-10">
-                  <a href="javascript:void(0);"
-                    data-action="{{ route('riders.voucher', ['company_slug' => $companySlug, 'id' => $result['id']]) }}"
-                    data-size="xl" data-title="Voucher"
-                    class='nav-link show-modal'>
-                    <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
-                  </a>
-                </li>
-                @endcan
                 @endisset
               </ul>
             </div>

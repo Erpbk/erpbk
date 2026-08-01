@@ -62,18 +62,10 @@
     cursor: pointer;
   }
 
-  .table-responsive .dropdown-menu {
-    z-index: 9999 !important;
-    position: absolute !important;
-  }
-
-  .dropdown-menu {
-    z-index: 9999 !important;
-  }
-
-  .table .dropdown-menu {
-    transform: none !important;
-    will-change: auto !important;
+  /* Table action menus use Popper fixed strategy via ColumnController */
+  #table-data .dropdown-menu,
+  #dataTableBuilder .dropdown-menu {
+    z-index: 1080 !important;
   }
 </style>
 @endpush
@@ -253,14 +245,25 @@
           attempts++;
 
           if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-            var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-            var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
+            document.querySelectorAll('#dataTableBuilder [data-bs-toggle="dropdown"]').forEach(function(el) {
               try {
-                return new bootstrap.Dropdown(dropdownToggleEl);
-              } catch (e) {
-                return null;
-              }
-            }).filter(Boolean);
+                var existing = bootstrap.Dropdown.getInstance(el);
+                if (existing) {
+                  existing.dispose();
+                }
+                new bootstrap.Dropdown(el, {
+                  popperConfig: function(defaultConfig) {
+                    return Object.assign({}, defaultConfig, {
+                      strategy: 'fixed',
+                      modifiers: (defaultConfig.modifiers || []).concat([{
+                        name: 'preventOverflow',
+                        options: { boundary: 'viewport' }
+                      }])
+                    });
+                  }
+                });
+              } catch (e) {}
+            });
           } else if (attempts < maxAttempts) {
             setTimeout(tryInitialize, 100);
           }

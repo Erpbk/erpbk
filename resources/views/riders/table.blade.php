@@ -38,6 +38,7 @@
          </td>
          @break
          @case('contact_number')
+         @case('company_contact')
          @php
          $phone = preg_replace('/[^0-9]/', '', $r->sim?->number ?? '');
          if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
@@ -51,6 +52,15 @@
          @break
          @case('customer_id')
          <td>{{ $r->customer?->name ?? '-' }}</td>
+         @break
+         @case('designation')
+         <td>{{ $r->resolvedDesignation() }}</td>
+         @break
+         @case('dob')
+         <td>{{ $r->dob ? \App\Helpers\General::DateFormat($r->dob) : '-' }}</td>
+         @break
+         @case('doj')
+         <td>{{ $r->doj ? \App\Helpers\General::DateFormat($r->doj) : '-' }}</td>
          @break
          @case('branch_id')
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
@@ -114,15 +124,15 @@
          <td>{{ $balance ? $balance : '-' }}</td>
          @break
          @case('action')
-         <td style="position: relative;">
+         <td>
             @if($riderPendingDeletion)
             @include('delete_requests._pending_badge', ['model' => $r])
             @else
             <div class="dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
+               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
-               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}">
                   @can('agreements_create')
                   @include('layouts.partials.module_contract_action', [
                   'module' => 'riders',

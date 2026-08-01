@@ -56,38 +56,38 @@
         <span class="text-muted">-</span>
         @endif
       </td>@endif
-      <td style="position: relative;">
+      <td>
         <div class="dropdown">
           <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $voucher->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
-          <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
+          <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}">
             @canany(['expenses_create', 'expenses_edit'])
-            <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ route('voucher.fileupload', $expenseVoucherRouteParams($voucher->id)) }}" class='dropdown-item waves-effect show-modal'>
+            <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
+                data-action="{{ route('voucher.fileupload', $expenseVoucherRouteParams($voucher->id)) }}" class="dropdown-item waves-effect show-modal">
                 <i class="fa fa-file my-1"></i> Upload Document
-              </a></li>
+              </a>
             @endcanany
             @can('expenses_view')
-            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">
+            <a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('expenses.voucher.show', $expenseVoucherRouteParams($voucher->id)) }}" data-title="Expense Voucher #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('expenses.list-sidebar', !empty($__companySlug) ? ['company_slug' => $__companySlug] : []) }}">
                 <i class="fa fa-eye my-1"></i> View
-              </a></li>
+              </a>
             @endcan
             @can('expenses_edit')
-            <li><a href="javascript:void(0);" data-size="xl"
+            <a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Expense Voucher {{ $voucherId }}"
                 data-action="{{ route('expenses.voucher.edit', $expenseVoucherRouteParams($voucher->id)) }}"
-                class='dropdown-item waves-effect show-modal'>
+                class="dropdown-item waves-effect show-modal">
                 <i class="fa fa-edit my-1"></i> Edit
-              </a></li>
+              </a>
             @endcan
             @can('expenses_delete')
-            <li><a href="javascript:void(0);" onclick="deleteExpenseVoucher('{{ $voucher->id }}')" class='dropdown-item waves-effect text-danger'>
+            <a href="javascript:void(0);" onclick="deleteExpenseVoucher('{{ $voucher->id }}')" class="dropdown-item waves-effect text-danger">
                 <i class="fa fa-trash my-1"></i> Delete
-              </a></li>
+              </a>
             @endcan
-            </ul>
           </div>
+        </div>
       </td>
       <td></td>
       <td></td>

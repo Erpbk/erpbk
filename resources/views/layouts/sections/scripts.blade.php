@@ -46,6 +46,7 @@
 <script src="{{ asset('assets/js/main.js') }}"></script>
 @include('layouts.datatables_js')
 <script src="{{ asset('js/custom.js') }}"></script>
+<script src="{{ asset('js/payment-fields.js') }}"></script>
 <script src="{{ asset('js/application.js?id=1') }}"></script>
 <script>
   window.__rfpDefaultEntity = @json($rfpDefaultEntity ?? null);

@@ -481,6 +481,9 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initPermissionRoleMatrix === 'function') {
       window.initPermissionRoleMatrix();
     }
+    if (typeof window.initPaymentFieldsForm === 'function' && $('#modalTopbody [data-payment-fields-init]').length) {
+      window.initPaymentFieldsForm(document.getElementById('formajax') || $('#modalTopbody'));
+    }
   });
 
   if (table) {

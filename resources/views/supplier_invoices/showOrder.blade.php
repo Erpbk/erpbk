@@ -4,18 +4,25 @@
     <meta charset="UTF-8">
     <title>Supplier Invoice #{{ $supplierInvoice->inv_id }}</title>
     <style>
-        /* ----- RESET & GLOBAL (inherited from fuel invoice styles) ----- */
-        * {
-            margin: 0;
-            padding: 0;
+        /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
+        .invoice-box,
+        .invoice-box * {
             box-sizing: border-box;
         }
-        body {
+        body:has(> .invoice-box),
+        body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
             background: #eef2f5;
             margin: 0;
+            padding: 20px;
+        }
+        #rightSideModalBody:has(.invoice-box) {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
+            background: #eef2f5;
             padding: 20px;
         }
         .invoice-box {
@@ -53,21 +60,21 @@
         .invoice-box td.num {
             text-align: right;
         }
-        .no-border td {
+        .invoice-box .no-border td {
             border: none;
             padding: 4px 6px;
         }
 
         /* ----- HEADER STYLES (kept from v1 but enhanced) ----- */
-        .primary-header { background: #211c1d; color: white; }
-        .secondary-header { background: #004aad; color: white; font-weight: bold; }
-        .accent-total { background: #5271ff; color: white; }
-        .light-header { background: #e6f1ff; color: #004aad; }
-        .amount-highlight { background: #2A62FF; color: white; }
-        .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
+        .invoice-box .primary-header { background: #211c1d; color: white; }
+        .invoice-box .secondary-header { background: #004aad; color: white; font-weight: bold; }
+        .invoice-box .accent-total { background: #5271ff; color: white; }
+        .invoice-box .light-header { background: #e6f1ff; color: #004aad; }
+        .invoice-box .amount-highlight { background: #2A62FF; color: white; }
+        .invoice-box .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
 
         /* ----- PRINT BUTTONS & CONTROLS (consistent with fuel invoice) ----- */
-        .print-btn {
+        #rightSideModalBody .print-btn,        body > .controls .print-btn {
             background: #004aad;
             color: #fff;
             border: none;
@@ -80,10 +87,10 @@
             font-weight: 500;
             transition: 0.2s;
         }
-        .print-btn:hover {
+        #rightSideModalBody .print-btn:hover,        body > .controls .print-btn:hover {
             background: #2A62FF;
         }
-        .controls {
+        #rightSideModalBody > .controls,        body > .controls {
             position: sticky;
             top: 10px;
             z-index: 100;
@@ -246,7 +253,7 @@
                 max-width: 100%;
                 border-radius: 0;
             }
-            .controls {
+            #rightSideModalBody > .controls,            body > .controls {
                 display: none !important;
             }
             .supplier-card, .details-card {

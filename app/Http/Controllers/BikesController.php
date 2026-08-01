@@ -554,7 +554,7 @@ class BikesController extends AppBaseController
     public function show($company_slug, $id)
     {
         $bikes = $this->bikesRepository->find($id);
-        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
+        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch', 'latestHistory']);
 
         if (empty($bikes)) {
             Flash::error('Bikes not found');
@@ -577,7 +577,7 @@ class BikesController extends AppBaseController
     public function edit($company_slug, $id)
     {
         $bikes = $this->bikesRepository->find($id);
-        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
+        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch', 'latestHistory']);
         if (empty($bikes)) {
             Flash::error('Bikes not found');
 
@@ -2129,7 +2129,7 @@ class BikesController extends AppBaseController
     public function files($company_slug, $bike_id)
     {
         $bikes = Bikes::find($bike_id);
-        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
+        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch', 'latestHistory']);
 
         $expectedFiles = [
             'mulkiya' => 'Mulkiya',
@@ -2162,7 +2162,7 @@ class BikesController extends AppBaseController
     public function maintenance($company_slug, $id)
     {
         $bikes = Bikes::findOrFail($id);
-        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch']);
+        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch', 'latestHistory']);
         $maintenances = $bikes->maintenanceRecords()->orderBy('maintenance_date', 'desc')->get();
 
         return view('bikes.maintenance', compact('bikes', 'maintenances'));

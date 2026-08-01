@@ -10,27 +10,10 @@
     <style>
         @include('rider_invoices.partials.invoice_brand_styles')
 
-        * {
-            margin: 0;
-            padding: 0;
+        /* Scope resets to invoice content only — never leak into center modals */
+        .invoice-show-layout,
+        .invoice-show-layout * {
             box-sizing: border-box;
-        }
-
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-
-        body:has(.invoice-show-layout) {
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #eef2f5;
         }
 
         .invoice-show-layout {
@@ -39,6 +22,9 @@
             flex: 1;
             min-height: 0;
             background: #eef2f5;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
         }
 
         body > .invoice-show-layout {
@@ -46,7 +32,8 @@
             height: 100dvh;
         }
 
-        #modalTopbody {
+        /* Only zero padding when the invoice itself is loaded in the center modal */
+        #modalTopbody:has(.invoice-show-layout) {
             overflow: hidden;
             padding: 0 !important;
         }
@@ -56,7 +43,7 @@
             max-height: 80vh;
         }
 
-        #rightSideModalBody {
+        #rightSideModalBody:has(.invoice-show-layout) {
             overflow: hidden !important;
             height: 100%;
             display: flex;
@@ -66,9 +53,10 @@
         #rightSideModalBody .invoice-show-layout {
             height: 100%;
             flex: 1;
+            min-height: 0;
         }
 
-        .right-side-modal .modal-body {
+        .right-side-modal:has(.invoice-show-layout) .modal-body {
             overflow: hidden !important;
         }
 
@@ -90,6 +78,7 @@
 
         .invoice-scroll-area {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 20px;
@@ -263,17 +252,7 @@
             }
         }
     </style>
-</head>
-<body>
 
-<div class="controls no-print">
-    <button type="button" class="print-btn" onclick="printModalContent()">Print Invoice</button>
-    @can('leasing_companies_invoices_edit')
-    <a href="javascript:void(0);" data-size="xl" data-title="Edit Invoice" data-action="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}" class="print-btn show-modal" style="text-decoration: none;">Edit</a>
-    @endcan
-</div>
-
-<div class="invoice-box">
     @php
         $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $invoiceNumber = $invoice->invoice_number ?? ('LCI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT));

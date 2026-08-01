@@ -8,27 +8,12 @@
 
 <body>
     <style>
-        @include('rider_invoices.partials.invoice_brand_styles') * {
-            margin: 0;
-            padding: 0;
+        @include('rider_invoices.partials.invoice_brand_styles')
+
+        /* Scope resets to invoice content only — never leak into center modals */
+        .rider-invoice-layout,
+        .rider-invoice-layout * {
             box-sizing: border-box;
-        }
-
-        html,
-        body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-
-        body:has(.rider-invoice-layout) {
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #eef2f5;
         }
 
         .rider-invoice-layout {
@@ -37,6 +22,9 @@
             flex: 1;
             min-height: 0;
             background: #eef2f5;
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
         }
 
         body>.rider-invoice-layout {
@@ -44,8 +32,9 @@
             height: 100dvh;
         }
 
-        #modalTopbody {
+        #modalTopbody:has(.rider-invoice-layout) {
             overflow: hidden;
+            padding: 0 !important;
         }
 
         #modalTopbody .rider-invoice-layout {
@@ -53,7 +42,7 @@
             max-height: 80vh;
         }
 
-        #rightSideModalBody {
+        #rightSideModalBody:has(.rider-invoice-layout) {
             overflow: hidden !important;
             height: 100%;
             display: flex;
@@ -63,9 +52,10 @@
         #rightSideModalBody .rider-invoice-layout {
             height: 100%;
             flex: 1;
+            min-height: 0;
         }
 
-        .right-side-modal .modal-body {
+        .right-side-modal:has(.rider-invoice-layout) .modal-body {
             overflow: hidden !important;
         }
 
@@ -87,6 +77,7 @@
 
         .invoice-scroll-area {
             flex: 1;
+            min-height: 0;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 20px;

@@ -133,6 +133,14 @@ class Bikes extends BaseModel
     return $emirates !== '' ? $emirates : ($plate !== '' ? $plate : (string) ($this->bike_code ?? $this->id));
   }
 
+  /**
+   * Dropdown label: "{emirates}-{plate} {road status}".
+   */
+  public function selectLabelWithRoadStatus(): string
+  {
+    return trim($this->emiratesPlateLabel() . ' ( ' . ($this->road_status['label'] ?? '') . ' )');
+  }
+
   public static function availableForFixedAssetSelect(?int $exceptAssetId = null)
   {
     $assignedQuery = FixedAsset::query()
@@ -232,6 +240,75 @@ class Bikes extends BaseModel
     }
 
     return ['label' => 'Scheduled', 'badge' => 'bg-label-info'];
+  }
+
+  /**
+   * Road / warehouse status badge used across bike list, detail, and leasing company bike pages.
+   *
+   * @return array{label: string, class: string, title: string, since: \Carbon\Carbon|string|null, days: int|null, is_returned: bool}
+   */
+  public function getRoadStatusAttribute(): array
+  {
+    static $hasLeasingReturnColumn = null;
+    if ($hasLeasingReturnColumn === null) {
+      $hasLeasingReturnColumn = \Illuminate\Support\Facades\Schema::hasColumn($this->getTable(), 'leased_return_by');
+    }
+
+    $isReturned = $hasLeasingReturnColumn && ! empty($this->leased_return_date);
+    $wKey = strtolower(trim((string) ($this->warehouse ?? '')));
+
+    $specialStatuses = [
+      'absconded' => ['Absconded', 'road-absconded'],
+      'theft' => ['Theft', 'road-theft'],
+      'total loss' => ['Total Loss', 'road-total-loss'],
+      'impound' => ['Impound', 'road-impound'],
+      'accident' => ['Accident', 'road-accident'],
+    ];
+
+    if ($isReturned) {
+      $label = 'Returned';
+      $class = 'road-returned';
+      $title = 'Returned to leasing company';
+    } elseif (isset($specialStatuses[$wKey])) {
+      [$label, $class] = $specialStatuses[$wKey];
+      $title = 'Status: ' . $label;
+    } elseif ($wKey === 'active') {
+      $label = 'On Road';
+      $class = 'road-onroad';
+      $title = 'Status: On Road';
+    } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
+      $label = 'Off Road';
+      $class = 'road-offroad';
+      $title = 'Status: Off Road';
+    } else {
+      $label = 'On Road';
+      $class = 'road-onroadRed';
+      $title = 'Status: On Road';
+    }
+
+    $since = null;
+    if ($isReturned && ! empty($this->leased_return_date)) {
+      $since = $this->leased_return_date;
+    } else {
+      $lastHist = $this->latestHistory;
+      if ($lastHist) {
+        $since = $lastHist->return_date ?: $lastHist->note_date;
+      }
+    }
+
+    $days = null;
+    if ($since) {
+      $days = (int) max(0, \Carbon\Carbon::parse($since)->startOfDay()->diffInDays(now()->startOfDay()));
+    }
+
+    return [
+      'label' => $label,
+      'class' => $class,
+      'title' => $title,
+      'since' => $since,
+      'days' => $days,
+      'is_returned' => $isReturned,
+    ];
   }
 
   public function maintenanceStatus(): string

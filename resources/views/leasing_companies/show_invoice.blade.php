@@ -5,12 +5,19 @@
     <meta charset="UTF-8">
     <title>Leasing Company Invoice #{{ $invoice->id }}</title>
     <style>
-        body {
+        /* Scoped — do not style the app <body> / global tables when embedded */
+        body:has(> .invoice-box),
+        body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
             margin: 0;
             padding: 0;
+        }
+        #rightSideModalBody:has(.invoice-box) {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
         }
 
         .invoice-box {
@@ -20,70 +27,71 @@
             border: 1px solid #000;
         }
 
-        table {
+        .invoice-box table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 8px;
         }
 
-        th,
-        td {
+        .invoice-box th,
+        .invoice-box td {
             border: 1px solid #000;
             padding: 4px 6px;
             font-size: 12px;
         }
 
-        th {
+        .invoice-box th {
             background: #d9e1f2;
             font-weight: bold;
         }
 
-        td.num {
+        .invoice-box td.num {
             text-align: right;
         }
 
-        .no-border td {
+        .invoice-box .no-border td {
             border: none;
             padding: 3px 6px;
         }
 
-        .primary-header {
+        .invoice-box .primary-header {
             background: #211c1d;
             color: white;
             font-weight: bold;
         }
 
-        .secondary-header {
+        .invoice-box .secondary-header {
             background: #004aad;
             color: white;
             font-weight: bold;
         }
 
-        .accent-total {
+        .invoice-box .accent-total {
             background: #5271ff;
             color: white;
             font-weight: bold;
         }
 
-        .light-header {
+        .invoice-box .light-header {
             background: #e6f1ff;
             color: #004aad;
             font-weight: bold;
         }
 
-        .amount-highlight {
+        .invoice-box .amount-highlight {
             background: #2A62FF;
             font-weight: bold;
             color: #FFFFFF;
         }
 
-        .yellow-highlight {
+        .invoice-box .yellow-highlight {
             background: #ffff00;
             font-weight: bold;
             padding: 8px;
         }
 
-        .print-btn {
+        #rightSideModalBody .print-btn,
+        body > .controls .print-btn {
             position: fixed;
             top: 10px;
             right: 10px;
@@ -97,7 +105,8 @@
             z-index: 9999;
         }
 
-        .print-btn:hover {
+        #rightSideModalBody .print-btn:hover,
+        body > .controls .print-btn:hover {
             background: #2A62FF;
         }
 
@@ -110,12 +119,13 @@
             .accent-total,
             .light-header,
             .amount-highlight,
-            .yellow-highlight {
+            .invoice-box .yellow-highlight {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
 
-            .print-btn {
+            #rightSideModalBody .print-btn,
+            body > .controls .print-btn {
                 display: none !important;
             }
         }

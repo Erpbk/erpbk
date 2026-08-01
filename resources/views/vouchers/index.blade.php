@@ -62,21 +62,10 @@
         cursor: pointer;
     }
 
-    /* Fix dropdown z-index issue in table-responsive */
-    .table-responsive .dropdown-menu {
-        z-index: 9999 !important;
-        position: absolute !important;
-    }
-
-    /* Ensure dropdown appears above overflow content */
-    .dropdown-menu {
-        z-index: 9999 !important;
-    }
-
-    /* Override Bootstrap's dropdown positioning for table context */
-    .table .dropdown-menu {
-        transform: none !important;
-        will-change: auto !important;
+    /* Table action menus use Popper fixed strategy (see initializeDropdowns) */
+    #table-data .dropdown-menu,
+    #dataTableBuilder .dropdown-menu {
+        z-index: 1080 !important;
     }
 </style>
 @endpush
@@ -265,11 +254,8 @@
             // Test jQuery is working
             console.log('jQuery version:', $.fn.jquery);
 
-            // Function to initialize Bootstrap dropdowns
+            // Function to initialize Bootstrap dropdowns (fixed strategy escapes table overflow)
             function initializeDropdowns() {
-                console.log('Initializing dropdowns'); // Debug line
-
-                // Wait for Bootstrap to be available
                 var attempts = 0;
                 var maxAttempts = 10;
 
@@ -277,23 +263,29 @@
                     attempts++;
 
                     if (typeof bootstrap !== 'undefined' && bootstrap.Dropdown) {
-                        // Initialize Bootstrap 5 dropdowns
-                        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-                        var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
+                        document.querySelectorAll('#dataTableBuilder [data-bs-toggle="dropdown"]').forEach(function(el) {
                             try {
-                                return new bootstrap.Dropdown(dropdownToggleEl);
+                                var existing = bootstrap.Dropdown.getInstance(el);
+                                if (existing) {
+                                    existing.dispose();
+                                }
+                                new bootstrap.Dropdown(el, {
+                                    popperConfig: function(defaultConfig) {
+                                        return Object.assign({}, defaultConfig, {
+                                            strategy: 'fixed',
+                                            modifiers: (defaultConfig.modifiers || []).concat([{
+                                                name: 'preventOverflow',
+                                                options: { boundary: 'viewport' }
+                                            }])
+                                        });
+                                    }
+                                });
                             } catch (e) {
                                 console.warn('Failed to initialize dropdown:', e);
-                                return null;
                             }
-                        }).filter(Boolean);
-
-                        console.log('Dropdowns initialized:', dropdownList.length); // Debug line
+                        });
                     } else if (attempts < maxAttempts) {
-                        console.log('Bootstrap not ready, retrying...', attempts);
                         setTimeout(tryInitialize, 100);
-                    } else {
-                        console.warn('Bootstrap dropdown initialization failed after', maxAttempts, 'attempts');
                     }
                 }
 

@@ -458,6 +458,64 @@ class Riders extends BaseModel
     return $this->hasOne(Bikes::class, 'rider_id', 'id');
   }
 
+  /**
+   * Map a bike vehicle type (model name or id) to the designation used on vehicle assign.
+   */
+  public static function designationFromVehicleType($vehicleType): ?string
+  {
+    if ($vehicleType === null || $vehicleType === '') {
+      return null;
+    }
+
+    $name = strtolower(trim((string) $vehicleType));
+
+    if (ctype_digit((string) $vehicleType) || is_numeric($vehicleType)) {
+      static $vehicleModelNameCache = [];
+      $cacheKey = (string) $vehicleType;
+      if (! array_key_exists($cacheKey, $vehicleModelNameCache)) {
+        $vehicleModelNameCache[$cacheKey] = strtolower((string) (
+          \App\Support\CompanyQuery::table('vehicle_models')->where('id', $vehicleType)->value('name') ?? ''
+        ));
+      }
+      if ($vehicleModelNameCache[$cacheKey] !== '') {
+        $name = $vehicleModelNameCache[$cacheKey];
+      }
+    }
+
+    if (str_contains($name, 'bike')) {
+      return 'Rider';
+    }
+    if (str_contains($name, 'car') || str_contains($name, 'van')) {
+      return 'Driver';
+    }
+    if (str_contains($name, 'cyclist')) {
+      return 'Cyclist';
+    }
+
+    return null;
+  }
+
+  /**
+   * Latest designation from the rider's assigned bike vehicle type, else stored designation.
+   */
+  public function resolvedDesignation(): string
+  {
+    $bike = $this->relationLoaded('bikes')
+      ? $this->bikes
+      : $this->bikes()->first();
+
+    if ($bike && ! empty($bike->vehicle_type)) {
+      $fromVehicle = self::designationFromVehicleType($bike->vehicle_type);
+      if ($fromVehicle !== null) {
+        return $fromVehicle;
+      }
+    }
+
+    $stored = trim((string) ($this->designation ?? ''));
+
+    return $stored !== '' ? $stored : '-';
+  }
+
   public function histories()
   {
     return $this->hasMany(RiderHistory::class, 'rider_id', 'id')->orderByDesc('effective_date')->orderByDesc('id');

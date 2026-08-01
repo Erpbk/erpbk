@@ -2197,9 +2197,6 @@ $attendanceRefType = $attendanceRefType ?? null;
     }
   });
 
-  // Required/Visible toggles removed; field visibility/required now managed in Role Permissions.
-  }
-
   function initBikeFieldSortables() {
     if (typeof Sortable === 'undefined') return;
     document.querySelectorAll('.bike-fields-sortable-tbody').forEach(function(tbody) {

@@ -31,7 +31,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
             'data' => 'name'
         ],
         'company_contact' => [
-            'title' => 'Contact',
+            'title' => 'Company Contact',
             'data' => 'company_contact'
         ],
         'fleet_supervisor' => [
@@ -100,7 +100,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
             'data' => 'doj'
         ],
         'dob' => [
-            'title' => 'DOB',
+            'title' => 'Date of Birth',
             'data' => 'dob'
         ],
         'emirate_id' => [
@@ -159,7 +159,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
 
     public function collection()
     {
-        $query = Riders::with(['bikes', 'country','branch']);
+        $query = Riders::with(['bikes', 'country', 'branch', 'customer', 'sim']);
 
         // Apply any filters that might be passed
         if (!empty($this->filters)) {
@@ -238,7 +238,16 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
                 return $rider->name ?? '';
 
             case 'company_contact':
-                return $rider->company_contact;
+            case 'contact_number':
+                $phone = preg_replace('/[^0-9]/', '', (string) ($rider->sim?->number ?? $rider->company_contact ?? ''));
+                if ($phone === '') {
+                    return '-';
+                }
+                if (str_starts_with($phone, '971')) {
+                    return '0' . substr($phone, 3);
+                }
+
+                return '0' . ltrim($phone, '0');
 
             case 'fleet_supervisor':
                 return $rider->fleet_supervisor;
@@ -250,7 +259,7 @@ class CustomizableRiderExport implements FromCollection, WithHeadings, WithMappi
                 return \App\Support\CompanyQuery::table('customers')->where('id', $rider->customer_id)->value('name') ?? '-';
 
             case 'designation':
-                return $rider->designation;
+                return $rider->resolvedDesignation();
 
             case 'bike':
                 $bike = \App\Support\CompanyQuery::table('bikes')->where('rider_id', $rider->id)->first();

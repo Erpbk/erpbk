@@ -95,7 +95,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
         <span class="text-muted">-</span>
         @endif
       </td>@endif
-      <td style="position: relative;">
+      <td>
         @if($voucherPendingDeletion)
         @include('delete_requests._locked_cell', ['model' => $voucher])
         @else
@@ -103,40 +103,40 @@ $vfColspan = count(array_filter($vfCols)) + 2;
           <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $voucher->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
-          <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}" style="z-index: 1050;">
+          <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}">
             @canany(['voucher_create', 'voucher_edit'])
             @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <li><a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class='dropdown-item waves-effect show-modal'>
+            <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
+                data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class="dropdown-item waves-effect show-modal">
                 <i class="fa fa-file my-1"></i> Upload Document
-              </a></li>
+              </a>
             @endif
             @endcanany
             @can('voucher_view')
-            <li><a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
+            <a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                 <i class="fa fa-eye my-1"></i> View
-              </a></li>
+              </a>
             @endcan
             @can('voucher_edit')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <li><a href="javascript:void(0);" data-size="xl"
+            <a href="javascript:void(0);" data-size="xl"
                 data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
                 data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}"
-                class='dropdown-item waves-effect show-modal'>
+                class="dropdown-item waves-effect show-modal">
                 <i class="fa fa-edit my-1"></i> Edit
-              </a></li>
+              </a>
             @endif
             @endcan
             @can('voucher_delete')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <li><a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class='dropdown-item waves-effect text-danger'>
+            <a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class="dropdown-item waves-effect text-danger">
                 <i class="fa fa-trash my-1"></i> Delete
-              </a></li>
+              </a>
             @endif
             @endcan
-            </ul>
           </div>
-          @endif
+        </div>
+        @endif
       </td>
       <td style="display:none;"></td>
       <td style="display:none;"></td>

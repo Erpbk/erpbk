@@ -584,6 +584,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('GarageCustomers/maintenances/{id}', [BikeRentCompaniesController::class, 'maintenances'])->name('garage_customer.maintenances');
     /* Rider section starts from here */
 
+    // Static rider paths must be registered before resource show (riders/{rider}).
+    Route::get('riders/voucher-create', [RidersController::class, 'voucherCreate'])->name('riders.voucher.create');
     Route::resource('riders', RidersController::class);
     Route::post('riders/filter-ajax', [RidersController::class, 'filterAjax'])->name('riders.filterAjax');
     Route::get('riders/dropdown-options/modal', [RidersController::class, 'dropdownOptionModal'])->name('riders.dropdown-options.modal');

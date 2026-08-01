@@ -361,12 +361,13 @@ class LeasingCompaniesController extends AppBaseController
         // Leasing companies dropdown (id => name)
         $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
 
-        // Bikes dropdown for item rows (id => "plate - model")
+        // Bikes dropdown for item rows (id => "emirates-plate Status")
         $bikes = Bikes::where('status', 1)
+            ->with('latestHistory')
             ->orderBy('plate')
             ->get()
             ->mapWithKeys(function ($b) {
-                return [$b->id => $b->plate.' - '.($b->model ?? '')];
+                return [$b->id => $b->selectLabelWithRoadStatus()];
             })
             ->prepend('Select', '')
             ->toArray();
@@ -445,6 +446,7 @@ class LeasingCompaniesController extends AppBaseController
 
         // Bikes for dropdown: include company bikes + bikes from clone items (even if reassigned/soft-deleted)
         $companyBikes = Bikes::withTrashed()
+            ->with('latestHistory')
             ->where(function ($q) use ($sourceInvoice, $cloneBikeIds) {
                 $q->where('company', $sourceInvoice->leasing_company_id)
                     ->orWhereIn('id', $cloneBikeIds);
@@ -454,12 +456,7 @@ class LeasingCompaniesController extends AppBaseController
 
         $bikes = [];
         foreach ($companyBikes as $b) {
-            $label = $b->plate.' - '.($b->model ?? '');
-            $isInactive = (int) $b->status !== 1 || $b->trashed() || in_array($b->warehouse, ['Return', 'Vacation', 'Express Garage', 'Absconded'], true);
-            if ($isInactive) {
-                $label .= ' (Inactive/Returned)';
-            }
-            $bikes[$b->id] = $label;
+            $bikes[$b->id] = $b->selectLabelWithRoadStatus();
         }
         $bikes = ['' => 'Select'] + $bikes;
 
@@ -660,12 +657,13 @@ class LeasingCompaniesController extends AppBaseController
         // Leasing companies dropdown (id => name)
         $leasingCompanies = LeasingCompanies::where('status', 1)->orderBy('name')->pluck('name', 'id')->prepend('Select', '')->toArray();
 
-        // Bikes dropdown for item rows (id => "plate - model") - all active bikes
+        // Bikes dropdown for item rows (id => "emirates-plate Status") - all active bikes
         $bikes = Bikes::where('status', 1)
+            ->with('latestHistory')
             ->orderBy('plate')
             ->get()
             ->mapWithKeys(function ($b) {
-                return [$b->id => $b->plate.' - '.($b->model ?? '')];
+                return [$b->id => $b->selectLabelWithRoadStatus()];
             })
             ->prepend('Select', '')
             ->toArray();
@@ -1045,7 +1043,18 @@ class LeasingCompaniesController extends AppBaseController
         }
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Bikes::query()
-            ->where('company', $leasingCompany->id);
+            ->where('company', $leasingCompany->id)
+            ->with([
+                'latestHistory' => function ($q) {
+                    $q->select([
+                        'bike_histories.id',
+                        'bike_histories.bike_id',
+                        'bike_histories.notes',
+                        'bike_histories.return_date',
+                        'bike_histories.note_date',
+                    ]);
+                },
+            ]);
         $bikes = $this->applyPagination($query, $paginationParams);
 
         // Notes only for bikes returned via leasing return option

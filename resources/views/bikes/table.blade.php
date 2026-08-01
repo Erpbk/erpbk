@@ -57,69 +57,6 @@
       /* Firefox */
    }
 
-   .road-status-badge {
-      display: inline-block;
-      padding: 4px 16px;
-      border-radius: 6px;
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-align: center;
-      min-width: 120px;
-      color: white;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-   }
-
-   .road-onroad {
-      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-      border: 1px solid #218838;
-   }
-
-   .road-offroad {
-      background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-      border: 1px solid #c82333;
-   }
-
-   .road-onroadRed {
-      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-      /* Both red tones */
-      border: 2px solid #b02a37;
-      /* Darker red border */
-      color: #ffffff;
-   }
-
-   /* Bike returned to the leasing company */
-   .road-returned {
-      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
-      border: 1px solid #5c636a;
-   }
-
-   .road-absconded {
-      background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
-      border: 1px solid #842029;
-   }
-
-   .road-theft {
-      background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%);
-      border: 1px solid #4c2b8a;
-   }
-
-   .road-total-loss {
-      background: linear-gradient(135deg, #343a40 0%, #212529 100%);
-      border: 1px solid #1a1d20;
-   }
-
-   .road-impound {
-      background: linear-gradient(135deg, #fd7e14 0%, #e8590c 100%);
-      border: 1px solid #d9480f;
-   }
-
-   .road-accident {
-      background: linear-gradient(135deg, #b02a37 0%, #922b21 100%);
-      border: 1px solid #7b241c;
-   }
-
    #dataTableBuilder td.bike-notes-cell {
       white-space: pre-wrap;
       min-width: 280px;
@@ -151,7 +88,6 @@
       <tr role="row">
          @php
          $tableCols = $tableColumns ?? [];
-         $hasLeasingReturn = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by');
          $hiddenTableColumns = ['company_id', 'rental_company_id', 'current_km', 'bike_owner'];
          $dataColumns = array_values(array_filter($tableCols, function ($c) use ($hiddenTableColumns) {
          $k = $c['data'] ?? ($c['key'] ?? null);
@@ -240,59 +176,7 @@
          @break
          @case('bike_status')
          <td tabindex="0">
-            @php
-            $isReturned = $hasLeasingReturn && !empty($r->leased_return_date);
-            $wKey = strtolower(trim((string) ($r->warehouse ?? '')));
-            $specialStatuses = [
-            'absconded' => ['Absconded', 'road-absconded'],
-            'theft' => ['Theft', 'road-theft'],
-            'total loss' => ['Total Loss', 'road-total-loss'],
-            'impound' => ['Impound', 'road-impound'],
-            'accident' => ['Accident', 'road-accident'],
-            ];
-
-            if ($isReturned) {
-            $statusLabel = 'Returned';
-            $statusClass = 'road-returned';
-            $statusTitle = 'Returned to leasing company';
-            } elseif (isset($specialStatuses[$wKey])) {
-            [$statusLabel, $statusClass] = $specialStatuses[$wKey];
-            $statusTitle = 'Status: ' . $statusLabel;
-            } elseif ($wKey === 'active') {
-            $statusLabel = 'On Road';
-            $statusClass = 'road-onroad';
-            $statusTitle = 'Status: On Road';
-            } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
-            $statusLabel = 'Off Road';
-            $statusClass = 'road-offroad';
-            $statusTitle = 'Status: Off Road';
-            } else {
-            $statusLabel = 'On Road';
-            $statusClass = 'road-onroadRed';
-            $statusTitle = 'Status: On Road';
-            }
-
-            $statusSince = null;
-            if ($isReturned && !empty($r->leased_return_date)) {
-            $statusSince = $r->leased_return_date;
-            } else {
-            $lastHist = $r->latestHistory;
-            if ($lastHist) {
-            $statusSince = $lastHist->return_date ?: $lastHist->note_date;
-            }
-            }
-
-            $daysSinceStatus = null;
-            if ($statusSince) {
-            $daysSinceStatus = (int) max(0, \Carbon\Carbon::parse($statusSince)->startOfDay()->diffInDays(now()->startOfDay()));
-            }
-            @endphp
-            <div class="d-flex flex-column align-items-center gap-1">
-               <span class="road-status-badge {{ $statusClass }}" title="{{ $statusTitle }}">{{ $statusLabel }}</span>
-               @if($daysSinceStatus !== null)
-               <small class="text-muted status-days" title="Days since status change">{{ $daysSinceStatus }} {{ $daysSinceStatus === 1 ? 'day' : 'days' }}</small>
-               @endif
-            </div>
+            @include('bikes.partials.road_status_badge', ['bike' => $r])
          </td>
          @break
          @case('created_by')

@@ -4,12 +4,19 @@
     <meta charset="UTF-8">
     <title>Fine Invoice #{{ $rtaFine->ticket_no ?? $rtaFine->id }}</title>
     <style>
-        body {
+        /* Scoped — do not style the app <body> when embedded in right-side modal */
+        body:has(> .invoice-box),
+        body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
             margin: 0;
             padding: 0;
+        }
+        #rightSideModalBody:has(.invoice-box) {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
         }
 
         .invoice-box {
@@ -40,7 +47,7 @@
             text-align: right;
         }
 
-        .no-border td {
+        .invoice-box .no-border td {
             border: none;
             padding: 3px 6px;
         }
@@ -69,13 +76,13 @@
             font-weight: bold;
         }
 
-        .amount-highlight {
+        .invoice-box .amount-highlight {
             background: #2A62FF;
             font-weight: bold;
             color: #FFFFFF;
         }
 
-        .yellow-highlight {
+        .invoice-box .yellow-highlight {
             background: #ffff00;
             font-weight: bold;
             padding: 8px;
@@ -83,7 +90,7 @@
 
         @media print {
             body, *, .primary-header, .secondary-header, .accent-total, 
-            .light-header, .amount-highlight, .yellow-highlight {
+            .light-header, .amount-highlight, .invoice-box .yellow-highlight {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -102,7 +109,8 @@
             }
         }
 
-        .print-btn {
+        #rightSideModalBody .print-btn,
+        body > .controls .print-btn {
             background: #004aad;
             color: #fff;
             border: none;
@@ -116,11 +124,13 @@
             transition: 0.2s;
         }
         
-        .print-btn:hover {
+        #rightSideModalBody .print-btn:hover,        
+        body > .controls .print-btn:hover {
             background: #2A62FF;
         }
         
-        .controls {
+        #rightSideModalBody > .controls,        
+        body > .controls {
             position: sticky;
             top: 10px;
             z-index: 100;

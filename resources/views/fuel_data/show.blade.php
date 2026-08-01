@@ -4,12 +4,19 @@
     <meta charset="UTF-8">
     <title>Fuel Invoice #{{ $summary->inv_id }}</title>
     <style>
-        body {
+        /* Scoped — do not style the app <body> when embedded in right-side modal */
+        body:has(> .invoice-box),
+        body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
             margin: 0;
             padding: 0;
+        }
+        #rightSideModalBody:has(.invoice-box) {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
         }
 
         .invoice-box {
@@ -41,48 +48,49 @@
             text-align: center;
         }
 
-        .no-border td {
+        .invoice-box .no-border td {
             border: none;
             padding: 3px 6px;
         }
 
-        .primary-header {
+        .invoice-box .primary-header {
             background: #211c1d;
             color: white;
             font-weight: bold;
         }
 
-        .secondary-header {
+        .invoice-box .secondary-header {
             background: #004aad;
             color: white;
             font-weight: bold;
         }
 
-        .accent-total {
+        .invoice-box .accent-total {
             background: #5271ff;
             color: white;
             font-weight: bold;
         }
 
-        .light-header {
+        .invoice-box .light-header {
             background: #e6f1ff;
             color: #004aad;
             font-weight: bold;
         }
 
-        .amount-highlight {
+        .invoice-box .amount-highlight {
             background: #2A62FF;
             font-weight: bold;
             color: #FFFFFF;
         }
 
-        .yellow-highlight {
+        .invoice-box .yellow-highlight {
             background: #ffff00;
             font-weight: bold;
             padding: 8px;
         }
 
-        .print-btn {
+        #rightSideModalBody .print-btn,
+        body > .controls .print-btn {
             background: #004aad;
             color: #fff;
             border: none;
@@ -96,13 +104,14 @@
             transition: 0.2s;
         }
 
-        .print-btn:hover {
+        #rightSideModalBody .print-btn:hover,
+        body > .controls .print-btn:hover {
             background: #2A62FF;
         }
 
         @media print {
-            body, *, .primary-header, .secondary-header, .accent-total, 
-            .light-header, .amount-highlight, .yellow-highlight {
+            body, *, .invoice-box .primary-header, .invoice-box .secondary-header, .invoice-box .accent-total,
+            .invoice-box .light-header, .invoice-box .amount-highlight, .invoice-box .yellow-highlight {
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -121,7 +130,8 @@
             }
         }
         
-        .controls {
+        #rightSideModalBody > .controls,
+        body > .controls {
             position: sticky;
             top: 10px;
             z-index: 100;
@@ -186,7 +196,7 @@
             margin-top: 10px;
         }
 
-        .rider-card, .summary-card {
+        .invoice-box .rider-card, .invoice-box .summary-card {
             padding: 16px 18px;
             margin-bottom: 0;
             background: #ffffff;
@@ -195,14 +205,14 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.03);
         }
 
-        .card-header {
+        .invoice-box .card-header {
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 2px solid #004aad;
             background-color: white !important;
         }
 
-        .card-header strong {
+        .invoice-box .card-header strong {
             color: #004aad;
             font-size: 14px;
         }

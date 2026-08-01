@@ -4,18 +4,25 @@
     <meta charset="UTF-8">
     <title>Employee Invoice #{{ $employeeInvoice->id }} Month: {{ date('M-Y', strtotime($employeeInvoice->billing_month)) }}</title>
     <style>
-        /* ----- RESET & GLOBAL (modern card style) ----- */
-        * {
-            margin: 0;
-            padding: 0;
+        /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
+        .invoice-box,
+        .invoice-box * {
             box-sizing: border-box;
         }
-        body {
+        body:has(> .invoice-box),
+        body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
             color: #000;
             background: #eef2f5;
             margin: 0;
+            padding: 20px;
+        }
+        #rightSideModalBody:has(.invoice-box) {
+            font-family: Calibri, Arial, sans-serif;
+            font-size: 12px;
+            color: #000;
+            background: #eef2f5;
             padding: 20px;
         }
         .invoice-box {
@@ -55,21 +62,21 @@
         .invoice-box td.num {
             text-align: right;
         }
-        .no-border td {
+        .invoice-box .no-border td {
             border: none;
             padding: 4px 6px;
         }
 
         /* ----- HEADER STYLES (premium palette) ----- */
-        .primary-header { background: #211c1d; color: white; font-weight: bold; }
-        .secondary-header { background: #004aad; color: white; font-weight: bold; }
-        .accent-total { background: #5271ff; color: white; font-weight: bold; }
-        .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
-        .amount-highlight { background: #2A62FF; color: white; font-weight: bold; }
-        .success-highlight { background: #004aad; color: white; font-weight: bold; }
+        .invoice-box .primary-header { background: #211c1d; color: white; font-weight: bold; }
+        .invoice-box .secondary-header { background: #004aad; color: white; font-weight: bold; }
+        .invoice-box .accent-total { background: #5271ff; color: white; font-weight: bold; }
+        .invoice-box .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
+        .invoice-box .amount-highlight { background: #2A62FF; color: white; font-weight: bold; }
+        .invoice-box .success-highlight { background: #004aad; color: white; font-weight: bold; }
 
         /* ----- CARD LAYOUT ----- */
-        .employee-card, .details-card {
+        .invoice-box .employee-card, .invoice-box .details-card {
             padding: 16px 18px;
             background: #ffffff;
             border: 1px solid #e2e8f0;
@@ -165,7 +172,7 @@
         }
 
         /* ----- PRINT BUTTONS & CONTROLS (supplier style) ----- */
-        .print-btn {
+        #rightSideModalBody .print-btn,        body > .controls .print-btn {
             background: #004aad;
             color: #fff;
             border: none;
@@ -178,10 +185,10 @@
             font-weight: 500;
             transition: 0.2s;
         }
-        .print-btn:hover {
+        #rightSideModalBody .print-btn:hover,        body > .controls .print-btn:hover {
             background: #2A62FF;
         }
-        .controls {
+        #rightSideModalBody > .controls,        body > .controls {
             position: sticky;
             top: 10px;
             z-index: 100;

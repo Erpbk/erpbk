@@ -132,6 +132,14 @@ function parseModalLoadError(response, xhr) {
   return { statusCode: statusCode, message: message };
 }
 
+// Strip <style> tags injected by AJAX-loaded right-panel views so they cannot
+// leak into center modals / the rest of the app.
+function clearRightSideModalStyles() {
+  if (window.jQuery) {
+    $('#rightSideModalBody').find('style').remove();
+  }
+}
+
 function openRightSideModal(action, title, size = 'lg', callback = null) {
   // Reset modal size classes
   $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
@@ -143,6 +151,9 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
 
   // Set title
   $('#rightSideModalTitle').text(title);
+
+  // Drop previous view styles before loading new content
+  clearRightSideModalStyles();
 
   // Show loading state
   $('#rightSideModalBody').html(`
@@ -194,6 +205,9 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
 
 // Close right side modal function
 function closeRightSideModal() {
+  // Drop injected view <style> immediately so center modals keep normal padding
+  // while the side panel finish-hiding animation runs.
+  clearRightSideModalStyles();
   $('#rightSideModal').modal('hide');
 }
 
@@ -425,6 +439,7 @@ $('body').on('click', '.show-modal', function () {
     (closeRightModal || $(this).closest('#rightSideModalBody').length) &&
     $('#rightSideModal').hasClass('show')
   ) {
+    clearRightSideModalStyles();
     closeRightSideModal();
   }
 

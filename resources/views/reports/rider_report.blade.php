@@ -506,13 +506,17 @@
                     </select>
                 </div>
                 <div class="form-group col-md-12">
+                    <label for="billing_month">Billing Month</label>
+                    <input type="month" id="billing_month" name="billing_month" value="{{ request('billing_month', date('Y-m')) }}" class="form-control" />
+                </div>
+                {{-- <div class="form-group col-md-12">
                     <label for="from_month">From Month</label>
                     <input type="month" id="from_month" name="from_month" value="{{ request('from_month', request('billing_month', date('Y-m'))) }}" class="form-control" />
                 </div>
                 <div class="form-group col-md-12">
                     <label for="to_month">To Month</label>
                     <input type="month" id="to_month" name="to_month" value="{{ request('to_month', request('billing_month', date('Y-m'))) }}" class="form-control" />
-                </div>
+                </div> --}}
                 <div class="col-md-12 form-group text-center">
                     <button type="button" class="btn btn-primary w-100 mt-3" onclick="get_data()">
                         <i class="ti ti-filter mx-2"></i> Apply Filters

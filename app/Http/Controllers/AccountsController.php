@@ -142,7 +142,6 @@ class AccountsController extends AppBaseController
     }
 
     $input = $request->except(['custom_field_values']);
-    $input['is_fixed'] = $this->resolveFixedFlag($request, false);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
     // Set is_locked=1 if parent_id is not set (root account)
 
@@ -240,7 +239,6 @@ class AccountsController extends AppBaseController
     }
 
     $input = $request->except(['custom_field_values']);
-    $input['is_fixed'] = $this->resolveFixedFlag($request, (bool) ($accounts->is_fixed ?? false));
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
     $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
     $accounts = $this->accountsRepository->update($input, $id);

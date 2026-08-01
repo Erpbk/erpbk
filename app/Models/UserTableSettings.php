@@ -33,32 +33,46 @@ class UserTableSettings extends BaseModel
     }
 
     /**
-     * Get settings for a specific user and table
+     * Get settings for a specific user and table.
+     * Prefer the most recently updated row so saves/loads stay aligned when duplicates exist.
      */
     public static function getSettings($userId, $tableIdentifier)
     {
-        return self::where('user_id', $userId)
-            ->where('table_identifier', $tableIdentifier)
+        return self::queryForUserTable($userId, $tableIdentifier)
+            ->orderByDesc('updated_at')
             ->orderByDesc('id')
             ->first();
     }
 
     /**
-     * Save or update settings for a user and table
+     * Save or update settings for a user and table.
+     * Always updates the canonical (latest) row and removes duplicates.
      */
     public static function saveSettings($userId, $tableIdentifier, $visibleColumns = null, $columnOrder = null, $additionalSettings = null)
     {
-        return self::updateOrCreate(
-            [
-                'user_id' => $userId,
-                'table_identifier' => $tableIdentifier,
-            ],
-            [
-                'visible_columns' => $visibleColumns,
-                'column_order' => $columnOrder,
-                'additional_settings' => $additionalSettings,
-            ]
-        );
+        $payload = [
+            'visible_columns' => $visibleColumns,
+            'column_order' => $columnOrder,
+            'additional_settings' => $additionalSettings,
+        ];
+
+        $existing = self::getSettings($userId, $tableIdentifier);
+
+        if ($existing) {
+            self::queryForUserTable($userId, $tableIdentifier)
+                ->where('id', '!=', $existing->id)
+                ->delete();
+
+            $existing->fill($payload);
+            $existing->save();
+
+            return $existing->fresh() ?? $existing;
+        }
+
+        return self::create(array_merge([
+            'user_id' => $userId,
+            'table_identifier' => $tableIdentifier,
+        ], $payload));
     }
 
     /**
@@ -66,9 +80,16 @@ class UserTableSettings extends BaseModel
      */
     public static function resetSettings($userId, $tableIdentifier)
     {
+        return self::queryForUserTable($userId, $tableIdentifier)->delete();
+    }
+
+    /**
+     * Scoped query for one user's table settings (company scope still applies via BaseModel).
+     */
+    protected static function queryForUserTable($userId, $tableIdentifier)
+    {
         return self::where('user_id', $userId)
-            ->where('table_identifier', $tableIdentifier)
-            ->delete();
+            ->where('table_identifier', $tableIdentifier);
     }
 
     /**

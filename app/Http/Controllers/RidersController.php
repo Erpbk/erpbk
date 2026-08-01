@@ -176,9 +176,15 @@ class RidersController extends AppBaseController
       ->values()
       ->all();
 
+    // Always expose list columns that are useful in column control even when they are
+    // hidden from Rider Settings forms (project/designation) or removed from the riders schema (company contact / SIM).
+    $alwaysInclude = ['status', 'customer_id', 'company_contact', 'designation'];
+
     $dbColumns = array_values(array_unique(array_merge(
       $assignedFixedColumns,
-      Schema::hasColumn('riders', 'status') ? ['status'] : []
+      array_values(array_filter($alwaysInclude, function ($key) {
+        return $key === 'company_contact' || Schema::hasColumn('riders', $key);
+      }))
     )));
 
     $assignedCustomFields = RiderCustomField::query()
@@ -190,8 +196,10 @@ class RidersController extends AppBaseController
     $preferredOrder = [
       'rider_id',
       'name',
+      'company_contact',
       'fleet_supervisor',
       'customer_id',
+      'designation',
       'attendance',
       'status',
     ];
@@ -200,11 +208,15 @@ class RidersController extends AppBaseController
     $added = [];
     $makeTitle = function ($key) {
       $customTitles = [
+        'dob' => 'Date of Birth',
         'doj' => 'Date of Joining',
+        'customer_id' => 'Project',
+        'company_contact' => 'Company Contact',
+        'designation' => 'Designation',
         'recruiter_id' => 'Recruiter',
       ];
 
-      return $customTitles[$key] ?? ucwords(str_replace('_', ' ', $key));
+      return $customTitles[$key] ?? \App\Support\ModuleFieldSource::humanizeFieldKey($key);
     };
 
     foreach ($preferredOrder as $key) {
@@ -469,7 +481,7 @@ class RidersController extends AppBaseController
       )
       ->select($indexSelect)
       ->orderBy('days_count', 'asc')
-      ->with('branch');
+      ->with(['branch', 'customer', 'sim', 'bikes']);
     $this->applyCompanyScope($query);
     if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
@@ -575,7 +587,8 @@ class RidersController extends AppBaseController
       )
       ->select($indexSelect)
       ->orderBy('days_count', 'desc')
-      ->orderBy('riders.id', 'desc');
+      ->orderBy('riders.id', 'desc')
+      ->with(['branch', 'customer', 'sim', 'bikes']);
     $this->applyCompanyScope($query);
 
     if ($request->filled('rider_id')) {
@@ -3270,8 +3283,9 @@ class RidersController extends AppBaseController
     $query->whereIn('payee_account_id', $accountIds);
 
     $data = $this->applyPagination($query, $paginationParams);
+    $voucherTypes = $this->riderVoucherTypeOptions();
 
-    return view('riders.payments', compact('data'));
+    return view('riders.payments', compact('data', 'voucherTypes'));
   }
 
   public function storeincentive(Request $request)
@@ -3417,7 +3431,66 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Unified voucher modal for rider: AL, COD, PN, INC, PAY, VC.
+   * Active rider voucher types shown in the unified voucher modal / payments Add New.
+   *
+   * @return array<string, string>
+   */
+  protected function riderVoucherTypeOptions(): array
+  {
+    $riderVoucherCodes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
+    $activeTypes = VoucherType::activeCodeLabelMapForModule('riders');
+    $voucherTypes = [];
+    foreach ($riderVoucherCodes as $code) {
+      if (isset($activeTypes[$code])) {
+        $voucherTypes[$code] = $activeTypes[$code];
+      }
+    }
+
+    return $voucherTypes;
+  }
+
+  /**
+   * Unified voucher modal from Rider Payments: pick rider, optional preselected type.
+   */
+  public function voucherCreate(Request $request)
+  {
+    $rider = null;
+    if ($request->filled('rider_id')) {
+      $rider = $this->findAccessibleRider((int) $request->rider_id);
+    }
+
+    $preselectedType = strtoupper(trim((string) $request->get('type', '')));
+    $voucherTypes = $this->riderVoucherTypeOptions();
+    if ($preselectedType !== '' && ! isset($voucherTypes[$preselectedType])) {
+      $preselectedType = '';
+    }
+
+    $riderOptions = Riders::query()
+      ->select('id', 'rider_id', 'name', 'branch_id')
+      ->orderBy('name')
+      ->get();
+
+    $account = $rider
+      ? Accounts::where('ref_id', $rider->id)->where('account_type', 'expense')->first()
+      : null;
+    $accounts = Accounts::dropdown(null);
+    $bank_accounts = Accounts::bankAccountsDropdown();
+    $requireRiderSelect = true;
+
+    return view('riders.voucher-modal', compact(
+      'rider',
+      'account',
+      'accounts',
+      'bank_accounts',
+      'voucherTypes',
+      'preselectedType',
+      'riderOptions',
+      'requireRiderSelect'
+    ));
+  }
+
+  /**
+   * Unified voucher modal for a specific rider: AL, COD, PN, INC, PAY, VC.
    */
   public function voucher($company_slug, $rider_id)
   {
@@ -3430,16 +3503,21 @@ class RidersController extends AppBaseController
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $riderVoucherCodes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
-    $activeTypes = VoucherType::activeCodeLabelMapForModule('riders');
-    $voucherTypes = [];
-    foreach ($riderVoucherCodes as $code) {
-      if (isset($activeTypes[$code])) {
-        $voucherTypes[$code] = $activeTypes[$code];
-      }
-    }
+    $voucherTypes = $this->riderVoucherTypeOptions();
+    $requireRiderSelect = false;
+    $preselectedType = '';
+    $riderOptions = collect();
 
-    return view('riders.voucher-modal', compact('rider', 'account', 'accounts', 'bank_accounts', 'voucherTypes'));
+    return view('riders.voucher-modal', compact(
+      'rider',
+      'account',
+      'accounts',
+      'bank_accounts',
+      'voucherTypes',
+      'requireRiderSelect',
+      'preselectedType',
+      'riderOptions'
+    ));
   }
 
   public function storevendorcharges(Request $request)

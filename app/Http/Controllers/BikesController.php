@@ -921,7 +921,7 @@ class BikesController extends AppBaseController
                     Riders::where('id', $bike->rider_id)
                         ->update(['status' => 5]);
                     $bike->update(['warehouse' => 'Absconded']);
-                    $this->updateBikeHistory($bike, 'Absconded', $bike->rider_id, $message, $request->return_date, 'Absconded');
+                    $this->updateBikeHistory($bike, 'Absconded', $bike->rider_id, $message, null, 'Absconded');
                     if ($rider && $riderBefore) {
                         RiderHistoryLogger::bikeAssignStatusChange(
                             (int) $rider->id,

@@ -28,8 +28,8 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
             }
 
             if (!(bool) $assignment->is_visible) {
-                // Riders list: keep employment `status` and project (`customer_id`) in column control even if module marks them hidden
-                if ($resolvedModuleKey === 'riders_list' && in_array($columnKey, ['status', 'customer_id'], true)) {
+                // Riders list: keep status/project/contact/designation in column control even if module marks them hidden
+                if ($resolvedModuleKey === 'riders_list' && in_array($columnKey, ['status', 'customer_id', 'company_contact', 'designation'], true)) {
                     $effectiveLabel = trim((string) ($assignment->display_label ?: $assignment->field_label ?: ''));
                     if ($effectiveLabel !== '') {
                         $column['title'] = $columnKey === 'customer_id' && strcasecmp($effectiveLabel, 'Customer') === 0
@@ -37,6 +37,10 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                             : $effectiveLabel;
                     } elseif ($columnKey === 'customer_id') {
                         $column['title'] = 'Project';
+                    } elseif ($columnKey === 'company_contact') {
+                        $column['title'] = 'Company Contact';
+                    } elseif ($columnKey === 'designation') {
+                        $column['title'] = 'Designation';
                     }
                     return $column;
                 }
@@ -266,19 +270,14 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
         display: none !important;
     }
 
-    /* Ensure action column dropdowns are visible */
-    .table td .dropdown {
-        position: relative !important;
-    }
-
-    .table td .dropdown .dropdown-menu {
-        position: absolute !important;
-        z-index: 1050 !important;
-    }
-
+    /* Keep action toggles visible; menus use Popper fixed strategy to escape table overflow */
     .table td .dropdown .btn {
         visibility: visible !important;
         display: inline-block !important;
+    }
+
+    .table td .dropdown-menu {
+        z-index: 1080 !important;
     }
 
     /* Sortable list styles */
@@ -330,16 +329,9 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 // Column visibility checkboxes
                 document.querySelectorAll('.column-visibility-checkbox').forEach(checkbox => {
                     checkbox.addEventListener('change', (e) => {
-                        // Mark as user interaction (not initial load)
-                        const wasInitialLoad = this.isInitialLoad;
+                        // Mark as user interaction so toggleColumnVisibility persists the change
                         this.isInitialLoad = false;
-
                         this.toggleColumnVisibility(e.target.dataset.columnIndex, e.target.checked);
-
-                        // Force save for user interactions
-                        if (!wasInitialLoad) {
-                            this.saveSettings();
-                        }
                     });
                 });
 
@@ -648,8 +640,11 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                     })
                     .then(response => response.json())
                     .then(data => {
-                        if (data.success && data.data) {
+                        if (data.success && data.data && Array.isArray(data.data.visible_columns)) {
                             this.applyUserSettings(data.data);
+                        } else {
+                            // No saved preferences — keep rendered defaults
+                            this.applyDefaultSettings();
                         }
                     })
                     .catch(error => {
@@ -661,31 +656,28 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
 
             applyUserSettings(settings) {
                 try {
-                    // Apply visibility settings
-                    if (Array.isArray(settings.visible_columns)) {
-                        const availableColumnKeys = Array.from(document.querySelectorAll('.column-item'))
-                            .map(item => item.dataset.columnKey)
-                            .filter(Boolean);
-                        const hasAnyMatchingVisibleColumn = settings.visible_columns.some(key => availableColumnKeys.includes(key));
+                    const availableColumnKeys = Array.from(document.querySelectorAll('.column-item'))
+                        .map(item => item.dataset.columnKey)
+                        .filter(Boolean);
+                    const hasAnyMatchingVisibleColumn = settings.visible_columns.some(key => availableColumnKeys.includes(key));
 
-                        // If saved settings no longer match current table columns
-                        // (e.g. module column schema changed), fall back to defaults.
-                        if (!hasAnyMatchingVisibleColumn && availableColumnKeys.length > 0) {
-                            this.applyDefaultSettings();
-                            return;
-                        }
-
-                        document.querySelectorAll('.column-visibility-checkbox').forEach(checkbox => {
-                            const columnKey = checkbox.closest('.column-item').dataset.columnKey;
-                            const isVisible = settings.visible_columns.includes(columnKey);
-
-                            checkbox.checked = isVisible;
-                            this.toggleColumnVisibility(checkbox.dataset.columnIndex, isVisible);
-                        });
+                    // If saved settings no longer match current table columns
+                    // (e.g. module column schema changed), fall back to defaults.
+                    if (!hasAnyMatchingVisibleColumn && availableColumnKeys.length > 0) {
+                        this.applyDefaultSettings();
+                        return;
                     }
 
+                    document.querySelectorAll('.column-visibility-checkbox').forEach(checkbox => {
+                        const columnKey = checkbox.closest('.column-item').dataset.columnKey;
+                        const isVisible = settings.visible_columns.includes(columnKey);
+
+                        checkbox.checked = isVisible;
+                        this.toggleColumnVisibility(checkbox.dataset.columnIndex, isVisible);
+                    });
+
                     // Apply column order if available
-                    if (settings.column_order) {
+                    if (Array.isArray(settings.column_order) && settings.column_order.length) {
                         this.applyColumnOrderFromSettings(settings.column_order);
                     }
 
@@ -764,7 +756,13 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
             initializeDropdowns() {
                 // Wait a bit for the DOM to be ready
                 setTimeout(() => {
-                    const dropdownElements = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+                    if (typeof bootstrap === 'undefined' || !bootstrap.Dropdown) {
+                        return;
+                    }
+
+                    const dropdownElements = document.querySelectorAll(
+                        '#' + this.tableId + ' [data-bs-toggle="dropdown"], .table [data-bs-toggle="dropdown"]'
+                    );
                     dropdownElements.forEach(element => {
                         // Remove any existing Bootstrap dropdown instance
                         const existingDropdown = bootstrap.Dropdown.getInstance(element);
@@ -772,11 +770,25 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                             existingDropdown.dispose();
                         }
 
-                        // Create new Bootstrap dropdown instance
-                        new bootstrap.Dropdown(element);
+                        // Fixed strategy escapes .table-responsive overflow clipping
+                        new bootstrap.Dropdown(element, {
+                            popperConfig(defaultConfig) {
+                                return {
+                                    ...defaultConfig,
+                                    strategy: 'fixed',
+                                    modifiers: [
+                                        ...(defaultConfig.modifiers || []),
+                                        {
+                                            name: 'preventOverflow',
+                                            options: {
+                                                boundary: 'viewport',
+                                            },
+                                        },
+                                    ],
+                                };
+                            },
+                        });
                     });
-
-                    console.log('Initialized', dropdownElements.length, 'dropdowns');
                 }, 200);
             },
 

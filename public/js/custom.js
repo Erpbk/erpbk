@@ -610,6 +610,34 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   var formData = new FormData(this);
   var shouldReloadTable = String($form.data('reload-table')) !== '0';
 
+  // IIS/request-filtering often returns a bare 403 when the original upload
+  // filename contains blocked extensions/chars. Re-send files under a safe name.
+  (function sanitizeUploadFilenames(fd) {
+    var allowedExt = {
+      pdf: 1, jpg: 1, jpeg: 1, png: 1, gif: 1, webp: 1, bmp: 1,
+      doc: 1, docx: 1, xls: 1, xlsx: 1, csv: 1, txt: 1, rar: 1, zip: 1
+    };
+    var pending = [];
+    fd.forEach(function (value, key) {
+      if (typeof File !== 'undefined' && value instanceof File) {
+        pending.push({ key: key, file: value });
+      }
+    });
+    pending.forEach(function (item, index) {
+      var original = item.file.name || 'document';
+      var ext = (original.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!allowedExt[ext]) {
+        ext = 'bin';
+      }
+      var safeName = 'upload_' + Date.now() + '_' + index + '.' + ext;
+      fd.delete(item.key);
+      fd.append(item.key, item.file, safeName);
+      if (!fd.has('original_filename')) {
+        fd.append('original_filename', original);
+      }
+    });
+  })(formData);
+
   // Dynamic fields ki values ko ek array mein store karein
   var values = [];
   $('.dFields').each(function () {
@@ -621,6 +649,7 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   if (values.length !== values.filter((item, index) => values.indexOf(item) === index).length) {
     console.log('Array has duplicates');
     $('#error_message_duplicate_id').html('Array has duplicates');
+    unblock();
     return false;
   }
 
@@ -672,9 +701,24 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
     error: function (ajaxcontent) {
       unblock();
 
-      // Handle custom error messages (e.g., inactive entity validation)
-      if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.message) {
-        toastr.error(ajaxcontent.responseJSON.message, 'Error', {
+      var status = ajaxcontent.status;
+      var payload = ajaxcontent.responseJSON;
+      if (!payload && ajaxcontent.responseText) {
+        try {
+          payload = JSON.parse(ajaxcontent.responseText);
+        } catch (e) {
+          payload = null;
+        }
+      }
+      payload = payload || {};
+
+      var message = payload.message || payload.error || null;
+      if (Array.isArray(message)) {
+        message = message.join(' ');
+      }
+
+      if (message) {
+        toastr.error(message, 'Error', {
           timeOut: 8000,
           extendedTimeOut: 2000,
           closeButton: true,
@@ -685,39 +729,56 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
       }
 
       // Handle success false response
-      if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.success == 'false') {
-        if (ajaxcontent.responseJSON.errors) {
-          toastr.error(ajaxcontent.responseJSON.errors);
-        }
+      if (payload.success == 'false' && payload.errors) {
+        toastr.error(payload.errors);
         return false;
       }
 
       // Handle Laravel validation errors
-      if (ajaxcontent.responseJSON && ajaxcontent.responseJSON.errors) {
-        vali = ajaxcontent.responseJSON.errors;
+      if (payload.errors) {
+        vali = payload.errors;
         $form.find('input').css('border', '1px solid #dfdfdf');
         $form.find('input').next('span').remove();
 
         $.each(vali, function (index, value) {
           $form.find("input[name~='" + index + "']").css('border', '1px solid red');
-          //$form.find("input[name~='" + index + "']").after('<span style="color:red;">' + value + '</span>');
           $form
             .find("select[name~='" + index + "']")
             .parent()
             .find('.select2-container--default .select2-selection--single')
             .css('border', '1px solid red');
-          toastr.error(value);
+          toastr.error(Array.isArray(value) ? value.join(' ') : value);
         });
-      } else if (ajaxcontent.status === 403) {
-        toastr.error('Access denied (403). Check company access or try logging in again.');
-      } else if (ajaxcontent.status === 419) {
-        toastr.error('Session expired. Please refresh the page and try again.');
-      } else if (ajaxcontent.status === 413) {
-        toastr.error('File is too large for the server to accept.');
-      } else {
-        // Generic error message if no specific error found
-        toastr.error('An error occurred. Please try again.');
+        return false;
       }
+
+      if (status === 403) {
+        var raw = (ajaxcontent.responseText || '').toString();
+        var hint = '';
+        if (raw) {
+          var match = raw.match(/"message"\s*:\s*"((?:\\.|[^"\\])*)"/);
+          if (match && match[1]) {
+            hint = match[1].replace(/\\"/g, '"');
+          } else if (/access to this resource on the server is denied/i.test(raw) || /403 Forbidden/i.test(raw)) {
+            hint =
+              'The web server blocked this upload (often due to the file name/extension). Try renaming the file to a simple name like document.pdf and upload again.';
+          } else {
+            hint = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+          }
+        }
+        toastr.error(hint || 'Access denied (403). Check permission or company access, then try again.');
+        return false;
+      }
+      if (status === 419) {
+        toastr.error('Session expired. Please refresh the page and try again.');
+        return false;
+      }
+      if (status === 413) {
+        toastr.error('File is too large for the server to accept.');
+        return false;
+      }
+
+      toastr.error('An error occurred. Please try again.' + (status ? ' (HTTP ' + status + ')' : ''));
 
       if (shouldReloadTable) {
         reloadDataTable();

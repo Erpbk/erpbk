@@ -860,9 +860,21 @@ class VouchersController extends Controller
 
   public function fileUpload(Request $request, $company_slug, $id)
   {
+    $canUpload = user_can('voucher_edit')
+      || user_can('voucher_create')
+      || user_can('expenses_edit')
+      || user_can('expenses_create');
+
+    if (! $canUpload) {
+      if ($request->expectsJson() || $request->ajax()) {
+        return response()->json(['message' => 'Unauthorized action.'], 403);
+      }
+      abort(403, 'Unauthorized action.');
+    }
+
     $voucher = Vouchers::find($id);
 
-    if (!$voucher) {
+    if (! $voucher) {
       if ($request->expectsJson() || $request->ajax()) {
         return response()->json(['message' => 'Voucher not found'], 404);
       }
@@ -870,25 +882,41 @@ class VouchersController extends Controller
     }
 
     if ($request->isMethod('POST')) {
-      if (!$request->hasFile('attach_file')) {
+      if (! $request->hasFile('attach_file')) {
         return response()->json(['message' => 'Please select a file to upload'], 422);
       }
 
-      $photo = $request->file('attach_file');
-      $fileName = $photo->getClientOriginalName();
-      if (in_array($voucher->voucher_type, ['LV', 'LE'])) {
-        $fileName = $photo->store('vouchers', 'public');
-      } else {
+      $request->validate([
+        'attach_file' => 'required|file|max:10240',
+      ]);
+
+      try {
+        $photo = $request->file('attach_file');
+        $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $photo->getClientOriginalName()) ?: 'document';
+        $fileName = time() . '_' . $safeBase;
+
+        // storeAs returns "vouchers/{fileName}"; views expect the basename only.
         PublicStorageDisk::storeUploadedFile($photo, 'vouchers', $fileName);
+
+        $voucher->attach_file = $fileName;
+        $voucher->updated_by = auth()->id();
+        $voucher->save();
+      } catch (\Throwable $e) {
+        report($e);
+
+        return response()->json([
+          'message' => 'File upload failed. Please try again or contact support if this persists.',
+        ], 500);
       }
-      $voucher->attach_file = $fileName;
-      $voucher->updated_by = auth()->id();
-      $voucher->save();
 
       return response()->json(['message' => 'File uploaded successfully', 'reload' => true], 200);
     }
 
-    return view('vouchers.attach_file', compact('id', 'voucher'));
+    return view('vouchers.attach_file', [
+      'id' => $id,
+      'voucher' => $voucher,
+      'company_slug' => $company_slug,
+    ]);
   }
 
 

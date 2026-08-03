@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -55,17 +56,42 @@ class RiderInvoices extends BaseModel
         'status' => 'integer',
     ];
 
+    /**
+     * Cached outstanding summary for accessors (balance / paid_amount).
+     *
+     * @var array{final_amount: float, paid_amount: float, balance: float}|null
+     */
+    protected $outstandingSummaryCache = null;
+
+    /**
+     * Balance due after deductions/additions — same figure shown on the Rider Invoice.
+     */
     public function getBalanceAttribute()
     {
-        $rider = $this->rider;
-        if (! $rider) {
-            return $this->total_amount;
+        return $this->outstandingSummary()['balance'];
+    }
+
+    /**
+     * Payments already applied for this invoice's billing month.
+     */
+    public function getPaidAmountAttribute()
+    {
+        return $this->outstandingSummary()['paid_amount'];
+    }
+
+    /**
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    protected function outstandingSummary(): array
+    {
+        if ($this->outstandingSummaryCache !== null) {
+            return $this->outstandingSummaryCache;
         }
 
-        return Transactions::where('account_id', $rider->account_id)
-            ->where('trans_date', '<=', now())
-            ->selectRaw('COALESCE(SUM(credit), 0) - COALESCE(SUM(debit), 0) as balance')
-            ->value('balance');
+        $this->outstandingSummaryCache = app(RiderInvoiceViewDataBuilder::class)
+            ->outstandingAmounts($this);
+
+        return $this->outstandingSummaryCache;
     }
 
     public function getInvoiceNumberAttribute()

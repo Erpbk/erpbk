@@ -708,6 +708,12 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
             .css('border', '1px solid red');
           toastr.error(value);
         });
+      } else if (ajaxcontent.status === 403) {
+        toastr.error('Access denied (403). Check company access or try logging in again.');
+      } else if (ajaxcontent.status === 419) {
+        toastr.error('Session expired. Please refresh the page and try again.');
+      } else if (ajaxcontent.status === 413) {
+        toastr.error('File is too large for the server to accept.');
       } else {
         // Generic error message if no specific error found
         toastr.error('An error occurred. Please try again.');

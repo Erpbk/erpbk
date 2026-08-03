@@ -116,8 +116,9 @@ class PublicStorageDisk
     ): string {
         $directory = trim($directory, '/');
         $storedName = $name ?? $file->hashName();
+        $options = array_merge(['disk' => 'public'], self::putOptions());
 
-        return $file->storeAs($directory, $storedName, 'public');
+        return $file->storeAs($directory, $storedName, $options);
     }
 
     public static function delete(?string $path): void

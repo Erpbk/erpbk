@@ -34,6 +34,8 @@
     }
     var $ctx = $form.length ? $form : $(document);
     var currency = currencyCode($ctx);
+    var isRiderPayment = $ctx.find('[data-rider-payment="1"]').length > 0
+      || $ctx.find('input[name="invoice_type"]').val() === 'rider';
 
     $ctx.find('.select2').each(function () {
       var $el = $(this);
@@ -79,6 +81,10 @@
       return customerName;
     }
 
+    function getSelectedBillingMonth() {
+      return ($ctx.find('#billing_month, [name="billing_month"]').val() || '').toString().trim();
+    }
+
     function updateSelectAllState() {
       var totalVisible = $ctx.find('#invoices-table tbody tr:visible').length;
       var checkedVisible = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').length;
@@ -87,7 +93,7 @@
         $ctx.find('#select-all-invoices').prop('checked', false).prop('disabled', true);
       } else {
         $ctx.find('#select-all-invoices').prop('disabled', false);
-        $ctx.find('#select-all-invoices').prop('checked', checkedVisible === totalVisible);
+        $ctx.find('#select-all-invoices').prop('checked', checkedVisible === totalVisible && totalVisible > 0);
       }
     }
 
@@ -142,6 +148,84 @@
       }
     }
 
+    function syncRiderPaymentAmountFromInvoices() {
+      if (!isRiderPayment) {
+        return;
+      }
+
+      var total = updateTotalPayment();
+      $ctx.find('#payment_amount').val(total > 0 ? total.toFixed(2) : '');
+      $ctx.find('#display_amount').text(total.toFixed(2));
+      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
+      $ctx.find('#total_debit').text((total + bankCharges).toFixed(2));
+      validatePaymentDistribution();
+    }
+
+    function applyInvoiceDateFromSelection() {
+      if (!isRiderPayment) {
+        return;
+      }
+
+      var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
+      var invoiceDate = $checked.data('invoice-date') || '';
+      $ctx.find('#date_of_invoice, [name="date_of_invoice"]').val(invoiceDate || '');
+    }
+
+    function filterInvoiceRows() {
+      var selectedCustomerId = getSelectedCustomerId();
+      var selectedCustomerName = getSelectedCustomerName();
+      var selectedBillingMonth = isRiderPayment ? getSelectedBillingMonth() : '';
+      var visibleCount = 0;
+      var hasPayeeFilter = !!(selectedCustomerId || selectedCustomerName);
+
+      $ctx.find('#invoices-table tbody tr').each(function () {
+        var $row = $(this);
+        var invoiceCustomerId = $row.data('customer-id');
+        var invoiceCustomerName = $row.data('customer-name');
+        var invoiceBillingMonth = ($row.data('billing-month') || '').toString();
+        var matches = true;
+
+        if (hasPayeeFilter) {
+          matches = false;
+          if (selectedCustomerId && invoiceCustomerId) {
+            matches = (String(invoiceCustomerId) === String(selectedCustomerId));
+          }
+          if (!matches && selectedCustomerName && invoiceCustomerName) {
+            matches = (invoiceCustomerName.toLowerCase() === selectedCustomerName.toLowerCase());
+          }
+        }
+
+        if (matches && selectedBillingMonth && invoiceBillingMonth) {
+          matches = invoiceBillingMonth === selectedBillingMonth;
+        }
+
+        if (matches) {
+          $row.show();
+          visibleCount++;
+        } else {
+          var $checkbox = $row.find('.invoice-checkbox');
+          if ($checkbox.prop('checked')) {
+            $checkbox.prop('checked', false).trigger('change');
+          }
+          $row.hide();
+        }
+      });
+
+      if (visibleCount === 0 && hasPayeeFilter && typeof toastr !== 'undefined') {
+        toastr.info(isRiderPayment
+          ? 'No pending invoices found for this rider and billing month'
+          : 'No invoices found for this customer');
+      }
+
+      updateSelectAllState();
+      updateTotalPayment();
+      validatePaymentDistribution();
+      applyInvoiceDateFromSelection();
+      if (isRiderPayment) {
+        syncRiderPaymentAmountFromInvoices();
+      }
+    }
+
     function calculateTotals() {
       var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
       $ctx.find('#display_charges').text(bankCharges.toFixed(2));
@@ -150,48 +234,13 @@
     $ctx.off('.paymentFields');
 
     $ctx.on('change.paymentFields', '#payee_account_id, [name="payee_account_id"]', function () {
-      var selectedCustomerId = getSelectedCustomerId();
-      var selectedCustomerName = getSelectedCustomerName();
+      filterInvoiceRows();
+    });
 
-      if (selectedCustomerId || selectedCustomerName) {
-        var visibleCount = 0;
-        $ctx.find('#invoices-table tbody tr').each(function () {
-          var $row = $(this);
-          var invoiceCustomerId = $row.data('customer-id');
-          var invoiceCustomerName = $row.data('customer-name');
-
-          var matches = false;
-
-          if (selectedCustomerId && invoiceCustomerId) {
-            matches = (String(invoiceCustomerId) === String(selectedCustomerId));
-          }
-
-          if (!matches && selectedCustomerName && invoiceCustomerName) {
-            matches = (invoiceCustomerName.toLowerCase() === selectedCustomerName.toLowerCase());
-          }
-
-          if (matches) {
-            $row.show();
-            visibleCount++;
-          } else {
-            var $checkbox = $row.find('.invoice-checkbox');
-            if ($checkbox.prop('checked')) {
-              $checkbox.prop('checked', false).trigger('change');
-            }
-            $row.hide();
-          }
-        });
-
-        if (visibleCount === 0 && (selectedCustomerId || selectedCustomerName) && typeof toastr !== 'undefined') {
-          toastr.info('No invoices found for this customer');
-        }
-      } else {
-        $ctx.find('#invoices-table tbody tr').show();
+    $ctx.on('change.paymentFields', '#billing_month, [name="billing_month"]', function () {
+      if (isRiderPayment) {
+        filterInvoiceRows();
       }
-
-      updateSelectAllState();
-      updateTotalPayment();
-      validatePaymentDistribution();
     });
 
     $ctx.on('change.paymentFields', '.invoice-checkbox', function () {
@@ -211,8 +260,8 @@
         }
 
         if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
-          var maxAllowed = parseFloat($paymentInput.data('max')) || 0;
-          if (maxAllowed > difference && difference > 0) {
+          var maxAllowed = parseFloat($paymentInput.data('max')) || parseFloat($row.data('balance')) || 0;
+          if (!isRiderPayment && maxAllowed > difference && difference > 0) {
             $paymentInput.val(difference.toFixed(2));
             if (typeof toastr !== 'undefined') {
               toastr.warning('Total Selected Payment cannot exceed Payment Amount.');
@@ -257,9 +306,19 @@
       updateTotalPayment();
       validatePaymentDistribution();
       updateSelectAllState();
+      applyInvoiceDateFromSelection();
+      if (isRiderPayment) {
+        syncRiderPaymentAmountFromInvoices();
+      }
     });
 
     $ctx.on('keyup.paymentFields change.paymentFields', '.payment-amount', function () {
+      if (isRiderPayment && $(this).is('[type="hidden"]')) {
+        updateTotalPayment();
+        validatePaymentDistribution();
+        return;
+      }
+
       var maxAmount = parseFloat($(this).data('max')) || 0;
       var enteredAmount = parseFloat($(this).val()) || 0;
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
@@ -303,9 +362,27 @@
       $ctx.find('#display_amount').text(amount.toFixed(2));
       $ctx.find('#total_debit').text((amount + bankCharges).toFixed(2));
 
-      updateTotalPayment();
-      validatePaymentDistribution();
-      syncInvoicePaymentsToAmount(amount);
+      if (isRiderPayment) {
+        var $activeAmounts = $ctx.find('.payment-amount:not(:disabled)');
+        if ($activeAmounts.length === 1) {
+          var maxAllowed = parseFloat($activeAmounts.first().data('max')) || 0;
+          var capped = amount;
+          if (maxAllowed > 0 && capped > maxAllowed) {
+            capped = maxAllowed;
+            $(this).val(capped.toFixed(2));
+            if (typeof toastr !== 'undefined') {
+              toastr.warning('Payment amount cannot exceed invoice balance');
+            }
+          }
+          $activeAmounts.first().val(capped.toFixed(2));
+        }
+        updateTotalPayment();
+        validatePaymentDistribution();
+      } else {
+        updateTotalPayment();
+        validatePaymentDistribution();
+        syncInvoicePaymentsToAmount(amount);
+      }
     });
 
     $ctx.on('keyup.paymentFields change.paymentFields', '#bank_charges', function () {
@@ -325,12 +402,15 @@
 
     setTimeout(function () {
       var $payeeSelect = $ctx.find('#payee_account_id, [name="payee_account_id"]');
-      if ($payeeSelect.val()) {
-        $payeeSelect.trigger('change');
+      if ($payeeSelect.val() || isRiderPayment) {
+        filterInvoiceRows();
       }
-      $ctx.find('#payment_amount').trigger('change');
+      if (!isRiderPayment) {
+        $ctx.find('#payment_amount').trigger('change');
+      }
       updateSelectAllState();
       calculateTotals();
+      applyInvoiceDateFromSelection();
     }, 100);
   };
 
@@ -338,6 +418,8 @@
     var totalCredit = parseFloat($('#payment_amount').val()) || 0;
     var bankCharges = parseFloat($('#bank_charges').val()) || 0;
     var totalInvoicePayment = parseFloat($('#total_invoice_payment').text()) || 0;
+    var isRiderPayment = $('[data-rider-payment="1"]').length > 0
+      || $('input[name="invoice_type"]').val() === 'rider';
 
     if (totalCredit <= 0) {
       alert('Please enter a valid payment amount greater than zero');
@@ -345,8 +427,13 @@
       return false;
     }
 
-    if (Math.abs(totalCredit - totalInvoicePayment) > 0.01) {
+    if ($('#invoices-table').length && Math.abs(totalCredit - totalInvoicePayment) > 0.01) {
       alert('Payment amount must equal total selected invoice payments');
+      return false;
+    }
+
+    if (isRiderPayment && !$('.invoice-checkbox:checked').length) {
+      alert('Please select at least one invoice for payment');
       return false;
     }
 

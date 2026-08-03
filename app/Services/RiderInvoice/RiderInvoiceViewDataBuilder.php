@@ -300,4 +300,20 @@ class RiderInvoiceViewDataBuilder
             'riderStatusLabel' => self::riderStatusLabel($riderInvoice->rider?->status),
         ];
     }
+
+    /**
+     * Outstanding amounts as shown on the Rider Invoice (after deductions/additions).
+     *
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    public function outstandingAmounts(RiderInvoices $riderInvoice): array
+    {
+        $data = $this->build($riderInvoice);
+
+        return [
+            'final_amount' => (float) $data['finalAmount'],
+            'paid_amount' => (float) $data['paid_amount'],
+            'balance' => (float) $data['rider_balance_final'],
+        ];
+    }
 }

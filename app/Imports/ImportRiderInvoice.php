@@ -132,7 +132,7 @@ class ImportRiderInvoice implements ToCollection
 
                 if (! $rider) {
                     throw ValidationException::withMessages([
-                        'file' => 'Row('.($index + 1).") - Rider ID {$row[1]} not found.",
+                        'file' => 'Row(' . ($index + 1) . ") - Rider ID {$row[1]} not found.",
                     ]);
                 }
 
@@ -148,7 +148,7 @@ class ImportRiderInvoice implements ToCollection
 
                 if ($exists) {
                     throw ValidationException::withMessages([
-                        'file' => 'Row('.($index + 1).") - Invoice already exists for Rider {$row[1]}.",
+                        'file' => 'Row(' . ($index + 1) . ") - Invoice already exists for Rider {$row[1]}.",
                     ]);
                 }
 
@@ -168,17 +168,17 @@ class ImportRiderInvoice implements ToCollection
                 |--------------------------------------------------------------------------
                 */
 
-                $rawBranch = $row[14] ?? null;
+                $rawBranch = $row[17] ?? null;
 
                 if ($rawBranch === null || trim((string) $rawBranch) === '') {
                     throw ValidationException::withMessages([
-                        'file' => 'Row('.($index + 1).') - branch_id is required in the sheet.',
+                        'file' => 'Row(' . ($index + 1) . ') - branch_id is required in the sheet.',
                     ]);
                 }
 
                 if (! is_numeric($rawBranch)) {
                     throw ValidationException::withMessages([
-                        'file' => 'Row('.($index + 1).") - Invalid branch_id '{$rawBranch}'.",
+                        'file' => 'Row(' . ($index + 1) . ") - Invalid branch_id '{$rawBranch}'.",
                     ]);
                 }
 
@@ -186,7 +186,7 @@ class ImportRiderInvoice implements ToCollection
 
                 if (! Branch::where('id', $branchId)->exists()) {
                     throw ValidationException::withMessages([
-                        'file' => 'Row('.($index + 1).") - branch_id {$branchId} not found.",
+                        'file' => 'Row(' . ($index + 1) . ") - branch_id {$branchId} not found.",
                     ]);
                 }
 
@@ -309,7 +309,7 @@ class ImportRiderInvoice implements ToCollection
                             'reference_type' => 'Invoice',
                             'trans_code' => $transCode,
                             'trans_date' => $invoiceDate,
-                            'narration' => 'VAT - Rider Invoice #'.$invoice->id,
+                            'narration' => 'VAT - Rider Invoice #' . $invoice->id,
                             'debit' => $vat > 0 ? $absVat : 0,
                             'credit' => $vat < 0 ? $absVat : 0,
                             'billing_month' => $billingMonth,
@@ -324,7 +324,7 @@ class ImportRiderInvoice implements ToCollection
                         'reference_type' => 'Invoice',
                         'trans_code' => $transCode,
                         'trans_date' => $invoiceDate,
-                        'narration' => 'Rider Invoice #'.$invoice->id,
+                        'narration' => 'Rider Invoice #' . $invoice->id,
                         'debit' => $isNegativeTotal ? $absTotal : 0,
                         'credit' => $isNegativeTotal ? 0 : $absTotal,
                         'billing_month' => $billingMonth,
@@ -338,7 +338,7 @@ class ImportRiderInvoice implements ToCollection
                         'reference_type' => 'Invoice',
                         'trans_code' => $transCode,
                         'trans_date' => $invoiceDate,
-                        'narration' => 'Salary Debit - Rider Invoice #'.$invoice->id,
+                        'narration' => 'Salary Debit - Rider Invoice #' . $invoice->id,
                         'debit' => $isNegativeTotal ? 0 : $absSubtotal,
                         'credit' => $isNegativeTotal ? $absSubtotal : 0,
                         'billing_month' => $billingMonth,

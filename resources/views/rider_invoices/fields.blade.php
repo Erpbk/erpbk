@@ -114,17 +114,17 @@
             <div class="col-md-3 form-group">
                 <label>Item Description</label>
             </div>
-            <div class="col-md-1 form-group">
+            <div class="col-md-2 form-group">
                 <label>Qty</label>
             </div>
             <div class="col-md-2 form-group">
                 <label>Rate</label>
             </div>
-            <div class="col-md-2 form-group">
+            <div class="col-md-1 form-group">
                 <label>Discount</label>
             </div>
             <div class="col-md-1 form-group">
-                <label>VAT</label>
+                <label>VAT %</label>
             </div>
             <div class="col-md-2 form-group">
                 <label>Amount</label>
@@ -150,7 +150,7 @@
                         </select>
                     </div>
                     <!--col-->
-                    <div class="col-md-1 form-group">
+                    <div class="col-md-2 form-group">
                         <input type="text" value="{{$item->qty}}" class="form-control form-control qty" name="qty[]" placeholder="0">
                     </div>
                     <!--col-->
@@ -158,7 +158,7 @@
                         <input type="text" value="{{$item->rate}}" class="form-control form-control rate" name="rate[]" placeholder="{{ \App\Helpers\Currency::code() }}">
                     </div>
                     <!--col-->
-                    <div class="col-md-2 form-group">
+                    <div class="col-md-1 form-group">
                         <input type="text" value="{{$item->discount}}" class="form-control form-control discount" name="discount[]" placeholder="0">
                     </div>
                     <!--col-->
@@ -193,7 +193,7 @@
                     </select>
                 </div>
                 <!--col-->
-                <div class="col-md-1 form-group">
+                <div class="col-md-2 form-group">
                     <input type="text" class="form-control form-control qty" name="qty[]" value="{{ 1 }}" >
                 </div>
                 <!--col-->
@@ -201,7 +201,7 @@
                     <input type="text" class="form-control form-control rate" name="rate[]" placeholder="0" value="0" >
                 </div>
                 <!--col-->
-                <div class="col-md-2 form-group">
+                <div class="col-md-1 form-group">
                     <input type="text" class="form-control form-control discount" name="discount[]" placeholder="0" value="0" >
                 </div>
                 <!--col-->

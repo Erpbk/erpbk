@@ -120,4 +120,28 @@ class RtaFines extends BaseModel
   {
     return $this->belongsTo(Vouchers::class, 'paid_voucher_id');
   }
+
+  /**
+   * Ledger narration: detail + bold Ticket No / Bike + trip date.
+   */
+  public function transactionNarration(?string $prefix = null): string
+  {
+    $detail = trim((string) ($this->detail ?? ''));
+    if ($detail === '') {
+      $detail = 'RTA Fine';
+    }
+
+    $tripDate = $this->trip_date
+      ? \Carbon\Carbon::parse($this->trip_date)->format('d M Y')
+      : '';
+
+    $narration = $detail
+      . '. <b>Ticket No:</b> ' . ($this->ticket_no ?: '-')
+      . ', <b>Bike:</b> ' . ($this->plate_no ?: '-')
+      . ($tripDate !== '' ? ', ' . $tripDate : '');
+
+    $prefix = trim((string) $prefix);
+
+    return $prefix !== '' ? $prefix . ' ' . $narration : $narration;
+  }
 }

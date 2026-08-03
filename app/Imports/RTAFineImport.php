@@ -234,6 +234,8 @@ class RTAFineImport implements ToCollection
         $transDate = $fine->trans_date;
         $billingMonth = $fine->billing_month;
 
+        $fineNarration = $fine->transactionNarration();
+
         // 1. Debit rider for total amount
         $transactionService->recordTransaction([
             'account_id' => $riderAccountId,
@@ -241,7 +243,7 @@ class RTAFineImport implements ToCollection
             'reference_type' => 'RTA_FINE',
             'trans_code' => $transCode,
             'trans_date' => $transDate,
-            'narration' => $fine->detail,
+            'narration' => $fineNarration,
             'debit' => $fine->total_amount,
             'billing_month' => $billingMonth,
         ]);
@@ -254,7 +256,7 @@ class RTAFineImport implements ToCollection
                 'reference_type' => 'RTA_FINE',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => $adminAccount->name,
+                'narration' => $fine->transactionNarration($adminAccount->name),
                 'credit' => $fine->admin_fee,
                 'billing_month' => $billingMonth,
             ]);
@@ -268,7 +270,7 @@ class RTAFineImport implements ToCollection
                 'reference_type' => 'RTA_FINE',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => $serviceAccount->name,
+                'narration' => $fine->transactionNarration($serviceAccount->name),
                 'credit' => $fine->service_charges,
                 'billing_month' => $billingMonth,
             ]);
@@ -281,7 +283,7 @@ class RTAFineImport implements ToCollection
             'reference_type' => 'RTA_FINE',
             'trans_code' => $transCode,
             'trans_date' => $transDate,
-            'narration' => $fine->detail,
+            'narration' => $fineNarration,
             'credit' => $fine->amount,
             'billing_month' => $billingMonth,
         ]);

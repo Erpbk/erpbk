@@ -322,6 +322,7 @@ class BikesController extends AppBaseController
     private function loadLatestHistoryForBikeTable($data): void
     {
         $data->load([
+            'leasingCompany',
             'latestHistory' => function ($q) {
                 // Qualify columns — latestOfMany joins and bare bike_id is ambiguous.
                 $q->select([

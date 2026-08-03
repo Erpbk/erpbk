@@ -889,8 +889,14 @@ class VouchersController extends Controller
         $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $photo->getClientOriginalName()) ?: 'document';
         $fileName = time() . '_' . $safeBase;
 
+        $oldFile = $voucher->attach_file ? basename((string) $voucher->attach_file) : null;
+
         // storeAs returns "vouchers/{fileName}"; views expect the basename only.
         PublicStorageDisk::storeUploadedFile($photo, 'vouchers', $fileName);
+
+        if ($oldFile && $oldFile !== $fileName) {
+          PublicStorageDisk::delete('vouchers/' . $oldFile);
+        }
 
         $voucher->attach_file = $fileName;
         $voucher->updated_by = auth()->id();

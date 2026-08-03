@@ -46,14 +46,33 @@ class ImportRiderInvoice implements ToCollection
         */
 
         $itemStartIndex = 15;
+        $reservedItemHeaders = [
+            'branch_id',
+            'branch',
+            'branch id',
+            'id',
+            'invoice date',
+            'rider_name',
+            'status',
+            'notes',
+            'description',
+            'billing month',
+        ];
         $itemColumns = [];
 
         for ($col = $itemStartIndex; $col < $maxColumns; $col++) {
-            $itemName = trim($rows[0][$col] ?? '');
+            $itemName = trim((string) ($rows[0][$col] ?? ''));
 
-            if ($itemName !== '') {
-                $itemColumns[$col] = $itemName;
+            if ($itemName === '') {
+                continue;
             }
+
+            // Never treat fixed/meta headers (e.g. branch_id) as billable items
+            if (in_array(strtolower($itemName), $reservedItemHeaders, true)) {
+                continue;
+            }
+
+            $itemColumns[$col] = $itemName;
         }
 
         $itemIdMap = Items::whereIn('name', array_values($itemColumns))
@@ -164,31 +183,12 @@ class ImportRiderInvoice implements ToCollection
 
                 /*
                 |--------------------------------------------------------------------------
-                | Branch
+                | Branch (column 14) — sheet value when valid, else rider / company default.
+                | Do not read item qty columns as branch_id.
                 |--------------------------------------------------------------------------
                 */
 
-                $rawBranch = $row[17] ?? null;
-
-                if ($rawBranch === null || trim((string) $rawBranch) === '') {
-                    throw ValidationException::withMessages([
-                        'file' => 'Row(' . ($index + 1) . ') - branch_id is required in the sheet.',
-                    ]);
-                }
-
-                if (! is_numeric($rawBranch)) {
-                    throw ValidationException::withMessages([
-                        'file' => 'Row(' . ($index + 1) . ") - Invalid branch_id '{$rawBranch}'.",
-                    ]);
-                }
-
-                $branchId = (int) $rawBranch;
-
-                if (! Branch::where('id', $branchId)->exists()) {
-                    throw ValidationException::withMessages([
-                        'file' => 'Row(' . ($index + 1) . ") - branch_id {$branchId} not found.",
-                    ]);
-                }
+                $branchId = $this->resolveImportBranchId($row[14] ?? null, $rider, $index + 1, $row[1]);
 
                 /*
                 |--------------------------------------------------------------------------
@@ -224,20 +224,19 @@ class ImportRiderInvoice implements ToCollection
                 $subtotal = 0;
 
                 foreach ($itemColumns as $columnIndex => $itemName) {
+                    $qty = (float) str_replace(',', '', $row[$columnIndex] ?? 0);
+
+                    if ($qty == 0) {
+                        continue;
+                    }
 
                     $item = $itemIdMap->get($itemName);
                     $itemId = $item?->id ?? null;
 
                     if (! $itemId) {
                         throw ValidationException::withMessages([
-                            'file' => "Item '{$itemName}' not found.",
+                            'file' => 'Row('.($index + 1).") - Item '{$itemName}' not found.",
                         ]);
-                    }
-
-                    $qty = (float) str_replace(',', '', $row[$columnIndex] ?? 0);
-
-                    if ($qty == 0) {
-                        continue;
                     }
 
                     $rate = $item?->price ?? 1;
@@ -253,7 +252,6 @@ class ImportRiderInvoice implements ToCollection
                         'qty' => $qty,
                         'rate' => $rate,
                         'amount' => $amount,
-                        'branch_id' => $branchId,
                         'company_id' => $rider->company_id,
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -347,5 +345,54 @@ class ImportRiderInvoice implements ToCollection
                 }
             });
         }
+    }
+
+    /**
+     * Resolve branch for an import row: sheet col 14 → rider branch → headquarters/first active.
+     *
+     * @param  mixed  $rawBranch
+     * @param  mixed  $riderCode
+     */
+    protected function resolveImportBranchId($rawBranch, Riders $rider, int $rowNumber, $riderCode): int
+    {
+        $rawBranchText = trim((string) ($rawBranch ?? ''));
+
+        if ($rawBranchText !== '') {
+            if (! is_numeric($rawBranchText)) {
+                throw ValidationException::withMessages([
+                    'file' => "Row({$rowNumber}) - Invalid branch_id '{$rawBranchText}'. Use a numeric branch id or leave blank.",
+                ]);
+            }
+
+            $candidateBranchId = (int) $rawBranchText;
+            if (Branch::where('id', $candidateBranchId)->exists()) {
+                return $candidateBranchId;
+            }
+        }
+
+        if (! empty($rider->branch_id)) {
+            $riderBranchId = (int) $rider->branch_id;
+            if (Branch::where('id', $riderBranchId)->exists()) {
+                return $riderBranchId;
+            }
+        }
+
+        $defaultBranchId = Branch::query()
+            ->where('is_active', true)
+            ->orderByRaw("CASE WHEN branch_type = 'headquarters' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->value('id');
+
+        if ($defaultBranchId) {
+            return (int) $defaultBranchId;
+        }
+
+        $hint = $rawBranchText !== ''
+            ? "Sheet branch_id {$rawBranchText} was not found"
+            : 'No branch_id in the sheet';
+
+        throw ValidationException::withMessages([
+            'file' => "Row({$rowNumber}) - {$hint}, rider {$riderCode} has no valid branch, and no active company branch exists.",
+        ]);
     }
 }

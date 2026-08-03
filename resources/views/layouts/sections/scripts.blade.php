@@ -45,7 +45,7 @@
 <!-- BEGIN: Theme JS-->
 <script src="{{ asset('assets/js/main.js') }}"></script>
 @include('layouts.datatables_js')
-<script src="{{ asset('js/custom.js') }}"></script>
+<script src="{{ asset('js/custom.js') }}?v=20260803-upload403c"></script>
 <script src="{{ asset('js/payment-fields.js') }}"></script>
 <script src="{{ asset('js/application.js?id=1') }}"></script>
 <script>

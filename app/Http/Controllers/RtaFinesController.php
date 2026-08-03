@@ -248,6 +248,8 @@ class RtaFinesController extends AppBaseController
                     $credit = $fine->total_amount - $fine->admin_fee - $fine->vat;
                     $profit = $fine->admin_fee;
                 }
+                $paymentNarration = $fine->transactionNarration('(Payment)');
+
                 // Debit RTA Account
                 $TransactionService->recordTransaction([
                     'account_id'     => GlobalAccounts::id('RTA_FINE'),
@@ -255,7 +257,7 @@ class RtaFinesController extends AppBaseController
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $transDate,
-                    'narration'      => '(Payment) ' . $fine->detail ?? 'RTA Fine Payment',
+                    'narration'      => $paymentNarration,
                     'debit'          => $fine->total_amount - $fine->vat,
                     'billing_month'  => $billingMonth,
                     'branch_id'      => $fine->branch_id
@@ -268,7 +270,7 @@ class RtaFinesController extends AppBaseController
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
                         'trans_date'     => $fine->trans_date,
-                        'narration'      => 'Service Charges VAT. ',
+                        'narration'      => $fine->transactionNarration('Service Charges VAT.'),
                         'debit'          => $fine->vat,
                         'billing_month'  => $billingMonth,
                         'branch_id'      => $fine->branch_id,
@@ -283,7 +285,7 @@ class RtaFinesController extends AppBaseController
                     'reference_type' => 'RTA',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $transDate,
-                    'narration'      => '(Payment) ' . $fine->detail ?? 'RTA Fine Payment',
+                    'narration'      => $paymentNarration,
                     'credit'         => $credit,
                     'branch_id'      => $fine->branch_id,
                     'billing_month'  => $billingMonth,
@@ -299,7 +301,7 @@ class RtaFinesController extends AppBaseController
                         'reference_type' => 'RTA',
                         'trans_code'     => $trans_code,
                         'trans_date'     => $transDate,
-                        'narration'      => $fine->detail ?? 'RTA Fine Payment',
+                        'narration'      => $fine->transactionNarration(),
                         'credit'         => $profit,
                         'branch_id'      => $fine->branch_id,
                         'billing_month'  => $billingMonth,
@@ -424,6 +426,8 @@ class RtaFinesController extends AppBaseController
             if (!$rider_account)
                 throw new \Exception('Debit Account Not Found');
 
+            $fineNarration = $rtaFines->transactionNarration();
+
             // --- 1. Main Fine (Rider Debit) ---
             $TransactionService->recordTransaction([
                 'account_id'     => $rider_account,
@@ -431,7 +435,7 @@ class RtaFinesController extends AppBaseController
                 'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'narration'      => $fineNarration,
                 'debit'          => $rtaFines->total_amount,
                 'billing_month'  => $billingMonth,
                 'branch_id'      => $bike->branch_id,
@@ -443,7 +447,7 @@ class RtaFinesController extends AppBaseController
                 'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'narration'      => $fineNarration,
                 'credit'         => $rtaFines->total_amount - $rtaFines->vat,
                 'branch_id'      => $bike->branch_id,
                 'billing_month'  => $billingMonth,
@@ -456,7 +460,7 @@ class RtaFinesController extends AppBaseController
                     'reference_type' => 'RTA FINE',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'Service Charges Vat. ',
+                    'narration'      => $rtaFines->transactionNarration('Service Charges Vat.'),
                     'credit'         => $rtaFines->vat,
                     'billing_month'  => $billingMonth,
                     'branch_id'      => $bike->branch_id,
@@ -605,6 +609,7 @@ class RtaFinesController extends AppBaseController
 
             Transactions::where('trans_code', $trans_code)->delete();
             $TransactionService = new TransactionService();
+            $fineNarration = $rtaFines->transactionNarration();
             // --- 1. Main Fine (Rider Debit) ---
             $TransactionService->recordTransaction([
                 'account_id'     => $rider_account,
@@ -612,7 +617,7 @@ class RtaFinesController extends AppBaseController
                 'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'narration'      => $fineNarration,
                 'debit'          => $rtaFines->total_amount,
                 'billing_month'  => $billingMonth,
                 'branch_id'      => $bike->branch_id,
@@ -624,7 +629,7 @@ class RtaFinesController extends AppBaseController
                 'reference_type' => 'RTA FINE',
                 'trans_code'     => $trans_code,
                 'trans_date'     => $rtaFines->trans_date,
-                'narration'      => $rtaFines->detail ?? 'RTA Fine for Bike: ' . $rtaFines->plate_no,
+                'narration'      => $fineNarration,
                 'credit'         => $rtaFines->total_amount - $rtaFines->vat,
                 'branch_id'      => $bike->branch_id,
                 'billing_month'  => $billingMonth,
@@ -637,7 +642,7 @@ class RtaFinesController extends AppBaseController
                     'reference_type' => 'RTA FINE',
                     'trans_code'     => $trans_code,
                     'trans_date'     => $rtaFines->trans_date,
-                    'narration'      => 'Service Charges Vat. ',
+                    'narration'      => $rtaFines->transactionNarration('Service Charges Vat.'),
                     'credit'         => $rtaFines->vat,
                     'billing_month'  => $billingMonth,
                     'branch_id'      => $bike->branch_id,

@@ -21,6 +21,11 @@ final class CompanyScope
 
         $companyId = CompanyContext::id();
         if ($companyId === null) {
+            if (request()->expectsJson() || request()->ajax() || request()->wantsJson()) {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(
+                    response()->json(['message' => 'Company context is required.'], 403)
+                );
+            }
             abort(403, 'Company context is required.');
         }
 

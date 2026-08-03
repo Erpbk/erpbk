@@ -12,7 +12,7 @@
         $selectedLeasingCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->leasing_company_id : (isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null));
         $isClone = isset($cloneFromInvoice);
         @endphp
-        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_company_id', 'disabled' => $isClone]) !!}
+        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_invoice_company_id', 'disabled' => $isClone]) !!}
         @if($isClone)
         <input type="hidden" name="leasing_company_id" value="{{ $selectedLeasingCompany }}">
         <small class="text-muted">Leasing company is locked when cloning an invoice.</small>
@@ -183,22 +183,34 @@
         </div>
     </div>
 
-    <div class="row mt-2" style="justify-content: flex-end;">
-        <div class="col-md-2 form-group">
-            <label><strong>Sub Total</strong>:</label>
-        </div>
-        <div class="col-md-2 form-group">
+    <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+        <div></div>
+        <div class="d-flex align-items-center gap-3">
             @php
-            $calculatedTotal = 0;
+            $calculatedSubtotal = 0;
+            $calculatedVat = 0;
             if(isset($invoice)) {
-            foreach($invoice->items as $item) {
-            $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
-            $taxAmt = $prorated * ($item->tax_rate / 100);
-            $calculatedTotal += ($prorated + $taxAmt);
+                foreach($invoice->items as $item) {
+                    $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
+                    $taxAmt = $prorated * ($item->tax_rate / 100);
+                    $calculatedSubtotal += $prorated;
+                    $calculatedVat += $taxAmt;
+                }
             }
-            }
+            $calculatedTotal = $calculatedSubtotal + $calculatedVat;
             @endphp
-            <input type="text" name="total_amount_display" class="form-control" id="sub_total" value="{{ isset($invoice) ? number_format($calculatedTotal, 2) : '0.00' }}" readonly>
+            <div class="input-group">
+                <span class="input-group-text bg-light">Subtotal</span>
+                <input type="number" name="subtotal" class="form-control" id="subtotal" value="{{ number_format($calculatedSubtotal, 2, '.', '') }}" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-light">VAT Amount</span>
+                <input type="number" name="vat_total" class="form-control" id="vat_total" value="{{ number_format($calculatedVat, 2, '.', '') }}" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white">Total</span>
+                <input type="number" name="total_amount_display" class="form-control" id="total" value="{{ number_format($calculatedTotal, 2, '.', '') }}" readonly style="min-width: 150px; font-weight: bold;">
+            </div>
         </div>
     </div>
 </div>
@@ -227,13 +239,20 @@
     };
 
     window.leasing_getTotal = function() {
+        var subtotal = 0;
+        var vat = 0;
         var total = 0;
         $('#rows-container .invoice-item-row').each(function() {
             // if ($(this).data('inactive') === 1) return; // commented out: include inactive bikes in total
-            var v = $(this).find('.amount').data('numeric-value');
-            if (v) total += parseFloat(v);
+            var tax = parseFloat($(this).find('.tax_amount_display').data('numeric-value')) || 0;
+            var lineTotal = parseFloat($(this).find('.amount').data('numeric-value')) || 0;
+            vat += tax;
+            total += lineTotal;
+            subtotal += (lineTotal - tax);
         });
-        $('#sub_total').val(total.toFixed(2));
+        $('#subtotal').val(subtotal.toFixed(2));
+        $('#vat_total').val(vat.toFixed(2));
+        $('#total').val(total.toFixed(2));
     };
 
     $(document).ready(function() {
@@ -242,7 +261,7 @@
         var $modalBody = $('#formajax').closest('.modal-body');
         if ($modalBody.length === 0) $modalBody = $('#modalTopbody');
         if ($.fn.select2) {
-            $('#leasing_company_id').select2({
+            $('#leasing_invoice_company_id').select2({
                 dropdownParent: $modalBody.length ? $modalBody : $('body'),
                 width: '100%'
             });
@@ -256,7 +275,7 @@
             });
         }
 
-        $('#leasing_company_id').on('change', function() {
+        $('#leasing_invoice_company_id').on('change', function() {
             var id = $(this).val();
             var rate = rentalByCompany[id] || 0;
             $('.rate').val(rate);

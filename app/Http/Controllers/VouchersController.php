@@ -46,7 +46,7 @@ class VouchersController extends Controller
    */
   public function index(Request $request)
   {
-    if (!user_can('voucher_view')) {
+    if (!user_can('vouchers_view')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -143,7 +143,7 @@ class VouchersController extends Controller
    */
   public function listSidebar(Request $request)
   {
-    if (!user_can('voucher_view')) {
+    if (!user_can('vouchers_view')) {
       abort(403, 'Unauthorized action.');
     }
 
@@ -860,25 +860,19 @@ class VouchersController extends Controller
 
   public function fileUpload(Request $request, $company_slug, $id)
   {
-    $canUpload = user_can('voucher_edit')
-      || user_can('voucher_create')
+    $canUpload = user_can('vouchers_edit')
+      || user_can('vouchers_create')
       || user_can('expenses_edit')
       || user_can('expenses_create');
 
     if (! $canUpload) {
-      if ($request->expectsJson() || $request->ajax()) {
-        return response()->json(['message' => 'Unauthorized action.'], 403);
-      }
-      abort(403, 'Unauthorized action.');
+      return response()->json(['message' => 'Unauthorized action.'], 403);
     }
 
     $voucher = Vouchers::find($id);
 
     if (! $voucher) {
-      if ($request->expectsJson() || $request->ajax()) {
-        return response()->json(['message' => 'Voucher not found'], 404);
-      }
-      abort(404, 'Voucher not found');
+      return response()->json(['message' => 'Voucher not found'], 404);
     }
 
     if ($request->isMethod('POST')) {
@@ -895,8 +889,14 @@ class VouchersController extends Controller
         $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $photo->getClientOriginalName()) ?: 'document';
         $fileName = time() . '_' . $safeBase;
 
+        $oldFile = $voucher->attach_file ? basename((string) $voucher->attach_file) : null;
+
         // storeAs returns "vouchers/{fileName}"; views expect the basename only.
         PublicStorageDisk::storeUploadedFile($photo, 'vouchers', $fileName);
+
+        if ($oldFile && $oldFile !== $fileName) {
+          PublicStorageDisk::delete('vouchers/' . $oldFile);
+        }
 
         $voucher->attach_file = $fileName;
         $voucher->updated_by = auth()->id();

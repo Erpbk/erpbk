@@ -1,20 +1,22 @@
+<script src="{{ asset('js/modal_custom.js') }}"></script>
+
 <div class="row">
-
-    <div class="col-md-3 form-group">
-        <label>Company</label>
-        @php
-        $selectedCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->company_id : (isset($invoice) ? $invoice->company_id : (isset($company) && $company ? $company->id : null));
-        $isClone = isset($cloneFromInvoice);
-        @endphp
-        {!! Form::select('vendor_id', $companies, $selectedCompany, ['class' => 'form-select select2', 'id' => 'company_id', 'disabled' => $isClone]) !!}
-        @if($isClone)
-        <input type="hidden" name="vendor_id" value="{{ $selectedVendor }}">
-        @endif
-    </div>
-
     <div class="col-md-2 form-group">
         <label>Invoice Date</label>
-        <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : null) }}" name="inv_date">
+        <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}" name="inv_date" placeholder="Invoice Date">
+    </div>
+
+    <div class="col-md-4 form-group">
+        <label>Company</label>
+        @php
+        $selectedCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->vendor_id : (isset($invoice) ? $invoice->vendor_id : (isset($company) && $company ? $company->id : null));
+        $isClone = isset($cloneFromInvoice);
+        @endphp
+        {!! Form::select('vendor_id', $companies, $selectedCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'sim_invoice_company_id', 'disabled' => $isClone]) !!}
+        @if($isClone)
+        <input type="hidden" name="vendor_id" value="{{ $selectedCompany }}">
+        <small class="text-muted">Company is locked when cloning an invoice.</small>
+        @endif
     </div>
 
     <div class="form-group col-md-2">
@@ -24,106 +26,192 @@
 
     <div class="col-md-2 form-group">
         <label>Reference Number <span class="text-danger">*</span></label>
-        <input type="text" name="reference_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->reference_number : '') }}" required>
+        <input type="text" name="reference_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->reference_number : '') }}" placeholder="Reference No." required>
     </div>
 
     @if(isset($invoice) || isset($cloneFromInvoice))
     <div class="col-md-3 form-group">
         <label>SIM Invoice Number <span class="text-danger">*</span></label>
-        <input type="text" name="sim_invoice_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->sim_invoice_number : '') }}" required>
+        <input type="text" name="sim_invoice_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->sim_invoice_number : '') }}" placeholder="Invoice No." required>
     </div>
     @endif
 
     <div class="col-md-3 form-group">
         <label>Attachment</label>
         <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+        @isset($invoice->attachment)
+        <small class="text-muted">Current file: <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">{{ basename($invoice->attachment) }}</a></small>
+        @endisset
     </div>
 
-    <div class="col-md-6 form-group">
+    <div class="col-md-12 form-group">
         <label>Descriptions</label>
-        {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, ['class' => 'form-control', 'rows' => 2]) !!}
+        {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, ['class' => 'form-control', 'placeholder' => 'Descriptions', 'rows' => 2]) !!}
     </div>
 </div>
 
-<div class="">
-    <div class="card-header bg-blue mt-3">
-        <b class="card-title">Item Details</b>
+<div class="mt-2">
+    <div class="card-header bg-blue m-3">
+        <h5 class="card-title">Item Details</h5>
     </div>
 
-    <div id="rows-container">
-        @if(isset($invoice))
-        @foreach($invoice->items as $item)
-        @php
-        $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
-        $taxAmtEdit = $proratedEdit * ($item->tax_rate / 100);
-        $lineTotalEdit = $proratedEdit + $taxAmtEdit;
-        @endphp
-        <div class="row mb-2 invoice-item-row">
+    <div class="scrollbar p-2 border rounded">
+        <div class="row">
             <div class="col-md-3 form-group">
                 <label>SIM <span class="text-danger">*</span></label>
-                {!! Form::select('sim_id[]', $sims, $item->sim_id, ['class' => 'form-select form-select-sm select2 sim-select', 'required' => true]) !!}
             </div>
-            <div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1"></div>
-            <div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01"></div>
-            <div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01"></div>
-            <div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}"></div>
-            <div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}"></div>
-            <div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>
+            <div class="col-md-1 form-group">
+                <label>Days</label>
+            </div>
+            <div class="col-md-2 form-group">
+                <label>Monthly Rate</label>
+            </div>
+            <div class="col-md-1 form-group">
+                <label>VAT %</label>
+            </div>
+            <div class="col-md-2 form-group">
+                <label>VAT Amount</label>
+            </div>
+            <div class="col-md-2 form-group">
+                <label>Amount</label>
+            </div>
         </div>
-        @endforeach
-        @endif
 
-        @if(isset($cloneItems))
-        @foreach($cloneItems as $item)
-        @php
-        $proratedClone = $item['rental_amount'] * ($item['days'] / 30);
-        $taxAmtClone = $proratedClone * ($item['tax_rate'] / 100);
-        $lineTotalClone = $proratedClone + $taxAmtClone;
-        @endphp
-        <div class="row mb-2 invoice-item-row">
-            <div class="col-md-3 form-group">
-                <label>SIM <span class="text-danger">*</span></label>
-                {!! Form::select('sim_id[]', $sims ?? [], $item['sim_id'], ['class' => 'form-select form-select-sm select2 sim-select', 'required' => true]) !!}
+        <div id="rows-container">
+            @isset($invoice)
+            @foreach($invoice->items as $item)
+            @php
+            $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
+            $taxAmtEdit = $proratedEdit * ($item->tax_rate / 100);
+            $lineTotalEdit = $proratedEdit + $taxAmtEdit;
+            @endphp
+            <div class="row mt-1 invoice-item-row">
+                <div class="col-md-3 form-group">
+                    {!! Form::select('sim_id[]', $sims, $item->sim_id, ['class' => 'form-select form-select-sm select2 sim-select', 'required' => true]) !!}
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1" step="1" placeholder="1">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" placeholder="0.00">
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" placeholder="5">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}" placeholder="0.00">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}">
+                </div>
+                <div class="form-group col-md-1 d-flex align-items-center">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                </div>
             </div>
-            <div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1"></div>
-            <div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01"></div>
-            <div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01"></div>
-            <div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}"></div>
-            <div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}"></div>
-            <div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>
-        </div>
-        @endforeach
-        @endif
+            @endforeach
+            @endisset
 
-        <div class="row mb-2 invoice-item-row">
-            <div class="col-md-3 form-group">
-                <label>SIM <span class="text-danger">*</span></label>
-                {!! Form::select('sim_id[]', $sims ?? [], null, ['class' => 'form-select form-select-sm select2 sim-select', 'required' => true]) !!}
+            @isset($cloneItems)
+            @foreach($cloneItems as $item)
+            @php
+            $proratedClone = $item['rental_amount'] * ($item['days'] / 30);
+            $taxAmtClone = $proratedClone * ($item['tax_rate'] / 100);
+            $lineTotalClone = $proratedClone + $taxAmtClone;
+            @endphp
+            <div class="row mt-1 invoice-item-row">
+                <div class="col-md-3 form-group">
+                    {!! Form::select('sim_id[]', $sims ?? [], $item['sim_id'], ['class' => 'form-select form-select-sm select2 sim-select', 'required' => true]) !!}
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1" step="1" placeholder="1">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" placeholder="0.00">
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01" placeholder="5">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}">
+                </div>
+                <div class="form-group col-md-1 d-flex align-items-center">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                </div>
             </div>
-            <div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1"></div>
-            <div class="col-md-2 form-group"><label>Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0"></div>
-            <div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}"></div>
-            <div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>
-            <div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>
-            <div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>
+            @endforeach
+            @endisset
+
+            @if(!isset($invoice) && !isset($cloneItems))
+            <div class="row mt-1 invoice-item-row">
+                <div class="col-md-3 form-group">
+                    {!! Form::select('sim_id[]', $sims ?? [], null, ['class' => 'form-select form-select-sm select2 sim-select', 'required' => true]) !!}
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="days[]" class="form-control days" min="1" step="1" value="1" placeholder="1">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" placeholder="0.00">
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" placeholder="5">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0">
+                </div>
+                <div class="form-group col-md-1 d-flex align-items-center">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 
-    <div class="col-md-1 form-group">
-        <label style="visibility: hidden">Add</label>
+    <div>
         <button type="button" id="sim-add-new-row" class="btn btn-success btn-sm mt-3 mb-3">Add New</button>
     </div>
 
     <div class="row mt-2">
         <div class="col-md-12 form-group">
             <label>Notes</label>
-            {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'rows' => 2]) !!}
+            {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
         </div>
     </div>
 
-    <div class="row mt-2" style="justify-content: flex-end;">
-        <div class="col-md-2 form-group"><label><strong>Sub Total</strong>:</label></div>
-        <div class="col-md-2 form-group"><input type="text" class="form-control" id="sub_total" value="0.00" readonly></div>
+    <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+        <div></div>
+        <div class="d-flex align-items-center gap-3">
+            @php
+            $calculatedSubtotal = 0;
+            $calculatedVat = 0;
+            if(isset($invoice)) {
+                foreach($invoice->items as $item) {
+                    $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
+                    $taxAmt = $prorated * ($item->tax_rate / 100);
+                    $calculatedSubtotal += $prorated;
+                    $calculatedVat += $taxAmt;
+                }
+            }
+            $calculatedTotal = $calculatedSubtotal + $calculatedVat;
+            @endphp
+            <div class="input-group">
+                <span class="input-group-text bg-light">Subtotal</span>
+                <input type="number" name="subtotal" class="form-control" id="subtotal" value="{{ number_format($calculatedSubtotal, 2, '.', '') }}" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-light">VAT Amount</span>
+                <input type="number" name="vat_total" class="form-control" id="vat_total" value="{{ number_format($calculatedVat, 2, '.', '') }}" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white">Total</span>
+                <input type="number" name="total_amount_display" class="form-control" id="total" value="{{ number_format($calculatedTotal, 2, '.', '') }}" readonly style="min-width: 150px; font-weight: bold;">
+            </div>
+        </div>
     </div>
 </div>
 
@@ -143,52 +231,52 @@
     };
 
     window.sim_getTotal = function() {
+        var subtotal = 0;
+        var vat = 0;
         var total = 0;
         $('#rows-container .invoice-item-row').each(function() {
-            var $amount = $(this).find('.amount');
-            var v = $amount.data('numeric-value');
-            if (v === undefined || v === null || v === '') {
-                v = parseFloat($amount.val()) || 0;
+            var tax = parseFloat($(this).find('.tax_amount_display').data('numeric-value'));
+            if (isNaN(tax)) {
+                tax = parseFloat($(this).find('.tax_amount_display').val()) || 0;
             }
-            total += parseFloat(v) || 0;
+            var lineTotal = parseFloat($(this).find('.amount').data('numeric-value'));
+            if (isNaN(lineTotal)) {
+                lineTotal = parseFloat($(this).find('.amount').val()) || 0;
+            }
+            vat += tax;
+            total += lineTotal;
+            subtotal += (lineTotal - tax);
         });
-        $('#sub_total').val(total.toFixed(2));
+        $('#subtotal').val(subtotal.toFixed(2));
+        $('#vat_total').val(vat.toFixed(2));
+        $('#total').val(total.toFixed(2));
     };
 
-    function simInitSelect2($scope) {
-        if (!$.fn.select2) return;
+    $(document).ready(function() {
+        var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
+        var simsOptions = @json($sims ?? []);
         var $modalBody = $('#formajax').closest('.modal-body');
         if ($modalBody.length === 0) $modalBody = $('#modalTopbody');
-        var $root = $scope && $scope.length ? $scope : $('#formajax');
-        if ($root.length === 0) $root = $(document);
-        $root.find('select').each(function() {
-            var $el = $(this);
-            if ($el.hasClass('select2-hidden-accessible')) {
-                $el.select2('destroy');
-            }
-            $el.select2({
+
+        if ($.fn.select2) {
+            $('#sim_invoice_company_id').select2({
                 dropdownParent: $modalBody.length ? $modalBody : $('body'),
                 width: '100%'
             });
-        });
-    }
-
-    (function initSimInvoiceFields() {
-        if (window.__simInvoiceFieldsBound) {
-            return;
+            $('.sim-select').each(function() {
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2({
+                        dropdownParent: $modalBody.length ? $modalBody : $('body'),
+                        width: '100%'
+                    });
+                }
+            });
         }
-        window.__simInvoiceFieldsBound = true;
-
-        var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
-        var simsOptions = @json($sims ?? []);
-
-        simInitSelect2($('#formajax'));
 
         $(document)
-            .off('click.simInvoice', '.invoice-item-row .btn-remove-row')
-            .on('click.simInvoice', '.invoice-item-row .btn-remove-row', function(e) {
+            .off('click.simInvoice', '#rows-container .btn-remove-row')
+            .on('click.simInvoice', '#rows-container .btn-remove-row', function(e) {
                 e.preventDefault();
-                e.stopImmediatePropagation();
                 var $rows = $('#rows-container .invoice-item-row');
                 if ($rows.length <= 1) {
                     return;
@@ -201,37 +289,41 @@
             .off('click.simInvoice', '#sim-add-new-row')
             .on('click.simInvoice', '#sim-add-new-row', function(e) {
                 e.preventDefault();
-                e.stopImmediatePropagation();
-
                 var opts = '<option value="">Select SIM</option>';
                 for (var id in simsOptions) {
                     if (Object.prototype.hasOwnProperty.call(simsOptions, id)) {
                         opts += '<option value="' + id + '">' + simsOptions[id] + '</option>';
                     }
                 }
-
-                var html = '<div class="row mb-2 invoice-item-row">' +
-                    '<div class="col-md-3 form-group"><label>SIM <span class="text-danger">*</span></label><select name="sim_id[]" class="form-select form-select-sm select2 sim-select" required>' + opts + '</select></div>' +
-                    '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1"></div>' +
-                    '<div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0"></div>' +
-                    '<div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '"></div>' +
-                    '<div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
-                    '<div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
-                    '<div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
+                var html = '<div class="row mt-1 invoice-item-row">' +
+                    '<div class="col-md-3 form-group"><select name="sim_id[]" class="form-select form-select-sm select2 sim-select" required>' + opts + '</select></div>' +
+                    '<div class="col-md-1 form-group"><input type="number" name="days[]" class="form-control days" min="1" value="1"></div>' +
+                    '<div class="col-md-2 form-group"><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0"></div>' +
+                    '<div class="col-md-1 form-group"><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '"></div>' +
+                    '<div class="col-md-2 form-group"><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
+                    '<div class="col-md-2 form-group"><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
+                    '<div class="form-group col-md-1 d-flex align-items-center"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
                     '</div>';
                 $('#rows-container').append(html);
-                simInitSelect2($('#rows-container .invoice-item-row:last'));
+                if ($.fn.select2) {
+                    var $parent = $('#formajax').closest('.modal-body');
+                    if ($parent.length === 0) $parent = $('#modalTopbody');
+                    $('#rows-container .invoice-item-row:last .sim-select').select2({
+                        dropdownParent: $parent.length ? $parent : $('body'),
+                        width: '100%'
+                    });
+                }
             });
 
         $(document)
-            .off('input.simInvoice change.simInvoice', '#rows-container .invoice-item-row .days, #rows-container .invoice-item-row .rate, #rows-container .invoice-item-row .tax')
-            .on('input.simInvoice change.simInvoice', '#rows-container .invoice-item-row .days, #rows-container .invoice-item-row .rate, #rows-container .invoice-item-row .tax', function() {
+            .off('input.simInvoice change.simInvoice', '#rows-container .days, #rows-container .rate, #rows-container .tax')
+            .on('input.simInvoice change.simInvoice', '#rows-container .days, #rows-container .rate, #rows-container .tax', function() {
                 sim_calculate_price(this);
             });
 
         $(document)
-            .off('change.simInvoice', '#company_id, select[name="vendor_id"]')
-            .on('change.simInvoice', '#company_id, select[name="vendor_id"]', function() {
+            .off('change.simInvoice', '#sim_invoice_company_id')
+            .on('change.simInvoice', '#sim_invoice_company_id', function() {
                 var vendorId = $(this).val();
                 if (!vendorId) return;
                 var endpoint = "{{ route('simInvoices.getSims', ['id' => '__VENDOR_ID__']) }}".replace('__VENDOR_ID__', vendorId);
@@ -260,5 +352,5 @@
             }
         });
         sim_getTotal();
-    })();
+    });
 </script>

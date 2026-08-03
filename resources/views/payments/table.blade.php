@@ -1,15 +1,15 @@
 <table class="table dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr role="row">
-            <th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>
-            <th title="Sender" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender: activate to sort column ascending">Sender</th>
-            <th title="Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Receiver: activate to sort column ascending">Receiver</th>
-            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-            <th title="Voucher" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>
-            <th title="Attachment" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>
             <th title="Date of Payment" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date of Payment: activate to sort column ascending">Date of Payment</th>
             <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
+            <th title="Voucher" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>
+            <th title="Reference" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Reference: activate to sort column ascending">Reference</th>
+            <th title="Sender" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender: activate to sort column ascending">Sender</th>
             <th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>
+            <th title="Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Receiver: activate to sort column ascending">Receiver</th>
+            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
+            <th title="Attachment" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>
             <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
         </tr>
     </thead>
@@ -38,10 +38,8 @@
             $voucherLabel = $voucherType . '-' . $voucherId;
         @endphp
         <tr>
-            <td>{{ $payment->reference ?? '-' }}</td>
-            <td>{{ $payment->payer_account }}</td>
-            <td>{{ $payment->payeeAccount->account_code . '-' . $payment->payeeAccount->name }}</td>
-            <td>{{ \App\Helpers\Currency::format($payment->amount) }}</td>
+            <td>{{ \App\Helpers\Common::DateFormat($payment->date_of_payment) }}</td>
+            <td>{{ \App\Helpers\Common::MonthFormat($payment->billing_month) }}</td>
             <td>
                 @if($voucherId)
                 <a href="javascript:void(0);"
@@ -56,6 +54,11 @@
                 -
                 @endif
             </td>
+            <td>{{ $payment->reference ?? '-' }}</td>
+            <td>{{ $payment->payer_account }}</td>
+            <td>{{ $payment->description }}</td>
+            <td>{{ $payment->payeeAccount->account_code . '-' . $payment->payeeAccount->name }}</td>
+            <td>{{ \App\Helpers\Currency::format($payment->amount) }}</td>
             <td>
                 @if($payment->attachment)
                 <a href="{{ url('storage/vouchers/' . $payment->attachment) }}" class="btn btn-sm btn-outline-primary" target="_blank">
@@ -65,9 +68,6 @@
                 -
                 @endif
             </td>
-            <td>{{ \App\Helpers\Common::DateFormat($payment->date_of_payment) }}</td>
-            <td>{{ \App\Helpers\Common::MonthFormat($payment->billing_month) }}</td>
-            <td>{{ $payment->description }}</td>
             <td>
                 <div class="dropdown">
                     <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $payment->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">

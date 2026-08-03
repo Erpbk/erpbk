@@ -1,4 +1,4 @@
-
+<script src="{{ asset('js/modal_custom.js') }}"></script>
 
 <div class="row">
     <div class="col-md-2 form-group">
@@ -12,7 +12,7 @@
         $selectedCustomer = isset($cloneFromInvoice) ? $cloneFromInvoice->customer_id : (isset($invoice) ? $invoice->customer_id : (isset($bikeRentCustomer) && $bikeRentCustomer ? $bikeRentCustomer->id : null));
         $isClone = isset($cloneFromInvoice);
         @endphp
-        {!! Form::select('customer_id', $bikeRentCustomers, $selectedCustomer, ['class' => 'form-select select2', 'id' => 'customer_id', 'disabled' => $isClone]) !!}
+        {!! Form::select('customer_id', $bikeRentCustomers, $selectedCustomer, ['class' => 'form-select form-select-sm select2', 'id' => 'billing_invoice_customer_id', 'disabled' => $isClone]) !!}
         @if($isClone)
         <input type="hidden" name="customer_id" value="{{ $selectedCustomer }}">
         <small class="text-muted">Customer is locked when cloning an invoice.</small>
@@ -47,136 +47,129 @@
     </div>
 </div>
 
-<div class="">
-    <div class="card-header bg-blue mt-3">
-        <b class="card-title">Item Details</b>
+<div class="mt-2">
+    <div class="card-header bg-blue m-3">
+        <h5 class="card-title">Item Details</h5>
     </div>
 
-    <div id="rows-container">
-        @isset($invoice)
-        @foreach($invoice->items as $item)
-        @php
-        $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
-        $taxAmtEdit = $proratedEdit * ($item->tax_rate / 100);
-        $lineTotalEdit = $proratedEdit + $taxAmtEdit;
-        @endphp
-        <div class="row mb-2 invoice-item-row">
-            <div class="col-md-2 form-group">
+    <div class="scrollbar p-2 border rounded">
+        <div class="row">
+            <div class="col-md-3 form-group">
                 <label>Bike <span class="text-danger">*</span></label>
-                {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
-            </div>
-            <div class="col-md-1 form-group">
-                <label>Qty</label>
-                <input type="number" name="qty[]" value="1" class="form-control qty" min="1" step="1" readonly>
             </div>
             <div class="col-md-1 form-group">
                 <label>Days</label>
-                <input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
             </div>
             <div class="col-md-2 form-group">
-                <label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label>
-                <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                <label>Monthly Rate</label>
             </div>
             <div class="col-md-1 form-group">
-                <label>Tax %</label>
-                <input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                <label>VAT %</label>
             </div>
             <div class="col-md-2 form-group">
-                <label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label>
-                <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}" placeholder="0.00">
+                <label>VAT Amount</label>
             </div>
             <div class="col-md-2 form-group">
                 <label>Amount</label>
-                <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}">
-            </div>
-            <div class="form-group col-md-1 d-flex align-items-end">
-                <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
             </div>
         </div>
-        @endforeach
-        @endisset
 
-        @isset($cloneItems)
-        @foreach($cloneItems as $item)
-        <div class="row mb-2 invoice-item-row">
-            <div class="col-md-2 form-group">
-                <label>Bike <span class="text-danger">*</span></label>
-                {!! Form::select('bike_id[]', $bikes ?? [], $item['bike_id'], ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+        <div id="rows-container">
+            @isset($invoice)
+            @foreach($invoice->items as $item)
+            @php
+            $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
+            $taxAmtEdit = $proratedEdit * ($item->tax_rate / 100);
+            $lineTotalEdit = $proratedEdit + $taxAmtEdit;
+            @endphp
+            <div class="row mt-1 invoice-item-row">
+                <div class="col-md-3 form-group">
+                    {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}" placeholder="0.00">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}">
+                </div>
+                <div class="form-group col-md-1 d-flex align-items-center">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                </div>
             </div>
-            <div class="col-md-1 form-group">
-                <label>Qty</label>
-                <input type="number" name="qty[]" value="1" class="form-control qty" min="1" step="1" readonly>
-            </div>
-            <div class="col-md-1 form-group">
-                <label>Days</label>
-                <input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label>
-                <input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
-            </div>
-            <div class="col-md-1 form-group">
-                <label>Tax %</label>
-                <input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label>
-                @php
-                $proratedClone = $item['rental_amount'] * ($item['days'] / 30);
-                $taxAmtClone = $proratedClone * ($item['tax_rate'] / 100);
-                $lineTotalClone = $proratedClone + $taxAmtClone;
-                @endphp
-                <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}">
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Amount</label>
-                <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}">
-            </div>
-            <div class="form-group col-md-1 d-flex align-items-end">
-                <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-            </div>
-        </div>
-        @endforeach
-        @endisset
+            @endforeach
+            @endisset
 
-        <div class="row mb-2 invoice-item-row">
-            <div class="col-md-2 form-group">
-                <label>Bike <span class="text-danger">*</span></label>
-                {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select select2 bike-select', 'required' => true]) !!}
+            @isset($cloneItems)
+            @foreach($cloneItems as $item)
+            <div class="row mt-1 invoice-item-row">
+                <div class="col-md-3 form-group">
+                    {!! Form::select('bike_id[]', $bikes ?? [], $item['bike_id'], ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                </div>
+                <div class="col-md-2 form-group">
+                    @php
+                    $proratedClone = $item['rental_amount'] * ($item['days'] / 30);
+                    $taxAmtClone = $proratedClone * ($item['tax_rate'] / 100);
+                    $lineTotalClone = $proratedClone + $taxAmtClone;
+                    @endphp
+                    <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}">
+                </div>
+                <div class="form-group col-md-1 d-flex align-items-center">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                </div>
             </div>
-            <div class="col-md-1 form-group">
-                <label>Qty</label>
-                <input type="number" name="qty[]" value="1" class="form-control qty" min="1" step="1" readonly>
+            @endforeach
+            @endisset
+
+            @if(!isset($invoice) && !isset($cloneItems))
+            <div class="row mt-1 invoice-item-row">
+                <div class="col-md-3 form-group">
+                    {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="days[]" class="form-control days" min="1" step="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                </div>
+                <div class="col-md-1 form-group">
+                    <input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0">
+                </div>
+                <div class="col-md-2 form-group">
+                    <input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0">
+                </div>
+                <div class="form-group col-md-1 d-flex align-items-center">
+                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                </div>
             </div>
-            <div class="col-md-1 form-group">
-                <label>Days</label>
-                <input type="number" name="days[]" class="form-control days" min="1" step="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Rate ({{ \App\Helpers\Currency::code() }})</label>
-                <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
-            </div>
-            <div class="col-md-1 form-group">
-                <label>Tax %</label>
-                <input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label>
-                <input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0">
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Amount</label>
-                <input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0">
-            </div>
-            <div class="form-group col-md-1 d-flex align-items-end">
-                <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-            </div>
+            @endif
         </div>
     </div>
 
-    <div class="append-line"></div>
-    <div class="col-md-1 form-group">
-        <label style="visibility: hidden">Add</label>
+    <div>
         <button type="button" id="add-new-row" class="btn btn-success btn-sm mt-3 mb-3">Add New</button>
     </div>
 
@@ -187,22 +180,34 @@
         </div>
     </div>
 
-    <div class="row mt-2" style="justify-content: flex-end;">
-        <div class="col-md-2 form-group">
-            <label><strong>Sub Total</strong>:</label>
-        </div>
-        <div class="col-md-2 form-group">
+    <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
+        <div></div>
+        <div class="d-flex align-items-center gap-3">
             @php
-            $calculatedTotal = 0;
+            $calculatedSubtotal = 0;
+            $calculatedVat = 0;
             if(isset($invoice)) {
-            foreach($invoice->items as $item) {
-            $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
-            $taxAmt = $prorated * ($item->tax_rate / 100);
-            $calculatedTotal += ($prorated + $taxAmt);
+                foreach($invoice->items as $item) {
+                    $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
+                    $taxAmt = $prorated * ($item->tax_rate / 100);
+                    $calculatedSubtotal += $prorated;
+                    $calculatedVat += $taxAmt;
+                }
             }
-            }
+            $calculatedTotal = $calculatedSubtotal + $calculatedVat;
             @endphp
-            <input type="text" name="total_amount_display" class="form-control" id="sub_total" value="{{ isset($invoice) ? number_format($calculatedTotal, 2) : '0.00' }}" readonly>
+            <div class="input-group">
+                <span class="input-group-text bg-light">Subtotal</span>
+                <input type="number" name="subtotal" class="form-control" id="subtotal" value="{{ number_format($calculatedSubtotal, 2, '.', '') }}" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-light">VAT Amount</span>
+                <input type="number" name="vat_total" class="form-control" id="vat_total" value="{{ number_format($calculatedVat, 2, '.', '') }}" readonly style="min-width: 150px;">
+            </div>
+            <div class="input-group">
+                <span class="input-group-text bg-primary text-white">Total</span>
+                <input type="number" name="total_amount_display" class="form-control" id="total" value="{{ number_format($calculatedTotal, 2, '.', '') }}" readonly style="min-width: 150px; font-weight: bold;">
+            </div>
         </div>
     </div>
 </div>
@@ -229,28 +234,42 @@
     };
 
     window.leasing_getTotal = function() {
+        var subtotal = 0;
+        var vat = 0;
         var total = 0;
         $('#rows-container .invoice-item-row').each(function() {
-            var v = $(this).find('.amount').data('numeric-value');
-            if (v) total += parseFloat(v);
+            var tax = parseFloat($(this).find('.tax_amount_display').data('numeric-value')) || 0;
+            var lineTotal = parseFloat($(this).find('.amount').data('numeric-value')) || 0;
+            vat += tax;
+            total += lineTotal;
+            subtotal += (lineTotal - tax);
         });
-        $('#sub_total').val(total.toFixed(2));
+        $('#subtotal').val(subtotal.toFixed(2));
+        $('#vat_total').val(vat.toFixed(2));
+        $('#total').val(total.toFixed(2));
     };
 
     $(document).ready(function() {
-        $('.select2').select2({
-            dropdownParent: $('#modalTopbody'),
-            allowClear: true
-        });
-        var defaultTax = {
-            {
-                \
-                App\ Helpers\ Common::getSetting('vat_percentage') ?? 5
-            }
-        };
+        var defaultTax = {{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }};
         var rentalByCompany = @json($rentalAmountByCompany ?? []);
+        var $modalBody = $('#formajax').closest('.modal-body');
+        if ($modalBody.length === 0) $modalBody = $('#modalTopbody');
+        if ($.fn.select2) {
+            $('#billing_invoice_customer_id').select2({
+                dropdownParent: $modalBody.length ? $modalBody : $('body'),
+                width: '100%'
+            });
+            $('.bike-select').each(function() {
+                if (!$(this).hasClass('select2-hidden-accessible')) {
+                    $(this).select2({
+                        dropdownParent: $modalBody.length ? $modalBody : $('body'),
+                        width: '100%'
+                    });
+                }
+            });
+        }
 
-        $('#customer_id').on('change', function() {
+        $('#billing_invoice_customer_id').on('change', function() {
             var id = $(this).val();
             var rate = rentalByCompany[id] || 0;
             $('.rate').val(rate);
@@ -258,6 +277,7 @@
                 leasing_calculate_price($(this).find('.rate')[0]);
             });
         });
+
         $('#billing_month').on('change', function() {
             $('#rows-container .invoice-item-row').each(function() {
                 leasing_calculate_price($(this).find('.rate')[0]);
@@ -269,28 +289,27 @@
             leasing_getTotal();
         });
 
-
         var leasingBikesOptions = @json($bikes ?? []);
         $('#add-new-row').off('click').on('click', function() {
             var opts = '<option value="">Select Bike</option>';
             for (var id in leasingBikesOptions) {
                 opts += '<option value="' + id + '">' + leasingBikesOptions[id] + '</option>';
             }
-            var html = '<div class="row mb-2 invoice-item-row">' +
-                '<div class="col-md-2 form-group"><label>Bike <span class="text-danger">*</span></label><select name="bike_id[]" class="form-select form-select-sm select2 bike-select" required>' + opts + '</select></div>' +
-                '<div class="col-md-1 form-group"><label>Qty</label><input type="number" name="qty[]" value="1" class="form-control qty" min="1" readonly></div>' +
-                '<div class="col-md-1 form-group"><label>Days</label><input type="number" name="days[]" class="form-control days" min="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
-                '<div class="col-md-2 form-group"><label>Monthly Rate ({{ \App\Helpers\Currency::code() }})</label><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
-                '<div class="col-md-1 form-group"><label>Tax %</label><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
-                '<div class="col-md-2 form-group"><label>Tax Amount ({{ \App\Helpers\Currency::code() }})</label><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
-                '<div class="col-md-2 form-group"><label>Amount</label><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
-                '<div class="form-group col-md-1 d-flex align-items-end"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
+            var html = '<div class="row mt-1 invoice-item-row">' +
+                '<div class="col-md-3 form-group"><select name="bike_id[]" class="form-select form-select-sm select2 bike-select" required>' + opts + '</select></div>' +
+                '<div class="col-md-1 form-group"><input type="number" name="days[]" class="form-control days" min="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
+                '<div class="col-md-2 form-group"><input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
+                '<div class="col-md-1 form-group"><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
+                '<div class="col-md-2 form-group"><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
+                '<div class="col-md-2 form-group"><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
+                '<div class="form-group col-md-1 d-flex align-items-center"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
                 '</div>';
             $('#rows-container').append(html);
             if ($.fn.select2) {
-                var $modalBody = $('#formajax').closest('.modal-body');
+                var $parent = $('#formajax').closest('.modal-body');
+                if ($parent.length === 0) $parent = $('#modalTopbody');
                 $('#rows-container .invoice-item-row:last .bike-select').select2({
-                    dropdownParent: $('#modalTopbody'),
+                    dropdownParent: $parent.length ? $parent : $('body'),
                     width: '100%'
                 });
             }

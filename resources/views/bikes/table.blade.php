@@ -152,7 +152,7 @@
                $companyLabel = '-';
             }
          } else {
-            $companyLabel = $company ? $company->name : '-';
+            $companyLabel = $r->leasingCompany?->name ?? '-';
          }
          @endphp
          <td tabindex="0">{{ $companyLabel }}</td>

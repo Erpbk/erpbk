@@ -77,7 +77,7 @@ $items = \App\Models\Items::dropdown('customer');
 <h5 class="my-3">Invoice Items</h5>
 <div class="scrollbar p-2 border rounded">
     <div class="row">
-        <div class="form-group col-md-3">
+        <div class="form-group col-md-4">
             {!! Form::label('item', 'Item') !!}
         </div>
         <div class="form-group col-md-2">
@@ -89,9 +89,6 @@ $items = \App\Models\Items::dropdown('customer');
         <div class="form-group col-md-1">
             {!! Form::label('vat', 'VAT (%)') !!}
         </div>
-        <div class="form-group col-md-1">
-            {!! Form::label('vat', 'VAT Amount') !!}
-        </div>
         <div class="form-group col-md-2">
             {!! Form::label('total', 'Total Amount') !!}
         </div>
@@ -100,7 +97,7 @@ $items = \App\Models\Items::dropdown('customer');
         @if(isset($invoice))
         @foreach($invoice->items as $index => $itm)
         <div class="row mb-2 item-row">
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-4">
                 <select name="item_ids[]" class="form-control select2 item" required>
                     <option value="">Select Item</option>
                     @foreach($items as $item)
@@ -132,12 +129,7 @@ $items = \App\Models\Items::dropdown('customer');
                 'class' => 'form-control vat',
                 'step' => 'any',
                 ]) !!}
-            </div>
-            <div class="form-group col-md-1">
-                {!! Form::number('item_vatAmount[]', $itm->vat_amount, [
-                'class' => 'form-control vat_amount',
-                'step' => 'any',
-                ]) !!}
+                {!! Form::hidden('item_vatAmount[]', $itm->vat_amount, ['class' => 'vat_amount']) !!}
             </div>
             <div class="form-group col-md-2">
                 {!! Form::number('items_total[]', $itm->total_amount, [
@@ -155,7 +147,7 @@ $items = \App\Models\Items::dropdown('customer');
         @endforeach
         @else
         <div class="row mb-2 item-row">
-            <div class="form-group col-md-3">
+            <div class="form-group col-md-4">
                 <select name="item_ids[]" class="form-control select2 item" required>
                     <option value="">Select Item</option>
                     @foreach($items as $item)
@@ -188,12 +180,7 @@ $items = \App\Models\Items::dropdown('customer');
                 'class' => 'form-control vat',
                 'step' => 'any',
                 ]) !!}
-            </div>
-            <div class="form-group col-md-1">
-                {!! Form::number('item_vatAmount[]', 0, [
-                'class' => 'form-control vat_amount',
-                'step' => 'any',
-                ]) !!}
+                {!! Form::hidden('item_vatAmount[]', 0, ['class' => 'vat_amount']) !!}
             </div>
             <div class="form-group col-md-2">
                 {!! Form::number('items_total[]', null, [

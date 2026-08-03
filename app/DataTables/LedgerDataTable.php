@@ -7,6 +7,7 @@ use App\Models\Accounts;
 use App\Models\BikeMaintenance;
 use App\Models\CustomerInvoices;
 use App\Models\FuelData;
+use App\Models\RtaFines;
 use App\Models\salik;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
@@ -58,10 +59,23 @@ class LedgerDataTable extends DataTable
             $view_file = '';
             $voucher_ID = '';
             $voucher_text = '';
-            if (isset($row->voucher->attach_file)) {
-                if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE') {
-                    $view_file = '  <a href="' . url('storage/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
-                } elseif (in_array($row->reference_type, ['LV', 'LE'], true)) {
+            if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE' || $row->reference_type == 'RTA_FINE') {
+                // Charge entries have no voucher — file lives on rta_fines.attachment_path.
+                // Payment (RTA) may also have voucher.attach_file / fine.attachment.
+                $fineFile = null;
+                if (! empty($row->voucher?->attach_file)) {
+                    $fineFile = $row->voucher->attach_file;
+                } else {
+                    $fine = RtaFines::find($row->reference_id);
+                    if ($fine) {
+                        $fineFile = $fine->attachment ?: $fine->attachment_path;
+                    }
+                }
+                if ($fineFile) {
+                    $view_file = '  <a href="' . storage_url($fineFile) . '" class="no-print" target="_blank">View File</a>';
+                }
+            } elseif (isset($row->voucher->attach_file)) {
+                if (in_array($row->reference_type, ['LV', 'LE'], true)) {
                     $view_file = '  <a href="' . url('storage/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                 } else {
                     $view_file = '  <a href="' . url('storage/vouchers/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
@@ -85,7 +99,7 @@ class LedgerDataTable extends DataTable
                     $voucher_text = '<span class="text-danger">No Voucher Found</span>';
                 }
             }
-            if ($row->reference_type == 'RTA FINE') {
+            if ($row->reference_type == 'RTA FINE' || $row->reference_type == 'RTA_FINE') {
                 $voucher_ID = 'RTA FINE';
                 $voucher_text = '<a href="javascript:void(0);" data-action="' . route('rtaFines.show', $row->reference_id) . '" class="show-modal-right" >' . $voucher_ID . '</a>';
             }
@@ -309,20 +323,9 @@ class LedgerDataTable extends DataTable
                 $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Billing Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" class="no-print show-modal">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . '</span>';
-            if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE') {
-                $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
-
-                if ($vouchers) {
-                    $fines = CompanyQuery::table('rta_fines')->where('id', $vouchers->ref_id)->first();
-
-                    if ($fines) {
-                        $naration = $row->narration . ', <b>Ticket Number: </b>' . $fines->ticket_no . ', <b>Bike No: </b>' . $fines->plate_no . ', ' . Carbon::parse($fines->trip_date)->format('d M Y') . ', ' . $view_file;
-                    } else {
-                        $naration = $row->narration . ', ' . $view_file;
-                    }
-                } else {
-                    $naration = $row->narration . ', ' . $view_file;
-                }
+            if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE' || $row->reference_type == 'RTA_FINE') {
+                // Ticket / bike / trip date are already in the stored narration.
+                $naration = $row->narration . ($view_file !== '' ? ' ' . $view_file : '');
             } elseif ($row->reference_type == 'LV') {
                 $visaex = CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
                 if ($visaex) {

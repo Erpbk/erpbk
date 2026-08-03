@@ -1125,10 +1125,21 @@ class PaymentController extends Controller
                 $fileName = time().'_'.$file->getClientOriginalName();
                 PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
 
+                $oldPaymentFile = $payment->attachment ? basename((string) $payment->attachment) : null;
+                $oldVoucherFile = $payment->voucher?->attach_file
+                    ? basename((string) $payment->voucher->attach_file)
+                    : null;
+
                 $payment->update(['attachment' => $fileName]);
 
                 if ($payment->voucher) {
                     $payment->voucher->update(['attach_file' => $fileName]);
+                }
+
+                foreach (array_unique(array_filter([$oldPaymentFile, $oldVoucherFile])) as $oldFile) {
+                    if ($oldFile !== $fileName) {
+                        PublicStorageDisk::delete('vouchers/' . $oldFile);
+                    }
                 }
             }
 

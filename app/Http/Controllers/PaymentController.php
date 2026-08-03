@@ -163,9 +163,9 @@ class PaymentController extends Controller
             $invoiceType = 'rider';
             $selectedInvoice = null;
             if (request()->input('invoice_id')) {
-                $selectedInvoice = RiderInvoices::with('rider.account')->find(request()->input('invoice_id'));
+                $selectedInvoice = RiderInvoices::with(['rider.account', 'items'])->find(request()->input('invoice_id'));
             }
-            $invoiceQuery = RiderInvoices::with('rider.account')
+            $invoiceQuery = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()
                 ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'));
             if ($riderId) {
@@ -311,6 +311,19 @@ class PaymentController extends Controller
 
         $this->validate($request, $rules, $messages);
 
+        // For rider payments, inherit invoice date from the selected invoice when not provided.
+        if ($request->input('invoice_type') === 'rider'
+            && blank($request->input('date_of_invoice'))
+            && $request->filled('invoice_ids')
+        ) {
+            $firstInvoice = RiderInvoices::find(collect($request->input('invoice_ids'))->first());
+            if ($firstInvoice && $firstInvoice->inv_date) {
+                $request->merge([
+                    'date_of_invoice' => Carbon::parse($firstInvoice->inv_date)->format('Y-m-d'),
+                ]);
+            }
+        }
+
         // Calculate total debit (payment amount + bank charges)
         $paymentAmount = floatval($request->input('amount', 0));
         $bankCharges = floatval($request->input('bank_charges', 0));
@@ -401,14 +414,15 @@ class PaymentController extends Controller
                         }
                     }
                 } elseif ($invoiceType == 'rider') {
-                    $invoices = RiderInvoices::whereIn('id', $invoiceIds)->get();
+                    $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
 
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
                         if ($invoicePaymentAmount > 0) {
+                            // Payment already saved; balance is remaining due after deductions/payments.
                             $invoice->update([
-                                'status' => 1, // Paid
+                                'status' => ((float) $invoice->balance) <= 0.01 ? 1 : 3,
                                 'updated_by' => auth()->id(),
                             ]);
                         }
@@ -726,10 +740,10 @@ class PaymentController extends Controller
                     $invoiceIds[] = (int) $matches[1];
                 }
             }
-            $existingInvoices = RiderInvoices::with('rider.account')
+            $existingInvoices = RiderInvoices::with(['rider.account', 'items'])
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = RiderInvoices::with('rider.account')
+            $invoices = RiderInvoices::with(['rider.account', 'items'])
                 ->whereIn('rider_id', $existingInvoices->pluck('rider_id'))
                 ->payable()
                 ->whereNotIn('id', $invoiceIds)
@@ -807,6 +821,19 @@ class PaymentController extends Controller
 
         $this->validate($request, $rules, $messages);
 
+        // For rider payments, inherit invoice date from the selected invoice when not provided.
+        if ($request->input('invoice_type') === 'rider'
+            && blank($request->input('date_of_invoice'))
+            && $request->filled('invoice_ids')
+        ) {
+            $firstInvoice = RiderInvoices::find(collect($request->input('invoice_ids'))->first());
+            if ($firstInvoice && $firstInvoice->inv_date) {
+                $request->merge([
+                    'date_of_invoice' => Carbon::parse($firstInvoice->inv_date)->format('Y-m-d'),
+                ]);
+            }
+        }
+
         // Calculate total debit (payment amount + bank charges)
         $paymentAmount = floatval($request->input('amount', 0));
         $bankCharges = floatval($request->input('bank_charges', 0));
@@ -883,6 +910,16 @@ class PaymentController extends Controller
                     $existingInvoices = SimInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
+                } elseif ($input['invoice_type'] == 'rider') {
+                    foreach ($invoice_numbers as $invoice_number) {
+                        if (preg_match('/RINV-?0*(\d+)/i', $invoice_number, $matches)) {
+                            $invoiceIds[] = (int) $matches[1];
+                        }
+                    }
+
+                    $existingInvoices = RiderInvoices::whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
+                    $pending = 0;
                 } else {
                     foreach ($invoice_numbers as $invoice_number) {
                         $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
@@ -898,6 +935,13 @@ class PaymentController extends Controller
                 }
 
                 foreach ($existingInvoices as $invoice) {
+                    if (($input['invoice_type'] ?? null) === 'rider') {
+                        $invoice->status = $pending;
+                        $invoice->updated_by = auth()->id();
+                        $invoice->save();
+                        continue;
+                    }
+
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     unset($partialAmount[$payment->id]); // Remove payment for this payment record
                     $invoice->partial_paid_amount = $partialAmount;
@@ -945,6 +989,10 @@ class PaymentController extends Controller
                     $invoices = SimInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $paid = 1;
+                } elseif ($input['invoice_type'] == 'rider') {
+                    $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
+                    $paid = 1;
                 } else {
                     $invoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 'partially_paid';
@@ -953,27 +1001,38 @@ class PaymentController extends Controller
 
                 foreach ($invoices as $invoice) {
                     $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+
+                    if ($invoicePaymentAmount <= 0) {
+                        continue;
+                    }
+
+                    if ($input['invoice_type'] == 'rider') {
+                        // Payment row already updated; balance reflects remaining due after this payment.
+                        $invoice->status = ((float) $invoice->balance) <= 0.01 ? $paid : $partial;
+                        $invoice->updated_by = auth()->id();
+                        $invoice->save();
+                        continue;
+                    }
+
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                    if ($invoicePaymentAmount > 0) {
-                        if ($input['invoice_type'] == 'sim') {
-                            if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
-                                $invoice->status = $paid;
-                            } else {
-                                $invoice->status = $partial;
-                            }
-                        } elseif ($invoicePaymentAmount >= ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
+                    if ($input['invoice_type'] == 'sim') {
+                        if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
                             $invoice->status = $paid;
                         } else {
                             $invoice->status = $partial;
                         }
-                        $invoice->partial_paid_amount = $partialAmount;
-                        if (($input['invoice_type'] ?? null) != 'sim') {
-                            $invoice->updated_by = auth()->id();
-                        }
-                        $invoice->save();
+                    } elseif ($invoicePaymentAmount >= ($invoice->total_amount - ($invoice->paid_amount ?? 0))) {
+                        $invoice->status = $paid;
+                    } else {
+                        $invoice->status = $partial;
                     }
+                    $invoice->partial_paid_amount = $partialAmount;
+                    if (($input['invoice_type'] ?? null) != 'sim') {
+                        $invoice->updated_by = auth()->id();
+                    }
+                    $invoice->save();
                 }
             }
 

@@ -1,6 +1,23 @@
-<div class="card-body px-4">
+@php
+    $isRiderPayment = ($invoiceType ?? null) === 'rider';
+    $defaultBillingMonth = old(
+        'billing_month',
+        isset($payment) && $payment->billing_month
+            ? \Carbon\Carbon::parse($payment->billing_month)->format('Y-m')
+            : date('Y-m')
+    );
+@endphp
+<div class="card-body px-4" @if($isRiderPayment) data-rider-payment="1" @endif>
     <!-- Basic Payment Information -->
     <div class="row">
+        @if($isRiderPayment)
+        {{-- Billing month at the top filters which pending invoices are shown --}}
+        <div class="form-group col-md-3">
+            {!! Form::label('billing_month', 'Billing Month:') !!}
+            {!! Form::month('billing_month', $defaultBillingMonth, ['class' => 'form-control', 'id' => 'billing_month', 'maxlength' => 255, 'required' => true]) !!}
+        </div>
+        @endif
+
         <!-- reference Field -->
         <div class="form-group col-md-3">
             {!! Form::label('reference', 'Reference:') !!}
@@ -29,6 +46,21 @@
             {!! Form::date('date_of_payment', null, ['class' => 'form-control']) !!}
         </div>
 
+        @if($isRiderPayment)
+        {!! Form::hidden('date_of_invoice', old('date_of_invoice', isset($payment) ? $payment->date_of_invoice : null), ['id' => 'date_of_invoice']) !!}
+        <div class="form-group col-md-3">
+            {!! Form::label('created_by_display', 'Created By:') !!}
+            {!! Form::text('created_by_display', isset($payment) && $payment->created_by
+                ? \App\Helpers\Common::UserName($payment->created_by)
+                : (auth()->user()->name ?? '-'), ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+        </div>
+        <div class="form-group col-md-3">
+            {!! Form::label('updated_by_display', 'Updated By:') !!}
+            {!! Form::text('updated_by_display', isset($payment) && $payment->updated_by
+                ? \App\Helpers\Common::UserName($payment->updated_by)
+                : (isset($payment) ? (auth()->user()->name ?? '-') : '-'), ['class' => 'form-control bg-light', 'readonly' => true]) !!}
+        </div>
+        @else
         <div class="form-group col-md-3">
             {!! Form::label('date_of_invoice', 'Date of Invoice:') !!}
             {!! Form::date('date_of_invoice', null, ['class' => 'form-control']) !!}
@@ -37,8 +69,9 @@
         <!-- Billing Month Field -->
         <div class="form-group col-md-3">
             {!! Form::label('billing_month', 'Billing Month:') !!}
-            {!! Form::month('billing_month', null, ['class' => 'form-control', 'maxlength' => 255]) !!}
+            {!! Form::month('billing_month', null, ['class' => 'form-control', 'id' => 'billing_month', 'maxlength' => 255]) !!}
         </div>
+        @endif
     </div>
 
     <!-- Transaction Details Section -->
@@ -205,7 +238,7 @@
     <input type="hidden" value="{{ $invoiceType ?? null }}" name="invoice_type">
     <div class="row mt-4">
         <div class="col-md-12">
-            <h6 class="bg-light p-2 mb-3">Select Invoices for Payment</h6>
+            <h6 class="bg-light p-2 mb-3">{{ $isRiderPayment ? 'Select Invoice for Payment' : 'Select Invoices for Payment' }}</h6>
             <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                 <table class="table table-bordered table-hover" id="invoices-table">
                     <thead>
@@ -225,20 +258,38 @@
                             @else
                                 <th>Leasing Company</th>
                             @endif
-                            <th>Billing Month</th>
+                            @unless($isRiderPayment)
+                                <th>Billing Month</th>
+                            @endunless
                             <th>Total Amount</th>
-                            <th>Paid Amount</th>
+                            @unless($isRiderPayment)
+                                <th>Paid Amount</th>
+                            @endunless
                             <th>Balance Due</th>
-                            <th>Payment Amount</th>
+                            @unless($isRiderPayment)
+                                <th>Payment Amount</th>
+                            @endunless
                         </tr>
                     </thead>
                     <tbody>
                         @if(isset($existingInvoices) && $existingInvoices->count() > 0)
                             @foreach($existingInvoices as $invoice)
+                            @php
+                                $existingBalance = ($invoice->balance ?? 0) + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
+                                $existingPaid = ($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
+                                $existingPaymentAmt = $invoice->partial_paid_amount[optional($payment)->id] ?? 0;
+                                $invoiceDate = optional($invoice->inv_date)->format('Y-m-d')
+                                    ?? (isset($invoice->inv_date) ? date('Y-m-d', strtotime($invoice->inv_date)) : '');
+                                $invoiceBillingMonth = $invoice->billing_month
+                                    ? date('Y-m', strtotime($invoice->billing_month))
+                                    : '';
+                            @endphp
                             <tr data-invoice-id="{{ $invoice->id }}"
-                                data-balance="{{ $invoice->balance + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0) }}" 
-                                data-reference="{{ $invoice->invoice_number ?? $invoice->id }}" 
-                                data-old-payment="{{ $invoice->partial_paid_amount[optional($payment)->id] ?? 0 }}"
+                                data-balance="{{ $existingBalance }}"
+                                data-reference="{{ $invoice->invoice_number ?? $invoice->id }}"
+                                data-old-payment="{{ $existingPaymentAmt }}"
+                                data-invoice-date="{{ $invoiceDate }}"
+                                data-billing-month="{{ $invoiceBillingMonth }}"
                                 data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->vendor)->id }}"
                                 data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name }}">
                                 <td class="text-center">
@@ -246,25 +297,45 @@
                                 </td>
                                 <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                                 <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
-                                <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                                @unless($isRiderPayment)
+                                    <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                                @endunless
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                                <td class="text-right">{{ number_format(($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[optional($payment)->id] ?? 0), 2) }}</td>
-                                <td class="text-right text-danger">{{ number_format(($invoice->balance ?? 0) + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0), 2) }}</td>
+                                @unless($isRiderPayment)
+                                    <td class="text-right">{{ number_format($existingPaid, 2) }}</td>
+                                @endunless
+                                <td class="text-right text-danger">
+                                    {{ number_format($existingBalance, 2) }}
+                                    @if($isRiderPayment)
+                                        <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="{{ $existingPaymentAmt }}" data-max="{{ $existingBalance }}">
+                                    @endif
+                                </td>
+                                @unless($isRiderPayment)
                                 <td>
-                                    <input type="number" name="payment_amounts[{{ $invoice->id }}]" 
-                                        class="form-control payment-amount" 
-                                        step="any" 
+                                    <input type="number" name="payment_amounts[{{ $invoice->id }}]"
+                                        class="form-control payment-amount"
+                                        step="any"
                                         placeholder="Amount"
                                         data-max="{{ $invoice->total ?? $invoice->total_amount }}"
-                                        value="{{ $invoice->partial_paid_amount[optional($payment)->id] ?? 0 }}">
+                                        value="{{ $existingPaymentAmt }}">
                                 </td>
+                                @endunless
                             </tr>
                             @endforeach
                         @endif
                         @foreach($invoices as $invoice)
-                        <tr data-invoice-id="{{ $invoice->id }}" 
-                            data-balance="{{ $invoice->balance }}" 
+                        @php
+                            $invoiceDate = optional($invoice->inv_date)->format('Y-m-d')
+                                ?? (isset($invoice->inv_date) ? date('Y-m-d', strtotime($invoice->inv_date)) : '');
+                            $invoiceBillingMonth = $invoice->billing_month
+                                ? date('Y-m', strtotime($invoice->billing_month))
+                                : '';
+                        @endphp
+                        <tr data-invoice-id="{{ $invoice->id }}"
+                            data-balance="{{ $invoice->balance }}"
                             data-reference="{{ $invoice->invoice_number }}"
+                            data-invoice-date="{{ $invoiceDate }}"
+                            data-billing-month="{{ $invoiceBillingMonth }}"
                             data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->vendor)->id }}"
                             data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name }}">
                             <td class="text-center">
@@ -272,26 +343,39 @@
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                             <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
-                            <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                            @unless($isRiderPayment)
+                                <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
+                            @endunless
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                            <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
-                            <td class="text-right text-danger">{{ number_format($invoice->balance, 2) }}</td>
+                            @unless($isRiderPayment)
+                                <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
+                            @endunless
+                            <td class="text-right text-danger">
+                                {{ number_format($invoice->balance, 2) }}
+                                @if($isRiderPayment)
+                                    <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="0" data-max="{{ $invoice->balance }}" disabled>
+                                @endif
+                            </td>
+                            @unless($isRiderPayment)
                             <td>
-                                <input type="number" name="payment_amounts[{{ $invoice->id }}]" 
-                                       class="form-control payment-amount" 
-                                       step="any" 
+                                <input type="number" name="payment_amounts[{{ $invoice->id }}]"
+                                       class="form-control payment-amount"
+                                       step="any"
                                        placeholder="Amount"
                                        data-max="{{ $invoice->balance }}"
                                        disabled>
                             </td>
+                            @endunless
                         </tr>
                         @endforeach
                     </tbody>
                     <tfoot class="bg-light">
                         <tr>
-                            <th colspan="6" class="text-right">Total Selected Payment:</th>
+                            <th colspan="{{ $isRiderPayment ? 4 : 6 }}" class="text-right">Total Selected Payment:</th>
                             <th class="text-right" id="total-selected-payment">0.00</th>
-                            <th></th>
+                            @unless($isRiderPayment)
+                                <th></th>
+                            @endunless
                         </tr>
                     </tfoot>
                 </table>

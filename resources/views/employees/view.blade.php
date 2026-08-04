@@ -261,9 +261,18 @@ $account = App\Models\Accounts::find($employee->account_id);
 }
 $employeeTopViewCategories = collect();
 if (isset($employee)) {
-$employeeTopViewCategories = \App\Models\EmployeeTopCategory::with(['options' => function ($q) {
+$employeeTopViewCategories = \App\Services\Permissions\TopBarPermissionSync::filterCategories(
+'employees',
+\App\Models\EmployeeTopCategory::with(['options' => function ($q) {
 $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+)->map(function ($category) {
+$category->setRelation(
+'options',
+\App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('employees', $category->options)
+);
+return $category;
+})->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
 }
 $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : 'active';
 @endphp

@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use App\Models\RiderTopOption;
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
 
 class RiderTopCategory extends BaseModel
 {
@@ -23,6 +25,29 @@ class RiderTopCategory extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (self $category) {
+            TopBarPermissionSync::syncForCategory('riders', $category);
+        });
+
+        static::updated(function (self $category) {
+            if ($category->wasChanged('name')) {
+                TopBarPermissionSync::syncForCategory('riders', $category);
+            }
+        });
+
+        static::deleting(function (self $category) {
+            if (trim((string) $category->rider_column) === 'rider_status') {
+                RiderStatusPermissionSync::removeAllForCategory((int) $category->id);
+            }
+        });
+
+        static::deleted(function (self $category) {
+            TopBarPermissionSync::removeForCategory('riders', (int) $category->id);
+        });
+    }
 
     public function options()
     {

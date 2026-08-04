@@ -1,7 +1,16 @@
 @php
-$chequeTopViewCategories = \App\Models\ChequeTopCategory::with(['options' => function ($q) {
+$chequeTopViewCategories = \App\Services\Permissions\TopBarPermissionSync::filterCategories(
+'cheques',
+\App\Models\ChequeTopCategory::with(['options' => function ($q) {
 $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+)->map(function ($category) {
+$category->setRelation(
+'options',
+\App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('cheques', $category->options)
+);
+return $category;
+})->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
 $selectedChequeTopOptionId = (int) ($cheque->cheque_top_option_id ?? 0);
 @endphp
 @if($chequeTopViewCategories->sum(fn ($c) => $c->options->count()) > 0)

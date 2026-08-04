@@ -2,6 +2,9 @@
 
 namespace App\Services\Module;
 
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleFieldSource;
 use App\Support\TopBarNumericStatus;
@@ -44,6 +47,12 @@ class TopBarFilterService
             return;
         }
 
+        if (! $this->userMayFilterByOption($moduleKey, $option)) {
+            // Unauthorized Top Bar values are hidden from the UI; ignore crafted option_id
+            // rather than emptying the listing.
+            return;
+        }
+
         $strategy = (string) ($config['filter_strategy'] ?? 'column');
         if ($strategy === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
             $this->applyColumnFilter($query, $config, $option, $request);
@@ -54,6 +63,36 @@ class TopBarFilterService
         }
 
         $this->applyStatusFilters($query, $request, $config);
+    }
+
+    /**
+     * Whether the current user may use this top-bar option as a listing filter.
+     */
+    protected function userMayFilterByOption(string $moduleKey, Model $option): bool
+    {
+        $category = $option->category ?? null;
+        if (! $category) {
+            return false;
+        }
+
+        if (! TopBarPermissionSync::canAccessCategory($moduleKey, $category)) {
+            return false;
+        }
+
+        $column = trim((string) (
+            $category->rider_column
+            ?? $category->bike_column
+            ?? $category->employee_column
+            ?? $category->cheque_column
+            ?? $category->db_column
+            ?? ''
+        ));
+
+        if ($column === 'rider_status' && $option instanceof \App\Models\RiderTopOption) {
+            return RiderStatusPermissionSync::canAccessOptionId((int) $option->getKey());
+        }
+
+        return TopBarOptionPermissionSync::canAccessOption($moduleKey, $option);
     }
 
     public function applyColumnFilter(Builder $query, array $config, Model $option, Request $request): void
@@ -93,8 +132,10 @@ class TopBarFilterService
         $categoryColumn = $this->resolveColumn($config, $option);
         if ($categoryColumn !== null && Schema::hasColumn($table, $categoryColumn)) {
             $filterType = $this->resolveCategoryFilterType($config, $option);
-            if (in_array($filterType, [self::MODE_EXACT, self::MODE_UPCOMING, self::MODE_OVERDUE, self::MODE_RANGE], true)
-                && $this->isDateColumn($table, $categoryColumn, $config)) {
+            if (
+                in_array($filterType, [self::MODE_EXACT, self::MODE_UPCOMING, self::MODE_OVERDUE, self::MODE_RANGE], true)
+                && $this->isDateColumn($table, $categoryColumn, $config)
+            ) {
                 $this->applyDateColumnFilter($query, $table, $this->qualifyColumn($table, $categoryColumn), $option, $request, $config);
             }
         }
@@ -118,9 +159,9 @@ class TopBarFilterService
         $raw = $request->input($statusParam);
         $keys = is_array($raw) ? $raw : [$raw];
         $keys = array_values(array_filter(array_map(
-            static fn ($key) => is_string($key) || is_numeric($key) ? trim((string) $key) : '',
+            static fn($key) => is_string($key) || is_numeric($key) ? trim((string) $key) : '',
             $keys
-        ), static fn ($key) => $key !== ''));
+        ), static fn($key) => $key !== ''));
 
         if ($keys === []) {
             return;

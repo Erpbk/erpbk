@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\TopBarPermissionSync;
+
 class ChequeTopCategory extends BaseModel
 {
     protected $table = 'cheque_top_categories';
@@ -21,6 +23,23 @@ class ChequeTopCategory extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (self $category) {
+            TopBarPermissionSync::syncForCategory('cheques', $category);
+        });
+
+        static::updated(function (self $category) {
+            if ($category->wasChanged('name')) {
+                TopBarPermissionSync::syncForCategory('cheques', $category);
+            }
+        });
+
+        static::deleted(function (self $category) {
+            TopBarPermissionSync::removeForCategory('cheques', (int) $category->id);
+        });
+    }
 
     public function options()
     {

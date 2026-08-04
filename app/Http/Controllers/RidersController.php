@@ -51,6 +51,9 @@ use App\Repositories\RidersRepository;
 use App\Services\BikeHistoryLogger;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Email\UserEmailService;
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
@@ -99,13 +102,19 @@ class RidersController extends AppBaseController
       return [];
     }
 
+    if (! TopBarPermissionSync::canAccessCategory('riders', $category)) {
+      return [];
+    }
+
     $reserved = ['active', 'inactive'];
 
-    return RiderTopOption::where('category_id', $category->id)
-      ->where('is_active', true)
-      ->orderBy('display_order')
-      ->orderBy('id')
-      ->get(['name'])
+    return RiderStatusPermissionSync::filterOptions(
+      RiderTopOption::where('category_id', $category->id)
+        ->where('is_active', true)
+        ->orderBy('display_order')
+        ->orderBy('id')
+        ->get()
+    )
       ->map(function ($option) {
         $name = trim((string) $option->name);
 
@@ -151,7 +160,53 @@ class RidersController extends AppBaseController
       return;
     }
 
+    if (! RiderStatusPermissionSync::canAccessStatusName($status)) {
+      // Unauthorized status filters are omitted from the sidebar; ignore crafted values.
+      return;
+    }
+
     $query->where('riders.rider_status', $status);
+  }
+
+  /**
+   * @return \Illuminate\Http\JsonResponse|null  JSON error response when denied
+   */
+  private function denyUnlessCanSetRiderStatus(?string $statusName)
+  {
+    if (! RiderStatusPermissionSync::canChangeRiderStatus()) {
+      return response()->json([
+        'success' => false,
+        'message' => 'You do not have permission to change Rider Status.',
+      ], 403);
+    }
+
+    $statusName = trim((string) $statusName);
+    if ($statusName === '') {
+      return null;
+    }
+
+    if (! RiderStatusPermissionSync::canAccessStatusName($statusName)) {
+      return response()->json([
+        'success' => false,
+        'message' => 'You do not have permission for this Rider Status.',
+      ], 403);
+    }
+
+    return null;
+  }
+
+  /**
+   * Flash/redirect denial when the user cannot change rider status on form posts.
+   */
+  private function denyStatusChangeFlashRedirect()
+  {
+    if (! RiderStatusPermissionSync::canChangeRiderStatus()) {
+      Flash::error('You do not have permission to change Rider Status.');
+
+      return redirect()->back()->withInput();
+    }
+
+    return null;
   }
 
   /**
@@ -341,8 +396,10 @@ class RidersController extends AppBaseController
       if (! isset($riderColumns[$fieldKey])) {
         continue;
       }
-      if (\App\Support\RoleFieldAccess::isRequired('rider', $fieldKey)
-        && \App\Support\RoleFieldAccess::canEdit('rider', $fieldKey)) {
+      if (
+        \App\Support\RoleFieldAccess::isRequired('rider', $fieldKey)
+        && \App\Support\RoleFieldAccess::canEdit('rider', $fieldKey)
+      ) {
         $rules[$fieldKey] = 'required';
       }
     }
@@ -352,8 +409,10 @@ class RidersController extends AppBaseController
       ->get(['id'])
       ->each(function ($field) use (&$rules) {
         $cfName = 'cf_' . $field->id;
-        if (\App\Support\RoleFieldAccess::isRequired('rider', $cfName)
-          && \App\Support\RoleFieldAccess::canEdit('rider', $cfName)) {
+        if (
+          \App\Support\RoleFieldAccess::isRequired('rider', $cfName)
+          && \App\Support\RoleFieldAccess::canEdit('rider', $cfName)
+        ) {
           $rules['custom_field_values.' . $field->id] = 'required';
         }
       });
@@ -697,6 +756,20 @@ class RidersController extends AppBaseController
     $request->validate($this->riderValidationRules());
 
     $input = $request->all();
+    if (array_key_exists('rider_status', $input)) {
+      if ($denied = $this->denyStatusChangeFlashRedirect()) {
+        DB::rollBack();
+
+        return $denied;
+      }
+      $statusName = trim((string) $input['rider_status']);
+      if ($statusName !== '' && ! RiderStatusPermissionSync::canAccessStatusName($statusName)) {
+        DB::rollBack();
+        Flash::error('You do not have permission for this Rider Status.');
+
+        return redirect()->back()->withInput();
+      }
+    }
     if (Schema::hasColumn('riders', 'company_id')) {
       $input['company_id'] = auth()->user()->company_id;
     }
@@ -856,6 +929,17 @@ class RidersController extends AppBaseController
       Flash::error('Riders not found');
 
       return redirect(route('riders.index'));
+    }
+    if (array_key_exists('rider_status', $request->all())) {
+      if ($denied = $this->denyStatusChangeFlashRedirect()) {
+        return $denied;
+      }
+      $statusName = trim((string) $request->input('rider_status'));
+      if ($statusName !== '' && ! RiderStatusPermissionSync::canAccessStatusName($statusName)) {
+        Flash::error('You do not have permission for this Rider Status.');
+
+        return redirect()->back()->withInput();
+      }
     }
     $data = $request->except(['_token', 'items']);
     if (Schema::hasColumn('riders', 'company_id')) {
@@ -1958,11 +2042,11 @@ class RidersController extends AppBaseController
     }
     $riders = $rider;
     $assignments = RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
-            ->where('rider_id', $rider_id)
-            ->orderByDesc('assigned_date')
-            ->orderByDesc('id')
-            ->get();
+      ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+      ->where('rider_id', $rider_id)
+      ->orderByDesc('assigned_date')
+      ->orderByDesc('id')
+      ->get();
     $availableItems = Items::availableForAssignment();
 
     return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
@@ -2140,6 +2224,22 @@ class RidersController extends AppBaseController
       ], 422);
     }
 
+    if (array_key_exists('rider_status', $data)) {
+      if (! RiderStatusPermissionSync::canChangeRiderStatus()) {
+        return response()->json([
+          'success' => false,
+          'message' => 'You do not have permission to change Rider Status.',
+        ], 403);
+      }
+      $statusName = trim((string) $data['rider_status']);
+      if ($statusName !== '' && ! RiderStatusPermissionSync::canAccessStatusName($statusName)) {
+        return response()->json([
+          'success' => false,
+          'message' => 'You do not have permission for this Rider Status.',
+        ], 403);
+      }
+    }
+
     try {
       // Update only the fields for the specific section
       $rider->update($data);
@@ -2198,11 +2298,28 @@ class RidersController extends AppBaseController
         $optionQuery->where('c.company_id', $companyId);
       }
       $option = $optionQuery
-        ->select('o.id', 'o.name', 'c.rider_column')
+        ->select('o.id', 'o.name', 'o.category_id', 'c.rider_column')
         ->first();
       if (! $option) {
         return response()->json(['success' => false, 'message' => 'Invalid Rider Top option for view cards.'], 422);
       }
+
+      $category = RiderTopCategory::query()->find((int) ($option->category_id ?? 0));
+      if ($category && ! TopBarPermissionSync::canAccessCategory('riders', $category)) {
+        return response()->json(['success' => false, 'message' => 'You do not have permission for this Top Bar.'], 403);
+      }
+
+      $column = trim((string) ($option->rider_column ?? ''));
+      if ($column === 'rider_status') {
+        if ($denied = $this->denyUnlessCanSetRiderStatus((string) ($option->name ?? ''))) {
+          return $denied;
+        }
+      } elseif (! TopBarOptionPermissionSync::canAccess('riders', (int) $option->id)) {
+        return response()->json(['success' => false, 'message' => 'You do not have permission for this Top Bar value.'], 403);
+      }
+    } elseif ($denied = $this->denyUnlessCanSetRiderStatus('')) {
+      // Clearing the selected card clears rider_status.
+      return $denied;
     }
 
     $prevOptionId = $rider->rider_top_option_id;
@@ -2262,8 +2379,11 @@ class RidersController extends AppBaseController
     }
 
     try {
-      // Toggle the absconder status
-      $rider->rider_status = ($rider->rider_status === 'Absconder') ? null : 'Absconder';
+      $next = ($rider->rider_status === 'Absconder') ? null : 'Absconder';
+      if ($denied = $this->denyUnlessCanSetRiderStatus($next ?: 'Absconder')) {
+        return $denied;
+      }
+      $rider->rider_status = $next;
       $rider->save();
 
       return response()->json([
@@ -2289,7 +2409,11 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the flowup status
-      $rider->rider_status = ($rider->rider_status === 'Follow Up') ? null : 'Follow Up';
+      $next = ($rider->rider_status === 'Follow Up') ? null : 'Follow Up';
+      if ($denied = $this->denyUnlessCanSetRiderStatus($next ?: 'Follow Up')) {
+        return $denied;
+      }
+      $rider->rider_status = $next;
       $rider->save();
 
       return response()->json([
@@ -2315,7 +2439,11 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the l_license status
-      $rider->rider_status = ($rider->rider_status === 'Learning License') ? null : 'Learning License';
+      $next = ($rider->rider_status === 'Learning License') ? null : 'Learning License';
+      if ($denied = $this->denyUnlessCanSetRiderStatus($next ?: 'Learning License')) {
+        return $denied;
+      }
+      $rider->rider_status = $next;
       $rider->save();
 
       return response()->json([
@@ -2342,6 +2470,9 @@ class RidersController extends AppBaseController
     try {
       // Toggle designation Walker: if currently Walker -> clear, else set to Walker
       $isSettingWalker = $rider->designation !== 'Walker';
+      if ($denied = $this->denyUnlessCanSetRiderStatus($isSettingWalker ? 'Walker' : 'Walker')) {
+        return $denied;
+      }
       $rider->designation = $isSettingWalker ? 'Walker' : null;
 
       // If setting to Walker, set status to 1 and assign fleet supervisor and customer
@@ -2414,6 +2545,9 @@ class RidersController extends AppBaseController
 
     try {
       $isSettingVacation = $rider->designation !== 'Vacation';
+      if ($denied = $this->denyUnlessCanSetRiderStatus('Vacation')) {
+        return $denied;
+      }
       $rider->designation = $isSettingVacation ? 'Vacation' : null;
 
       if ($isSettingVacation) {
@@ -2507,7 +2641,11 @@ class RidersController extends AppBaseController
 
     try {
       // Toggle the PRO status
-      $rider->rider_status = ($rider->rider_status === 'PRO') ? null : 'PRO';
+      $next = ($rider->rider_status === 'PRO') ? null : 'PRO';
+      if ($denied = $this->denyUnlessCanSetRiderStatus($next ?: 'PRO')) {
+        return $denied;
+      }
+      $rider->rider_status = $next;
       $rider->save();
 
       return response()->json([
@@ -2538,6 +2676,13 @@ class RidersController extends AppBaseController
     $type = trim((string) $request->input('type', 'none'));
 
     try {
+      if (! RiderStatusPermissionSync::canChangeRiderStatus()) {
+        return response()->json([
+          'success' => false,
+          'message' => 'You do not have permission to change Rider Status.',
+        ], 403);
+      }
+
       // Single status column only.
       $rider->rider_status = null;
 
@@ -2554,15 +2699,21 @@ class RidersController extends AppBaseController
         $statusLabel = $labels[$type] ?? $type;
         $statusLabel = trim((string) $statusLabel);
 
+        if ($denied = $this->denyUnlessCanSetRiderStatus($statusLabel)) {
+          return $denied;
+        }
+
         $statusCategory = RiderTopCategory::where('rider_column', 'rider_status')->first();
         if ($statusCategory) {
+          if (! TopBarPermissionSync::canAccessCategory('riders', $statusCategory)) {
+            return response()->json(['success' => false, 'message' => 'You do not have permission for this Top Bar.'], 403);
+          }
           $configuredStatuses = RiderTopOption::where('category_id', $statusCategory->id)
-            ->pluck('name')
-            ->map(fn($v) => trim((string) $v))
-            ->filter(fn($v) => $v !== '')
-            ->values()
-            ->all();
-          if (! in_array($statusLabel, $configuredStatuses, true)) {
+            ->get(['id', 'name']);
+          $match = $configuredStatuses->first(function ($opt) use ($statusLabel) {
+            return trim((string) $opt->name) === $statusLabel;
+          });
+          if (! $match) {
             return response()->json(['success' => false, 'message' => 'Status is not configured in Rider Settings.'], 422);
           }
         }

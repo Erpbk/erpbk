@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\TopBarOptionPermissionSync;
+
 class ErpModuleTopOption extends BaseModel
 {
     protected $table = 'erp_module_top_options';
@@ -20,6 +22,25 @@ class ErpModuleTopOption extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (self $option) {
+            if (! $option->relationLoaded('category')) {
+                $option->load('category');
+            }
+            $moduleKey = (string) ($option->category?->module_key ?: 'module');
+            TopBarOptionPermissionSync::syncOption($moduleKey, $option);
+        });
+
+        static::deleted(function (self $option) {
+            if (! $option->relationLoaded('category')) {
+                $option->load('category');
+            }
+            $moduleKey = (string) ($option->category?->module_key ?: 'module');
+            TopBarOptionPermissionSync::removeOption($moduleKey, (int) $option->id);
+        });
+    }
 
     public function category()
     {

@@ -14,6 +14,8 @@ use App\Models\ChequeTopCategory;
 use App\Models\ChequeTopOption;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\Cheques\ChequeTopDateFilterService;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
 use App\Support\PublicStorageDisk;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -198,6 +200,12 @@ class ChequesController extends Controller
                 ->first();
             if (!$option) {
                 return response()->json(['success' => false, 'message' => 'Invalid Cheque Top option for view cards.'], 422);
+            }
+            if ($option->category && ! TopBarPermissionSync::canAccessCategory('cheques', $option->category)) {
+                return response()->json(['success' => false, 'message' => 'You do not have permission for this Top Bar.'], 403);
+            }
+            if (! TopBarOptionPermissionSync::canAccessOption('cheques', $option)) {
+                return response()->json(['success' => false, 'message' => 'You do not have permission for this Top Bar value.'], 403);
             }
         }
 

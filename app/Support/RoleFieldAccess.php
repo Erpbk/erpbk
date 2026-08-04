@@ -350,6 +350,56 @@ class RoleFieldAccess
     }
 
     /**
+     * Public wrapper for callers that need to know whether a Spatie permission row exists.
+     */
+    public static function permissionExistsPublic(string $ability): bool
+    {
+        return self::permissionExists($ability);
+    }
+
+    /**
+     * Strict exact-name check (no flat→hierarchical bridging).
+     * Admins always pass. Missing permission rows are treated as allow (pre-sync safe).
+     */
+    public static function hasExactPermission(string $ability, ?User $user = null): bool
+    {
+        $ability = trim($ability);
+        if ($ability === '') {
+            return true;
+        }
+
+        if ($user === null) {
+            if (self::isAdmin()) {
+                return true;
+            }
+            $user = self::currentUser();
+            if ($user === null) {
+                return false;
+            }
+            $names = self::userPermissionNames();
+        } else {
+            try {
+                if ($user->isAdmin()) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+                // fall through
+            }
+            try {
+                $names = $user->getAllPermissions()->pluck('name')->map(fn ($n) => (string) $n)->all();
+            } catch (\Throwable $e) {
+                $names = [];
+            }
+        }
+
+        if (in_array($ability, $names, true)) {
+            return true;
+        }
+
+        return ! self::permissionExists($ability);
+    }
+
+    /**
      * Centralised, NON-THROWING permission check — the single entry point for module/action
      * authorization anywhere in the app. Prefer the global helper user_can() over calling
      * Spatie's hasPermissionTo() directly (which throws PermissionDoesNotExist and breaks

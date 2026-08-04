@@ -7,6 +7,7 @@ use App\Http\Requests\CreatePermissionsRequest;
 use App\Http\Requests\UpdatePermissionsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\PermissionsRepository;
+use App\Support\DynamicPermissionModules;
 use App\Support\PermissionTreeBuilder;
 use App\Traits\GlobalPagination;
 use Illuminate\Http\Request;
@@ -75,6 +76,15 @@ class PermissionsController extends AppBaseController
 
         $guard = $request->input('guard_name', 'web');
         $moduleName = trim((string) $request->input('name'));
+        if (DynamicPermissionModules::isReservedRoot($moduleName)) {
+            $msg = 'The "' . $moduleName . '" module is managed automatically from Module Settings / Rider Statuses.';
+            Flash::error($msg);
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => $msg], 422);
+            }
+
+            return redirect()->back()->withInput();
+        }
         $moduleSlug = PermissionTreeBuilder::slugify($moduleName);
         $submodules = $this->normalizedSubmodules($request);
         $extras = $submodules === [] ? $this->normalizedExtras($request) : [];
@@ -182,6 +192,21 @@ class PermissionsController extends AppBaseController
 
         $module = Permission::query()->findOrFail($id);
         $moduleName = trim((string) $request->input('name'));
+        if (
+            DynamicPermissionModules::isReservedRoot($module->name)
+            || DynamicPermissionModules::isReservedRoot($moduleName)
+        ) {
+            $reservedName = DynamicPermissionModules::isReservedRoot($module->name)
+                ? $module->name
+                : $moduleName;
+            $msg = 'The "' . $reservedName . '" module is managed automatically and cannot be edited here.';
+            Flash::error($msg);
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json(['message' => $msg], 422);
+            }
+
+            return redirect()->back()->withInput();
+        }
         $moduleSlug = PermissionTreeBuilder::slugify($moduleName);
         $guard = $module->guard_name ?? 'web';
         $submodules = $this->normalizedSubmodules($request);
@@ -233,6 +258,12 @@ class PermissionsController extends AppBaseController
 
         if (empty($permissions)) {
             Flash::error('Permissions not found');
+            return redirect(route('settings-panel.permissions.index'));
+        }
+
+        if (DynamicPermissionModules::isReservedRoot($permissions->name)) {
+            Flash::error('The "' . $permissions->name . '" module is managed automatically and cannot be deleted here.');
+
             return redirect(route('settings-panel.permissions.index'));
         }
 

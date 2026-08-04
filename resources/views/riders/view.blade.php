@@ -276,10 +276,10 @@ $result = $riders->toArray();
 }
 if(isset($result)){
 $account = App\Models\ExpenseAccount::where('rider_id', $result['id'])
-    ->whereNotNull('renewal_category_id')
-    ->orderByDesc('id')
-    ->first()
-    ?? App\Models\ExpenseAccount::where('rider_id', $result['id'])->orderByDesc('id')->first();
+->whereNotNull('renewal_category_id')
+->orderByDesc('id')
+->first()
+?? App\Models\ExpenseAccount::where('rider_id', $result['id'])->orderByDesc('id')->first();
 }
 $companySlug = request()->route('company_slug');
 
@@ -319,16 +319,34 @@ $companySlug = request()->route('company_slug');
       <div class="card-body pt-12">
         @isset($result)
         @php
-        $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
+        $riderTopViewCategories = \App\Services\Permissions\TopBarPermissionSync::filterCategories(
+        'riders',
+        \App\Models\RiderTopCategory::with(['options' => function($q){
         $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-        }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+        }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+        )->map(function ($category) {
+        $column = trim((string) ($category->rider_column ?? ''));
+        if ($column === 'rider_status') {
+        $category->setRelation(
+        'options',
+        \App\Services\Permissions\RiderStatusPermissionSync::filterOptions($category->options)
+        );
+        } else {
+        $category->setRelation(
+        'options',
+        \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
+        );
+        }
+        return $category;
+        })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
         $riderStatusLabel = trim((string)($result['rider_status'] ?? ''));
+        $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
         $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
         $displayStatusLabel = $employmentBadge['label'];
         $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
         $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
-          ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
-          : 'Days in current status';
+        ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+        : 'Days in current status';
         @endphp
         @endisset
         <div class="user-avatar-section">
@@ -341,7 +359,7 @@ $companySlug = request()->route('company_slug');
                     <div class="d-inline-flex flex-column align-items-start gap-1">
                       <span class="badge {{ $employmentBadge['badge'] ?? 'bg-label-danger' }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
                       @isset($result)
-                      <small class="text-muted lh-1" id="rider-status-days" title="{{ $statusDaysTitle }}" @if($statusDaysInfo['days'] === null) style="display:none" @endif>
+                      <small class="text-muted lh-1" id="rider-status-days" title="{{ $statusDaysTitle }}" @if($statusDaysInfo['days']===null) style="display:none" @endif>
                         @if($statusDaysInfo['days'] !== null)
                         {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
                         @endif
@@ -506,14 +524,16 @@ $companySlug = request()->route('company_slug');
             && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
             $cardKey = 'rider_top_option_' . $option->id;
             $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
+            $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
             @endphp
-            <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }}"
+            <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
               data-rider-id="{{ $result['id'] ?? '' }}"
               data-option-id="{{ $option->id }}"
               data-column="{{ $riderTopColumn }}"
               data-value="{{ $option->name }}"
               data-category="{{ $category->name }}"
-              data-type="{{ $cardKey }}">
+              data-type="{{ $cardKey }}"
+              @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
               <div class="d-flex justify-content-between">
                 <div class="status-icon">
                   <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
@@ -531,7 +551,8 @@ $companySlug = request()->route('company_slug');
                   data-option-id="{{ $option->id }}"
                   data-column="{{ $riderTopColumn }}"
                   data-value="{{ $option->name }}"
-                  {{ $isSelected ? 'checked' : '' }}>
+                  {{ $isSelected ? 'checked' : '' }}
+                  {{ $statusChangeLocked ? 'disabled' : '' }}>
                 <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
                   <span class="toggle-slider"></span>
                 </label>
@@ -622,15 +643,15 @@ $companySlug = request()->route('company_slug');
                 @php
                 // Prefer a dedicated visa expense account (renewal category), then any linked expense account.
                 $visaExpenseAccount = $account
-                    ?? company_table('expense_accounts')
-                        ->where('rider_id', $result['id'])
-                        ->whereNotNull('renewal_category_id')
-                        ->orderByDesc('id')
-                        ->first()
-                    ?? company_table('expense_accounts')
-                        ->where('rider_id', $result['id'])
-                        ->orderByDesc('id')
-                        ->first();
+                ?? company_table('expense_accounts')
+                ->where('rider_id', $result['id'])
+                ->whereNotNull('renewal_category_id')
+                ->orderByDesc('id')
+                ->first()
+                ?? company_table('expense_accounts')
+                ->where('rider_id', $result['id'])
+                ->orderByDesc('id')
+                ->first();
                 @endphp
                 @if($visaExpenseAccount)
                 <li class="nav-item nav-priority-5">

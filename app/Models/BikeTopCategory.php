@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\TopBarPermissionSync;
+
 class BikeTopCategory extends BaseModel
 {
     protected $table = 'bike_top_categories';
@@ -21,6 +23,23 @@ class BikeTopCategory extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (self $category) {
+            TopBarPermissionSync::syncForCategory('bike_list', $category);
+        });
+
+        static::updated(function (self $category) {
+            if ($category->wasChanged('name')) {
+                TopBarPermissionSync::syncForCategory('bike_list', $category);
+            }
+        });
+
+        static::deleted(function (self $category) {
+            TopBarPermissionSync::removeForCategory('bike_list', (int) $category->id);
+        });
+    }
 
     public function options()
     {

@@ -6,7 +6,11 @@ use App\Models\Bikes;
 use App\Models\ErpModuleTopCategory;
 use App\Models\ErpModuleTopOption;
 use App\Models\Employee;
+use App\Models\RiderTopOption;
 use App\Models\Riders;
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
 use App\Support\ErpModuleRegistry;
 use App\Support\TopBarNumericStatus;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,15 +63,15 @@ class TopBarListingService
         }
 
         if (($config['storage'] ?? '') === 'generic') {
-            return ErpModuleTopCategory::query()
-                ->with(['options' => fn ($q) => $this->applyListingOptionsConstraint($q, ErpModuleTopOption::class)])
+            $categories = ErpModuleTopCategory::query()
+                ->with(['options' => fn($q) => $this->applyListingOptionsConstraint($q, ErpModuleTopOption::class)])
                 ->where('module_key', $moduleKey)
                 ->where('show_in_top_bar', true)
                 ->orderBy('display_order')
                 ->orderBy('id')
-                ->get()
-                ->filter(fn ($cat) => $cat->options->isNotEmpty())
-                ->values();
+                ->get();
+
+            return $this->filterCategoriesForUser($moduleKey, $categories);
         }
 
         $modelClass = $config['category_model'] ?? null;
@@ -76,12 +80,54 @@ class TopBarListingService
             return collect();
         }
 
-        return $modelClass::query()
-            ->with(['options' => fn ($q) => $this->applyListingOptionsConstraint($q, $optionClass)])
+        $categories = $modelClass::query()
+            ->with(['options' => fn($q) => $this->applyListingOptionsConstraint($q, $optionClass)])
             ->where('show_in_top_bar', true)
             ->orderBy('display_order')
             ->orderBy('id')
-            ->get()
+            ->get();
+
+        return $this->filterCategoriesForUser($moduleKey, $categories);
+    }
+
+    /**
+     * Hide top-bar categories (and rider-status options) the user may not access.
+     *
+     * @param  Collection<int, Model>  $categories
+     * @return Collection<int, Model>
+     */
+    protected function filterCategoriesForUser(string $moduleKey, Collection $categories): Collection
+    {
+        $categories = TopBarPermissionSync::filterCategories($moduleKey, $categories);
+
+        $categories = $categories->map(function (Model $category) use ($moduleKey) {
+            $options = $category->relationLoaded('options')
+                ? $category->options
+                : collect();
+
+            $column = trim((string) (
+                $category->getAttribute('rider_column')
+                ?? $category->getAttribute('bike_column')
+                ?? $category->getAttribute('employee_column')
+                ?? $category->getAttribute('cheque_column')
+                ?? $category->getAttribute('db_column')
+                ?? ''
+            ));
+
+            if ($column === 'rider_status') {
+                $filtered = RiderStatusPermissionSync::filterOptions(
+                    $options->filter(fn ($o) => $o instanceof RiderTopOption)->values()
+                );
+            } else {
+                $filtered = TopBarOptionPermissionSync::filterOptions($moduleKey, $options->values());
+            }
+
+            $category->setRelation('options', $filtered);
+
+            return $category;
+        });
+
+        return $categories
             ->filter(fn ($cat) => $cat->options->isNotEmpty())
             ->values();
     }
@@ -254,10 +300,12 @@ class TopBarListingService
         }
 
         // FK / integer columns (company, branch_id, customer_id, …) store ids in option name.
-        if (in_array($column, ['company', 'branch_id', 'customer_id', 'rider_id', 'rental_company_id', 'vehicle_type', 'leased_return_company_id'], true)
-            || ($column !== 'status' && TopBarNumericStatus::isNumericStatusColumn('bikes', $column))) {
+        if (
+            in_array($column, ['company', 'branch_id', 'customer_id', 'rider_id', 'rental_company_id', 'vehicle_type', 'leased_return_company_id'], true)
+            || ($column !== 'status' && TopBarNumericStatus::isNumericStatusColumn('bikes', $column))
+        ) {
             if (is_numeric($value)) {
-                return $base->where('bikes.'.$column, (int) $value);
+                return $base->where('bikes.' . $column, (int) $value);
             }
 
             if ($column === 'company') {
@@ -296,7 +344,7 @@ class TopBarListingService
             return null;
         }
 
-        return $base->where('bikes.'.$column, $value);
+        return $base->where('bikes.' . $column, $value);
     }
 
     /**

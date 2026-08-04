@@ -3,6 +3,9 @@
 namespace App\Services;
 
 use App\Support\PermissionTreeBuilder;
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
@@ -63,12 +66,12 @@ class TenantModulePermissionsSync
             $parentName = $module['parent'];
             $moduleSlug = $module['slug'] ?? PermissionTreeBuilder::slugify($parentName);
             $submodules = array_values(array_filter(array_map(
-                static fn ($name) => trim((string) $name),
+                static fn($name) => trim((string) $name),
                 $module['submodules'] ?? []
             )));
             $extras = $submodules === []
                 ? array_values(array_filter(array_map(
-                    static fn ($name) => trim((string) $name),
+                    static fn($name) => trim((string) $name),
                     $module['extras'] ?? []
                 )))
                 : [];
@@ -117,6 +120,11 @@ class TenantModulePermissionsSync
                 }
             }
         }
+
+        // Rebuild Top Bars / Rider Statuses / Top Bar value permission trees from live settings data.
+        TopBarPermissionSync::syncAll($assignToAdminRoles);
+        TopBarOptionPermissionSync::syncAll($assignToAdminRoles);
+        RiderStatusPermissionSync::syncAll($assignToAdminRoles);
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

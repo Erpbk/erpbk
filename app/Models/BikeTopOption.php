@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\TopBarOptionPermissionSync;
+
 class BikeTopOption extends BaseModel
 {
     protected $table = 'bike_top_options';
@@ -20,6 +22,17 @@ class BikeTopOption extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (self $option) {
+            TopBarOptionPermissionSync::syncOption('bike_list', $option);
+        });
+
+        static::deleted(function (self $option) {
+            TopBarOptionPermissionSync::removeOption('bike_list', (int) $option->id);
+        });
+    }
 
     public function category()
     {

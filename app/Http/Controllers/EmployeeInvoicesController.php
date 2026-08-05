@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\CreateEmployeeInvoicesRequest;
 use App\Http\Requests\UpdateEmployeeInvoicesRequest;
+use App\Imports\ImportEmployeeInvoice;
 use App\Models\Employee;
 use App\Models\EmployeeInvoices;
 use App\Models\Items;
@@ -16,6 +17,7 @@ use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EmployeeInvoicesController extends AppBaseController
 {
@@ -27,7 +29,7 @@ class EmployeeInvoicesController extends AppBaseController
     {
         $this->employeeInvoicesRepository = $employeeInvoicesRepo;
         $this->middleware('permission:employees_invoice_view')->only('index', 'show');
-        $this->middleware('permission:employees_invoice_create')->only('create', 'store');
+        $this->middleware('permission:employees_invoice_create')->only('create', 'store', 'importForm', 'import');
         $this->middleware('permission:employees_invoice_edit')->only('edit', 'update');
         $this->middleware('permission:employees_invoice_delete')->only('destroy', 'bulkDelete');
     }
@@ -215,5 +217,153 @@ class EmployeeInvoicesController extends AppBaseController
             'success' => true,
             'message' => $deleted.' employee invoice(s) deleted successfully.',
         ]);
+    }
+
+    public function importForm()
+    {
+        $items = Items::dropdown('employee')->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'price' => (float) ($item->price ?? 0),
+                'vat' => (float) ($item->vat ?? 0),
+            ];
+        })->values();
+
+        return view('employee_invoices.import', compact('items'));
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,csv,xls',
+            'col_employee_id' => 'required|integer|min:1',
+            'col_inv_date' => 'required|integer|min:1',
+            'col_billing_month' => 'required|integer|min:1',
+            'col_descriptions' => 'required|integer|min:1',
+            'col_notes' => 'nullable|integer|min:1',
+            'item_map' => 'required|array|min:1',
+            'item_map.*.item_id' => 'required|integer|exists:items,id',
+            'item_map.*.col' => 'required|integer|min:1',
+            'item_map.*.rate' => 'required|numeric',
+            'item_map.*.vat' => 'required|numeric|min:0',
+            'item_map.*.discount' => 'required|numeric|min:0',
+        ]);
+
+        $columnMap = [
+            'employee_id' => (int) $request->col_employee_id,
+            'inv_date' => (int) $request->col_inv_date,
+            'billing_month' => (int) $request->col_billing_month,
+            'descriptions' => (int) $request->col_descriptions,
+            'notes' => $request->filled('col_notes') ? (int) $request->col_notes : null,
+        ];
+
+        $itemDefs = [];
+        $itemIds = [];
+        $itemCols = [];
+
+        foreach ($request->input('item_map', []) as $row) {
+            $itemId = (int) $row['item_id'];
+            $col = (int) $row['col'];
+
+            if (in_array($itemId, $itemIds, true)) {
+                $message = 'Each item can only be mapped once.';
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+                Flash::error($message);
+
+                return redirect()->back();
+            }
+
+            if (in_array($col, $itemCols, true)) {
+                $message = 'Item quantity columns must be unique.';
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+                Flash::error($message);
+
+                return redirect()->back();
+            }
+
+            $itemIds[] = $itemId;
+            $itemCols[] = $col;
+            $itemDefs[] = [
+                'item_id' => $itemId,
+                'col' => $col,
+                'rate' => (float) $row['rate'],
+                'vat' => (float) $row['vat'],
+                'discount' => (float) $row['discount'],
+            ];
+        }
+
+        $employeeItems = Items::whereIn('id', $itemIds)
+            ->where('status', 1)
+            ->whereJsonContains('owner', 'employee')
+            ->pluck('id')
+            ->all();
+
+        if (count($employeeItems) !== count($itemIds)) {
+            $message = 'One or more mapped items are invalid or not assigned to the employee module.';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back();
+        }
+
+        $headerCols = array_filter($columnMap, fn ($v) => $v !== null);
+        $allCols = array_merge(array_values($headerCols), $itemCols);
+        if (count($allCols) !== count(array_unique($allCols))) {
+            $message = 'Column numbers must be unique across header and item mappings.';
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back();
+        }
+
+        try {
+            $import = new ImportEmployeeInvoice($columnMap, $itemDefs);
+            Excel::import($import, $request->file('file'));
+            $importedCount = $import->importedCount;
+            $skippedLog = $import->skippedLog;
+            $skippedCount = count($skippedLog);
+
+            $message = "Import finished. Imported: {$importedCount}.";
+            if ($skippedCount > 0) {
+                $message .= " Skipped: {$skippedCount}.";
+            }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $message,
+                    'imported_count' => $importedCount,
+                    'skipped_count' => $skippedCount,
+                    'skipped_log' => array_values($skippedLog),
+                ]);
+            }
+            Flash::success($message);
+            if ($skippedCount > 0) {
+                session()->flash('import_skipped_log', $skippedLog);
+            }
+
+            return redirect()->route('employeeInvoices.index');
+        } catch (\Exception $e) {
+            \Log::error('Employee invoice import failed: '.$e->getMessage());
+            $message = 'Import failed: '.$e->getMessage();
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                ], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back();
+        }
     }
 }

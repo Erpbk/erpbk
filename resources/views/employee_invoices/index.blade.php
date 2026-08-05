@@ -27,6 +27,13 @@
                                 <div class="action-dropdown-item-desc">Add New Invoice</div>
                             </div>
                         </a>
+                        <a class="action-dropdown-item" href="{{ route('employeeInvoices.import.form') }}">
+                            <i class="ti ti-upload"></i>
+                            <div>
+                                <div class="action-dropdown-item-text">Import</div>
+                                <div class="action-dropdown-item-desc">Import invoices from sheet</div>
+                            </div>
+                        </a>
                         @endcan
                     </div>
                 </div>

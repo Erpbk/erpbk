@@ -685,6 +685,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('search_item_price/{RID}/{itemID}', [ItemsController::class, 'search_item_price']);
     Route::get('riderInvoices/delete/{id}', [RiderInvoicesController::class, 'destroy'])->name('riderInvoices.delete');
     Route::post('riderInvoices/bulk-delete', [RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
+    Route::get('employeeInvoices/import', [EmployeeInvoicesController::class, 'importForm'])->name('employeeInvoices.import.form');
+    Route::post('employeeInvoices/import', [EmployeeInvoicesController::class, 'import'])->name('employeeInvoices.import');
     Route::resource('employeeInvoices', EmployeeInvoicesController::class);
     Route::get('employeeInvoices/delete/{id}', [EmployeeInvoicesController::class, 'destroy'])->name('employeeInvoices.delete');
     Route::post('employeeInvoices/bulk-delete', [EmployeeInvoicesController::class, 'bulkDelete'])->name('employeeInvoices.bulkDelete');

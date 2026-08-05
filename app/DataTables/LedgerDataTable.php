@@ -269,7 +269,7 @@ class LedgerDataTable extends DataTable
                 $invoice = EmployeeInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('employeeInvoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('employeeInvoices.show', $invoice->id) . '" class="no-print show-modal-right">' . $voucher_ID . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }

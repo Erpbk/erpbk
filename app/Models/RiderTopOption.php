@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+
 class RiderTopOption extends BaseModel
 {
     protected $table = 'rider_top_options';
@@ -20,6 +23,26 @@ class RiderTopOption extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (self $option) {
+            if (RiderStatusPermissionSync::isStatusOption($option)) {
+                RiderStatusPermissionSync::syncOption($option);
+                TopBarOptionPermissionSync::removeOption('riders', (int) $option->id);
+            } else {
+                TopBarOptionPermissionSync::syncOption('riders', $option);
+                if ($option->wasChanged('category_id')) {
+                    RiderStatusPermissionSync::removeOption((int) $option->id);
+                }
+            }
+        });
+
+        static::deleted(function (self $option) {
+            RiderStatusPermissionSync::removeOption((int) $option->id);
+            TopBarOptionPermissionSync::removeOption('riders', (int) $option->id);
+        });
+    }
 
     public function category()
     {

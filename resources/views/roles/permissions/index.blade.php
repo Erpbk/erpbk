@@ -7,11 +7,11 @@ $isCreate = $isCreate ?? false;
 $companySlug = request()->route('company_slug') ?? session('company_slug');
 $usersUrl = route('settings-panel.users.index', ['company_slug' => $companySlug]);
 if ($isCreate) {
-    $saveUrl = route('settings-panel.roles.permissions.store', ['company_slug' => $companySlug]);
-    $fieldsUrlTemplate = route('settings-panel.roles.permissions.create-module-fields', ['company_slug' => $companySlug, 'module' => '__MODULE__']);
+$saveUrl = route('settings-panel.roles.permissions.store', ['company_slug' => $companySlug]);
+$fieldsUrlTemplate = route('settings-panel.roles.permissions.create-module-fields', ['company_slug' => $companySlug, 'module' => '__MODULE__']);
 } else {
-    $saveUrl = route('settings-panel.roles.permissions.save', ['company_slug' => $companySlug, 'role' => $role->id]);
-    $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['company_slug' => $companySlug, 'role' => $role->id, 'module' => '__MODULE__']);
+$saveUrl = route('settings-panel.roles.permissions.save', ['company_slug' => $companySlug, 'role' => $role->id]);
+$fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['company_slug' => $companySlug, 'role' => $role->id, 'module' => '__MODULE__']);
 }
 @endphp
 
@@ -74,6 +74,170 @@ if ($isCreate) {
         </div>
     </div>
 
+    @php
+    $dynamicPermissionRows = $dynamicPermissionRows ?? [];
+    $actions = ['view', 'create', 'edit', 'delete'];
+    @endphp
+
+    @if (!empty($dynamicPermissionRows))
+    {{-- Separate Top Bars / Rider Statuses (not mixed into Module Permissions) --}}
+    <div class="card border-0 shadow-sm mb-4 rfp-dynamic-section">
+        <div class="card-header border-bottom">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <h5 class="mb-0 fw-bold">Top Bars &amp; Rider Statuses</h5>
+                    <small class="text-muted">All modules (Riders, Bikes, Employees, Cheques, Customers, Garages, and every other Top Bar). Toggle View on each Top Bar and its values.</small>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="rfpDynamicSelectAll">Select all</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="rfpDynamicClearAll">Clear all</button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-4">
+                @foreach ($dynamicPermissionRows as $dyn)
+                @php
+                $itemLabel = ($dyn['name'] ?? '') === 'Rider Statuses' ? 'Status' : 'Top Bar';
+                $enabledCount = (int) ($dyn['leaf_enabled'] ?? 0);
+                $totalCount = (int) ($dyn['leaf_total'] ?? 0);
+                $isRiderStatuses = ($dyn['name'] ?? '') === 'Rider Statuses';
+                @endphp
+                <div class="col-lg-6">
+                    <div class="rfp-dynamic-block h-100 rfp-counter-scope"
+                        data-dynamic-group="{{ \Illuminate\Support\Str::slug($dyn['name'] ?? 'group') }}">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                            <div>
+                                <h6 class="mb-0 fw-semibold">{{ $dyn['name'] }}</h6>
+                                @if (!empty($dyn['dynamic_hint']))
+                                <small class="text-muted">{{ $dyn['dynamic_hint'] }}</small>
+                                @endif
+                            </div>
+                            <span class="badge bg-label-secondary rfp-mod-counter" data-total="{{ $totalCount }}">
+                                <span class="rfp-mod-enabled">{{ $enabledCount }}</span>/{{ $totalCount }}
+                            </span>
+                        </div>
+                        @if ($isRiderStatuses)
+                        @php
+                        $riderSubs = collect($dyn['submodules'] ?? []);
+                        $changeStatusSub = $riderSubs->first(
+                        static fn(array $s): bool => ($s['name'] ?? '') === 'Change Rider Status'
+                        );
+                        $statusSubs = $riderSubs
+                        ->reject(static fn(array $s): bool => ($s['name'] ?? '') === 'Change Rider Status')
+                        ->values();
+                        $changeAct = $changeStatusSub['actions']['view'] ?? null;
+                        @endphp
+                        <div class="rfp-rider-status-controls mb-3">
+                            <div class="rfp-enforce-rider-status-wrap d-flex align-items-start justify-content-between gap-3 mb-2">
+                                <label class="form-check-label m-0 flex-grow-1" for="rfpEnforceRiderStatus">
+                                    <span class="fw-medium">Enable Rider Status Permissions</span>
+                                    <small class="d-block text-muted">When off, this role can see all statuses in filters &amp; dropdowns. Does not hide riders.</small>
+                                </label>
+                                <div class="form-check form-switch m-0 flex-shrink-0">
+                                    <input type="checkbox" role="switch" class="form-check-input ms-0" id="rfpEnforceRiderStatus"
+                                        {{ !empty($enforceRiderStatusPermissions) ? 'checked' : '' }}>
+                                </div>
+                            </div>
+                            @if ($changeAct)
+                            <div class="rfp-enforce-rider-status-wrap d-flex align-items-start justify-content-between gap-3">
+                                <label class="form-check-label m-0 flex-grow-1" for="rfpChangeRiderStatus">
+                                    <span class="fw-medium">Change Rider Status</span>
+                                    <small class="d-block text-muted">When off, this role cannot set or clear a rider&rsquo;s status.</small>
+                                </label>
+                                <div class="form-check form-switch m-0 flex-shrink-0">
+                                    <input type="checkbox" role="switch"
+                                        class="form-check-input rfp-perm-toggle rfp-dynamic-toggle ms-0"
+                                        id="rfpChangeRiderStatus"
+                                        data-action="view"
+                                        data-perm-id="{{ $changeAct['id'] }}"
+                                        {{ !empty($changeAct['enabled']) ? 'checked' : '' }}>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                        <div class="rfp-dynamic-list rfp-rider-status-list">
+                            <div class="text-muted small text-uppercase mb-2 px-1" style="letter-spacing:.04em;font-size:.7rem;">Visible statuses</div>
+                            @forelse ($statusSubs as $sub)
+                            @php $viewAct = $sub['actions']['view'] ?? null; @endphp
+                            <div class="rfp-dynamic-item d-flex align-items-center justify-content-between gap-2">
+                                <div class="rfp-dynamic-item-label">
+                                    <span class="fw-medium">{{ $sub['name'] }}</span>
+                                </div>
+                                @if ($viewAct)
+                                <div class="form-check form-switch m-0">
+                                    <input type="checkbox" role="switch"
+                                        class="form-check-input rfp-perm-toggle rfp-dynamic-toggle"
+                                        data-action="view"
+                                        data-perm-id="{{ $viewAct['id'] }}"
+                                        {{ !empty($viewAct['enabled']) ? 'checked' : '' }}>
+                                </div>
+                                @else
+                                <span class="text-muted small">—</span>
+                                @endif
+                            </div>
+                            @empty
+                            <div class="text-muted small py-2">No rider statuses configured yet in settings.</div>
+                            @endforelse
+                        </div>
+                        @else
+                        <div class="rfp-dynamic-list">
+                            @forelse ($dyn['submodules'] ?? [] as $sub)
+                            @php $viewAct = $sub['actions']['view'] ?? null; @endphp
+                            <div class="rfp-dynamic-item">
+                                <div class="d-flex align-items-center justify-content-between gap-2">
+                                    <div class="rfp-dynamic-item-label">
+                                        <span class="text-muted small me-1">{{ $itemLabel }}</span>
+                                        <span class="fw-medium">{{ $sub['name'] }}</span>
+                                    </div>
+                                    @if ($viewAct)
+                                    <div class="form-check form-switch m-0">
+                                        <input type="checkbox" role="switch"
+                                            class="form-check-input rfp-perm-toggle rfp-dynamic-toggle"
+                                            data-action="view"
+                                            data-perm-id="{{ $viewAct['id'] }}"
+                                            {{ !empty($viewAct['enabled']) ? 'checked' : '' }}>
+                                    </div>
+                                    @else
+                                    <span class="text-muted small">—</span>
+                                    @endif
+                                </div>
+                                @if (!empty($sub['values']))
+                                <div class="rfp-dynamic-values ms-3 mt-1">
+                                    @foreach ($sub['values'] as $val)
+                                    @php $valView = $val['actions']['view'] ?? null; @endphp
+                                    <div class="rfp-dynamic-value d-flex align-items-center justify-content-between gap-2">
+                                        <div class="rfp-dynamic-item-label">
+                                            <span class="text-muted small me-1">Value</span>
+                                            <span>{{ $val['name'] }}</span>
+                                        </div>
+                                        @if ($valView)
+                                        <div class="form-check form-switch m-0">
+                                            <input type="checkbox" role="switch"
+                                                class="form-check-input rfp-perm-toggle rfp-dynamic-toggle"
+                                                data-action="view"
+                                                data-perm-id="{{ $valView['id'] }}"
+                                                {{ !empty($valView['enabled']) ? 'checked' : '' }}>
+                                        </div>
+                                        @endif
+                                    </div>
+                                    @endforeach
+                                </div>
+                                @endif
+                            </div>
+                            @empty
+                            <div class="text-muted small py-2">No items configured yet in settings.</div>
+                            @endforelse
+                        </div>
+                        @endif
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="row g-4">
         {{-- LEFT: Module permissions --}}
         <div class="col-lg-6">
@@ -102,7 +266,6 @@ if ($isCreate) {
 
                     <div id="rfpModulesBody" class="rfp-modules-scroll">
                         @php
-                        $actions = ['view', 'create', 'edit', 'delete'];
                         $flatModules = collect($moduleRows)->where('is_flat', true)->values();
                         $groupedModules = collect($moduleRows)->where('is_flat', false)->values();
                         @endphp
@@ -441,6 +604,60 @@ if ($isCreate) {
     .rfp-page .card-header {
         background: transparent;
     }
+
+    .rfp-page .rfp-dynamic-section .rfp-dynamic-block {
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: .5rem;
+        padding: 1rem;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+    }
+
+    .rfp-page .rfp-dynamic-list {
+        max-height: 280px;
+        overflow-y: auto;
+        background: var(--bs-card-bg, #fff);
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: .375rem;
+    }
+
+    .rfp-page .rfp-dynamic-item {
+        padding: .55rem .85rem;
+        border-bottom: 1px solid var(--bs-border-color, #eee);
+    }
+
+    .rfp-page .rfp-dynamic-item:last-child {
+        border-bottom: 0;
+    }
+
+    .rfp-page .rfp-dynamic-item-label {
+        min-width: 0;
+        line-height: 1.25;
+    }
+
+    .rfp-page .rfp-dynamic-values {
+        border-left: 2px solid rgba(67, 89, 113, .12);
+        padding-left: .75rem;
+        margin-top: .35rem;
+    }
+
+    .rfp-page .rfp-dynamic-value {
+        padding: .28rem 0;
+    }
+
+    .rfp-page .rfp-rider-status-controls .rfp-enforce-rider-status-wrap+.rfp-enforce-rider-status-wrap {
+        margin-top: .5rem;
+    }
+
+    .rfp-page .rfp-enforce-rider-status-wrap {
+        padding: .65rem .75rem;
+        background: var(--bs-tertiary-bg, #f8f9fa);
+        border-radius: .375rem;
+    }
+
+    .rfp-page .rfp-rider-status-list.is-disabled {
+        opacity: .45;
+        pointer-events: none;
+    }
 </style>
 @endsection
 
@@ -455,6 +672,7 @@ if ($isCreate) {
             moduleTotal: {{ (int) $summary['module_total'] }},
             isCreate: @json($isCreate),
             usersUrl: @json($usersUrl),
+            enforceRiderStatusPermissions: @json((bool)($enforceRiderStatusPermissions ?? true)),
         };
 
         // Persisted (unsaved) field edits: { moduleId: { fieldName: {visible, editable, required} } }
@@ -570,6 +788,33 @@ if ($isCreate) {
             updateSummary();
             if (activeFilter !== 'all') renderPage();
         });
+
+        function setAllDynamicToggles(enabled) {
+            $('.rfp-dynamic-toggle').each(function() {
+                var $t = $(this);
+                if ($t.prop('checked') === enabled) {
+                    return;
+                }
+                $t.prop('checked', enabled).trigger('change');
+            });
+        }
+
+        $('#rfpDynamicSelectAll').on('click', function() {
+            setAllDynamicToggles(true);
+        });
+        $('#rfpDynamicClearAll').on('click', function() {
+            setAllDynamicToggles(false);
+        });
+
+        function syncRiderStatusEnforceUi() {
+            var $sw = $('#rfpEnforceRiderStatus');
+            if (!$sw.length) {
+                return;
+            }
+            $('.rfp-rider-status-list').toggleClass('is-disabled', !$sw.is(':checked'));
+        }
+        $('#rfpEnforceRiderStatus').on('change', syncRiderStatusEnforceUi);
+        syncRiderStatusEnforceUi();
 
         // ---- Right panel: load module fields ----
         function loadModuleFields(moduleId, moduleName) {
@@ -786,7 +1031,10 @@ if ($isCreate) {
                 $('.rfp-perm-toggle:checked').each(function() {
                     var permId = parseInt($(this).attr('data-perm-id'), 10);
                     if (!isNaN(permId) && !permChanges[permId]) {
-                        permChangesList.push({ ids: [permId], enabled: true });
+                        permChangesList.push({
+                            ids: [permId],
+                            enabled: true
+                        });
                     }
                 });
             }
@@ -810,7 +1058,9 @@ if ($isCreate) {
             var payload = {
                 _token: RFP.csrf,
                 perm_changes: JSON.stringify(permChangesList),
-                fields: JSON.stringify(fields)
+                fields: JSON.stringify(fields),
+                enforce_rider_status_permissions: $('#rfpEnforceRiderStatus').length ?
+                    ($('#rfpEnforceRiderStatus').is(':checked') ? 1 : 0) : (RFP.enforceRiderStatusPermissions ? 1 : 0)
             };
             if (RFP.isCreate) {
                 payload.name = roleName;
@@ -828,7 +1078,9 @@ if ($isCreate) {
                 }
                 if (RFP.isCreate) {
                     var dest = (res && res.redirect) ? res.redirect : RFP.usersUrl;
-                    setTimeout(function() { window.location.href = dest; }, 600);
+                    setTimeout(function() {
+                        window.location.href = dest;
+                    }, 600);
                 }
             }).fail(function(xhr) {
                 var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Failed to save permissions.';

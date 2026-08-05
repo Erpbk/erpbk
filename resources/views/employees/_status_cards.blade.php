@@ -1,9 +1,18 @@
 @php
 use Illuminate\Support\Facades\Schema;
 $currentStatus = (string) ($employee->status ?? 'active');
-$employeeTopViewCategories = $employeeTopViewCategories ?? \App\Models\EmployeeTopCategory::with(['options' => function ($q) {
-    $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get();
+$employeeTopViewCategories = $employeeTopViewCategories ?? \App\Services\Permissions\TopBarPermissionSync::filterCategories(
+'employees',
+\App\Models\EmployeeTopCategory::with(['options' => function ($q) {
+$q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+}])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+)->map(function ($category) {
+$category->setRelation(
+'options',
+\App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('employees', $category->options)
+);
+return $category;
+})->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
 $cardIndex = 0;
 $icons = ['ti ti-bell', 'ti ti-star', 'ti ti-flag', 'ti ti-briefcase'];
 @endphp
@@ -48,30 +57,30 @@ $icons = ['ti ti-bell', 'ti ti-star', 'ti ti-flag', 'ti ti-briefcase'];
     </div>
   </div>
   @foreach($employeeTopViewCategories as $category)
-    @if(($category->employee_column ?? '') === 'status')
-      @continue
-    @endif
-    @foreach($category->options as $option)
-      @php
-        $col = $category->employee_column;
-        $isSelected = $col && Schema::hasColumn('employees', $col) && (string) data_get($employee, $col) === (string) $option->name;
-      @endphp
-      <div class="status-card {{ $isSelected ? 'active-success' : '' }} employee-top-option-card" data-column="{{ $col }}" data-value="{{ $option->name }}" data-category="{{ $category->name }}">
-        <div class="d-flex justify-content-between align-items-start">
-          <div class="status-icon"><i class="{{ $icons[$cardIndex % count($icons)] }}"></i></div>
-          <div class="status-content">
-            <div class="status-title">{{ $option->name }}</div>
-            <div class="status-subtitle">{{ $category->name }}</div>
-          </div>
-        </div>
-        <div class="status-toggle mt-2">
-          <input type="checkbox" class="employee-top-option-checkbox" id="employee-top-{{ $category->id }}-{{ $option->id }}"
-            data-column="{{ $col }}" data-value="{{ $option->name }}" {{ $isSelected ? 'checked' : '' }}>
-          <label for="employee-top-{{ $category->id }}-{{ $option->id }}" class="toggle-switch"></label>
-        </div>
+  @if(($category->employee_column ?? '') === 'status')
+  @continue
+  @endif
+  @foreach($category->options as $option)
+  @php
+  $col = $category->employee_column;
+  $isSelected = $col && Schema::hasColumn('employees', $col) && (string) data_get($employee, $col) === (string) $option->name;
+  @endphp
+  <div class="status-card {{ $isSelected ? 'active-success' : '' }} employee-top-option-card" data-column="{{ $col }}" data-value="{{ $option->name }}" data-category="{{ $category->name }}">
+    <div class="d-flex justify-content-between align-items-start">
+      <div class="status-icon"><i class="{{ $icons[$cardIndex % count($icons)] }}"></i></div>
+      <div class="status-content">
+        <div class="status-title">{{ $option->name }}</div>
+        <div class="status-subtitle">{{ $category->name }}</div>
       </div>
-      @php $cardIndex++; @endphp
-    @endforeach
+    </div>
+    <div class="status-toggle mt-2">
+      <input type="checkbox" class="employee-top-option-checkbox" id="employee-top-{{ $category->id }}-{{ $option->id }}"
+        data-column="{{ $col }}" data-value="{{ $option->name }}" {{ $isSelected ? 'checked' : '' }}>
+      <label for="employee-top-{{ $category->id }}-{{ $option->id }}" class="toggle-switch"></label>
+    </div>
+  </div>
+  @php $cardIndex++; @endphp
+  @endforeach
   @endforeach
 </div>
 

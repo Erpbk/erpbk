@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\EmployeeTopOption;
+use App\Services\Permissions\TopBarPermissionSync;
 
 class EmployeeTopCategory extends BaseModel
 {
@@ -23,6 +24,23 @@ class EmployeeTopCategory extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::created(function (self $category) {
+            TopBarPermissionSync::syncForCategory('employees', $category);
+        });
+
+        static::updated(function (self $category) {
+            if ($category->wasChanged('name')) {
+                TopBarPermissionSync::syncForCategory('employees', $category);
+            }
+        });
+
+        static::deleted(function (self $category) {
+            TopBarPermissionSync::removeForCategory('employees', (int) $category->id);
+        });
+    }
 
     public function options()
     {

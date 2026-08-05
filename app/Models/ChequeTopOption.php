@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\TopBarOptionPermissionSync;
+
 class ChequeTopOption extends BaseModel
 {
     protected $table = 'cheque_top_options';
@@ -16,6 +18,17 @@ class ChequeTopOption extends BaseModel
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (self $option) {
+            TopBarOptionPermissionSync::syncOption('cheques', $option);
+        });
+
+        static::deleted(function (self $option) {
+            TopBarOptionPermissionSync::removeOption('cheques', (int) $option->id);
+        });
+    }
 
     public function category()
     {

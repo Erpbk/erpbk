@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\Permissions\TopBarOptionPermissionSync;
+
 class EmployeeTopOption extends BaseModel
 {
     protected $table = 'employee_top_options';
@@ -20,6 +22,17 @@ class EmployeeTopOption extends BaseModel
         'show_in_top_bar' => 'boolean',
         'show_in_view_cards' => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (self $option) {
+            TopBarOptionPermissionSync::syncOption('employees', $option);
+        });
+
+        static::deleted(function (self $option) {
+            TopBarOptionPermissionSync::removeOption('employees', (int) $option->id);
+        });
+    }
 
     public function category()
     {

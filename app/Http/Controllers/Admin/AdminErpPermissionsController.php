@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\DynamicPermissionModules;
 use App\Support\PermissionTreeBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,6 +51,12 @@ class AdminErpPermissionsController extends Controller
 
         $guard = 'web';
         $moduleName = trim((string) $request->input('name'));
+        if (DynamicPermissionModules::isReservedRoot($moduleName)) {
+            return $this->ajaxErrorResponse(
+                $request,
+                __('The ":name" module is managed automatically from Module Settings / Rider Statuses.', ['name' => $moduleName])
+            );
+        }
         $moduleSlug = PermissionTreeBuilder::slugify($moduleName);
         $submodules = $this->normalizedSubmodules($request);
         $extras = $submodules === [] ? $this->normalizedExtras($request) : [];
@@ -112,6 +119,19 @@ class AdminErpPermissionsController extends Controller
         }
 
         $moduleName = trim((string) $request->input('name'));
+        if (
+            DynamicPermissionModules::isReservedRoot($module->name)
+            || DynamicPermissionModules::isReservedRoot($moduleName)
+        ) {
+            $reservedName = DynamicPermissionModules::isReservedRoot($module->name)
+                ? $module->name
+                : $moduleName;
+
+            return $this->ajaxErrorResponse(
+                $request,
+                __('The ":name" module is managed automatically and cannot be edited here.', ['name' => $reservedName])
+            );
+        }
         $moduleSlug = PermissionTreeBuilder::slugify($moduleName);
         $guard = $module->guard_name ?? 'web';
         $submodules = $this->normalizedSubmodules($request);
@@ -148,6 +168,12 @@ class AdminErpPermissionsController extends Controller
         $module = Permission::query()->findOrFail($permission);
         if ($module->parent_id) {
             $module = Permission::query()->findOrFail($module->parent_id);
+        }
+
+        if (DynamicPermissionModules::isReservedRoot($module->name)) {
+            return redirect()
+                ->route('admin.erp-permissions.index')
+                ->with('error', __('The ":name" module is managed automatically and cannot be deleted here.', ['name' => $module->name]));
         }
 
         PermissionTreeBuilder::deleteTree((int) $module->id);

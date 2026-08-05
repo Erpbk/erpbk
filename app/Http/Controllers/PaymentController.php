@@ -7,7 +7,6 @@ use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Banks;
-use App\Models\Cheques;
 use App\Models\Customers;
 use App\Models\Employee;
 use App\Models\EmployeeInvoices;
@@ -55,7 +54,7 @@ class PaymentController extends Controller
         }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Payment::query()->with('payeeAccount')->orderBy('date_of_payment', 'desc');
+        $query = Payment::query()->with(['payeeAccount', 'voucher'])->orderBy('date_of_payment', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         $fundsIn = 0;
@@ -1183,7 +1182,7 @@ class PaymentController extends Controller
 
     public function destroy(Request $request, $comapny_slug, $id)
     {
-        $payment = Payment::find($id);
+        $payment = Payment::with('voucher')->find($id);
         if (empty($payment)) {
             if ($request->ajax()) {
                 return response()->json(['message' => 'Payment Not Found!'], 500);
@@ -1191,126 +1190,46 @@ class PaymentController extends Controller
             Flash::error('Payment not found!');
 
             return redirect()->back();
-        } else {
-            Transactions::where('trans_code', $payment->voucher->trans_code)->delete();
-            Vouchers::where('id', $payment->voucher_id)->delete();
-            if ($payment->amount_type == 'Cheque') {
-                // Also delete associated cheque record if payment was by cheque
-                $cheque = Cheques::where('voucher_id', $payment->voucher_id)->first();
-                if ($cheque) {
-                    $cheque->update([
-                        'status' => 'Issued',
-                        'cleared_date' => null,
-                        'billing_month' => null,
-                        'voucher_id' => null,
-                    ]);
+        }
+
+        // Delete-approval: queue request (voucher + transactions + payment) until admin approves.
+        if (\App\Services\DeleteRequestService::enabled()
+            && ! \App\Services\DeleteRequestService::shouldBypassApproval()
+            && $payment->voucher
+        ) {
+            try {
+                $deleteRequest = \App\Services\PaymentDeletionService::queueDeleteRequest($payment);
+            } catch (\RuntimeException $e) {
+                if ($request->ajax()) {
+                    return response()->json(['message' => $e->getMessage()], 422);
                 }
+                Flash::warning($e->getMessage());
+
+                return redirect()->back();
             }
-            if ((str_contains($payment->reference, 'LCI'))) {
-                $invoice_numbers = explode(' ', $payment->reference);
-                $invoiceIds = [];
-                foreach ($invoice_numbers as $invoice_number) {
-                    $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
-                    if ($id) {
-                        $invoiceIds[] = $id;
-                    }
-                }
-                $invoices = LeasingCompanyInvoice::with('leasingCompany')
-                    ->whereIn('id', $invoiceIds)
-                    ->get();
-                foreach ($invoices as $invoice) {
-                    $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$payment->id]); // Remove payment for this receipt
-                    $invoice->partial_paid_amount = $partialAmount;
-                    if (count($partialAmount) < 1) {
-                        $invoice->status = 0; // Revert to unpaid if no payments left
-                    } else {
-                        $invoice->status = 3;
-                    }
-                    $invoice->save();
-                }
-            }
-            if ((str_contains($payment->reference, 'SUP'))) {
-                $invoice_numbers = explode(' ', $payment->reference);
-                $invoiceIds = [];
-                foreach ($invoice_numbers as $invoice_number) {
-                    $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
-                    if ($id) {
-                        $invoiceIds[] = $id;
-                    }
-                }
-                $invoices = SupplierInvoices::with('supplier')
-                    ->where('is_invoice', true)
-                    ->whereIn('id', $invoiceIds)
-                    ->get();
-                foreach ($invoices as $invoice) {
-                    $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$payment->id]); // Remove payment for this receipt
-                    $invoice->partial_paid_amount = $partialAmount;
-                    if (count($partialAmount) < 1) {
-                        $invoice->status = 'unpaid'; // Revert to unpaid if no payments left
-                    } else {
-                        $invoice->status = 'partially_paid';
-                    }
-                    $invoice->save();
-                }
-            }
-            if ((str_contains($payment->reference, 'EMP_INV'))) {
-                $invoice_numbers = explode(' ', $payment->reference);
-                $invoiceIds = [];
-                foreach ($invoice_numbers as $invoice_number) {
-                    $id = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
-                    if ($id) {
-                        $invoiceIds[] = $id;
-                    }
-                }
-                $invoices = EmployeeInvoices::with('employee')
-                    ->whereIn('id', $invoiceIds)
-                    ->get();
-                foreach ($invoices as $invoice) {
-                    $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$payment->id]); // Remove payment for this receipt
-                    $invoice->partial_paid_amount = $partialAmount;
-                    if (count($partialAmount) < 1) {
-                        $invoice->status = 0; // Unpaid if no payments remain
-                    } else {
-                        $invoice->status = 3; // Partially Paid if some payments remain
-                    }
-                    $invoice->save();
-                }
-            }
-            if ((str_contains($payment->reference, 'SIMI'))) {
-                $invoice_numbers = explode(' ', $payment->reference);
-                $invoiceIds = [];
-                foreach ($invoice_numbers as $invoice_number) {
-                    $id = SimInvoice::getIdFromInvoiceNumber($invoice_number);
-                    if ($id) {
-                        $invoiceIds[] = $id;
-                    }
-                }
-                $invoices = SimInvoice::with('vendor')
-                    ->whereIn('id', $invoiceIds)
-                    ->get();
-                foreach ($invoices as $invoice) {
-                    $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$payment->id]);
-                    $invoice->partial_paid_amount = $partialAmount;
-                    if (count($partialAmount) < 1) {
-                        $invoice->status = 0;
-                    } else {
-                        $invoice->status = 3;
-                    }
-                    $invoice->save();
-                }
-            }
-            $payment->delete();
+
             if ($request->ajax()) {
-                return response()->json(['message' => 'Payment Deleted successfully', 'reload' => true]);
+                return response()->json([
+                    'message' => \App\Services\DeleteRequestService::pendingMessage($deleteRequest),
+                    'delete_request_id' => $deleteRequest->id,
+                    'pending_deletion' => true,
+                    'reload' => true,
+                ]);
             }
-            Flash::success('Payment deleted successfully.');
+
+            Flash::warning(\App\Services\DeleteRequestService::pendingMessage($deleteRequest));
 
             return redirect()->back();
         }
+
+        \App\Services\PaymentDeletionService::executeImmediate($payment);
+
+        if ($request->ajax()) {
+            return response()->json(['message' => 'Payment Deleted successfully', 'reload' => true]);
+        }
+        Flash::success('Payment deleted successfully.');
+
+        return redirect()->back();
     }
 
     /**

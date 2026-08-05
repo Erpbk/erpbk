@@ -19,37 +19,7 @@
                 <h3>Salik Payment Records</h3>
             </div>
             <div class="col-sm-6">
-                <div class="action-buttons d-flex justify-content-end">
-                    <div class="action-dropdown-container">
-                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
-                            <i class="ti ti-plus"></i>
-                            <span>Salik Actions</span>
-                            <i class="ti ti-chevron-down"></i>
-                        </button>
-                        <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('rta_saliks_payment_create')
-                            <a class="action-dropdown-item" href="{{ route('salik.payment') }}">
-                                <i class="ti ti-cash"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Salik Payment</div>
-                                    <div class="action-dropdown-item-desc">Record payment against unpaid saliks</div>
-                                </div>
-                            </a>
-                            @endcan
-                            @canany(['rta_saliks_payment_create', 'rta_saliks_salik_create', 'rta_saliks_payment_edit', 'rta_saliks_salik_edit'])
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);"
-                               data-size="lg" data-title="Salik Top-Up"
-                               data-action="{{ route('salik.topUp.create') }}">
-                                <i class="ti ti-wallet"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Top-Up</div>
-                                    <div class="action-dropdown-item-desc">Create a payment voucher to top up Salik wallet</div>
-                                </div>
-                            </a>
-                            @endcanany
-                        </div>
-                    </div>
-                </div>
+                @include('salik.partials.actions_dropdown')
             </div>
         </div>
     </div>

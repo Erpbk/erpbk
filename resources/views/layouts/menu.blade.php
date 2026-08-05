@@ -429,11 +429,12 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('fuel_cards'))
 @canany(['fuel_cards_card_view', 'fuel_cards_transactions_view', 'fuel_cards_companies_view'])
-<li class="menu-item {{ Route::is('fuelCards*') ? 'open' : '' }} {{ Route::is('fuel_data*') ? 'open' : '' }} {{ Route::is('fuelCompanies*') ? 'open' : '' }}">
-  <a href="javascript:void(0);" class="menu-link menu-toggle">
+<li class="menu-item {{ Route::is('fuelCards*') || Route::is('fuel_data*') || Route::is('fuelCompanies*') ? 'active' : '' }}">
+  <a href="{{ user_can('fuel_cards_card_view') ? route('fuelCards.index') : (user_can('fuel_cards_transactions_view') ? route('fuel_data.index') : route('fuelCompanies.index')) }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'fuel_cards'])
     <div>{{ $menuLabels['fuel_cards'] ?? 'Fuel Cards' }}</div>
   </a>
+  {{-- Child links moved to shared in-page nav tabs (Cards / Companies / Transactions / Monthly Summary)
   <ul class="menu-sub">
     @can('fuel_cards_card_view')
     <li class="menu-item {{ Route::is('fuelCards*') ? 'active' : '' }}">
@@ -458,6 +459,7 @@ $homeLink = $isAdminLogin
     </li>
     @endcan
   </ul>
+  --}}
 </li>
 @endcanany
 @endif

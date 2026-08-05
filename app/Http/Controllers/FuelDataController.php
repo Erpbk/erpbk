@@ -212,6 +212,9 @@ class FuelDataController extends Controller
         if ($request->has('billing_month') && !empty($request->billing_month)) {
             $query->whereDate('billing_month', $request->billing_month . '-01');
         }
+        if ($request->filled('rider_id')) {
+            $query->where('rider_id', $request->rider_id);
+        }
         $summaries = $query->get();
 
         return view('fuel_data.monthly_summary', compact('summaries'));

@@ -104,6 +104,17 @@ class SalikController extends AppBaseController
         if ($request->filled('plate')) {
             $query->where('plate', 'like', '%' . $request->plate . '%');
         }
+        if ($request->has('company') && ! empty($request->company)) {
+            if ($request->company === 'own') {
+                $query->whereHas('bike', function ($query) {
+                    $query->where('bike_owner', 'Owned');
+                });
+            } else {
+                $query->whereHas('bike', function ($query) use ($request) {
+                    $query->where('company', $request->company);
+                });
+            }
+        }
         if ($request->filled('status')) {
             if ($request->status === 'paid') {
                 $query->paid();
@@ -243,10 +254,29 @@ class SalikController extends AppBaseController
             );
         }
 
+        if ($request->filled('rider_id')) {
+            $query->where('rider_id', $request->rider_id);
+        }
+
         $summaries = $query->get();
         $summaries->load(['rider', 'rentalCompany']);
 
-        return view('salik.monthly_summary', compact('summaries'));
+        $totalInvoices = $summaries->count();
+        $totalSaliks = (int) $summaries->sum('transaction_count');
+        $salikAmount = (float) $summaries->sum('total_amount');
+        $adminCharges = (float) $summaries->sum('total_admin_charges');
+        $vat = (float) $summaries->sum('total_vat');
+        $totalAmount = (float) $summaries->sum('total_grand');
+
+        return view('salik.monthly_summary', compact(
+            'summaries',
+            'totalInvoices',
+            'totalSaliks',
+            'salikAmount',
+            'adminCharges',
+            'vat',
+            'totalAmount'
+        ));
     }
 
     public function showMonthlyInvoice($company_slug, $rider_id, $billing_month)

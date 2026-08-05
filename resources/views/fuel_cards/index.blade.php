@@ -43,6 +43,8 @@
         </div>
     </section>
 
+    @include('fuel_cards.partials.nav_tabs')
+
     <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
         <div class="filter-header">
             <h5>Filter Fuel Cards</h5>

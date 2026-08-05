@@ -13,11 +13,9 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 <section class="content-header">
-    <div class="container">
+    <div>
         <div class="row mb-2">
-            <div class="col-sm-6">
-            </div>
-            <div class="col-sm-6">
+            <div class="col-sm-12 col-lg-12">
                 @canany(['fuel_cards_transactions_create', 'fuel_cards_transactions_delete'])
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
@@ -57,16 +55,7 @@
         </div>
     </div>
 </section>
-<div class="d-flex gap-2 m-3">
-    <a href="{{ route('fuel_data.index') }}" 
-       class="btn btn-pill {{ request()->routeIs('fuel_data.index') ? 'btn-primary' : 'btn-outline-secondary' }}">
-        Transactions
-    </a>
-    <a href="{{ route('fuel_data.summary') }}" 
-       class="btn btn-pill {{ request()->routeIs('fuel_data.summary') ? 'btn-primary' : 'btn-outline-secondary' }}">
-        Monthly Summary
-    </a>
-</div>
+@include('fuel_cards.partials.nav_tabs')
 <!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1100">
     <div class="filter-header">

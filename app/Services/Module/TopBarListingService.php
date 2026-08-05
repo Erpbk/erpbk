@@ -98,7 +98,23 @@ class TopBarListingService
      */
     protected function filterCategoriesForUser(string $moduleKey, Collection $categories): Collection
     {
-        $categories = TopBarPermissionSync::filterCategories($moduleKey, $categories);
+        if (! \App\Support\RoleFieldAccess::isAdmin() && TopBarPermissionSync::isEnforced()) {
+            $categories = $categories->filter(function (Model $category) use ($moduleKey) {
+                if (TopBarPermissionSync::canAccessCategory($moduleKey, $category)) {
+                    return true;
+                }
+
+                // Rider Status bar: Visible-status leaves alone are enough to show the category.
+                $column = trim((string) ($category->getAttribute('rider_column') ?? ''));
+                if ($column === 'rider_status' && $moduleKey === 'riders') {
+                    return RiderStatusPermissionSync::userHasAnyVisibleStatusPermission(
+                        $category->relationLoaded('options') ? $category->options : collect()
+                    );
+                }
+
+                return false;
+            })->values();
+        }
 
         $categories = $categories->map(function (Model $category) use ($moduleKey) {
             $options = $category->relationLoaded('options')
@@ -115,7 +131,7 @@ class TopBarListingService
             ));
 
             if ($column === 'rider_status') {
-                $filtered = RiderStatusPermissionSync::filterOptions(
+                $filtered = RiderStatusPermissionSync::filterOptionsForTopBar(
                     $options->filter(fn ($o) => $o instanceof RiderTopOption)->values()
                 );
             } else {

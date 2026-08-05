@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Import Salik Records')
+@section('title', 'Import Employee Invoices')
 @push('third_party_stylesheets')
 <style>
     #filePreviewTable td, #filePreviewTable th { white-space: nowrap; font-size: 12px; padding: 4px 8px; vertical-align: middle; }
@@ -12,6 +12,8 @@
     .map-field.is-unmapped select.map-select { border-color: #dc3545; }
     #mappingStatus.complete { color: #28a745; font-weight: 600; }
     #mappingStatus.incomplete { color: #d39e00; font-weight: 600; }
+    .item-map-row { border: 1px solid #e9ecef; border-radius: 4px; padding: 10px; margin-bottom: 10px; background: #fafbfc; }
+    .item-map-row.is-invalid-row { border-color: #dc3545; }
     #previewEmpty {
         min-height: 280px;
         display: flex;
@@ -27,10 +29,10 @@
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6"><h1>Import Salik Records</h1></div>
+            <div class="col-sm-6"><h1>Import Employee Invoices</h1></div>
             <div class="col-sm-6">
                 <div class="d-flex justify-content-end">
-                    <a class="btn btn-primary" href="{{ route('salik.index') }}">Back to Salik List</a>
+                    <a class="btn btn-primary" href="{{ route('employeeInvoices.index') }}">Back to Invoices</a>
                 </div>
             </div>
         </div>
@@ -40,35 +42,14 @@
 <div class="content px-3">
     <div class="card">
         <div class="card-body">
-            <form id="salikImportForm" action="{{ route('salik.import') }}" method="POST" enctype="multipart/form-data">
+            <form id="employeeInvoiceImportForm" action="{{ route('employeeInvoices.import') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="form-group">
                             <label for="file">Import File</label>
-                            <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv" required>
-                            <small class="text-muted">Upload the Excel file containing Salik records.</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="admin_charge_per_salik">Default Admin Charge per Salik</label>
-                            <input type="number" name="admin_charge_per_salik" id="admin_charge_per_salik" class="form-control" step="0.01" min="0" value="0">
-                            <small class="text-muted">Applied to every imported salik. Leave 0 for none.</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="salik_vat_percent">Salik VAT %</label>
-                            <input type="number" name="salik_vat_percent" id="salik_vat_percent" class="form-control" step="0.01" min="0" value="0">
-                            <small class="text-muted">Applied to all records (amount × %).</small>
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="admin_vat_percent">Admin VAT %</label>
-                            <input type="number" name="admin_vat_percent" id="admin_vat_percent" class="form-control" step="0.01" min="0" value="0">
-                            <small class="text-muted">Applied to all records (admin charge × %).</small>
+                            <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv,.xls" required>
+                            <small class="text-muted">One row = one employee invoice. Item columns are quantity.</small>
                         </div>
                     </div>
                 </div>
@@ -78,64 +59,12 @@
                 </div>
                 <div id="mappingHelpBox" class="alert alert-info mb-4" style="display:none;">
                     <h6 class="alert-heading mb-2"><i class="fas fa-info-circle"></i> How to map columns</h6>
-                    <ul class="mb-3 pl-3">
-                        <li>Select a file above and a preview of its columns will appear. Each field below becomes a dropdown listing the file's columns (<strong>A</strong>, <strong>B</strong>, <strong>C</strong>, ...) — pick the matching one. Mappings are suggested automatically from the header row.</li>
-                        <li>If trip date and time are in the <strong>same cell</strong>, select that <strong>same column</strong> for both Trip Date and Trip Time.</li>
-                        <li><strong>Merged cells:</strong> use the <strong>leftmost</strong> column in the merge (where Excel stores the value). Example: if Date+Time is merged across columns B and C, select column <strong>B</strong> for both Trip Date and Trip Time.</li>
-                        <li>Leave optional columns unmapped to use the defaults shown under each field.</li>
+                    <ul class="mb-0 pl-3">
+                        <li>Select a file to preview columns, then map required header fields (including Description).</li>
+                        <li>Notes is optional. Imported invoices are always <strong>unpaid</strong>.</li>
+                        <li>Add item columns from the employee items list. Each sheet cell is treated as <strong>quantity</strong>.</li>
+                        <li>Rate, VAT %, and Discount are taken from the form (pre-filled from the item, editable).</li>
                     </ul>
-
-                    <p class="mb-2"><strong>Example Excel layout</strong> (header row + data):</p>
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered bg-white mb-2" style="max-width: 720px;">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th class="text-muted" style="width: 48px;"></th>
-                                    <th class="text-center">A</th>
-                                    <th class="text-center" colspan="2">B–C merged <small class="text-muted">(use B)</small></th>
-                                    <th class="text-center">D</th>
-                                    <th class="text-center">E</th>
-                                    <th class="text-center">F</th>
-                                </tr>
-                                <tr>
-                                    <th class="text-muted">1</th>
-                                    <th>Transaction ID</th>
-                                    <th colspan="2">Trip Date / Time</th>
-                                    <th>Toll Gate</th>
-                                    <th>Plate</th>
-                                    <th>Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <th class="text-muted">2</th>
-                                    <td>1234567890</td>
-                                    <td colspan="2">25/07/2026 09:15 AM</td>
-                                    <td>Al Garhoud</td>
-                                    <td>12345</td>
-                                    <td>4.00</td>
-                                </tr>
-                                <tr>
-                                    <th class="text-muted">3</th>
-                                    <td>1234567891</td>
-                                    <td colspan="2">25/07/2026 10:02 AM</td>
-                                    <td>Business Bay</td>
-                                    <td>12345</td>
-                                    <td>4.00</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="mb-0 small">
-                        For the sample above you would map:
-                        Transaction ID = <strong>A</strong>,
-                        Trip Date = <strong>B</strong>,
-                        Trip Time = <strong>B</strong>,
-                        Toll Gate = <strong>D</strong>,
-                        Plate = <strong>E</strong>,
-                        Amount = <strong>F</strong>
-                        (skip column C because it is part of the B–C merge).
-                    </p>
                 </div>
 
                 <div class="row">
@@ -162,51 +91,27 @@
                     <div class="col-lg-5 mb-3">
                         <h5 class="mb-3">Required Columns</h5>
                         <div class="row">
-                            <div class="form-group col-md-4 map-field" data-field="transaction_id" data-required="1">
-                                <label for="col_transaction_id">Transaction ID</label>
-                                <select name="col_transaction_id" id="col_transaction_id" class="form-control map-select" required disabled>
+                            <div class="form-group col-md-6 map-field" data-field="employee_id" data-required="1">
+                                <label for="col_employee_id">Employee ID</label>
+                                <select name="col_employee_id" id="col_employee_id" class="form-control map-select" required disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-4 map-field" data-field="trip_date" data-required="1">
-                                <label for="col_trip_date">Trip Date</label>
-                                <select name="col_trip_date" id="col_trip_date" class="form-control map-select" required disabled>
+                            <div class="form-group col-md-6 map-field" data-field="inv_date" data-required="1">
+                                <label for="col_inv_date">Invoice Date</label>
+                                <select name="col_inv_date" id="col_inv_date" class="form-control map-select" required disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-4 map-field" data-field="trip_time" data-required="1">
-                                <label for="col_trip_time">Trip Time</label>
-                                <select name="col_trip_time" id="col_trip_time" class="form-control map-select" required disabled>
+                            <div class="form-group col-md-6 map-field" data-field="billing_month" data-required="1">
+                                <label for="col_billing_month">Billing Month</label>
+                                <select name="col_billing_month" id="col_billing_month" class="form-control map-select" required disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                             </div>
-                            <div class="form-group col-md-4 map-field" data-field="toll_gate" data-required="1">
-                                <label for="col_toll_gate">Toll Gate</label>
-                                <select name="col_toll_gate" id="col_toll_gate" class="form-control map-select" required disabled>
-                                    <option value="">Select a file first…</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-4 map-field" data-field="direction" data-required="1">
-                                <label for="col_direction">Direction</label>
-                                <select name="col_direction" id="col_direction" class="form-control map-select" required disabled>
-                                    <option value="">Select a file first…</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-4 map-field" data-field="tag_number" data-required="1">
-                                <label for="col_tag_number">Tag Number</label>
-                                <select name="col_tag_number" id="col_tag_number" class="form-control map-select" required disabled>
-                                    <option value="">Select a file first…</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-4 map-field" data-field="plate" data-required="1">
-                                <label for="col_plate">Plate Number</label>
-                                <select name="col_plate" id="col_plate" class="form-control map-select" required disabled>
-                                    <option value="">Select a file first…</option>
-                                </select>
-                            </div>
-                            <div class="form-group col-md-4 map-field" data-field="amount" data-required="1">
-                                <label for="col_amount">Amount</label>
-                                <select name="col_amount" id="col_amount" class="form-control map-select" required disabled>
+                            <div class="form-group col-md-6 map-field" data-field="descriptions" data-required="1">
+                                <label for="col_descriptions">Description</label>
+                                <select name="col_descriptions" id="col_descriptions" class="form-control map-select" required disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                             </div>
@@ -214,26 +119,27 @@
 
                         <h5 class="mb-3 mt-2">Optional Columns</h5>
                         <div class="row">
-                            <div class="form-group col-md-6 map-field" data-field="transaction_post_date" data-required="0">
-                                <label for="col_transaction_post_date">Transaction Post Date</label>
-                                <select name="col_transaction_post_date" id="col_transaction_post_date" class="form-control map-select" disabled>
+                            <div class="form-group col-md-6 map-field" data-field="notes" data-required="0">
+                                <label for="col_notes">Notes</label>
+                                <select name="col_notes" id="col_notes" class="form-control map-select" disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
-                                <small class="text-muted">Default: mirrors trip date</small>
-                            </div>
-                            <div class="form-group col-md-6 map-field" data-field="billing_month" data-required="0">
-                                <label for="col_billing_month">Billing Month</label>
-                                <select name="col_billing_month" id="col_billing_month" class="form-control map-select" disabled>
-                                    <option value="">Select a file first…</option>
-                                </select>
-                                <small class="text-muted">Default: from trip date</small>
                             </div>
                         </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
+                            <h5 class="mb-0">Item Columns</h5>
+                            <button type="button" class="btn btn-sm btn-success" id="addItemMapRow" disabled>
+                                <i class="fas fa-plus"></i> Add Item Column
+                            </button>
+                        </div>
+                        <div id="itemMapRows"></div>
+                        <small class="text-muted d-block mb-2">Sheet value = quantity. Rate / VAT% / Discount apply to every imported row for that item.</small>
                     </div>
                 </div>
 
                 <div class="form-group text-center mt-3">
-                    <button type="submit" class="btn btn-success" id="importBtn" disabled><i class="fas fa-upload"></i> Import Salik Records</button>
+                    <button type="submit" class="btn btn-success" id="importBtn" disabled><i class="fas fa-upload"></i> Import Employee Invoices</button>
                 </div>
 
                 <div id="importProgressWrap" class="mt-3" style="display:none;">
@@ -280,14 +186,14 @@
 
     function startProcessingAnimation() {
         var pct = 55;
-        setProgress(pct, 'Processing Salik records...');
+        setProgress(pct, 'Processing employee invoices...');
         clearInterval(processTimer);
         processTimer = setInterval(function () {
             if (pct >= 92) {
                 return;
             }
             pct += Math.max(0.4, (92 - pct) * 0.04);
-            setProgress(pct, 'Processing Salik records...');
+            setProgress(pct, 'Processing employee invoices...');
         }, 400);
     }
 
@@ -316,7 +222,7 @@
         $('#importProgressHint').text('Please keep this page open until import finishes.');
     }
 
-    $('#salikImportForm').on('submit', function (e) {
+    $('#employeeInvoiceImportForm').on('submit', function (e) {
         e.preventDefault();
         var formData = new FormData(this);
 
@@ -344,7 +250,6 @@
                         if (!event.lengthComputable) {
                             return;
                         }
-                        // Reserve 0–50% for upload, rest for server processing
                         var uploadPct = (event.loaded / event.total) * 50;
                         setProgress(uploadPct, 'Uploading file...');
                         if (event.loaded >= event.total) {
@@ -355,7 +260,6 @@
                 return xhr;
             },
             beforeSend: function () {
-                // Fallback when upload progress events are unavailable / too fast
                 setTimeout(function () {
                     if (!processTimer) {
                         startProcessingAnimation();
@@ -386,7 +290,7 @@
                     }
                 }
 
-                var countLabel = imported + ' record' + (imported === 1 ? '' : 's') + ' imported';
+                var countLabel = imported + ' invoice' + (imported === 1 ? '' : 's') + ' imported';
                 if (skipped > 0) {
                     countLabel += ', ' + skipped + ' skipped';
                 }
@@ -413,7 +317,7 @@
                     }
                     html += '</div>';
                     html += '<div class="text-center">'
-                        + '<a href="{{ route('salik.index') }}" class="btn btn-primary">Back to Salik List</a>'
+                        + '<a href="{{ route('employeeInvoices.index') }}" class="btn btn-primary">Back to Invoices</a>'
                         + '</div>';
                 }
 
@@ -425,9 +329,10 @@
                     $('html, body').animate({ scrollTop: $('#importResult').offset().top - 80 }, 300);
                 } catch (e) {}
 
+                // Only redirect when every row imported cleanly.
                 if (skipped === 0 && !skippedLog.length) {
                     setTimeout(function () {
-                        window.location.href = "{{ route('salik.index') }}";
+                        window.location.href = "{{ route('employeeInvoices.index') }}";
                     }, 1500);
                 }
             },
@@ -446,25 +351,19 @@
     });
 })();
 
-/* ---- Column mapping: file preview, dropdown mapping, auto-suggestion ---- */
 (function () {
-    // Order matters for auto-mapping: more specific matchers (e.g. Post Date) run
-    // before generic ones (e.g. Trip Date matching plain "date").
+    var EMPLOYEE_ITEMS = @json($items);
     var FIELDS = [
-        { key: 'transaction_post_date', label: 'Post Date', required: false, match: [/post\w* date/, /posting/] },
-        { key: 'transaction_id', label: 'Transaction ID', required: true, match: [/transaction/, /txn/, /trans (id|no)/] },
-        { key: 'trip_date', label: 'Trip Date', required: true, match: [/trip date/, /trip.*date/, /\bdate\b/] },
-        { key: 'trip_time', label: 'Trip Time', required: true, match: [/trip time/, /\btime\b/] },
-        { key: 'toll_gate', label: 'Toll Gate', required: true, match: [/toll/, /\bgate\b/] },
-        { key: 'direction', label: 'Direction', required: true, match: [/direction/] },
-        { key: 'tag_number', label: 'Tag Number', required: true, match: [/\btag\b/] },
-        { key: 'plate', label: 'Plate Number', required: true, match: [/plate/] },
-        { key: 'amount', label: 'Amount', required: true, match: [/amount/, /charge/] },
-        { key: 'billing_month', label: 'Billing Month', required: false, match: [/billing/, /\bmonth\b/] }
+        { key: 'employee_id', label: 'Employee ID', required: true, match: [/employee.?id/, /\bemp\b.?id/, /^id$/] },
+        { key: 'inv_date', label: 'Invoice Date', required: true, match: [/invoice.?date/, /\binv.?date\b/, /^date$/] },
+        { key: 'billing_month', label: 'Billing Month', required: true, match: [/billing/, /\bmonth\b/] },
+        { key: 'descriptions', label: 'Description', required: true, match: [/description/] },
+        { key: 'notes', label: 'Notes', required: false, match: [/\bnotes?\b/] }
     ];
     var TOTAL_REQUIRED = FIELDS.filter(function (f) { return f.required; }).length;
     var MAX_COLS = 60;
     var PREVIEW_ROWS = 20;
+    var itemRowIndex = 0;
 
     var previewActive = false;
     var headers = [];
@@ -495,6 +394,97 @@
         return text.length > len ? text.slice(0, len) + '…' : text;
     }
 
+    function findItemById(id) {
+        id = parseInt(id, 10);
+        for (var i = 0; i < EMPLOYEE_ITEMS.length; i++) {
+            if (parseInt(EMPLOYEE_ITEMS[i].id, 10) === id) {
+                return EMPLOYEE_ITEMS[i];
+            }
+        }
+        return null;
+    }
+
+    function findItemByName(name) {
+        var n = normalize(name);
+        if (!n) return null;
+        for (var i = 0; i < EMPLOYEE_ITEMS.length; i++) {
+            if (normalize(EMPLOYEE_ITEMS[i].name) === n) {
+                return EMPLOYEE_ITEMS[i];
+            }
+        }
+        return null;
+    }
+
+    function columnOptionsHtml(selected) {
+        var html = '<option value="">Select column…</option>';
+        for (var c = 1; c <= colCount; c++) {
+            var label = colLetter(c);
+            var h = String(headers[c - 1] || '').trim();
+            if (h) {
+                label += ' — ' + truncate(h, 28);
+            }
+            html += '<option value="' + c + '"' + (selected == c ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+        }
+        return html;
+    }
+
+    function itemOptionsHtml(selectedId) {
+        var html = '<option value="">Select item…</option>';
+        EMPLOYEE_ITEMS.forEach(function (item) {
+            html += '<option value="' + item.id + '"'
+                + ' data-price="' + item.price + '"'
+                + ' data-vat="' + item.vat + '"'
+                + (selectedId && parseInt(selectedId, 10) === parseInt(item.id, 10) ? ' selected' : '')
+                + '>' + escapeHtml(item.name) + '</option>';
+        });
+        return html;
+    }
+
+    function addItemMapRow(opts) {
+        opts = opts || {};
+        var idx = itemRowIndex++;
+        var rate = opts.rate != null ? opts.rate : '';
+        var vat = opts.vat != null ? opts.vat : '';
+        var discount = opts.discount != null ? opts.discount : 0;
+        var html = ''
+            + '<div class="item-map-row" data-index="' + idx + '">'
+            + '  <div class="row align-items-center mb-2">'
+            + '    <div class="form-group col-md-6 mb-0">'
+            + '      <select name="item_map[' + idx + '][item_id]" class="form-control item-select" ' + (previewActive ? '' : 'disabled') + '>'
+            + itemOptionsHtml(opts.item_id)
+            + '      </select>'
+            + '    </div>'
+            + '    <div class="col-md-6 mb-0 text-right">'
+            + '      <button type="button" class="btn btn-link text-danger p-0 btn-remove-item-row" title="Remove">'
+            + '        <i class="fas fa-trash"></i>'
+            + '      </button>'
+            + '    </div>'
+            + '  </div>'
+            + '  <div class="row">'
+            + '    <div class="form-group col-md-3 mb-0">'
+            + '      <label>Qty Column</label>'
+            + '      <select name="item_map[' + idx + '][col]" class="form-control item-col-select" ' + (previewActive ? '' : 'disabled') + '>'
+            + (previewActive ? columnOptionsHtml(opts.col) : '<option value="">Select a file first…</option>')
+            + '      </select>'
+            + '    </div>'
+            + '    <div class="form-group col-md-3 mb-0">'
+            + '      <label>Rate</label>'
+            + '      <input type="number" step="any" name="item_map[' + idx + '][rate]" class="form-control item-rate" value="' + escapeHtml(rate) + '">'
+            + '    </div>'
+            + '    <div class="form-group col-md-3 mb-0">'
+            + '      <label>VAT %</label>'
+            + '      <input type="number" step="any" min="0" name="item_map[' + idx + '][vat]" class="form-control item-vat" value="' + escapeHtml(vat) + '">'
+            + '    </div>'
+            + '    <div class="form-group col-md-3 mb-0">'
+            + '      <label>Discount</label>'
+            + '      <input type="number" step="any" min="0" name="item_map[' + idx + '][discount]" class="form-control item-discount" value="' + escapeHtml(discount) + '">'
+            + '    </div>'
+            + '  </div>'
+            + '</div>';
+        $('#itemMapRows').append(html);
+        updateUi();
+    }
+
     function getMapping() {
         var mapping = {};
         FIELDS.forEach(function (f) {
@@ -502,6 +492,26 @@
             mapping[f.key] = v ? parseInt(v, 10) : null;
         });
         return mapping;
+    }
+
+    function getItemMappings() {
+        var items = [];
+        $('#itemMapRows .item-map-row').each(function () {
+            var itemId = $(this).find('.item-select').val();
+            var col = $(this).find('.item-col-select').val();
+            var rate = $(this).find('.item-rate').val();
+            var vat = $(this).find('.item-vat').val();
+            var discount = $(this).find('.item-discount').val();
+            items.push({
+                item_id: itemId ? parseInt(itemId, 10) : null,
+                col: col ? parseInt(col, 10) : null,
+                rate: rate === '' ? null : parseFloat(rate),
+                vat: vat === '' ? null : parseFloat(vat),
+                discount: discount === '' ? null : parseFloat(discount),
+                $row: $(this)
+            });
+        });
+        return items;
     }
 
     function autoMap() {
@@ -522,12 +532,28 @@
                 }
             }
         });
-
-        // Combined "Trip Date/Time" column: reuse the trip date column for trip time
-        if (!mapping.trip_time && mapping.trip_date && /time/.test(normalize(headers[mapping.trip_date - 1]))) {
-            mapping.trip_time = mapping.trip_date;
-        }
         return mapping;
+    }
+
+    function autoAddItemRows(assignedCols) {
+        $('#itemMapRows').empty();
+        itemRowIndex = 0;
+        for (var c = 1; c <= colCount; c++) {
+            if (assignedCols[c]) continue;
+            var item = findItemByName(headers[c - 1]);
+            if (!item) continue;
+            addItemMapRow({
+                item_id: item.id,
+                col: c,
+                rate: item.price,
+                vat: item.vat,
+                discount: 0
+            });
+            assignedCols[c] = 'item:' + item.id;
+        }
+        if (!$('#itemMapRows .item-map-row').length) {
+            addItemMapRow();
+        }
     }
 
     function buildSelects(mapping) {
@@ -580,36 +606,57 @@
         $('#filePreviewTable').html(html);
     }
 
-    function requiredDuplicates(mapping) {
+    function collectDuplicates(mapping, itemMaps) {
         var byCol = {};
         FIELDS.forEach(function (f) {
-            if (!f.required || !mapping[f.key]) return;
+            if (!mapping[f.key]) return;
             var c = mapping[f.key];
-            (byCol[c] = byCol[c] || []).push(f);
+            (byCol[c] = byCol[c] || []).push({ type: 'header', label: f.label });
+        });
+        itemMaps.forEach(function (item, i) {
+            if (!item.col) return;
+            (byCol[item.col] = byCol[item.col] || []).push({ type: 'item', label: 'Item qty #' + (i + 1) });
         });
         var dups = [];
         Object.keys(byCol).forEach(function (c) {
-            var fields = byCol[c];
-            if (fields.length < 2) return;
-            var keys = fields.map(function (f) { return f.key; });
-            // Trip Date + Trip Time may legitimately share a column (combined date/time cell)
-            var allowedPair = keys.length === 2 && keys.indexOf('trip_date') !== -1 && keys.indexOf('trip_time') !== -1;
-            if (!allowedPair) {
-                dups.push({ col: parseInt(c, 10), fields: fields });
+            if (byCol[c].length > 1) {
+                dups.push({ col: parseInt(c, 10), fields: byCol[c] });
             }
         });
         return dups;
     }
 
     function updateUi() {
-        if (!previewActive) return;
+        if (!previewActive) {
+            $('#importBtn').prop('disabled', true);
+            return;
+        }
 
         var mapping = getMapping();
-        var dups = requiredDuplicates(mapping);
+        var itemMaps = getItemMappings();
+        var dups = collectDuplicates(mapping, itemMaps);
         var dupCols = {};
         dups.forEach(function (d) { dupCols[d.col] = true; });
 
-        // Badges on preview columns
+        var itemIdCounts = {};
+        var validItems = 0;
+        itemMaps.forEach(function (item) {
+            if (item.item_id) {
+                itemIdCounts[item.item_id] = (itemIdCounts[item.item_id] || 0) + 1;
+            }
+        });
+        itemMaps.forEach(function (item) {
+            var ok = item.item_id && item.col && item.rate !== null && !isNaN(item.rate)
+                && item.vat !== null && !isNaN(item.vat)
+                && item.discount !== null && !isNaN(item.discount);
+            var dupItem = item.item_id && itemIdCounts[item.item_id] > 1;
+            item.$row.toggleClass('is-invalid-row', !ok || dupItem);
+            if (ok && !dupItem) validItems++;
+        });
+        var duplicateItems = Object.keys(itemIdCounts).some(function (id) {
+            return itemIdCounts[id] > 1;
+        });
+
         $('#filePreviewTable .col-head').each(function () {
             var c = parseInt($(this).attr('data-col'), 10);
             var $badges = $(this).find('.map-badges').empty();
@@ -620,31 +667,45 @@
                 var cls = dupCols[c] ? 'bg-danger' : (f.required ? 'bg-primary' : 'bg-secondary');
                 $badges.append('<span class="badge ' + cls + ' text-white">' + f.label + '</span>');
             });
+            itemMaps.forEach(function (item, i) {
+                if (item.col !== c) return;
+                mapped = true;
+                var itemMeta = findItemById(item.item_id);
+                var label = itemMeta ? truncate(itemMeta.name, 16) : ('Item #' + (i + 1));
+                $badges.append('<span class="badge ' + (dupCols[c] ? 'bg-danger' : 'bg-info') + ' text-white">' + escapeHtml(label) + '</span>');
+            });
             $(this).toggleClass('mapped', mapped && !dupCols[c]);
             $(this).toggleClass('dup-col', !!dupCols[c]);
         });
 
-        // Unmapped highlight on required selects
         $('.map-field[data-required="1"]').each(function () {
             var key = $(this).data('field');
             $(this).toggleClass('is-unmapped', !mapping[key]);
         });
 
-        // Completeness indicator
         var mappedRequired = FIELDS.filter(function (f) { return f.required && mapping[f.key]; }).length;
-        var complete = mappedRequired === TOTAL_REQUIRED && dups.length === 0;
+        var complete = mappedRequired === TOTAL_REQUIRED && dups.length === 0 && validItems > 0 && !duplicateItems;
         $('#mappingStatus')
-            .text(mappedRequired + ' of ' + TOTAL_REQUIRED + ' required columns mapped')
+            .text(mappedRequired + ' of ' + TOTAL_REQUIRED + ' required + ' + validItems + ' item(s)')
             .toggleClass('complete', complete)
             .toggleClass('incomplete', !complete);
 
-        // Duplicate warning
+        var warnings = [];
         if (dups.length) {
             var parts = dups.map(function (d) {
                 var names = d.fields.map(function (f) { return f.label; }).join(' and ');
                 return 'column ' + colLetter(d.col) + ' is assigned to ' + names;
             });
-            $('#mappingWarning').text('Duplicate mapping: ' + parts.join('; ') + '.').show();
+            warnings.push('Duplicate mapping: ' + parts.join('; ') + '.');
+        }
+        if (duplicateItems) {
+            warnings.push('Each item can only be mapped once.');
+        }
+        if (validItems === 0) {
+            warnings.push('Add at least one complete item column mapping.');
+        }
+        if (warnings.length) {
+            $('#mappingWarning').text(warnings.join(' ')).show();
         } else {
             $('#mappingWarning').hide().empty();
         }
@@ -659,13 +720,23 @@
         $('#previewEmpty').hide();
         $('#previewTableWrap').show();
         renderPreview(rows);
-        buildSelects(autoMap());
+        var mapping = autoMap();
+        buildSelects(mapping);
+        var assigned = {};
+        Object.keys(mapping).forEach(function (k) {
+            if (mapping[k]) assigned[mapping[k]] = k;
+        });
+        autoAddItemRows(assigned);
+        $('#addItemMapRow').prop('disabled', false);
         updateUi();
     }
 
     function resetMappingUi(showError) {
         previewActive = false;
         resetSelects();
+        $('#itemMapRows').empty();
+        itemRowIndex = 0;
+        $('#addItemMapRow').prop('disabled', true);
         $('#previewFileName').text('');
         $('#mappingStatus').text('').removeClass('complete incomplete');
         $('#filePreviewTable').empty();
@@ -677,6 +748,29 @@
     }
 
     $(document).on('change', '.map-select', updateUi);
+    $(document).on('change input', '.item-select, .item-col-select, .item-rate, .item-vat, .item-discount', updateUi);
+
+    $(document).on('change', '.item-select', function () {
+        var $row = $(this).closest('.item-map-row');
+        var item = findItemById($(this).val());
+        if (!item) return;
+        $row.find('.item-rate').val(item.price);
+        $row.find('.item-vat').val(item.vat);
+        if ($row.find('.item-discount').val() === '') {
+            $row.find('.item-discount').val(0);
+        }
+        updateUi();
+    });
+
+    $('#addItemMapRow').on('click', function () {
+        if (!previewActive) return;
+        addItemMapRow({ discount: 0 });
+    });
+
+    $(document).on('click', '.btn-remove-item-row', function () {
+        $(this).closest('.item-map-row').remove();
+        updateUi();
+    });
 
     $('#toggleMappingHelp').on('click', function () {
         $('#mappingHelpBox').slideToggle(150);

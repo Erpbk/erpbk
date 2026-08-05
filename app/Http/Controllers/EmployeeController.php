@@ -1068,7 +1068,7 @@ class EmployeeController extends Controller
                 throw new \Exception('Employee account not found with ID: ' . $employeeAccountId);
             }
 
-            $creditAccountId = $request->account_id[1] ?? GlobalAccounts::id('ADVANCE_LOAN');
+            $creditAccountId = $request->account_id[1];
             $employeeAmount = $request->dr_amount[0] ?? 0;
             $creditAmount = $request->dr_amount[1] ?? 0;
             if ($creditAmount == 0) {
@@ -1080,7 +1080,7 @@ class EmployeeController extends Controller
                 'trans_date' => $request->trans_date ?? date('Y-m-d'),
                 'voucher_type' => 'AL',
                 'payment_type' => $request->payment_type ?? 1,
-                'payment_from' => GlobalAccounts::id('ADVANCE_LOAN'),
+                'payment_from' => $creditAccountId,
                 'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
                 'amount' => $employeeAmount,
                 'remarks' => 'Advance Loan to Employee',
@@ -1186,7 +1186,7 @@ class EmployeeController extends Controller
                 'trans_date' => $request->trans_date ?? date('Y-m-d'),
                 'voucher_type' => 'PN',
                 'payment_type' => $request->payment_type ?? 1,
-                'payment_from' => GlobalAccounts::id('PENALTY_ACCOUNT'),
+                'payment_from' => $creditAccountId,
                 'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
                 'amount' => $employeeAmount,
                 'remarks' => 'Penalty Amount to Employee',
@@ -1292,7 +1292,7 @@ class EmployeeController extends Controller
                 'trans_date' => $request->trans_date ?? date('Y-m-d'),
                 'voucher_type' => 'INC',
                 'payment_type' => $request->payment_type ?? 1,
-                'payment_from' => GlobalAccounts::id('INCENTIVE_ACCOUNT'),
+                'payment_from' => $creditAccountId,
                 'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
                 'amount' => $employeeAmount,
                 'remarks' => 'Incentive Amount to Employee',

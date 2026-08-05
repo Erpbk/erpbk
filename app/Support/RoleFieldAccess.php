@@ -358,6 +358,23 @@ class RoleFieldAccess
     }
 
     /**
+     * Whether the current user actually holds this permission name (no missing-row fallback).
+     */
+    public static function holdsPermission(string $ability): bool
+    {
+        $ability = trim($ability);
+        if ($ability === '') {
+            return false;
+        }
+
+        if (self::isAdmin()) {
+            return true;
+        }
+
+        return in_array($ability, self::userPermissionNames(), true);
+    }
+
+    /**
      * Strict exact-name check (no flat→hierarchical bridging).
      * Admins always pass. Missing permission rows are treated as allow (pre-sync safe).
      */

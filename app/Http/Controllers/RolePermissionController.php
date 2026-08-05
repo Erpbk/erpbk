@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\IConstants;
+use App\Models\RiderTopCategory;
 use App\Models\RoleFieldPermission;
 use App\Services\Permissions\RiderStatusPermissionSync;
 use App\Services\Permissions\TopBarOptionPermissionSync;
@@ -482,7 +483,7 @@ class RolePermissionController extends AppBaseController
                 'field_count' => count($fields),
                 'is_dynamic' => DynamicPermissionModules::isReservedRoot($module->name),
                 'dynamic_hint' => match ($module->name) {
-                    DynamicPermissionModules::TOP_BARS => 'Controls which Top Bar filters and values appear. Does not hide records.',
+                    DynamicPermissionModules::TOP_BARS => 'Controls which Top Bar filters and values appear. For Rider Status, turn on the Top Bar — statuses show there; optionally limit which ones under Rider Statuses. Does not hide records.',
                     DynamicPermissionModules::RIDER_STATUSES => 'Control who can change rider status, and which statuses appear in filters and dropdowns. Does not hide riders.',
                     default => null,
                 },
@@ -626,6 +627,24 @@ class RolePermissionController extends AppBaseController
 
             usort($values, static fn (array $a, array $b): int => strcasecmp((string) $a['name'], (string) $b['name']));
 
+            // Rider Status top bar has no top_bar_values_* leaves — nest Rider Statuses
+            // option toggles here so granting Top Bar + statuses is obvious in one place.
+            if ($values === [] && ! empty($actions['view']['id'])) {
+                $viewLeaf = Permission::query()->find((int) $actions['view']['id']);
+                $viewName = (string) ($viewLeaf->name ?? '');
+                if (preg_match('/^' . preg_quote(TopBarPermissionSync::SLUG, '/') . '_rider_(\d+)_view$/', $viewName, $m)) {
+                    $categoryId = (int) $m[1];
+                    $category = RiderTopCategory::query()
+                        ->withoutGlobalScope('company')
+                        ->find($categoryId);
+                    if ($category && trim((string) ($category->rider_column ?? '')) === 'rider_status') {
+                        [$statusValues] = $this->riderStatusValuesForTopBar($assigned);
+                        $values = $statusValues;
+                        // Same leaves as Rider Statuses — show for UX, do not re-count.
+                    }
+                }
+            }
+
             $submodules[] = [
                 'id' => (int) $categoryGroup->id,
                 'name' => DynamicPermissionModules::displayGroupLabel($root->name, (string) $categoryGroup->name),
@@ -639,6 +658,77 @@ class RolePermissionController extends AppBaseController
         }
 
         return [$submodules, $modLeafTotal, $modLeafEnabled];
+    }
+
+    /**
+     * Rider status option leaves (same IDs as Rider Statuses → Visible statuses).
+     *
+     * @param  array<int, int>  $assigned
+     * @return array{0: list<array>, 1: int, 2: int}
+     */
+    private function riderStatusValuesForTopBar(array $assigned): array
+    {
+        $values = [];
+        $total = 0;
+        $enabled = 0;
+
+        $root = Permission::query()
+            ->where('name', DynamicPermissionModules::RIDER_STATUSES)
+            ->where(function ($q) {
+                $q->whereNull('parent_id')->orWhere('parent_id', 0);
+            })
+            ->first();
+
+        if (! $root) {
+            return [[], 0, 0];
+        }
+
+        $groups = Permission::query()
+            ->where('parent_id', $root->id)
+            ->orderBy('name')
+            ->get();
+
+        foreach ($groups as $group) {
+            if ((string) $group->name === RiderStatusPermissionSync::CHANGE_GROUP
+                || str_starts_with((string) $group->name, RiderStatusPermissionSync::CHANGE_GROUP)
+            ) {
+                continue;
+            }
+
+            $leaf = Permission::query()
+                ->where('parent_id', $group->id)
+                ->where('name', 'like', RiderStatusPermissionSync::SLUG . '_%_view')
+                ->where('name', '!=', RiderStatusPermissionSync::CHANGE_LEAF)
+                ->first();
+
+            if (! $leaf || ! preg_match('/^' . preg_quote(RiderStatusPermissionSync::SLUG, '/') . '_\d+_view$/', (string) $leaf->name)) {
+                continue;
+            }
+
+            $isEnabled = isset($assigned[(int) $leaf->id]);
+            $total++;
+            if ($isEnabled) {
+                $enabled++;
+            }
+
+            $values[] = [
+                'id' => (int) $group->id,
+                'name' => DynamicPermissionModules::displayGroupLabel(
+                    DynamicPermissionModules::RIDER_STATUSES,
+                    (string) $group->name
+                ),
+                'actions' => [
+                    'view' => ['id' => (int) $leaf->id, 'enabled' => $isEnabled],
+                    'create' => null,
+                    'edit' => null,
+                    'delete' => null,
+                ],
+            ];
+        }
+
+        usort($values, static fn (array $a, array $b): int => strcasecmp((string) $a['name'], (string) $b['name']));
+
+        return [$values, $total, $enabled];
     }
 
     /**

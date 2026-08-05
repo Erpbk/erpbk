@@ -1399,19 +1399,28 @@ class SalikController extends AppBaseController
             if ($import->notSalikCount > 0) {
                 $messages[] = "{$import->notSalikCount} not salik";
             }
-            $skippedMessage = !empty($messages) ? " (Skipped: " . implode(', ', $messages) . ")" : "";
-            if ($request->ajax()) {
+            $skippedLog = array_values($import->skippedLog);
+            $skippedCount = count($skippedLog);
+            $skippedMessage = !empty($messages) ? ' Skipped: '.implode(', ', $messages).'.' : '';
+            $message = "Import finished. Imported: {$importedCount}.{$skippedMessage}";
+
+            if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => "Salik records imported successfully. Records imported: {$importedCount}. Monthly invoices synced.{$skippedMessage}",
-                    'imported_count' => $importedCount
+                    'message' => $message,
+                    'imported_count' => $importedCount,
+                    'skipped_count' => $skippedCount,
+                    'skipped_log' => $skippedLog,
                 ]);
             }
-            Flash::success("Salik records imported successfully. Monthly invoices synced. Records imported: {$importedCount}{$skippedMessage}");
+            Flash::success($message);
+            if ($skippedCount > 0) {
+                session()->flash('import_skipped_log', $skippedLog);
+            }
             return redirect()->back();
         } catch (\Exception $e) {
             \Log::error('Salik import failed: ' . $e->getMessage());
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Import failed: ' . $e->getMessage()

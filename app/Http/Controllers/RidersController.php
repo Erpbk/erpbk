@@ -102,19 +102,22 @@ class RidersController extends AppBaseController
       return [];
     }
 
-    if (! TopBarPermissionSync::canAccessCategory('riders', $category)) {
+    $options = RiderTopOption::where('category_id', $category->id)
+      ->where('is_active', true)
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get();
+
+    $canSeeBar = TopBarPermissionSync::canAccessCategory('riders', $category)
+      || RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($options);
+
+    if (! $canSeeBar) {
       return [];
     }
 
     $reserved = ['active', 'inactive'];
 
-    return RiderStatusPermissionSync::filterOptions(
-      RiderTopOption::where('category_id', $category->id)
-        ->where('is_active', true)
-        ->orderBy('display_order')
-        ->orderBy('id')
-        ->get()
-    )
+    return RiderStatusPermissionSync::filterOptionsForTopBar($options)
       ->map(function ($option) {
         $name = trim((string) $option->name);
 

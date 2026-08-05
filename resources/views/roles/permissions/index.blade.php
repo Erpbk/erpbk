@@ -783,6 +783,13 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                     ids: [permId],
                     enabled: this.checked
                 };
+                // Same leaf may appear under Top Bars and Rider Statuses.
+                $('.rfp-perm-toggle[data-perm-id="' + permId + '"]').not($t).each(function() {
+                    if (this.checked !== $t.prop('checked')) {
+                        $(this).prop('checked', $t.prop('checked'));
+                        updateModuleCounter($(this).closest('.rfp-counter-scope'));
+                    }
+                });
             }
             updateModuleCounter($t.closest('.rfp-counter-scope'));
             updateSummary();

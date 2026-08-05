@@ -45,6 +45,9 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     public int $rowCount = 0;
     public int $uniqueTransactionCount = 0;
 
+    /** @var array<int, string> */
+    public array $skippedLog = [];
+
     public function __construct($adminChargePerSalik = 0, array $columnMap = [], $salikVatPercent = 0, $adminVatPercent = 0)
     {
         $this->adminChargePerSalik = (float) $adminChargePerSalik;
@@ -681,6 +684,12 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
      */
     private function storeFailedImport($row, $rowNumber, $reason, $details, bool $parseSalikFields = true)
     {
+        $logLine = 'Row('.$rowNumber.') - '.$reason;
+        if ($details !== null && $details !== '') {
+            $logLine .= ': '.$details;
+        }
+        $this->skippedLog[] = $logLine;
+
         try {
             $transactionId = $this->cell($row, 'transaction_id');
             $tripDate = null;

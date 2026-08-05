@@ -304,6 +304,12 @@ class RiderStatusPermissionSync
             return false;
         }
 
+        // No individual Visible-status leaves granted → treat as unrestricted
+        // (Top Bar category permission alone is enough to show/use statuses).
+        if (! self::userHasAnyVisibleStatusPermission()) {
+            return true;
+        }
+
         $leaf = self::leafName($optionId);
         if (! RoleFieldAccess::permissionExistsPublic($leaf)) {
             return true;
@@ -378,6 +384,41 @@ class RiderStatusPermissionSync
     }
 
     /**
+     * True when the user holds at least one rider_statuses_{id}_view leaf
+     * (excluding Change Rider Status).
+     */
+    public static function userHasAnyVisibleStatusPermission(?Collection $options = null): bool
+    {
+        if (RoleFieldAccess::isAdmin() || ! self::isEnforcedForCurrentUser()) {
+            return false;
+        }
+
+        $options = $options ?? collect();
+        if ($options->isEmpty()) {
+            $categoryId = self::statusCategoryId();
+            if (! $categoryId) {
+                return false;
+            }
+            $options = RiderTopOption::query()
+                ->where('category_id', $categoryId)
+                ->get(['id']);
+        }
+
+        foreach ($options as $option) {
+            $id = (int) (is_object($option) ? ($option->id ?? $option->getKey()) : 0);
+            if ($id <= 0) {
+                continue;
+            }
+            $leaf = self::leafName($id);
+            if (RoleFieldAccess::permissionExistsPublic($leaf) && RoleFieldAccess::holdsPermission($leaf)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * @param  Collection<int, RiderTopOption>  $options
      * @return Collection<int, RiderTopOption>
      */
@@ -390,6 +431,28 @@ class RiderStatusPermissionSync
         return $options
             ->filter(fn (RiderTopOption $option) => self::canAccessOptionId((int) $option->id))
             ->values();
+    }
+
+    /**
+     * Top Bar / view-card visibility: if the role was given Top Bar category access
+     * but no individual "Visible statuses" leaves, still show all statuses.
+     * Once any status leaf is granted, only those statuses appear.
+     *
+     * @param  Collection<int, RiderTopOption>  $options
+     * @return Collection<int, RiderTopOption>
+     */
+    public static function filterOptionsForTopBar(Collection $options): Collection
+    {
+        $options = $options->values();
+        if (RoleFieldAccess::isAdmin() || ! self::isEnforcedForCurrentUser()) {
+            return $options;
+        }
+
+        if (! self::userHasAnyVisibleStatusPermission($options)) {
+            return $options;
+        }
+
+        return self::filterOptions($options);
     }
 
     /**

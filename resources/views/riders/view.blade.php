@@ -319,17 +319,25 @@ $companySlug = request()->route('company_slug');
       <div class="card-body pt-12">
         @isset($result)
         @php
-        $riderTopViewCategories = \App\Services\Permissions\TopBarPermissionSync::filterCategories(
-        'riders',
-        \App\Models\RiderTopCategory::with(['options' => function($q){
+        $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
         $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
         }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
-        )->map(function ($category) {
+        ->filter(function ($category) {
+        if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
+          return true;
+        }
+        if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
+          return true;
+        }
+        $column = trim((string) ($category->rider_column ?? ''));
+        return $column === 'rider_status'
+          && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
+        })->map(function ($category) {
         $column = trim((string) ($category->rider_column ?? ''));
         if ($column === 'rider_status') {
         $category->setRelation(
         'options',
-        \App\Services\Permissions\RiderStatusPermissionSync::filterOptions($category->options)
+        \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
         );
         } else {
         $category->setRelation(

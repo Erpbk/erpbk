@@ -36,9 +36,19 @@
             $voucherId = $payment->voucher_id;
             $voucherType = $payment->voucher->voucher_type ?? 'PV';
             $voucherLabel = $voucherType . '-' . $voucherId;
+            $paymentPendingDeletion = record_is_pending_deletion($payment)
+                || ($payment->voucher && record_is_pending_deletion($payment->voucher));
+            $pendingDeletionModel = record_is_pending_deletion($payment)
+                ? $payment
+                : ($payment->voucher ?? $payment);
         @endphp
-        <tr>
-            <td>{{ \App\Helpers\Common::DateFormat($payment->date_of_payment) }}</td>
+        <tr class="{{ $paymentPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $payment->id }}">
+            <td>
+                {{ \App\Helpers\Common::DateFormat($payment->date_of_payment) }}
+                @if($paymentPendingDeletion)
+                @include('delete_requests._pending_badge', ['model' => $pendingDeletionModel])
+                @endif
+            </td>
             <td>{{ \App\Helpers\Common::MonthFormat($payment->billing_month) }}</td>
             <td>
                 @if($voucherId)
@@ -69,6 +79,9 @@
                 @endif
             </td>
             <td>
+                @if($paymentPendingDeletion)
+                @include('delete_requests._locked_cell', ['model' => $pendingDeletionModel])
+                @else
                 <div class="dropdown">
                     <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $payment->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -141,6 +154,7 @@
                         @endcanany
                     </div>
                 </div>
+                @endif
             </td>
         </tr>
         @endforeach
@@ -162,28 +176,38 @@
         $(document).on('click', '.delete-payment', function(e) {
             e.preventDefault();
             const url = $(this).data('url');
+            const deleteApprovalEnabled = @json(delete_approval_enabled());
 
             Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
+                title: deleteApprovalEnabled ? 'Submit delete request?' : 'Are you sure?',
+                text: deleteApprovalEnabled
+                    ? 'This payment voucher will stay visible as Pending Deletion until an administrator approves.'
+                    : "You won't be able to revert this!",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#3085d6',
                 cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
+                confirmButtonText: deleteApprovalEnabled ? 'Yes, submit request' : 'Yes, delete it!'
             }).then((result) => {
                 if (result.isConfirmed) {
                     $.ajax({
                         url: url,
                         type: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            Accept: 'application/json'
+                        },
                         data: {
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
+                            const pending = !!(response && response.pending_deletion);
                             Swal.fire(
-                                'Deleted!',
-                                'Payment has been deleted.',
-                                'success'
+                                pending ? 'Request submitted' : 'Deleted!',
+                                response?.message || (pending
+                                    ? 'Delete request submitted and awaiting administrator approval.'
+                                    : 'Payment has been deleted.'),
+                                pending ? 'info' : 'success'
                             ).then(() => {
                                 location.reload();
                             });
@@ -201,5 +225,5 @@
         });
     });
 </script>
-
+@include('delete_requests._pending_table_script', ['items' => $data])
 @endsection

@@ -896,6 +896,37 @@ class DeleteRequestService
                 static::recalculateLedgerAfterVoucherDeletion((int) $accountId, $billingMonth);
             }
         }
+
+        // Payment vouchers (PV): remove the payments row + reverse invoice/cheque links.
+        // Payment is not soft-deletable — it is queued as a cascade and deleted here on approve.
+        $relatedPayment = \App\Models\Payment::query()
+            ->where('voucher_id', $voucher->id)
+            ->first();
+
+        if (! $relatedPayment) {
+            foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+                if (($cascaded['type'] ?? null) !== \App\Models\Payment::class || empty($cascaded['id'])) {
+                    continue;
+                }
+                $relatedPayment = \App\Models\Payment::query()->find($cascaded['id']);
+                if ($relatedPayment) {
+                    break;
+                }
+            }
+        }
+
+        if ($relatedPayment) {
+            try {
+                PaymentDeletionService::executeAfterVoucherApproved($relatedPayment);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to finalize related payment on approved voucher delete', [
+                    'delete_request_id' => $deleteRequest->id,
+                    'voucher_id' => $voucher->id,
+                    'payment_id' => $relatedPayment->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     protected static function recalculateLedgerAfterVoucherDeletion(int $accountId, $billingMonth): void

@@ -199,7 +199,7 @@ class Riders extends BaseModel
 
     $badge = in_array($normalized, ['active', 'follow up', 'pro', 'walker', 'learning license'], true)
       ? 'bg-label-success'
-      : ($normalized === 'absconder'
+      : (in_array($normalized, ['absconder', 'absconded'], true)
         ? 'bg-label-danger'
         : ($normalized === 'vacation'
           ? 'bg-label-warning'
@@ -209,9 +209,12 @@ class Riders extends BaseModel
   }
 
   /**
-   * Combined status label for history (employment + option when present).
+   * Single current rider status for UI (prefer assigned rider_status, else employment/lifecycle status).
+   *
+   * @param  int|string|null|self  $riderOrEmploymentStatus
+   * @return array{label: string, badge: string}
    */
-  public static function historyStatusLabel($riderOrEmploymentStatus, ?string $riderStatus = null): string
+  public static function currentStatusDisplay($riderOrEmploymentStatus, ?string $riderStatus = null): array
   {
     $employmentCode = $riderOrEmploymentStatus instanceof self
       ? $riderOrEmploymentStatus->status
@@ -220,16 +223,24 @@ class Riders extends BaseModel
       ? trim((string) ($riderOrEmploymentStatus->rider_status ?? ''))
       : trim((string) ($riderStatus ?? ''));
 
-    $employment = self::employmentStatusDisplay($employmentCode);
-    if ($optionText !== '') {
-      return $employment['label'] . ' · ' . $optionText;
+    $option = self::riderOptionStatusBadge($optionText);
+    if ($option) {
+      return $option;
     }
 
-    return $employment['label'];
+    return self::employmentStatusDisplay($employmentCode);
   }
 
   /**
-   * @return array{employment: array{label: string, badge: string}, option: ?array{label: string, badge: string}}
+   * Status label for history / display_status (single current status only).
+   */
+  public static function historyStatusLabel($riderOrEmploymentStatus, ?string $riderStatus = null): string
+  {
+    return self::currentStatusDisplay($riderOrEmploymentStatus, $riderStatus)['label'];
+  }
+
+  /**
+   * @return array{employment: array{label: string, badge: string}, option: ?array{label: string, badge: string}, current: array{label: string, badge: string}}
    */
   public static function tableStatusBadges($riderOrEmploymentStatus, ?string $riderStatus = null): array
   {
@@ -243,6 +254,7 @@ class Riders extends BaseModel
     return [
       'employment' => self::employmentStatusDisplay($employmentCode),
       'option' => self::riderOptionStatusBadge($optionText),
+      'current' => self::currentStatusDisplay($riderOrEmploymentStatus, $optionText),
     ];
   }
 

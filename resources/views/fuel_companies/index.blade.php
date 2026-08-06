@@ -11,39 +11,7 @@
     <div>
         <div class="row mb-2">
             <div class="col-sm-12 col-lg-12">
-                <div class="action-buttons d-flex justify-content-end">
-                    <div class="action-dropdown-container">
-                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
-                            <i class="ti ti-plus"></i>
-                            <span>Add Fuel Company</span>
-                            <i class="ti ti-chevron-down"></i>
-                        </button>
-                        <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('fuel_cards_companies_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);"
-                               data-size="lg" data-title="Add New Fuel Company"
-                               data-action="{{ route('fuelCompanies.create') }}">
-                                <i class="ti ti-plus"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Add Fuel Company</div>
-                                    <div class="action-dropdown-item-desc">Create a new fuel company</div>
-                                </div>
-                            </a>
-                            @endcan
-                            @if(user_can('fuel_cards_companies_create') || user_can('fuel_cards_companies_edit'))
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);"
-                               data-size="lg" data-title="Fuel Company Top-Up"
-                               data-action="{{ route('fuelCompanies.topUp.create') }}">
-                                <i class="ti ti-wallet"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Top-Up</div>
-                                    <div class="action-dropdown-item-desc">Create a payment voucher to top up a fuel company</div>
-                                </div>
-                            </a>
-                            @endif
-                        </div>
-                    </div>
-                </div>
+                @include('fuel_cards.partials.actions_dropdown')
             </div>
         </div>
     </div>

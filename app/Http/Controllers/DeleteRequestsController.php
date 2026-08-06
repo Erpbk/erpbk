@@ -133,10 +133,14 @@ class DeleteRequestsController extends Controller
                 Auth::user(),
                 $request->input('admin_remarks')
             );
-            Flash::success('Delete request #' . $deleteRequest->id . ' approved. The record was moved to the Recycle Bin (not permanently deleted).')->important();
+            $message = 'Delete request #' . $deleteRequest->id . ' approved. The record was moved to the Recycle Bin (not permanently deleted).';
+            Flash::success($message)->important();
+            session()->flash('success', $message);
+
             return redirect()->route('settings-panel.trash.index');
         } catch (\Throwable $e) {
             Flash::error($e->getMessage());
+            session()->flash('error', $e->getMessage());
         }
 
         return redirect()->route('settings-panel.delete-requests.index');
@@ -159,9 +163,12 @@ class DeleteRequestsController extends Controller
                 Auth::user(),
                 $request->input('admin_remarks')
             );
-            Flash::success('Delete request #' . $deleteRequest->id . ' rejected. The record is accessible again.')->important();
+            $message = 'Delete request #' . $deleteRequest->id . ' rejected. The record is accessible again.';
+            Flash::success($message)->important();
+            session()->flash('success', $message);
         } catch (\Throwable $e) {
             Flash::error($e->getMessage());
+            session()->flash('error', $e->getMessage());
         }
 
         return redirect()->route('settings-panel.delete-requests.index');

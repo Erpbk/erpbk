@@ -34,8 +34,9 @@
     }
     var $ctx = $form.length ? $form : $(document);
     var currency = currencyCode($ctx);
-    var isRiderPayment = $ctx.find('[data-rider-payment="1"]').length > 0
-      || $ctx.find('input[name="invoice_type"]').val() === 'rider';
+    var isRiderPayment = $ctx.find('[data-salary-invoice-payment="1"]').length > 0
+      || $ctx.find('[data-rider-payment="1"]').length > 0
+      || ['rider', 'employee'].indexOf($ctx.find('input[name="invoice_type"]').val()) !== -1;
 
     $ctx.find('.select2').each(function () {
       var $el = $(this);
@@ -213,7 +214,7 @@
 
       if (visibleCount === 0 && hasPayeeFilter && typeof toastr !== 'undefined') {
         toastr.info(isRiderPayment
-          ? 'No pending invoices found for this rider and billing month'
+          ? 'No pending invoices found for this payee and billing month'
           : 'No invoices found for this customer');
       }
 
@@ -418,8 +419,9 @@
     var totalCredit = parseFloat($('#payment_amount').val()) || 0;
     var bankCharges = parseFloat($('#bank_charges').val()) || 0;
     var totalInvoicePayment = parseFloat($('#total_invoice_payment').text()) || 0;
-    var isRiderPayment = $('[data-rider-payment="1"]').length > 0
-      || $('input[name="invoice_type"]').val() === 'rider';
+    var isRiderPayment = $('[data-salary-invoice-payment="1"]').length > 0
+      || $('[data-rider-payment="1"]').length > 0
+      || ['rider', 'employee'].indexOf($('input[name="invoice_type"]').val()) !== -1;
 
     if (totalCredit <= 0) {
       alert('Please enter a valid payment amount greater than zero');

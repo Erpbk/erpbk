@@ -39,6 +39,20 @@ class FuelCardController extends Controller
         if ($request->has('assigned_to') && !empty($request->assigned_to)) {
             $query->where('assigned_to', $request->assigned_to);
         }
+        if ($request->filled('quick_search')) {
+            $search = trim((string) $request->input('quick_search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('card_number', 'like', '%' . $search . '%')
+                    ->orWhere('bike_no', 'like', '%' . $search . '%')
+                    ->orWhereHas('rider', function ($rq) use ($search) {
+                        $rq->where('rider_id', 'like', '%' . $search . '%')
+                            ->orWhere('name', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('rider.bikes', function ($bq) use ($search) {
+                        $bq->where('plate', 'like', '%' . $search . '%');
+                    });
+            });
+        }
 
         $stats['total'] = $query->count();
         $stats['active'] = (clone $query)->where('status', 'Active')->count();

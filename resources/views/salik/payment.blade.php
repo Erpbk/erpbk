@@ -1,6 +1,10 @@
 @extends('layouts.app')
 @section('title', 'Salik Payment')
 @section('content')
+@php
+    $defaultFrom = now()->startOfMonth()->format('Y-m-d');
+    $defaultTo = now()->endOfMonth()->format('Y-m-d');
+@endphp
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -37,9 +41,13 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-3 form-group">
-                    <label>Billing Month <span class="text-danger">*</span></label>
-                    <input type="month" id="billing_month_filter" class="form-control" value="{{ date('Y-m') }}">
+                <div class="col-md-2 form-group">
+                    <label>From Date <span class="text-danger">*</span></label>
+                    <input type="date" id="date_from" class="form-control" value="{{ $defaultFrom }}">
+                </div>
+                <div class="col-md-2 form-group">
+                    <label>To Date <span class="text-danger">*</span></label>
+                    <input type="date" id="date_to" class="form-control" value="{{ $defaultTo }}">
                 </div>
                 <div class="col-md-2 form-group d-flex align-items-end">
                     <button type="button" class="btn btn-primary w-100" id="loadSalikRecords">Load Records</button>
@@ -59,8 +67,8 @@
                         <input type="date" name="trans_date" class="form-control" value="{{ date('Y-m-d') }}" required>
                     </div>
                     <div class="col-md-3 form-group">
-                        <label>Billing Month</label>
-                        <input type="month" name="billing_month" id="billing_month_voucher" class="form-control" value="{{ date('Y-m') }}" readonly>
+                        <label>Billing Month <span class="text-danger">*</span></label>
+                        <input type="month" name="billing_month" id="billing_month_voucher" class="form-control" value="{{ date('Y-m') }}" required>
                     </div>
                     <div class="col-md-6 form-group">
                         <label>Remarks</label>
@@ -95,15 +103,16 @@
         </div>
 
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <strong>Unpaid Salik Records</strong>
-                <div>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllSaliks">Select All</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllSaliks">Deselect All</button>
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <strong>Unpaid Salik Records <span id="selectedCountBadge" class="badge bg-primary ms-1" style="display:none;">0 selected</span></strong>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <input type="text" id="salikRecordsSearch" class="form-control form-control-sm" style="min-width: 220px;" placeholder="Search transaction / plate / rider...">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllSaliks">Select Page</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllSaliks">Deselect Page</button>
                 </div>
             </div>
             <div class="card-body table-responsive" id="payment-records-table">
-                <p class="text-muted mb-0">Select leasing company and billing month, then click Load Records.</p>
+                <p class="text-muted mb-0">Select company and date range, then click Load Records.</p>
             </div>
             <div class="card-footer text-end">
                 <button type="submit" class="btn btn-primary" id="submitPayment" disabled>Submit Payment</button>
@@ -118,36 +127,170 @@
 $(function () {
     $('.select2').select2({ allowClear: true, placeholder: 'Select Bike company' });
 
-    $('#loadSalikRecords').on('click', function () {
-        var billingMonth = $('#billing_month_filter').val();
+    var selectedSalikIds = new Set();
+    var searchTimer = null;
+    var recordsLoaded = false;
+    var currentPerPage = 50;
+
+    function getSelectedIds() {
+        return Array.from(selectedSalikIds);
+    }
+
+    function updateSelectedBadge() {
+        var count = selectedSalikIds.size;
+        if (count > 0) {
+            $('#selectedCountBadge').text(count + ' selected').show();
+        } else {
+            $('#selectedCountBadge').hide();
+        }
+    }
+
+    function syncHiddenInputs() {
+        $('#salikPaymentForm input[name="salik_ids[]"]').remove();
+        getSelectedIds().forEach(function (id) {
+            $('#salikPaymentForm').append('<input type="hidden" name="salik_ids[]" value="' + id + '">');
+        });
+    }
+
+    function restoreSelectionToDom() {
+        $('.salik-checkbox').each(function () {
+            $(this).prop('checked', selectedSalikIds.has(String($(this).val())));
+        });
+        var allChecked = $('.salik-checkbox').length > 0 && $('.salik-checkbox:not(:checked)').length === 0;
+        $('#checkAllSaliks').prop('checked', allChecked);
+    }
+
+    function loadRecords(page) {
+        var dateFrom = $('#date_from').val();
+        var dateTo = $('#date_to').val();
         var leasingCompanyId = $('#leasing_company_id').val();
-        if (!billingMonth) {
-            alert('Please select billing month.');
+        if (!dateFrom || !dateTo) {
+            alert('Please select From and To dates.');
+            return;
+        }
+        if (dateFrom > dateTo) {
+            alert('From date cannot be after To date.');
             return;
         }
         if (!leasingCompanyId) {
             alert('Please select a leasing company.');
             return;
         }
-        $('#billing_month_voucher').val(billingMonth);
+
+        var $btn = $('#loadSalikRecords');
+        $btn.prop('disabled', true).text('Loading...');
+
         $.post('{{ route("salik.payment.records") }}', {
             _token: '{{ csrf_token() }}',
-            billing_month: billingMonth,
-            leasing_company_id: leasingCompanyId
-        }, function (res) {
+            date_from: dateFrom,
+            date_to: dateTo,
+            leasing_company_id: leasingCompanyId,
+            search: $('#salikRecordsSearch').val() || '',
+            page: page || 1,
+            per_page: currentPerPage
+        })
+        .done(function (res) {
+            recordsLoaded = true;
             $('#payment-records-table').html(res.html);
             bindSalikSelection();
+            restoreSelectionToDom();
+            updateSelectedBadge();
+            syncHiddenInputs();
+        })
+        .fail(function (xhr) {
+            var msg = xhr.responseJSON?.message || xhr.responseJSON?.errors?.date_to?.[0] || 'Failed to load records.';
+            alert(msg);
+        })
+        .always(function () {
+            $btn.prop('disabled', false).text('Load Records');
         });
+    }
+
+    $('#loadSalikRecords').on('click', function () {
+        selectedSalikIds.clear();
+        clearVoucherLines();
+        $('#submitPayment').prop('disabled', true);
+        updateSelectedBadge();
+        loadRecords(1);
+    });
+
+    $('#salikRecordsSearch').on('keyup', function (e) {
+        if (!recordsLoaded && e.keyCode !== 13) {
+            return;
+        }
+        clearTimeout(searchTimer);
+        var delay = e.keyCode === 13 ? 0 : 400;
+        searchTimer = setTimeout(function () {
+            loadRecords(1);
+        }, delay);
+    });
+
+    $(document).on('click', '#paymentRecordsPagination a', function (e) {
+        e.preventDefault();
+        var href = $(this).attr('href');
+        if (!href || href === '#') {
+            return;
+        }
+        var page = 1;
+        try {
+            var url = new URL(href, window.location.origin);
+            page = parseInt(url.searchParams.get('page') || '1', 10) || 1;
+        } catch (err) {
+            var match = href.match(/[?&]page=(\d+)/);
+            page = match ? parseInt(match[1], 10) : 1;
+        }
+        loadRecords(page);
+    });
+
+    $(document).on('change', '#paymentRecordsPagination #perPageSelect', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        currentPerPage = $(this).val() || 50;
+        loadRecords(1);
+        return false;
     });
 
     function bindSalikSelection() {
-        $('.salik-checkbox').off('change').on('change', recalculateVoucher);
-        $('#selectAllSaliks').off('click').on('click', function () {
-            $('.salik-checkbox').prop('checked', true);
+        $('.salik-checkbox').off('change').on('change', function () {
+            var id = String($(this).val());
+            if ($(this).is(':checked')) {
+                selectedSalikIds.add(id);
+            } else {
+                selectedSalikIds.delete(id);
+            }
+            updateSelectedBadge();
             recalculateVoucher();
         });
+
+        $('#checkAllSaliks').off('change').on('change', function () {
+            var checked = $(this).is(':checked');
+            $('.salik-checkbox').each(function () {
+                $(this).prop('checked', checked);
+                var id = String($(this).val());
+                if (checked) selectedSalikIds.add(id);
+                else selectedSalikIds.delete(id);
+            });
+            updateSelectedBadge();
+            recalculateVoucher();
+        });
+
+        $('#selectAllSaliks').off('click').on('click', function () {
+            $('.salik-checkbox').each(function () {
+                $(this).prop('checked', true);
+                selectedSalikIds.add(String($(this).val()));
+            });
+            $('#checkAllSaliks').prop('checked', true);
+            updateSelectedBadge();
+            recalculateVoucher();
+        });
+
         $('#deselectAllSaliks').off('click').on('click', function () {
-            $('.salik-checkbox').prop('checked', false);
+            $('.salik-checkbox').each(function () {
+                $(this).prop('checked', false);
+                selectedSalikIds.delete(String($(this).val()));
+            });
+            $('#checkAllSaliks').prop('checked', false);
+            updateSelectedBadge();
             recalculateVoucher();
         });
     }
@@ -208,14 +351,16 @@ $(function () {
     }
 
     function recalculateVoucher() {
-        var ids = $('.salik-checkbox:checked').map(function () { return $(this).val(); }).get();
-        $('#salikPaymentForm input[name="salik_ids[]"]').remove();
-        ids.forEach(function (id) {
-            $('#salikPaymentForm').append('<input type="hidden" name="salik_ids[]" value="' + id + '">');
-        });
+        var ids = getSelectedIds();
+        syncHiddenInputs();
 
         if (!ids.length) {
             clearVoucherLines();
+            $('#submitPayment').prop('disabled', true);
+            return;
+        }
+
+        if (!$('#billing_month_voucher').val()) {
             $('#submitPayment').prop('disabled', true);
             return;
         }
@@ -229,17 +374,36 @@ $(function () {
             lastVoucherData = data;
             renderVoucherLines(data);
             $('#submitPayment').prop('disabled', !data.balanced);
+        }).fail(function (xhr) {
+            clearVoucherLines();
+            $('#submitPayment').prop('disabled', true);
+            alert(xhr.responseJSON?.error || xhr.responseJSON?.message || 'Unable to calculate voucher.');
         });
     }
 
+    $('#billing_month_voucher').on('change', function () {
+        if (selectedSalikIds.size > 0) {
+            recalculateVoucher();
+        }
+    });
+
     $('#salikPaymentForm').on('submit', function (e) {
         e.preventDefault();
+        syncHiddenInputs();
+        if (!getSelectedIds().length) {
+            alert('Please select at least one salik record.');
+            return;
+        }
+        if (!$('#billing_month_voucher').val()) {
+            alert('Please select a billing month for the voucher.');
+            return;
+        }
         var form = $(this);
         $.ajax({
             url: form.attr('action'),
             type: 'POST',
             data: form.serialize(),
-            success: function (res) {
+            success: function () {
                 window.location.href = '{{ route("salik.index") }}';
             },
             error: function (xhr) {

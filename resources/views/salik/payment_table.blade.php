@@ -1,7 +1,19 @@
-<table class="table table-striped" id="paymentSalikTable">
+@php
+    $isPaginator = method_exists($records, 'total');
+@endphp
+<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <small class="text-muted" id="paymentRecordsCount">
+        @if($isPaginator)
+            Showing {{ $records->firstItem() ?? 0 }}–{{ $records->lastItem() ?? 0 }} of {{ $records->total() }} unpaid record(s)
+        @else
+            {{ $records->count() }} unpaid record(s)
+        @endif
+    </small>
+</div>
+<table class="table table-striped table-sm mb-0" id="paymentSalikTable">
     <thead>
         <tr>
-            <th><input type="checkbox" id="checkAllSaliks"></th>
+            <th style="width: 40px;"><input type="checkbox" id="checkAllSaliks" title="Select all on this page"></th>
             <th>Transaction ID</th>
             <th>Plate</th>
             <th>Company</th>
@@ -33,15 +45,20 @@
                     $companyLabel = '-';
                 }
             } else {
-                $companyLabel = $bike->leasingCompany->name;
+                $companyLabel = $bike->leasingCompany?->name ?? '-';
             }
+            $riderLabel = $record->rider
+                ? trim(($record->rider->rider_id ?? '') . ' - ' . ($record->rider->name ?? ''))
+                : 'N/A';
         @endphp
-        <tr>
+        <tr data-transaction-id="{{ $record->transaction_id }}"
+            data-plate="{{ $record->plate }}"
+            data-rider="{{ $riderLabel }}">
             <td><input type="checkbox" class="salik-checkbox" value="{{ $record->id }}"></td>
             <td>{{ $record->transaction_id }}</td>
             <td>{{ $record->plate }}</td>
             <td>{{ $companyLabel }}</td>
-            <td>{{ $record->rider ? $record->rider->rider_id . ' - ' . $record->rider->name : 'N/A' }}</td>
+            <td>{{ $riderLabel }}</td>
             <td>{{ \App\Helpers\General::DateFormat($record->trip_date) }}</td>
             <td>{{ \App\Helpers\Currency::format($record->amount, 2) }}</td>
             <td>{{ \App\Helpers\Currency::format($record->admin_charges ?? 0, 2) }}</td>
@@ -55,9 +72,8 @@
         @endforelse
     </tbody>
 </table>
-
-<script>
-$('#checkAllSaliks').on('change', function () {
-    $('.salik-checkbox').prop('checked', $(this).is(':checked')).trigger('change');
-});
-</script>
+@if($isPaginator && $records->hasPages())
+<div class="mt-3" id="paymentRecordsPagination">
+    {!! $records->links('components.global-pagination') !!}
+</div>
+@endif

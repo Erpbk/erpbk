@@ -2357,6 +2357,7 @@ class RidersController extends AppBaseController
     Riders::syncDisplayStatus($rider->fresh());
 
     $employment = Riders::employmentStatusDisplay($rider->status);
+    $currentStatus = Riders::currentStatusDisplay($rider->status, $rider->rider_status);
     $statusDays = Riders::resolveEmploymentStatusDays($rider);
 
     return response()->json([
@@ -2366,6 +2367,8 @@ class RidersController extends AppBaseController
       'option_label' => $option?->name,
       'rider_status' => $rider->rider_status,
       'column' => 'rider_status',
+      'status_label' => $currentStatus['label'],
+      'status_badge' => $currentStatus['badge'],
       'employment_label' => $employment['label'],
       'employment_badge' => $employment['badge'],
       'employment_status_days' => $statusDays['days'],

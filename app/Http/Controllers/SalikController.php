@@ -1997,26 +1997,22 @@ class SalikController extends AppBaseController
     public function getPaymentRecords(Request $request)
     {
         $request->validate([
-            'billing_month' => 'required|date_format:Y-m',
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
             'leasing_company_id' => 'required|string',
+            'search' => 'nullable|string|max:255',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable',
         ]);
 
-        $billingMonth = Carbon::parse($request->billing_month . '-01');
         $selectedFilter = $request->input('leasing_company_id');
+        $paginationParams = $this->getPaginationParams($request, 50);
 
         $query = salik::query()
             ->with(['bike.leasingCompany', 'rider'])
             ->unpaid()
-            ->where(function ($q) use ($billingMonth) {
-                $monthName = $billingMonth->format('M');
-                $yearShort = $billingMonth->format('y');
-                $q->where('billing_month', 'like', "{$monthName}-{$yearShort}%")
-                    ->orWhere('billing_month', 'like', $billingMonth->format('Y-m') . '%')
-                    ->orWhere(function ($sub) use ($billingMonth) {
-                        $sub->whereYear('billing_month', $billingMonth->year)
-                            ->whereMonth('billing_month', $billingMonth->month);
-                    });
-            });
+            ->whereDate('trip_date', '>=', $request->date_from)
+            ->whereDate('trip_date', '<=', $request->date_to);
 
         $query->whereHas('bike', function ($bikeQuery) use ($selectedFilter) {
             if ($selectedFilter === 'own') {
@@ -2028,11 +2024,27 @@ class SalikController extends AppBaseController
             }
         });
 
-        $records = $query->orderBy('trip_date')->get();
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('transaction_id', 'like', '%' . $search . '%')
+                    ->orWhere('plate', 'like', '%' . $search . '%')
+                    ->orWhereHas('rider', function ($rq) use ($search) {
+                        $rq->where('rider_id', 'like', '%' . $search . '%')
+                            ->orWhere('name', 'like', '%' . $search . '%');
+                    });
+            });
+        }
+
+        $records = $this->applyPagination($query->orderBy('trip_date'), $paginationParams);
+        if (method_exists($records, 'appends')) {
+            $records->appends($request->except('page'));
+        }
 
         return response()->json([
             'html' => view('salik.payment_table', ['records' => $records])->render(),
-            'count' => $records->count(),
+            'count' => method_exists($records, 'total') ? $records->total() : $records->count(),
+            'page' => method_exists($records, 'currentPage') ? $records->currentPage() : 1,
         ]);
     }
 

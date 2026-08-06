@@ -8,36 +8,7 @@
         <div>
             <div class="row mb-2">
                 <div class="col-sm-12 col-lg-12">
-                    <div class="action-buttons d-flex justify-content-end" >
-                    <div class="action-dropdown-container">
-                        <button class="action-dropdown-btn" id="addBikeDropdownBtn">
-                            <i class="ti ti-plus"></i>
-                            <span>Add Fuel Card</span>
-                            <i class="ti ti-chevron-down"></i>
-                        </button>
-                        <div class="action-dropdown-menu" id="addBikeDropdown">
-                            @can('fuel_cards_card_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Card" data-action="{{ route('fuelCards.create') }}">
-                                <i class="ti ti-plus"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Add Fuel Card</div>
-                                    <div class="action-dropdown-item-desc">Add a new Fuel Card</div>
-                                </div>
-                            </a>
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Import Fuel Card Data" data-action="{{ route('fuelCards.import') }}">
-                                <i class="ti ti-file-upload"></i>
-                                <span>Import Fuel card Data</span>
-                            </a>
-                            @endcan
-                            @can('fuel_cards_export_data_create')
-                            <a class="action-dropdown-item" href="{{ route('fuelCards.export') }}">
-                                <i class="ti ti-file-export"></i>
-                                <span>Export Fuel Card Data</span>
-                            </a>
-                            @endcan
-                        </div>
-                    </div>
-                </div>
+                    @include('fuel_cards.partials.actions_dropdown')
                 </div>
             </div>
         </div>
@@ -52,7 +23,7 @@
         </div>
         <div class="filter-body" id="searchTopbody">
             <form id="filterForm" action="{{ route('fuelCards.index') }}" method="GET">
-                @csrf
+                <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
                 <div class="row">
                     @if(auth()->user()->hasMultiplebranches())
                     <div class="form-group col-md-12">
@@ -98,9 +69,12 @@
     <div class="content">
         <div class="clearfix"></div>
         <div class="card">
-            <div class="card-header text-end">
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
-        </div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-search">
+                    <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Search card no, rider ID, name, plate..." value="{{ request('quick_search') }}">
+                </div>
+                <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Cards</button>
+            </div>
         <div class="totals-cards">
             <div class="total-card total-blue">
                 <div class="label"><i class="fa fa-motorcycle"></i>Total Cards</div>
@@ -142,6 +116,20 @@ $(document).ready(function () {
         dropdownParent: $('#searchTopbody'),
         placeholder: "Filter By Branch",
         allowClear: true
+    });
+
+    $('#quickSearch').on('keyup', function(e) {
+        if (e.keyCode === 13 || $(this).val().length === 0) {
+            const url = new URL(window.location);
+            const searchValue = $(this).val().trim();
+            if (searchValue) {
+                url.searchParams.set('quick_search', searchValue);
+            } else {
+                url.searchParams.delete('quick_search');
+            }
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        }
     });
 });
 </script>

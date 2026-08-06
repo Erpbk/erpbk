@@ -19,30 +19,7 @@
     <div>
         <div class="row mb-2">
             <div class="col-sm-12 col-lg-12">
-                @can('fuel_cards_transactions_create')
-                    <div class="action-buttons d-flex justify-content-end">
-                        <div class="action-dropdown-container">
-                            <button class="action-dropdown-btn" id="addBikeDropdownBtn">
-                                <i class="ti ti-plus"></i>
-                                <span>Add New</span>
-                                <i class="ti ti-chevron-down"></i>
-                            </button>
-                            <div class="action-dropdown-menu" id="addBikeDropdown">
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add Fuel Transaction" data-action="{{ route('fuel_data.create') }}">
-                                    <i class="ti ti-plus"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Transaction</div>
-                                        <div class="action-dropdown-item-desc">Add a new Fuel Transaction</div>
-                                    </div>
-                                </a>
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Invoice" data-action="{{ route('fuel_data.import') }}">
-                                    <i class="ti ti-arrow-up"></i>
-                                     <div class="action-dropdown-item-text">Import Fuel Data</div>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                @endcan
+                @include('fuel_cards.partials.actions_dropdown')
             </div>
         </div>
     </div>

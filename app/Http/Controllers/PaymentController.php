@@ -142,7 +142,7 @@ class PaymentController extends Controller
             }
             $invoiceQuery = EmployeeInvoices::with('employee.account')
                 ->where('status', '!=', 1)
-                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'));
+                ->whereHas('employee', fn($q) => $q->whereNotNull('account_id'));
             if ($employeeId) {
                 $invoiceQuery->where('employee_id', $employeeId);
             } elseif ($selectedInvoice) {
@@ -166,7 +166,7 @@ class PaymentController extends Controller
             }
             $invoiceQuery = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()
-                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'));
+                ->whereHas('rider', fn($q) => $q->whereNotNull('account_id'));
             if ($riderId) {
                 $invoiceQuery->where('rider_id', $riderId);
             } elseif ($selectedInvoice) {
@@ -196,7 +196,7 @@ class PaymentController extends Controller
             } else {
                 $invoices = SimInvoice::with('vendor.account')
                     ->where('status', '!=', 1)
-                    ->whereHas('vendor', fn ($q) => $q->whereNotNull('account_id'))
+                    ->whereHas('vendor', fn($q) => $q->whereNotNull('account_id'))
                     ->orderBy('billing_month', 'desc')
                     ->get();
             }
@@ -233,7 +233,14 @@ class PaymentController extends Controller
             }
 
             return view('payments.create', compact(
-                'leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'payeeOptions', 'lockedPayee'
+                'leasingCompany',
+                'banks',
+                'payment',
+                'invoices',
+                'accountIds',
+                'invoiceType',
+                'payeeOptions',
+                'lockedPayee'
             ));
         }
 
@@ -254,13 +261,27 @@ class PaymentController extends Controller
             }
 
             return view('payments.create', compact(
-                'leasingCompany', 'banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'payeeOptions', 'lockedPayee'
+                'leasingCompany',
+                'banks',
+                'payment',
+                'invoices',
+                'accountIds',
+                'invoiceType',
+                'payeeOptions',
+                'lockedPayee'
             ));
         }
 
         if ($employeePayment || $riderPayment || $simPayment) {
             return view('payments.create', compact(
-                'banks', 'payment', 'invoices', 'accountIds', 'invoiceType', 'existingInvoices', 'payeeOptions', 'lockedPayee'
+                'banks',
+                'payment',
+                'invoices',
+                'accountIds',
+                'invoiceType',
+                'existingInvoices',
+                'payeeOptions',
+                'lockedPayee'
             ));
         }
 
@@ -311,7 +332,8 @@ class PaymentController extends Controller
         $this->validate($request, $rules, $messages);
 
         // For rider payments, inherit invoice date from the selected invoice when not provided.
-        if ($request->input('invoice_type') === 'rider'
+        if (
+            $request->input('invoice_type') === 'rider'
             && blank($request->input('date_of_invoice'))
             && $request->filled('invoice_ids')
         ) {
@@ -342,7 +364,7 @@ class PaymentController extends Controller
 
         $input = $request->all();
         $input['created_by'] = auth()->id();
-        $input['billing_month'] = $input['billing_month'].'-01';
+        $input['billing_month'] = $input['billing_month'] . '-01';
         $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
 
@@ -518,7 +540,7 @@ class PaymentController extends Controller
                     'debit' => $bankCharges,
                     'billing_month' => $billingMonth,
                     'branch_id' => $payment->branch_id,
-                    'narration' => 'Bank charges for ( '.$payment->description.' )',
+                    'narration' => 'Bank charges for ( ' . $payment->description . ' )',
                 ]);
             }
 
@@ -533,7 +555,7 @@ class PaymentController extends Controller
                 'voucher_type' => 'PV',
                 'remarks' => 'Payment Voucher',
                 'ref_id' => $payment->id,
-                'Created_by' => auth()->id(),
+                'Created_By' => auth()->id(),
                 'status' => 1,
                 'branch_id' => $payment->branch_id,
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
@@ -542,7 +564,7 @@ class PaymentController extends Controller
             // Handle attachment
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
-                $fileName = time().'_'.$file->getClientOriginalName();
+                $fileName = time() . '_' . $file->getClientOriginalName();
                 PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
                 $voucherData['attach_file'] = $fileName;
             }
@@ -579,13 +601,13 @@ class PaymentController extends Controller
             return redirect()->back()->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Payment creation failed: '.$e->getMessage()."\n".$e->getTraceAsString());
+            \Log::error('Payment creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 
             if ($request->ajax()) {
-                return response()->json(['message' => 'An error occurred: '.$e->getMessage()], 500);
+                return response()->json(['message' => 'An error occurred: ' . $e->getMessage()], 500);
             }
 
-            Flash::error('Error occurred: '.$e->getMessage());
+            Flash::error('Error occurred: ' . $e->getMessage());
 
             return redirect()->back()->withInput();
         }
@@ -766,7 +788,14 @@ class PaymentController extends Controller
         $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
 
         return view('payments.edit', compact(
-            'payment', 'banks', 'accountIds', 'existingInvoices', 'invoices', 'invoiceType', 'payeeOptions', 'lockedPayee'
+            'payment',
+            'banks',
+            'accountIds',
+            'existingInvoices',
+            'invoices',
+            'invoiceType',
+            'payeeOptions',
+            'lockedPayee'
         ));
     }
 
@@ -783,7 +812,7 @@ class PaymentController extends Controller
             return redirect()->back();
         }
 
-        $request['billing_month'] = $request['billing_month'].'-01';
+        $request['billing_month'] = $request['billing_month'] . '-01';
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -821,7 +850,8 @@ class PaymentController extends Controller
         $this->validate($request, $rules, $messages);
 
         // For rider payments, inherit invoice date from the selected invoice when not provided.
-        if ($request->input('invoice_type') === 'rider'
+        if (
+            $request->input('invoice_type') === 'rider'
             && blank($request->input('date_of_invoice'))
             && $request->filled('invoice_ids')
         ) {
@@ -1095,7 +1125,7 @@ class PaymentController extends Controller
                         'debit' => $bankCharges,
                         'billing_month' => $billingMonth,
                         'branch_id' => $payment->branch_id,
-                        'narration' => 'Bank charges for ( '.$desc.' )',
+                        'narration' => 'Bank charges for ( ' . $desc . ' )',
                     ]);
                 }
 
@@ -1121,7 +1151,7 @@ class PaymentController extends Controller
             // Handle attachment if provided (can be updated independently)
             if ($hasNewAttachment) {
                 $file = $request->file('attachment');
-                $fileName = time().'_'.$file->getClientOriginalName();
+                $fileName = time() . '_' . $file->getClientOriginalName();
                 PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
 
                 $oldPaymentFile = $payment->attachment ? basename((string) $payment->attachment) : null;
@@ -1166,15 +1196,15 @@ class PaymentController extends Controller
             return redirect()->back()->withInput();
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Payment update failed: '.$e->getMessage()."\n".$e->getTraceAsString());
+            \Log::error('Payment update failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
 
             if ($request->ajax()) {
                 return response()->json([
-                    'message' => 'Error: '.$e->getMessage(),
+                    'message' => 'Error: ' . $e->getMessage(),
                 ], 500);
             }
 
-            Flash::error('Error Occurred: '.$e->getMessage());
+            Flash::error('Error Occurred: ' . $e->getMessage());
 
             return redirect()->back()->withInput();
         }
@@ -1193,7 +1223,8 @@ class PaymentController extends Controller
         }
 
         // Delete-approval: queue request (voucher + transactions + payment) until admin approves.
-        if (\App\Services\DeleteRequestService::enabled()
+        if (
+            \App\Services\DeleteRequestService::enabled()
             && ! \App\Services\DeleteRequestService::shouldBypassApproval()
             && $payment->voucher
         ) {

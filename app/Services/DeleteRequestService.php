@@ -498,6 +498,7 @@ class DeleteRequestService
             }
 
             // Soft-delete queued related records so they remain intact for restore.
+            // Non-soft-deletable cascades (e.g. Payment) are finalized in afterApprovedSoftDelete.
             foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
                 $type = $cascaded['type'] ?? null;
                 $id = $cascaded['id'] ?? null;
@@ -505,7 +506,7 @@ class DeleteRequestService
                     continue;
                 }
                 /** @var Model|null $related */
-                $related = $type::withTrashed()->find($id);
+                $related = static::findModel($type, $id);
                 if ($related && static::usesSoftDeletes($related) && method_exists($related, 'trashed') && ! $related->trashed()) {
                     if (Schema::hasColumn($related->getTable(), 'deleted_by') && $admin?->id) {
                         $related->deleted_by = $admin->id;
@@ -677,8 +678,8 @@ class DeleteRequestService
                     continue;
                 }
                 /** @var Model|null $related */
-                $related = $type::withTrashed()->find($id);
-                if ($related && method_exists($related, 'restore') && $related->trashed()) {
+                $related = static::findModel($type, $id);
+                if ($related && method_exists($related, 'restore') && method_exists($related, 'trashed') && $related->trashed()) {
                     $related->restore();
                 }
                 if ($related && Schema::hasColumn($related->getTable(), 'deleted_by') && $related->deleted_by) {
@@ -720,7 +721,28 @@ class DeleteRequestService
             return null;
         }
 
-        return $type::withTrashed()->find($deleteRequest->deletable_id);
+        return static::findModel($type, $deleteRequest->deletable_id);
+    }
+
+    /**
+     * Find a model by class + id, including soft-deleted rows when SoftDeletes is used.
+     * Payment and other hard-delete models do not support withTrashed().
+     *
+     * @param  class-string<Model>  $type
+     */
+    public static function findModel(string $type, mixed $id): ?Model
+    {
+        if (! class_exists($type) || $id === null || $id === '') {
+            return null;
+        }
+
+        /** @var Model $instance */
+        $instance = new $type;
+        if (static::usesSoftDeletes($instance)) {
+            return $type::withTrashed()->find($id);
+        }
+
+        return $type::query()->find($id);
     }
 
     /**

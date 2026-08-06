@@ -1342,8 +1342,13 @@ class PaymentController extends Controller
             $account = Accounts::withoutGlobalScope('branch')->find($entity->account_id);
         }
 
+        // Orphan account_id (employee/rider points at a deleted/missing account).
+        if (!$account) {
+            return null;
+        }
+
         $name = $entity->name ?: ($account->name ?? null);
-        if (!$name && $account && $account->ref_name && $account->ref_id) {
+        if (!$name && $account->ref_name && $account->ref_id) {
             $ref = \App\Helpers\Accounts::getRef([
                 'ref_name' => $account->ref_name,
                 'ref_id' => $account->ref_id,
@@ -1359,13 +1364,14 @@ class PaymentController extends Controller
         }
 
         $displayName = $codePrefix . ($name ?: '-');
+        $accountCode = (string) ($account->account_code ?? '');
 
         return [
             'account_id' => (int) $entity->account_id,
             'entity_id' => (int) $entity->id,
             'name' => $name ?: '-',
-            'account_code' => $account->account_code ?? '',
-            'label' => trim(($account->account_code ? $account->account_code . ' - ' : '') . $displayName),
+            'account_code' => $accountCode,
+            'label' => trim(($accountCode !== '' ? $accountCode . ' - ' : '') . $displayName),
         ];
     }
 

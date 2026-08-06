@@ -206,6 +206,14 @@
             justify-content: flex-end;
         }
 
+        .invoice-box .summary-table {
+            width: 100%;
+            margin-top: 12px;
+        }
+        .invoice-box .summary-table td:first-child {
+            width: 70%;
+        }
+
         .footer-note {
             margin-top: 28px;
             text-align: center;
@@ -261,10 +269,6 @@
     </div>
 
     <div class="invoice-box">
-        @php
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        @endphp
-
         <!-- HEADER: Logo + Company + Title -->
         <table style="margin-bottom: 20px; border: none; background: transparent;">
             <tr style="border: none;">
@@ -274,8 +278,8 @@
                     @endif
                 </td>
                 <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
-                    <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
+                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name'] ?? '') }}</h4>
+                    <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address'] ?? '') }}</p>
                     <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
                     <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
                 </td>
@@ -287,10 +291,9 @@
 
         <!-- Two card layout: Employee Details + Invoice Info -->
         <div class="flex-row-cards">
-            <!-- Employee Details Card -->
             <div class="employee-card">
                 <div class="card-header">
-                    <strong>👤 Employee Details</strong>
+                    <strong>Employee Details</strong>
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Employee ID:</span>
@@ -304,14 +307,13 @@
                 </div>
             </div>
 
-            <!-- Invoice Details Card -->
             <div class="details-card">
                 <div class="card-header">
-                    <strong>📄 Invoice Details</strong>
+                    <strong>Invoice Details</strong>
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Invoice No:</span>
-                    <span class="detail-value">{{ $employeeInvoice->id }}</span>
+                    <span class="detail-value">{{ $invoiceNumber ?? $employeeInvoice->invoice_number }}</span>
                     <span class="detail-label">Invoice Date:</span>
                     <span class="detail-value">{{ \Carbon\Carbon::parse($employeeInvoice->inv_date)->format('d M Y') }}</span>
                     <span class="detail-label">Billing Month:</span>
@@ -322,101 +324,24 @@
             </div>
         </div>
 
-        <!-- Description Section -->
         @if($employeeInvoice->descriptions)
         <div class="description-block">
-            <strong>📝 Description</strong><br>
+            <strong>Description</strong><br>
             <span style="color: #334155;">{{ $employeeInvoice->descriptions }}</span>
         </div>
         @endif
 
-        <!-- Notes Section -->
         @if($employeeInvoice->notes)
         <div class="notes-section">
-            <strong>📌 Notes:</strong><br>
+            <strong>Notes:</strong><br>
             {{ $employeeInvoice->notes }}
         </div>
         @endif
-        @php $items_subtotal = 0; $items_vat = 0; @endphp
 
-        <!-- Main Items Table -->
-        @if($employeeInvoice->items && $employeeInvoice->items->count() > 0)
-        <div style="overflow-x: auto;">
-            <table style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">Sr.</th>
-                        <th style="width: 35%;">Item Description</th>
-                        <th style="width: 5%;" class="num">Qty</th>
-                        <th style="width: 10%;" class="num">Rate ({{ \App\Helpers\Currency::code() }})</th>
-                        <th style="width: 10%;" class="num">Discount</th>
-                        <th style="width: 10%;" class="num">Vat (%)</th>
-                        <th style="width: 10%;" class="num">Vat (AED)</th>
-                        <th style="width: 15%;" class="num">Amount ({{ \App\Helpers\Currency::code() }})</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($employeeInvoice->items as $key => $item)
-                    @php 
-                        $subtotal = ($item->rate * $item->qty) - $item->discount;
-                        $vat = ($item->tax/100) * $subtotal;
-                        $items_subtotal += $subtotal; 
-                        $items_vat += $vat;
-                    @endphp
-                    <tr>
-                        <td class="num">{{ $key + 1 }}</td>
-                        <td>{{ optional(\App\Models\Items::find($item->item_id))->name ?? 'N/A' }}</td>
-                        <td class="num">{{ number_format($item->qty, 0) }}</td>
-                        <td class="num">{{ number_format($item->rate, 2) }}</td>
-                        <td class="num">{{ number_format($item->discount, 2) }}</td>
-                        <td class="num">{{ number_format($item->tax, 2) }}</td>
-                        <td class="num">{{ number_format($vat , 2) }}</td>
-                        <td class="num">{{ number_format($item->amount, 2) }}</td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
+        @include('employee_invoices.partials.invoice_items_and_totals')
 
-        <!-- Financial Summary Table (right aligned) -->
-        <div class="financial-summary">
-            <table>
-                <thead>
-                    <tr><th colspan="2" class="secondary-header">Financial Summary</th></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="font-weight: 600;">Subtotal:</td>
-                        <td class="num">{{ number_format($items_subtotal, 2) }}</td>
-                    </tr>
-                    @if($items_vat > 0)
-                    <tr>
-                        <td style="font-weight: 600;">VAT Amount:</td>
-                        <td class="num">{{ number_format($items_vat, 2) }}</td>
-                    </tr>
-                    @endif
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Grand Total Card -->
-        <div class="grand-total-wrapper">
-            <div class="grand-total-card">
-                <div>TOTAL AMOUNT</div>
-                <div>{{ number_format($employeeInvoice->total_amount ?? ($items_subtotal + ($employeeInvoice->vat ?? 0)), 2) }} {{ \App\Helpers\Currency::code() }}</div>
-            </div>
-        </div>
-
-        @else
-        <div style="text-align: center; padding: 40px; background: #f9f9fc; border-radius: 12px;">
-            <p>No items found for this invoice.</p>
-        </div>
-        @endif
-
-        <!-- Footer -->
-        <div style="height: 20px;"></div>
-        <div style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #5b6e8c; border-top: 1px solid #e2e8f0; padding-top: 16px; padding-bottom: 0px; background: white; width: 100%; z-index: 1000;">
-            <p style="margin: 0; background: white;">For queries reach: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
+        <div class="footer-note">
+            For queries reach: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}
         </div>
     </div>
 

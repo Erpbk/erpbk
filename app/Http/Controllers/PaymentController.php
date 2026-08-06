@@ -85,6 +85,7 @@ class PaymentController extends Controller
         $invoices = null;
         $payeeOptions = collect();
         $lockedPayee = null;
+        $preferredPayeeAccountId = null;
         $employeePayment = request()->input('employee_payment') || request()->input('invoice_type') == 'employee';
         $riderPayment = request()->input('rider_payment') || request()->input('invoice_type') == 'rider';
         $simPayment = request()->input('sim_payment') || request()->input('invoice_type') == 'sim';
@@ -138,25 +139,31 @@ class PaymentController extends Controller
             $selectedInvoice = null;
             $employeeId = request()->input('employee_id') ?? null;
             if (request()->input('invoice_id')) {
-                $selectedInvoice = EmployeeInvoices::with('employee.account')->find(request()->input('invoice_id'));
+                $selectedInvoice = EmployeeInvoices::with(['employee.account', 'items'])->find(request()->input('invoice_id'));
             }
-            $invoiceQuery = EmployeeInvoices::with('employee.account')
-                ->where('status', '!=', 1)
-                ->whereHas('employee', fn($q) => $q->whereNotNull('account_id'));
+            $invoiceQuery = EmployeeInvoices::with(['employee.account', 'items'])
+                ->payable()
+                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'));
+            // Scope invoices only when opened for a specific employee (locked payee).
             if ($employeeId) {
                 $invoiceQuery->where('employee_id', $employeeId);
-            } elseif ($selectedInvoice) {
-                $invoiceQuery->where('employee_id', $selectedInvoice->employee_id);
             }
-            $invoices = $invoiceQuery->get();
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'employee');
+            $invoices = $invoiceQuery->orderBy('billing_month', 'desc')->get();
+
+            // Full employee list for payee dropdown (same UX as rider payment when choosing a payee).
+            $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                Employee::with('account')
+                    ->whereNotNull('account_id')
+                    ->orderBy('name')
+                    ->get()
+            );
             $accountIds = $payeeOptions->pluck('account_id')->all();
+
+            // Only lock when payment is opened for a specific employee.
             if ($employeeId) {
                 $lockedPayee = $this->makePayeeOption(Employee::with('account')->find($employeeId));
             } elseif ($selectedInvoice && $selectedInvoice->employee) {
-                $lockedPayee = $this->makePayeeOption($selectedInvoice->employee);
-            } elseif ($payeeOptions->count() === 1) {
-                $lockedPayee = $payeeOptions->first();
+                $preferredPayeeAccountId = $selectedInvoice->employee->account_id;
             }
         } elseif ($riderPayment) {
             $invoiceType = 'rider';
@@ -166,21 +173,26 @@ class PaymentController extends Controller
             }
             $invoiceQuery = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()
-                ->whereHas('rider', fn($q) => $q->whereNotNull('account_id'));
+                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'));
+            // Scope invoices only when opened for a specific rider (locked payee).
             if ($riderId) {
                 $invoiceQuery->where('rider_id', $riderId);
-            } elseif ($selectedInvoice) {
-                $invoiceQuery->where('rider_id', $selectedInvoice->rider_id);
             }
             $invoices = $invoiceQuery->orderBy('billing_month', 'desc')->get();
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'rider');
+
+            // Full rider list for payee dropdown.
+            $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                Riders::with('account')
+                    ->whereNotNull('account_id')
+                    ->orderBy('name')
+                    ->get()
+            );
             $accountIds = $payeeOptions->pluck('account_id')->all();
+
             if ($riderId) {
                 $lockedPayee = $this->makePayeeOption(Riders::with('account')->find($riderId));
             } elseif ($selectedInvoice && $selectedInvoice->rider) {
-                $lockedPayee = $this->makePayeeOption($selectedInvoice->rider);
-            } elseif ($payeeOptions->count() === 1) {
-                $lockedPayee = $payeeOptions->first();
+                $preferredPayeeAccountId = $selectedInvoice->rider->account_id;
             }
         } elseif ($simPayment) {
             $invoiceType = 'sim';
@@ -281,7 +293,8 @@ class PaymentController extends Controller
                 'invoiceType',
                 'existingInvoices',
                 'payeeOptions',
-                'lockedPayee'
+                'lockedPayee',
+                'preferredPayeeAccountId'
             ));
         }
 
@@ -331,13 +344,16 @@ class PaymentController extends Controller
 
         $this->validate($request, $rules, $messages);
 
-        // For rider payments, inherit invoice date from the selected invoice when not provided.
+        // For rider/employee payments, inherit invoice date from the selected invoice when not provided.
         if (
-            $request->input('invoice_type') === 'rider'
+            in_array($request->input('invoice_type'), ['rider', 'employee'], true)
             && blank($request->input('date_of_invoice'))
             && $request->filled('invoice_ids')
         ) {
-            $firstInvoice = RiderInvoices::find(collect($request->input('invoice_ids'))->first());
+            $firstInvoiceId = collect($request->input('invoice_ids'))->first();
+            $firstInvoice = $request->input('invoice_type') === 'employee'
+                ? EmployeeInvoices::find($firstInvoiceId)
+                : RiderInvoices::find($firstInvoiceId);
             if ($firstInvoice && $firstInvoice->inv_date) {
                 $request->merge([
                     'date_of_invoice' => Carbon::parse($firstInvoice->inv_date)->format('Y-m-d'),
@@ -416,22 +432,17 @@ class PaymentController extends Controller
                         }
                     }
                 } elseif ($invoiceType == 'employee') {
-                    $invoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
+                    $invoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
 
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
-                        $partialAmount = $invoice->partial_paid_amount ?? [];
-                        $partialAmount[$payment->id] = $invoicePaymentAmount;
 
                         if ($invoicePaymentAmount > 0) {
-                            if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
-                                $invoice->status = 1; // Paid
-                            } else {
-                                $invoice->status = 3; // Partially Paid
-                            }
-                            $invoice->partial_paid_amount = $partialAmount;
-                            $invoice->updated_by = auth()->id();
-                            $invoice->save();
+                            // Payment already saved; balance is remaining due after deductions/payments.
+                            $invoice->update([
+                                'status' => ((float) $invoice->balance) <= 0.01 ? 1 : 3,
+                                'updated_by' => auth()->id(),
+                            ]);
                         }
                     }
                 } elseif ($invoiceType == 'rider') {
@@ -642,6 +653,7 @@ class PaymentController extends Controller
         $invoiceType = null;
         $payeeOptions = collect();
         $lockedPayee = null;
+        $preferredPayeeAccountId = null;
 
         if ((str_contains($payment->reference, 'LCI'))) {
             $invoice_numbers = explode(' ', $payment->reference);
@@ -710,22 +722,25 @@ class PaymentController extends Controller
                     $invoiceIds[] = $invoiceId;
                 }
             }
-            $existingInvoices = EmployeeInvoices::with('employee')
+            $existingInvoices = EmployeeInvoices::with(['employee.account', 'items'])
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = EmployeeInvoices::with('employee')
-                ->whereIn('employee_id', $existingInvoices->pluck('employee_id'))
-                ->where('status', '!=', 1)
+            $invoices = EmployeeInvoices::with(['employee.account', 'items'])
+                ->payable()
+                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'))
                 ->whereNotIn('id', $invoiceIds)
+                ->orderBy('billing_month', 'desc')
                 ->get();
             $invoiceType = 'employee';
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
-                $existingInvoices->concat($invoices),
-                'employee'
+            $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                Employee::with('account')
+                    ->whereNotNull('account_id')
+                    ->orderBy('name')
+                    ->get()
             );
             $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
-                ?: $payeeOptions->first();
+            $lockedPayee = null;
+            $preferredPayeeAccountId = $payment->payee_account_id;
         }
         if ((str_contains($payment->reference, 'SIMI'))) {
             $invoice_numbers = explode(' ', $payment->reference);
@@ -765,22 +780,25 @@ class PaymentController extends Controller
                 ->whereIn('id', $invoiceIds)
                 ->get();
             $invoices = RiderInvoices::with(['rider.account', 'items'])
-                ->whereIn('rider_id', $existingInvoices->pluck('rider_id'))
                 ->payable()
+                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'))
                 ->whereNotIn('id', $invoiceIds)
+                ->orderBy('billing_month', 'desc')
                 ->get();
             $invoiceType = 'rider';
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
-                $existingInvoices->concat($invoices),
-                'rider'
+            $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                Riders::with('account')
+                    ->whereNotNull('account_id')
+                    ->orderBy('name')
+                    ->get()
             );
             $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
-                ?: $payeeOptions->first();
+            $lockedPayee = null;
+            $preferredPayeeAccountId = $payment->payee_account_id;
         }
 
-        // For module-linked payments, always surface the entity name for the saved payee.
-        if ($invoiceType && !$lockedPayee && $payment->payee_account_id) {
+        // For module-linked payments without a selectable list, surface the saved payee as locked.
+        if ($invoiceType && ! $lockedPayee && $payment->payee_account_id && $payeeOptions->isEmpty()) {
             $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
         }
 
@@ -795,7 +813,8 @@ class PaymentController extends Controller
             'invoices',
             'invoiceType',
             'payeeOptions',
-            'lockedPayee'
+            'lockedPayee',
+            'preferredPayeeAccountId'
         ));
     }
 
@@ -849,13 +868,16 @@ class PaymentController extends Controller
 
         $this->validate($request, $rules, $messages);
 
-        // For rider payments, inherit invoice date from the selected invoice when not provided.
+        // For rider/employee payments, inherit invoice date from the selected invoice when not provided.
         if (
-            $request->input('invoice_type') === 'rider'
+            in_array($request->input('invoice_type'), ['rider', 'employee'], true)
             && blank($request->input('date_of_invoice'))
             && $request->filled('invoice_ids')
         ) {
-            $firstInvoice = RiderInvoices::find(collect($request->input('invoice_ids'))->first());
+            $firstInvoiceId = collect($request->input('invoice_ids'))->first();
+            $firstInvoice = $request->input('invoice_type') === 'employee'
+                ? EmployeeInvoices::find($firstInvoiceId)
+                : RiderInvoices::find($firstInvoiceId);
             if ($firstInvoice && $firstInvoice->inv_date) {
                 $request->merge([
                     'date_of_invoice' => Carbon::parse($firstInvoice->inv_date)->format('Y-m-d'),
@@ -925,8 +947,8 @@ class PaymentController extends Controller
                     }
 
                     // Get existing invoices and revert their status
-                    $existingInvoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
-                    $partial = 0;
+                    $existingInvoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
                     $pending = 0;
                 } elseif ($input['invoice_type'] == 'sim') {
                     foreach ($invoice_numbers as $invoice_number) {
@@ -964,7 +986,7 @@ class PaymentController extends Controller
                 }
 
                 foreach ($existingInvoices as $invoice) {
-                    if (($input['invoice_type'] ?? null) === 'rider') {
+                    if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
                         $invoice->status = $pending;
                         $invoice->updated_by = auth()->id();
                         $invoice->save();
@@ -1011,8 +1033,8 @@ class PaymentController extends Controller
                     $partial = 3;
                     $paid = 1;
                 } elseif ($input['invoice_type'] == 'employee') {
-                    $invoices = EmployeeInvoices::whereIn('id', $invoiceIds)->get();
-                    $partial = 0;
+                    $invoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
+                    $partial = 3;
                     $paid = 1;
                 } elseif ($input['invoice_type'] == 'sim') {
                     $invoices = SimInvoice::whereIn('id', $invoiceIds)->get();
@@ -1035,7 +1057,7 @@ class PaymentController extends Controller
                         continue;
                     }
 
-                    if ($input['invoice_type'] == 'rider') {
+                    if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
                         // Payment row already updated; balance reflects remaining due after this payment.
                         $invoice->status = ((float) $invoice->balance) <= 0.01 ? $paid : $partial;
                         $invoice->updated_by = auth()->id();
@@ -1329,12 +1351,21 @@ class PaymentController extends Controller
             $name = $ref->name ?? null;
         }
 
+        $codePrefix = '';
+        if (!empty($entity->employee_id)) {
+            $codePrefix = (string) $entity->employee_id . ' - ';
+        } elseif (!empty($entity->rider_id)) {
+            $codePrefix = (string) $entity->rider_id . ' - ';
+        }
+
+        $displayName = $codePrefix . ($name ?: '-');
+
         return [
             'account_id' => (int) $entity->account_id,
             'entity_id' => (int) $entity->id,
             'name' => $name ?: '-',
             'account_code' => $account->account_code ?? '',
-            'label' => trim(($account->account_code ? $account->account_code . ' - ' : '') . ($name ?: '-')),
+            'label' => trim(($account->account_code ? $account->account_code . ' - ' : '') . $displayName),
         ];
     }
 

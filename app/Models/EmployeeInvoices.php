@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Traits\LogsActivity;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EmployeeInvoices extends BaseModel
@@ -39,11 +39,18 @@ class EmployeeInvoices extends BaseModel
         'inv_date' => 'date',
         'perfect_attendance' => 'float',
         'total_amount' => 'float',
-        'subtotal' =>  'float',
+        'subtotal' => 'float',
         'vat' => 'float',
         'status' => 'integer',
         'partial_paid_amount' => 'array',
     ];
+
+    /**
+     * Cached outstanding summary for accessors (balance / paid_amount).
+     *
+     * @var array{final_amount: float, paid_amount: float, balance: float}|null
+     */
+    protected $outstandingSummaryCache = null;
 
     public static array $rules = [
         'inv_date' => 'required',
@@ -61,14 +68,42 @@ class EmployeeInvoices extends BaseModel
         'notes' => 'nullable|string|max:500',
     ];
 
-    public function employee()
+    /**
+     * Balance due after deductions/additions — same figure shown on the Employee Invoice.
+     */
+    public function getBalanceAttribute()
     {
-        return $this->belongsTo(Employee::class, 'employee_id');
+        return $this->outstandingSummary()['balance'];
     }
 
-    public function items()
+    /**
+     * Payments already applied for this invoice's billing month.
+     */
+    public function getPaidAmountAttribute()
     {
-        return $this->hasMany(EmployeeInvoiceItem::class, 'inv_id', 'id');
+        return $this->outstandingSummary()['paid_amount'];
+    }
+
+    /**
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    protected function outstandingSummary(): array
+    {
+        if ($this->outstandingSummaryCache !== null) {
+            return $this->outstandingSummaryCache;
+        }
+
+        if (! $this->relationLoaded('employee')) {
+            $this->load('employee');
+        }
+        if (! $this->relationLoaded('items')) {
+            $this->load('items');
+        }
+
+        $this->outstandingSummaryCache = app(EmployeeInvoiceViewDataBuilder::class)
+            ->outstandingAmounts($this);
+
+        return $this->outstandingSummaryCache;
     }
 
     public function getInvoiceNumberAttribute()
@@ -80,17 +115,29 @@ class EmployeeInvoices extends BaseModel
     {
         $numericPart = str_replace('EMP_INV', '', $invoiceNumber);
         $id = (int) ltrim($numericPart, '0');
+
         return self::where('id', $id)->exists() ? $id : null;
     }
 
-    public function getPaidAmountAttribute()
+    /**
+     * Invoices that can receive a payment (unpaid or partially paid).
+     * Uses explicit status values because SQL `status != 1` excludes NULL rows.
+     */
+    public function scopePayable($query)
     {
-        return array_sum($this->partial_paid_amount ?? []);
+        return $query->where(function ($q) {
+            $q->whereNull('status')
+                ->orWhereIn('status', [0, 3]);
+        });
     }
 
-    public function getBalanceAttribute()
+    public function employee()
     {
-        return $this->total_amount - $this->paid_amount;
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(EmployeeInvoiceItem::class, 'inv_id', 'id');
     }
 }
-

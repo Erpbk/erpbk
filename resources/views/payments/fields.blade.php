@@ -1,5 +1,8 @@
 @php
+    $isEmployeePayment = ($invoiceType ?? null) === 'employee';
     $isRiderPayment = ($invoiceType ?? null) === 'rider';
+    // Shared salary-invoice UX: billing-month filter, single-invoice amount sync, deduction-aware balance.
+    $isSalaryInvoicePayment = $isRiderPayment || $isEmployeePayment;
     $defaultBillingMonth = old(
         'billing_month',
         isset($payment) && $payment->billing_month
@@ -7,10 +10,10 @@
             : date('Y-m')
     );
 @endphp
-<div class="card-body px-4" @if($isRiderPayment) data-rider-payment="1" @endif>
+<div class="card-body px-4" @if($isSalaryInvoicePayment) data-salary-invoice-payment="1" data-rider-payment="1" @endif>
     <!-- Basic Payment Information -->
     <div class="row">
-        @if($isRiderPayment)
+        @if($isSalaryInvoicePayment)
         {{-- Billing month at the top filters which pending invoices are shown --}}
         <div class="form-group col-md-3">
             {!! Form::label('billing_month', 'Billing Month:') !!}
@@ -46,7 +49,7 @@
             {!! Form::date('date_of_payment', null, ['class' => 'form-control']) !!}
         </div>
 
-        @if($isRiderPayment)
+        @if($isSalaryInvoicePayment)
         {!! Form::hidden('date_of_invoice', old('date_of_invoice', isset($payment) ? $payment->date_of_invoice : null), ['id' => 'date_of_invoice']) !!}
         <div class="form-group col-md-3">
             {!! Form::label('created_by_display', 'Created By:') !!}
@@ -113,7 +116,10 @@
                     'customer' => 'Payee (Customer):',
                     default => 'Receiving Account:',
                 };
-                $selectedPayeeId = old('payee_account_id', isset($payment) ? $payment->payee_account_id : '');
+                $selectedPayeeId = old(
+                    'payee_account_id',
+                    isset($payment) ? $payment->payee_account_id : ($preferredPayeeAccountId ?? '')
+                );
                 $payeeOptions = collect($payeeOptions ?? []);
                 $lockedPayee = $lockedPayee ?? null;
 
@@ -238,7 +244,7 @@
     <input type="hidden" value="{{ $invoiceType ?? null }}" name="invoice_type">
     <div class="row mt-4">
         <div class="col-md-12">
-            <h6 class="bg-light p-2 mb-3">{{ $isRiderPayment ? 'Select Invoice for Payment' : 'Select Invoices for Payment' }}</h6>
+            <h6 class="bg-light p-2 mb-3">{{ $isSalaryInvoicePayment ? 'Select Invoice for Payment' : 'Select Invoices for Payment' }}</h6>
             <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                 <table class="table table-bordered table-hover" id="invoices-table">
                     <thead>
@@ -258,15 +264,15 @@
                             @else
                                 <th>Leasing Company</th>
                             @endif
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                                 <th>Billing Month</th>
                             @endunless
                             <th>Total Amount</th>
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                                 <th>Paid Amount</th>
                             @endunless
                             <th>Balance Due</th>
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                                 <th>Payment Amount</th>
                             @endunless
                         </tr>
@@ -297,20 +303,20 @@
                                 </td>
                                 <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                                 <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
-                                @unless($isRiderPayment)
+                                @unless($isSalaryInvoicePayment)
                                     <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 @endunless
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                                @unless($isRiderPayment)
+                                @unless($isSalaryInvoicePayment)
                                     <td class="text-right">{{ number_format($existingPaid, 2) }}</td>
                                 @endunless
                                 <td class="text-right text-danger">
                                     {{ number_format($existingBalance, 2) }}
-                                    @if($isRiderPayment)
+                                    @if($isSalaryInvoicePayment)
                                         <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="{{ $existingPaymentAmt }}" data-max="{{ $existingBalance }}">
                                     @endif
                                 </td>
-                                @unless($isRiderPayment)
+                                @unless($isSalaryInvoicePayment)
                                 <td>
                                     <input type="number" name="payment_amounts[{{ $invoice->id }}]"
                                         class="form-control payment-amount"
@@ -343,20 +349,20 @@
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                             <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                                 <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             @endunless
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                                 <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
                             @endunless
                             <td class="text-right text-danger">
                                 {{ number_format($invoice->balance, 2) }}
-                                @if($isRiderPayment)
+                                @if($isSalaryInvoicePayment)
                                     <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="0" data-max="{{ $invoice->balance }}" disabled>
                                 @endif
                             </td>
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                             <td>
                                 <input type="number" name="payment_amounts[{{ $invoice->id }}]"
                                        class="form-control payment-amount"
@@ -371,9 +377,9 @@
                     </tbody>
                     <tfoot class="bg-light">
                         <tr>
-                            <th colspan="{{ $isRiderPayment ? 4 : 6 }}" class="text-right">Total Selected Payment:</th>
+                            <th colspan="{{ $isSalaryInvoicePayment ? 4 : 6 }}" class="text-right">Total Selected Payment:</th>
                             <th class="text-right" id="total-selected-payment">0.00</th>
-                            @unless($isRiderPayment)
+                            @unless($isSalaryInvoicePayment)
                                 <th></th>
                             @endunless
                         </tr>

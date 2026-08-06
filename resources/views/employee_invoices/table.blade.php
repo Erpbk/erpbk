@@ -29,9 +29,11 @@
                 <td>
                     @if($r->status == 1)
                         <span class="badge bg-success">Paid</span>
-                    @elseif($r->status == 3 || (count($r->partial_paid_amount ?? []) > 0 && $r->balance > 0))
+                    @elseif($r->status == 3 || ($r->paid_amount ?? 0) > 0)
                         <span class="badge bg-warning">Partially Paid</span>
-                        <small>({{ \App\Helpers\Currency::format($r->balance) }} due)</small>
+                        @if(($r->balance ?? 0) > 0.01)
+                            <small>({{ \App\Helpers\Currency::format($r->balance) }} due)</small>
+                        @endif
                     @else
                         <span class="badge bg-danger">Unpaid</span>
                     @endif

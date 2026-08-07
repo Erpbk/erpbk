@@ -349,6 +349,8 @@
     </div>
 </section>
 
+@include('rta_fines.partials.nav_tabs')
+
 <!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
@@ -365,7 +367,7 @@
                         <option value="own" {{ request('company_id') == 'own' ? 'selected' : '' }}>Own Vehicles</option>
                         @foreach($leasingCompanies as $company)
                         <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
-                        @endforeach
+                       @endforeach
                     </select>
                 </div>
                 @if(auth()->user()->hasMultiplebranches())
@@ -460,33 +462,33 @@
         <div class="totals-cards">
             <div class="total-card total-accounts">
                 <div class="label"><i class="fa fa-ticket"></i>Total Tickets</div>
-                <div class="value" id="total_orders">{{ $totaltickets ?? 0 }}</div>
+                <div class="value" id="total_orders">{{ number_format($totaltickets ?? 0) }}</div>
                 <div class="label"><i class="fa fa-dollar"></i>Fine</div>
-                <div class="value" id="total_orders">{{ $totalAmount ?? 0 }}</div>
+                <div class="value" id="total_fine_amount">{{ number_format($totalAmount ?? 0, 2) }}</div>
             </div>
             <div class="total-card total-unpaid">
                 <div class="label"><i class="fa fa-times-circle"></i>Unpaid Fines</div>
-                <div class="value" id="avg_ontime">{{ $unpaidCount ?? 0 }}</div>
+                <div class="value" id="unpaid_count">{{ number_format($unpaidCount ?? 0) }}</div>
                 <div class="label"><i class="fa fa-dollar"></i>Unpaid Amount</div>
-                <div class="value" id="avg_ontime">{{ $unpaidAmount ?? 0 }}</div>
+                <div class="value" id="unpaid_amount">{{ number_format($unpaidAmount ?? 0, 2) }}</div>
             </div>
             <div class="total-card total-paid">
                 <div class="label"><i class="fas fa-stamp"></i>Paid Fines</div>
-                <div class="value" id="total_rejected">{{ $paidCount ?? 0 }}</div>
+                <div class="value" id="paid_count">{{ number_format($paidCount ?? 0) }}</div>
                 <div class="label"><i class="fa fa-dollar"></i>Paid Amount</div>
-                <div class="value" id="total_rejected">{{ $paidAmount ?? 0 }}</div>
+                <div class="value" id="paid_amount">{{ number_format($paidAmount ?? 0, 2) }}</div>
             </div>
             <div class="total-card total-tickets-amount">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Ticket Amount</div>
-                <div class="value" id="total_hours">{{ $total_Amount ?? 0 }}</div>
+                <div class="value" id="ticket_amount">{{ number_format($total_Amount ?? 0, 2) }}</div>
             </div>
             <div class="total-card total-service-charges">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Service Charges</div>
-                <div class="value" id="total_hours">{{ $serviceCharges ?? 0 }}</div>
+                <div class="value" id="service_charges">{{ number_format($serviceCharges ?? 0, 2) }}</div>
             </div>
             <div class="total-card total-admin-charges">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Admin Charges</div>
-                <div class="value" id="total_hours">{{ $adminFee ?? 0 }}</div>
+                <div class="value" id="admin_charges">{{ number_format($adminFee ?? 0, 2) }}</div>
             </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">

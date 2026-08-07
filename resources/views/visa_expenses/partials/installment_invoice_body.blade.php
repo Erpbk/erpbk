@@ -1,5 +1,5 @@
 @php
-    $settings = \Illuminate\Support\Facadescompany_table('settings')->pluck('value', 'name')->toArray();
+    $settings = company_table('settings')->pluck('value', 'name')->toArray();
     $first = $installments->first();
     $totalAmount = (float) $installments->sum('amount');
     $paidSum = (float) $installments->where('status', 'paid')->sum('amount');
@@ -96,7 +96,7 @@
                         <td class="num">{{ $key + 1 }}</td>
                         <td>{{ \Carbon\Carbon::parse($installment->date)->format('d/m/Y') }}</td>
                         <td>{{ \Carbon\Carbon::parse($installment->billing_month)->format('M-Y') }}</td>
-                        <td>{{ $installment->narration ?: ('Installment ' . ($key + 1)) }}</td>
+                        <td>{{ strip_tags(html_entity_decode((string) ($installment->narration ?: ('Installment ' . ($key + 1))), ENT_QUOTES | ENT_HTML5, 'UTF-8')) }}</td>
                         <td style="text-align: center;">{{ $installment->status === 'paid' ? 'Paid' : 'Pending' }}</td>
                         <td class="num">{{ number_format((float) $installment->amount, 2) }}</td>
                     </tr>

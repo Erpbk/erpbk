@@ -134,7 +134,8 @@ class RidersController extends AppBaseController
   }
 
   /**
-   * Active/Inactive = bike warehouse assignment; other values = riders.rider_status label.
+   * Sidebar "Filter by Status": exact current/primary rider status only
+   * (assigned rider_status when set, otherwise employment/lifecycle label).
    */
   private function applyBikeAssignmentStatusFilter($query, Request $request): void
   {
@@ -147,28 +148,13 @@ class RidersController extends AppBaseController
       return;
     }
 
-    if ($status === 'Active') {
-      $query->whereHas('bikes', function ($q) {
-        $q->where('warehouse', 'Active');
-      });
-
-      return;
-    }
-
-    if ($status === 'Inactive') {
-      $query->whereDoesntHave('bikes', function ($q) {
-        $q->where('warehouse', 'Active');
-      });
-
-      return;
-    }
-
-    if (! RiderStatusPermissionSync::canAccessStatusName($status)) {
+    $isHardcodedLifecycle = in_array($status, ['Active', 'Inactive'], true);
+    if (! $isHardcodedLifecycle && ! RiderStatusPermissionSync::canAccessStatusName($status)) {
       // Unauthorized status filters are omitted from the sidebar; ignore crafted values.
       return;
     }
 
-    $query->where('riders.rider_status', $status);
+    Riders::applyCurrentStatusFilter($query, $status);
   }
 
   /**

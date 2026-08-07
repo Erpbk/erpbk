@@ -24,6 +24,9 @@ $projects = $projects ?? collect();
       @if($isAllTab)
       <form id="allFilterForm" action="{{ route('riderActivities.index') }}" method="GET">
         <input type="hidden" name="tab" value="all">
+        @if(request()->filled('top_option_id'))
+          <input type="hidden" name="top_option_id" value="{{ request('top_option_id') }}">
+        @endif
         <div class="row">
           <div class="form-group col-md-12">
             <label for="all_from_date">From Date</label>
@@ -92,6 +95,9 @@ $projects = $projects ?? collect();
       </form>
       @else
       <form id="filterForm" action="{{ route('riderActivities.index') }}" method="GET">
+        @if(request()->filled('top_option_id'))
+          <input type="hidden" name="top_option_id" value="{{ request('top_option_id') }}">
+        @endif
         <div class="row">
           <div class="form-group col-md-12">
             <label for="rider_id">Filter by Rider ID</label>

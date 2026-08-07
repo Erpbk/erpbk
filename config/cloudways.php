@@ -24,5 +24,7 @@ return [
 
     'trusted_proxies' => env('CLOUDWAYS_TRUSTED_PROXIES', '*'),
 
-    'force_https' => env('CLOUDWAYS_FORCE_HTTPS', true),
+    // Default false so local HTTP (artisan serve / XAMPP) does not advertise HSTS.
+    // Set CLOUDWAYS_FORCE_HTTPS=true on production HTTPS hosts.
+    'force_https' => env('CLOUDWAYS_FORCE_HTTPS', false),
 ];

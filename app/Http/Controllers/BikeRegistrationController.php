@@ -187,11 +187,14 @@ class BikeRegistrationController extends AppBaseController
                             ->whereNull('br.deleted_at')
                             ->where('br.payment_status', 'unpaid')
                             ->where(function ($link) {
-                                $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id')
-                                    ->orWhere(function ($l2) {
-                                        $l2->where('br.bike_registration_account_id', GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))
+                                $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id');
+                                $headId = GlobalAccounts::idOrNull('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+                                if ($headId !== null) {
+                                    $link->orWhere(function ($l2) use ($headId) {
+                                        $l2->where('br.bike_registration_account_id', $headId)
                                             ->whereColumn('br.rider_id', 'bike_registration_accounts.rider_id');
                                     });
+                                }
                             });
                         $this->applyBikeRegistrationCompanyScopeForAlias($sub);
                     });
@@ -271,16 +274,18 @@ class BikeRegistrationController extends AppBaseController
             }
         }
 
-        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = GlobalAccounts::idOrNull('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
 
         $unpaidRows = BikeRegistration::query()
             ->where('payment_status', 'unpaid')
             ->where(function ($q) use ($ids, $riderToEaId, $headId) {
-                $q->whereIn('bike_registration_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                $q->whereIn('bike_registration_account_id', $ids);
+                if ($headId !== null && $riderToEaId !== []) {
+                    $q->orWhere(function ($q2) use ($riderToEaId, $headId) {
                         $q2->where('bike_registration_account_id', $headId)
                             ->whereIn('rider_id', array_keys($riderToEaId));
                     });
+                }
             })
             ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
             ->orderBy('date', 'asc')
@@ -294,7 +299,7 @@ class BikeRegistrationController extends AppBaseController
             $rowEa = (int) $row->bike_registration_account_id;
             if (in_array($rowEa, $ids, true)) {
                 $eaId = $rowEa;
-            } elseif ($rowEa === $headId && $row->rider_id !== null) {
+            } elseif ($headId !== null && $rowEa === (int) $headId && $row->rider_id !== null) {
                 $rid = (int) $row->rider_id;
                 if (isset($riderToEaId[$rid])) {
                     $eaId = $riderToEaId[$rid];
@@ -331,18 +336,20 @@ class BikeRegistrationController extends AppBaseController
             }
         }
 
-        $headId = (int) GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = GlobalAccounts::idOrNull('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
         $threshold = now()->addDays($withinDays)->startOfDay();
 
         $rows = BikeRegistration::query()
             ->whereNotNull('expiry_date')
             ->whereDate('expiry_date', '<=', $threshold)
             ->where(function ($q) use ($ids, $riderToEaId, $headId) {
-                $q->whereIn('bike_registration_account_id', $ids)
-                    ->orWhere(function ($q2) use ($riderToEaId, $headId) {
+                $q->whereIn('bike_registration_account_id', $ids);
+                if ($headId !== null && $riderToEaId !== []) {
+                    $q->orWhere(function ($q2) use ($riderToEaId, $headId) {
                         $q2->where('bike_registration_account_id', $headId)
                             ->whereIn('rider_id', array_keys($riderToEaId));
                     });
+                }
             })
             ->orderBy('expiry_date', 'asc')
             ->orderBy('id', 'asc')
@@ -354,7 +361,7 @@ class BikeRegistrationController extends AppBaseController
             $rowEa = (int) $row->bike_registration_account_id;
             if (in_array($rowEa, $ids, true)) {
                 $eaId = $rowEa;
-            } elseif ($rowEa === $headId && $row->rider_id !== null) {
+            } elseif ($headId !== null && $rowEa === (int) $headId && $row->rider_id !== null) {
                 $rid = (int) $row->rider_id;
                 if (isset($riderToEaId[$rid])) {
                     $eaId = $riderToEaId[$rid];
@@ -371,17 +378,19 @@ class BikeRegistrationController extends AppBaseController
 
     private function applyBikeRegistrationAccountMatches($expenseAccountQuery, callable $constraintsOnSubquery): void
     {
-        $headId = GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
+        $headId = GlobalAccounts::idOrNull('BIKE_REGISTRATION_EXPENSE_ACCOUNT');
         $expenseAccountQuery->whereExists(function ($sub) use ($constraintsOnSubquery, $headId) {
             $sub->select(DB::raw(1))
                 ->from('bike_registrations as br')
                 ->whereNull('br.deleted_at')
                 ->where(function ($link) use ($headId) {
-                    $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id')
-                        ->orWhere(function ($l2) use ($headId) {
+                    $link->whereColumn('br.bike_registration_account_id', 'bike_registration_accounts.id');
+                    if ($headId !== null) {
+                        $link->orWhere(function ($l2) use ($headId) {
                             $l2->where('br.bike_registration_account_id', $headId)
                                 ->whereColumn('br.rider_id', 'bike_registration_accounts.rider_id');
                         });
+                    }
                 });
             $constraintsOnSubquery($sub);
             $this->applyBikeRegistrationCompanyScopeForAlias($sub);

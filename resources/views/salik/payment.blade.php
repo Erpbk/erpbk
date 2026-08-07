@@ -59,7 +59,10 @@
     <form id="salikPaymentForm" action="{{ route('salik.payment.store') }}" method="POST">
         @csrf
         <div class="card mb-3">
-            <div class="card-header"><strong>Voucher Details</strong></div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Voucher Details</strong>
+                <button type="submit" class="btn btn-primary" id="submitPayment" disabled>Submit Payment</button>
+            </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3 form-group">
@@ -107,15 +110,14 @@
                 <strong>Unpaid Salik Records <span id="selectedCountBadge" class="badge bg-primary ms-1" style="display:none;">0 selected</span></strong>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <input type="text" id="salikRecordsSearch" class="form-control form-control-sm" style="min-width: 220px;" placeholder="Search transaction / plate / rider...">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllSaliks">Select Page</button>
-                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllSaliks">Deselect Page</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="selectPageSaliks">Select Page</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectPageSaliks">Deselect Page</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllSaliks">Select All</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="deselectAllSaliks">Deselect All</button>
                 </div>
             </div>
             <div class="card-body table-responsive" id="payment-records-table">
                 <p class="text-muted mb-0">Select company and date range, then click Load Records.</p>
-            </div>
-            <div class="card-footer text-end">
-                <button type="submit" class="btn btn-primary" id="submitPayment" disabled>Submit Payment</button>
             </div>
         </div>
     </form>
@@ -250,6 +252,16 @@ $(function () {
         return false;
     });
 
+    function currentFilterPayload() {
+        return {
+            _token: '{{ csrf_token() }}',
+            date_from: $('#date_from').val(),
+            date_to: $('#date_to').val(),
+            leasing_company_id: $('#leasing_company_id').val(),
+            search: $('#salikRecordsSearch').val() || ''
+        };
+    }
+
     function bindSalikSelection() {
         $('.salik-checkbox').off('change').on('change', function () {
             var id = String($(this).val());
@@ -274,7 +286,7 @@ $(function () {
             recalculateVoucher();
         });
 
-        $('#selectAllSaliks').off('click').on('click', function () {
+        $('#selectPageSaliks').off('click').on('click', function () {
             $('.salik-checkbox').each(function () {
                 $(this).prop('checked', true);
                 selectedSalikIds.add(String($(this).val()));
@@ -284,11 +296,41 @@ $(function () {
             recalculateVoucher();
         });
 
-        $('#deselectAllSaliks').off('click').on('click', function () {
+        $('#deselectPageSaliks').off('click').on('click', function () {
             $('.salik-checkbox').each(function () {
                 $(this).prop('checked', false);
                 selectedSalikIds.delete(String($(this).val()));
             });
+            $('#checkAllSaliks').prop('checked', false);
+            updateSelectedBadge();
+            recalculateVoucher();
+        });
+
+        $('#selectAllSaliks').off('click').on('click', function () {
+            if (!recordsLoaded) {
+                alert('Please load records first.');
+                return;
+            }
+            var $btn = $(this);
+            $btn.prop('disabled', true).text('Selecting...');
+            $.post('{{ route("salik.payment.recordIds") }}', currentFilterPayload())
+                .done(function (res) {
+                    selectedSalikIds = new Set((res.ids || []).map(String));
+                    restoreSelectionToDom();
+                    updateSelectedBadge();
+                    recalculateVoucher();
+                })
+                .fail(function (xhr) {
+                    alert(xhr.responseJSON?.message || 'Failed to select all records.');
+                })
+                .always(function () {
+                    $btn.prop('disabled', false).text('Select All');
+                });
+        });
+
+        $('#deselectAllSaliks').off('click').on('click', function () {
+            selectedSalikIds.clear();
+            $('.salik-checkbox').prop('checked', false);
             $('#checkAllSaliks').prop('checked', false);
             updateSelectedBadge();
             recalculateVoucher();
@@ -305,12 +347,18 @@ $(function () {
         return parseFloat(value || 0).toFixed(2);
     }
 
+    function syncNarrationsFromTop() {
+        var base = ($('#payable_narration').val() || '').trim();
+        $('#vat_narration').val(base ? ('( Vat ) ' + base.replace(/^\(\s*Vat\s*\)\s*/i, '')) : '');
+        $('.credit-narration').val(base);
+    }
+
     function renderVoucherLines(data) {
         var rowsHtml = '';
 
         rowsHtml += '<tr>' +
             '<td>' + escapeHtml(data.payable_account_name) + '</td>' +
-            '<td>' + escapeHtml(data.payable_narration || '') + '</td>' +
+            '<td><input type="text" class="form-control form-control-sm" name="payable_narration" id="payable_narration" value="' + escapeHtml(data.payable_narration || '') + '"></td>' +
             '<td class="text-end">' + formatAmount(data.payable_debit) + '</td>' +
             '<td class="text-end">—</td>' +
             '</tr>';
@@ -318,7 +366,7 @@ $(function () {
         if (parseFloat(data.vat_debit) > 0) {
             rowsHtml += '<tr>' +
                 '<td>' + escapeHtml(data.vat_account_name) + '</td>' +
-                '<td>' + escapeHtml(data.vat_narration || data.payable_narration || '') + '</td>' +
+                '<td><input type="text" class="form-control form-control-sm" name="vat_narration" id="vat_narration" value="' + escapeHtml(data.vat_narration || '') + '" readonly></td>' +
                 '<td class="text-end">' + formatAmount(data.vat_debit) + '</td>' +
                 '<td class="text-end">—</td>' +
                 '</tr>';
@@ -327,7 +375,7 @@ $(function () {
         (data.credit_lines || []).forEach(function (line) {
             rowsHtml += '<tr>' +
                 '<td>' + escapeHtml(line.account_name) + '</td>' +
-                '<td>' + escapeHtml(line.narration || '') + '</td>' +
+                '<td><input type="text" class="form-control form-control-sm credit-narration" name="credit_narrations[]" value="' + escapeHtml(line.narration || '') + '" readonly></td>' +
                 '<td class="text-end">—</td>' +
                 '<td class="text-end">' + formatAmount(line.amount) + '</td>' +
                 '</tr>';
@@ -338,6 +386,10 @@ $(function () {
         $('#total_credit_amount').text(formatAmount(data.total_credit));
         $('#voucher_totals_foot').show();
     }
+
+    $(document).on('input', '#payable_narration', function () {
+        syncNarrationsFromTop();
+    });
 
     function clearVoucherLines() {
         lastVoucherData = null;

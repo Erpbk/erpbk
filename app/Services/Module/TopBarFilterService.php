@@ -5,6 +5,7 @@ namespace App\Services\Module;
 use App\Services\Permissions\RiderStatusPermissionSync;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
+use App\Services\RiderActivities\RiderActivityInsightCardsService;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleFieldSource;
 use App\Support\TopBarNumericStatus;
@@ -54,6 +55,12 @@ class TopBarFilterService
         }
 
         $strategy = (string) ($config['filter_strategy'] ?? 'column');
+        if ($strategy === 'activity_insight' && $this->isActivityInsightOption($option)) {
+            $this->applyActivityInsightFilter($query, $option, $request);
+
+            return;
+        }
+
         if ($strategy === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
             $this->applyColumnFilter($query, $config, $option, $request);
         } elseif ($strategy === 'option_fk') {
@@ -225,8 +232,34 @@ class TopBarFilterService
 
         $query = $modelClass::query();
         $this->applyScopedStatus($query, $config);
-        $req = $request ?? new Request();
-        $req->merge([(string) ($config['request']['option_id'] ?? 'top_option_id') => $option->getKey()]);
+
+        // Never merge into the live request: on GET, Request::merge() writes the query
+        // bag, so the last counted option would stick as "selected" in the slider and
+        // leak into pagination links even when the browser URL has no filter.
+        $optionIdParam = (string) ($config['request']['option_id'] ?? 'top_option_id');
+        if ($request !== null) {
+            $queryParams = $request->query->all();
+            $queryParams[$optionIdParam] = $option->getKey();
+            $req = $request->duplicate($queryParams);
+        } else {
+            $req = new Request([$optionIdParam => $option->getKey()]);
+        }
+
+        if (($config['filter_strategy'] ?? '') === 'activity_insight' && $this->isActivityInsightOption($option)) {
+            $key = RiderActivityInsightCardsService::keyFromOptionName((string) $option->name);
+            if ($key === null) {
+                return 0;
+            }
+
+            // Use the live request so card calculations cache once across all option counts.
+            foreach (app(RiderActivityInsightCardsService::class)->cards($request ?? request()) as $card) {
+                if (($card['key'] ?? '') === $key) {
+                    return (int) ($card['count'] ?? 0);
+                }
+            }
+
+            return 0;
+        }
 
         if (($config['filter_strategy'] ?? '') === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
             $this->applyColumnFilter($query, $config, $option, $req);
@@ -322,6 +355,14 @@ class TopBarFilterService
                 continue;
             }
             $options[$column] = ucwords(str_replace('_', ' ', $column));
+        }
+
+        foreach ($config['extra_selectable_columns'] ?? [] as $column => $label) {
+            $column = (string) $column;
+            if ($column === '' || isset($excluded[$column])) {
+                continue;
+            }
+            $options[$column] = (string) $label;
         }
 
         return $options;
@@ -590,6 +631,7 @@ class TopBarFilterService
             'vendors' => \App\Models\vendors::class,
             'sims' => \App\Models\Sims::class,
             'rta_fines' => \App\Models\RtaFines::class,
+            'rider_activities' => \App\Models\RiderActivities::class,
         ];
 
         if (isset($map[$table])) {
@@ -608,5 +650,31 @@ class TopBarFilterService
         }
 
         return null;
+    }
+
+    protected function isActivityInsightOption(Model $option): bool
+    {
+        if (RiderActivityInsightCardsService::keyFromOptionName((string) $option->name) !== null) {
+            return true;
+        }
+
+        $category = $option->category ?? null;
+        if ($category === null) {
+            return false;
+        }
+
+        return trim((string) ($category->db_column ?? '')) === 'activity_insight';
+    }
+
+    protected function applyActivityInsightFilter(Builder $query, Model $option, Request $request): void
+    {
+        $key = RiderActivityInsightCardsService::keyFromOptionName((string) $option->name);
+        if ($key === null) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        app(RiderActivityInsightCardsService::class)->applyInsightKeyFilter($query, $key, $request, 'rider_id');
     }
 }

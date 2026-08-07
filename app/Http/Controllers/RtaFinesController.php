@@ -142,21 +142,17 @@ class RtaFinesController extends AppBaseController
         $this->applyModuleTopBarFilters($query, $request, $topBarModuleKey);
         $leasingCompanies = LeasingCompanies::orderBy('name')->get();
 
-        // Paginated data
-        // Apply pagination using the trait
-        $data = $this->applyPagination($query, $paginationParams);
-        // All matching (filtered) data to calculate totals
-        $filteredData = $query->get();
+        // Overall totals across all matching (filtered) rows — before pagination mutates the query
+        $paidAmount = (clone $query)->where('status', 'paid')->sum('amount');
+        $unpaidAmount = (clone $query)->where('status', 'unpaid')->sum('amount');
+        $totaltickets = (clone $query)->count();
+        $paidCount = (clone $query)->where('status', 'paid')->count();
+        $unpaidCount = (clone $query)->where('status', 'unpaid')->count();
+        $totalAmount = (clone $query)->sum('amount');
+        $serviceCharges = (clone $query)->sum('service_charges');
+        $adminFee = (clone $query)->sum('admin_fee');
 
-        // Calculate totals
-        $paidAmount   = $filteredData->where('status', 'paid')->sum('amount');
-        $unpaidAmount = $filteredData->where('status', 'unpaid')->sum('amount');
-        $totaltickets = $filteredData->count();
-        $paidCount    = $filteredData->where('status', 'paid')->count();
-        $unpaidCount  = $filteredData->where('status', 'unpaid')->count();
-        $totalAmount = $filteredData->sum('amount');
-        $serviceCharges = $filteredData->sum('service_charges');
-        $adminFee = $filteredData->sum('admin_fee');
+        $data = $this->applyPagination($query, $paginationParams);
         $account = Accounts::find($selectedAccountId);
         $rtaAccounts = Accounts::query()
             ->where('parent_id', $parentId)->where('name', 'RTA Fines')->where('account_type', 'Liability')
@@ -174,15 +170,15 @@ class RtaFinesController extends AppBaseController
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
                 'totals' => [
-                    'paidAmount'   => number_format($paidAmount, 2),
+                    'paidAmount' => number_format($paidAmount, 2),
                     'unpaidAmount' => number_format($unpaidAmount, 2),
-                    'totalAmount' => $totalAmount,
-                    'totaltickets'    => $totaltickets,
-                    'paidCount'    => $paidCount,
-                    'unpaidCount'  => $unpaidCount,
-                    'serviceCharges' => $serviceCharges,
-                    'adminFee' => $adminFee,
-                    'total_Amount' => $total_Amount,
+                    'totalAmount' => number_format($totalAmount, 2),
+                    'totaltickets' => number_format($totaltickets),
+                    'paidCount' => number_format($paidCount),
+                    'unpaidCount' => number_format($unpaidCount),
+                    'serviceCharges' => number_format($serviceCharges, 2),
+                    'adminFee' => number_format($adminFee, 2),
+                    'total_Amount' => number_format($total_Amount, 2),
                 ]
             ]);
         }

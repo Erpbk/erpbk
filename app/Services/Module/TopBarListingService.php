@@ -71,6 +71,17 @@ class TopBarListingService
                 ->orderBy('id')
                 ->get();
 
+            if ($categories->isEmpty() && ($config['preset_categories'] ?? []) !== []) {
+                app(ModuleTopBarSettingsService::class)->seedPresetCategories($moduleKey);
+                $categories = ErpModuleTopCategory::query()
+                    ->with(['options' => fn($q) => $this->applyListingOptionsConstraint($q, ErpModuleTopOption::class)])
+                    ->where('module_key', $moduleKey)
+                    ->where('show_in_top_bar', true)
+                    ->orderBy('display_order')
+                    ->orderBy('id')
+                    ->get();
+            }
+
             return $this->filterCategoriesForUser($moduleKey, $categories);
         }
 

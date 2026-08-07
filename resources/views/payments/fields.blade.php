@@ -313,7 +313,7 @@
                                 <td class="text-right text-danger">
                                     {{ number_format($existingBalance, 2) }}
                                     @if($isSalaryInvoicePayment)
-                                        <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="{{ $existingPaymentAmt }}" data-max="{{ $existingBalance }}">
+                                        <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="{{ $existingPaymentAmt }}" data-max="{{ $invoice->total ?? $invoice->total_amount }}">
                                     @endif
                                 </td>
                                 @unless($isSalaryInvoicePayment)
@@ -359,7 +359,7 @@
                             <td class="text-right text-danger">
                                 {{ number_format($invoice->balance, 2) }}
                                 @if($isSalaryInvoicePayment)
-                                    <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="0" data-max="{{ $invoice->balance }}" disabled>
+                                    <input type="hidden" name="payment_amounts[{{ $invoice->id }}]" class="payment-amount" value="0" data-max="{{ $invoice->total ?? $invoice->total_amount }}" disabled>
                                 @endif
                             </td>
                             @unless($isSalaryInvoicePayment)
@@ -368,7 +368,7 @@
                                        class="form-control payment-amount"
                                        step="any"
                                        placeholder="Amount"
-                                       data-max="{{ $invoice->balance }}"
+                                       data-max="{{ $invoice->total ?? $invoice->total_amount }}"
                                        disabled>
                             </td>
                             @endunless

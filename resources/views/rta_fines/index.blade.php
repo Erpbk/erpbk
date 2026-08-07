@@ -367,7 +367,7 @@
                         <option value="own" {{ request('company_id') == 'own' ? 'selected' : '' }}>Own Vehicles</option>
                         @foreach($leasingCompanies as $company)
                         <option value="{{ $company->id }}" {{ request('company_id') == $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
-                        @endforeach
+                       @endforeach
                     </select>
                 </div>
                 @if(auth()->user()->hasMultiplebranches())

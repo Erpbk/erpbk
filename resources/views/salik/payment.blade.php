@@ -59,7 +59,10 @@
     <form id="salikPaymentForm" action="{{ route('salik.payment.store') }}" method="POST">
         @csrf
         <div class="card mb-3">
-            <div class="card-header"><strong>Voucher Details</strong></div>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Voucher Details</strong>
+                <button type="submit" class="btn btn-primary" id="submitPayment" disabled>Submit Payment</button>
+            </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3 form-group">
@@ -115,9 +118,6 @@
             </div>
             <div class="card-body table-responsive" id="payment-records-table">
                 <p class="text-muted mb-0">Select company and date range, then click Load Records.</p>
-            </div>
-            <div class="card-footer text-end">
-                <button type="submit" class="btn btn-primary" id="submitPayment" disabled>Submit Payment</button>
             </div>
         </div>
     </form>

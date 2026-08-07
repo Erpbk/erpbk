@@ -550,7 +550,7 @@ class ExpenseController extends AppBaseController
         $creditEntry = null;
 
         foreach ($transactions as $trans) {
-            if ($trans->debit > 0 && $trans->account_id != GlobalAccounts::id('TAX_ACCOUNT')) {
+            if ($trans->debit > 0 && $trans->account_id != GlobalAccounts::id('VAT_PURCHASE_ACCOUNT')) {
                 $vatTrans = $transactions->where('narration', 'VAT: ' . $trans->narration)->first();
                 $debitEntries[] = [
                     'account_id' => $trans->account_id,
@@ -651,7 +651,7 @@ class ExpenseController extends AppBaseController
                     Transactions::create([
                         'trans_code' => $voucher->trans_code,
                         'trans_date' => $request->input('trans_date'),
-                        'account_id' => GlobalAccounts::id('TAX_ACCOUNT'),
+                        'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                         'debit' => $vatAmount,
                         'credit' => 0,
                         'narration' => 'VAT: ' . $debitNarration,

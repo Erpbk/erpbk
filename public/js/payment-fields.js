@@ -261,14 +261,17 @@
         }
 
         if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
-          var maxAllowed = parseFloat($paymentInput.data('max')) || parseFloat($row.data('balance')) || 0;
-          if (!isRiderPayment && maxAllowed > difference && difference > 0) {
+          var balanceDue = parseFloat($row.data('balance')) || 0;
+          var maxAllowed = parseFloat($paymentInput.data('max')) || balanceDue || 0;
+          var fillAmount = Math.min(balanceDue, maxAllowed);
+
+          if (!isRiderPayment && fillAmount > difference && difference > 0) {
             $paymentInput.val(difference.toFixed(2));
             if (typeof toastr !== 'undefined') {
               toastr.warning('Total Selected Payment cannot exceed Payment Amount.');
             }
-          } else if (maxAllowed > 0) {
-            $paymentInput.val(maxAllowed.toFixed(2));
+          } else if (fillAmount > 0) {
+            $paymentInput.val(fillAmount.toFixed(2));
           }
           $paymentInput.trigger('change');
         }
@@ -329,7 +332,7 @@
         $(this).val(maxAmount);
         enteredAmount = maxAmount;
         if (typeof toastr !== 'undefined') {
-          toastr.warning('Payment amount cannot exceed invoice balance');
+          toastr.warning('Payment amount cannot exceed invoice amount');
         }
       }
 
@@ -372,7 +375,7 @@
             capped = maxAllowed;
             $(this).val(capped.toFixed(2));
             if (typeof toastr !== 'undefined') {
-              toastr.warning('Payment amount cannot exceed invoice balance');
+              toastr.warning('Payment amount cannot exceed invoice amount');
             }
           }
           $activeAmounts.first().val(capped.toFixed(2));

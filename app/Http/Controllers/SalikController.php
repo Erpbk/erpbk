@@ -457,11 +457,22 @@ class SalikController extends AppBaseController
             return;
         }
 
+        // Capture accounts before purge — after delete, trans_code lookup finds nothing
+        $affectedAccountIds = Transactions::whereIn('trans_code', $transCodes)
+            ->whereIn('reference_type', ['salik', 'Salik'])
+            ->pluck('account_id')
+            ->unique()
+            ->filter()
+            ->values();
+
         Transactions::whereIn('trans_code', $transCodes)
             ->whereIn('reference_type', ['salik', 'Salik'])
             ->delete();
         // Do not delete SV payment vouchers here
-        $this->updateAccountBalances($transCodes->first(), $billingMonthNorm);
+
+        foreach ($affectedAccountIds as $affectedAccountId) {
+            $this->updateLedgerEntry((int) $affectedAccountId, $billingMonthNorm);
+        }
     }
 
     private function resolveSalikDebitAccountId(salik $salik): int
@@ -1062,47 +1073,60 @@ class SalikController extends AppBaseController
             \Log::info("Starting deletion of Salik entry - ID: {$id}, Transaction ID: {$salikIdentifier}");
 
             $salik->delete();
+            $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
 
-            $this->syncMonthlyInvoiceTransactions($riderId, $billingMonth, $rentalCompanyId);
+            // Invoice ledger only when the trip was actually soft-deleted.
+            // Pending delete-approval leaves the row active until admin approves;
+            // sync then runs in DeleteRequestService::finalizeApprovedSalikDeletion.
+            if (! $pendingQueued) {
+                $this->syncMonthlyInvoiceTransactions($riderId, $billingMonth, $rentalCompanyId);
 
-            try {
-                \App\Models\DeletionCascade::create([
-                    'primary_model' => salik::class,
-                    'primary_id' => $salik->id,
-                    'primary_name' => $salikIdentifier,
-                    'related_model' => salik::class,
-                    'related_id' => $salik->id,
-                    'related_name' => $salikIdentifier,
-                    'relationship_type' => 'self',
-                    'relationship_name' => 'salik',
-                    'deletion_type' => 'soft',
-                    'deleted_by' => auth()->id(),
-                    'deletion_reason' => 'Salik entry deleted',
-                    'metadata' => [
-                        'ip_address' => request()->ip(),
-                        'user_agent' => request()->userAgent(),
-                        'timestamp' => now()->toIso8601String(),
-                        'status' => $salik->status,
-                        'amount' => $salik->amount,
-                        'total_amount' => $salik->total_amount,
-                    ],
-                ]);
-            } catch (\Exception $e) {
-                \Log::error("Failed to track Salik deletion: " . $e->getMessage());
+                try {
+                    \App\Models\DeletionCascade::create([
+                        'primary_model' => salik::class,
+                        'primary_id' => $salik->id,
+                        'primary_name' => $salikIdentifier,
+                        'related_model' => salik::class,
+                        'related_id' => $salik->id,
+                        'related_name' => $salikIdentifier,
+                        'relationship_type' => 'self',
+                        'relationship_name' => 'salik',
+                        'deletion_type' => 'soft',
+                        'deleted_by' => auth()->id(),
+                        'deletion_reason' => 'Salik entry deleted',
+                        'metadata' => [
+                            'ip_address' => request()->ip(),
+                            'user_agent' => request()->userAgent(),
+                            'timestamp' => now()->toIso8601String(),
+                            'status' => $salik->status,
+                            'amount' => $salik->amount,
+                            'total_amount' => $salik->total_amount,
+                        ],
+                    ]);
+                } catch (\Exception $e) {
+                    \Log::error("Failed to track Salik deletion: " . $e->getMessage());
+                }
+
+                \Log::info("Successfully deleted Salik entry ID: {$id} and synced monthly invoice");
             }
-
-            \Log::info("Successfully deleted Salik entry ID: {$id} and synced monthly invoice");
 
             DB::commit();
 
             if (request()->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Salik entry deleted and monthly invoice updated successfully.'
+                    'message' => $pendingQueued
+                        ? 'Delete request submitted for approval.'
+                        : 'Salik entry deleted and monthly invoice updated successfully.',
                 ]);
             }
 
-            return redirect()->route('salik.index')->with('success', 'Salik entry deleted and monthly invoice updated successfully.');
+            return redirect()->route('salik.index')->with(
+                'success',
+                $pendingQueued
+                    ? 'Delete request submitted for approval.'
+                    : 'Salik entry deleted and monthly invoice updated successfully.'
+            );
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -1392,6 +1416,7 @@ class SalikController extends AppBaseController
             'col_amount' => 'required|integer|min:1',
             'col_transaction_post_date' => 'nullable|integer|min:1',
             'col_billing_month' => 'nullable|integer|min:1',
+            'col_admin_charges' => 'nullable|integer|min:1',
         ]);
 
         $columnMap = [
@@ -1405,6 +1430,7 @@ class SalikController extends AppBaseController
             'amount' => (int) $request->col_amount,
             'transaction_post_date' => $request->filled('col_transaction_post_date') ? (int) $request->col_transaction_post_date : null,
             'billing_month' => $request->filled('col_billing_month') ? (int) $request->col_billing_month : null,
+            'admin_charges' => $request->filled('col_admin_charges') ? (int) $request->col_admin_charges : null,
         ];
 
         $uniqueCheck = $columnMap;

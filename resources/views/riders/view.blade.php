@@ -347,10 +347,8 @@ $companySlug = request()->route('company_slug');
         }
         return $category;
         })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
-        $riderStatusLabel = trim((string)($result['rider_status'] ?? ''));
         $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
-        $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
-        $displayStatusLabel = $employmentBadge['label'];
+        $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
         $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
         $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
         ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
@@ -363,9 +361,9 @@ $companySlug = request()->route('company_slug');
               <div class="d-flex align-items-baseline">
                 <div class="user-info" style="width: 100%;">
                   <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px; align-items: flex-start;">
-                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $riderStatusLabel !== '' ? $riderStatusLabel : ($result['designation'] ?? 'not-set') }}@endisset</span>
+                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $result['designation'] ?? 'not-set' }}@endisset</span>
                     <div class="d-inline-flex flex-column align-items-start gap-1">
-                      <span class="badge {{ $employmentBadge['badge'] ?? 'bg-label-danger' }}" id="rider-status-value-badge">@isset($result){{ $displayStatusLabel ?? 'Inactive' }}@endisset</span>
+                      <span class="badge {{ $currentStatusBadge['badge'] ?? 'bg-label-danger' }}" id="rider-status-value-badge" title="Rider Status">@isset($result){{ $currentStatusBadge['label'] ?? 'Inactive' }}@endisset</span>
                       @isset($result)
                       <small class="text-muted lh-1" id="rider-status-days" title="{{ $statusDaysTitle }}" @if($statusDaysInfo['days']===null) style="display:none" @endif>
                         @if($statusDaysInfo['days'] !== null)
@@ -1056,19 +1054,13 @@ $companySlug = request()->route('company_slug');
       const designationBadge = document.getElementById('rider-designation-badge');
       const statusValueBadge = document.getElementById('rider-status-value-badge');
       const statusDaysEl = document.getElementById('rider-status-days');
-      if (designationBadge) {
-        if (data.column === 'rider_status') {
-          designationBadge.textContent = data.rider_status || (data.value || 'not-set');
-        } else if (data.value) {
-          designationBadge.textContent = data.value;
-        } else if (!data.rider_status) {
-          designationBadge.textContent = 'not-set';
-        }
+      if (designationBadge && data.column === 'designation' && data.value) {
+        designationBadge.textContent = data.value;
       }
       if (statusValueBadge) {
-        const label = data.employment_label || 'Inactive';
+        const label = data.status_label || data.rider_status || data.employment_label || 'Inactive';
         statusValueBadge.textContent = label;
-        statusValueBadge.className = 'badge ' + (data.employment_badge || 'bg-label-danger');
+        statusValueBadge.className = 'badge ' + (data.status_badge || data.employment_badge || 'bg-label-danger');
       }
       if (statusDaysEl) {
         const days = data.employment_status_days;

@@ -11,6 +11,7 @@ use App\Models\Items;
 use App\Models\Payment;
 use App\Models\Transactions;
 use App\Repositories\EmployeeInvoicesRepository;
+use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Traits\GlobalPagination;
 use Carbon\Carbon;
 use Flash;
@@ -37,7 +38,9 @@ class EmployeeInvoicesController extends AppBaseController
     public function index(Request $request)
     {
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = EmployeeInvoices::query()->orderBy('billing_month', 'desc');
+        $query = EmployeeInvoices::query()
+            ->with(['employee', 'items'])
+            ->orderBy('billing_month', 'desc');
 
         if ($request->filled('id')) {
             $query->where('id', 'like', '%'.$request->id.'%');
@@ -124,7 +127,25 @@ class EmployeeInvoicesController extends AppBaseController
             return redirect(route('employeeInvoices.index'));
         }
 
-        return view('employee_invoices.show')->with('employeeInvoice', $employeeInvoice);
+        $employeeInvoice->load([
+            'items',
+            'employee' => function ($query) {
+                $query->withTrashed()->with(['department', 'account']);
+            },
+        ]);
+
+        if (! $employeeInvoice->employee) {
+            session()->flash('error', 'Employee record not found for this invoice');
+
+            return redirect(route('employeeInvoices.index'));
+        }
+
+        $viewData = array_merge(
+            app(EmployeeInvoiceViewDataBuilder::class)->build($employeeInvoice),
+            ['employeeInvoice' => $employeeInvoice]
+        );
+
+        return response(view('employee_invoices.show', $viewData)->render());
     }
 
     public function edit($comapny_slug, $id)

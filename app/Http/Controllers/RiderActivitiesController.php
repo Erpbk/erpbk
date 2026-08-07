@@ -1111,20 +1111,28 @@ class RiderActivitiesController extends AppBaseController
         $configuredCustomerIds = $importMappingService->getConfiguredCustomerIds(RiderActivityImportMappingService::TYPE_LIVE);
 
         if ($request->isMethod('post')) {
-            $request->validate([
-                'file' => 'required|file|mimes:csv,xlsx,xls|max:51200',
-                'customer_id' => 'required|integer|exists:customers,id',
-            ], [
-                'file.required' => 'Please select a file to upload.',
-                'file.mimes' => 'The file must be a CSV or Excel document.',
-                'customer_id.required' => 'Please select a project for this import.',
-            ]);
+            try {
+                $request->validate([
+                    'file' => 'required|file|mimes:csv,xlsx,xls|max:51200',
+                    'customer_id' => 'required|integer|exists:customers,id',
+                ], [
+                    'file.required' => 'Please select a file to upload.',
+                    'file.mimes' => 'The file must be a CSV or Excel document.',
+                    'customer_id.required' => 'Please select a project for this import.',
+                ]);
+            } catch (\Illuminate\Validation\ValidationException $ve) {
+                $messages = collect($ve->errors())->flatten()->filter()->values()->all();
+                session()->flash('error', 'Import failed: ' . (!empty($messages) ? implode(' | ', $messages) : 'Validation failed.'));
+
+                return redirect()->route('rider.liveactivities');
+            }
 
             $customerId = (int) $request->input('customer_id');
 
             if (!$importMappingService->isImportReady($customerId, RiderActivityImportMappingService::TYPE_LIVE)) {
                 session()->flash('error', 'Import is not configured for the selected project. Configure column mappings in Live Activity Import Settings first.');
-                return redirect()->route('rider.live_activities_import');
+
+                return redirect()->route('rider.liveactivities');
             }
 
             session()->forget('activities_import_summary');
@@ -1139,6 +1147,7 @@ class RiderActivitiesController extends AppBaseController
                     ? implode(' | ', $errors['file'])
                     : ($errors['file'][0] ?? 'Import validation failed');
                 session()->flash('error', 'Import failed: ' . $errorMessage);
+
                 return redirect()->route('rider.liveactivities');
             } catch (\Throwable $th) {
                 $summary = session('activities_import_summary', []);
@@ -1154,6 +1163,7 @@ class RiderActivitiesController extends AppBaseController
                 } else {
                     session()->flash('error', 'Import failed: ' . $th->getMessage());
                 }
+
                 return redirect()->route('rider.liveactivities');
             }
 
@@ -1174,7 +1184,7 @@ class RiderActivitiesController extends AppBaseController
             } else {
                 $message = "Live activities imported successfully. {$successCount} record(s) saved.";
                 if (!empty($missingRecords)) {
-                    $message .= " " . count($missingRecords) . " record(s) skipped due to missing riders. Check Missing Records list for details.";
+                    $message .= ' ' . count($missingRecords) . ' record(s) skipped due to missing riders. Check Missing Records list for details.';
                 }
                 session()->flash('success', $message);
             }

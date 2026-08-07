@@ -68,6 +68,9 @@ $activeTab = $activeTab ?? (in_array(request('tab'), ['status', 'sim'], true) ? 
               if ($employmentStatus === null && $row->event_type === 'status_change') {
               $employmentStatus = $meta['new_employment_status'] ?? null;
               }
+              if ($optionText === null && $row->event_type === 'status_change') {
+              $optionText = $meta['new_rider_status'] ?? null;
+              }
               $historyStatus = $row->history_status ?? ($meta['display_status'] ?? null);
               $rowNum = ($statusHistories->currentPage() - 1) * $statusHistories->perPage() + $loop->iteration;
               @endphp

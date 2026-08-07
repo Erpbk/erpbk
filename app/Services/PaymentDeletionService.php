@@ -11,6 +11,7 @@ use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\DeleteRequest;
+use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -176,14 +177,29 @@ class PaymentDeletionService
                     $invoiceIds[] = $id;
                 }
             }
-            $invoices = EmployeeInvoices::with('employee')
+            $invoices = EmployeeInvoices::with(['employee.account', 'items'])
                 ->whereIn('id', $invoiceIds)
                 ->get();
+            $builder = app(EmployeeInvoiceViewDataBuilder::class);
             foreach ($invoices as $invoice) {
-                $partialAmount = $invoice->partial_paid_amount ?? [];
-                unset($partialAmount[$payment->id]);
-                $invoice->partial_paid_amount = $partialAmount;
-                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
+                $accountId = $invoice->employee?->account_id;
+                $monthStart = date('Y-m-01', strtotime($invoice->billing_month));
+                $paidExcluding = 0.0;
+                if ($accountId) {
+                    $paidExcluding = round((float) Payment::where('payee_account_id', $accountId)
+                        ->whereDate('billing_month', $monthStart)
+                        ->where('id', '!=', $payment->id)
+                        ->sum('amount'), 2);
+                }
+                $finalAmount = (float) $builder->outstandingAmounts($invoice)['final_amount'];
+                $remaining = round($finalAmount - $paidExcluding, 2);
+                if ($remaining <= 0.01) {
+                    $invoice->status = 1;
+                } elseif ($paidExcluding > 0.01) {
+                    $invoice->status = 3;
+                } else {
+                    $invoice->status = 0;
+                }
                 $invoice->save();
             }
         }

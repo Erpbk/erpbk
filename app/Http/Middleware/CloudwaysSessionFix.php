@@ -104,7 +104,14 @@ class CloudwaysSessionFix
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-XSS-Protection', '1; mode=block');
 
-        if (config('cloudways.force_https')) {
+        // HSTS must only be sent on real HTTPS production traffic.
+        // Emitting it on local http://127.0.0.1 causes browsers to force HTTPS
+        // and end up in ERR_TOO_MANY_REDIRECTS with artisan serve / XAMPP.
+        if (
+            config('cloudways.force_https')
+            && app()->environment('production')
+            && request()->isSecure()
+        ) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 

@@ -232,6 +232,49 @@ class Riders extends BaseModel
   }
 
   /**
+   * Restrict a riders query to rows whose current/primary status exactly matches $statusLabel.
+   * When rider_status is set it must match; otherwise employment/lifecycle status label is used.
+   * Riders with a different assigned rider_status (e.g. Absconder) are never included under Active.
+   *
+   * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+   */
+  public static function applyCurrentStatusFilter($query, string $statusLabel, string $table = 'riders'): void
+  {
+    $wanted = trim($statusLabel);
+    if ($wanted === '') {
+      return;
+    }
+
+    $wantedLower = strtolower($wanted);
+    $employmentCodes = [];
+    foreach ([0, 1, 2, 3, 4, 5] as $code) {
+      if (strtolower(self::employmentStatusDisplay($code)['label']) === $wantedLower) {
+        $employmentCodes[] = $code;
+      }
+    }
+
+    $statusCol = $table . '.status';
+    $optionCol = $table . '.rider_status';
+
+    $query->where(function ($q) use ($wantedLower, $employmentCodes, $statusCol, $optionCol) {
+      $q->where(function ($primary) use ($wantedLower, $optionCol) {
+        $primary->whereNotNull($optionCol)
+          ->whereRaw("TRIM({$optionCol}) != ''")
+          ->whereRaw('LOWER(TRIM(' . $optionCol . ')) = ?', [$wantedLower]);
+      });
+
+      if ($employmentCodes !== []) {
+        $q->orWhere(function ($fallback) use ($employmentCodes, $statusCol, $optionCol) {
+          $fallback->where(function ($empty) use ($optionCol) {
+            $empty->whereNull($optionCol)
+              ->orWhereRaw("TRIM(COALESCE({$optionCol}, '')) = ''");
+          })->whereIn($statusCol, $employmentCodes);
+        });
+      }
+    });
+  }
+
+  /**
    * Status label for history / display_status (single current status only).
    */
   public static function historyStatusLabel($riderOrEmploymentStatus, ?string $riderStatus = null): string

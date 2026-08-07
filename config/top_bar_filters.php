@@ -303,6 +303,45 @@ return [
             ],
         ],
 
+        'activities' => [
+            'storage' => 'generic',
+            'source_table' => 'rider_activities',
+            'filter_strategy' => 'activity_insight',
+            'extra_selectable_columns' => [
+                'activity_insight' => 'Activity Insight',
+            ],
+            'listing_stats' => [
+                'total' => ['label' => 'Riders', 'icon' => 'ti-user'],
+            ],
+            'option_labels' => [
+                'not_worked' => 'Not Worked (2+ Days)',
+                'low_hours' => 'Less Than 10 Hours',
+                'high_rejections' => 'High Rejections',
+                'low_orders' => 'Low Orders',
+                'perfect' => 'Perfect Riders',
+            ],
+            'request' => [
+                'option_id' => 'top_option_id',
+                'filter_mode' => 'top_filter_mode',
+                'date_from' => 'top_date_from',
+                'date_to' => 'top_date_to',
+            ],
+            'preset_categories' => [
+                [
+                    'name' => 'Activity Insights',
+                    'db_column' => 'activity_insight',
+                    'filter_type' => 'exact_match',
+                    'options' => [
+                        ['name' => 'not_worked'],
+                        ['name' => 'low_hours'],
+                        ['name' => 'high_rejections'],
+                        ['name' => 'low_orders'],
+                        ['name' => 'perfect'],
+                    ],
+                ],
+            ],
+        ],
+
     ],
 
 ];

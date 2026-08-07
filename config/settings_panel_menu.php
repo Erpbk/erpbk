@@ -134,21 +134,12 @@ return [
             'visibility' => 'fuel_cards',
             'permission' => ['fuel_cards_card_view', 'fuel_cards_transactions_view', 'fuel_cards_companies_view'],
             'icon' => 'ti-gas-station',
-            'children' => [
-                ['key' => 'fuel_card_list', 'permission' => 'fuel_cards_card_view', 'settings' => 'fuel_cards'],
-                ['key' => 'fuel_data', 'permission' => 'fuel_cards_transactions_view', 'settings' => 'fuel_cards'],
-                ['key' => 'fuel_companies', 'permission' => 'fuel_cards_companies_view', 'settings' => 'fuel_cards'],
-            ],
         ],
         [
             'key' => 'rta_fines',
             'visibility' => 'rta_fines',
             'permission' => ['rta_fines_unpaid_view', 'rta_fines_paid_view'],
             'icon' => 'ti-file-alert',
-            'children' => [
-                ['key' => 'rta_fines_unpaid', 'permission' => 'rta_fines_unpaid_view', 'settings' => 'rta_fines_unpaid', 'label' => 'Unpaid Fines'],
-                ['key' => 'rta_fines_paid', 'permission' => 'rta_fines_paid_view', 'settings' => 'rta_fines_paid', 'label' => 'Paid Fines'],
-            ],
         ],
         [
             'key' => 'rta_saliks',

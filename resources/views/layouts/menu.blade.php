@@ -466,11 +466,12 @@ $homeLink = $isAdminLogin
 
 @if(\App\Support\CompanyModuleVisibility::enabled('rta_fines'))
 @canany(['rta_fines_unpaid_view', 'rta_fines_paid_view'])
-<li class="menu-item {{ Route::is('rtaFines*') ? 'open' : '' }}">
-  <a href="javascript:void(0);" class="menu-link menu-toggle">
+<li class="menu-item {{ Route::is('rtaFines*') ? 'active' : '' }}">
+  <a href="{{ user_can('rta_fines_unpaid_view') ? route('rtaFines.tickets') : route('rtaFines.paid') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'rta_fines'])
     <div>{{ $menuLabels['rta_fines'] ?? 'RTA Fine' }}</div>
   </a>
+  {{-- Child links moved to shared in-page nav tabs (Unpaid Fines / Paid Fines)
   <ul class="menu-sub">
     @can('rta_fines_unpaid_view')
     <li class="menu-item {{ Route::is('rtaFines.tickets') ? 'active' : '' }}">
@@ -487,6 +488,7 @@ $homeLink = $isAdminLogin
     </li>
     @endcan
   </ul>
+  --}}
 </li>
 @endcanany
 @endif

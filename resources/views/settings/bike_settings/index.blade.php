@@ -104,7 +104,7 @@ $attendanceRefType = $attendanceRefType ?? null;
       <div class="card-body">
         <ul class="nav nav-tabs mb-3" id="bikeSettingsMainTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
+            <button class="nav-link {{ ($showBikeFieldsMainTab || $showAssignFieldsTab || !empty($activateModuleTopBarTab)) ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
               General
             </button>
           </li>
@@ -204,7 +204,7 @@ $attendanceRefType = $attendanceRefType ?? null;
 
         <div class="tab-content">
           {{-- Tab: General --}}
-          <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
+          <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab || !empty($activateModuleTopBarTab)) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
             @include('settings.partials._module_general_label_form', [
             'settingsRoutePrefix' => $settingsRoutePrefix,
             'settingsRouteParams' => $settingsRouteParams,
@@ -2474,7 +2474,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     document.addEventListener('DOMContentLoaded', function() {
       initVisaStatusSortable();
       var targetHash = window.location.hash;
-      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-visa-renewal-categories' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top') {
+      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-visa-renewal-categories' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top' || targetHash === '#tab-module-top-bar') {
         var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
         if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
           bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();

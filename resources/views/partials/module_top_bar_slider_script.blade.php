@@ -10,15 +10,23 @@
     moduleKey: @json($topBarModuleKey),
     optionIdParam: @json($optionIdParam),
     statusParam: @json($statusParam),
-    statusAsArray: @json(!in_array($statusParam, ['bike_top_wh'], true)),
+    statusAsArray: @json($statusParam !== '' && !in_array($statusParam, ['bike_top_wh'], true)),
     trackId: @json($trackId),
     defaultStatuses: @json(array_values($defaultStatuses)),
   };
 
+  function isStatusParamKey(key) {
+    return key === cfg.statusParam || key.indexOf(cfg.statusParam + '[') === 0;
+  }
+
   function clearStatusParams(url) {
     if (!cfg.statusParam) return;
-    url.searchParams.delete(cfg.statusParam);
-    url.searchParams.delete(cfg.statusParam + '[]');
+    // Laravel may emit status, status[], or status[0]
+    Array.from(url.searchParams.keys()).forEach(function(key) {
+      if (isStatusParamKey(key)) {
+        url.searchParams.delete(key);
+      }
+    });
   }
 
   function expandStatusKey(statusKey) {
@@ -47,15 +55,23 @@
 
   function getStatusValues(url) {
     if (!cfg.statusParam) return [];
-    if (cfg.statusAsArray) {
-      return url.searchParams.getAll(cfg.statusParam + '[]');
-    }
-    var single = url.searchParams.get(cfg.statusParam);
-    return single ? [single] : [];
+    var values = [];
+    url.searchParams.forEach(function(value, key) {
+      if (!isStatusParamKey(key) || !value) return;
+      if (values.indexOf(value) === -1) values.push(value);
+    });
+    return values;
   }
 
   function filterByTopOption(optionId) {
     var url = new URL(window.location.href);
+    // Clicking the already-selected card clears the filter
+    if (url.searchParams.get(cfg.optionIdParam) === String(optionId)) {
+      url.searchParams.delete(cfg.optionIdParam);
+      clearStatusParams(url);
+      window.location.href = url.toString();
+      return;
+    }
     url.searchParams.delete(cfg.optionIdParam);
     clearStatusParams(url);
     url.searchParams.set(cfg.optionIdParam, String(optionId));
@@ -69,13 +85,20 @@
     var currentStatuses = getStatusValues(url);
     var targetStatuses = expandStatusKey(statusKey);
     var isSelected = targetStatuses.every(function(s) { return currentStatuses.includes(s); });
+    // Option selected but status params unreadable (e.g. odd array encoding) — treat as selected
+    var optionOnlySelected = currentOptionId === String(optionId) && currentStatuses.length === 0;
 
-    if (currentOptionId === String(optionId) && isSelected) {
-      var newStatuses = currentStatuses.filter(function(s) { return targetStatuses.indexOf(s) === -1; });
-      clearStatusParams(url);
-      setStatusParams(url, newStatuses);
-      if (newStatuses.length === 0) {
+    if (currentOptionId === String(optionId) && (isSelected || optionOnlySelected)) {
+      if (optionOnlySelected) {
         url.searchParams.delete(cfg.optionIdParam);
+        clearStatusParams(url);
+      } else {
+        var newStatuses = currentStatuses.filter(function(s) { return targetStatuses.indexOf(s) === -1; });
+        clearStatusParams(url);
+        setStatusParams(url, newStatuses);
+        if (newStatuses.length === 0) {
+          url.searchParams.delete(cfg.optionIdParam);
+        }
       }
     } else {
       url.searchParams.set(cfg.optionIdParam, String(optionId));

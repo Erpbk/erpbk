@@ -31,9 +31,9 @@ return [
 
     ['key' => 'sims', 'children' => ['sims', 'sim_companies']],
 
-    ['key' => 'fuel_cards', 'children' => ['fuel_card_list', 'fuel_data', 'fuel_companies']],
+    ['key' => 'fuel_cards'],
 
-    ['key' => 'rta_fines', 'children' => ['rta_fines_unpaid', 'rta_fines_paid']],
+    ['key' => 'rta_fines'],
     ['key' => 'rta_saliks'],
 
     ['key' => 'visa_expense'],

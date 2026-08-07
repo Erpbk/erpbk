@@ -526,18 +526,51 @@ class SalikController extends AppBaseController
         $this->requireHeadAccountsExist($accountIds, GlobalAccounts::salikPaymentAccountLabels());
     }
 
-    private function salikPaymentNarration(?string $billingMonth, string $partyLabel): string
+    private function parseSalikTripDate(?string $tripDate): ?Carbon
     {
-        $monthValue = $billingMonth;
-        if ($monthValue && strlen($monthValue) === 7) {
-            $monthValue .= '-01';
+        if ($tripDate === null || trim($tripDate) === '') {
+            return null;
         }
 
-        $monthLabel = $monthValue
-            ? Carbon::parse($monthValue)->format('M Y')
-            : Carbon::now()->format('M Y');
+        try {
+            return Carbon::createFromFormat('d M Y', trim($tripDate))->startOfDay();
+        } catch (\Exception $e) {
+            try {
+                return Carbon::parse($tripDate)->startOfDay();
+            } catch (\Exception $e2) {
+                return null;
+            }
+        }
+    }
 
-        return 'Salik Charges for (' . $monthLabel . ') ' . $partyLabel;
+    private function resolveSalikTripDateRangeLabel($saliks): string
+    {
+        $dates = collect($saliks)
+            ->map(fn ($salik) => $this->parseSalikTripDate($salik->trip_date ?? null))
+            ->filter();
+
+        if ($dates->isEmpty()) {
+            return Carbon::now()->format('d M Y');
+        }
+
+        $min = $dates->min();
+        $max = $dates->max();
+
+        if ($min->equalTo($max)) {
+            return $min->format('d M Y');
+        }
+
+        return $min->format('d M Y') . ' - ' . $max->format('d M Y');
+    }
+
+    private function salikPaymentNarration(string $dateRangeLabel, string $partyLabel): string
+    {
+        return 'Salik Charges for (' . $dateRangeLabel . ') ' . $partyLabel;
+    }
+
+    private function salikVatNarration(string $baseNarration): string
+    {
+        return '( Vat ) ' . ltrim(preg_replace('/^\(\s*Vat\s*\)\s*/i', '', $baseNarration) ?? $baseNarration);
     }
 
     private function resolveSalikPaymentPartyLabel(?string $leasingCompanyFilter, $saliks): string
@@ -2005,19 +2038,62 @@ class SalikController extends AppBaseController
             'per_page' => 'nullable',
         ]);
 
-        $selectedFilter = $request->input('leasing_company_id');
         $paginationParams = $this->getPaginationParams($request, 50);
+        $query = $this->buildPaymentRecordsQuery($request);
+
+        $records = $this->applyPagination(
+            $query->orderByRaw("COALESCE(STR_TO_DATE(trip_date, '%d %b %Y'), STR_TO_DATE(trip_date, '%Y-%m-%d'), DATE(trip_date))"),
+            $paginationParams
+        );
+        if (method_exists($records, 'appends')) {
+            $records->appends($request->except('page'));
+        }
+
+        return response()->json([
+            'html' => view('salik.payment_table', ['records' => $records])->render(),
+            'count' => method_exists($records, 'total') ? $records->total() : $records->count(),
+            'page' => method_exists($records, 'currentPage') ? $records->currentPage() : 1,
+        ]);
+    }
+
+    public function getPaymentRecordIds(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+            'leasing_company_id' => 'required|string',
+            'search' => 'nullable|string|max:255',
+        ]);
+
+        $ids = $this->buildPaymentRecordsQuery($request)->pluck('id')->map(fn ($id) => (string) $id)->values();
+
+        return response()->json([
+            'ids' => $ids,
+            'count' => $ids->count(),
+        ]);
+    }
+
+    private function buildPaymentRecordsQuery(Request $request)
+    {
+        $selectedFilter = $request->input('leasing_company_id');
+        $dateFrom = Carbon::parse($request->date_from)->toDateString();
+        $dateTo = Carbon::parse($request->date_to)->toDateString();
 
         $query = salik::query()
             ->with(['bike.leasingCompany', 'rider'])
             ->unpaid()
-            ->whereDate('trip_date', '>=', $request->date_from)
-            ->whereDate('trip_date', '<=', $request->date_to);
+            // trip_date is stored as "d M Y" (e.g. 09 Apr 2026), not a native DATE
+            ->whereRaw(
+                "COALESCE(STR_TO_DATE(trip_date, '%d %b %Y'), STR_TO_DATE(trip_date, '%Y-%m-%d'), DATE(trip_date)) BETWEEN ? AND ?",
+                [$dateFrom, $dateTo]
+            );
 
         $query->whereHas('bike', function ($bikeQuery) use ($selectedFilter) {
             if ($selectedFilter === 'own') {
                 $bikeQuery->where(function ($q) {
-                    $q->whereNull('company')->orWhere('company', 0);
+                    $q->where('bike_owner', 'Owned')
+                        ->orWhereNull('company')
+                        ->orWhere('company', 0);
                 });
             } else {
                 $bikeQuery->where('company', $selectedFilter);
@@ -2036,16 +2112,7 @@ class SalikController extends AppBaseController
             });
         }
 
-        $records = $this->applyPagination($query->orderBy('trip_date'), $paginationParams);
-        if (method_exists($records, 'appends')) {
-            $records->appends($request->except('page'));
-        }
-
-        return response()->json([
-            'html' => view('salik.payment_table', ['records' => $records])->render(),
-            'count' => method_exists($records, 'total') ? $records->total() : $records->count(),
-            'page' => method_exists($records, 'currentPage') ? $records->currentPage() : 1,
-        ]);
+        return $query;
     }
 
     public function calculatePaymentVoucher(Request $request)
@@ -2063,13 +2130,13 @@ class SalikController extends AppBaseController
             return response()->json(['error' => 'No unpaid salik records found.'], 422);
         }
 
-        $billingMonth = $request->billing_month ?? $saliks->first()->billing_month;
+        $dateRangeLabel = $this->resolveSalikTripDateRangeLabel($saliks);
         $debitPartyLabel = $this->resolveSalikPaymentPartyLabel(
             $request->input('leasing_company_id'),
             $saliks
         );
-        $payableNarration = $this->salikPaymentNarration($billingMonth, $debitPartyLabel);
-        $vatNarration = $payableNarration;
+        $payableNarration = $this->salikPaymentNarration($dateRangeLabel, $debitPartyLabel);
+        $vatNarration = $this->salikVatNarration($payableNarration);
 
         $payableDebit = $saliks->sum(fn ($s) => (float) $s->amount + (float) ($s->admin_charges ?? 0));
         $vatDebit = $saliks->sum(fn ($s) => (float) ($s->salik_vat_amount ?? 0) + (float) ($s->admin_vat_amount ?? 0));
@@ -2094,7 +2161,7 @@ class SalikController extends AppBaseController
                         'account_id' => $leasingCompany->account_id,
                         'account_name' => $leasingCompany->name,
                         'amount' => 0,
-                        'narration' => $this->salikPaymentNarration($billingMonth, $leasingCompany->name),
+                        'narration' => $this->salikPaymentNarration($dateRangeLabel, $leasingCompany->name),
                     ];
                 }
                 $creditLines[$key]['amount'] += $lineTotal;
@@ -2111,7 +2178,7 @@ class SalikController extends AppBaseController
                 'account_id' => GlobalAccounts::id('SALIK_ASSET_ACCOUNT'),
                 'account_name' => $assetAccount?->name ?? 'Salik Asset',
                 'amount' => $ownSalikAmount,
-                'narration' => $this->salikPaymentNarration($billingMonth, 'own vehicles'),
+                'narration' => $this->salikPaymentNarration($dateRangeLabel, 'own vehicles'),
             ];
         }
         if ($ownAdminAmount > 0) {
@@ -2120,7 +2187,7 @@ class SalikController extends AppBaseController
                 'account_id' => GlobalAccounts::id('SALIK_ADMIN_CHARGES'),
                 'account_name' => $adminAccount?->name ?? 'Salik Admin Charges',
                 'amount' => $ownAdminAmount,
-                'narration' => $this->salikPaymentNarration($billingMonth, 'own vehicles'),
+                'narration' => $this->salikPaymentNarration($dateRangeLabel, 'own vehicles'),
             ];
         }
 
@@ -2182,6 +2249,27 @@ class SalikController extends AppBaseController
             }
             if (!($calc['balanced'] ?? false)) {
                 throw new \Exception('Voucher amounts are not balanced. Please recalculate.');
+            }
+
+            if ($request->filled('payable_narration')) {
+                $calc['payable_narration'] = trim((string) $request->payable_narration);
+            }
+            if ($request->filled('vat_narration')) {
+                $calc['vat_narration'] = trim((string) $request->vat_narration);
+            } elseif ($request->filled('payable_narration')) {
+                $calc['vat_narration'] = $this->salikVatNarration($calc['payable_narration']);
+            }
+
+            $creditNarrations = $request->input('credit_narrations', []);
+            if (is_array($creditNarrations)) {
+                foreach ($calc['credit_lines'] as $index => &$creditLine) {
+                    if (array_key_exists($index, $creditNarrations) && $creditNarrations[$index] !== null && $creditNarrations[$index] !== '') {
+                        $creditLine['narration'] = trim((string) $creditNarrations[$index]);
+                    } elseif ($request->filled('payable_narration')) {
+                        $creditLine['narration'] = $calc['payable_narration'];
+                    }
+                }
+                unset($creditLine);
             }
 
             $transCode = Account::trans_code();

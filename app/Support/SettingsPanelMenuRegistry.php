@@ -78,9 +78,14 @@ class SettingsPanelMenuRegistry
             }
 
             if ($routeName === 'settings-panel.module-settings.index') {
-                $params['module'] = $settingsModuleKey === 'dashboard'
-                    ? 'dashboard'
-                    : $settingsModuleKey;
+                if ($settingsModuleKey === 'dashboard') {
+                    $params['module'] = 'dashboard';
+                } elseif (in_array($settingsModuleKey, ['rta_fines_unpaid', 'rta_fines_paid'], true)) {
+                    $params['module'] = 'rta_fines';
+                    $params['top'] = $settingsModuleKey === 'rta_fines_paid' ? 'paid' : 'unpaid';
+                } else {
+                    $params['module'] = $settingsModuleKey;
+                }
             }
 
             if ($routeName === 'settings-panel.rider-activity-import-settings.index') {
@@ -122,8 +127,8 @@ class SettingsPanelMenuRegistry
             'bike_list' => ['settings-panel/module-settings/bike_list*'],
             'dashboard' => ['settings-panel/module-settings/dashboard*'],
             'rta_fines' => ['settings-panel/module-settings/rta_fines*'],
-            'rta_fines_unpaid' => ['settings-panel/module-settings/rta_fines_unpaid*'],
-            'rta_fines_paid' => ['settings-panel/module-settings/rta_fines_paid*'],
+            'rta_fines_unpaid' => ['settings-panel/module-settings/rta_fines*'],
+            'rta_fines_paid' => ['settings-panel/module-settings/rta_fines*'],
         ];
 
         foreach ($patterns[$settingsModuleKey] ?? [] as $pattern) {

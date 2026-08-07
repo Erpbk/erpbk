@@ -1046,6 +1046,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('salik/top-up', [SalikController::class, 'storeTopUp'])->name('salik.topUp.store');
     Route::get('salik/payment', [SalikController::class, 'paymentForm'])->name('salik.payment');
     Route::post('salik/payment/records', [SalikController::class, 'getPaymentRecords'])->name('salik.payment.records');
+    Route::post('salik/payment/record-ids', [SalikController::class, 'getPaymentRecordIds'])->name('salik.payment.recordIds');
     Route::post('salik/payment/calculate', [SalikController::class, 'calculatePaymentVoucher'])->name('salik.payment.calculate');
     Route::post('salik/payment/store', [SalikController::class, 'storePayment'])->name('salik.payment.store');
     Route::get('salik/delete-monthly', [SalikController::class, 'deleteMonthlyForm'])->name('salik.deleteMonthlyForm');

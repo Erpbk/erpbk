@@ -225,8 +225,18 @@ class TopBarFilterService
 
         $query = $modelClass::query();
         $this->applyScopedStatus($query, $config);
-        $req = $request ?? new Request();
-        $req->merge([(string) ($config['request']['option_id'] ?? 'top_option_id') => $option->getKey()]);
+
+        // Never merge into the live request: on GET, Request::merge() writes the query
+        // bag, so the last counted option would stick as "selected" in the slider and
+        // leak into pagination links even when the browser URL has no filter.
+        $optionIdParam = (string) ($config['request']['option_id'] ?? 'top_option_id');
+        if ($request !== null) {
+            $queryParams = $request->query->all();
+            $queryParams[$optionIdParam] = $option->getKey();
+            $req = $request->duplicate($queryParams);
+        } else {
+            $req = new Request([$optionIdParam => $option->getKey()]);
+        }
 
         if (($config['filter_strategy'] ?? '') === 'option_fk' && $this->shouldUseColumnFilterInsteadOfFk($config, $option)) {
             $this->applyColumnFilter($query, $config, $option, $req);

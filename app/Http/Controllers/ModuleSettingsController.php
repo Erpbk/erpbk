@@ -311,8 +311,39 @@ class ModuleSettingsController extends Controller
             return app(DashboardSettingsController::class)->index($company_slug);
         }
 
+        if (in_array($routeModule, ['rta_fines_unpaid', 'rta_fines_paid'], true)) {
+            return redirect()->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => 'rta_fines',
+                'top' => $routeModule === 'rta_fines_paid' ? 'paid' : 'unpaid',
+            ]);
+        }
+
         $topBarModuleKey = $routeModule;
         $module = ErpModuleRegistry::settingsFieldsModuleKey($routeModule);
+
+        $showRtaFinesTopBarTabs = false;
+        $rtaFinesTopBarTabUrls = [];
+        $rtaFinesActiveTopScope = 'unpaid';
+        $activateModuleTopBarTab = false;
+        if ($module === 'rta_fines') {
+            $showRtaFinesTopBarTabs = true;
+            $rtaFinesActiveTopScope = request()->query('top') === 'paid' ? 'paid' : 'unpaid';
+            $topBarModuleKey = 'rta_fines_' . $rtaFinesActiveTopScope;
+            $activateModuleTopBarTab = request()->query->has('top');
+            $rtaFinesTopBarTabUrls = [
+                'unpaid' => route('settings-panel.module-settings.index', [
+                    'company_slug' => $company_slug,
+                    'module' => 'rta_fines',
+                    'top' => 'unpaid',
+                ]) . '#tab-module-top-bar',
+                'paid' => route('settings-panel.module-settings.index', [
+                    'company_slug' => $company_slug,
+                    'module' => 'rta_fines',
+                    'top' => 'paid',
+                ]) . '#tab-module-top-bar',
+            ];
+        }
 
         if ($module === 'bike_list') {
             return app(\App\Http\Controllers\BikeSettingsController::class)->index();
@@ -500,10 +531,16 @@ class ModuleSettingsController extends Controller
             'topBarCategories' => $topBarCategories,
             'topBarSelectableColumns' => $topBarSelectableColumns,
             'showModuleTopBarTab' => ErpModuleRegistry::showTopBarTabInModuleSettings($topBarModuleKey),
-            'topBarTabLabel' => ErpModuleRegistry::topBarTabLabel($topBarModuleKey, $moduleLabel),
+            'topBarTabLabel' => $showRtaFinesTopBarTabs
+                ? ErpModuleRegistry::topBarTabLabel('rta_fines', $moduleLabel)
+                : ErpModuleRegistry::topBarTabLabel($topBarModuleKey, $moduleLabel),
             'topBarRoutes' => ModuleTopBarRoutes::resolve($topBarModuleKey),
             'topBarColumnField' => ModuleTopBarRoutes::columnFieldForModule($topBarModuleKey),
             'topBarColumnLabel' => ModuleTopBarRoutes::columnLabelForModule($topBarModuleKey),
+            'showRtaFinesTopBarTabs' => $showRtaFinesTopBarTabs,
+            'rtaFinesTopBarTabUrls' => $rtaFinesTopBarTabUrls,
+            'rtaFinesActiveTopScope' => $rtaFinesActiveTopScope,
+            'activateModuleTopBarTab' => $activateModuleTopBarTab,
             'defaultLabel' => $defaultLabel,
             'pageTitle' => $pageTitle,
             'categories' => $categories,

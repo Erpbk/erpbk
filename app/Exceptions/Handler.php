@@ -93,6 +93,13 @@ class Handler extends ExceptionHandler
             if ($request->routeIs('BikeRegistration.*')) {
                 $slug = $request->route('company_slug') ?? session('company_slug');
 
+                // Index itself may throw this (listing helpers); redirecting back to index loops.
+                if ($request->routeIs('BikeRegistration.index')) {
+                    return redirect()
+                        ->route('home', ['company_slug' => $slug])
+                        ->with('error', $e->getMessage());
+                }
+
                 return redirect()
                     ->route('BikeRegistration.index', ['company_slug' => $slug])
                     ->with('error', $e->getMessage());

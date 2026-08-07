@@ -32,6 +32,8 @@ class ModuleRouteResolver
         'expense' => 'expenses',
         'expenses' => 'expenses',
         'rtaFines' => 'rta_fines_unpaid',
+        'riderActivities' => 'activities',
+        'rideractivities' => 'activities',
     ];
 
     public static function fromRequest(?Request $request = null): ?string

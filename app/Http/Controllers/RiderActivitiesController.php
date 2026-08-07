@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Http\Requests\CreateRiderActivitiesRequest;
 use App\Http\Requests\UpdateRiderActivitiesRequest;
 use App\Imports\ImportRiderActivities;
@@ -22,7 +23,7 @@ use Maatwebsite\Excel\Validators\ValidationException;
 
 class RiderActivitiesController extends AppBaseController
 {
-    use GlobalPagination;
+    use AppliesModuleTopBarFilters, GlobalPagination;
 
     /** @var RiderActivitiesRepository */
     private $riderActivitiesRepository;
@@ -169,6 +170,8 @@ class RiderActivitiesController extends AppBaseController
                 }
             });
         }
+
+        $this->applyModuleTopBarFilters($query, $request, 'activities');
 
         // Get all data for totals calculation (before pagination)
         $allData = (clone $query)->get();
@@ -330,6 +333,8 @@ class RiderActivitiesController extends AppBaseController
                 }
             });
         }
+
+        $this->applyModuleTopBarFilters($query, $request, 'activities');
 
         $allData = (clone $query)->get();
 

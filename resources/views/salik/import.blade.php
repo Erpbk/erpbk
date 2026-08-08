@@ -54,7 +54,7 @@
                         <div class="form-group">
                             <label for="admin_charge_per_salik">Default Admin Charge per Salik</label>
                             <input type="number" name="admin_charge_per_salik" id="admin_charge_per_salik" class="form-control" step="0.01" min="0" value="0">
-                            <small class="text-muted">Applied to every imported salik. Leave 0 for none.</small>
+                            <small class="text-muted">Used when Admin Charge column is not mapped. Leave 0 for none.</small>
                         </div>
                     </div>
                     <div class="col-md-3">
@@ -214,19 +214,25 @@
 
                         <h5 class="mb-3 mt-2">Optional Columns</h5>
                         <div class="row">
-                            <div class="form-group col-md-6 map-field" data-field="transaction_post_date" data-required="0">
+                            <div class="form-group col-md-4 map-field" data-field="transaction_post_date" data-required="0">
                                 <label for="col_transaction_post_date">Transaction Post Date</label>
                                 <select name="col_transaction_post_date" id="col_transaction_post_date" class="form-control map-select" disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                                 <small class="text-muted">Default: mirrors trip date</small>
                             </div>
-                            <div class="form-group col-md-6 map-field" data-field="billing_month" data-required="0">
+                            <div class="form-group col-md-4 map-field" data-field="billing_month" data-required="0">
                                 <label for="col_billing_month">Billing Month</label>
                                 <select name="col_billing_month" id="col_billing_month" class="form-control map-select" disabled>
                                     <option value="">Select a file first…</option>
                                 </select>
                                 <small class="text-muted">Default: from trip date</small>
+                            </div>
+                            <div class="form-group col-md-4 map-field" data-field="admin_charges" data-required="0">
+                                <label for="col_admin_charges">Admin Charge</label>
+                                <select name="col_admin_charges" id="col_admin_charges" class="form-control map-select" disabled>
+                                    <option value="">Select a file first…</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -459,6 +465,7 @@
         { key: 'direction', label: 'Direction', required: true, match: [/direction/] },
         { key: 'tag_number', label: 'Tag Number', required: true, match: [/\btag\b/] },
         { key: 'plate', label: 'Plate Number', required: true, match: [/plate/] },
+        { key: 'admin_charges', label: 'Admin Charge', required: false, match: [/admin\s*charge/, /admin\s*fee/, /\badmin\b/] },
         { key: 'amount', label: 'Amount', required: true, match: [/amount/, /charge/] },
         { key: 'billing_month', label: 'Billing Month', required: false, match: [/billing/, /\bmonth\b/] }
     ];

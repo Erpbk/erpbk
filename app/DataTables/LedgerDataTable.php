@@ -160,6 +160,24 @@ class LedgerDataTable extends DataTable
             }
             if ($row->reference_type == 'salik') {
                 $salikRecord = salik::find($row->reference_id);
+                // Soft-deleted trip may still be the ledger reference_id until invoice is rebuilt.
+                if (! $salikRecord) {
+                    $trashedSalik = salik::withTrashed()->find($row->reference_id);
+                    if ($trashedSalik && $trashedSalik->billing_month) {
+                        $fallbackQuery = salik::query();
+                        if ($trashedSalik->rider_id) {
+                            $fallbackQuery->where('rider_id', $trashedSalik->rider_id);
+                        } elseif ($trashedSalik->rental_company_id) {
+                            $fallbackQuery->where('rental_company_id', $trashedSalik->rental_company_id)
+                                ->whereNull('rider_id');
+                        }
+                        salik::applyBillingMonthFilter(
+                            $fallbackQuery,
+                            salik::normalizeBillingMonth($trashedSalik->billing_month)
+                        );
+                        $salikRecord = $fallbackQuery->first();
+                    }
+                }
                 if ($salikRecord && $salikRecord->billing_month && ($salikRecord->rider_id || $salikRecord->rental_company_id)) {
                     $voucher_ID = $salikRecord->inv_id ?? 'SLK-' . str_pad($salikRecord->id, 4, '0', STR_PAD_LEFT);
                     $billingMonth = Carbon::parse($salikRecord->billing_month)->format('Y-m');

@@ -795,6 +795,43 @@ class DeleteRequestService
         if ($deleteRequest->module_key === 'visa_expenses' && $model instanceof \App\Models\visa_expenses) {
             static::finalizeApprovedVisaExpenseDeletion($deleteRequest, $model, $admin);
         }
+
+        if ($deleteRequest->module_key === 'salik' && $model instanceof \App\Models\salik) {
+            static::finalizeApprovedSalikDeletion($deleteRequest, $model, $admin);
+        }
+    }
+
+    /**
+     * After salik soft-delete approval: rebuild the rider/company monthly invoice
+     * so ledger charges exclude the trashed trip (and stay linked to an active trip).
+     */
+    protected static function finalizeApprovedSalikDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\salik $salikRecord,
+        ?User $admin
+    ): void {
+        if (! $salikRecord->billing_month) {
+            return;
+        }
+
+        if (! $salikRecord->rider_id && ! $salikRecord->rental_company_id) {
+            return;
+        }
+
+        try {
+            app(\App\Http\Controllers\SalikController::class)->syncMonthlyInvoiceTransactions(
+                $salikRecord->rider_id ? (int) $salikRecord->rider_id : null,
+                $salikRecord->billing_month,
+                $salikRecord->rental_company_id ? (int) $salikRecord->rental_company_id : null
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to sync salik invoice after approved soft-delete', [
+                'delete_request_id' => $deleteRequest->id,
+                'salik_id' => $salikRecord->id,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
     }
 
     /**

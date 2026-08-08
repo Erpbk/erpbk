@@ -159,6 +159,10 @@
           e.stopPropagation();
           if (cfg.statusParam) {
             filterByTopOptionStatus(optionId, stat.getAttribute('data-stat-key'));
+          } else {
+            // Modules without status chips (e.g. Activities insights): the count
+            // area is the main click target — still apply the option filter.
+            filterByTopOption(optionId);
           }
         });
       });

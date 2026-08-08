@@ -50,7 +50,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
 
     public function __construct($adminChargePerSalik = 0, array $columnMap = [], $salikVatPercent = 0, $adminVatPercent = 0)
     {
-        $this->adminChargePerSalik = (float) $adminChargePerSalik;
+        $this->adminChargePerSalik = round((float) $adminChargePerSalik, 2);
         $this->salikVatPercent = (float) $salikVatPercent;
         $this->adminVatPercent = (float) $adminVatPercent;
         $this->columnMap = $columnMap ?: $this->defaultColumnMap();
@@ -91,6 +91,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             'plate' => 8,
             'amount' => 9,
             'billing_month' => 10,
+            'admin_charges' => null,
         ];
     }
 
@@ -112,6 +113,34 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     {
         $col = $this->columnMap[$key] ?? null;
         return $col !== null && $col !== '';
+    }
+
+    /**
+     * Admin charge priority: mapped column value → default form value → 0.
+     */
+    private function resolveAdminCharge($row): float
+    {
+        if ($this->isMapped('admin_charges')) {
+            $raw = $this->cell($row, 'admin_charges');
+            if ($this->isBlank($raw)) {
+                return 0.0;
+            }
+
+            if (is_numeric($raw)) {
+                return round((float) $raw, 2);
+            }
+
+            if (is_string($raw)) {
+                $cleaned = preg_replace('/[^0-9.\-]/', '', $raw);
+                if ($cleaned !== '' && is_numeric($cleaned)) {
+                    return round((float) $cleaned, 2);
+                }
+            }
+
+            return 0.0;
+        }
+
+        return round((float) ($this->adminChargePerSalik ?: 0), 2);
     }
 
     private function isBlank($value): bool
@@ -196,13 +225,13 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                     $plateRaw = $this->cell($row, 'plate');
                     $plateNumber = $this->extractPlateNumber($plateRaw);
                     $amountRaw = $this->cell($row, 'amount');
-                    $transactionAmount = (float) ($amountRaw ?: 0);
+                    $transactionAmount = round((float) ($amountRaw ?: 0), 2);
 
                     $billingMonthRaw = $this->isMapped('billing_month')
                         ? $this->cell($row, 'billing_month')
                         : null;
 
-                    $adminCharge = (float) $this->adminChargePerSalik;
+                    $adminCharge = $this->resolveAdminCharge($row);
 
                     $salikVatPercent = (float) $this->salikVatPercent;
                     $adminVatPercent = (float) $this->adminVatPercent;
@@ -211,8 +240,8 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
 
                     $details = $tripDate ? 'Salik Charges - ' . $tripDate->format('M-Y') : 'Salik Charges';
 
-                    $totalVat = $salikVatAmount + $adminVatAmount;
-                    $totalAmount = $transactionAmount + $adminCharge + $totalVat;
+                    $totalVat = round($salikVatAmount + $adminVatAmount, 2);
+                    $totalAmount = round($transactionAmount + $adminCharge + $totalVat, 2);
 
                     if (empty($tripDateForStorage) || empty($plateNumber) || empty($transactionAmount)) {
                         $this->storeFailedImport(
@@ -729,13 +758,13 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         }
 
         if (is_numeric($value)) {
-            return (float) $value;
+            return round((float) $value, 2);
         }
 
         if (is_string($value)) {
             $cleaned = preg_replace('/[^0-9.\-]/', '', $value);
             if ($cleaned !== '' && is_numeric($cleaned)) {
-                return (float) $cleaned;
+                return round((float) $cleaned, 2);
             }
         }
 

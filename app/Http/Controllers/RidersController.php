@@ -73,10 +73,13 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Models\FuelCards;
+use App\Models\FuelCardHistory;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderCategory;
 use App\Models\RiderTopCategory;
 use App\Models\RiderTopOption;
+use App\Models\Sims;
 
 class RidersController extends AppBaseController
 {
@@ -2038,7 +2041,114 @@ class RidersController extends AppBaseController
       ->get();
     $availableItems = Items::availableForAssignment();
 
-    return view('riders.inventory', compact('riders', 'rider', 'assignments', 'availableItems'));
+    $rider->load(['bikes.LeasingCompany', 'sim.telecomCompany']);
+
+    $bike = $rider->bikes;
+    $bikeHistory = BikeHistory::query()
+      ->where('rider_id', $rider->id)
+      ->when($bike, fn ($q) => $q->where('bike_id', $bike->id)->whereNull('return_date'))
+      ->orderByDesc('note_date')
+      ->orderByDesc('id')
+      ->first();
+    if (! $bikeHistory && $bike) {
+      $bikeHistory = BikeHistory::query()
+        ->where('rider_id', $rider->id)
+        ->where('bike_id', $bike->id)
+        ->orderByDesc('note_date')
+        ->orderByDesc('id')
+        ->first();
+    }
+
+    $fuelCard = FuelCards::query()
+      ->with('fuelCompany')
+      ->where('assigned_to', $rider->id)
+      ->orderByDesc('id')
+      ->first();
+    $fuelHistory = null;
+    if ($fuelCard) {
+      $fuelHistory = FuelCardHistory::query()
+        ->where('card_id', $fuelCard->id)
+        ->where('assigned_to', $rider->id)
+        ->orderByDesc('assign_date')
+        ->orderByDesc('id')
+        ->first();
+    }
+
+    $sim = Sims::query()
+      ->with('telecomCompany')
+      ->where('assign_to', $rider->id)
+      ->where(function ($q) {
+        $q->where('assign_type', 'rider')->orWhereNull('assign_type');
+      })
+      ->orderByDesc('id')
+      ->first();
+    $simHistory = null;
+    if ($sim) {
+      $simHistory = SimHistory::query()
+        ->where('sim_id', $sim->id)
+        ->where('rider_id', $rider->id)
+        ->whereNull('return_date')
+        ->orderByDesc('note_date')
+        ->orderByDesc('id')
+        ->first();
+      if (! $simHistory) {
+        $simHistory = SimHistory::query()
+          ->where('sim_id', $sim->id)
+          ->where('rider_id', $rider->id)
+          ->orderByDesc('note_date')
+          ->orderByDesc('id')
+          ->first();
+      }
+    }
+
+    $accountClosingBalance = null;
+    if (! empty($rider->account_id)) {
+      $accountClosingBalance = (float) Transactions::where('account_id', $rider->account_id)
+        ->sum(DB::raw('debit - credit'));
+    }
+
+    $assignedItems = [
+      'bike' => $bike ? [
+        'label' => $bike->emiratesPlateLabel(),
+        'meta' => optional($bike->LeasingCompany)->name,
+        'url' => route('bikes.show', $bike->id),
+        'assign_date' => $bikeHistory?->note_date?->format('Y-m-d'),
+        'return_date' => $bikeHistory?->return_date?->format('Y-m-d'),
+        'status' => $bike->warehouse ?: null,
+      ] : null,
+      'fuel_card' => $fuelCard ? [
+        'label' => $fuelCard->card_number,
+        'meta' => optional($fuelCard->fuelCompany)->name,
+        'url' => route('fuelCards.show', $fuelCard->id),
+        'assign_date' => $fuelHistory?->assign_date?->format('Y-m-d'),
+        'return_date' => $fuelHistory?->return_date?->format('Y-m-d'),
+        'status' => $fuelCard->status ?: null,
+      ] : null,
+      'sim_card' => $sim ? [
+        'label' => $sim->number,
+        'meta' => optional($sim->telecomCompany)->name,
+        'url' => route('sims.show', $sim->id),
+        'assign_date' => $simHistory?->note_date?->format('Y-m-d'),
+        'return_date' => $simHistory?->return_date?->format('Y-m-d'),
+        'status' => $sim->status ?: null,
+      ] : null,
+      'account_balance' => $accountClosingBalance !== null ? [
+        'label' => number_format((float) $accountClosingBalance, 2),
+        'meta' => 'Closing balance',
+        'url' => route('rider.ledger', $rider->id),
+        'assign_date' => null,
+        'return_date' => null,
+        'status' => null,
+      ] : null,
+    ];
+
+    return view('riders.inventory', compact(
+      'riders',
+      'rider',
+      'assignments',
+      'availableItems',
+      'assignedItems'
+    ));
   }
 
   public function sendEmail($company_slug, $id, Request $request)

@@ -2,14 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BikeHistory;
 use App\Models\Customers;
+use App\Models\FuelCardHistory;
+use App\Models\FuelCards;
 use App\Models\Items;
 use App\Models\RiderInventoryAssignment;
 use App\Models\RiderInventoryContract;
 use App\Models\Riders;
+use App\Models\SimHistory;
+use App\Models\Sims;
 use App\Models\Transactions;
 use App\Models\User;
 use App\Models\Vouchers;
+use App\Helpers\Currency;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\RiderInventoryLossService;
 use App\Support\CompanyAuthRedirect;
@@ -1070,6 +1076,261 @@ class RiderInventoryController extends AppBaseController
         if ($remaining === 0) {
             RiderInventoryContract::where('contract_number', $contractNumber)->delete();
         }
+    }
+
+    public function clearanceCertificate(string $company_slug, int $riderId)
+    {
+        if (! user_can('riderinventory_contract_print') && ! user_can('riders_inventory_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $rider = Riders::with(['vendor', 'customer', 'bikes.LeasingCompany', 'sim.telecomCompany', 'account'])
+            ->findOrFail($riderId);
+
+        $assignments = RiderInventoryAssignment::query()
+            ->with(['inventoryItem', 'assignedByUser', 'returnedByUser', 'lostByUser'])
+            ->where('rider_id', $riderId)
+            ->orderBy('assigned_date')
+            ->orderBy('id')
+            ->get();
+
+        $bike = $rider->bikes;
+        $bikeStillAssigned = ! empty($bike);
+
+        $lastBikeHistory = BikeHistory::query()
+            ->with('bike.LeasingCompany')
+            ->where('rider_id', $rider->id)
+            ->when($bikeStillAssigned, function ($q) {
+                $q->whereNull('return_date');
+            })
+            ->orderByDesc('note_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $lastBikeHistory) {
+            $lastBikeHistory = BikeHistory::query()
+                ->with('bike.LeasingCompany')
+                ->where('rider_id', $rider->id)
+                ->orderByDesc('return_date')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $lastWorkingDay = '';
+        if (! $bikeStillAssigned && $lastBikeHistory && $lastBikeHistory->return_date) {
+            $lastWorkingDay = $lastBikeHistory->return_date->format('d M Y');
+        }
+
+        $fuelCard = FuelCards::query()
+            ->with('fuelCompany')
+            ->where('assigned_to', $rider->id)
+            ->orderByDesc('id')
+            ->first();
+
+        $fuelHistory = FuelCardHistory::query()
+            ->where('assigned_to', $rider->id)
+            ->when($fuelCard, fn ($q) => $q->where('card_id', $fuelCard->id))
+            ->orderByDesc('assign_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $fuelCard) {
+            $fuelHistory = FuelCardHistory::query()
+                ->where('assigned_to', $rider->id)
+                ->orderByDesc('assign_date')
+                ->orderByDesc('id')
+                ->first();
+            if ($fuelHistory) {
+                $fuelCard = FuelCards::with('fuelCompany')->find($fuelHistory->card_id);
+            }
+        }
+
+        $sim = Sims::query()
+            ->with('telecomCompany')
+            ->where('assign_to', $rider->id)
+            ->where(function ($q) {
+                $q->where('assign_type', 'rider')->orWhereNull('assign_type');
+            })
+            ->orderByDesc('id')
+            ->first() ?? $rider->sim;
+
+        $simHistory = SimHistory::query()
+            ->where('rider_id', $rider->id)
+            ->when($sim, fn ($q) => $q->where('sim_id', $sim->id))
+            ->orderByDesc('note_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $sim) {
+            $simHistory = SimHistory::query()
+                ->with('sim.telecomCompany')
+                ->where('rider_id', $rider->id)
+                ->orderByDesc('note_date')
+                ->orderByDesc('id')
+                ->first();
+            $sim = $simHistory?->sim;
+        }
+
+        $contactNo = $sim?->number ?: '';
+
+        $accountClosingBalance = 0.0;
+        if (! empty($rider->account_id)) {
+            $accountClosingBalance = (float) Transactions::where('account_id', $rider->account_id)
+                ->sum(DB::raw('debit - credit'));
+        }
+
+        $certificateRows = [];
+
+        $historyBike = $bike ?: $lastBikeHistory?->bike;
+        if ($historyBike || $lastBikeHistory) {
+            $bikeReturned = ! $bikeStillAssigned && $lastBikeHistory && $lastBikeHistory->return_date;
+            $bikePlate = $historyBike ? $historyBike->emiratesPlateLabel() : '';
+            $bikeStatus = $bikeStillAssigned
+                ? (($historyBike->warehouse ?? '') ?: 'Assigned')
+                : ($bikeReturned ? 'Returned' : ($historyBike?->warehouse ?? ''));
+
+            $certificateRows[] = [
+                'item' => 'Bike',
+                'details' => trim(implode("\n", array_filter([
+                    $bikePlate !== '' ? 'Plate: ' . $bikePlate : null,
+                    $lastBikeHistory?->note_date ? 'Assign Date: ' . $lastBikeHistory->note_date->format('d M Y') : null,
+                    $lastBikeHistory?->return_date ? 'Return Date: ' . $lastBikeHistory->return_date->format('d M Y') : null,
+                    $bikeStatus !== '' ? 'Status: ' . $bikeStatus : null,
+                ]))),
+                'assigned' => true,
+                'returned' => (bool) $bikeReturned,
+                'remarks' => '',
+            ];
+        }
+
+        if ($fuelCard || $fuelHistory) {
+            $fuelReturned = $fuelHistory && $fuelHistory->return_date && ! $fuelCard?->assigned_to;
+            if ($fuelCard && (int) $fuelCard->assigned_to === (int) $rider->id) {
+                $fuelReturned = false;
+            }
+            $cardNo = trim((string) ($fuelCard->card_number ?? ''));
+            $certificateRows[] = [
+                'item' => 'Fuel Card',
+                'details' => trim(implode("\n", array_filter([
+                    $cardNo !== '' ? 'Card No: ' . $cardNo : null,
+                    optional($fuelCard?->fuelCompany)->name ? 'Company: ' . $fuelCard->fuelCompany->name : null,
+                ]))),
+                'assigned' => true,
+                'returned' => (bool) $fuelReturned,
+                'remarks' => $this->formatAssignReturnNote(
+                    $fuelHistory?->note,
+                    $fuelHistory?->assign_date,
+                    $fuelHistory?->return_date
+                ),
+            ];
+        }
+
+        if ($sim || $simHistory) {
+            $simReturned = $simHistory && $simHistory->return_date && (! $sim || (int) ($sim->assign_to ?? 0) !== (int) $rider->id);
+            if ($sim && (int) $sim->assign_to === (int) $rider->id) {
+                $simReturned = false;
+            }
+            $simNumber = trim((string) ($sim->number ?? ''));
+            $certificateRows[] = [
+                'item' => 'SIM Card',
+                'details' => trim(implode("\n", array_filter([
+                    $simNumber !== '' ? 'Number: ' . $simNumber : null,
+                    optional($sim?->telecomCompany)->name ? 'Telecom: ' . $sim->telecomCompany->name : null,
+                ]))),
+                'assigned' => true,
+                'returned' => (bool) $simReturned,
+                'remarks' => $this->formatAssignReturnNote(
+                    $simHistory?->notes,
+                    $simHistory?->note_date,
+                    $simHistory?->return_date
+                ),
+            ];
+        }
+
+        foreach ($assignments as $row) {
+            $isReturned = in_array($row->status, [
+                RiderInventoryAssignment::STATUS_RETURNED,
+                RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER,
+            ], true);
+            $isLost = $row->status === RiderInventoryAssignment::STATUS_LOST;
+            $statusLabel = match ($row->status) {
+                RiderInventoryAssignment::STATUS_ASSIGNED => 'Assigned',
+                RiderInventoryAssignment::STATUS_RETURNED => 'Returned',
+                RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER => 'Returned to Customer',
+                RiderInventoryAssignment::STATUS_LOST => 'Lost',
+                default => ucfirst(str_replace('_', ' ', (string) $row->status)),
+            };
+
+            $detailLines = [
+                'Qty: ' . (int) ($row->qty ?? 1),
+                'Value: ' . number_format($row->lineTotal(), 2),
+                'Status: ' . $statusLabel,
+            ];
+
+            if ($isLost) {
+                if ($row->assigned_date) {
+                    $detailLines[] = 'Assigned: ' . $row->assigned_date->format('d M Y');
+                }
+                if ($row->loss_date) {
+                    $detailLines[] = 'Lost Date: ' . $row->loss_date->format('d M Y');
+                }
+            } else {
+                if ($row->assigned_date) {
+                    $detailLines[] = 'Assigned: ' . $row->assigned_date->format('d M Y');
+                }
+                if ($row->return_date) {
+                    $detailLines[] = 'Returned: ' . $row->return_date->format('d M Y');
+                }
+            }
+
+            $certificateRows[] = [
+                'item' => $row->inventoryItem->name ?? 'Inventory Item',
+                'details' => trim(implode("\n", array_filter($detailLines))),
+                'assigned' => true,
+                'returned' => $isReturned,
+                'remarks' => trim((string) ($row->remarks ?? '')),
+            ];
+        }
+
+        $docRef = sprintf('RIC-%05d-%s', $rider->id, now()->format('Ymd'));
+        $branding = $this->contractBranding();
+        $currencySymbol = Currency::symbol();
+
+        return view('rider_inventory.clearance_certificate', compact(
+            'rider',
+            'certificateRows',
+            'accountClosingBalance',
+            'lastWorkingDay',
+            'contactNo',
+            'branding',
+            'docRef',
+            'currencySymbol'
+        ));
+    }
+
+    private function formatAssignReturnNote(?string $note, $assignDate = null, $returnDate = null): string
+    {
+        $parts = [];
+        $assignLabel = $assignDate
+            ? (Carbon::parse($assignDate)->format('d M Y'))
+            : null;
+        $returnLabel = $returnDate
+            ? (Carbon::parse($returnDate)->format('d M Y'))
+            : null;
+
+        $noteText = trim((string) ($note ?? ''));
+
+        if ($assignLabel || $noteText !== '') {
+            $parts[] = 'Assign'
+                . ($assignLabel ? ' (' . $assignLabel . ')' : '')
+                . ($noteText !== '' ? ': ' . $noteText : '');
+        }
+
+        if ($returnLabel) {
+            $parts[] = 'Return (' . $returnLabel . ')';
+        }
+
+        return $parts !== [] ? implode("\n", $parts) : '';
     }
 
     private function assignedItemsForRider(int $riderId)

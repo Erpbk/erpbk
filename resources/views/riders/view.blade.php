@@ -381,6 +381,16 @@ $companySlug = request()->route('company_slug');
                       @endisset
                     </b>
                   </h6>
+                  @isset($result)
+                  @can('riders_inventory_view')
+                  <a href="{{ route('RiderInventory.clearanceCertificate', $result['id']) }}"
+                    class="btn btn-sm btn-success mt-1"
+                    target="_blank"
+                    style="padding: 2px 8px; font-size: 0.75rem;">
+                    <i class="ti ti-certificate"></i> Clearance Certificate
+                  </a>
+                  @endcan
+                  @endisset
                 </div>
                 <div class="text-end" style="width: 14%;">
                   <i class="ti ti-edit ti-sm"

@@ -61,6 +61,7 @@ class LicenseexpenseController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
         $query = ExpenseAccount::query()
+            ->license()
             ->with('rider')
             ->orderByDesc('id');
 
@@ -410,7 +411,10 @@ class LicenseexpenseController extends AppBaseController
             'rider_id' => 'required|exists:riders,id',
         ]);
         $rider = Riders::findOrFail($request->rider_id);
-        $exists = ExpenseAccount::where('rider_id', $rider->id)->first();
+        $exists = ExpenseAccount::query()
+            ->license()
+            ->where('rider_id', $rider->id)
+            ->first();
 
         DB::beginTransaction();
         try {
@@ -420,8 +424,10 @@ class LicenseexpenseController extends AppBaseController
                 $expenseAccount = ExpenseAccount::create([
                     'name' => $rider->name,
                     'rider_id' => $rider->id,
+                    'module' => ExpenseAccount::MODULE_LICENSE,
+                    'renewal_category_id' => null,
                     'branch_id' => $rider->branch_id,
-                    'account_id' => $rider->account_id,
+                    'account_id' => null,
                     'company_id' => auth()->user()->company_id ?? null,
                 ]);
             }
@@ -451,7 +457,7 @@ class LicenseexpenseController extends AppBaseController
                     'trans_code' => Account::trans_code(),
                     'date' => Carbon::today()->format('Y-m-d'),
                     'rider_id' => $expenseAccount->rider_id,
-                    'expense_account_id' => GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'),
+                    'expense_account_id' => $expenseAccount->id,
                     'license_status' => $status->name,
                     'detail' => $status->description ?? ('Auto-generated from active License Status: ' . $status->name),
                     'reference_number' => 'DL-' . $expenseAccount->rider_id . '-' . $status->id,
@@ -480,9 +486,11 @@ class LicenseexpenseController extends AppBaseController
             'rider_id' => 'required|exists:riders,id',
         ]);
         $rider = Riders::findOrFail($request->rider_id);
-        $account = ExpenseAccount::findOrFail($request->id);
+        $account = ExpenseAccount::query()->license()->findOrFail($request->id);
         $account->rider_id = $rider->id;
         $account->name = $rider->name;
+        $account->module = ExpenseAccount::MODULE_LICENSE;
+        $account->renewal_category_id = null;
         $account->save();
         Flash::success('License Expense account updated successfully.');
         return redirect()->back();
@@ -511,7 +519,7 @@ class LicenseexpenseController extends AppBaseController
         }
 
         // Check if any vouchers exist for this account related to License Expenses
-        $account = ExpenseAccount::findOrFail($id);
+        $account = ExpenseAccount::query()->license()->findOrFail($id);
         $riderId = $account->rider_id;
         if ($riderId) {
             $hasVouchers = Vouchers::where('rider_id', $riderId)
@@ -524,9 +532,9 @@ class LicenseexpenseController extends AppBaseController
             }
         }
 
-        // No related records â€” safe to delete
+        // No related records — safe to delete
         $LicenseExpense = license_expenses::where('expense_account_id', $id)->delete();
-        ExpenseAccount::where('id', $id)->delete();
+        ExpenseAccount::query()->license()->where('id', $id)->delete();
         Flash::success('Account deleted successfully.');
         return redirect()->back();
     }
@@ -541,7 +549,7 @@ class LicenseexpenseController extends AppBaseController
         if (!user_can('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $account = ExpenseAccount::with('rider')->where('id', $id)->firstOrFail();
+        $account = ExpenseAccount::query()->license()->with('rider')->where('id', $id)->firstOrFail();
         $riderId = $account->rider_id;
         // Use global pagination traits
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
@@ -605,7 +613,7 @@ class LicenseexpenseController extends AppBaseController
      */
     public function create($company_slug, $id)
     {
-        $data = ExpenseAccount::where('id', $id)->first();
+        $data = ExpenseAccount::query()->license()->where('id', $id)->firstOrFail();
         $licenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
         return view('license_expenses.create', compact('data', 'licenseStatuses'));
     }
@@ -633,12 +641,13 @@ class LicenseexpenseController extends AppBaseController
         ]);
 
         try {
+            $expenseAccount = ExpenseAccount::query()->license()->findOrFail($validated['rider_id']);
             $trans_code = Account::trans_code();
             $billingMonth = $validated['billing_month'] . "-01";
             $trans_date = Carbon::today();
             $LicenseExpenses = license_expenses::create([
-                'rider_id'       => $validated['rider_id'],
-                'expense_account_id' => $validated['rider_id'],
+                'rider_id'       => $expenseAccount->rider_id,
+                'expense_account_id' => $expenseAccount->id,
                 'license_status'    => $validated['license_status'],
                 'billing_month'  => $billingMonth,
                 'date'           => $request->date,
@@ -662,7 +671,14 @@ class LicenseexpenseController extends AppBaseController
     {
 
         $data = license_expenses::where('id', $id)->first();
-        $accounts = ExpenseAccount::where('rider_id', $data->rider_id)->first();
+        $accounts = ExpenseAccount::query()
+            ->license()
+            ->where(function ($q) use ($data) {
+                $q->where('id', $data->expense_account_id)
+                    ->orWhere('rider_id', $data->rider_id);
+            })
+            ->orderByDesc('id')
+            ->first();
         return view('license_expenses.viewvoucher', compact('data', 'accounts'));
     }
     public function payfine(Request $request)
@@ -670,8 +686,17 @@ class LicenseexpenseController extends AppBaseController
         DB::beginTransaction();
 
         try {
-            $expenseAccount = ExpenseAccount::where('rider_id', $request->rider_id)->first();
             $expense = license_expenses::findOrFail($request->id);
+            $expenseAccount = ExpenseAccount::query()
+                ->license()
+                ->where(function ($q) use ($request, $expense) {
+                    $q->where('id', $expense->expense_account_id)
+                        ->orWhere('id', $request->rider_id)
+                        ->orWhere('rider_id', $request->rider_id)
+                        ->orWhere('rider_id', $expense->rider_id);
+                })
+                ->orderByDesc('id')
+                ->first();
             $expense->pay_account = $request->account;
 
             if ($expense->payment_status == 'paid') {
@@ -802,7 +827,7 @@ class LicenseexpenseController extends AppBaseController
     public function edit(string $company_slug, string $id)
     {
         $LicenseExpenses = license_expenses::find($id);
-        $data = ExpenseAccount::where('id', $LicenseExpenses->expense_account_id ?? $LicenseExpenses->rider_id)->first();
+        $data = ExpenseAccount::query()->license()->where('id', $LicenseExpenses->expense_account_id ?? $LicenseExpenses->rider_id)->first();
         if (empty($LicenseExpenses)) {
             Flash::error('License Expenses not found');
 
@@ -1308,24 +1333,24 @@ class LicenseexpenseController extends AppBaseController
      */
     private function resolveExpenseAccountContext(int $id): ExpenseAccount
     {
-        $expense = ExpenseAccount::with('rider')->find($id);
+        $expense = ExpenseAccount::with('rider')->license()->find($id);
         if ($expense) {
             return $expense;
         }
 
-        $expense = ExpenseAccount::with('rider')->where('rider_id', $id)->first();
+        $expense = ExpenseAccount::with('rider')->license()->where('rider_id', $id)->orderBy('id')->first();
         if ($expense) {
             return $expense;
         }
 
-        $expense = ExpenseAccount::with('rider')->where('account_id', $id)->first();
+        $expense = ExpenseAccount::with('rider')->license()->where('account_id', $id)->first();
         if ($expense) {
             return $expense;
         }
 
         $legacyAccount = Accounts::find($id);
         if ($legacyAccount && $legacyAccount->ref_id) {
-            $expense = ExpenseAccount::with('rider')->where('rider_id', $legacyAccount->ref_id)->first();
+            $expense = ExpenseAccount::with('rider')->license()->where('rider_id', $legacyAccount->ref_id)->orderBy('id')->first();
             if ($expense) {
                 return $expense;
             }

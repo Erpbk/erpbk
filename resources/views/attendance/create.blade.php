@@ -281,8 +281,8 @@
     'refType' => $refTypes ?? old('ref_type', 'employee'),
     'total_orders' => old('total_orders'),
     'working_hours' => old('working_hours'),
-    'cancelled_orders' => old('cancelled_orders'),
-    'rejected_orders' => old('rejected_orders'),
+    'cancelled_orders' => old('cancelled_orders', 0),
+    'rejected_orders' => old('rejected_orders', 0),
     'ontime_orders_percentage' => old('ontime_orders_percentage'),
     ])
 
@@ -385,9 +385,15 @@
         }
         if (refType === 'rider') {
             section.show();
+            section.find('[data-rider-metric-required="1"]').prop('required', true);
+            section.find('[data-rider-metric-default="0"]').each(function() {
+                if ($(this).val() === '') {
+                    $(this).val(0);
+                }
+            });
         } else {
             section.hide();
-            section.find('input').val('');
+            section.find('input').prop('required', false).val('');
         }
     }
 

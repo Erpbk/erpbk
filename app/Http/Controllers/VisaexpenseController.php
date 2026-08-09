@@ -63,6 +63,7 @@ class VisaexpenseController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $userBranches = app('user_branches');
         $query = ExpenseAccount::query()
+            ->visa()
             ->with(['rider', 'renewalCategory'])
             ->orderByDesc('id');
 
@@ -467,13 +468,14 @@ class VisaexpenseController extends AppBaseController
         DB::beginTransaction();
         try {
             $ledgerAccountId = $rider->account_id;
-            if ($ledgerAccountId && ExpenseAccount::where('account_id', $ledgerAccountId)->exists()) {
+            if ($ledgerAccountId && ExpenseAccount::query()->visa()->where('account_id', $ledgerAccountId)->exists()) {
                 $ledgerAccountId = null;
             }
 
             $expenseAccount = ExpenseAccount::create([
                 'name' => $rider->name . ' - ' . $category->name,
                 'rider_id' => $rider->id,
+                'module' => ExpenseAccount::MODULE_VISA,
                 'renewal_category_id' => $categoryId,
                 'branch_id' => $rider->branch_id,
                 'account_id' => $ledgerAccountId,
@@ -485,7 +487,10 @@ class VisaexpenseController extends AppBaseController
                 ->orderBy('display_order')
                 ->get();
 
+            $generatedExpenseTotal = 0.0;
             foreach ($activeStatuses as $status) {
+                $amount = (float) ($status->default_fee ?? 0);
+                $generatedExpenseTotal += $amount;
                 visa_expenses::create([
                     'branch_id' => $rider->branch_id,
                     'trans_date' => Carbon::today()->format('Y-m-d'),
@@ -498,16 +503,43 @@ class VisaexpenseController extends AppBaseController
                     'detail' => $status->description ?? ('Auto-generated from active visa status: ' . $status->name),
                     'reference_number' => 'VS-' . $expenseAccount->rider_id . '-' . $status->id . '-' . $categoryId,
                     'billing_month' => Carbon::today()->startOfMonth()->format('Y-m-d'),
-                    'amount' => (float) ($status->default_fee ?? 0),
+                    'amount' => $amount,
                     'payment_status' => 'unpaid',
                 ]);
             }
+
             DB::commit();
-            Flash::success('Visa expense account created for ' . $category->name . ' and active status entries generated.');
         } catch (\Throwable $e) {
             DB::rollBack();
             Flash::error('Error creating visa expense account: ' . $e->getMessage());
+            return redirect()->back();
         }
+
+        $expenseAccount->load('renewalCategory');
+        $installmentResult = ['created' => false, 'message' => ''];
+        try {
+            DB::beginTransaction();
+            $installmentResult = $this->autoCreateInstallmentPlanForRenewal($expenseAccount, $generatedExpenseTotal);
+            DB::commit();
+        } catch (\Throwable $installmentError) {
+            DB::rollBack();
+            report($installmentError);
+            $installmentResult = [
+                'created' => false,
+                'message' => 'Visa expenses were created, but auto installment plan failed: ' . $installmentError->getMessage(),
+            ];
+        }
+
+        $successMessage = 'Visa expense account created for ' . $category->name . ' and active status entries generated.';
+        if (!empty($installmentResult['message'])) {
+            $successMessage .= ' ' . $installmentResult['message'];
+        }
+        if (!empty($installmentResult['created'])) {
+            Flash::success($successMessage);
+        } else {
+            Flash::warning($successMessage);
+        }
+
         return redirect()->back();
     }
 
@@ -529,9 +561,10 @@ class VisaexpenseController extends AppBaseController
             'rider_id' => 'required|exists:riders,id',
         ]);
         $rider = Riders::findOrFail($request->rider_id);
-        $account = ExpenseAccount::findOrFail($request->id);
+        $account = ExpenseAccount::query()->visa()->findOrFail($request->id);
         $account->rider_id = $rider->id;
         $account->name = $rider->name;
+        $account->module = ExpenseAccount::MODULE_VISA;
         $account->save();
         Flash::success('Visa expense account updated successfully.');
         return redirect()->back();
@@ -572,7 +605,7 @@ class VisaexpenseController extends AppBaseController
         }
 
         // Check if any vouchers exist for this account related to visa expenses
-        $account = ExpenseAccount::findOrFail($id);
+        $account = ExpenseAccount::query()->visa()->findOrFail($id);
         $riderId = $account->rider_id;
         if ($riderId) {
             $hasVouchers = Vouchers::where('rider_id', $riderId)
@@ -588,9 +621,9 @@ class VisaexpenseController extends AppBaseController
             }
         }
 
-        // No related records â€” safe to delete
+        // No related records — safe to delete
         $visaexpense = visa_expenses::where('expense_account_id', $id)->delete();
-        ExpenseAccount::where('id', $id)->delete();
+        ExpenseAccount::query()->visa()->where('id', $id)->delete();
         Flash::success('Account deleted successfully.');
         return redirect()->back();
     }
@@ -605,12 +638,12 @@ class VisaexpenseController extends AppBaseController
         if (!user_can('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $account = ExpenseAccount::with(['rider', 'renewalCategory'])->where('id', $id)->firstOrFail();
+        $account = ExpenseAccount::query()->visa()->with(['rider', 'renewalCategory'])->where('id', $id)->firstOrFail();
         $riderId = $account->rider_id;
         $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($account);
         $activeCategoryId = (int) $activeRenewalCategory->id;
 
-        $this->checkAndAutoMarkInstallments($riderId);
+        $this->checkAndAutoMarkInstallments($account);
 
         $siblingAccounts = VisaRenewalCategoryService::siblingAccountsForRider((int) $riderId, (int) $account->id);
         $canAddExpense = true;
@@ -679,7 +712,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function create($company_slug, $id)
     {
-        $data = ExpenseAccount::with('renewalCategory')->where('id', $id)->firstOrFail();
+        $data = ExpenseAccount::query()->visa()->with('renewalCategory')->where('id', $id)->firstOrFail();
         $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($data);
         $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
 
@@ -691,7 +724,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function store(Request $request)
     {
-        $expenseAccount = ExpenseAccount::findOrFail($request->rider_id);
+        $expenseAccount = ExpenseAccount::query()->visa()->findOrFail($request->rider_id);
         $renewalCategoryId = (int) ($expenseAccount->renewal_category_id ?? VisaRenewalCategoryService::defaultCategory()->id);
 
         $validated = $request->validate([
@@ -744,9 +777,12 @@ class VisaexpenseController extends AppBaseController
     {
 
         $data = visa_expenses::where('id', $id)->first();
-        $accounts = ExpenseAccount::find($data->expense_account_id)
-            ?? ExpenseAccount::where('rider_id', $data->rider_id)
+        $accounts = ExpenseAccount::query()->visa()->find($data->expense_account_id)
+            ?? ExpenseAccount::query()
+                ->visa()
+                ->where('rider_id', $data->rider_id)
                 ->when($data->renewal_category_id, fn ($q) => $q->where('renewal_category_id', $data->renewal_category_id))
+                ->orderBy('id')
                 ->first();
         return view('visa_expenses.viewvoucher', compact('data', 'accounts'));
     }
@@ -757,8 +793,10 @@ class VisaexpenseController extends AppBaseController
 
         try {
             $expense = visa_expenses::findOrFail($request->id);
-            $expenseAccount = ExpenseAccount::find($expense->expense_account_id)
-                ?? ExpenseAccount::where('rider_id', $request->rider_id)
+            $expenseAccount = ExpenseAccount::query()->visa()->find($expense->expense_account_id)
+                ?? ExpenseAccount::query()
+                    ->visa()
+                    ->where('rider_id', $request->rider_id)
                     ->when($expense->renewal_category_id, fn ($q) => $q->where('renewal_category_id', $expense->renewal_category_id))
                     ->first();
             $expense->pay_account = $request->account;
@@ -894,7 +932,7 @@ class VisaexpenseController extends AppBaseController
     public function edit(string $company_slug, string $id)
     {
         $visaExpenses = visa_expenses::find($id);
-        $data = ExpenseAccount::where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();
+        $data = ExpenseAccount::query()->visa()->where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();
         if (empty($visaExpenses)) {
             Flash::error('Visa Expenses not found');
 

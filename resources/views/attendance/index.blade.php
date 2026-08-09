@@ -240,8 +240,8 @@
                                             <th style="min-width: 150px; background: #f8f9fa;">Status</th>
                                             <th style="min-width: 130px; background: #f8f9fa;">Check In</th>
                                             <th style="min-width: 130px; background: #f8f9fa;">Check Out</th>
-                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Total Orders</th>
-                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Working Hours</th>
+                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Total Orders <span class="text-danger">*</span></th>
+                                            <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Working Hours <span class="text-danger">*</span></th>
                                             <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Cancelled</th>
                                             <th class="bulk-rider-order-col d-none" style="min-width: 100px; background: #f8f9fa;">Rejected</th>
                                             <th style="min-width: 200px; background: #f8f9fa;">Notes</th>
@@ -321,22 +321,22 @@
                     <td class="align-middle bulk-rider-order-col">
                         <input type="number" name="attendances[${user.tempId}][total_orders]"
                                class="form-control form-control-sm total-orders" min="0" step="1"
-                               value="${user.totalOrders ?? ''}" placeholder="0">
+                               value="${user.totalOrders ?? ''}" placeholder="0" required>
                     </td>
                     <td class="align-middle bulk-rider-order-col">
                         <input type="number" name="attendances[${user.tempId}][working_hours]"
                                class="form-control form-control-sm working-hours" min="0" step="0.01"
-                               value="${user.workingHours ?? ''}" placeholder="0">
+                               value="${user.workingHours ?? ''}" placeholder="0" required>
                     </td>
                     <td class="align-middle bulk-rider-order-col">
                         <input type="number" name="attendances[${user.tempId}][cancelled_orders]"
                                class="form-control form-control-sm cancelled-orders" min="0" step="1"
-                               value="${user.cancelledOrders ?? ''}" placeholder="0">
+                               value="${user.cancelledOrders ?? 0}" placeholder="0">
                     </td>
                     <td class="align-middle bulk-rider-order-col">
                         <input type="number" name="attendances[${user.tempId}][rejected_orders]"
                                class="form-control form-control-sm rejected-orders" min="0" step="1"
-                               value="${user.rejectedOrders ?? ''}" placeholder="0">
+                               value="${user.rejectedOrders ?? 0}" placeholder="0">
                     </td>`;
         }
 

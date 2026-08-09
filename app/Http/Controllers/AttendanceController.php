@@ -116,6 +116,9 @@ class AttendanceController extends Controller
             $rules = array_merge($rules, $this->riderAttendanceMetricRules());
         }
         $validated = $request->validate($rules);
+        if (($validated['ref_type'] ?? '') === 'rider') {
+            $validated = $this->applyRiderMetricDefaults($validated);
+        }
         // Validate that the reference ID exists in the appropriate table
         if ($validated['ref_type'] === 'employee') {
             $exists = Employee::where('id', $validated['ref_id'])->exists();
@@ -214,6 +217,9 @@ class AttendanceController extends Controller
             $rules = array_merge($rules, $this->riderAttendanceMetricRules());
         }
         $validated = $request->validate($rules);
+        if (($validated['ref_type'] ?? '') === 'rider') {
+            $validated = $this->applyRiderMetricDefaults($validated);
+        }
 
         // Validate that the reference ID exists in the appropriate table
         if ($validated['ref_type'] === 'employee') {
@@ -308,8 +314,8 @@ class AttendanceController extends Controller
                 'attendances.*.check_in' => 'nullable',
                 'attendances.*.check_out' => 'nullable',
                 'attendances.*.notes' => 'nullable|string|max:500',
-                'attendances.*.total_orders' => 'nullable|integer|min:0',
-                'attendances.*.working_hours' => 'nullable|numeric|min:0',
+                'attendances.*.total_orders' => $request->ref_type === 'rider' ? 'required|integer|min:0' : 'nullable|integer|min:0',
+                'attendances.*.working_hours' => $request->ref_type === 'rider' ? 'required|numeric|min:0' : 'nullable|numeric|min:0',
                 'attendances.*.rejected_orders' => 'nullable|integer|min:0',
                 'attendances.*.cancelled_orders' => 'nullable|integer|min:0',
                 'attendances.*.ontime_orders_percentage' => 'nullable|numeric|min:0|max:100',
@@ -343,12 +349,17 @@ class AttendanceController extends Controller
                 }
 
                 if ($attendanceData['ref_type'] === 'rider') {
+                    $attendanceData = $this->applyRiderMetricDefaults($attendanceData);
                     $metricData = RiderAttendanceActivitySync::metricDataFromRequest($attendanceData);
                     foreach (RiderAttendanceActivitySync::RIDER_METRIC_KEYS as $metricKey) {
                         if (array_key_exists($metricKey, $metricData)) {
                             $data[$metricKey] = $metricData[$metricKey];
                         }
                     }
+                    $data['cancelled_orders'] = (int) ($attendanceData['cancelled_orders'] ?? 0);
+                    $data['rejected_orders'] = (int) ($attendanceData['rejected_orders'] ?? 0);
+                    $data['total_orders'] = (int) ($attendanceData['total_orders'] ?? 0);
+                    $data['working_hours'] = (float) ($attendanceData['working_hours'] ?? 0);
                 }
 
                 $data['branch_id'] = $this->resolveBranchIdForAttendance(
@@ -947,11 +958,25 @@ class AttendanceController extends Controller
     private function riderAttendanceMetricRules(): array
     {
         return [
-            'total_orders' => 'nullable|integer|min:0',
-            'working_hours' => 'nullable|numeric|min:0',
+            'total_orders' => 'required|integer|min:0',
+            'working_hours' => 'required|numeric|min:0',
             'rejected_orders' => 'nullable|integer|min:0',
             'cancelled_orders' => 'nullable|integer|min:0',
             'ontime_orders_percentage' => 'nullable|numeric|min:0|max:100',
         ];
+    }
+
+    /**
+     * Cancelled / rejected default to 0 when left blank; user may override.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function applyRiderMetricDefaults(array $validated): array
+    {
+        $validated['cancelled_orders'] = (int) ($validated['cancelled_orders'] ?? 0);
+        $validated['rejected_orders'] = (int) ($validated['rejected_orders'] ?? 0);
+
+        return $validated;
     }
 }

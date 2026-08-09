@@ -32,6 +32,7 @@ class InstallmentsController extends AppBaseController
         $userBranches = app('user_branches');
 
         $query = ExpenseAccount::query()
+            ->visa()
             ->with('rider')
             ->whereHas('rider')
             ->orderByDesc('id');

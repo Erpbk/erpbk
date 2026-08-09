@@ -35,10 +35,18 @@ class visa_installment_plan extends BaseModel
     const STATUS_PAID = 'paid';
 
     // Relationships
+    /**
+     * Historical name: rider_id may be expense_accounts.id, riders.id, or accounts.id.
+     * Prefer expenseAccount() for renewal-scoped plans.
+     */
     public function rider()
     {
-        // In current schema rider_id maps to accounts.id for visa ledgers.
         return $this->belongsTo(Accounts::class, 'rider_id', 'id');
+    }
+
+    public function expenseAccount()
+    {
+        return $this->belongsTo(ExpenseAccount::class, 'rider_id', 'id');
     }
 
     public function account()

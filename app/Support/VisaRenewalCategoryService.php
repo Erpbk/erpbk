@@ -73,7 +73,7 @@ class VisaRenewalCategoryService
 
     public static function accountForRiderCategory(int $riderId, int $categoryId): ?ExpenseAccount
     {
-        $query = ExpenseAccount::query()->where('rider_id', $riderId);
+        $query = ExpenseAccount::query()->visa()->where('rider_id', $riderId);
         $defaultId = (int) self::defaultCategory()->id;
 
         if ((int) $categoryId === $defaultId) {
@@ -187,6 +187,7 @@ class VisaRenewalCategoryService
     public static function siblingAccountsForRider(int $riderId, ?int $excludeAccountId = null): Collection
     {
         $query = ExpenseAccount::query()
+            ->visa()
             ->with('renewalCategory')
             ->where('rider_id', $riderId)
             ->orderBy('id');

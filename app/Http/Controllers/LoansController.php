@@ -72,12 +72,20 @@ class LoansController extends AppBaseController
             ]);
         }
 
+        $activeLoanIds = Loan::where('status', Loan::STATUS_ACTIVE)->pluck('id');
+
         $summary = [
             'total_outstanding' => Loan::where('status', Loan::STATUS_ACTIVE)->sum('outstanding_principal'),
-            'active_count' => Loan::where('status', Loan::STATUS_ACTIVE)->count(),
-            'overdue_count' => LoanInstallment::where('status', LoanInstallment::STATUS_OVERDUE)->count(),
-            'paid_principal' => LoanInstallment::where('status', LoanInstallment::STATUS_PAID)->sum('principal_amount'),
-            'paid_interest' => LoanInstallment::where('status', LoanInstallment::STATUS_PAID)->sum('interest_amount'),
+            'active_count' => $activeLoanIds->count(),
+            'overdue_count' => LoanInstallment::whereIn('loan_id', $activeLoanIds)
+                ->where('status', LoanInstallment::STATUS_OVERDUE)
+                ->count(),
+            'paid_principal' => LoanInstallment::whereIn('loan_id', $activeLoanIds)
+                ->where('status', LoanInstallment::STATUS_PAID)
+                ->sum('principal_amount'),
+            'paid_interest' => LoanInstallment::whereIn('loan_id', $activeLoanIds)
+                ->where('status', LoanInstallment::STATUS_PAID)
+                ->sum('interest_amount'),
         ];
 
         return view('loans.index', compact('data', 'summary'));

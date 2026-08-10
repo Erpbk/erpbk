@@ -78,6 +78,10 @@
                 <div class="label"><i class="fa fa-exclamation-circle"></i>Overdue Installments</div>
                 <div class="value">{{ $summary['overdue_count'] ?? 0 }}</div>
             </div>
+            <div class="total-card total-4">
+                <div class="label"><i class="fa fa-file-alt"></i>Draft Loans</div>
+                <div class="value">{{ $summary['draft_count'] ?? 0 }}</div>
+            </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('loans.table', ['data' => $data])

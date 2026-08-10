@@ -86,6 +86,7 @@ class LoansController extends AppBaseController
             'paid_interest' => LoanInstallment::whereIn('loan_id', $activeLoanIds)
                 ->where('status', LoanInstallment::STATUS_PAID)
                 ->sum('interest_amount'),
+            'draft_count' => Loan::where('status', Loan::STATUS_DRAFT)->count(),
         ];
 
         return view('loans.index', compact('data', 'summary'));

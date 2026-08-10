@@ -84,5 +84,9 @@ class AdminUser extends Authenticatable
 
         return $this->roles()->whereIn('name', $roleNames)->exists();
     }
+
+    public function branchDropdown(){
+        return [];
+    }
 }
 

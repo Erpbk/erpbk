@@ -2,7 +2,7 @@
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr>
-            @if($vf('bank_name'))<th>Bank</th>@endif
+            @if($vf('bank_name'))<th>Lender</th>@endif
             @if($vf('loan_number'))<th>Loan #</th>@endif
             @if($vf('principal_amount'))<th>Principal</th>@endif
             @if($vf('outstanding_principal'))<th>Outstanding</th>@endif

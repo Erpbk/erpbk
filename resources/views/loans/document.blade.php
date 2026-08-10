@@ -1,7 +1,23 @@
 @extends('layouts.app')
 @section('title', 'Loan Documents')
 @section('content')
+<section class="content-header">
+    <div class="container-fluid">
+        <div class="row mb-2">
+            <div class="col-sm-6">
+                <h3>{{ $loan->loan_number }} <small class="text-muted">Documents</small></h3>
+            </div>
+            <div class="col-sm-6 text-end">
+                <a href="{{ route('loans.index') }}" class="btn btn-outline-secondary">
+                    <i class="ti ti-arrow-left me-1"></i> Back to Loans
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
 @include('loans.view', ['loan' => $loan])
+
 <div class="content">
     @include('flash::message')
     <div class="card">

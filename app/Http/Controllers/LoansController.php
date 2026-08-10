@@ -43,14 +43,14 @@ class LoansController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Loan::query()
-            ->with(['bank', 'receivingBank'])
+            ->with(['receivingBank'])
             ->orderByDesc('id');
 
         if ($request->filled('loan_number')) {
             $query->where('loan_number', 'like', '%'.$request->loan_number.'%');
         }
-        if ($request->filled('bank_id')) {
-            $query->where('bank_id', $request->bank_id);
+        if ($request->filled('bank_name')) {
+            $query->where('bank_name', 'like', '%'.$request->bank_name.'%');
         }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -96,7 +96,7 @@ class LoansController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = LoanInstallment::query()
-            ->with(['loan.bank'])
+            ->with(['loan'])
             ->pending()
             ->whereBetween('due_date', [Carbon::today(), $until])
             ->orderBy('due_date');
@@ -123,12 +123,12 @@ class LoansController extends AppBaseController
         $to = $request->get('to_date', Carbon::now()->format('Y-m-d'));
 
         $rows = LoanInstallment::query()
-            ->with('loan.bank')
+            ->with('loan')
             ->where('status', LoanInstallment::STATUS_PAID)
             ->whereBetween('paid_date', [$from, $to])
             ->orderBy('paid_date')
             ->get()
-            ->groupBy(fn ($row) => $row->loan?->bank?->name ?? 'Unknown');
+            ->groupBy(fn ($row) => $row->loan?->bank_name ?: 'Unknown');
 
         return view('loans.interest_summary', compact('rows', 'from', 'to'));
     }
@@ -149,8 +149,11 @@ class LoansController extends AppBaseController
         try {
             DB::beginTransaction();
 
+            unset($input['bank_id']);
+
             $loan = $this->loanRepository->create(array_merge($input, [
                 'loan_number' => Loan::generateLoanNumber(),
+                'bank_id' => null,
                 'status' => Loan::STATUS_DRAFT,
                 'outstanding_principal' => $input['principal_amount'],
                 'created_by' => auth()->id(),
@@ -187,7 +190,7 @@ class LoansController extends AppBaseController
             return redirect(route('loans.index'));
         }
 
-        $loan->load(['bank', 'receivingBank', 'payingBank', 'installments']);
+        $loan->load(['receivingBank', 'payingBank', 'installments']);
         $this->markOverdueInstallmentsForLoan($loan->id);
 
         $nextInstallment = $loan->pendingInstallments()->first();
@@ -236,7 +239,10 @@ class LoansController extends AppBaseController
 
         try {
             DB::beginTransaction();
-            $loan = $this->loanRepository->update($request->all(), $id);
+            $input = $request->all();
+            unset($input['bank_id']);
+            $loan = $this->loanRepository->update($input, $id);
+            $loan->bank_id = null;
             $loan->outstanding_principal = $loan->principal_amount;
             $loan->save();
             $this->regenerateSchedule($loan);
@@ -270,11 +276,53 @@ class LoansController extends AppBaseController
             return response()->json(['message' => 'Active loans cannot be deleted.'], 422);
         }
 
-        $loan->deleted_by = auth()->id();
-        $loan->save();
-        $loan->delete();
+        DB::beginTransaction();
+        try {
+            $installments = $loan->installments()->get();
+            $loanIdentifier = $loan->loan_number ?: 'Loan #'.$loan->id;
 
-        return response()->json(['message' => 'Loan moved to recycle bin.']);
+            // Queue loan first so related installment deletes attach as cascades
+            // when delete-approval is enabled, and stay recoverable from Recycle Bin.
+            $loan->deleted_by = auth()->id();
+            $loan->save();
+            $loan->delete();
+
+            $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
+
+            foreach ($installments as $installment) {
+                $installmentLabel = 'Installment #'.$installment->installment_no.' — '.$loanIdentifier;
+                $installment->delete();
+
+                $this->trackCascadeDeletion(
+                    Loan::class,
+                    $loan->id,
+                    $loanIdentifier,
+                    LoanInstallment::class,
+                    $installment->id,
+                    $installmentLabel,
+                    'hasMany',
+                    'installments',
+                    'soft',
+                    'Cascade deletion from loan delete'
+                );
+            }
+
+            DB::commit();
+
+            if ($pendingQueued) {
+                return response()->json([
+                    'message' => 'Delete request submitted for approval.',
+                    'pending_approval' => true,
+                ]);
+            }
+
+            return response()->json(['message' => 'Loan moved to recycle bin.']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error deleting loan: '.$e->getMessage());
+
+            return response()->json(['message' => 'Failed to delete loan: '.$e->getMessage()], 500);
+        }
     }
 
     public function disburse(Request $request, $company_slug, $id)
@@ -345,23 +393,8 @@ class LoansController extends AppBaseController
             return redirect(route('loans.index'));
         }
 
-        $this->markOverdueInstallmentsForLoan($loan->id);
-
-        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = LoanInstallment::where('loan_id', $loan->id)->orderBy('installment_no');
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        $data = $this->applyPagination($query, $paginationParams);
-
-        if ($request->ajax()) {
-            return response()->json([
-                'tableData' => view('loans.installment_plan_table', ['data' => $data, 'loan' => $loan])->render(),
-                'paginationLinks' => $data->links('components.global-pagination')->render(),
-            ]);
-        }
-
-        return view('loans.installment_plan', compact('loan', 'data'));
+        // Schedule is shown on the Overview tab.
+        return redirect()->route('loans.show', $loan->id);
     }
 
     public function payInstallmentForm($company_slug, $id)
@@ -370,7 +403,7 @@ class LoansController extends AppBaseController
             abort(403, 'Unauthorized action.');
         }
 
-        $installment = LoanInstallment::with(['loan.bank', 'loan.account'])->findOrFail($id);
+        $installment = LoanInstallment::with(['loan.account'])->findOrFail($id);
 
         if (! $installment->canBePaid()) {
             abort(422, 'This installment cannot be paid.');
@@ -586,7 +619,7 @@ class LoansController extends AppBaseController
         return [
             'name' => 'Loan',
             'module_key' => 'loans',
-            'display_columns' => ['loan_number', 'agreement_ref', 'status'],
+            'display_columns' => ['loan_number', 'bank_name', 'agreement_ref', 'status'],
             'trash_view' => 'loans.trash',
             'index_route' => 'loans.index',
         ];

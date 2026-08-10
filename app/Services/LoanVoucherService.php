@@ -119,12 +119,12 @@ class LoanVoucherService
         }
 
         $parentAccount = GlobalAccounts::account('LOANS_PAYABLE_PARENT_NAME');
-        $bank = Banks::find($loan->bank_id);
+        $lenderName = trim((string) ($loan->bank_name ?? '')) ?: 'Bank';
 
         $account = new Accounts;
         $account->account_code = 'LN'.str_pad($loan->id, 4, '0', STR_PAD_LEFT);
         $account->account_type = 'Liability';
-        $account->name = ($bank?->name ?? 'Bank').' — '.$loan->loan_number;
+        $account->name = $lenderName.' — '.$loan->loan_number;
         $account->parent_id = $parentAccount->id;
         $account->ref_name = 'Loan';
         $account->ref_id = $loan->id;

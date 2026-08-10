@@ -417,7 +417,7 @@
 </head>
 <body>
 @php
-    $companyName = $branding['company_name'] ?? config('app.name', 'Company');
+    $companyName = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
     $qrPayload = urlencode(($docRef ?? '') . '|' . ($rider->rider_id ?? $rider->id) . '|' . ($rider->name ?? ''));
     $project = optional($rider->vendor)->name ?? optional($rider->customer)->name ?? '';
     $joinDate = !empty($rider->doj) ? \Carbon\Carbon::parse($rider->doj)->format('d M Y') : '';

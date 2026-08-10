@@ -10,7 +10,7 @@ class LoanRepository extends BaseRepository
         'loan_number',
         'agreement_ref',
         'status',
-        'bank_id',
+        'bank_name',
     ];
 
     public function getFieldsSearchable(): array

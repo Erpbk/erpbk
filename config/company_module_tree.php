@@ -10,7 +10,7 @@ return [
 
     ['key' => 'cash_banks', 'children' => ['cash_banks', 'cheques', 'payments', 'receipts']],
 
-    ['key' => 'loans', 'children' => ['loans_list', 'loans_upcoming_installments']],
+    ['key' => 'loans'],
 
     ['key' => 'employees', 'children' => ['employees']],
     ['key' => 'attendance', 'children' => ['attendance_records', 'attendance_summary']],

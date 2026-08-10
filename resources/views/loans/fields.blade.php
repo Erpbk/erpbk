@@ -6,8 +6,8 @@ $selectedMethod = old('interest_calculation_method', isset($loan) ? $loan->inter
 @endphp
 
 <div class="form-group col-sm-4">
-    {!! Form::label('bank_id', 'Lender Bank', ['class' => 'required']) !!}
-    {!! Form::select('bank_id', $banks, null, ['class' => 'form-select select2', 'required' => true]) !!}
+    {!! Form::label('bank_name', 'Lender Bank Name', ['class' => 'required']) !!}
+    {!! Form::text('bank_name', null, ['class' => 'form-control', 'maxlength' => 255, 'required' => true, 'placeholder' => 'Enter bank name']) !!}
 </div>
 
 <div class="form-group col-sm-4">

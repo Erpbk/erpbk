@@ -3,7 +3,7 @@
     <thead class="text-center">
         <tr>
             @if($vf('loan_number'))<th>Loan #</th>@endif
-            @if($vf('bank_id'))<th>Bank</th>@endif
+            @if($vf('bank_name'))<th>Bank</th>@endif
             @if($vf('principal_amount'))<th>Principal</th>@endif
             @if($vf('outstanding_principal'))<th>Outstanding</th>@endif
             @if($vf('interest_rate'))<th>Rate %</th>@endif
@@ -18,7 +18,7 @@
         @forelse($data as $loan)
         <tr class="text-center" data-id="{{ $loan->id }}">
             @if($vf('loan_number'))<td><a href="{{ route('loans.show', $loan->id) }}">{{ $loan->loan_number }}</a></td>@endif
-            @if($vf('bank_id'))<td>{{ $loan->bank?->name ?? '-' }}</td>@endif
+            @if($vf('bank_name'))<td>{{ $loan->bank_name ?: '-' }}</td>@endif
             @if($vf('principal_amount'))<td>{{ number_format($loan->principal_amount, 2) }}</td>@endif
             @if($vf('outstanding_principal'))<td>{{ number_format($loan->outstanding_principal, 2) }}</td>@endif
             @if($vf('interest_rate'))<td>{{ number_format($loan->interest_rate, 2) }}</td>@endif

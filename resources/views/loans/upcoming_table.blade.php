@@ -14,7 +14,7 @@
         @forelse($data as $inst)
         <tr class="text-center">
             <td><a href="{{ route('loans.show', $inst->loan_id) }}">{{ $inst->loan?->loan_number }}</a></td>
-            <td>{{ $inst->loan?->bank?->name }}</td>
+            <td>{{ $inst->loan?->bank_name }}</td>
             <td>{{ $inst->installment_no }}</td>
             <td>{{ $inst->due_date->format('d M Y') }}</td>
             <td>{{ number_format($inst->total_amount, 2) }}</td>

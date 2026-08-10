@@ -681,134 +681,247 @@ class LicenseexpenseController extends AppBaseController
             ->first();
         return view('license_expenses.viewvoucher', compact('data', 'accounts'));
     }
+
+    /**
+     * Expense-voucher-style payment modal for an unpaid License Expense entry.
+     */
+    public function payForm(Request $request, $company_slug, $id)
+    {
+        if (!user_can('licenseexpense_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $data = license_expenses::findOrFail($id);
+
+        if ($data->payment_status === 'paid') {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">This License Expense is already paid.</div>',
+                200
+            );
+        }
+
+        $accounts = ExpenseAccount::query()->license()->with('rider')->find($data->expense_account_id)
+            ?? ExpenseAccount::query()
+                ->license()
+                ->with('rider')
+                ->where('rider_id', $data->rider_id)
+                ->orderByDesc('id')
+                ->firstOrFail();
+
+        $rider = $accounts->rider ?? Riders::find($accounts->rider_id);
+
+        $bankCashAccounts = $this->LicenseExpensePaymentAccountOptions();
+        if ($bankCashAccounts->isEmpty()) {
+            $bankCashAccounts = Accounts::bankAndCashDropdown()
+                ->filter(static fn ($label, $accId) => $accId !== '' && $accId !== null);
+        }
+
+        return view('license_expenses.pay_form', compact('data', 'accounts', 'rider', 'bankCashAccounts'));
+    }
+
     public function payfine(Request $request)
     {
         DB::beginTransaction();
 
         try {
-            $expense = license_expenses::findOrFail($request->id);
-            $expenseAccount = ExpenseAccount::query()
-                ->license()
-                ->where(function ($q) use ($request, $expense) {
-                    $q->where('id', $expense->expense_account_id)
-                        ->orWhere('id', $request->rider_id)
-                        ->orWhere('rider_id', $request->rider_id)
-                        ->orWhere('rider_id', $expense->rider_id);
-                })
-                ->orderByDesc('id')
-                ->first();
-            $expense->pay_account = $request->account;
+            $validated = $request->validate([
+                'id' => 'required|exists:license_expenses,id',
+                'account' => 'required|exists:accounts,id',
+                'expiry_date' => 'required|date',
+                'narration' => 'nullable|string|max:1000',
+                'vat_percent' => 'nullable|numeric|min:0|max:100',
+                'vat_amount' => 'nullable|numeric|min:0',
+                'attach_file' => 'nullable|file|max:10240',
+            ]);
 
-            if ($expense->payment_status == 'paid') {
-                $expense->payment_status = 'unpaid';
-                $expense->expiry_date = null;
-            } else {
-                $request->validate([
-                    'expiry_date' => 'required|date',
-                ]);
-                $expense->payment_status = 'paid';
-                $expense->expiry_date = $request->expiry_date;
-                $payment_type_flag = match ($request->payment_type) {
-                    'Liability' => 1,
-                    'Asset' => 0,
-                    default => null,
-                };
-                $photo = $request->file('attach_file');
-                $docFile = $photo->store('vouchers', 'public');
-                $remarks = $request->voucher_type === 'LE' ? 'License Expense Voucher' : 'Journal Voucher';
-
-                $trans_code = Account::trans_code();
-                $TransactionService = new TransactionService();
-
-                $billingMonth = $expense->billing_month ?? date('Y-m-01');
-                $transDate = $expense->trans_date;
-
-                // 1. Fine Amount
-                if ($expense->amount > 0) {
-                    // Debit RTA Account
-                    $TransactionService->recordTransaction([
-                        'account_id'     => GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'),
-                        'reference_id'   => $expense->id,
-                        'reference_type' => 'LE',
-                        'trans_code'     => $trans_code,
-                        'trans_date'     => $transDate,
-                        'narration'      => $expense->detail ?? 'Viss Expense Payment',
-                        'debit'          => $expense->amount,
-                        'billing_month'  => $billingMonth,
-                        'branch_id'       => $expense->branch_id,
-                    ]);
-                }
-                if ($expense->amount > 0) {
-                    // Credit Selected Payment Account
-                    $TransactionService->recordTransaction([
-                        'account_id'     => $request->account,
-                        'reference_id'   => $expense->id,
-                        'reference_type' => 'LE',
-                        'trans_code'     => $trans_code,
-                        'trans_date'     => $transDate,
-                        'narration'      => $expense->detail ?? 'License Expense Payment',
-                        'credit'         => $expense->amount,
-                        'billing_month'  => $billingMonth,
-                        'branch_id'       => $expense->branch_id,
-                    ]);
-                }
-                Vouchers::create([
-                    'branch_id'       => $expense->branch_id,
-                    'trans_date'    => $transDate,
-                    'trans_code'    => $trans_code,
-                    'trip_date'     => $request->trip_date,
-                    'billing_month' => $billingMonth,
-                    'payment_type'  => $payment_type_flag,
-                    'voucher_type'  => $request->voucher_type,
-                    'remarks'       => $remarks,
-                    'amount'        => $expense->amount,
-                    'reference_number' => $expense->reference_number ?? null,
-                    'Created_By'    => $request->Created_By,
-                    'attach_file'   => $docFile,
-                    'pay_account'   => $request->account,
-                    'ref_id'        => $expense->id,
-                    'custom_field_values' => $request->input('voucher_custom_fields', []),
-                ]);
-
-                // 5. Ledger Entry (Against Payment Account)
-                $total_amount = floatval($expense->amount);
-                $lastLedger = CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $request->account)
-                    ->orderBy('billing_month', 'desc')
+            $expense = license_expenses::findOrFail($validated['id']);
+            $expenseAccount = ExpenseAccount::query()->license()->find($expense->expense_account_id)
+                ?? ExpenseAccount::query()
+                    ->license()
+                    ->where(function ($q) use ($request, $expense) {
+                        $q->where('id', $request->rider_id)
+                            ->orWhere('rider_id', $request->rider_id)
+                            ->orWhere('rider_id', $expense->rider_id);
+                    })
+                    ->orderByDesc('id')
                     ->first();
 
-                $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-                $debit_balance = $credit_balance = 0.00;
+            if (!$expenseAccount) {
+                throw new \RuntimeException('License expense account not found for this payment.');
+            }
 
-                if ($payment_type_flag === 1) { // Liability
-                    $debit_balance = $total_amount;
-                    $closing_balance = $opening_balance + $total_amount;
-                } elseif ($payment_type_flag === 0) { // Asset
-                    $credit_balance = $total_amount;
-                    $closing_balance = $opening_balance - $total_amount;
-                } else {
-                    $closing_balance = $opening_balance;
+            if ($expense->payment_status === 'paid') {
+                if ($request->ajax() || $request->wantsJson()) {
+                    DB::rollBack();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This License Expense is already paid.',
+                    ], 422);
                 }
 
-                CompanyQuery::table('ledger_entries')->insert([
-                    'account_id'      => $request->account,
-                    'billing_month'   => $billingMonth,
-                    'opening_balance' => $opening_balance,
-                    'debit_balance'   => $debit_balance,
-                    'credit_balance'  => $credit_balance,
-                    'closing_balance' => $closing_balance,
-                    'branch_id'       => $expense->branch_id,
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
+                Flash::error('This License Expense is already paid.');
+                DB::rollBack();
+
+                return redirect(route('LicenseExpense.generatentries', $expenseAccount->id));
+            }
+
+            $expense->pay_account = $validated['account'];
+            $expense->payment_status = 'paid';
+            $expense->expiry_date = $validated['expiry_date'];
+
+            $payAccount = Accounts::findOrFail($validated['account']);
+            $payment_type_flag = match ($request->input('payment_type', $payAccount->account_type)) {
+                'Liability' => 1,
+                'Asset' => 0,
+                default => ($payAccount->account_type === 'Liability' ? 1 : 0),
+            };
+
+            $docFile = null;
+            if ($request->hasFile('attach_file')) {
+                $docFile = $request->file('attach_file')->store('vouchers', 'public');
+            }
+
+            $narration = trim((string) ($validated['narration'] ?? ''));
+            if ($narration === '') {
+                $narration = $expense->detail ?: 'License Expense Payment';
+            }
+
+            $baseAmount = round((float) $expense->amount, 2);
+            $vatPercent = round((float) ($validated['vat_percent'] ?? 0), 4);
+            $vatAmount = round((float) ($validated['vat_amount'] ?? 0), 2);
+            if ($vatAmount <= 0 && $vatPercent > 0 && $baseAmount > 0) {
+                $vatAmount = round(($baseAmount * $vatPercent) / 100, 2);
+            }
+            $grandTotal = round($baseAmount + $vatAmount, 2);
+
+            $trans_code = Account::trans_code();
+            $TransactionService = new TransactionService();
+
+            $billingMonth = $expense->billing_month ?? date('Y-m-01');
+            $transDate = $expense->trans_date ?? Carbon::today()->format('Y-m-d');
+
+            if ($baseAmount > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id'     => GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'),
+                    'reference_id'   => $expense->id,
+                    'reference_type' => 'LE',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => $narration,
+                    'debit'          => $baseAmount,
+                    'billing_month'  => $billingMonth,
+                    'branch_id'      => $expense->branch_id,
                 ]);
             }
 
+            if ($vatAmount > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id'     => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
+                    'reference_id'   => $expense->id,
+                    'reference_type' => 'LE',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => 'VAT: ' . $narration,
+                    'debit'          => $vatAmount,
+                    'billing_month'  => $billingMonth,
+                    'branch_id'      => $expense->branch_id,
+                ]);
+            }
+
+            if ($grandTotal > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id'     => $validated['account'],
+                    'reference_id'   => $expense->id,
+                    'reference_type' => 'LE',
+                    'trans_code'     => $trans_code,
+                    'trans_date'     => $transDate,
+                    'narration'      => $narration,
+                    'credit'         => $grandTotal,
+                    'billing_month'  => $billingMonth,
+                    'branch_id'      => $expense->branch_id,
+                ]);
+            }
+
+            Vouchers::create([
+                'branch_id'        => $expense->branch_id,
+                'trans_date'       => $transDate,
+                'trans_code'       => $trans_code,
+                'trip_date'        => $request->trip_date,
+                'billing_month'    => $billingMonth,
+                'payment_type'     => $payment_type_flag,
+                'voucher_type'     => 'LE',
+                'remarks'          => $vatAmount > 0
+                    ? ('License Expense Voucher (incl. VAT ' . number_format($vatAmount, 2) . ')')
+                    : 'License Expense Voucher',
+                'amount'           => $grandTotal,
+                'reference_number' => $expense->reference_number ?? null,
+                'Created_By'       => $request->Created_By ?? auth()->id(),
+                'attach_file'      => $docFile,
+                'pay_account'      => $validated['account'],
+                'ref_id'           => $expense->id,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+            ]);
+
+            $total_amount = $grandTotal;
+            $lastLedger = CompanyQuery::table('ledger_entries')
+                ->where('account_id', $validated['account'])
+                ->orderBy('billing_month', 'desc')
+                ->first();
+
+            $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+            $debit_balance = $credit_balance = 0.00;
+
+            if ($payment_type_flag === 1) {
+                $debit_balance = $total_amount;
+                $closing_balance = $opening_balance + $total_amount;
+            } else {
+                $credit_balance = $total_amount;
+                $closing_balance = $opening_balance - $total_amount;
+            }
+
+            CompanyQuery::table('ledger_entries')->insert([
+                'account_id'      => $validated['account'],
+                'billing_month'   => $billingMonth,
+                'opening_balance' => $opening_balance,
+                'debit_balance'   => $debit_balance,
+                'credit_balance'  => $credit_balance,
+                'closing_balance' => $closing_balance,
+                'branch_id'       => $expense->branch_id,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+
             $expense->save();
             DB::commit();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'License Expense Paid Successfully with Transaction and Ledger Entries.',
+                    'redirect' => route('LicenseExpense.generatentries', $expenseAccount->id),
+                    'reload_page' => 1,
+                ]);
+            }
+
             Flash::success('License Expense Paid Successfully with Transaction and Ledger Entries.');
         } catch (\Exception $e) {
             DB::rollBack();
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+
             Flash::error('Error: ' . $e->getMessage());
+
+            if (isset($expenseAccount) && $expenseAccount) {
+                return redirect(route('LicenseExpense.generatentries', $expenseAccount->id))->withInput();
+            }
+
+            return redirect()->back()->withInput();
         }
 
         return redirect(route('LicenseExpense.generatentries', $expenseAccount->id));

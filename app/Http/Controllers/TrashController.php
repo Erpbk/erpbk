@@ -217,7 +217,7 @@ class TrashController extends Controller
             'model' => Loan::class,
             'name' => 'Bank Loans',
             'icon' => 'fa-university',
-            'display_columns' => ['loan_number', 'agreement_ref', 'status'],
+            'display_columns' => ['loan_number', 'bank_name', 'agreement_ref', 'status'],
         ],
     ];
 

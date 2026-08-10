@@ -119,12 +119,12 @@ class LoanVoucherService
         }
 
         $parentAccount = GlobalAccounts::account('LOANS_PAYABLE_PARENT_NAME');
-        $bank = Banks::find($loan->bank_id);
+        $lenderName = trim((string) ($loan->bank_name ?? '')) ?: 'Bank';
 
         $account = new Accounts;
         $account->account_code = 'LN'.str_pad($loan->id, 4, '0', STR_PAD_LEFT);
         $account->account_type = 'Liability';
-        $account->name = ($bank?->name ?? 'Bank').' — '.$loan->loan_number;
+        $account->name = $lenderName.' — '.$loan->loan_number;
         $account->parent_id = $parentAccount->id;
         $account->ref_name = 'Loan';
         $account->ref_id = $loan->id;
@@ -148,7 +148,9 @@ class LoanVoucherService
         ?float $total = null,
         ?string $loanPayableNarration = null,
         ?string $interestNarration = null,
-        ?string $bankNarration = null
+        ?string $bankNarration = null,
+        ?float $lateCharges = null,
+        ?string $lateChargesNarration = null
     ): Vouchers {
         $loan = $installment->loan;
         if (! $loan || $loan->status !== Loan::STATUS_ACTIVE) {
@@ -168,17 +170,27 @@ class LoanVoucherService
         $paymentDate = $paymentDate ?? Carbon::today();
         $principal = round($principal ?? (float) $installment->principal_amount, 2);
         $interest = round($interest ?? (float) $installment->interest_amount, 2);
-        $total = round($total ?? (float) $installment->total_amount, 2);
+        $lateCharges = round($lateCharges ?? (float) ($installment->late_payment_charges ?? 0), 2);
+        $emiTotal = round($principal + $interest, 2);
+        $total = round($total ?? ($emiTotal + $lateCharges), 2);
 
-        if (abs($total - ($principal + $interest)) > 0.01) {
-            throw new \RuntimeException('Total amount must equal principal plus interest.');
+        if ($lateCharges < 0) {
+            throw new \RuntimeException('Late payment charges cannot be negative.');
+        }
+
+        if (abs($total - ($emiTotal + $lateCharges)) > 0.01) {
+            throw new \RuntimeException('Total amount must equal principal plus interest plus late payment charges.');
         }
 
         $defaultNarration = $narration ?? ('Loan EMI #'.$installment->installment_no.' — '.$loan->loan_number);
         $loanPayableNarration = $loanPayableNarration ?: $defaultNarration;
         $interestNarration = $interestNarration ?: $defaultNarration;
         $bankNarration = $bankNarration ?: $defaultNarration;
+        $lateChargesNarration = $lateChargesNarration ?: ('Late payment charges — '.$defaultNarration);
         $interestParent = GlobalAccounts::account('LOAN_INTEREST_EXPENSE');
+        $lateChargesAccount = $lateCharges > 0
+            ? GlobalAccounts::account('LATE_LOAN_PAYMENT_CHARGES')
+            : null;
 
         $transCode = Account::trans_code();
         $billingMonth = $paymentDate->copy()->startOfMonth()->format('Y-m-d');
@@ -196,8 +208,6 @@ class LoanVoucherService
             'ref_id' => $installment->id,
             'branch_id' => $loan->branch_id,
         ]);
-
-        $narration = $defaultNarration;
 
         $this->transactionService->recordTransaction([
             'account_id' => $loan->account_id,
@@ -225,6 +235,20 @@ class LoanVoucherService
             ], true);
         }
 
+        if ($lateCharges > 0 && $lateChargesAccount) {
+            $this->transactionService->recordTransaction([
+                'account_id' => $lateChargesAccount->id,
+                'reference_id' => $installment->id,
+                'reference_type' => 'BL',
+                'trans_code' => $transCode,
+                'trans_date' => $paymentDate->format('Y-m-d'),
+                'narration' => $lateChargesNarration,
+                'debit' => $lateCharges,
+                'branch_id' => $loan->branch_id,
+                'billing_month' => $billingMonth,
+            ], true);
+        }
+
         $this->transactionService->recordTransaction([
             'account_id' => $payingBank->account_id,
             'reference_id' => $installment->id,
@@ -241,7 +265,8 @@ class LoanVoucherService
 
         $installment->principal_amount = $principal;
         $installment->interest_amount = $interest;
-        $installment->total_amount = $total;
+        $installment->total_amount = $emiTotal;
+        $installment->late_payment_charges = $lateCharges;
         $installment->status = LoanInstallment::STATUS_PAID;
         $installment->paid_amount = $total;
         $installment->paid_date = $paymentDate->format('Y-m-d');

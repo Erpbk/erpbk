@@ -43,6 +43,7 @@ class GlobalAccountsSeeder extends Seeder
             'LICENSE_EXPENSE_ACCOUNT' => ['label' => 'Dubai Driving License Expense', 'account_id' => null, 'account_type' => 'Expense'],
             'LOANS_PAYABLE_PARENT_NAME' => ['label' => 'Loans Payable (Parent)', 'account_id' => null, 'account_type' => 'Liability'],
             'LOAN_INTEREST_EXPENSE' => ['label' => 'Loan Interest Expense', 'account_id' => null, 'account_type' => 'Expense'],
+            'LATE_LOAN_PAYMENT_CHARGES' => ['label' => 'Late Loan Payment Charges', 'account_id' => null, 'account_type' => 'Expense'],
             'BANK' => ['label' => 'Bank (Parent)', 'account_id' => null, 'account_type' => 'Asset'],
             'CASH' => ['label' => 'Cash (Parent)', 'account_id' => null, 'account_type' => 'Asset'],
             'RIDERS' => ['label' => 'Riders (Parent)', 'account_id' => null, 'account_type' => 'Liability'],

@@ -60,11 +60,12 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('loans'))
 @can('loans_view')
-<li class="menu-item {{ Route::is('loans.*') || Route::is('loan.*') || Route::is('loanInstallments.*') ? 'open' : '' }}">
-  <a href="javascript:void(0);" class="menu-link menu-toggle">
+<li class="menu-item {{ Route::is('loans.*') || Route::is('loan.*') || Route::is('loanInstallments.*') ? 'active' : '' }}">
+  <a href="{{ route('loans.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'loans'])
     <div>{{ $menuLabels['loans'] ?? 'Bank Loans' }}</div>
   </a>
+  {{-- Child links moved to shared in-page nav tabs (Loans / Upcoming Installments / Interest Summary)
   <ul class="menu-sub">
     <li class="menu-item {{ Route::is('loans.index') || Route::is('loans.show') || Route::is('loans.edit') ? 'active' : '' }}">
       <a href="{{ route('loans.index') }}" class="menu-link">
@@ -79,6 +80,7 @@ $homeLink = $isAdminLogin
       </a>
     </li>
   </ul>
+  --}}
 </li>
 @endcan
 @endif

@@ -27,6 +27,7 @@ class Loan extends BaseModel
     public $fillable = [
         'branch_id',
         'loan_number',
+        'bank_name',
         'bank_id',
         'receiving_bank_id',
         'paying_bank_id',
@@ -64,7 +65,8 @@ class Loan extends BaseModel
     ];
 
     public static array $rules = [
-        'bank_id' => 'required|exists:banks,id',
+        'bank_name' => 'required|string|max:255',
+        'bank_id' => 'nullable',
         'receiving_bank_id' => 'nullable|exists:banks,id',
         'paying_bank_id' => 'nullable|exists:banks,id',
         'principal_amount' => 'required|numeric|min:0.01',

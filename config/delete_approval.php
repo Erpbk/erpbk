@@ -154,7 +154,7 @@ return [
         'loans' => [
             'model' => \App\Models\Loan::class,
             'name' => 'Bank Loans',
-            'display_columns' => ['loan_number', 'agreement_ref', 'status'],
+            'display_columns' => ['loan_number', 'bank_name', 'agreement_ref', 'status'],
             'show_route' => 'loans.show',
         ],
         'employees' => [

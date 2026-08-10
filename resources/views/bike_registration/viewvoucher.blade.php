@@ -120,7 +120,15 @@ $riderUnpaidTotal = $accounts ? company_table('bike_registrations')->where('bike
                                     @if($data->payment_status == 'paid')
                                     <td class="text-end"><a href="javascript:void(0);" class="btn btn-action btn-success">Paid</a> </td>
                                     @else
-                                    <td class="text-end"><a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#payfine" class="btn btn-action btn-primary">Proceed to Pay</a> </td>
+                                    <td class="text-end">
+                                        <a href="javascript:void(0);"
+                                           class="btn btn-action btn-primary show-modal"
+                                           data-action="{{ route('BikeRegistration.payForm', $data->id) }}"
+                                           data-size="xl"
+                                           data-title="Pay Bike Registration">
+                                            Proceed to Pay
+                                        </a>
+                                    </td>
                                     @endif
                                 </tr>
                             </table>
@@ -131,86 +139,7 @@ $riderUnpaidTotal = $accounts ? company_table('bike_registrations')->where('bike
         </div>
     </div>
 </div>
-<div class="modal modal-default filtetmodal fade" id="payfine" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Select Account to Pay</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="searchTopbody">
-                <form id="br-payfine-form" enctype="multipart/form-data" action="{{ route('BikeRegistration.payfine') }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="id" value="{{ $data->id }}">
-                    @if($accounts)
-                    <input type="hidden" name="bike_registration_account_id" value="{{ $accounts->id }}">
-                    @endif
-                    <input type="hidden" name="rider_id" value="{{ $accounts->rider_id ?? '' }}">
-                    <input type="hidden" name="trans_date" value="{{ $data->trans_date }}">
-                    <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
-                    <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-                    <input type="hidden" name="payment_type" value="{{ company_table('accounts')->where('id', ga_id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'))->first()->account_type ?? 'Expense' }}">
-                    <input type="hidden" name="voucher_type" value="BR">
-                    <input type="hidden" name="amount" value="{{ $data->amount }}">
-                    <input type="hidden" name="Created_By" value="{{ auth()->id() }}">
-                    <div class="row">
-                        @include('bike_registration.voucherfield', ['data' => $data])
-                        <div class="col-md-12 form-group text-center">
-                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Submit</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script type="text/javascript">
-    $(document).ready(function() {
-        $('#account_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Select Bank Account",
-            allowClear: true
-        });
-
-        $('#br-payfine-form').on('submit', function(e) {
-            e.preventDefault();
-            var form = this;
-            var fd = new FormData(form);
-            $.ajax({
-                url: $(form).attr('action'),
-                type: 'POST',
-                data: fd,
-                processData: false,
-                contentType: false,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                },
-                success: function(res) {
-                    $('#payfine').modal('hide');
-                    Swal.fire({
-                        icon: 'success',
-                        title: res.message || 'Saved'
-                    }).then(function() {
-                        if (res.generatentries_url) {
-                            window.location.href = res.generatentries_url;
-                        } else {
-                            window.location.reload();
-                        }
-                    });
-                },
-                error: function(xhr) {
-                    var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Payment failed';
-                    Swal.fire({
-                        icon: 'error',
-                        title: msg
-                    });
-                }
-            });
-        });
-    });
-</script>
 @endsection

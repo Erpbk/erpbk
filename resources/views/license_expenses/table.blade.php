@@ -126,7 +126,16 @@
                      </a>
                      @endcan
                      @can('license_expense_edit')
-                     <a href="javascript:void(0);" data-action="{{ route('LicenseExpense.edit' , $r->id) }}" data-size="lg" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
+                     @if($r->payment_status !== 'paid')
+                     <a href="javascript:void(0);"
+                        data-action="{{ route('LicenseExpense.payForm', $r->id) }}"
+                        data-size="xl"
+                        data-title="Pay License Expense — {{ $r->license_status }}"
+                        class="dropdown-item waves-effect show-modal">
+                        Pay
+                     </a>
+                     @endif
+                     <a href="javascript:void(0);" data-action="{{ route('LicenseExpense.edit' , $r->id) }}" data-size="lg" data-title="Edit License Expense" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
                      @endcan

@@ -36,5 +36,8 @@
         </div>
     </div>
 </section>
+
+@include('loans.partials.nav_tabs')
+
 @yield('page_content')
 @endsection

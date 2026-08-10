@@ -149,7 +149,16 @@
                      </a>
                      @endcan
                      @can('visa_expense_edit')
-                     <a href="javascript:void(0);" data-action="{{ route('VisaExpense.edit' , $r->id) }}" data-size="lg" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
+                     @if($r->payment_status !== 'paid' && !$rowPendingDeletion)
+                     <a href="javascript:void(0);"
+                        data-action="{{ route('VisaExpense.payForm', $r->id) }}"
+                        data-size="xl"
+                        data-title="Pay Visa Expense — {{ $r->visa_status }}"
+                        class="dropdown-item waves-effect show-modal">
+                        Pay
+                     </a>
+                     @endif
+                     <a href="javascript:void(0);" data-action="{{ route('VisaExpense.edit' , $r->id) }}" data-size="lg" data-title="Edit Visa Expense" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>
                      @endcan

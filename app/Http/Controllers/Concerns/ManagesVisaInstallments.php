@@ -51,7 +51,7 @@ trait ManagesVisaInstallments
         $account = $this->resolveExpenseAccountContext((int) $id);
 
         // Auto-mark installments as paid if their date has arrived
-        $this->checkAndAutoMarkInstallments($account->rider_id);
+        $this->checkAndAutoMarkInstallments($account);
 
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
@@ -101,7 +101,7 @@ trait ManagesVisaInstallments
         $account = $this->resolveExpenseAccountContext((int) $riderId);
 
         // Auto-mark installments silently in the background
-        $this->checkAndAutoMarkInstallments($account->rider_id);
+        $this->checkAndAutoMarkInstallments($account);
 
         $account->loadMissing('rider.branch');
         $rider = $account->rider ?? Riders::find($account->rider_id);
@@ -150,6 +150,7 @@ trait ManagesVisaInstallments
 
             // Resolve rider account context (expense_accounts.id, riders.id, or legacy accounts.id).
             $expenseAccount = $this->resolveExpenseAccountContext((int) $validated['rider_id']);
+            $expenseAccount->loadMissing('renewalCategory');
             $riderAccount = (int) $expenseAccount->rider_id;
 
             // Validate that installment amounts sum to total amount.
@@ -208,112 +209,16 @@ trait ManagesVisaInstallments
             }
             $rider = Riders::findOrFail($riderAccount);
 
-
-            $existingInstallmentCount = visa_installment_plan::query()
-                ->where(function ($q) use ($expenseAccount) {
-                    $this->applyInstallmentRiderScope($q, $expenseAccount);
-                })
-                ->count();
-
-            // Create multiple installment entries for consecutive months
-            for ($i = 0; $i < $validated['number_of_installments']; $i++) {
-                // Calculate billing month for this installment (consecutive months)
-                $billingDate = Carbon::parse($validated['billing_month'] . '-01')->addMonths($i);
-                $billingMonth = $billingDate->format('Y-m-d');
-                $billingMonthFormatted = $billingDate->format('Y-m');
-
-                // Calculate installment date - set to 10th of next month from billing month
-                $installmentDate = $billingDate->copy()->addMonth()->day(10)->format('Y-m-d');
-
-                // Get the individual installment amount
-                $installmentAmount = $installmentAmounts[$i];
-                // Create installment entry
-                $installment = visa_installment_plan::create([
-                    'rider_id' => $riderAccount,
-                    'branch_id' => $validated['branch_id'],
-                    'billing_month' => $billingMonthFormatted,
-                    'amount' => $installmentAmount,
-                    'total_amount' => $totalAmount, // Store the total amount for reference
-                    'reference_number' => $validated['reference_number'],
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
-                    'status' => visa_installment_plan::STATUS_PENDING,
-                    'date' => $installmentDate,
-                    'created_by' => auth()->user()->id,
-                ]);
-
-                // Generate unique transaction code for each installment
-                $trans_code = Account::trans_code();
-                $trans_date = Carbon::today();
-                $TransactionService = new TransactionService();
-
-                // Create separate voucher for each installment
-                $voucher = Vouchers::create([
-                    'trans_date' => $trans_date,
-                    'trans_code' => $trans_code,
-                    'billing_month' => $billingMonth,
-                    'payment_type' => 1, // Liability payment
-                    'voucher_type' => 'VL', // Visa Loan
-                    'remarks' => 'Loan Voucher - <b>Installment ' . ($i + 1 + $existingInstallmentCount) . ' of '
-                        . ($validated['number_of_installments'] + $existingInstallmentCount) . '</b>'
-                        . ' (Amount: <b>' . number_format($installmentAmount, 2) . '</b>)',
-                    'amount' => $installmentAmount,
-                    'reference_number' => $validated['reference_number'],
-                    'Created_By' => auth()->user()->id,
-                    'ref_id' => $installment->id,
-                    'custom_field_values' => [],
-                    'branch_id' => $validated['branch_id'],
-                ]);
-                // Debit the liability account for each installment
-                $TransactionService->recordTransaction([
-                    'account_id' => $liabilityAccount->id,
-                    'reference_id' => $installment->id,
-                    'reference_type' => 'VL',
-                    'trans_code' => $trans_code,
-                    'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
-                    'debit' => $installmentAmount,
-                    'branch_id' => $validated['branch_id'],
-                    'billing_month' => $billingMonth,
-                    'created_by' => auth()->user()->id,
-                ]);
-
-                // Credit the rider account (visa expense account) for each installment
-                $TransactionService->recordTransaction([
-                    'account_id' => GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'),
-                    'reference_id' => $installment->id,
-                    'reference_type' => 'VL',
-                    'trans_code' => $trans_code,
-                    'trans_date' => $trans_date,
-                    'narration' => $rider->rider_id . ' - ' . $rider->name . '<b> - installment ' . ($i + 1 + $existingInstallmentCount) . '</b>',
-                    'credit' => $installmentAmount,
-                    'branch_id' => $validated['branch_id'],
-                    'billing_month' => $billingMonth,
-                    'created_by' => auth()->user()->id,
-                ]);
-
-                // Create ledger entry for liability account for each installment
-                $lastLedger = CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $liabilityAccount->id)
-                    ->orderBy('billing_month', 'desc')
-                    ->first();
-
-                $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-                $debit_balance = $installmentAmount;
-                $credit_balance = 0.00;
-                $closing_balance = $opening_balance + $installmentAmount; // Liability increases with debit
-
-                CompanyQuery::insert('ledger_entries', [
-                    'account_id' => $liabilityAccount->id,
-                    'billing_month' => $billingMonth,
-                    'opening_balance' => $opening_balance,
-                    'debit_balance' => $debit_balance,
-                    'credit_balance' => $credit_balance,
-                    'closing_balance' => $closing_balance,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                    'branch_id' => $validated['branch_id'],
-                ]);
-            }
+            $existingInstallmentCount = $this->persistInstallmentPlanEntries(
+                $expenseAccount,
+                $rider,
+                $liabilityAccount,
+                (int) $validated['branch_id'],
+                $validated['billing_month'],
+                $validated['reference_number'],
+                $totalAmount,
+                $installmentAmounts
+            );
 
             DB::commit();
 
@@ -1244,14 +1149,12 @@ trait ManagesVisaInstallments
             if ($expenseAccount) {
                 $account = $expenseAccount;
                 $rider = $expenseAccount->rider ?? Riders::findOrFail($expenseAccount->rider_id);
-                $installments = visa_installment_plan::where('rider_id', $expenseAccount->id)
+                $installments = visa_installment_plan::query()
+                    ->where(function ($q) use ($expenseAccount) {
+                        $this->applyInstallmentRiderScope($q, $expenseAccount);
+                    })
                     ->orderBy('billing_month', 'asc')
                     ->get();
-                if ($installments->isEmpty()) {
-                    $installments = visa_installment_plan::where('rider_id', $expenseAccount->rider_id)
-                        ->orderBy('billing_month', 'asc')
-                        ->get();
-                }
             }
 
             if ($installments->isEmpty() && ($ledgerAccount = Accounts::find($riderId))) {
@@ -1298,24 +1201,24 @@ trait ManagesVisaInstallments
     }
     private function resolveExpenseAccountContext(int $id): ExpenseAccount
     {
-        $expense = ExpenseAccount::with('rider')->find($id);
+        $expense = ExpenseAccount::with('rider')->visa()->find($id);
         if ($expense) {
             return $expense;
         }
 
-        $expense = ExpenseAccount::with('rider')->where('rider_id', $id)->first();
+        $expense = ExpenseAccount::with('rider')->visa()->where('rider_id', $id)->orderBy('id')->first();
         if ($expense) {
             return $expense;
         }
 
-        $expense = ExpenseAccount::with('rider')->where('account_id', $id)->first();
+        $expense = ExpenseAccount::with('rider')->visa()->where('account_id', $id)->first();
         if ($expense) {
             return $expense;
         }
 
         $legacyAccount = Accounts::find($id);
         if ($legacyAccount && $legacyAccount->ref_id) {
-            $expense = ExpenseAccount::with('rider')->where('rider_id', $legacyAccount->ref_id)->first();
+            $expense = ExpenseAccount::with('rider')->visa()->where('rider_id', $legacyAccount->ref_id)->orderBy('id')->first();
             if ($expense) {
                 return $expense;
             }
@@ -1341,15 +1244,30 @@ trait ManagesVisaInstallments
     }
 
     /**
+     * Keys used on visa_installment_plans.rider_id for this renewal account.
+     * Plans are linked to expense_accounts.id so each renewal stays separate.
+     * Legacy rider/ledger keys are only included for the rider's earliest account.
+     *
      * @return list<int>
      */
     private function installmentPlanRiderIdKeys(ExpenseAccount $account): array
     {
-        return array_values(array_unique(array_filter([
-            (int) $account->rider_id,
-            (int) $account->id,
-            $account->account_id ? (int) $account->account_id : null,
-        ])));
+        $keys = [(int) $account->id];
+
+        $oldestAccountId = ExpenseAccount::query()
+            ->visa()
+            ->where('rider_id', $account->rider_id)
+            ->orderBy('id')
+            ->value('id');
+
+        if ($oldestAccountId && (int) $oldestAccountId === (int) $account->id) {
+            $keys[] = (int) $account->rider_id;
+            if ($account->account_id) {
+                $keys[] = (int) $account->account_id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($keys)));
     }
 
     /**
@@ -1365,6 +1283,243 @@ trait ManagesVisaInstallments
         }
 
         return $query->whereIn('rider_id', $keys);
+    }
+
+    /**
+     * Persist installment rows + VL vouchers/transactions for one renewal expense account.
+     * Always stores expense_accounts.id on visa_installment_plans.rider_id.
+     *
+     * @param  list<float|int|string>  $installmentAmounts
+     * @return int Existing installment count before this insert (for numbering).
+     */
+    private function persistInstallmentPlanEntries(
+        ExpenseAccount $expenseAccount,
+        Riders $rider,
+        Accounts $liabilityAccount,
+        int $branchId,
+        string $billingMonthYm,
+        string $referenceNumber,
+        float $totalAmount,
+        array $installmentAmounts
+    ): int {
+        $existingInstallmentCount = (int) visa_installment_plan::query()
+            ->where(function ($q) use ($expenseAccount) {
+                $this->applyInstallmentRiderScope($q, $expenseAccount);
+            })
+            ->count();
+
+        $numberOfInstallments = count($installmentAmounts);
+        $categoryLabel = $expenseAccount->relationLoaded('renewalCategory')
+            ? ($expenseAccount->renewalCategory->name ?? null)
+            : ($expenseAccount->renewalCategory()->value('name'));
+        $categorySuffix = $categoryLabel ? (' - ' . $categoryLabel) : '';
+
+        $TransactionService = new TransactionService();
+
+        for ($i = 0; $i < $numberOfInstallments; $i++) {
+            $billingDate = Carbon::parse($billingMonthYm . '-01')->addMonths($i);
+            $billingMonth = $billingDate->format('Y-m-d');
+            $billingMonthFormatted = $billingDate->format('Y-m');
+            $installmentDate = $billingDate->copy()->addMonth()->day(10)->format('Y-m-d');
+            $installmentAmount = round((float) $installmentAmounts[$i], 2);
+            $installmentNumber = $i + 1 + $existingInstallmentCount;
+
+            $installment = visa_installment_plan::create([
+                'rider_id' => $expenseAccount->id,
+                'branch_id' => $branchId,
+                'billing_month' => $billingMonthFormatted,
+                'amount' => $installmentAmount,
+                'total_amount' => $totalAmount,
+                'reference_number' => $referenceNumber,
+                'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
+                    . '<b> - installment ' . $installmentNumber . '</b>',
+                'status' => visa_installment_plan::STATUS_PENDING,
+                'date' => $installmentDate,
+                'created_by' => auth()->user()->id ?? null,
+            ]);
+
+            $trans_code = Account::trans_code();
+            $trans_date = Carbon::today();
+
+            Vouchers::create([
+                'trans_date' => $trans_date,
+                'trans_code' => $trans_code,
+                'billing_month' => $billingMonth,
+                'payment_type' => 1,
+                'voucher_type' => 'VL',
+                'remarks' => 'Loan Voucher' . $categorySuffix . ' - <b>Installment ' . $installmentNumber . ' of '
+                    . ($numberOfInstallments + $existingInstallmentCount) . '</b>'
+                    . ' (Amount: <b>' . number_format($installmentAmount, 2) . '</b>)',
+                'amount' => $installmentAmount,
+                'reference_number' => $referenceNumber,
+                'Created_By' => auth()->user()->id ?? null,
+                'ref_id' => $installment->id,
+                'custom_field_values' => [],
+                'branch_id' => $branchId,
+            ]);
+
+            $TransactionService->recordTransaction([
+                'account_id' => $liabilityAccount->id,
+                'reference_id' => $installment->id,
+                'reference_type' => 'VL',
+                'trans_code' => $trans_code,
+                'trans_date' => $trans_date,
+                'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
+                    . '<b> - installment ' . $installmentNumber . '</b>',
+                'debit' => $installmentAmount,
+                'branch_id' => $branchId,
+                'billing_month' => $billingMonth,
+                'created_by' => auth()->user()->id ?? null,
+            ]);
+
+            $TransactionService->recordTransaction([
+                'account_id' => GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'),
+                'reference_id' => $installment->id,
+                'reference_type' => 'VL',
+                'trans_code' => $trans_code,
+                'trans_date' => $trans_date,
+                'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
+                    . '<b> - installment ' . $installmentNumber . '</b>',
+                'credit' => $installmentAmount,
+                'branch_id' => $branchId,
+                'billing_month' => $billingMonth,
+                'created_by' => auth()->user()->id ?? null,
+            ]);
+
+            $lastLedger = CompanyQuery::table('ledger_entries')
+                ->where('account_id', $liabilityAccount->id)
+                ->orderBy('billing_month', 'desc')
+                ->first();
+
+            $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+
+            CompanyQuery::insert('ledger_entries', [
+                'account_id' => $liabilityAccount->id,
+                'billing_month' => $billingMonth,
+                'opening_balance' => $opening_balance,
+                'debit_balance' => $installmentAmount,
+                'credit_balance' => 0.00,
+                'closing_balance' => $opening_balance + $installmentAmount,
+                'created_at' => now(),
+                'updated_at' => now(),
+                'branch_id' => $branchId,
+            ]);
+        }
+
+        return $existingInstallmentCount;
+    }
+
+    /**
+     * Create a fresh installment plan for a renewal expense account (never reuses a sibling plan).
+     *
+     * @return array{created: bool, message: string}
+     */
+    private function autoCreateInstallmentPlanForRenewal(ExpenseAccount $expenseAccount, float $totalAmount): array
+    {
+        $totalAmount = round($totalAmount, 2);
+        if ($totalAmount <= 0) {
+            return [
+                'created' => false,
+                'message' => 'Installment plan was not auto-created because the renewal total amount is zero. Create one manually when ready.',
+            ];
+        }
+
+        $expenseAccount->loadMissing(['rider', 'renewalCategory']);
+        $rider = $expenseAccount->rider ?? Riders::find($expenseAccount->rider_id);
+        if (!$rider) {
+            return [
+                'created' => false,
+                'message' => 'Installment plan was not auto-created because the rider could not be resolved.',
+            ];
+        }
+
+        $branchId = (int) ($rider->branch_id ?? 0);
+        if ($branchId <= 0) {
+            return [
+                'created' => false,
+                'message' => 'Installment plan was not auto-created because the rider has no branch assigned.',
+            ];
+        }
+
+        $liabilityAccount = Accounts::where('ref_id', $rider->id)
+            ->where('account_type', 'Liability')
+            ->where('parent_id', 1)
+            ->first();
+
+        if (!$liabilityAccount) {
+            $liabilityAccount = Accounts::where('ref_id', $rider->id)
+                ->where('account_type', 'Liability')
+                ->first();
+        }
+
+        if (!$liabilityAccount) {
+            return [
+                'created' => false,
+                'message' => 'Installment plan was not auto-created because the rider liability account was not found.',
+            ];
+        }
+
+        $numberOfInstallments = $this->resolveAutoInstallmentCountForRenewal($expenseAccount);
+        $installmentAmounts = $this->splitAmountAcrossInstallments($totalAmount, $numberOfInstallments);
+        $billingMonthYm = Carbon::today()->format('Y-m');
+        $categoryName = $expenseAccount->renewalCategory->name ?? ('Renewal-' . $expenseAccount->id);
+        $referenceNumber = 'VI-' . $expenseAccount->id . '-' . preg_replace('/\s+/', '', $categoryName) . '-' . Carbon::today()->format('Ymd');
+
+        $this->persistInstallmentPlanEntries(
+            $expenseAccount,
+            $rider,
+            $liabilityAccount,
+            $branchId,
+            $billingMonthYm,
+            $referenceNumber,
+            $totalAmount,
+            $installmentAmounts
+        );
+
+        return [
+            'created' => true,
+            'message' => 'A new installment plan (' . $numberOfInstallments . ' installment'
+                . ($numberOfInstallments === 1 ? '' : 's') . ', total '
+                . number_format($totalAmount, 2) . ') was created for ' . $categoryName . '.',
+        ];
+    }
+
+    private function resolveAutoInstallmentCountForRenewal(ExpenseAccount $expenseAccount): int
+    {
+        $previousAccount = ExpenseAccount::query()
+            ->visa()
+            ->where('rider_id', $expenseAccount->rider_id)
+            ->where('id', '<', $expenseAccount->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$previousAccount) {
+            return 1;
+        }
+
+        $previousCount = (int) visa_installment_plan::query()
+            ->where(function ($q) use ($previousAccount) {
+                $this->applyInstallmentRiderScope($q, $previousAccount);
+            })
+            ->count();
+
+        return max(1, min(12, $previousCount > 0 ? $previousCount : 1));
+    }
+
+    /**
+     * @return list<float>
+     */
+    private function splitAmountAcrossInstallments(float $totalAmount, int $numberOfInstallments): array
+    {
+        $numberOfInstallments = max(1, min(12, $numberOfInstallments));
+        $base = round($totalAmount / $numberOfInstallments, 2);
+        $amounts = array_fill(0, $numberOfInstallments, $base);
+        $amounts[$numberOfInstallments - 1] = round(
+            $totalAmount - array_sum(array_slice($amounts, 0, $numberOfInstallments - 1)),
+            2
+        );
+
+        return $amounts;
     }
 
     /**
@@ -1595,6 +1750,8 @@ trait ManagesVisaInstallments
 
     /**
      * Automatically mark installments as paid when their date equals today
+     *
+     * @param  int|ExpenseAccount|null  $riderId  Rider id, expense account, or null for all
      */
     public function autoMarkInstallmentsAsPaid($company_slug, $riderId = null)
     {
@@ -1603,9 +1760,16 @@ trait ManagesVisaInstallments
         $query = visa_installment_plan::where('status', visa_installment_plan::STATUS_PENDING)
             ->where('date', '<=', $today);
 
-        // If rider ID is provided, filter by rider
-        if ($riderId) {
-            $query->where('rider_id', $riderId);
+        if ($riderId instanceof ExpenseAccount) {
+            $this->applyInstallmentRiderScope($query, $riderId);
+        } elseif ($riderId) {
+            $expenseAccount = ExpenseAccount::query()->visa()->find($riderId)
+                ?? ExpenseAccount::query()->visa()->where('rider_id', $riderId)->orderBy('id')->first();
+            if ($expenseAccount) {
+                $this->applyInstallmentRiderScope($query, $expenseAccount);
+            } else {
+                $query->where('rider_id', $riderId);
+            }
         }
 
         $installmentsToUpdate = $query->get();
@@ -1659,9 +1823,11 @@ trait ManagesVisaInstallments
     }
 
     /**
-     * Check and auto-mark installments for a specific rider (silent operation)
+     * Check and auto-mark installments for a specific renewal account (silent operation)
+     *
+     * @param  int|ExpenseAccount  $riderOrAccount
      */
-    private function checkAndAutoMarkInstallments($riderId)
+    private function checkAndAutoMarkInstallments($riderOrAccount)
     {
         try {
             // Only run if user is authenticated
@@ -1669,18 +1835,21 @@ trait ManagesVisaInstallments
                 return 0;
             }
 
-            $updatedCount = $this->autoMarkInstallmentsAsPaid(null, $riderId);
+            $updatedCount = $this->autoMarkInstallmentsAsPaid(null, $riderOrAccount);
 
             // Silent operation - no flash messages to user
             // Only log for admin/debugging purposes
             if ($updatedCount > 0) {
-                \Log::info("Auto-marked {$updatedCount} installment(s) as paid for rider {$riderId}");
+                $label = $riderOrAccount instanceof ExpenseAccount
+                    ? ('expense account ' . $riderOrAccount->id)
+                    : ('rider ' . $riderOrAccount);
+                \Log::info("Auto-marked {$updatedCount} installment(s) as paid for {$label}");
             }
 
             return $updatedCount;
         } catch (\Exception $e) {
             // Log error but don't break the main request
-            \Log::error("Error in checkAndAutoMarkInstallments for rider {$riderId}: " . $e->getMessage());
+            \Log::error("Error in checkAndAutoMarkInstallments: " . $e->getMessage());
             return 0;
         }
     }

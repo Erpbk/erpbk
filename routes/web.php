@@ -417,6 +417,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('editaccount', [VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');
     Route::get('VisaExpense/deleteaccount/{id}', [VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
+    Route::get('VisaExpense/pay-form/{id}', [VisaexpenseController::class, 'payForm'])->name('VisaExpense.payForm');
     Route::get('VisaExpense/edit-voucher-credit/{visaExpense}', [VisaexpenseController::class, 'editVoucherCreditForm'])->name('VisaExpense.editVoucherCreditForm');
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
 
@@ -445,6 +446,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('license-editaccount', [LicenseexpenseController::class, 'editaccount'])->name('LicenseExpense.editaccount');
     Route::get('LicenseExpense/deleteaccount/{id}', [LicenseexpenseController::class, 'deleteaccount'])->name('LicenseExpense.deleteaccount');
     Route::post('LicenseExpense/payfine', [LicenseexpenseController::class, 'payfine'])->name('LicenseExpense.payfine');
+    Route::get('LicenseExpense/pay-form/{id}', [LicenseexpenseController::class, 'payForm'])->name('LicenseExpense.payForm');
     Route::get('LicenseExpense/edit-voucher-credit/{licenseExpense}', [LicenseexpenseController::class, 'editVoucherCreditForm'])->name('LicenseExpense.editVoucherCreditForm');
     Route::post('LicenseExpense/update-voucher-credit', [LicenseexpenseController::class, 'updateVoucherCredit'])->name('LicenseExpense.updateVoucherCredit');
 
@@ -532,6 +534,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('BikeRegistration/deleteaccount/{id}', [BikeRegistrationController::class, 'deleteaccount'])->name('BikeRegistration.deleteaccount');
     Route::get('BikeRegistration/generatentries/{id}', [BikeRegistrationController::class, 'generatentries'])->name('BikeRegistration.generatentries');
     Route::post('BikeRegistration/payfine', [BikeRegistrationController::class, 'payfine'])->name('BikeRegistration.payfine');
+    Route::get('BikeRegistration/pay-form/{id}', [BikeRegistrationController::class, 'payForm'])->name('BikeRegistration.payForm');
     Route::get('BikeRegistration/edit-voucher-credit/{bikeRegistration}', [BikeRegistrationController::class, 'editVoucherCreditForm'])->name('BikeRegistration.editVoucherCreditForm');
     Route::post('BikeRegistration/update-voucher-credit', [BikeRegistrationController::class, 'updateVoucherCredit'])->name('BikeRegistration.updateVoucherCredit');
     Route::get('BikeRegistration/viewvoucher/{id}', [BikeRegistrationController::class, 'viewvoucher'])->name('BikeRegistration.viewvoucher');

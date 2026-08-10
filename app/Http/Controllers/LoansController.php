@@ -427,9 +427,13 @@ class LoansController extends AppBaseController
 
         $loanPayableAccount = $installment->loan->account
             ?? Accounts::find($installment->loan->account_id);
-        $interestAccount = Accounts::find(GlobalAccounts::id('LOAN_INTEREST_EXPENSE'));
+        $interestAccount = GlobalAccounts::account('LOAN_INTEREST_EXPENSE');
+        $lateChargesAccount = GlobalAccounts::account('LATE_LOAN_PAYMENT_CHARGES');
         $loanPayableLabel = $loanPayableAccount?->name ?? 'Loans Payable';
         $interestAccountLabel = $interestAccount?->name ?? 'Loan Interest Expense';
+        $lateChargesAccountLabel = $lateChargesAccount?->name ?? 'Late Loan Payment Charges';
+        $isOverdue = $installment->isOverdue();
+        $defaultLateCharges = number_format((float) ($installment->late_payment_charges ?? 0), 2, '.', '');
 
         $bankAccountLabels = $banks->mapWithKeys(function ($bank) {
             $label = $bank->name;
@@ -448,7 +452,10 @@ class LoansController extends AppBaseController
             'defaultNarration',
             'defaultDate',
             'loanPayableLabel',
-            'interestAccountLabel'
+            'interestAccountLabel',
+            'lateChargesAccountLabel',
+            'isOverdue',
+            'defaultLateCharges'
         ));
     }
 
@@ -475,20 +482,23 @@ class LoansController extends AppBaseController
             'narration' => 'nullable|string|max:65535',
             'principal_amount' => 'required|numeric|min:0',
             'interest_amount' => 'required|numeric|min:0',
+            'late_payment_charges' => 'nullable|numeric|min:0',
             'total_amount' => 'required|numeric|min:0.01',
             'loan_payable_narration' => 'nullable|string|max:65535',
             'interest_narration' => 'nullable|string|max:65535',
+            'late_charges_narration' => 'nullable|string|max:65535',
             'bank_narration' => 'nullable|string|max:65535',
         ]);
 
         $principal = round((float) $validated['principal_amount'], 2);
         $interest = round((float) $validated['interest_amount'], 2);
+        $lateCharges = round((float) ($validated['late_payment_charges'] ?? 0), 2);
         $total = round((float) $validated['total_amount'], 2);
-        if (abs($total - ($principal + $interest)) > 0.01) {
+        if (abs($total - ($principal + $interest + $lateCharges)) > 0.01) {
             if ($request->ajax()) {
-                return response()->json(['message' => 'Total must equal principal plus interest.'], 422);
+                return response()->json(['message' => 'Total must equal principal plus interest plus late payment charges.'], 422);
             }
-            Flash::error('Total must equal principal plus interest.');
+            Flash::error('Total must equal principal plus interest plus late payment charges.');
 
             return redirect()->back();
         }
@@ -506,7 +516,9 @@ class LoansController extends AppBaseController
                 $total,
                 $validated['loan_payable_narration'] ?? null,
                 $validated['interest_narration'] ?? null,
-                $validated['bank_narration'] ?? null
+                $validated['bank_narration'] ?? null,
+                $lateCharges,
+                $validated['late_charges_narration'] ?? null
             );
             DB::commit();
 

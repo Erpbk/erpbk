@@ -74,7 +74,7 @@
             @endif
             @php $vf = static fn (string $f): bool => field_visible('loan', $f); @endphp
             <div class="row">
-                @if($vf('bank_name'))<div class="col-md-4"><strong>Bank:</strong> {{ $loan->bank_name ?: '-' }}</div>@endif
+                @if($vf('bank_name'))<div class="col-md-4"><strong>Lender:</strong> {{ $loan->bank_name ?: '-' }}</div>@endif
                 @if($vf('interest_rate'))<div class="col-md-4"><strong>Rate:</strong> {{ number_format($loan->interest_rate, 2) }}% p.a.</div>@endif
                 <div class="col-md-4"><strong>Interest Method:</strong> {{ $loan->interest_calculation_method_label }}</div>
                 <div class="col-md-4 mt-2"><strong>Term:</strong> {{ $loan->term_months }} months</div>
@@ -96,9 +96,12 @@
                     <tr>
                         <th>#</th>
                         <th>Due Date</th>
+                        <th>Payment Date</th>
+                        <th>Billing Month</th>
                         <th>Principal</th>
                         <th>Interest</th>
                         <th>EMI</th>
+                        <th>Outstanding Principal</th>
                         <th>Status</th>
                         <th>Action</th>
                     </tr>
@@ -108,16 +111,19 @@
                     <tr class="text-center">
                         <td>{{ $inst->installment_no }}</td>
                         <td>{{ $inst->due_date->format('d M Y') }}</td>
+                        <td>{{ $inst->paid_date ? $inst->paid_date->format('d M Y') : '-' }}</td>
+                        <td>{{ $inst->paid_date ? $inst->paid_date->format('M Y') : $inst->due_date->format('M Y') }}</td>
                         <td>{{ number_format($inst->principal_amount, 2) }}</td>
                         <td>{{ number_format($inst->interest_amount, 2) }}</td>
                         <td>{{ number_format($inst->total_amount, 2) }}</td>
+                        <td>{{ number_format($inst->outstandingPrincipalAfter(), 2) }}</td>
                         <td>{!! $inst->status_badge !!}</td>
                         <td>
                             @include('loans.partials.pay_installment_button', ['installment' => $inst, 'loan' => $loan])
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="7" class="text-center text-muted">No installments.</td></tr>
+                    <tr><td colspan="10" class="text-center text-muted">No installments.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('principal_amount', 15, 2)->default(0);
             $table->decimal('interest_amount', 15, 2)->default(0);
             $table->decimal('total_amount', 15, 2)->default(0);
+            $table->decimal('late_payment_charges', 15, 2)->default(0);
             $table->string('status', 20)->default('pending');
             $table->decimal('paid_amount', 15, 2)->default(0);
             $table->date('paid_date')->nullable();

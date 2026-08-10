@@ -27,6 +27,7 @@ class LoanInstallment extends BaseModel
         'principal_amount',
         'interest_amount',
         'total_amount',
+        'late_payment_charges',
         'status',
         'paid_amount',
         'paid_date',
@@ -41,6 +42,7 @@ class LoanInstallment extends BaseModel
         'principal_amount' => 'decimal:2',
         'interest_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',
+        'late_payment_charges' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'deleted_at' => 'datetime',
     ];
@@ -83,5 +85,23 @@ class LoanInstallment extends BaseModel
         }
 
         return $this->loan && $this->loan->status === Loan::STATUS_ACTIVE;
+    }
+
+    public function isOverdue(): bool
+    {
+        if ($this->status === self::STATUS_OVERDUE) {
+            return true;
+        }
+
+        if ($this->status === self::STATUS_PAID || ! $this->due_date) {
+            return false;
+        }
+
+        return $this->due_date->lt(now()->startOfDay());
+    }
+
+    public function outstandingPrincipalAfter(): float
+    {
+        return max(0, round((float) $this->opening_balance - (float) $this->principal_amount, 2));
     }
 }

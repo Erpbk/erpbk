@@ -125,6 +125,15 @@
                      </a>
                      @endcan
                      @can('bikes_registration_edit')
+                     @if($r->payment_status !== 'paid')
+                     <a href="javascript:void(0);"
+                        data-action="{{ route('BikeRegistration.payForm', $r->id) }}"
+                        data-size="xl"
+                        data-title="Pay Bike Registration — {{ $r->registration_status }}"
+                        class="dropdown-item waves-effect show-modal">
+                        Pay
+                     </a>
+                     @endif
                      <a href="javascript:void(0);" data-action="{{ route('BikeRegistration.edit' , $r->id) }}" data-size="lg" data-title="Edit registration expense" class='dropdown-item waves-effect show-modal'>
                         Edit
                      </a>

@@ -748,13 +748,66 @@ class BikeRegistrationController extends AppBaseController
         return view('bike_registration.viewvoucher', compact('data', 'accounts'));
     }
 
+    /**
+     * Expense-voucher-style payment modal for an unpaid Bike Registration entry.
+     */
+    public function payForm(Request $request, $company_slug, $id)
+    {
+        if (!user_can('bike_registration_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $data = BikeRegistration::findOrFail($id);
+
+        if ($data->payment_status === 'paid') {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">This Bike Registration is already paid.</div>',
+                200
+            );
+        }
+
+        $accounts = null;
+        if ($data->bike_registration_account_id) {
+            $accounts = BikeRegistrationAccount::with('rider')->find($data->bike_registration_account_id);
+        }
+        if (!$accounts && $data->rider_id) {
+            $accounts = BikeRegistrationAccount::with('rider')->where('rider_id', $data->rider_id)->first();
+        }
+        if (!$accounts) {
+            return response(
+                '<div class="alert alert-warning m-2 mb-0">Bike registration account not found for this payment.</div>',
+                200
+            );
+        }
+
+        $rider = $accounts->rider ?? ($accounts->rider_id ? Riders::find($accounts->rider_id) : null);
+
+        $bankCashAccounts = $this->bikeRegistrationPaymentAccountOptions();
+        if ($bankCashAccounts->isEmpty()) {
+            $bankCashAccounts = Accounts::bankAndCashDropdown()
+                ->filter(static fn ($label, $accId) => $accId !== '' && $accId !== null);
+        }
+
+        return view('bike_registration.pay_form', compact('data', 'accounts', 'rider', 'bankCashAccounts'));
+    }
+
     public function payfine(Request $request)
     {
         DB::beginTransaction();
         $expenseAccount = null;
 
         try {
-            $expense = BikeRegistration::findOrFail($request->id);
+            $validated = $request->validate([
+                'id' => 'required|exists:bike_registrations,id',
+                'account' => 'required|exists:accounts,id',
+                'expiry_date' => 'required|date',
+                'narration' => 'nullable|string|max:1000',
+                'vat_percent' => 'nullable|numeric|min:0|max:100',
+                'vat_amount' => 'nullable|numeric|min:0',
+                'attach_file' => 'nullable|file|max:10240',
+            ]);
+
+            $expense = BikeRegistration::findOrFail($validated['id']);
             if ($request->filled('bike_registration_account_id')) {
                 $expenseAccount = BikeRegistrationAccount::find($request->bike_registration_account_id);
             }
@@ -764,107 +817,153 @@ class BikeRegistrationController extends AppBaseController
             if (!$expenseAccount && $request->filled('rider_id')) {
                 $expenseAccount = BikeRegistrationAccount::where('rider_id', $request->rider_id)->first();
             }
-            $expense->pay_account = $request->account;
 
-            if ($expense->payment_status == 'paid') {
-                $expense->payment_status = 'unpaid';
-                $expense->expiry_date = null;
-            } else {
-                $request->validate([
-                    'expiry_date' => 'required|date',
-                ]);
-                $expense->payment_status = 'paid';
-                $expense->expiry_date = $request->expiry_date;
-                $payment_type_flag = match ($request->payment_type) {
-                    'Liability' => 1,
-                    'Asset' => 0,
-                    default => null,
-                };
-                $photo = $request->file('attach_file');
-                $docFile = $photo ? $photo->store('vouchers', 'public') : null;
-                $remarks = $request->voucher_type === 'BR' ? 'Bike Registration Voucher' : 'Journal Voucher';
+            if (!$expenseAccount) {
+                throw new \RuntimeException('Bike registration account not found for this payment.');
+            }
 
-                $trans_code = Account::trans_code();
-                $TransactionService = new TransactionService();
+            if ($expense->payment_status === 'paid') {
+                if ($request->ajax() || $request->wantsJson()) {
+                    DB::rollBack();
 
-                $billingMonth = $expense->billing_month ?? date('Y-m-01');
-                $transDate = $expense->trans_date;
-
-                if ($expense->amount > 0) {
-                    $TransactionService->recordTransaction([
-                        'account_id' => GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'),
-                        'reference_id' => $expense->id,
-                        'reference_type' => 'BR',
-                        'trans_code' => $trans_code,
-                        'trans_date' => $transDate,
-                        'narration' => $expense->detail ?? 'Bike Registration Payment',
-                        'debit' => $expense->amount,
-                        'billing_month' => $billingMonth,
-                        'branch_id' => $expense->branch_id,
-                    ]);
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This Bike Registration is already paid.',
+                    ], 422);
                 }
-                if ($expense->amount > 0) {
-                    $TransactionService->recordTransaction([
-                        'account_id' => $request->account,
-                        'reference_id' => $expense->id,
-                        'reference_type' => 'BR',
-                        'trans_code' => $trans_code,
-                        'trans_date' => $transDate,
-                        'narration' => $expense->detail ?? 'Bike Registration Payment',
-                        'credit' => $expense->amount,
-                        'billing_month' => $billingMonth,
-                        'branch_id' => $expense->branch_id,
-                    ]);
-                }
-                Vouchers::create([
-                    'branch_id' => $expense->branch_id,
-                    'trans_date' => $transDate,
+
+                Flash::error('This Bike Registration is already paid.');
+                DB::rollBack();
+
+                return redirect(route('BikeRegistration.generatentries', $expenseAccount->id));
+            }
+
+            $expense->pay_account = $validated['account'];
+            $expense->payment_status = 'paid';
+            $expense->expiry_date = $validated['expiry_date'];
+
+            $payAccount = Accounts::findOrFail($validated['account']);
+            $payment_type_flag = match ($request->input('payment_type', $payAccount->account_type)) {
+                'Liability' => 1,
+                'Asset' => 0,
+                default => ($payAccount->account_type === 'Liability' ? 1 : 0),
+            };
+
+            $docFile = null;
+            if ($request->hasFile('attach_file')) {
+                $docFile = $request->file('attach_file')->store('vouchers', 'public');
+            }
+
+            $narration = trim((string) ($validated['narration'] ?? ''));
+            if ($narration === '') {
+                $narration = $expense->detail ?: 'Bike Registration Payment';
+            }
+
+            $baseAmount = round((float) $expense->amount, 2);
+            $vatPercent = round((float) ($validated['vat_percent'] ?? 0), 4);
+            $vatAmount = round((float) ($validated['vat_amount'] ?? 0), 2);
+            if ($vatAmount <= 0 && $vatPercent > 0 && $baseAmount > 0) {
+                $vatAmount = round(($baseAmount * $vatPercent) / 100, 2);
+            }
+            $grandTotal = round($baseAmount + $vatAmount, 2);
+
+            $trans_code = Account::trans_code();
+            $TransactionService = new TransactionService();
+
+            $billingMonth = $expense->billing_month ?? date('Y-m-01');
+            $transDate = $expense->trans_date ?? Carbon::today()->format('Y-m-d');
+
+            if ($baseAmount > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id' => GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'),
+                    'reference_id' => $expense->id,
+                    'reference_type' => 'BR',
                     'trans_code' => $trans_code,
-                    'trip_date' => $request->trip_date,
+                    'trans_date' => $transDate,
+                    'narration' => $narration,
+                    'debit' => $baseAmount,
                     'billing_month' => $billingMonth,
-                    'payment_type' => $payment_type_flag,
-                    'voucher_type' => $request->voucher_type,
-                    'remarks' => $remarks,
-                    'amount' => $expense->amount,
-                    'reference_number' => $expense->reference_number ?? null,
-                    'Created_By' => $request->Created_By,
-                    'attach_file' => $docFile,
-                    'ref_id' => $expense->id,
-                    'rider_id' => $expenseAccount?->rider_id,
-                    'custom_field_values' => $request->input('voucher_custom_fields', []),
-                ]);
-
-                $total_amount = floatval($expense->amount);
-                $lastLedger = CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $request->account)
-                    ->orderBy('billing_month', 'desc')
-                    ->first();
-
-                $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
-                $debit_balance = $credit_balance = 0.00;
-
-                if ($payment_type_flag === 1) {
-                    $debit_balance = $total_amount;
-                    $closing_balance = $opening_balance + $total_amount;
-                } elseif ($payment_type_flag === 0) {
-                    $credit_balance = $total_amount;
-                    $closing_balance = $opening_balance - $total_amount;
-                } else {
-                    $closing_balance = $opening_balance;
-                }
-
-                CompanyQuery::table('ledger_entries')->insert([
-                    'account_id' => $request->account,
-                    'billing_month' => $billingMonth,
-                    'opening_balance' => $opening_balance,
-                    'debit_balance' => $debit_balance,
-                    'credit_balance' => $credit_balance,
-                    'closing_balance' => $closing_balance,
                     'branch_id' => $expense->branch_id,
-                    'created_at' => now(),
-                    'updated_at' => now(),
                 ]);
             }
+
+            if ($vatAmount > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
+                    'reference_id' => $expense->id,
+                    'reference_type' => 'BR',
+                    'trans_code' => $trans_code,
+                    'trans_date' => $transDate,
+                    'narration' => 'VAT: ' . $narration,
+                    'debit' => $vatAmount,
+                    'billing_month' => $billingMonth,
+                    'branch_id' => $expense->branch_id,
+                ]);
+            }
+
+            if ($grandTotal > 0) {
+                $TransactionService->recordTransaction([
+                    'account_id' => $validated['account'],
+                    'reference_id' => $expense->id,
+                    'reference_type' => 'BR',
+                    'trans_code' => $trans_code,
+                    'trans_date' => $transDate,
+                    'narration' => $narration,
+                    'credit' => $grandTotal,
+                    'billing_month' => $billingMonth,
+                    'branch_id' => $expense->branch_id,
+                ]);
+            }
+
+            Vouchers::create([
+                'branch_id' => $expense->branch_id,
+                'trans_date' => $transDate,
+                'trans_code' => $trans_code,
+                'trip_date' => $request->trip_date,
+                'billing_month' => $billingMonth,
+                'payment_type' => $payment_type_flag,
+                'voucher_type' => 'BR',
+                'remarks' => $vatAmount > 0
+                    ? ('Bike Registration Voucher (incl. VAT ' . number_format($vatAmount, 2) . ')')
+                    : 'Bike Registration Voucher',
+                'amount' => $grandTotal,
+                'reference_number' => $expense->reference_number ?? null,
+                'Created_By' => $request->Created_By ?? auth()->id(),
+                'attach_file' => $docFile,
+                'pay_account' => $validated['account'],
+                'ref_id' => $expense->id,
+                'rider_id' => $expenseAccount?->rider_id,
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+            ]);
+
+            $total_amount = $grandTotal;
+            $lastLedger = CompanyQuery::table('ledger_entries')
+                ->where('account_id', $validated['account'])
+                ->orderBy('billing_month', 'desc')
+                ->first();
+
+            $opening_balance = $lastLedger ? $lastLedger->closing_balance : 0.00;
+            $debit_balance = $credit_balance = 0.00;
+
+            if ($payment_type_flag === 1) {
+                $debit_balance = $total_amount;
+                $closing_balance = $opening_balance + $total_amount;
+            } else {
+                $credit_balance = $total_amount;
+                $closing_balance = $opening_balance - $total_amount;
+            }
+
+            CompanyQuery::table('ledger_entries')->insert([
+                'account_id' => $validated['account'],
+                'billing_month' => $billingMonth,
+                'opening_balance' => $opening_balance,
+                'debit_balance' => $debit_balance,
+                'credit_balance' => $credit_balance,
+                'closing_balance' => $closing_balance,
+                'branch_id' => $expense->branch_id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
 
             $expense->save();
             DB::commit();
@@ -873,6 +972,8 @@ class BikeRegistrationController extends AppBaseController
                 return response()->json([
                     'success' => true,
                     'message' => 'Bike registration marked paid with transaction and ledger entries.',
+                    'redirect' => $expenseAccount ? route('BikeRegistration.generatentries', $expenseAccount->id) : null,
+                    'reload_page' => 1,
                     'generatentries_url' => $expenseAccount ? route('BikeRegistration.generatentries', $expenseAccount->id) : null,
                 ]);
             }
@@ -888,6 +989,12 @@ class BikeRegistrationController extends AppBaseController
                 ], 422);
             }
             Flash::error('Error: ' . $e->getMessage());
+
+            if ($expenseAccount) {
+                return redirect(route('BikeRegistration.generatentries', $expenseAccount->id))->withInput();
+            }
+
+            return redirect()->back()->withInput();
         }
 
         if ($expenseAccount) {

@@ -153,43 +153,21 @@ $riderUnpaidTotal = company_table('visa_expenses')
                                     @if($data->payment_status == 'paid')
                                     <td class="text-end"><a href="javascript:void(0);" class="btn btn-action btn-success">Paid</a> </td>
                                     @else
-                                    <td class="text-end"><a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#payfine" class="btn btn-action btn-primary">Proceed to Pay</a> </td>
+                                    <td class="text-end">
+                                        <a href="javascript:void(0);"
+                                           class="btn btn-action btn-primary show-modal"
+                                           data-action="{{ route('VisaExpense.payForm', $data->id) }}"
+                                           data-size="xl"
+                                           data-title="Pay Visa Expense">
+                                            Proceed to Pay
+                                        </a>
+                                    </td>
                                     @endif
                                 </tr>
                             </table>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal modal-default filtetmodal fade" id="payfine" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Select Account to Pay</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="searchTopbody">
-                <form enctype="multipart/form-data" action="{{ route('VisaExpense.payfine') }}" method="POST">
-                    @csrf
-                    <input type="hidden" name="id" value="{{ $data->id }}">
-                    <input type="hidden" name="rider_id" value="{{ $accounts->rider_id }}">
-                    <input type="hidden" name="trans_date" value="{{ $data->trans_date }}">
-                    <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
-                    <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-                    <input type="hidden" name="payment_type" value="{{ company_table('accounts')->where('id', ga_id('VISA_EXPENSE_ACCOUNT'))->first()->account_type }}">
-                    <input type="hidden" name="voucher_type" value="LV">
-                    <input type="hidden" name="amount" value="{{ $data->amount }}">
-                    <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">
-                    <div class="row">
-                        @include('visa_expenses.voucherfield', ['data' => $data])
-                        <div class="col-md-12 form-group text-center">
-                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Submit</button>
-                        </div>
-                    </div>
-                </form>
             </div>
         </div>
     </div>
@@ -214,12 +192,5 @@ $riderUnpaidTotal = company_table('visa_expenses')
             }
         })
     }
-    $(document).ready(function() {
-        $('#account_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Select Bank Account",
-            allowClear: true
-        });
-    });
 </script>
 @endsection

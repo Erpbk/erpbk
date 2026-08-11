@@ -41,33 +41,24 @@ class PaymentController extends Controller
 
     public function index(Request $request)
     {
-        $fundIn = 0;
-        $fundOut = 0;
-        $banks = Banks::all();
-        foreach ($banks as $bank) {
-            $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-            $debit = Transactions::where('account_id', $bank->account_id)->sum('debit');
-            $balance = $debit - $credit;
-            $fundIn += $debit;
-            $fundOut += $credit;
-            $bank->update(['balance' => $balance]);
-        }
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = Payment::query()->with(['payeeAccount', 'voucher'])->orderBy('date_of_payment', 'desc');
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        $fundsIn = 0;
-        $fundsOut = 0;
-        $banks = Banks::all();
-        foreach ($banks as $bank) {
-            $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-            $debit = Transactions::where('account_id', $bank->account_id)->sum('debit');
-            $fundsIn += $debit;
-            $fundsOut += $credit;
-        }
 
-        return view('payments.index', compact('data', 'fundsIn', 'fundsOut'));
+        $monthStart = Carbon::now()->startOfMonth()->toDateString();
+        $monthEnd = Carbon::now()->endOfMonth()->toDateString();
+        $monthQuery = Payment::query()->whereBetween('date_of_payment', [$monthStart, $monthEnd]);
+
+        $totals = [
+            'count' => Payment::count(),
+            'amount' => (float) Payment::sum('amount'),
+            'month_count' => (clone $monthQuery)->count(),
+            'month_amount' => (float) (clone $monthQuery)->sum('amount'),
+        ];
+
+        return view('payments.index', compact('data', 'totals'));
     }
 
     public function create()

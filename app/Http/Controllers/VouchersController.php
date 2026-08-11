@@ -205,7 +205,7 @@ class VouchersController extends Controller
 
 
       /** @var Vouchers $vouchers */
-      if ($request->voucher_type == 'JV') {
+      if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
         if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
 
           return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
@@ -316,23 +316,7 @@ class VouchersController extends Controller
       abort(403, 'This voucher cannot be edited from the Vouchers module.');
     }
 
-    if ($vouchers->voucher_type == 'JV') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'RFV') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'AL') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'COD') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'PN') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'IL') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'PAY') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'VC') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'INC') {
+    if (in_array($vouchers->voucher_type, ['JV', 'TRF', 'RFV', 'AL', 'COD', 'PN', 'IL', 'PAY', 'VC', 'INC'], true)) {
       $data = Transactions::where('trans_code', $id)->get();
     } else {
       $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
@@ -373,7 +357,7 @@ class VouchersController extends Controller
       return response()->json(['errors' => ['error' => 'This voucher cannot be edited from the Vouchers module.']], 403);
     }
 
-    if ($request->voucher_type == 'JV') {
+    if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
       if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
 
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
@@ -965,23 +949,7 @@ class VouchersController extends Controller
       $payment->amount = $payment->amount - $payment->bank_charges;
 
       return view('payments.create', compact('payment', 'banks'));
-    } elseif ($vouchers->voucher_type == 'JV') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'RFV') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'AL') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'COD') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'PN') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'IL') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'PAY') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'VC') {
-      $data = Transactions::where('trans_code', $id)->get();
-    } elseif ($vouchers->voucher_type == 'INC') {
+    } elseif (in_array($vouchers->voucher_type, ['JV', 'TRF', 'RFV', 'AL', 'COD', 'PN', 'IL', 'PAY', 'VC', 'INC'], true)) {
       $data = Transactions::where('trans_code', $id)->get();
     } else {
       $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();

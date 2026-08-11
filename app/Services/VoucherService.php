@@ -43,7 +43,9 @@ class VoucherService
     $id = $request->v_trans_code;
 
 
-    $data['remarks'] = 'Journal Voucher';
+    $data['remarks'] = ($request->voucher_type === 'TRF')
+      ? 'Funds Transfer'
+      : 'Journal Voucher';
     $data['amount'] = array_sum($request->cr_amount);
     $data['billing_month'] = $request->billing_month;
 

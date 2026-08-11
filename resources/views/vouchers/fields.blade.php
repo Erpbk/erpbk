@@ -95,6 +95,11 @@ $voucherType = $vt ?? request('vt');
     @include("vouchers.default_fields")
     @endif
 
+    @if($voucherType == 'TRF')
+    @php($accounts = \App\Models\Accounts::bankAccountsDropdown())
+    @include("vouchers.default_fields")
+    @endif
+
     @if($voucherType == 'LV')
     @php($accounts = \App\Models\Accounts::dropdown(null))
     @include("vouchers.default_fields")

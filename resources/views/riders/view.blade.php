@@ -381,16 +381,6 @@ $companySlug = request()->route('company_slug');
                       @endisset
                     </b>
                   </h6>
-                  @isset($result)
-                  @can('riders_inventory_view')
-                  <a href="{{ route('RiderInventory.clearanceCertificate', $result['id']) }}"
-                    class="btn btn-sm btn-success mt-1"
-                    target="_blank"
-                    style="padding: 2px 8px; font-size: 0.75rem;">
-                    <i class="ti ti-certificate"></i> Clearance Certificate
-                  </a>
-                  @endcan
-                  @endisset
                 </div>
                 <div class="text-end" style="width: 14%;">
                   <i class="ti ti-edit ti-sm"
@@ -629,9 +619,20 @@ $companySlug = request()->route('company_slug');
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(Route::is('rider.history')) active @endif"
                     href="{{route('rider.history',$result['id'])}}">
-                    <i class="ti ti-history ti-sm me-1_5"></i>Rider history
+                    <i class="ti ti-history ti-sm me-1_5"></i>History
                   </a>
                 </li>
+                @endcan
+
+                @can('riders_inventory_view')
+                @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
+                <li class="nav-item nav-priority-2">
+                  <a class="nav-link @if(Route::is('rider.clearance')) active @endif"
+                    href="{{ route('rider.clearance', $result['id']) }}">
+                    <i class="ti ti-certificate ti-sm me-1_5"></i>Clearance
+                  </a>
+                </li>
+                @endif
                 @endcan
 
                 @can('riders_documents_view')
@@ -706,7 +707,7 @@ $companySlug = request()->route('company_slug');
                 <li class="nav-item nav-priority-5">
                   <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
                     href="{{ route('rider.inventory', $result['id']) }}">
-                    <i class="ti ti-package ti-sm me-1_5"></i>Rider Inventory
+                    <i class="ti ti-package ti-sm me-1_5"></i>Inventory
                   </a>
                 </li>
                 @endif

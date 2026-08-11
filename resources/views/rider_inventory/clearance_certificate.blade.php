@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rider Inventory Clearance Certificate - {{ $rider->name }}</title>
+    <title>Inventory Clearance Certificate - {{ $rider->name }}</title>
     <style>
         @page {
             size: A4 portrait;
@@ -349,6 +349,26 @@
             color: #94a3b8;
         }
 
+        .acknowledgement {
+            margin: 12px 0 14px;
+            padding: 10px 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            background: #f8fafc;
+            font-size: 8.5pt;
+            color: #334155;
+            line-height: 1.5;
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .acknowledgement strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 9pt;
+            color: #0f172a;
+        }
+
         .cert-footer {
             margin-top: 10px;
             padding-top: 8px;
@@ -407,6 +427,7 @@
             .signatures,
             .sig-box,
             .closing-balance-card,
+            .acknowledgement,
             .cert-footer,
             .items-table tbody tr {
                 break-inside: avoid !important;
@@ -468,16 +489,15 @@
             <tr>
                 <td>
                     <div class="cert-title">
-                        <h2>Rider Inventory Clearance Certificate</h2>
-                        <div class="meta">{{ $docRef }} · {{ now()->format('d M Y') }}</div>
+                        <h2>Inventory Clearance Certificate</h2>
                     </div>
 
-                    <h3 class="section-title">Rider Information</h3>
+                    <h3 class="section-title">Information</h3>
                     <div class="info-grid">
-                        <div class="info-row"><span class="label">Rider ID</span><span class="value">{{ $rider->rider_id ?? $rider->id }}</span></div>
+                        <div class="info-row"><span class="label">ID</span><span class="value">{{ $rider->rider_id ?? $rider->id }}</span></div>
                         <div class="info-row"><span class="label">Project / Vendor</span><span class="value">{{ $project }}</span></div>
-                        <div class="info-row"><span class="label">Rider Name</span><span class="value">{{ $rider->name }}</span></div>
-                        <div class="info-row"><span class="label">Fleet Supervisor</span><span class="value">{{ $rider->fleet_supervisor ?: '' }}</span></div>
+                        <div class="info-row"><span class="label">Name</span><span class="value">{{ $rider->name }}</span></div>
+                        <div class="info-row"><span class="label">Supervisor</span><span class="value">{{ $rider->fleet_supervisor ?: '' }}</span></div>
                         <div class="info-row"><span class="label">Contact No.</span><span class="value">{{ $contactNo }}</span></div>
                         <div class="info-row"><span class="label">Join Date</span><span class="value">{{ $joinDate }}</span></div>
                         <div class="info-row"><span class="label">Emirates ID</span><span class="value">{{ $rider->emirate_id ?: '' }}</span></div>
@@ -518,7 +538,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" style="text-align:center; color:#94a3b8; padding:16px;">No inventory or linked assets found for this rider.</td>
+                                    <td colspan="6" style="text-align:center; color:#94a3b8; padding:16px;">No inventory or linked assets found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -532,21 +552,29 @@
                         </div>
                     </div>
 
+                    <div class="acknowledgement">
+                        <strong>Clearance Acknowledgement</strong>
+                        I hereby acknowledge that I have reviewed the inventory and linked assets listed above,
+                        returned or accounted for all company property issued to me (except items expressly marked as lost or still assigned),
+                        and confirm that the particulars in this clearance certificate are true and correct to the best of my knowledge.
+                        I understand that any outstanding items or dues may be recovered as per company policy.
+                    </div>
+
                     <div class="signatures-section">
                         <h3 class="section-title">Approvals &amp; Signatures</h3>
                         <div class="signatures">
                             @foreach([
-                                'Accounts',
-                                'Fleet Supervisor',
-                                'Rider',
+                                'Inventory Incharge',
+                                'Supervisor',
+                                'Employee',
                             ] as $role)
                                 <div class="sig-box">
                                     <div class="role">{{ $role }}</div>
                                     <div class="line"></div>
                                     <div class="name">
-                                        @if($role === 'Rider')
+                                        @if($role === 'Employee')
                                             {{ $rider->name }}
-                                        @elseif($role === 'Fleet Supervisor')
+                                        @elseif($role === 'Supervisor')
                                             {{ $rider->fleet_supervisor ?: '' }}
                                         @endif
                                     </div>

@@ -629,7 +629,7 @@ $companySlug = request()->route('company_slug');
                 <li class="nav-item nav-priority-2">
                   <a class="nav-link @if(Route::is('rider.clearance')) active @endif"
                     href="{{ route('rider.clearance', $result['id']) }}">
-                    <i class="ti ti-certificate ti-sm me-1_5"></i>Clearance
+                    <i class="ti ti-package ti-sm me-1_5"></i>Inventory
                   </a>
                 </li>
                 @endif
@@ -701,17 +701,6 @@ $companySlug = request()->route('company_slug');
                 @endif
                 @endcan
                 @endif
-
-                @can('riders_inventory_view')
-                @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
-                    href="{{ route('rider.inventory', $result['id']) }}">
-                    <i class="ti ti-package ti-sm me-1_5"></i>Inventory
-                  </a>
-                </li>
-                @endif
-                @endcan
 
                 @can('legal_case_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))

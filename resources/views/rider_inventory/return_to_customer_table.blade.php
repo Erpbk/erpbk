@@ -25,7 +25,11 @@
             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
             <td>
                 @if($row->rider)
-                <a href="{{ route('rider.inventory', $row->rider_id) }}">
+                <a href="javascript:void(0);"
+                    class="show-modal-right"
+                    data-action="{{ route('RiderInventory.show', $row->rider_id) }}"
+                    data-size="xl"
+                    data-title="{{ $row->rider->name }} inventory">
                     {{ $row->rider->name }} ({{ $row->rider->rider_id ?? $row->rider_id }})
                 </a>
                 @else

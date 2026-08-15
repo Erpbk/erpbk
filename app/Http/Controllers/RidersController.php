@@ -2148,6 +2148,12 @@ class RidersController extends AppBaseController
       $sim = $simHistory?->sim;
     }
 
+    $accountClosingBalance = null;
+    if (! empty($rider->account_id)) {
+      $accountClosingBalance = (float) Transactions::where('account_id', $rider->account_id)
+        ->sum(DB::raw('debit - credit'));
+    }
+
     $bikeReturned = ! $bikeStillAssigned && $bikeHistory && $bikeHistory->return_date;
     $fuelReturned = $fuelHistory && $fuelHistory->return_date && (! $fuelCard || (int) $fuelCard->assigned_to !== (int) $rider->id);
     if ($fuelCard && (int) $fuelCard->assigned_to === (int) $rider->id) {

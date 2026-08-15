@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Bulk Return — ' . $rider->name)
+@section('title', 'Inventory Return Contract — ' . $rider->name)
 
 @section('content')
 <section class="content-header">
     <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                <h3 class="mb-0">Bulk Return</h3>
+                <h3 class="mb-0">Inventory Return Contract</h3>
                 <small class="text-muted">{{ $rider->rider_id }} — {{ $rider->name }}</small>
             </div>
             <a href="{{ route('RiderInventory.show', $rider->id) }}" class="btn btn-outline-secondary">
@@ -19,16 +19,6 @@
 
 <div class="content">
     @include('flash::message')
-
-    @if ($errors->any())
-    <div class="alert alert-danger">
-        <ul class="mb-0">
-            @foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-    @endif
 
     <form method="POST" action="{{ route('RiderInventory.returnContractProcess', $rider->id) }}">
         @csrf
@@ -47,63 +37,49 @@
 
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Set returned and/or lost quantities per item</h5>
-                <small class="text-muted">
-                    Enter a <strong>Returned Qty</strong> and/or <strong>Lost Qty</strong> for each item to process.
-                    Their sum must not exceed open qty. Leave both at 0 to keep the item assigned.
-                </small>
+                <h5 class="mb-0">Select disposition for each assigned item</h5>
+                <small class="text-muted">Use <strong>Keep Assigned</strong> to leave an item unchanged on this contract.</small>
             </div>
             <div class="card-body table-responsive">
+                @error('dispositions')<div class="alert alert-danger">{{ $message }}</div>@enderror
+                @error('amounts')<div class="alert alert-danger">{{ $message }}</div>@enderror
                 <table class="table table-striped">
                     <thead>
                         <tr>
                             <th>Item Name</th>
-                            <th>Open Qty</th>
+                            <th>Qty</th>
                             <th>Assignment Date</th>
-                            <th>Unit Price</th>
-                            <th>Returned Qty</th>
-                            <th>Lost Qty</th>
+                            <th>Item Value (Total)</th>
+                            <th>Returned</th>
+                            <th>Lost</th>
+                            <th>Keep Assigned</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($assignments as $row)
-                        @php
-                            $openQty = max(1, (int) ($row->qty ?? 1));
-                            $oldReturned = old('returned_qty.' . $row->id);
-                            $oldLost = old('lost_qty.' . $row->id);
-                            $returnedValue = $oldReturned !== null ? (int) $oldReturned : $openQty;
-                            $lostValue = $oldLost !== null ? (int) $oldLost : 0;
-                        @endphp
-                        <tr data-assignment-row="{{ $row->id }}" data-open-qty="{{ $openQty }}">
+                        @php $oldDisp = old('dispositions.' . $row->id, 'skip'); @endphp
+                        <tr data-assignment-row="{{ $row->id }}">
                             <td>{{ $row->inventoryItem->name ?? '—' }}</td>
-                            <td>{{ $openQty }}</td>
+                            <td>{{ (int) ($row->qty ?? 1) }}</td>
                             <td>{{ $row->assigned_date?->format('Y-m-d') }}</td>
-                            <td style="min-width: 120px;">
+                            <td style="min-width: 140px;">
                                 <input type="number"
                                     name="amounts[{{ $row->id }}]"
                                     class="form-control form-control-sm js-assignment-amount"
                                     data-assignment-id="{{ $row->id }}"
                                     step="0.01"
-                                    min="0"
-                                    value="{{ old('amounts.' . $row->id, number_format((float) $row->amount, 2, '.', '')) }}">
+                                    min="0.01"
+                                    value="{{ old('amounts.' . $row->id, $row->lineTotal()) }}"
+                                    {{ $oldDisp === 'skip' ? 'disabled' : '' }}>
                             </td>
-                            <td style="min-width: 100px;">
-                                <input type="number"
-                                    name="returned_qty[{{ $row->id }}]"
-                                    class="form-control form-control-sm js-returned-qty"
-                                    data-assignment-id="{{ $row->id }}"
-                                    min="0"
-                                    max="{{ $openQty }}"
-                                    value="{{ $returnedValue }}">
+                            <td>
+                                <input type="radio" class="js-disposition-radio" name="dispositions[{{ $row->id }}]" value="returned" data-assignment-id="{{ $row->id }}" {{ $oldDisp === 'returned' ? 'checked' : '' }}>
                             </td>
-                            <td style="min-width: 100px;">
-                                <input type="number"
-                                    name="lost_qty[{{ $row->id }}]"
-                                    class="form-control form-control-sm js-lost-qty"
-                                    data-assignment-id="{{ $row->id }}"
-                                    min="0"
-                                    max="{{ $openQty }}"
-                                    value="{{ $lostValue }}">
+                            <td>
+                                <input type="radio" class="js-disposition-radio" name="dispositions[{{ $row->id }}]" value="lost" data-assignment-id="{{ $row->id }}" {{ $oldDisp === 'lost' ? 'checked' : '' }}>
+                            </td>
+                            <td>
+                                <input type="radio" class="js-disposition-radio" name="dispositions[{{ $row->id }}]" value="skip" data-assignment-id="{{ $row->id }}" {{ $oldDisp === 'skip' ? 'checked' : '' }}>
                             </td>
                         </tr>
                         @endforeach
@@ -112,7 +88,7 @@
             </div>
             <div class="card-footer text-end">
                 <button type="submit" class="btn btn-primary">
-                    <i class="ti ti-file-certificate"></i> Process Bulk Return
+                    <i class="ti ti-file-certificate"></i> Process &amp; Generate Return Contract
                 </button>
             </div>
         </div>
@@ -123,34 +99,25 @@
 @push('page-scripts')
 <script>
     (function () {
-        function highlightRow(assignmentId) {
-            var row = document.querySelector('[data-assignment-row="' + assignmentId + '"]');
-            if (!row) return;
-
-            var returnedInput = row.querySelector('.js-returned-qty');
-            var lostInput = row.querySelector('.js-lost-qty');
-            var openQty = parseInt(row.getAttribute('data-open-qty'), 10) || 0;
-            var returnedQty = parseInt(returnedInput && returnedInput.value, 10) || 0;
-            var lostQty = parseInt(lostInput && lostInput.value, 10) || 0;
-
-            if (returnedQty + lostQty > openQty) {
-                row.classList.add('table-danger');
-            } else {
-                row.classList.remove('table-danger');
+        function toggleAmountForRow(assignmentId) {
+            var selected = document.querySelector('input[name="dispositions[' + assignmentId + ']"]:checked');
+            var amountInput = document.querySelector('.js-assignment-amount[data-assignment-id="' + assignmentId + '"]');
+            if (!amountInput) {
+                return;
             }
+            var isSkipped = !selected || selected.value === 'skip';
+            amountInput.disabled = isSkipped;
+            amountInput.required = !isSkipped;
         }
 
-        document.querySelectorAll('.js-returned-qty, .js-lost-qty').forEach(function (input) {
-            input.addEventListener('input', function () {
-                highlightRow(this.dataset.assignmentId);
-            });
-            input.addEventListener('change', function () {
-                highlightRow(this.dataset.assignmentId);
+        document.querySelectorAll('.js-disposition-radio').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                toggleAmountForRow(this.dataset.assignmentId);
             });
         });
 
         document.querySelectorAll('[data-assignment-row]').forEach(function (row) {
-            highlightRow(row.dataset.assignmentRow);
+            toggleAmountForRow(row.dataset.assignmentRow);
         });
     })();
 </script>

@@ -1,38 +1,72 @@
 <div class="table-responsive">
-    <table class="table table-striped align-middle">
+    <table class="table table-striped">
         <thead class="text-center">
             <tr>
-                <th>ID</th>
-                <th>Name</th>
+                <th>Item</th>
+                <th>Rider</th>
+                <th>Customer</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total</th>
                 <th>Assigned</th>
-                <th>Returned</th>
-                <th>Lost</th>
-                <th>Last assigned</th>
+                <th>Status</th>
+                <th>Return / Loss</th>
+                <th>Returned to Customer</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($riders as $rider)
-            <tr>
-                <td class="text-center">{{ $rider->rider_id ?? $rider->id }}</td>
+            @forelse($assignments as $row)
+        <tr data-id="{{ $row->id }}">
+                <td>{{ $row->inventoryItem->name ?? '—' }}</td>
                 <td>
-                    <a href="javascript:void(0);"
-                        class="show-modal-right"
-                        data-action="{{ route('RiderInventory.show', $rider->id) }}"
-                        data-size="xl"
-                        data-title="{{ $rider->name }} inventory">
-                        {{ $rider->name }}
+                    @if($row->rider)
+                    <a href="{{ route('rider.inventory', $row->rider_id) }}">
+                        {{ $row->rider->name }} ({{ $row->rider->rider_id ?? $row->rider_id }})
                     </a>
+                    @else
+                    —
+                    @endif
                 </td>
-                <td class="text-center"><span class="badge bg-primary">{{ (int) ($rider->assigned_count ?? 0) }}</span></td>
-                <td class="text-center"><span class="badge bg-success">{{ (int) ($rider->returned_count ?? 0) }}</span></td>
-                <td class="text-center"><span class="badge bg-danger">{{ (int) ($rider->lost_count ?? 0) }}</span></td>
-                <td class="text-center">
-                    {{ $rider->last_assigned_date ? \Carbon\Carbon::parse($rider->last_assigned_date)->format('Y-m-d') : '—' }}
+                <td>
+                    @if($row->customer_id && $row->customer)
+                    <a href="{{ route('customer.inventory', $row->customer_id) }}">
+                        {{ $row->customer->name }}{{ $row->customer->company_name ? ' — ' . $row->customer->company_name : '' }}
+                    </a>
+                    @else
+                    —
+                    @endif
                 </td>
-                <td class="text-center">
+                <td>{{ (int) ($row->qty ?? 1) }}</td>
+                <td>{{ number_format((float) $row->amount, 2) }}</td>
+                <td>{{ number_format($row->lineTotal(), 2) }}</td>
+                <td>{{ $row->assigned_date?->format('Y-m-d') ?? '—' }}</td>
+                <td>
+                    @if($row->status === 'assigned')
+                    <span class="badge bg-primary">Assigned</span>
+                    @elseif($row->status === 'returned')
+                    <span class="badge bg-success">Returned</span>
+                    @elseif($row->status === 'returned_to_customer')
+                    <span class="badge bg-info">Returned to Customer</span>
+                    @else
+                    <span class="badge bg-danger">Lost</span>
+                    @endif
+                </td>
+                <td>
+                    @if($row->return_date)
+                    {{ $row->return_date->format('Y-m-d') }}
+                    @elseif($row->loss_date)
+                    {{ $row->loss_date->format('Y-m-d') }}
+                    @else
+                    —
+                    @endif
+                </td>
+                <td>
+                    {{ $row->returned_to_customer?->format('Y-m-d') ?? '—' }}
+                </td>
+                <td>
                     @can('riders_inventory_view')
-                    <a href="{{ route('RiderInventory.show', $rider->id) }}" class="btn btn-sm btn-primary">
+                    <a href="{{ route('RiderInventory.show', $row->rider_id) }}" class="btn btn-sm btn-primary">
                         <i class="ti ti-package"></i> Manage
                     </a>
                     @endcan
@@ -40,9 +74,10 @@
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center text-muted py-4">No riders with inventory assignments found.</td>
+                <td colspan="11" class="text-center text-muted py-4">No inventory assignments found.</td>
             </tr>
             @endforelse
         </tbody>
     </table>
 </div>
+@include('delete_requests._pending_table_script', ['items' => $assignments])

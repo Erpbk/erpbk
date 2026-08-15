@@ -4,18 +4,6 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<style>
-    .totals-cards .total-card.active {
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
-    }
-    .rider-inventory-index .totals-cards-single-row {
-        overflow-x: auto;
-    }
-    .rider-inventory-index .totals-cards-single-row .total-card {
-        flex: 1 1 0;
-        min-width: 110px;
-    }
-</style>
 @endpush
 
 @section('content')
@@ -25,7 +13,7 @@
         <div class="row mb-2">
             <div class="col-sm-12 col-lg-12">
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <h3 class="mb-0"></h3>
+                    <h3 class="mb-0">Rider Inventory</h3>
                     @canany(['riders_inventory_create', 'riders_inventory_edit'])
                     <div class="action-buttons d-flex justify-content-end">
                         <div class="action-dropdown-container">
@@ -67,67 +55,68 @@
 
 <div class="content px-3">
 
-    <div class="card rider-inventory-index">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="card-search">
-                <input type="text" id="quickSearch" name="quick_search" class="form-control"
-                    placeholder="Quick Search..." value="{{ request('quick_search') }}">
+    <div class="fleet-supervisor-section mb-3">
+        <div class="fleet-supervisor-cards slider-track d-flex gap-3 flex-wrap">
+            <div class="fleet-supervisor-card @if($statusFilter === '') active filtered @endif" onclick="filterByInventoryStatus('')">
+                <h3 class="fleet-supervisor-name">All Riders</h3>
             </div>
+            <div class="fleet-supervisor-card @if($statusFilter === 'assigned') active filtered @endif" onclick="filterByInventoryStatus('assigned')">
+                <h3 class="fleet-supervisor-name">Assigned</h3>
+                <div class="fleet-stat-value">{{ $assignedCount }}</div>
+            </div>
+            <div class="fleet-supervisor-card @if($statusFilter === 'returned') active filtered @endif" onclick="filterByInventoryStatus('returned')">
+                <h3 class="fleet-supervisor-name">Returned</h3>
+                <div class="fleet-stat-value">{{ $returnedCount }}</div>
+            </div>
+            <div class="fleet-supervisor-card @if($statusFilter === 'lost') active filtered @endif" onclick="filterByInventoryStatus('lost')">
+                <h3 class="fleet-supervisor-name">Lost</h3>
+                <div class="fleet-stat-value">{{ $lostCount }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">Inventory Assignments</h5>
             <div class="d-flex gap-2">
                 <a href="{{ route('RiderInventory.reports') }}" class="btn btn-outline-secondary btn-sm">
                     <i class="ti ti-report"></i> Reports
                 </a>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#searchModal">
+                    <i class="fa fa-search"></i> Filter
+                </button>
             </div>
         </div>
-
-        <div class="totals-cards totals-cards-single-row">
-            <div class="total-card total-black {{ $statusFilter === '' ? 'active' : '' }}"
-                role="button" tabindex="0" onclick="filterByInventoryStatus('')"
-                style="cursor:pointer;">
-                <div class="label"><i class="fa fa-users"></i> Riders</div>
-                <div class="value">{{ $riderCount ?? 0 }}</div>
-            </div>
-            <div class="total-card total-1 {{ $statusFilter === '' ? 'active' : '' }}"
-                role="button" tabindex="0" onclick="filterByInventoryStatus('')"
-                style="cursor:pointer;">
-                <div class="label"><i class="fa fa-cubes"></i> Total Items</div>
-                <div class="value">{{ $totalItemsCount ?? 0 }}</div>
-            </div>
-            <div class="total-card total-blue {{ $statusFilter === 'assigned' ? 'active' : '' }}"
-                role="button" tabindex="0" onclick="filterByInventoryStatus('assigned')"
-                style="cursor:pointer;">
-                <div class="label"><i class="fa fa-box"></i> Assigned</div>
-                <div class="value">{{ $assignedCount ?? 0 }}</div>
-            </div>
-            <div class="total-card total-green {{ $statusFilter === 'returned' ? 'active' : '' }}"
-                role="button" tabindex="0" onclick="filterByInventoryStatus('returned')"
-                style="cursor:pointer;">
-                <div class="label"><i class="fa fa-undo"></i> Returned</div>
-                <div class="value">{{ $returnedCount ?? 0 }}</div>
-            </div>
-            <div class="total-card total-red {{ $statusFilter === 'lost' ? 'active' : '' }}"
-                role="button" tabindex="0" onclick="filterByInventoryStatus('lost')"
-                style="cursor:pointer;">
-                <div class="label"><i class="fa fa-exclamation-triangle"></i> Lost</div>
-                <div class="value">{{ $lostCount ?? 0 }}</div>
-            </div>
-            <div class="total-card total-3 {{ $statusFilter === 'returned_to_customer' ? 'active' : '' }}"
-                role="button" tabindex="0" onclick="filterByInventoryStatus('returned_to_customer')"
-                style="cursor:pointer;">
-                <div class="label"><i class="fa fa-truck"></i> To Customer</div>
-                <div class="value">{{ $returnedToCustomerCount ?? 0 }}</div>
-            </div>
-        </div>
-
         <div class="card-body">
             <div id="riderInventoryTableWrapper">
-                @include('rider_inventory.assignment_index_table', ['riders' => $riders])
+                @include('rider_inventory.assignment_index_table', ['assignments' => $assignments])
             </div>
-            <div id="paginationLinks">
-                @if(method_exists($riders, 'links'))
-                {!! $riders->links('components.global-pagination') !!}
+            <div id="paginationLinks">{!! $assignments->links('components.global-pagination') !!}</div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="searchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="filterForm" action="{{ route('RiderInventory.index') }}" method="GET">
+                @if(request()->filled('status_filter'))
+                <input type="hidden" name="status_filter" value="{{ request('status_filter') }}">
                 @endif
-            </div>
+                <div class="modal-header">
+                    <h5 class="modal-title">Filter Assignments</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="quick_search">Quick Search</label>
+                        <input type="text" name="quick_search" id="quick_search" class="form-control" value="{{ request('quick_search') }}" placeholder="Rider, customer, or item name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Apply</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -138,10 +127,7 @@
 <script>
 function filterByInventoryStatus(status) {
     const url = new URL(window.location.href);
-    const current = url.searchParams.get('status_filter') || '';
-    if (status && status === current) {
-        url.searchParams.delete('status_filter');
-    } else if (status) {
+    if (status) {
         url.searchParams.set('status_filter', status);
     } else {
         url.searchParams.delete('status_filter');
@@ -149,23 +135,5 @@ function filterByInventoryStatus(status) {
     url.searchParams.delete('page');
     window.location.href = url.toString();
 }
-
-$(document).ready(function () {
-    $('#quickSearch').on('keyup', function (e) {
-        if (e.keyCode === 13 || $(this).val().length === 0) {
-            const searchValue = $(this).val();
-            const url = new URL(window.location.href);
-
-            if (searchValue) {
-                url.searchParams.set('quick_search', searchValue);
-            } else {
-                url.searchParams.delete('quick_search');
-            }
-            url.searchParams.delete('page');
-
-            window.location.href = url.toString();
-        }
-    });
-});
 </script>
 @endpush

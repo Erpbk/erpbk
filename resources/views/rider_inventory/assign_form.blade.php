@@ -1,4 +1,4 @@
-<form id="formajax" class="form-ajax-submit" action="{{ route('RiderInventory.assignStore') }}" method="POST" data-reload-table="0">
+<form id="formajax" class="form-ajax-submit rider-inventory-assign-form" action="{{ route('RiderInventory.assignStore') }}" method="POST" data-reload-table="0">
     @csrf
     <input type="hidden" name="reload_page" id="reload_page" value="1">
 
@@ -61,7 +61,7 @@
             </div>
             <div class="col-md-1 form-group"></div>
         </div>
-        <div id="rows-container">
+        <div id="rows-container" class="rider-inventory-rows">
             <div class="row mt-2 assign-item-row">
                 <div class="col-md-5 form-group">
                     <select name="item_id[]" class="form-control select2 item">
@@ -90,7 +90,7 @@
     </div>
 
     <div class="col-md-12 form-group mt-2">
-        <button type="button" id="add-new-row" class="btn btn-success btn-sm">Add New</button>
+        <button type="button" id="ri-add-new-row" class="btn btn-success btn-sm">Add New</button>
     </div>
 
     <div class="text-end mt-3">
@@ -100,17 +100,87 @@
 </form>
 
 <script>
-$(document).ready(function () {
-    $('.select2').select2({
-        allowClear: true,
-        dropdownParent: $('#modalTopbody'),
-        width: '100%',
+(function ($) {
+    var $form = $('.rider-inventory-assign-form');
+    if (!$form.length) {
+        return;
+    }
+
+    var $rows = $form.find('#rows-container');
+
+    function initSelect2($scope) {
+        $scope.find('.select2').each(function () {
+            var $el = $(this);
+            if ($el.data('select2')) {
+                $el.select2('destroy');
+            }
+            $el.select2({
+                allowClear: true,
+                dropdownParent: $('#modalTopbody').length ? $('#modalTopbody') : $form,
+                width: '100%',
+            });
+        });
+    }
+
+    function setRowTotal($row) {
+        var qty = parseFloat($row.find('.qty').val()) || 0;
+        var rate = parseFloat($row.find('.rate').val()) || 0;
+        $row.find('.amount').val((qty * rate).toFixed(2));
+    }
+
+    function destroySelect2InClone($row) {
+        $row.find('select').each(function () {
+            var $el = $(this);
+            if ($el.data('select2')) {
+                $el.select2('destroy');
+            }
+            $el.removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
+        });
+        $row.find('.select2-container').remove();
+    }
+
+    initSelect2($form);
+    $rows.find('.assign-item-row').each(function () {
+        setRowTotal($(this));
     });
 
-    $('#rows-container .row').each(function () {
-        if (typeof setItemTotal === 'function') {
-            setItemTotal($(this));
+    $form.off('click.riAssign', '#ri-add-new-row').on('click.riAssign', '#ri-add-new-row', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        var $first = $rows.find('.assign-item-row:first');
+        var $newRow = $first.clone();
+        destroySelect2InClone($newRow);
+        $newRow.find('input').val('');
+        $newRow.find('select').val('');
+        $newRow.find('.qty').val('1');
+        $newRow.find('.rate').val('0');
+        $newRow.find('.amount').val('0.00');
+        $rows.append($newRow);
+        initSelect2($newRow);
+    });
+
+    $form.off('click.riAssign', '.btn-remove-row').on('click.riAssign', '.btn-remove-row', function (e) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        if ($rows.find('.assign-item-row').length > 1) {
+            $(this).closest('.assign-item-row').remove();
+        } else {
+            alert('At least one row is required.');
         }
     });
-});
+
+    $form.off('change.riAssign', '.item').on('change.riAssign', '.item', function () {
+        var $row = $(this).closest('.assign-item-row');
+        var price = parseFloat($(this).find('option:selected').data('price')) || 0;
+        $row.find('.rate').val(price.toFixed(2));
+        setRowTotal($row);
+    });
+
+    $form.off('input.riAssign change.riAssign', '.qty, .rate')
+        .on('input.riAssign change.riAssign', '.qty, .rate', function () {
+            setRowTotal($(this).closest('.assign-item-row'));
+        });
+})(jQuery);
 </script>

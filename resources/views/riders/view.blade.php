@@ -719,17 +719,6 @@ $riderAssignedItemCount = ($inventoryTabRider && \App\Support\CompanyModuleVisib
                 @endcan
                 @endif
 
-                @can('riders_inventory_view')
-                @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
-                    href="{{ route('rider.inventory', $result['id']) }}">
-                    <i class="ti ti-package ti-sm me-1_5"></i>Inventory
-                  </a>
-                </li>
-                @endif
-                @endcan
-
                 @can('legal_case_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
                 @php

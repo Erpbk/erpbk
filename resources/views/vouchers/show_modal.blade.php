@@ -39,7 +39,7 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
         <span class="text-muted small"><i class="ti ti-lock me-1"></i>Locked — awaiting delete approval</span>
       @else
       @can('vouchers_edit')
-      @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV']))
+      @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV', 'TRF']))
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
       @endcan

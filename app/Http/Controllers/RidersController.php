@@ -1287,9 +1287,16 @@ class RidersController extends AppBaseController
 
     $statusHistories = null;
     $simHistories = null;
+    $bikeHistories = null;
+    $fuelHistories = null;
+    $inventoryHistories = null;
     $projectChangeCount = 0;
     $simHistoryCount = 0;
-    $activeTab = in_array(request('tab'), ['status', 'sim'], true) ? request('tab') : 'status';
+    $bikeHistoryCount = 0;
+    $fuelHistoryCount = 0;
+    $inventoryHistoryCount = 0;
+    $allowedTabs = ['status', 'sim', 'bike', 'fuel', 'inventory'];
+    $activeTab = in_array(request('tab'), $allowedTabs, true) ? request('tab') : 'status';
 
     if (Schema::hasTable('rider_histories')) {
       $statusHistories = RiderHistory::with(['branch', 'customer'])
@@ -1310,12 +1317,52 @@ class RidersController extends AppBaseController
       $simHistoryCount = SimHistory::where('rider_id', $id)->count();
     }
 
+    if (Schema::hasTable('bike_histories')) {
+      $bikeHistories = BikeHistory::with(['bike.LeasingCompany'])
+        ->where('rider_id', $id)
+        ->orderByDesc('note_date')
+        ->orderByDesc('id')
+        ->paginate(50, ['*'], 'bike_page');
+      $bikeHistoryCount = BikeHistory::where('rider_id', $id)->count();
+    }
+
+    if (Schema::hasTable('fuel_card_histories')) {
+      $fuelHistories = FuelCardHistory::with(['assignedBy', 'returnedBy'])
+        ->where('assigned_to', $id)
+        ->orderByDesc('assign_date')
+        ->orderByDesc('id')
+        ->paginate(50, ['*'], 'fuel_page');
+      $fuelHistoryCount = FuelCardHistory::where('assigned_to', $id)->count();
+      $fuelCardIds = $fuelHistories->getCollection()->pluck('card_id')->filter()->unique()->values();
+      $fuelCardsById = $fuelCardIds->isNotEmpty()
+        ? FuelCards::with('fuelCompany')->whereIn('id', $fuelCardIds)->get()->keyBy('id')
+        : collect();
+    } else {
+      $fuelCardsById = collect();
+    }
+
+    if (Schema::hasTable('rider_inventory_assignments')) {
+      $inventoryHistories = RiderInventoryAssignment::with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser'])
+        ->where('rider_id', $id)
+        ->orderByDesc('assigned_date')
+        ->orderByDesc('id')
+        ->paginate(50, ['*'], 'inventory_page');
+      $inventoryHistoryCount = RiderInventoryAssignment::where('rider_id', $id)->count();
+    }
+
     return view('riders.history', compact(
       'riders',
       'statusHistories',
       'simHistories',
+      'bikeHistories',
+      'fuelHistories',
+      'fuelCardsById',
+      'inventoryHistories',
       'projectChangeCount',
       'simHistoryCount',
+      'bikeHistoryCount',
+      'fuelHistoryCount',
+      'inventoryHistoryCount',
       'activeTab'
     ));
   }
@@ -2039,39 +2086,65 @@ class RidersController extends AppBaseController
       ->orderByDesc('assigned_date')
       ->orderByDesc('id')
       ->get();
-    $availableItems = Items::availableForAssignment();
 
-    $rider->load(['bikes.LeasingCompany', 'sim.telecomCompany']);
+    return view('riders.inventory', compact(
+      'riders',
+      'rider',
+      'assignments'
+    ));
+  }
+
+  public function clearance($company_slug, $rider_id)
+  {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider) || (! empty($rider->branch_id) && ! in_array($rider->branch_id, app('user_branches')))) {
+      Flash::error('Rider not found');
+
+      return redirect(route('riders.index'));
+    }
+
+    $riders = $rider;
+    $rider->load(['bikes.LeasingCompany', 'sim.telecomCompany', 'customer']);
 
     $bike = $rider->bikes;
+    $bikeStillAssigned = ! empty($bike);
     $bikeHistory = BikeHistory::query()
+      ->with('bike.LeasingCompany')
       ->where('rider_id', $rider->id)
-      ->when($bike, fn ($q) => $q->where('bike_id', $bike->id)->whereNull('return_date'))
+      ->when($bikeStillAssigned, fn ($q) => $q->whereNull('return_date'))
       ->orderByDesc('note_date')
       ->orderByDesc('id')
       ->first();
-    if (! $bikeHistory && $bike) {
+    if (! $bikeHistory) {
       $bikeHistory = BikeHistory::query()
+        ->with('bike.LeasingCompany')
         ->where('rider_id', $rider->id)
-        ->where('bike_id', $bike->id)
         ->orderByDesc('note_date')
         ->orderByDesc('id')
         ->first();
     }
+    $historyBike = $bike ?: $bikeHistory?->bike;
 
     $fuelCard = FuelCards::query()
       ->with('fuelCompany')
       ->where('assigned_to', $rider->id)
       ->orderByDesc('id')
       ->first();
-    $fuelHistory = null;
-    if ($fuelCard) {
+    $fuelHistory = FuelCardHistory::query()
+      ->where('assigned_to', $rider->id)
+      ->when($fuelCard, fn ($q) => $q->where('card_id', $fuelCard->id))
+      ->orderByDesc('assign_date')
+      ->orderByDesc('id')
+      ->first();
+    if (! $fuelCard) {
       $fuelHistory = FuelCardHistory::query()
-        ->where('card_id', $fuelCard->id)
         ->where('assigned_to', $rider->id)
         ->orderByDesc('assign_date')
         ->orderByDesc('id')
         ->first();
+      if ($fuelHistory) {
+        $fuelCard = FuelCards::with('fuelCompany')->find($fuelHistory->card_id);
+      }
     }
 
     $sim = Sims::query()
@@ -2081,24 +2154,21 @@ class RidersController extends AppBaseController
         $q->where('assign_type', 'rider')->orWhereNull('assign_type');
       })
       ->orderByDesc('id')
+      ->first() ?? $rider->sim;
+    $simHistory = SimHistory::query()
+      ->where('rider_id', $rider->id)
+      ->when($sim, fn ($q) => $q->where('sim_id', $sim->id))
+      ->orderByDesc('note_date')
+      ->orderByDesc('id')
       ->first();
-    $simHistory = null;
-    if ($sim) {
+    if (! $sim) {
       $simHistory = SimHistory::query()
-        ->where('sim_id', $sim->id)
+        ->with('sim.telecomCompany')
         ->where('rider_id', $rider->id)
-        ->whereNull('return_date')
         ->orderByDesc('note_date')
         ->orderByDesc('id')
         ->first();
-      if (! $simHistory) {
-        $simHistory = SimHistory::query()
-          ->where('sim_id', $sim->id)
-          ->where('rider_id', $rider->id)
-          ->orderByDesc('note_date')
-          ->orderByDesc('id')
-          ->first();
-      }
+      $sim = $simHistory?->sim;
     }
 
     $accountClosingBalance = null;
@@ -2107,30 +2177,42 @@ class RidersController extends AppBaseController
         ->sum(DB::raw('debit - credit'));
     }
 
+    $bikeReturned = ! $bikeStillAssigned && $bikeHistory && $bikeHistory->return_date;
+    $fuelReturned = $fuelHistory && $fuelHistory->return_date && (! $fuelCard || (int) $fuelCard->assigned_to !== (int) $rider->id);
+    if ($fuelCard && (int) $fuelCard->assigned_to === (int) $rider->id) {
+      $fuelReturned = false;
+    }
+    $simReturned = $simHistory && $simHistory->return_date && (! $sim || (int) ($sim->assign_to ?? 0) !== (int) $rider->id);
+    if ($sim && (int) $sim->assign_to === (int) $rider->id) {
+      $simReturned = false;
+    }
+
     $assignedItems = [
-      'bike' => $bike ? [
-        'label' => $bike->emiratesPlateLabel(),
-        'meta' => optional($bike->LeasingCompany)->name,
-        'url' => route('bikes.show', $bike->id),
+      'bike' => ($historyBike || $bikeHistory) ? [
+        'label' => $historyBike ? $historyBike->emiratesPlateLabel() : 'Bike',
+        'meta' => optional($historyBike?->LeasingCompany)->name,
+        'url' => $historyBike ? route('bikes.show', $historyBike->id) : null,
         'assign_date' => $bikeHistory?->note_date?->format('Y-m-d'),
         'return_date' => $bikeHistory?->return_date?->format('Y-m-d'),
-        'status' => $bike->warehouse ?: null,
+        'status' => $bikeStillAssigned
+          ? (($historyBike?->warehouse ?? '') ?: 'Assigned')
+          : ($bikeReturned ? 'Returned' : ($historyBike?->warehouse ?? 'Returned')),
       ] : null,
-      'fuel_card' => $fuelCard ? [
-        'label' => $fuelCard->card_number,
-        'meta' => optional($fuelCard->fuelCompany)->name,
-        'url' => route('fuelCards.show', $fuelCard->id),
+      'fuel_card' => ($fuelCard || $fuelHistory) ? [
+        'label' => $fuelCard?->card_number ?? 'Fuel Card',
+        'meta' => optional($fuelCard?->fuelCompany)->name,
+        'url' => $fuelCard ? route('fuelCards.show', $fuelCard->id) : null,
         'assign_date' => $fuelHistory?->assign_date?->format('Y-m-d'),
         'return_date' => $fuelHistory?->return_date?->format('Y-m-d'),
-        'status' => $fuelCard->status ?: null,
+        'status' => $fuelReturned ? 'Returned' : (($fuelCard?->status ?: null) ?: 'Assigned'),
       ] : null,
-      'sim_card' => $sim ? [
-        'label' => $sim->number,
-        'meta' => optional($sim->telecomCompany)->name,
-        'url' => route('sims.show', $sim->id),
+      'sim_card' => ($sim || $simHistory) ? [
+        'label' => $sim?->number ?? 'SIM Card',
+        'meta' => optional($sim?->telecomCompany)->name,
+        'url' => $sim ? route('sims.show', $sim->id) : null,
         'assign_date' => $simHistory?->note_date?->format('Y-m-d'),
         'return_date' => $simHistory?->return_date?->format('Y-m-d'),
-        'status' => $sim->status ?: null,
+        'status' => $simReturned ? 'Returned' : (($sim?->status ?: null) ?: 'Assigned'),
       ] : null,
       'account_balance' => $accountClosingBalance !== null ? [
         'label' => number_format((float) $accountClosingBalance, 2),
@@ -2142,12 +2224,101 @@ class RidersController extends AppBaseController
       ] : null,
     ];
 
-    return view('riders.inventory', compact(
+    $lastCustomerId = $rider->customer_id ?: null;
+    if (! $lastCustomerId && Schema::hasTable('rider_histories')) {
+      $lastCustomerId = RiderHistory::query()
+        ->where('rider_id', $rider->id)
+        ->whereNotNull('customer_id')
+        ->where('customer_id', '!=', 0)
+        ->orderByDesc('effective_date')
+        ->orderByDesc('id')
+        ->value('customer_id');
+    }
+    if (! $lastCustomerId) {
+      $lastCustomerId = RiderInventoryAssignment::query()
+        ->where('rider_id', $rider->id)
+        ->whereNotNull('customer_id')
+        ->orderByDesc('assigned_date')
+        ->orderByDesc('id')
+        ->value('customer_id');
+    }
+
+    $lastCustomer = $lastCustomerId
+      ? ($rider->customer_id == $lastCustomerId ? $rider->customer : Customers::find($lastCustomerId))
+      : null;
+    $lastCustomerName = $lastCustomer
+      ? trim($lastCustomer->name . ($lastCustomer->company_name ? ' — ' . $lastCustomer->company_name : ''))
+      : null;
+
+    $customerInventoryRows = [];
+    $shownAssignmentIds = [];
+
+    $pushInventoryRow = function ($row, ?string $customerLabel = null) use (&$customerInventoryRows, &$shownAssignmentIds) {
+      if (in_array($row->id, $shownAssignmentIds, true)) {
+        return;
+      }
+      $shownAssignmentIds[] = $row->id;
+
+      $statusLabel = match ($row->status) {
+        RiderInventoryAssignment::STATUS_ASSIGNED => 'Assigned',
+        RiderInventoryAssignment::STATUS_RETURNED => 'Returned',
+        RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER => 'Returned to Customer',
+        RiderInventoryAssignment::STATUS_LOST => 'Lost',
+        default => ucfirst(str_replace('_', ' ', (string) $row->status)),
+      };
+
+      $meta = $customerLabel;
+      if ($meta === null && $row->customer) {
+        $meta = trim($row->customer->name . ($row->customer->company_name ? ' — ' . $row->customer->company_name : ''));
+      }
+
+      $customerInventoryRows[] = [
+        'type' => $row->inventoryItem->name ?? 'Inventory Item',
+        'prefix' => '',
+        'item' => [
+          'label' => 'Qty: ' . (int) ($row->qty ?? 1) . ' · Value: ' . number_format($row->lineTotal(), 2),
+          'meta' => $meta ?: null,
+          'url' => null,
+          'assign_date' => $row->assigned_date?->format('Y-m-d'),
+          'return_date' => $row->return_date?->format('Y-m-d') ?? $row->returned_to_customer?->format('Y-m-d'),
+          'status' => $statusLabel,
+        ],
+      ];
+    };
+
+    if ($lastCustomerId) {
+      $customerAssignments = RiderInventoryAssignment::query()
+        ->with(['inventoryItem', 'customer'])
+        ->where('rider_id', $rider->id)
+        ->where('customer_id', $lastCustomerId)
+        ->orderByDesc('assigned_date')
+        ->orderByDesc('id')
+        ->get();
+
+      foreach ($customerAssignments as $row) {
+        $pushInventoryRow($row, $lastCustomerName);
+      }
+    }
+
+    $openAssignments = RiderInventoryAssignment::query()
+      ->with(['inventoryItem', 'customer'])
+      ->where('rider_id', $rider->id)
+      ->where('status', RiderInventoryAssignment::STATUS_ASSIGNED)
+      ->when(! empty($shownAssignmentIds), fn ($q) => $q->whereNotIn('id', $shownAssignmentIds))
+      ->orderByDesc('assigned_date')
+      ->orderByDesc('id')
+      ->get();
+
+    foreach ($openAssignments as $row) {
+      $pushInventoryRow($row);
+    }
+
+    return view('riders.clearance', compact(
       'riders',
       'rider',
-      'assignments',
-      'availableItems',
-      'assignedItems'
+      'assignedItems',
+      'customerInventoryRows',
+      'lastCustomerName'
     ));
   }
 

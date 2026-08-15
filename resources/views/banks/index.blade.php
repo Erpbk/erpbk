@@ -1,6 +1,8 @@
 @extends('banks.viewindex')
 @section('page_content')
 
+@include('banks.partials.nav_tabs')
+
 <!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
@@ -90,6 +92,28 @@
     <div class="card">
         <div class="card-header text-end">
             <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Banks</button>
+        </div>
+        <div class="totals-cards totals-cards-single-row">
+            <div class="total-card total-blue">
+                <div class="label"><i class="fa fa-university"></i>Total Banks</div>
+                <div class="value">{{ $totals['banks_count'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-green">
+                <div class="label"><i class="fa fa-check-circle"></i>Active Banks</div>
+                <div class="value">{{ $totals['active_count'] ?? 0 }}</div>
+            </div>
+            <div class="total-card total-2">
+                <div class="label"><i class="bi bi-arrow-down-circle"></i>Funds In</div>
+                <div class="value">{{ \App\Helpers\Currency::format($totals['funds_in'] ?? 0, 2) }}</div>
+            </div>
+            <div class="total-card total-3">
+                <div class="label"><i class="bi bi-arrow-up-circle"></i>Funds Out</div>
+                <div class="value">{{ \App\Helpers\Currency::format($totals['funds_out'] ?? 0, 2) }}</div>
+            </div>
+            <div class="total-card {{ ($totals['net_balance'] ?? 0) >= 0 ? 'total-green' : 'total-red' }}">
+                <div class="label"><i class="bi bi-calculator"></i>Net Balance</div>
+                <div class="value">{{ \App\Helpers\Currency::format($totals['net_balance'] ?? 0, 2) }}</div>
+            </div>
         </div>
         <div class="card-body table-responsive py-0" id="table-data">
             @include('banks.table', ['data' => $data])

@@ -46,18 +46,6 @@ class BanksController extends AppBaseController
     if (!user_can('bank_view')) {
       abort(403, 'Unauthorized action.');
     }
-
-    $fundIn = 0;
-    $fundOut = 0;
-    $banks = Banks::all();
-    foreach ($banks as $bank) {
-      $credit = Transactions::where('account_id', $bank->account_id)->sum('credit');
-      $debit  = Transactions::where('account_id', $bank->account_id)->sum('debit');
-      $balance = $debit - $credit;
-      $fundIn += $debit;
-      $fundOut += $credit;
-      $bank->update(['balance' => $balance]);
-    }
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
     $query = Banks::query()
@@ -83,6 +71,18 @@ class BanksController extends AppBaseController
     }
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
+
+    $accountIds = Banks::query()->whereNotNull('account_id')->pluck('account_id');
+    $fundsIn = (float) Transactions::whereIn('account_id', $accountIds)->sum('debit');
+    $fundsOut = (float) Transactions::whereIn('account_id', $accountIds)->sum('credit');
+    $totals = [
+      'banks_count' => Banks::count(),
+      'active_count' => Banks::where('status', 1)->count(),
+      'funds_in' => $fundsIn,
+      'funds_out' => $fundsOut,
+      'net_balance' => $fundsIn - $fundsOut,
+    ];
+
     if ($request->ajax()) {
       $tableData = view('banks.table', [
         'data' => $data,
@@ -95,8 +95,7 @@ class BanksController extends AppBaseController
     }
     return view('banks.index', [
       'data' => $data,
-      'fundsIn' => $fundIn,
-      'fundsOut' => $fundOut
+      'totals' => $totals,
     ]);
   }
 

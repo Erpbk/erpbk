@@ -771,6 +771,7 @@ class General
       'RV' => 'Receipt Voucher',
       'PV' => 'Payments Voucher',
       'BL' => 'Bank Loan',
+      'TRF' => 'Funds Transfer',
       'VP' => 'VP VAT Payment',
       'EXP' => 'Expense Voucher',
       'IL' => 'Inventory Loss',

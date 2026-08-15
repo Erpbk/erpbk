@@ -21,10 +21,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\GlobalPagination;
 
 class ChequesController extends Controller
 {
     use AppliesModuleTopBarFilters;
+    use GlobalPagination;
 
     public function __construct(
         protected ChequeTopDateFilterService $chequeTopDateFilter
@@ -38,17 +40,25 @@ class ChequesController extends Controller
         if (! \App\Support\RoleFieldAccess::canAccessModule('cheques')) {
             abort(403, 'Unauthorized action.');
         }
-
         $query = Cheques::query()->latest('issue_date');
 
         if (Schema::hasTable('cheque_top_categories')) {
             $this->chequeTopDateFilter->applyTopBarFilters($query, $request);
         }
 
-        $data = $query->get();
+        $totals = [
+            'count' => (clone $query)->count(),
+            'security_count' => (clone $query)->where('is_security', true)->count(),
+            'payable_amount' => (float) (clone $query)->where('type', 'payable')->sum('amount'),
+            'receivable_amount' => (float) (clone $query)->where('type', 'receiveable')->sum('amount'),
+        ];
+
+        $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+        // Apply pagination using the trait
+        $data = $this->applyPagination($query, $paginationParams);
 
         return view('cheques.index', array_merge(
-            compact('data'),
+            compact('data', 'totals'),
             $this->moduleTopBarListingData($request, 'cheques')
         ));
     }

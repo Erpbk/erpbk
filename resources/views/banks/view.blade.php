@@ -23,6 +23,15 @@
   
   $netFlow = $currentMonthDebit - $currentMonthCredit;
 @endphp
+    <section class="content-header mb-3">
+      <div class="d-flex justify-content-between align-items-center px-1">
+        <h3 class="mb-0">{{ $banks->name }}</h3>
+        <a href="{{ route('banks.index') }}" class="btn btn-outline-secondary">
+          <i class="ti ti-arrow-left me-1"></i> Back to Banks
+        </a>
+      </div>
+    </section>
+
     <!-- Tabs Navigation -->
     <div class="card shadow-sm border-0 mb-4">
       <div class="card-body p-3">

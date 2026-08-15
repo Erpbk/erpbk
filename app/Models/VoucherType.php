@@ -92,6 +92,7 @@ class VoucherType extends BaseModel
             'GV' => ['garage_items', 'vouchers'],
             'RV' => ['cash_banks', 'vouchers'],
             'PV' => ['cash_banks', 'cheques', 'vouchers'],
+            'TRF' => ['cash_banks', 'vouchers'],
             'EXP' => ['expenses', 'vouchers'],
             'VP' => ['vat', 'vouchers'],
             'FAV' => ['assets', 'vouchers'],

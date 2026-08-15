@@ -21,6 +21,7 @@ class BikeRegistration extends BaseModel
         'registration_status',
         'detail',
         'branch_id',
+        'company_id',
         'reference_number',
         'billing_month',
         'amount',

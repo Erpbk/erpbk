@@ -173,7 +173,27 @@ class SalikPaymentReversalService
             }
         }
 
+        static::clearUnpaySnapshot($voucher);
+
         return (int) $relinked;
+    }
+
+    private static function clearUnpaySnapshot(Vouchers $voucher): void
+    {
+        $values = is_array($voucher->custom_field_values) ? $voucher->custom_field_values : [];
+        if (array_key_exists('unpaid_salik_ids', $values)) {
+            unset($values['unpaid_salik_ids']);
+            $voucher->custom_field_values = $values;
+            $voucher->save();
+        }
+
+        DeletionCascade::query()
+            ->where('primary_model', Vouchers::class)
+            ->where('primary_id', $voucher->id)
+            ->where('related_model', salik::class)
+            ->where('relationship_name', 'salikPayments')
+            ->where('deletion_type', 'unpay')
+            ->delete();
     }
 
     /**

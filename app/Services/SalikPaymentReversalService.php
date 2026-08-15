@@ -69,7 +69,7 @@ class SalikPaymentReversalService
                 $row->transaction_id ?: ('Salik #' . $row->id),
                 'hasMany',
                 'salikPayments',
-                'unpay',
+                'soft',
                 'Salik payment reversed; trips unpaid for possible restore'
             );
         }
@@ -192,7 +192,7 @@ class SalikPaymentReversalService
             ->where('primary_id', $voucher->id)
             ->where('related_model', salik::class)
             ->where('relationship_name', 'salikPayments')
-            ->where('deletion_type', 'unpay')
+            ->where('deletion_type', 'soft')
             ->delete();
     }
 

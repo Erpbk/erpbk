@@ -128,16 +128,31 @@
         $row.find('.amount').val((qty * rate).toFixed(2));
     }
 
-    function destroySelect2InClone($row) {
+    function stripSelect2FromRow($row) {
         $row.find('select').each(function () {
             var $el = $(this);
             if ($el.data('select2')) {
                 $el.select2('destroy');
             }
-            $el.removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
+            $el.removeAttr('data-select2-id')
+                .removeAttr('aria-hidden')
+                .removeAttr('tabindex')
+                .removeClass('select2-hidden-accessible');
+            // Select2 stamps unique IDs on options after a choice is made.
+            // Cloning those IDs breaks the new dropdown.
+            $el.find('option').removeAttr('data-select2-id').prop('selected', false);
+            $el.find('option:first').prop('selected', true);
         });
         $row.find('.select2-container').remove();
     }
+
+    var $rowTemplate = $rows.find('.assign-item-row:first').clone();
+    stripSelect2FromRow($rowTemplate);
+    $rowTemplate.find('input').val('');
+    $rowTemplate.find('select').val('');
+    $rowTemplate.find('.qty').val('1');
+    $rowTemplate.find('.rate').val('0');
+    $rowTemplate.find('.amount').val('0.00');
 
     initSelect2($form);
     $rows.find('.assign-item-row').each(function () {
@@ -148,14 +163,7 @@
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        var $first = $rows.find('.assign-item-row:first');
-        var $newRow = $first.clone();
-        destroySelect2InClone($newRow);
-        $newRow.find('input').val('');
-        $newRow.find('select').val('');
-        $newRow.find('.qty').val('1');
-        $newRow.find('.rate').val('0');
-        $newRow.find('.amount').val('0.00');
+        var $newRow = $rowTemplate.clone();
         $rows.append($newRow);
         initSelect2($newRow);
     });

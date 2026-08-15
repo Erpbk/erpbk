@@ -655,6 +655,12 @@ class VouchersController extends Controller
         }
       }
 
+      foreach ($vouchers as $voucherToDelete) {
+        if (($voucherToDelete->voucher_type ?? '') === 'SV') {
+          \App\Services\SalikPaymentReversalService::unpayLinkedSaliks((int) $voucherToDelete->id);
+        }
+      }
+
       // ✅ FIX: Recalculate ledger for all affected accounts
       foreach ($affectedAccounts as $accountId) {
         if ($accountId && $billingMonth) {

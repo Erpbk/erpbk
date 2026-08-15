@@ -986,6 +986,22 @@ class DeleteRequestService
                 ]);
             }
         }
+
+        foreach ($allVouchers as $sibling) {
+            if (($sibling->voucher_type ?? '') !== 'SV') {
+                continue;
+            }
+            try {
+                SalikPaymentReversalService::unpayLinkedSaliks((int) $sibling->id);
+            } catch (\Throwable $e) {
+                Log::warning('Failed to unpay saliks on approved SV voucher delete', [
+                    'delete_request_id' => $deleteRequest->id,
+                    'voucher_id' => $sibling->id,
+                    'error' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
+        }
     }
 
     protected static function recalculateLedgerAfterVoucherDeletion(int $accountId, $billingMonth): void

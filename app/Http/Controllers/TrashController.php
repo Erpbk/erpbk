@@ -34,6 +34,7 @@ use App\Models\Transactions;
 use App\Services\ActivityLogger;
 use App\Services\DeleteRequestService;
 use App\Services\FuelMonthlyLedgerService;
+use App\Services\SalikPaymentReversalService;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\Loan;
 use App\Support\CompanyContext;
@@ -404,6 +405,10 @@ class TrashController extends Controller
 
         DB::beginTransaction();
         try {
+            if ($module === 'vouchers' && $record instanceof Vouchers && ($record->voucher_type ?? '') === 'SV') {
+                SalikPaymentReversalService::assertCanRestore($record);
+            }
+
             // Restore the primary record using Eloquent
             $record->restore();
 
@@ -427,6 +432,10 @@ class TrashController extends Controller
             foreach ($cascadedDeletions as $cascade) {
                 // Find the related model class
                 $relatedModelClass = $cascade->related_model;
+
+                if ($module === 'vouchers' && $relatedModelClass === salik::class) {
+                    continue;
+                }
 
                 if (class_exists($relatedModelClass)) {
                     try {
@@ -456,6 +465,11 @@ class TrashController extends Controller
                         continue;
                     }
                 }
+            }
+
+            if ($module === 'vouchers' && $record instanceof Vouchers && ($record->voucher_type ?? '') === 'SV') {
+                $relinked = SalikPaymentReversalService::completeRestore($record->fresh() ?? $record);
+                $restoredItems[] = $relinked . ' salik record(s) re-linked';
             }
 
             if ($module === 'fuel_data' && $record instanceof FuelData) {

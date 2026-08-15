@@ -24,6 +24,8 @@ use App\Models\FailedSalikImport;
 use App\Http\Requests\StoreSalikTopUpRequest;
 use App\Models\Banks;
 use App\Repositories\SalikRepository;
+use App\Services\DeleteRequestService;
+use App\Services\SalikPaymentReversalService;
 use App\Services\SalikTopUpService;
 use App\Services\TransactionService;
 use Carbon\Carbon;
@@ -2033,10 +2035,57 @@ class SalikController extends AppBaseController
         return $canManageSalik || $canManagePayment;
     }
 
-    public function paymentForm(Request $request)
+    public function paymentForm(Request $request, $company_slug = null, $voucher = null)
     {
         if (!user_can('salik_view')) {
             abort(403, 'Unauthorized action.');
+        }
+
+        $editingVoucher = null;
+        $editingSelectedIds = [];
+        $editingLeasingFilter = null;
+        $defaultFrom = now()->startOfMonth()->format('Y-m-d');
+        $defaultTo = now()->endOfMonth()->format('Y-m-d');
+
+        if ($voucher) {
+            if (!user_can('rta_saliks_payment_edit')) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            try {
+                $editingVoucher = $this->findSvPaymentVoucher($voucher);
+            } catch (\Exception $e) {
+                Flash::error($e->getMessage());
+                return redirect()->route('salik.payments');
+            }
+
+            if (DeleteRequestService::hasPending($editingVoucher)) {
+                Flash::error(DeleteRequestService::pendingMessage(DeleteRequestService::lastCreatedFor($editingVoucher)));
+                return redirect()->route('salik.payments');
+            }
+
+            $voucherSaliks = salik::with('bike.leasingCompany')
+                ->where('payment_voucher_id', $editingVoucher->id)
+                ->get();
+
+            if ($voucherSaliks->isEmpty()) {
+                Flash::error('This payment voucher has no linked salik records.');
+                return redirect()->route('salik.payments');
+            }
+
+            $editingSelectedIds = $voucherSaliks->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
+            $editingLeasingFilter = $this->inferSalikPaymentLeasingFilter($voucherSaliks);
+            if (! $editingLeasingFilter) {
+                $editingLeasingFilter = 'own';
+            }
+
+            $tripDates = $voucherSaliks
+                ->map(fn ($row) => $this->parseSalikTripDate($row->trip_date ?? null))
+                ->filter();
+            if ($tripDates->isNotEmpty()) {
+                $defaultFrom = $tripDates->min()->format('Y-m-d');
+                $defaultTo = $tripDates->max()->format('Y-m-d');
+            }
         }
 
         try {
@@ -2050,7 +2099,16 @@ class SalikController extends AppBaseController
         $salikPayableAccount = Accounts::find(GlobalAccounts::id('SALIK_PAYABLE_ACCOUNT'));
         $vatPurchaseAccount = Accounts::find(GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'));
 
-        return view('salik.payment', compact('leasingCompanies', 'salikPayableAccount', 'vatPurchaseAccount'));
+        return view('salik.payment', compact(
+            'leasingCompanies',
+            'salikPayableAccount',
+            'vatPurchaseAccount',
+            'editingVoucher',
+            'editingSelectedIds',
+            'editingLeasingFilter',
+            'defaultFrom',
+            'defaultTo'
+        ));
     }
 
     public function getPaymentRecords(Request $request)
@@ -2062,6 +2120,9 @@ class SalikController extends AppBaseController
             'search' => 'nullable|string|max:255',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable',
+            'selected_ids' => 'nullable|array',
+            'selected_ids.*' => 'integer',
+            'editing_voucher_id' => 'nullable|integer',
         ]);
 
         $paginationParams = $this->getPaginationParams($request, 50);
@@ -2075,10 +2136,40 @@ class SalikController extends AppBaseController
             $records->appends($request->except('page'));
         }
 
+        $editingVoucherId = $request->filled('editing_voucher_id') ? (int) $request->editing_voucher_id : null;
+        $selectedIds = collect($request->input('selected_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $pageIds = collect(method_exists($records, 'items') ? $records->items() : $records)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id);
+        $missingPinnedIds = $selectedIds->diff($pageIds)->values();
+
+        $pinnedRecords = collect();
+        $keptPinnedIds = collect();
+        $droppedIds = [];
+
+        if ($missingPinnedIds->isNotEmpty()) {
+            $pinnedQuery = salik::query()
+                ->with(['bike.leasingCompany', 'rider'])
+                ->whereIn('id', $missingPinnedIds->all());
+            $this->constrainEligiblePaymentSaliks($pinnedQuery, $editingVoucherId);
+            $pinnedRecords = $pinnedQuery
+                ->orderByRaw("COALESCE(STR_TO_DATE(trip_date, '%d %b %Y'), STR_TO_DATE(trip_date, '%Y-%m-%d'), DATE(trip_date))")
+                ->get();
+            $keptPinnedIds = $pinnedRecords->pluck('id')->map(fn ($id) => (int) $id);
+            $droppedIds = $missingPinnedIds->diff($keptPinnedIds)->values()->all();
+        }
+
         return response()->json([
             'html' => view('salik.payment_table', ['records' => $records])->render(),
+            'pinned_html' => view('salik.payment_pinned_table', ['pinnedRecords' => $pinnedRecords])->render(),
             'count' => method_exists($records, 'total') ? $records->total() : $records->count(),
             'page' => method_exists($records, 'currentPage') ? $records->currentPage() : 1,
+            'dropped_ids' => $droppedIds,
         ]);
     }
 
@@ -2089,6 +2180,7 @@ class SalikController extends AppBaseController
             'date_to' => 'required|date|after_or_equal:date_from',
             'leasing_company_id' => 'required|string',
             'search' => 'nullable|string|max:255',
+            'editing_voucher_id' => 'nullable|integer',
         ]);
 
         $ids = $this->buildPaymentRecordsQuery($request)->pluck('id')->map(fn ($id) => (string) $id)->values();
@@ -2104,10 +2196,12 @@ class SalikController extends AppBaseController
         $selectedFilter = $request->input('leasing_company_id');
         $dateFrom = Carbon::parse($request->date_from)->toDateString();
         $dateTo = Carbon::parse($request->date_to)->toDateString();
+        $editingVoucherId = $request->filled('editing_voucher_id') ? (int) $request->editing_voucher_id : null;
 
         $query = salik::query()
-            ->with(['bike.leasingCompany', 'rider'])
-            ->unpaid()
+            ->with(['bike.leasingCompany', 'rider']);
+        $this->constrainEligiblePaymentSaliks($query, $editingVoucherId);
+        $query
             // trip_date is stored as "d M Y" (e.g. 09 Apr 2026), not a native DATE
             ->whereRaw(
                 "COALESCE(STR_TO_DATE(trip_date, '%d %b %Y'), STR_TO_DATE(trip_date, '%Y-%m-%d'), DATE(trip_date)) BETWEEN ? AND ?",
@@ -2141,19 +2235,91 @@ class SalikController extends AppBaseController
         return $query;
     }
 
+    private function constrainEligiblePaymentSaliks($query, ?int $editingVoucherId): void
+    {
+        $query->where(function ($q) use ($editingVoucherId) {
+            $q->unpaid();
+            if ($editingVoucherId) {
+                $q->orWhere('payment_voucher_id', $editingVoucherId);
+            }
+        });
+    }
+
+    private function findSvPaymentVoucher($voucherId): Vouchers
+    {
+        $voucher = Vouchers::where('voucher_type', 'SV')->find($voucherId);
+        if (! $voucher) {
+            throw new \Exception('Salik payment voucher not found.');
+        }
+
+        return $voucher;
+    }
+
+    private function assertSaliksEligibleForPayment(array $salikIds, ?int $editingVoucherId): void
+    {
+        $ids = collect($salikIds)->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            throw new \Exception('Select at least one salik record, or use Unpay to reverse this payment.');
+        }
+
+        $saliks = salik::whereIn('id', $ids->all())->lockForUpdate()->get();
+        if ($saliks->count() !== $ids->count()) {
+            throw new \Exception('One or more selected salik records were not found.');
+        }
+
+        foreach ($saliks as $row) {
+            if (! $row->isPaid()) {
+                continue;
+            }
+            if (! $editingVoucherId || (int) $row->payment_voucher_id !== (int) $editingVoucherId) {
+                $label = $row->transaction_id ?: ('Salik #' . $row->id);
+                throw new \Exception("{$label} is already paid on another voucher.");
+            }
+        }
+    }
+
+    private function queueSalikPaymentUnpay(Vouchers $voucher)
+    {
+        $relatedTransactions = Transactions::where('trans_code', $voucher->trans_code)->get();
+
+        $voucher->delete();
+
+        $deleteRequest = request()->attributes->get('delete_approval_request')
+            ?? DeleteRequestService::lastCreatedFor($voucher);
+
+        if (! $deleteRequest) {
+            throw new \RuntimeException('Could not create delete request for this salik payment.');
+        }
+
+        foreach ($relatedTransactions as $transaction) {
+            $deleteRequest->appendCascadedRecord(
+                Transactions::class,
+                $transaction->id,
+                "Transaction #{$transaction->id} - {$transaction->narration} (Trans Code: {$transaction->trans_code})"
+            );
+        }
+
+        DeleteRequestService::clearPendingIdsCache(Vouchers::class);
+        DeleteRequestService::clearPendingIdsCache(Transactions::class);
+
+        return $deleteRequest;
+    }
+
     public function calculatePaymentVoucher(Request $request)
     {
         $request->validate([
             'salik_ids' => 'required|array|min:1',
             'salik_ids.*' => 'integer|exists:saliks,id',
+            'editing_voucher_id' => 'nullable|integer',
         ]);
 
-        $saliks = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids)
-            ->unpaid()
-            ->get();
+        $editingVoucherId = $request->filled('editing_voucher_id') ? (int) $request->editing_voucher_id : null;
+        $salikQuery = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids);
+        $this->constrainEligiblePaymentSaliks($salikQuery, $editingVoucherId);
+        $saliks = $salikQuery->get();
 
         if ($saliks->isEmpty()) {
-            return response()->json(['error' => 'No unpaid salik records found.'], 422);
+            return response()->json(['error' => 'No eligible salik records found.'], 422);
         }
 
         $dateRangeLabel = $this->resolveSalikTripDateRangeLabel($saliks);
@@ -2250,17 +2416,49 @@ class SalikController extends AppBaseController
             'billing_month' => 'required|date_format:Y-m',
             'trans_date' => 'required|date',
             'remarks' => 'nullable|string|max:500',
+            'reference_number' => 'nullable|string|max:255',
+            'editing_voucher_id' => 'nullable|integer',
         ]);
+
+        $editingVoucherId = $request->filled('editing_voucher_id') ? (int) $request->editing_voucher_id : null;
+        if ($editingVoucherId) {
+            if (!user_can('rta_saliks_payment_edit')) {
+                abort(403, 'Unauthorized action.');
+            }
+        } elseif (!user_can('rta_saliks_payment_create') && !user_can('rta_saliks_payment_edit')) {
+            abort(403, 'Unauthorized action.');
+        }
 
         DB::beginTransaction();
         try {
+            if ($editingVoucherId) {
+                $editingVoucher = Vouchers::where('voucher_type', 'SV')
+                    ->lockForUpdate()
+                    ->find($editingVoucherId);
+                if (! $editingVoucher) {
+                    throw new \Exception('Salik payment voucher not found.');
+                }
+                if (DeleteRequestService::hasPending($editingVoucher)) {
+                    throw new \Exception(DeleteRequestService::pendingMessage(DeleteRequestService::lastCreatedFor($editingVoucher)));
+                }
+
+                $this->assertSaliksEligibleForPayment($request->salik_ids, $editingVoucherId);
+
+                DeleteRequestService::bypass(true);
+                try {
+                    SalikPaymentReversalService::reversePostedVoucher($editingVoucher);
+                } finally {
+                    DeleteRequestService::bypass(false);
+                }
+            }
+
             $saliks = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids)
                 ->unpaid()
                 ->lockForUpdate()
                 ->get();
 
-            if ($saliks->count() !== count($request->salik_ids)) {
-                throw new \Exception('One or more selected salik records are already paid or not found.');
+            if ($saliks->count() !== count(array_unique($request->salik_ids))) {
+                throw new \Exception('One or more selected salik records are already paid on another voucher or were not found.');
             }
 
             $calcRequest = new Request([
@@ -2355,6 +2553,7 @@ class SalikController extends AppBaseController
                 'payment_to' => $calc['credit_lines'][0]['account_id'] ?? null,
                 'amount' => $calc['total_debit'],
                 'remarks' => $request->remarks ?? ('Salik payment for ' . $saliks->count() . ' record(s)'),
+                'reference_number' => $request->filled('reference_number') ? trim((string) $request->reference_number) : null,
                 'ref_id' => $firstSalik->id,
                 'Created_By' => auth()->id(),
                 'branch_id' => $branchId,
@@ -2369,12 +2568,16 @@ class SalikController extends AppBaseController
 
             DB::commit();
 
+            $successMessage = $editingVoucherId
+                ? 'Salik payment updated successfully.'
+                : 'Salik payment recorded successfully.';
+
             if ($request->ajax()) {
-                return response()->json(['message' => 'Salik payment recorded successfully.', 'reload' => true], 200);
+                return response()->json(['message' => $successMessage, 'reload' => true], 200);
             }
 
-            Flash::success('Salik payment recorded successfully.');
-            return redirect()->route('salik.index');
+            Flash::success($successMessage);
+            return redirect()->route($editingVoucherId ? 'salik.payments' : 'salik.index');
         } catch (\Exception $e) {
             DB::rollBack();
             if ($request->ajax()) {
@@ -2382,6 +2585,68 @@ class SalikController extends AppBaseController
             }
             Flash::error('Error: ' . $e->getMessage());
             return redirect()->back();
+        }
+    }
+
+    public function unpayPayment(Request $request, $company_slug, $voucher)
+    {
+        if (!user_can('rta_saliks_payment_edit')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to unpay salik payments.',
+            ], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $paymentVoucher = Vouchers::where('voucher_type', 'SV')
+                ->lockForUpdate()
+                ->find($voucher);
+            if (! $paymentVoucher) {
+                throw new \Exception('Salik payment voucher not found.');
+            }
+
+            if (DeleteRequestService::hasPending($paymentVoucher)) {
+                throw new \Exception(DeleteRequestService::pendingMessage(DeleteRequestService::lastCreatedFor($paymentVoucher)));
+            }
+
+            $linkedCount = salik::where('payment_voucher_id', $paymentVoucher->id)->count();
+
+            if (DeleteRequestService::enabled() && ! DeleteRequestService::shouldBypassApproval()) {
+                $queued = $this->queueSalikPaymentUnpay($paymentVoucher);
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'pending_deletion' => true,
+                    'message' => DeleteRequestService::pendingMessage($queued),
+                    'reload' => true,
+                ]);
+            }
+
+            DeleteRequestService::bypass(true);
+            try {
+                $unpaidCount = SalikPaymentReversalService::reversePostedVoucher($paymentVoucher);
+            } finally {
+                DeleteRequestService::bypass(false);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Payment reversed. {$unpaidCount} salik record(s) marked unpaid.",
+                'unpaid_count' => $unpaidCount,
+                'linked_count' => $linkedCount,
+                'reload' => true,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], str_contains($e->getMessage(), 'not found') ? 404 : 422);
         }
     }
 

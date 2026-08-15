@@ -106,6 +106,31 @@
             $('#filterSidebar').removeClass('open');
             $('#filterOverlay').removeClass('show');
         });
+        $(document).on('click', '.unpay-salik-voucher', function(e) {
+            e.preventDefault();
+            var $btn = $(this);
+            var label = $btn.data('label');
+            var count = $btn.data('count');
+            var amount = $btn.data('amount');
+            var message = 'Unpay ' + label + '?\n\nThis will reverse the payment voucher and mark '
+                + count + ' salik record(s) unpaid (amount ' + amount + ').\n'
+                + 'Rider monthly invoices will not change.';
+            if (!confirm(message)) {
+                return;
+            }
+            $.ajax({
+                url: $btn.data('url'),
+                type: 'POST',
+                data: { _token: '{{ csrf_token() }}' },
+                success: function(res) {
+                    alert(res.message || 'Payment reversed.');
+                    window.location.reload();
+                },
+                error: function(xhr) {
+                    alert(xhr.responseJSON?.message || 'Failed to unpay this voucher.');
+                }
+            });
+        });
     });
 </script>
 @endsection

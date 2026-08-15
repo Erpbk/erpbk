@@ -45,73 +45,49 @@ class RiderInventoryController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $statusFilter = $request->input('status_filter', '');
 
-        $riderQuery = Riders::query()
-            ->whereHas('inventoryAssignments', function ($q) use ($statusFilter) {
-                if ($statusFilter === 'assigned') {
-                    $q->where('status', RiderInventoryAssignment::STATUS_ASSIGNED);
-                } elseif ($statusFilter === 'returned') {
-                    $q->where('status', RiderInventoryAssignment::STATUS_RETURNED);
-                } elseif ($statusFilter === 'lost') {
-                    $q->where('status', RiderInventoryAssignment::STATUS_LOST);
-                } elseif ($statusFilter === 'returned_to_customer') {
-                    $q->where('status', RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER);
-                }
-            });
+        $assignmentQuery = RiderInventoryAssignment::query()
+            ->with(['rider', 'customer', 'inventoryItem'])
+            ->orderByDesc('assigned_date')
+            ->orderByDesc('id');
 
         if ($request->filled('quick_search')) {
             $term = trim((string) $request->quick_search);
-            $riderQuery->where(function ($q) use ($term) {
-                $q->where('name', 'like', '%' . $term . '%')
-                    ->orWhere('rider_id', 'like', '%' . $term . '%')
-                    ->orWhere('person_code', 'like', '%' . $term . '%')
-                    ->orWhereHas('inventoryAssignments', function ($assignmentQuery) use ($term) {
-                        $assignmentQuery->whereHas('customer', function ($customerQuery) use ($term) {
-                            $customerQuery->where('name', 'like', '%' . $term . '%')
-                                ->orWhere('company_name', 'like', '%' . $term . '%');
-                        })->orWhereHas('inventoryItem', function ($itemQuery) use ($term) {
-                            $itemQuery->where('name', 'like', '%' . $term . '%');
-                        });
-                    });
+            $assignmentQuery->where(function ($q) use ($term) {
+                $q->whereHas('rider', function ($riderQuery) use ($term) {
+                    $riderQuery->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('rider_id', 'like', '%' . $term . '%')
+                        ->orWhere('person_code', 'like', '%' . $term . '%');
+                })->orWhereHas('customer', function ($customerQuery) use ($term) {
+                    $customerQuery->where('name', 'like', '%' . $term . '%')
+                        ->orWhere('company_name', 'like', '%' . $term . '%');
+                })->orWhereHas('inventoryItem', function ($itemQuery) use ($term) {
+                    $itemQuery->where('name', 'like', '%' . $term . '%');
+                });
             });
         }
 
-        $riderQuery
-            ->withSum([
-                'inventoryAssignments as assigned_count' => fn ($q) => $q->where('status', RiderInventoryAssignment::STATUS_ASSIGNED),
-            ], 'qty')
-            ->withSum([
-                'inventoryAssignments as returned_count' => fn ($q) => $q->where('status', RiderInventoryAssignment::STATUS_RETURNED),
-            ], 'qty')
-            ->withSum([
-                'inventoryAssignments as lost_count' => fn ($q) => $q->where('status', RiderInventoryAssignment::STATUS_LOST),
-            ], 'qty')
-            ->addSelect([
-                'last_assigned_date' => RiderInventoryAssignment::selectRaw('MAX(assigned_date)')
-                    ->whereColumn('rider_id', 'riders.id'),
-            ])
-            ->orderByDesc('last_assigned_date')
-            ->orderBy('name');
+        if ($statusFilter === 'assigned') {
+            $assignmentQuery->where('status', RiderInventoryAssignment::STATUS_ASSIGNED);
+        } elseif ($statusFilter === 'returned') {
+            $assignmentQuery->where('status', RiderInventoryAssignment::STATUS_RETURNED);
+        } elseif ($statusFilter === 'lost') {
+            $assignmentQuery->where('status', RiderInventoryAssignment::STATUS_LOST);
+        }
 
-        $riderCount = (int) Riders::query()->whereHas('inventoryAssignments')->count();
-        $assignedCount = (int) RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_ASSIGNED)->sum('qty');
-        $returnedCount = (int) RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED)->sum('qty');
-        $lostCount = (int) RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_LOST)->sum('qty');
-        $returnedToCustomerCount = (int) RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER)->sum('qty');
-        $totalItemsCount = $assignedCount + $returnedCount + $lostCount + $returnedToCustomerCount;
+        $assignedCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_ASSIGNED)->count();
+        $returnedCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED)->count();
+        $lostCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_LOST)->count();
+        $returnedToCustomerCount = RiderInventoryAssignment::where('status', RiderInventoryAssignment::STATUS_RETURNED_TO_CUSTOMER)->count();
 
-        $riders = $this->applyPagination($riderQuery, $paginationParams);
+        $assignments = $this->applyPagination($assignmentQuery, $paginationParams);
 
         if ($request->ajax()) {
             return response()->json([
                 'tableData' => view('rider_inventory.assignment_index_table', [
-                    'riders' => $riders,
+                    'assignments' => $assignments,
                 ])->render(),
-                'paginationLinks' => method_exists($riders, 'links')
-                    ? $riders->links('components.global-pagination')->render()
-                    : '',
+                'paginationLinks' => $assignments->links('components.global-pagination')->render(),
                 'stats' => [
-                    'riders' => $riderCount,
-                    'totalItems' => $totalItemsCount,
                     'assigned' => $assignedCount,
                     'returned' => $returnedCount,
                     'lost' => $lostCount,
@@ -121,9 +97,7 @@ class RiderInventoryController extends AppBaseController
         }
 
         return view('rider_inventory.index', [
-            'riders' => $riders,
-            'riderCount' => $riderCount,
-            'totalItemsCount' => $totalItemsCount,
+            'assignments' => $assignments,
             'assignedCount' => $assignedCount,
             'returnedCount' => $returnedCount,
             'lostCount' => $lostCount,
@@ -148,7 +122,7 @@ class RiderInventoryController extends AppBaseController
 
         $availableItems = Items::availableForAssignment();
 
-        if ($request->ajax() && $request->boolean('table_only')) {
+        if ($request->ajax()) {
             return response()->json([
                 'tableData' => view('rider_inventory.assignment_table', [
                     'assignments' => $assignments,
@@ -157,11 +131,7 @@ class RiderInventoryController extends AppBaseController
             ]);
         }
 
-        if ($request->ajax()) {
-            return view('rider_inventory.show', compact('rider', 'assignments', 'availableItems'));
-        }
-
-        return view('rider_inventory.show_page', compact('rider', 'assignments', 'availableItems'));
+        return view('rider_inventory.show', compact('rider', 'assignments', 'availableItems'));
     }
 
     public function assignForm(string $company_slug, ?int $riderId = null)
@@ -292,62 +262,6 @@ class RiderInventoryController extends AppBaseController
         return view('rider_inventory.return_modal', compact('assignment'));
     }
 
-    public function editForm(string $company_slug, int $assignmentId)
-    {
-        if (!user_can('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $assignment = $this->findAssignedRecord($assignmentId);
-
-        return view('rider_inventory.edit_modal', [
-            'assignment' => $assignment,
-            'availableItems' => Items::availableForAssignment(),
-            'customers' => $this->customersForInventory(activeOnly: false),
-        ]);
-    }
-
-    public function editStore(Request $request, string $company_slug, int $assignmentId)
-    {
-        if (!user_can('riderinventory_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $assignment = $this->findAssignedRecord($assignmentId);
-
-        $itemExistsRule = Rule::exists('items', 'id')->where(function ($query) {
-            $query->where('status', 1)
-                ->whereJsonContains('owner', 'riderInventory');
-        });
-
-        $validated = $request->validate([
-            'inventory_item_id' => ['required', 'integer', $itemExistsRule],
-            'customer_id' => 'required|integer|exists:customers,id',
-            'assigned_date' => 'required|date',
-            'qty' => 'required|integer|min:1',
-            'amount' => 'required|numeric|min:0.01',
-        ]);
-
-        $assignment->inventory_item_id = $validated['inventory_item_id'];
-        $assignment->customer_id = $validated['customer_id'];
-        $assignment->assigned_date = $validated['assigned_date'];
-        $assignment->qty = (int) $validated['qty'];
-        $assignment->amount = $validated['amount'];
-        $assignment->updated_by = auth()->id();
-        $assignment->save();
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Inventory assignment updated successfully.',
-            ]);
-        }
-
-        Flash::success('Inventory assignment updated successfully.');
-
-        return redirect()->route('RiderInventory.show', $assignment->rider_id);
-    }
-
     public function returnStore(Request $request, string $company_slug, int $assignmentId)
     {
         if (!user_can('riderinventory_edit')) {
@@ -356,14 +270,10 @@ class RiderInventoryController extends AppBaseController
 
         $assignment = $this->findAssignedRecord($assignmentId);
 
-        $openQty = max(1, (int) ($assignment->qty ?? 1));
         $validated = $request->validate([
             'return_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
-            'qty' => 'nullable|integer|min:1|max:' . $openQty,
         ]);
-
-        $qty = (int) ($validated['qty'] ?? $openQty);
 
         DB::beginTransaction();
 
@@ -371,17 +281,16 @@ class RiderInventoryController extends AppBaseController
             $contractDate = Carbon::parse($validated['return_date'])->format('Y-m-d');
             $contractNumber = RiderInventoryContract::nextContractNumber(RiderInventoryContract::TYPE_RETURN);
 
-            $portion = $this->extractAssignedQty($assignment, $qty);
-            $portion->status = RiderInventoryAssignment::STATUS_RETURNED;
-            $portion->return_date = $contractDate;
-            $portion->returned_by = auth()->id();
-            $portion->return_contract_number = $contractNumber;
-            $portion->remarks = $validated['remarks'] ?? null;
-            $portion->updated_by = auth()->id();
-            $portion->save();
+            $assignment->status = RiderInventoryAssignment::STATUS_RETURNED;
+            $assignment->return_date = $contractDate;
+            $assignment->returned_by = auth()->id();
+            $assignment->return_contract_number = $contractNumber;
+            $assignment->remarks = $validated['remarks'] ?? null;
+            $assignment->updated_by = auth()->id();
+            $assignment->save();
 
             RiderInventoryContract::create([
-                'rider_id' => $portion->rider_id,
+                'rider_id' => $assignment->rider_id,
                 'contract_type' => RiderInventoryContract::TYPE_RETURN,
                 'contract_number' => $contractNumber,
                 'contract_date' => $contractDate,
@@ -404,7 +313,7 @@ class RiderInventoryController extends AppBaseController
 
             Flash::success('Inventory item marked as returned.');
 
-            return redirect()->route('RiderInventory.show', $portion->rider_id);
+            return redirect()->route('RiderInventory.show', $assignment->rider_id);
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -438,22 +347,16 @@ class RiderInventoryController extends AppBaseController
 
         $assignment = $this->findAssignedRecord($assignmentId);
 
-        $openQty = max(1, (int) ($assignment->qty ?? 1));
         $validated = $request->validate([
             'return_date' => 'required|date',
             'remarks' => 'nullable|string|max:1000',
-            'qty' => 'nullable|integer|min:1|max:' . $openQty,
         ]);
-
-        $qty = (int) ($validated['qty'] ?? $openQty);
 
         DB::beginTransaction();
 
         try {
-            $portion = $this->extractAssignedQty($assignment, $qty);
-
             $result = app(RiderInventoryLossService::class)->chargeRiderForLostItem(
-                $portion,
+                $assignment,
                 $validated['return_date'],
                 $validated['remarks'] ?? null,
                 auth()->id()
@@ -471,7 +374,7 @@ class RiderInventoryController extends AppBaseController
 
             Flash::success('Inventory item marked as lost and rider charged successfully.');
 
-            return redirect()->route('RiderInventory.show', $portion->rider_id);
+            return redirect()->route('RiderInventory.show', $assignment->rider_id);
         } catch (\Throwable $e) {
             DB::rollBack();
 
@@ -574,7 +477,7 @@ class RiderInventoryController extends AppBaseController
         }
     }
 
-    public function assignmentContractForm(string $company_slug, int $riderId)
+    public function assignmentContract(string $company_slug, int $riderId)
     {
         if (!user_can('riderinventory_contract_print')) {
             abort(403, 'Unauthorized action.');
@@ -589,63 +492,18 @@ class RiderInventoryController extends AppBaseController
             return redirect()->route('RiderInventory.show', $riderId);
         }
 
-        return view('rider_inventory.assignment_contract_form', [
-            'rider' => $rider,
-            'assignments' => $assignments,
-        ]);
-    }
-
-    public function assignmentContractProcess(Request $request, string $company_slug, int $riderId)
-    {
-        if (!user_can('riderinventory_contract_print')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $rider = Riders::findOrFail($riderId);
-        $assigned = $this->assignedItemsForRider($riderId);
-
-        if ($assigned->isEmpty()) {
-            Flash::error('No assigned inventory items found for this rider.');
-
-            return redirect()->route('RiderInventory.show', $riderId);
-        }
-
-        $validated = $request->validate([
-            'assignment_ids' => 'required|array|min:1',
-            'assignment_ids.*' => 'integer',
-        ], [
-            'assignment_ids.required' => 'Select at least one assigned item for the contract.',
-            'assignment_ids.min' => 'Select at least one assigned item for the contract.',
-        ]);
-
-        $allowedIds = $assigned->pluck('id')->map(fn ($id) => (int) $id)->all();
-        $selectedIds = collect($validated['assignment_ids'])
-            ->map(fn ($id) => (int) $id)
-            ->unique()
-            ->filter(fn ($id) => in_array($id, $allowedIds, true))
-            ->values();
-
-        if ($selectedIds->isEmpty()) {
-            return back()->withInput()->withErrors([
-                'assignment_ids' => 'Select at least one currently assigned item for the contract.',
-            ]);
-        }
-
-        $assignments = $assigned->whereIn('id', $selectedIds->all())->values();
-
         DB::beginTransaction();
 
         try {
             $contractNumber = RiderInventoryContract::nextContractNumber(RiderInventoryContract::TYPE_ASSIGNMENT);
             $contractDate = now()->toDateString();
-            $totalQty = (int) $assignments->sum(fn ($row) => max(1, (int) ($row->qty ?? 1)));
 
             $contract = RiderInventoryContract::create([
                 'rider_id' => $rider->id,
                 'contract_type' => RiderInventoryContract::TYPE_ASSIGNMENT,
                 'contract_number' => $contractNumber,
                 'contract_date' => $contractDate,
-                'total_items' => $totalQty,
+                'total_items' => $assignments->count(),
                 'total_returned' => 0,
                 'total_lost' => 0,
                 'total_chargeable_amount' => 0,
@@ -670,7 +528,7 @@ class RiderInventoryController extends AppBaseController
             DB::rollBack();
             Flash::error('Error generating assignment contract: ' . $e->getMessage());
 
-            return redirect()->route('RiderInventory.assignmentContractForm', $riderId)->withInput();
+            return redirect()->route('RiderInventory.show', $riderId);
         }
     }
 
@@ -713,49 +571,33 @@ class RiderInventoryController extends AppBaseController
         $validated = $request->validate([
             'return_date' => 'required|date',
             'remarks' => 'nullable|string|max:2000',
-            'returned_qty' => 'nullable|array',
-            'returned_qty.*' => 'nullable|integer|min:0',
-            'lost_qty' => 'nullable|array',
-            'lost_qty.*' => 'nullable|integer|min:0',
+            'dispositions' => 'nullable|array',
+            'dispositions.*' => 'nullable|in:returned,lost,skip',
             'amounts' => 'nullable|array',
-            'amounts.*' => 'nullable|numeric|min:0',
+            'amounts.*' => 'nullable|numeric|min:0.01',
         ]);
 
-        $processedQtyTotal = 0;
+        $assignmentIds = $assignments->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $processedCount = 0;
 
-        foreach ($assignments as $assignment) {
-            $openQty = max(1, (int) ($assignment->qty ?? 1));
-            $returnedQty = (int) data_get($validated, 'returned_qty.' . $assignment->id, 0);
-            $lostQty = (int) data_get($validated, 'lost_qty.' . $assignment->id, 0);
-
-            if ($returnedQty === 0 && $lostQty === 0) {
+        foreach ($assignmentIds as $id) {
+            $disposition = $validated['dispositions'][$id] ?? 'skip';
+            if ($disposition === 'skip') {
                 continue;
             }
 
-            if ($returnedQty + $lostQty > $openQty) {
+            $processedCount++;
+
+            if (!isset($validated['amounts'][$id])) {
                 return back()->withInput()->withErrors([
-                    'returned_qty' => 'Returned qty + lost qty cannot exceed open qty for '
-                        . ($assignment->inventoryItem->name ?? 'an item') . '.',
+                    'amounts' => 'Please enter an amount for each returned or lost item.',
                 ]);
             }
-
-            $unitAmount = data_get($validated, 'amounts.' . $assignment->id);
-            if ($unitAmount === null || $unitAmount === '') {
-                $unitAmount = $assignment->amount;
-            }
-            if ((float) $unitAmount < 0.01) {
-                return back()->withInput()->withErrors([
-                    'amounts' => 'Please enter a unit price greater than zero for '
-                        . ($assignment->inventoryItem->name ?? 'each returned or lost item') . '.',
-                ]);
-            }
-
-            $processedQtyTotal += $returnedQty + $lostQty;
         }
 
-        if ($processedQtyTotal === 0) {
+        if ($processedCount === 0) {
             return back()->withInput()->withErrors([
-                'returned_qty' => 'Enter at least one returned or lost quantity (Returned Qty / Lost Qty columns).',
+                'dispositions' => 'Please mark at least one item as Returned or Lost.',
             ]);
         }
 
@@ -771,35 +613,28 @@ class RiderInventoryController extends AppBaseController
             $lossService = app(RiderInventoryLossService::class);
 
             foreach ($assignments as $assignment) {
-                $returnedQty = (int) data_get($validated, 'returned_qty.' . $assignment->id, 0);
-                $lostQty = (int) data_get($validated, 'lost_qty.' . $assignment->id, 0);
-                if ($returnedQty === 0 && $lostQty === 0) {
+                $disposition = $validated['dispositions'][$assignment->id] ?? 'skip';
+                if ($disposition === 'skip') {
                     continue;
                 }
 
-                $unitAmount = data_get($validated, 'amounts.' . $assignment->id);
-                if ($unitAmount === null || $unitAmount === '') {
-                    $unitAmount = $assignment->amount;
-                }
-                $assignment->amount = round((float) $unitAmount, 2);
+                $formTotal = (float) $validated['amounts'][$assignment->id];
+                $qty = max(1, (int) ($assignment->qty ?? 1));
+                $assignment->amount = round($formTotal / $qty, 2);
                 $assignment->updated_by = auth()->id();
                 $assignment->save();
 
-                if ($returnedQty > 0) {
-                    $portion = $this->extractAssignedQty($assignment, $returnedQty);
-                    $portion->status = RiderInventoryAssignment::STATUS_RETURNED;
-                    $portion->return_date = $contractDate;
-                    $portion->returned_by = auth()->id();
-                    $portion->return_contract_number = $contractNumber;
-                    $portion->remarks = $validated['remarks'] ?? $portion->remarks;
-                    $portion->updated_by = auth()->id();
-                    $portion->save();
-                    $returnedItems->push($portion->fresh(['inventoryItem', 'assignedByUser', 'returnedByUser']));
-                }
-
-                if ($lostQty > 0) {
-                    $portion = $this->extractAssignedQty($assignment, $lostQty);
-                    $lostAssignments->push($portion);
+                if ($disposition === 'returned') {
+                    $assignment->status = RiderInventoryAssignment::STATUS_RETURNED;
+                    $assignment->return_date = $contractDate;
+                    $assignment->returned_by = auth()->id();
+                    $assignment->return_contract_number = $contractNumber;
+                    $assignment->remarks = $validated['remarks'] ?? $assignment->remarks;
+                    $assignment->updated_by = auth()->id();
+                    $assignment->save();
+                    $returnedItems->push($assignment->fresh(['inventoryItem', 'assignedByUser', 'returnedByUser']));
+                } else {
+                    $lostAssignments->push($assignment);
                 }
             }
 
@@ -819,17 +654,15 @@ class RiderInventoryController extends AppBaseController
             }
 
             $processedItems = $returnedItems->merge($lostItems);
-            $totalReturnedQty = (int) $returnedItems->sum(fn ($row) => max(1, (int) ($row->qty ?? 1)));
-            $totalLostQty = (int) $lostItems->sum(fn ($row) => max(1, (int) ($row->qty ?? 1)));
 
             $contract = RiderInventoryContract::create([
                 'rider_id' => $rider->id,
                 'contract_type' => RiderInventoryContract::TYPE_RETURN,
                 'contract_number' => $contractNumber,
                 'contract_date' => $contractDate,
-                'total_items' => $totalReturnedQty + $totalLostQty,
-                'total_returned' => $totalReturnedQty,
-                'total_lost' => $totalLostQty,
+                'total_items' => $processedItems->count(),
+                'total_returned' => $returnedItems->count(),
+                'total_lost' => $lostItems->count(),
                 'total_chargeable_amount' => $totalChargeable,
                 'remarks' => $validated['remarks'] ?? null,
                 'generated_by' => auth()->id(),
@@ -1070,45 +903,6 @@ class RiderInventoryController extends AppBaseController
         }
 
         return $assignment;
-    }
-
-    /**
-     * Peel $qty units off an assigned row. Full qty returns the same model;
-     * partial qty reduces the original and returns a new assigned row for the portion.
-     */
-    private function extractAssignedQty(RiderInventoryAssignment $assignment, int $qty): RiderInventoryAssignment
-    {
-        if (!$assignment->isAssigned()) {
-            throw new \InvalidArgumentException('Only assigned inventory items can be split.');
-        }
-
-        $openQty = max(1, (int) ($assignment->qty ?? 1));
-        if ($qty < 1 || $qty > $openQty) {
-            throw new \InvalidArgumentException("Quantity must be between 1 and {$openQty}.");
-        }
-
-        if ($qty === $openQty) {
-            return $assignment;
-        }
-
-        $assignment->qty = $openQty - $qty;
-        $assignment->updated_by = auth()->id();
-        $assignment->save();
-
-        return RiderInventoryAssignment::create([
-            'rider_id' => $assignment->rider_id,
-            'inventory_item_id' => $assignment->inventory_item_id,
-            'customer_id' => $assignment->customer_id,
-            'assigned_date' => $assignment->assigned_date,
-            'assigned_by' => $assignment->assigned_by,
-            'status' => RiderInventoryAssignment::STATUS_ASSIGNED,
-            'amount' => $assignment->amount,
-            'qty' => $qty,
-            'assignment_contract_number' => $assignment->assignment_contract_number,
-            'remarks' => $assignment->remarks,
-            'created_by' => $assignment->created_by ?? auth()->id(),
-            'updated_by' => auth()->id(),
-        ]);
     }
 
     private function findChangeableRecord(int $assignmentId): RiderInventoryAssignment
@@ -1542,7 +1336,7 @@ class RiderInventoryController extends AppBaseController
     private function assignedItemsForRider(int $riderId)
     {
         return RiderInventoryAssignment::query()
-            ->with(['inventoryItem', 'assignedByUser', 'customer'])
+            ->with(['inventoryItem', 'assignedByUser'])
             ->where('rider_id', $riderId)
             ->where('status', RiderInventoryAssignment::STATUS_ASSIGNED)
             ->orderBy('assigned_date')

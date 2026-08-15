@@ -13,8 +13,10 @@
         'bike' => null,
         'fuel_card' => null,
         'sim_card' => null,
+        'account_balance' => null,
     ];
     $customerInventoryRows = $customerInventoryRows ?? [];
+    $currencySymbol = \App\Helpers\Currency::symbol();
     $assignedAssets = [
         [
             'type' => 'Bike',
@@ -30,6 +32,11 @@
             'type' => 'Sim Card',
             'item' => $assignedItems['sim_card'] ?? null,
             'prefix' => '',
+        ],
+        [
+            'type' => 'Account Balance',
+            'item' => $assignedItems['account_balance'] ?? null,
+            'prefix' => $currencySymbol . ' ',
         ],
     ];
     foreach ($customerInventoryRows as $inventoryRow) {

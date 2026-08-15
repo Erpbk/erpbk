@@ -446,9 +446,11 @@ class BikeRegistrationController extends AppBaseController
                 ->where('is_active', 1)
                 ->orderBy('display_order')
                 ->get();
+            $companyId = CompanyContext::id() ?? (auth()->user()->company_id ?? null);
             foreach ($activeStatuses as $status) {
                 $br = BikeRegistration::create([
                     'branch_id' => $expenseAccount->branch_id,
+                    'company_id' => $companyId,
                     'trans_date' => Carbon::today()->format('Y-m-d'),
                     'trans_code' => Account::trans_code(),
                     'date' => Carbon::today()->format('Y-m-d'),
@@ -675,7 +677,19 @@ class BikeRegistrationController extends AppBaseController
     public function create($company_slug, $id)
     {
         $data = BikeRegistrationAccount::where('id', $id)->first();
-        $registrationStatuses = BikeRegistrationStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        $usedStatuses = BikeRegistration::query()
+            ->where('bike_registration_account_id', $id)
+            ->whereNotNull('registration_status')
+            ->pluck('registration_status')
+            ->unique()
+            ->filter()
+            ->values()
+            ->all();
+
+        $registrationStatuses = BikeRegistrationStatus::orderBy('display_order', 'asc')
+            ->where('is_active', 1)
+            ->when($usedStatuses !== [], fn ($q) => $q->whereNotIn('name', $usedStatuses))
+            ->get();
 
         return view('bike_registration.create', compact('data', 'registrationStatuses'));
     }
@@ -688,8 +702,20 @@ class BikeRegistrationController extends AppBaseController
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('bike_registrations')->where(function ($query) use ($request) {
-                    return $query->where('bike_registration_account_id', $request->rider_id)->whereNull('deleted_at');
+                Rule::unique('bike_registrations', 'registration_status')->where(function ($query) use ($request) {
+                    $query->where('bike_registration_account_id', $request->rider_id)
+                        ->whereNull('deleted_at');
+
+                    // Match BelongsToCompany listing visibility: do not let orphan
+                    // (company_id NULL) or other-tenant rows block creating a ticket.
+                    if (Schema::hasColumn('bike_registrations', 'company_id') && CompanyContext::shouldApplyScope()) {
+                        $companyId = CompanyContext::id();
+                        if ($companyId !== null) {
+                            $query->where('company_id', $companyId);
+                        }
+                    }
+
+                    return $query;
                 }),
             ],
             'billing_month' => 'required|date_format:Y-m',
@@ -697,6 +723,8 @@ class BikeRegistrationController extends AppBaseController
             'reference_number' => 'required|string|max:255',
             'amount' => 'required|numeric|min:0',
             'attach_file' => 'nullable|string|max:255',
+        ], [
+            'registration_status.unique' => 'A ticket with this registration status already exists for this bike account.',
         ]);
 
         try {

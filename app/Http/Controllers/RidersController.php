@@ -2071,6 +2071,29 @@ class RidersController extends AppBaseController
     return view('riders.document', compact('missingFiles', 'files', 'riders'));
   }
 
+  public function inventory($company_slug, $rider_id)
+  {
+    $rider = $this->findAccessibleRider((int) $rider_id);
+    if (empty($rider) || (! empty($rider->branch_id) && ! in_array($rider->branch_id, app('user_branches')))) {
+      Flash::error('Rider not found');
+
+      return redirect(route('riders.index'));
+    }
+    $riders = $rider;
+    $assignments = RiderInventoryAssignment::query()
+      ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
+      ->where('rider_id', $rider_id)
+      ->orderByDesc('assigned_date')
+      ->orderByDesc('id')
+      ->get();
+
+    return view('riders.inventory', compact(
+      'riders',
+      'rider',
+      'assignments'
+    ));
+  }
+
   public function clearance($company_slug, $rider_id)
   {
     $rider = $this->findAccessibleRider((int) $rider_id);
@@ -2148,6 +2171,12 @@ class RidersController extends AppBaseController
       $sim = $simHistory?->sim;
     }
 
+    $accountClosingBalance = null;
+    if (! empty($rider->account_id)) {
+      $accountClosingBalance = (float) Transactions::where('account_id', $rider->account_id)
+        ->sum(DB::raw('debit - credit'));
+    }
+
     $bikeReturned = ! $bikeStillAssigned && $bikeHistory && $bikeHistory->return_date;
     $fuelReturned = $fuelHistory && $fuelHistory->return_date && (! $fuelCard || (int) $fuelCard->assigned_to !== (int) $rider->id);
     if ($fuelCard && (int) $fuelCard->assigned_to === (int) $rider->id) {
@@ -2184,6 +2213,14 @@ class RidersController extends AppBaseController
         'assign_date' => $simHistory?->note_date?->format('Y-m-d'),
         'return_date' => $simHistory?->return_date?->format('Y-m-d'),
         'status' => $simReturned ? 'Returned' : (($sim?->status ?: null) ?: 'Assigned'),
+      ] : null,
+      'account_balance' => $accountClosingBalance !== null ? [
+        'label' => number_format((float) $accountClosingBalance, 2),
+        'meta' => 'Closing balance',
+        'url' => route('rider.ledger', $rider->id),
+        'assign_date' => null,
+        'return_date' => null,
+        'status' => null,
       ] : null,
     ];
 

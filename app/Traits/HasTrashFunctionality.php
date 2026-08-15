@@ -110,6 +110,16 @@ trait HasTrashFunctionality
                 }
             }
 
+            \App\Support\CompanyQuery::table('deletion_cascades')
+                ->where('primary_model', $modelClass)
+                ->where('primary_id', $id)
+                ->delete();
+
+            \App\Support\CompanyQuery::table('deletion_cascades')
+                ->where('related_model', $modelClass)
+                ->where('related_id', $id)
+                ->delete();
+
             DB::commit();
             
             $message = $config['name'] . ' restored successfully.';

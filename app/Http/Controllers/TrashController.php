@@ -66,6 +66,19 @@ class TrashController extends Controller
     {
         return TrashedRecordQuery::find($modelClass, $id);
     }
+
+    private function forgetDeletionCascades(string $modelClass, $id): void
+    {
+        \App\Support\CompanyQuery::table('deletion_cascades')
+            ->where('primary_model', $modelClass)
+            ->where('primary_id', $id)
+            ->delete();
+
+        \App\Support\CompanyQuery::table('deletion_cascades')
+            ->where('related_model', $modelClass)
+            ->where('related_id', $id)
+            ->delete();
+    }
     /**
      * List of models that support soft deletes
      */
@@ -482,6 +495,8 @@ class TrashController extends Controller
                 $restoredItems[] = 'monthly salik invoice synced';
             }
 
+            $this->forgetDeletionCascades($config['model'], $id);
+
             DB::commit();
 
             // Build restoration message
@@ -558,8 +573,8 @@ class TrashController extends Controller
 
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
-            // Fuel transactions link via reference_id/reference_type, not account_id = fuel id.
-            if ($module !== 'fuel_data') {
+            // Fuel/voucher children are not keyed by the parent id as account_id/customer_id.
+            if ($module !== 'fuel_data' && $module !== 'vouchers') {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -632,6 +647,10 @@ class TrashController extends Controller
             foreach ($cascadedDeletions as $cascade) {
                 $relatedModelClass = $cascade->related_model;
 
+                if ($module === 'vouchers' && $relatedModelClass === salik::class) {
+                    continue;
+                }
+
                 if (class_exists($relatedModelClass)) {
                     try {
                         // Use Eloquent to permanently delete the related record
@@ -663,16 +682,7 @@ class TrashController extends Controller
                 }
             }
 
-            // Remove all cascade records associated with this deletion
-            \App\Support\CompanyQuery::table('deletion_cascades')
-                ->where('primary_model', $config['model'])
-                ->where('primary_id', $id)
-                ->delete();
-
-            \App\Support\CompanyQuery::table('deletion_cascades')
-                ->where('related_model', $config['model'])
-                ->where('related_id', $id)
-                ->delete();
+            $this->forgetDeletionCascades($config['model'], $id);
 
             // Permanently delete the primary record using Eloquent
             DeleteRequestService::markPermanentlyDeletedFromBin($record, auth()->user());
@@ -699,6 +709,17 @@ class TrashController extends Controller
                 Transactions::whereIn('reference_type', ['salik', 'Salik'])
                     ->where('reference_id', $record->id)
                     ->delete();
+            }
+
+            if ($module === 'vouchers' && $record instanceof Vouchers && $record->trans_code) {
+                $relatedTransactions = Transactions::withTrashed()
+                    ->withoutGlobalScope('branch')
+                    ->where('trans_code', $record->trans_code)
+                    ->get();
+                foreach ($relatedTransactions as $transaction) {
+                    $transaction->forceDelete();
+                    $deletedItems[] = 'Transaction #' . $transaction->id;
+                }
             }
 
             $record->forceDelete();

@@ -142,6 +142,7 @@ class SalikPaymentReversalService
         static::assertCanRestore($voucher);
 
         $relatedTransactions = Transactions::withTrashed()
+            ->withoutGlobalScope('branch')
             ->where('trans_code', $voucher->trans_code)
             ->get();
 
@@ -211,10 +212,34 @@ class SalikPaymentReversalService
         $billingMonth = $voucher->billing_month;
         $userId = Auth::id();
 
-        $relatedTransactions = Transactions::where('trans_code', $transCode)->get();
+        $relatedTransactions = Transactions::withoutGlobalScope('branch')
+            ->where('trans_code', $transCode)
+            ->get();
         $affectedAccounts = $relatedTransactions->pluck('account_id')->unique()->filter();
+        $voucherLabel = ($voucher->voucher_type ?? 'SV') . '-' . str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT);
 
         foreach ($relatedTransactions as $transaction) {
+            try {
+                DeletionCascade::logCascade(
+                    Vouchers::class,
+                    $voucher->id,
+                    $voucherLabel,
+                    Transactions::class,
+                    $transaction->id,
+                    "Transaction #{$transaction->id} - {$transaction->narration} (Trans Code: {$transaction->trans_code})",
+                    'hasMany',
+                    'transactions',
+                    'soft',
+                    'Cascade deletion from Salik payment reversal'
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to track transaction cascade on SV reversal', [
+                    'voucher_id' => $voucher->id,
+                    'transaction_id' => $transaction->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             if (in_array('deleted_by', $transaction->getFillable(), true) && $userId) {
                 $transaction->deleted_by = $userId;
                 $transaction->save();

@@ -1,13 +1,28 @@
 @extends('riders.view')
-@section('third_party_stylesheets')
+@push('third_party_stylesheets')
 <style>
     .table-responsive {
         max-height: calc(100vh + 350px);
     }
+
+    .badge.inventory-status-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 11.5rem;
+        min-width: 11.5rem;
+        height: 1.65rem;
+        padding: 0 0.5rem;
+        box-sizing: border-box;
+        line-height: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+    }
 </style>
-@endsection
+@endpush
 @section('page_content')
-@can('riders_inventory_view')
 @php
     $assignedItems = $assignedItems ?? [
         'bike' => null,
@@ -90,9 +105,20 @@
                         <td class="text-center">{{ $item['return_date'] ?? '' }}</td>
                         <td class="text-center">
                             @if(!empty($item['status']))
-                                {{ $item['status'] }}
+                                @php
+                                    $statusLabel = trim((string) $item['status']);
+                                    $statusClass = match (strtolower($statusLabel)) {
+                                        'assigned', 'active', '1' => 'bg-primary',
+                                        'returned', 'return' => 'bg-success',
+                                        'returned to customer' => 'bg-info',
+                                        'lost', 'inactive', '0', 'absconded', 'theft', 'total loss', 'accident' => 'bg-danger',
+                                        'vacation', 'impound', 'express garage' => 'bg-warning',
+                                        default => 'bg-secondary',
+                                    };
+                                @endphp
+                                <span class="badge inventory-status-badge {{ $statusClass }}">{{ $statusLabel }}</span>
                             @else
-                                -
+                                <span class="badge inventory-status-badge bg-secondary">Not assigned</span>
                             @endif
                         </td>
                     </tr>
@@ -101,11 +127,4 @@
         </table>
     </div>
 </div>
-@else
-<div class="card">
-    <div class="card-body">
-        <h5 class="card-title">You are not authorized to access this page</h5>
-    </div>
-</div>
-@endcan
 @endsection

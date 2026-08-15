@@ -268,6 +268,15 @@
       font-size: 18px;
     }
   }
+
+  .rider-inventory-count-badge {
+    min-width: 1.1rem;
+    padding: 0.15rem;
+    margin-left: 5px;
+    font-size: 0.8rem;
+    line-height: 1.2;
+    vertical-align: middle;
+  }
 </style>
 @php
 $rider = $riders ?? $rider ?? null;
@@ -282,6 +291,12 @@ $account = App\Models\ExpenseAccount::where('rider_id', $result['id'])
 ?? App\Models\ExpenseAccount::where('rider_id', $result['id'])->orderByDesc('id')->first();
 }
 $companySlug = request()->route('company_slug');
+$inventoryTabRider = (isset($riders) && $riders instanceof \App\Models\Riders)
+    ? $riders
+    : ((isset($rider) && $rider instanceof \App\Models\Riders) ? $rider : null);
+$riderAssignedItemCount = ($inventoryTabRider && \App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
+    ? $inventoryTabRider->currentlyAssignedItemCount()
+    : 0;
 
 @endphp
 <div class="row" style="">
@@ -624,16 +639,18 @@ $companySlug = request()->route('company_slug');
                 </li>
                 @endcan
 
-                @can('riders_inventory_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
                 <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.clearance')) active @endif"
-                    href="{{ route('rider.clearance', $result['id']) }}">
-                    <i class="ti ti-package ti-sm me-1_5"></i>Inventory
+                  <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
+                    href="{{ route('rider.inventory', $result['id']) }}">
+                    <i class="ti ti-package ti-sm me-1_5"></i>
+                    Inventory
+                    @if($riderAssignedItemCount > 0)
+                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge me-1">{{ $riderAssignedItemCount }}</span>
+                    @endif
                   </a>
                 </li>
                 @endif
-                @endcan
 
                 @can('riders_documents_view')
                 <li class="nav-item nav-priority-3">

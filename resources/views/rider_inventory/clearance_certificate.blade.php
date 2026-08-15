@@ -450,7 +450,7 @@
     <button type="button" class="btn btn-print" onclick="window.print()">
         Print Certificate
     </button>
-    <a href="{{ route('rider.clearance', $rider->id) }}" class="btn btn-back">Back</a>
+    <a href="{{ route('rider.inventory', $rider->id) }}" class="btn btn-back">Back</a>
 </div>
 
 <div class="certificate-wrap">

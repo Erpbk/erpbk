@@ -2071,7 +2071,7 @@ class RidersController extends AppBaseController
     return view('riders.document', compact('missingFiles', 'files', 'riders'));
   }
 
-  public function clearance($company_slug, $rider_id)
+  public function inventory($company_slug, $rider_id)
   {
     $rider = $this->findAccessibleRider((int) $rider_id);
     if (empty($rider) || (! empty($rider->branch_id) && ! in_array($rider->branch_id, app('user_branches')))) {
@@ -2175,7 +2175,7 @@ class RidersController extends AppBaseController
         'url' => $fuelCard ? route('fuelCards.show', $fuelCard->id) : null,
         'assign_date' => $fuelHistory?->assign_date?->format('Y-m-d'),
         'return_date' => $fuelHistory?->return_date?->format('Y-m-d'),
-        'status' => $fuelReturned ? 'Returned' : (($fuelCard?->status ?: null) ?: 'Assigned'),
+        'status' => $fuelReturned ? 'Returned' : 'Assigned',
       ] : null,
       'sim_card' => ($sim || $simHistory) ? [
         'label' => $sim?->number ?? 'SIM Card',
@@ -2183,7 +2183,7 @@ class RidersController extends AppBaseController
         'url' => $sim ? route('sims.show', $sim->id) : null,
         'assign_date' => $simHistory?->note_date?->format('Y-m-d'),
         'return_date' => $simHistory?->return_date?->format('Y-m-d'),
-        'status' => $simReturned ? 'Returned' : (($sim?->status ?: null) ?: 'Assigned'),
+        'status' => $simReturned ? 'Returned' : 'Assigned',
       ] : null,
     ];
 
@@ -2276,7 +2276,7 @@ class RidersController extends AppBaseController
       $pushInventoryRow($row);
     }
 
-    return view('riders.clearance', compact(
+    return view('riders.inventory', compact(
       'riders',
       'rider',
       'assignedItems',

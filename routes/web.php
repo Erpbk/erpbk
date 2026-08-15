@@ -612,7 +612,10 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
-    Route::get('riders/clearance/{id}', [RidersController::class, 'clearance'])->name('rider.clearance');
+    Route::get('riders/inventory/{id}', [RidersController::class, 'inventory'])->name('rider.inventory');
+    Route::get('riders/clearance/{id}', function ($company_slug, $id) {
+        return redirect()->route('rider.inventory', ['company_slug' => $company_slug, 'id' => $id]);
+    });
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');
     Route::get('rider/delete/{id}', [RidersController::class, 'destroy'])->name('rider.delete');
     Route::get('riders/ledger/{id}', [RidersController::class, 'ledger'])->name('rider.ledger');

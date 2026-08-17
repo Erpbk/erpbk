@@ -52,6 +52,11 @@
             <td></td>
         </tr>
         @endforeach
+        @if($data->isEmpty())
+        <tr>
+            <td colspan="8" class="text-center py-5">No SIM companies found</td>
+        </tr>
+        @endif
     </tbody>
 </table>
 @if(method_exists($data, 'links'))

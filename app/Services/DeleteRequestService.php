@@ -799,6 +799,38 @@ class DeleteRequestService
         if ($deleteRequest->module_key === 'salik' && $model instanceof \App\Models\salik) {
             static::finalizeApprovedSalikDeletion($deleteRequest, $model, $admin);
         }
+
+        if ($deleteRequest->module_key === 'sim_invoices' && $model instanceof \App\Models\SimInvoice) {
+            static::finalizeApprovedSimInvoiceDeletion($deleteRequest, $model, $admin);
+        }
+    }
+
+    /**
+     * After SIM invoice approval: soft-delete its ledger transactions so they stay
+     * recoverable alongside the invoice in the Recycle Bin.
+     */
+    protected static function finalizeApprovedSimInvoiceDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\SimInvoice $invoice,
+        ?User $admin
+    ): void {
+        $transactions = \App\Models\Transactions::withTrashed()
+            ->where('reference_type', 'SimInvoice')
+            ->where('reference_id', $invoice->id)
+            ->get();
+
+        foreach ($transactions as $transaction) {
+            if ($transaction->trashed()) {
+                continue;
+            }
+
+            if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $admin?->id) {
+                $transaction->deleted_by = $admin->id;
+                $transaction->save();
+            }
+
+            $transaction->delete();
+        }
     }
 
     /**

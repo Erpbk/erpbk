@@ -36,7 +36,10 @@ use App\Services\DeleteRequestService;
 use App\Services\FuelMonthlyLedgerService;
 use App\Services\SalikPaymentReversalService;
 use App\Models\LeasingCompanyInvoice;
+use App\Models\SimInvoice;
+use App\Models\SimInvoiceItem;
 use App\Models\Loan;
+use Illuminate\Support\Facades\Storage;
 use App\Support\CompanyContext;
 use App\Support\TrashedRecordQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -224,6 +227,12 @@ class TrashController extends Controller
         'leasing_company_invoices' => [
             'model' => LeasingCompanyInvoice::class,
             'name' => 'Leasing Company Invoices',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'invoice_number', 'billing_month', 'total_amount', 'status'],
+        ],
+        'sim_invoices' => [
+            'model' => SimInvoice::class,
+            'name' => 'SIM Invoices',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'invoice_number', 'billing_month', 'total_amount', 'status'],
         ],
@@ -495,6 +504,22 @@ class TrashController extends Controller
                 $restoredItems[] = 'monthly salik invoice synced';
             }
 
+            if ($module === 'sim_invoices' && $record instanceof SimInvoice) {
+                $relatedTransactions = Transactions::onlyTrashed()
+                    ->withoutGlobalScope('branch')
+                    ->where('reference_type', 'SimInvoice')
+                    ->where('reference_id', $record->id)
+                    ->get();
+                foreach ($relatedTransactions as $transaction) {
+                    $transaction->restore();
+                    if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $transaction->deleted_by) {
+                        $transaction->deleted_by = null;
+                        $transaction->save();
+                    }
+                    $restoredItems[] = 'Transaction #' . $transaction->id;
+                }
+            }
+
             $this->forgetDeletionCascades($config['model'], $id);
 
             DB::commit();
@@ -573,8 +598,8 @@ class TrashController extends Controller
 
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
-            // Fuel/voucher children are not keyed by the parent id as account_id/customer_id.
-            if ($module !== 'fuel_data' && $module !== 'vouchers') {
+            // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
+            if (! in_array($module, ['fuel_data', 'vouchers', 'sim_invoices'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -719,6 +744,24 @@ class TrashController extends Controller
                 foreach ($relatedTransactions as $transaction) {
                     $transaction->forceDelete();
                     $deletedItems[] = 'Transaction #' . $transaction->id;
+                }
+            }
+
+            if ($module === 'sim_invoices' && $record instanceof SimInvoice) {
+                $relatedTransactions = Transactions::withTrashed()
+                    ->withoutGlobalScope('branch')
+                    ->where('reference_type', 'SimInvoice')
+                    ->where('reference_id', $record->id)
+                    ->get();
+                foreach ($relatedTransactions as $transaction) {
+                    $transaction->forceDelete();
+                    $deletedItems[] = 'Transaction #' . $transaction->id;
+                }
+
+                SimInvoiceItem::where('inv_id', $record->id)->delete();
+
+                if ($record->attachment && Storage::disk('public')->exists($record->attachment)) {
+                    Storage::disk('public')->delete($record->attachment);
                 }
             }
 

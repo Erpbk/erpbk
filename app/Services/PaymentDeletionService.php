@@ -212,7 +212,7 @@ class PaymentDeletionService
                     $invoiceIds[] = $id;
                 }
             }
-            $invoices = SimInvoice::with('vendor')
+            $invoices = SimInvoice::with('company')
                 ->whereIn('id', $invoiceIds)
                 ->get();
             foreach ($invoices as $invoice) {

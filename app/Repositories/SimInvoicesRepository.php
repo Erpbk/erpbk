@@ -21,7 +21,6 @@ class SimInvoicesRepository extends BaseRepository
         'billing_month',
         'invoice_number',
         'reference_number',
-        'sim_invoice_number',
         'total_amount',
         'attachment',
         'status',
@@ -42,7 +41,21 @@ class SimInvoicesRepository extends BaseRepository
         DB::beginTransaction();
 
         try {
-            $input = $request->except(['sim_id', '_method', '_token', 'rental_amount']);
+            $input = $request->except([
+                'sim_id',
+                '_method',
+                '_token',
+                'rental_amount',
+                'additional_charges',
+                'international_usage_charges',
+                'tax_rate',
+                'days',
+                'vat_total',
+                'total_amount_display',
+                'subtotal',
+                'company_id',
+            ]);
+            $input['vendor_id'] = $request->input('company_id');
             $input['billing_month'] = $request->billing_month . '-01';
 
             if ($request->hasFile('attachment')) {
@@ -79,11 +92,6 @@ class SimInvoicesRepository extends BaseRepository
 
                 $input['status'] = 0;
                 $invoice = SimInvoice::create($input);
-
-                if (empty($invoice->invoice_number)) {
-                    $invoice->invoice_number = 'SIMI' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT);
-                    $invoice->save();
-                }
             }
 
             $vatPercentage = Common::getSetting('vat_percentage') ?? 5;
@@ -92,9 +100,8 @@ class SimInvoicesRepository extends BaseRepository
 
             if (isset($request['sim_id']) && is_array($request['sim_id'])) {
                 foreach ($request['sim_id'] as $key => $simId) {
-                    if (!empty($simId) && isset($request['rental_amount'][$key]) && $request['rental_amount'][$key] > 0) {
-                        $sim = Sims::withTrashed()
-                            ->where('id', $simId)
+                    if (!empty($simId)) {
+                        $sim = Sims::where('id', $simId)
                             ->where('company', $input['vendor_id'])
                             ->first();
 
@@ -103,31 +110,29 @@ class SimInvoicesRepository extends BaseRepository
                             if ($sim && $sim->trashed()) {
                                 throw new \Exception('SIM ' . $sim->number . ' is deleted.');
                             } else {
-                                throw new \Exception('SIM ' . $sim->number . ' does not belong to this vendor.');
+                                throw new \Exception('SIM ' . $sim->number . ' does not belong to this Company.');
                             }
                         }
 
-                        $monthlyRate = (float) $request['rental_amount'][$key];
-                        $days = isset($request['days'][$key]) && (int) $request['days'][$key] > 0
-                            ? (int) $request['days'][$key]
-                            : 30;
-                        $days = min($days, 30);
-
-                        $proratedAmount = $monthlyRate * ($days / 30);
+                        $monthlyRate = (float) ($request['rental_amount'][$key] ?? 0);
+                        $additionalCharges = (float) ($request['additional_charges'][$key] ?? 0);
+                        $internationalUsageCharges = (float) ($request['international_usage_charges'][$key] ?? 0);
+                        $lineSubtotal = $monthlyRate + $additionalCharges + $internationalUsageCharges;
                         $itemTaxRate = isset($request['tax_rate'][$key]) && $request['tax_rate'][$key] > 0
                             ? (float) $request['tax_rate'][$key]
                             : $vatPercentage;
-                        $taxAmount = $proratedAmount * ($itemTaxRate / 100);
-                        $totalAmount = $proratedAmount + $taxAmount;
+                        $taxAmount = $lineSubtotal * ($itemTaxRate / 100);
+                        $totalAmount = $lineSubtotal + $taxAmount;
 
-                        $subtotal += $proratedAmount;
+                        $subtotal += $lineSubtotal;
                         $totalVat += $taxAmount;
 
                         SimInvoiceItem::create([
                             'inv_id' => $invoice->id,
                             'sim_id' => $simId,
-                            'days' => $days,
                             'rental_amount' => $monthlyRate,
+                            'additional_charges' => $additionalCharges,
+                            'international_usage_charges' => $internationalUsageCharges,
                             'tax_rate' => $itemTaxRate,
                             'tax_amount' => $taxAmount,
                             'total_amount' => $totalAmount,
@@ -163,9 +168,9 @@ class SimInvoicesRepository extends BaseRepository
 
     public function recordTransactionsForInvoice(SimInvoice $invoice, $transCode = null)
     {
-        $invoice->load('vendor');
-        $vendor = $invoice->vendor;
-        if (!$vendor || !$vendor->account_id) {
+        $invoice->load('company');
+        $company = $invoice->company;
+        if (!$company || !$company->account_id) {
             throw new \Exception('Vendor does not have a linked ledger account. Please set the account for this vendor before creating invoices.');
         }
 
@@ -218,7 +223,7 @@ class SimInvoicesRepository extends BaseRepository
             }
 
             $transactionService->recordTransaction([
-                'account_id' => $vendor->account_id,
+                'account_id' => $company->account_id,
                 'reference_id' => $invoice->id,
                 'reference_type' => 'SimInvoice',
                 'trans_code' => $trans_code,
@@ -229,6 +234,79 @@ class SimInvoicesRepository extends BaseRepository
             ], true);
         } catch (\Throwable $e) {
             throw new \Exception('Failed to record transaction for SIM Invoice. ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Create a SIM invoice from parsed import rows. VAT 0 is kept as 0.
+     *
+     * @param  array{vendor_id:int,inv_date:string,billing_month:string,reference_number:string,descriptions?:?string,notes?:?string,attachment?:?string}  $header
+     * @param  array<int, array{sim_id:int,rental_amount:float,additional_charges:float,international_usage_charges:float,tax_rate:float}>  $items
+     */
+    public function createFromImport(array $header, array $items): SimInvoice
+    {
+        DB::beginTransaction();
+
+        try {
+            $billingMonth = $header['billing_month'] . '-01';
+            $existingInvoice = SimInvoice::where('vendor_id', $header['vendor_id'])
+                ->where('billing_month', $billingMonth)
+                ->first();
+
+            if ($existingInvoice) {
+                throw new \Exception('An invoice for this vendor has already been generated for the selected billing month.');
+            }
+
+            $invoice = SimInvoice::create([
+                'inv_date' => $header['inv_date'],
+                'vendor_id' => $header['vendor_id'],
+                'billing_month' => $billingMonth,
+                'reference_number' => $header['reference_number'],
+                'descriptions' => $header['descriptions'] ?? null,
+                'notes' => $header['notes'] ?? null,
+                'attachment' => $header['attachment'] ?? null,
+                'status' => 0,
+            ]);
+
+            $subtotal = 0;
+            $totalVat = 0;
+
+            foreach ($items as $item) {
+                $monthlyRate = (float) ($item['rental_amount'] ?? 0);
+                $additionalCharges = (float) ($item['additional_charges'] ?? 0);
+                $internationalUsageCharges = (float) ($item['international_usage_charges'] ?? 0);
+                $itemTaxRate = (float) ($item['tax_rate'] ?? 0);
+                $lineSubtotal = $monthlyRate + $additionalCharges + $internationalUsageCharges;
+                $taxAmount = $lineSubtotal * ($itemTaxRate / 100);
+                $totalAmount = $lineSubtotal + $taxAmount;
+
+                $subtotal += $lineSubtotal;
+                $totalVat += $taxAmount;
+
+                SimInvoiceItem::create([
+                    'inv_id' => $invoice->id,
+                    'sim_id' => $item['sim_id'],
+                    'rental_amount' => $monthlyRate,
+                    'additional_charges' => $additionalCharges,
+                    'international_usage_charges' => $internationalUsageCharges,
+                    'tax_rate' => $itemTaxRate,
+                    'tax_amount' => $taxAmount,
+                    'total_amount' => $totalAmount,
+                ]);
+            }
+
+            $invoice->subtotal = $subtotal;
+            $invoice->vat = $totalVat;
+            $invoice->total_amount = $subtotal + $totalVat;
+            $invoice->save();
+
+            $this->recordTransactionsForInvoice($invoice);
+
+            DB::commit();
+            return $invoice;
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
         }
     }
 }

@@ -10,7 +10,7 @@
         </div>
         <div class="col-md-6 form-group">
             <label>Vendor</label>
-            <input type="text" class="form-control" value="{{ $invoice->vendor->name ?? '-' }}" readonly>
+            <input type="text" class="form-control" value="{{ $invoice->company->name ?? '-' }}" readonly>
         </div>
         <div class="col-md-4 form-group">
             <label>Payment Date <span class="text-danger">*</span></label>

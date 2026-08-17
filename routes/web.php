@@ -562,12 +562,14 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simInvoices', [SimInvoicesController::class, 'index'])->name('simInvoices.index');
     Route::get('simInvoices/create/{vendorId?}', [SimInvoicesController::class, 'create'])->name('simInvoices.create');
     Route::get('simInvoices/create-from-clone/{id}', [SimInvoicesController::class, 'createFromClone'])->name('simInvoices.createFromClone');
+    Route::get('simInvoices/import', [SimInvoicesController::class, 'importForm'])->name('simInvoices.import.form');
+    Route::post('simInvoices/import', [SimInvoicesController::class, 'import'])->name('simInvoices.import');
     Route::post('simInvoices/store', [SimInvoicesController::class, 'store'])->name('simInvoices.store');
-    Route::get('simInvoices/{id}', [SimInvoicesController::class, 'show'])->name('simInvoices.show');
-    Route::get('simInvoices/{id}/edit', [SimInvoicesController::class, 'edit'])->name('simInvoices.edit');
-    Route::put('simInvoices/{id}', [SimInvoicesController::class, 'update'])->name('simInvoices.update');
-    Route::delete('simInvoices/{id}', [SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy');
-    Route::post('simInvoices/{id}/clone', [SimInvoicesController::class, 'clone'])->name('simInvoices.clone');
+    Route::get('simInvoices/{id}', [SimInvoicesController::class, 'show'])->name('simInvoices.show')->whereNumber('id');
+    Route::get('simInvoices/{id}/edit', [SimInvoicesController::class, 'edit'])->name('simInvoices.edit')->whereNumber('id');
+    Route::put('simInvoices/{id}', [SimInvoicesController::class, 'update'])->name('simInvoices.update')->whereNumber('id');
+    Route::delete('simInvoices/{id}', [SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy')->whereNumber('id');
+    Route::post('simInvoices/{id}/clone', [SimInvoicesController::class, 'clone'])->name('simInvoices.clone')->whereNumber('id');
     Route::get('simInvoices/vendor/{id}/sims', [SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
     Route::get('sim/payments', [SimInvoicesController::class, 'payments'])->name('sim.payments');
 

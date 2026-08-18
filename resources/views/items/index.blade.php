@@ -46,17 +46,21 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('items.index') }}" method="GET">
+        <form id="filterForm" action="{{ route('items.index') }}" method="GET" data-rfp-skip-lock="1">
             @csrf
             <div class="row">
+                @fieldVisible('item', 'name')
                 <div class="form-group col-md-12 col-sm-12">
                     <label for="name">Item Name</label>
                     <input type="text" name="name" class="form-control" placeholder="Filter By Item Name" value="{{ request('name') }}">
                 </div>
+                @endfieldVisible
+                @fieldVisible('item', 'code')
                 <div class="form-group col-md-12">
                     <label for="code">Code</label>
                     <input type="text" name="code" class="form-control" placeholder="Filter By Code" value="{{ request('code') }}">
                 </div>
+                @endfieldVisible
                 <div class="form-group col-md-12">
                     <label for="owner_type">Owner Type</label>
                     <select class="form-control " id="owner_type1" name="owner">

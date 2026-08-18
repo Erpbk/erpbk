@@ -405,10 +405,11 @@
             <button type="button" class="btn-close" id="closeSidebar"></button>
         </div>
         <div class="filter-body" id="searchTopbody">
-            <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
+            <form id="filterForm" action="{{ route('sims.index') }}" method="GET" data-rfp-skip-lock="1">
                 @csrf
                 <div class="row">
                     @if(auth()->user()->hasMultiplebranches())
+                    @fieldVisible('sim', 'branch_id')
                     <div class="form-group col-md-12">
                         <label for="branch_id">Filter by Branch</label>
                         <select class="form-control " id="branch_id" name="branch_id">
@@ -417,15 +418,21 @@
                             @endforeach
                         </select>
                     </div>
+                    @endfieldVisible
                     @endif
+                    @fieldVisible('sim', 'number')
                     <div class="form-group col-md-12 col-sm-12">
                             <label for="number">Sim Number</label>
                             <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
                         </div>
+                    @endfieldVisible
+                    @fieldVisible('sim', 'emi')
                     <div class="form-group col-md-12">
                         <label for="emi">EMI Number</label>
                         <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('emi') }}">
                     </div>
+                    @endfieldVisible
+                    @fieldVisible('sim', 'company')
                     <div class="form-group col-md-12">
                         <label for="company">Company</label>
                             <select class="form-control " id="company" name="company">
@@ -442,6 +449,8 @@
                             @endforeach
                         </select>
                     </div>
+                    @endfieldVisible
+                    @fieldVisible('sim', 'status')
                     <div class="form-group col-md-12">
                         <label for="status">Status</label>
                         <select class="form-control " id="status" name="status">
@@ -450,6 +459,7 @@
                             <option value='inactive' >Inactive</option>
                         </select>
                     </div>
+                    @endfieldVisible
                     <div class="col-md-12 form-group text-center">
                         <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                     </div>

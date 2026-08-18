@@ -52,7 +52,7 @@
   window.__rfpDefaultEntity = @json($rfpDefaultEntity ?? null);
   window.__rfpLocks = @json($rfpFieldLocks ?? new \stdClass());
 </script>
-<script src="{{ asset('js/field_permission_locks.js') }}"></script>
+<script src="{{ asset('js/field_permission_locks.js') }}?v=2"></script>
 <style>
   .rfp-field-locked,
   input[data-rfp-locked="1"],

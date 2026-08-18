@@ -298,6 +298,17 @@ $riderAssignedItemCount = ($inventoryTabRider && \App\Support\CompanyModuleVisib
     ? $inventoryTabRider->currentlyAssignedItemCount()
     : 0;
 
+$riderDocumentFrontend = [];
+$riderExistingDocuments = [];
+$riderDocumentDefinitions = [];
+$riderDocumentFiles = [];
+if ($inventoryTabRider instanceof \App\Models\Riders) {
+    $riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
+    $riderExistingDocuments = $riderDocumentFrontend['existing'] ?? [];
+    $riderDocumentDefinitions = \App\Support\RiderDocumentReplacement::definitions();
+    $riderDocumentFiles = $riderDocumentFrontend['files'] ?? [];
+}
+
 @endphp
 <div class="row" style="">
   <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
@@ -1590,5 +1601,6 @@ $riderAssignedItemCount = ($inventoryTabRider && \App\Support\CompanyModuleVisib
 </script>
 
 @include('riders.action-buttons')
+@include('riders._document_replacement_script')
 
 @endsection

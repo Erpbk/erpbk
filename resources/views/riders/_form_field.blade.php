@@ -19,6 +19,19 @@ $rfpEditable = field_editable($rfpEntity, (string) $rfpField);
 $rfpRequired = field_required($rfpEntity, (string) $rfpField);
 $rfpInputLock = field_lock($rfpEntity, (string) $rfpField, 'input');
 $rfpSelectLock = field_lock($rfpEntity, (string) $rfpField, 'select');
+$docFieldMeta = ($item->kind === 'fixed')
+  ? \App\Support\RiderDocumentReplacement::definitionForField((string) ($item->field_key ?? ''))
+  : null;
+$docInputAttrs = [];
+if ($docFieldMeta) {
+  $docInputAttrs = [
+    'data-rider-document-key' => $docFieldMeta['key'],
+    'data-rider-document-role' => $docFieldMeta['role'],
+  ];
+}
+$expiryBadge = ($docFieldMeta && ($docFieldMeta['role'] ?? '') === 'expiry' && isset($riders) && $riders instanceof \App\Models\Riders)
+  ? \App\Support\RiderDocumentReplacement::expiryBadgeForField($riders, (string) ($item->field_key ?? ''), $value)
+  : null;
 @endphp
 @if ($rfpVisible)
 <div class="form-group col-sm-4" data-rfp-entity="rider" data-rfp-field="{{ $rfpField }}">
@@ -88,7 +101,7 @@ $rfpSelectLock = field_lock($rfpEntity, (string) $rfpField, 'select');
   if ($req) {
   $selectAttributes['required'] = true;
   }
-  $selectAttributes = $selectAttributes + $rfpSelectLock;
+  $selectAttributes = $selectAttributes + $rfpSelectLock + $docInputAttrs;
   @endphp
   @if (!$rfpEditable && $value !== null && $value !== '')
   <input type="hidden" name="{{ $item->field_key }}" value="{{ $value }}" />
@@ -99,7 +112,7 @@ $rfpSelectLock = field_lock($rfpEntity, (string) $rfpField, 'select');
   @endif
   @elseif (($spec['type'] ?? '') === 'textarea')
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
-  {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : []) + $readonlyAttrs) !!}
+  {!! Form::textarea($item->field_key, $value, ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3] + ($req ? ['required' => true] : []) + $readonlyAttrs + $docInputAttrs) !!}
   @elseif (($spec['type'] ?? '') === 'checkbox')
   <div class="form-check mt-4">
     <input type="hidden" name="{{ $item->field_key }}" value="{{ in_array($item->field_key, ['vat'], true) ? '2' : '0' }}" />
@@ -108,11 +121,16 @@ $rfpSelectLock = field_lock($rfpEntity, (string) $rfpField, 'select');
   </div>
   @else
   {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
+  @if ($expiryBadge)
+  <span class="ms-1">
+    @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
+  </span>
+  @endif
   @if ($item->field_key === 'rider_id')
-  {!! Form::text($item->field_key, $value, ['class' => 'form-control', 'id' => 'rider_id_field'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs) !!}
+  {!! Form::text($item->field_key, $value, ['class' => 'form-control', 'id' => 'rider_id_field'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs + $docInputAttrs) !!}
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>
   @else
-  {!! Form::input($spec['type'] ?? 'text', $item->field_key, $value, ['class' => 'form-control'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs) !!}
+  {!! Form::input($spec['type'] ?? 'text', $item->field_key, $value, ['class' => 'form-control'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs + $docInputAttrs) !!}
   @endif
   @endif
   @error($item->field_key)<span class="text-danger">{{ $message }}</span>@enderror

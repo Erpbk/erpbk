@@ -27,12 +27,15 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('vendors.index') }}" method="GET">
+                                <form id="filterForm" action="{{ route('vendors.index') }}" method="GET" data-rfp-skip-lock="1">
                                     <div class="row">
+                                        @fieldVisible('vendor', 'name')
                                         <div class="form-group col-md-4">
                                             <label for="name">Vendors Name</label>
                                             <input type="text" name="name" class="form-control" placeholder="Filter By Vendors Name" value="{{ request('name') }}">
                                         </div>
+                                        @endfieldVisible
+                                        @fieldVisible('vendor', 'account_id')
                                         <div class="form-group col-md-4">
                                             <label for="account_id">Filter by Accounts</label>
                                             <select class="form-control " id="account_id" name="account_id">
@@ -53,6 +56,8 @@
                                                 @endforeach
                                             </select>
                                         </div>
+                                        @endfieldVisible
+                                        @fieldVisible('vendor', 'status')
                                         <div class="form-group col-md-4">
                                             <label for="status">Filter by Status</label>
                                             <select class="form-control " id="status" name="status">
@@ -61,6 +66,7 @@
                                                 <option value="3" {{ request('status') == 3 ? 'selected' : '' }}>In Active</option>
                                             </select>
                                         </div>
+                                        @endfieldVisible
                                         <div class="col-md-12 form-group text-center">
                                             <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                                         </div>

@@ -1,5 +1,6 @@
 /**
  * Apply Role Field Permissions: visible + not-editable => readonly/disabled (never hidden).
+ * Editable locks apply only on the module create/edit form — never on listing filters/search.
  * Expects window.__rfpLocks = { entitySlug: { fieldName: true, ... }, ... }
  * Optional window.__rfpDefaultEntity for the current page module.
  */
@@ -20,6 +21,21 @@
     if (m) return 'cf_' + m[1];
     if (name.slice(-2) === '[]') name = name.slice(0, -2);
     return name;
+  }
+
+  function isListingFilterControl(el) {
+    if (!el || !el.closest) return false;
+    return !!(
+      el.closest('[data-rfp-skip-lock]') ||
+      el.closest('.filter-sidebar') ||
+      el.closest('#filterSidebar') ||
+      el.closest('#filterForm') ||
+      el.closest('.filter-body') ||
+      el.closest('.card-search') ||
+      el.closest('#quickSearch') ||
+      el.closest('.filtetmodal') ||
+      el.closest('#searchModal')
+    );
   }
 
   function lockControl(el) {
@@ -82,6 +98,7 @@
       : [];
 
     Array.prototype.forEach.call(controls, function (el) {
+      if (isListingFilterControl(el)) return;
       if (el.type === 'hidden' && el.getAttribute('data-rfp-locked') !== '1') {
         // Keep hidden companions for disabled checkboxes; don't lock every hidden.
         return;
@@ -109,6 +126,7 @@
       ? scope.querySelectorAll('[data-rfp-edit-field], .rfp-edit-trigger[data-field], .inline-edit-btn[data-field], .edit-inline[data-field]')
       : [];
     Array.prototype.forEach.call(editTriggers, function (btn) {
+      if (isListingFilterControl(btn)) return;
       var entity = resolveEntity(scope.nodeType ? scope : document, btn)
         || btn.getAttribute('data-rfp-entity')
         || window.__rfpDefaultEntity;

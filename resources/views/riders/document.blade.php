@@ -48,18 +48,25 @@
                     <tr>
                         <th width="50">#</th>
                         <th class="text-start">Document</th>
+                        <th width="140" class="text-center">Expiry</th>
                         <th width="120" class="text-end">Action</th>
                     </tr>
                 </thead>
                 <tbody id="files-table-body">
                     @php $counter = 1; @endphp
                     @foreach ($files as $riderFile)
+                    @php
+                        $docBadge = \App\Support\RiderDocumentReplacement::expiryMetaForFile($riderFile, $riders);
+                    @endphp
                     <tr class="file-row" data-name="{{ strtolower($riderFile->name) }}">
                         <td class="row-counter">{{ $counter++ }}</td>
                         <td class="text-start">
                             <a href="{{ storage_url($riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name) }}" target="_blank">
                                 {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
                             </a>
+                        </td>
+                        <td class="text-center">
+                            @include('riders._document_expiry_badge', ['badge' => $docBadge])
                         </td>
                         <td class="text-end">
                             @can('riders_documents_delete')
@@ -78,6 +85,9 @@
                     <tr class="file-row" data-name="{{ strtolower($fileName) }}">
                         <td class="row-counter">{{ $counter++ }}</td>
                         <td class="text-start">{{ $fileName }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-label-secondary">Missing</span>
+                        </td>
                         <td class="text-end">
                             @can('riders_documents_create')
                             <a class="btn btn-sm btn-primary show-modal action-btn"
@@ -99,7 +109,7 @@
                 </tbody>
                 <tfoot id="no-results" style="display: none;">
                     <tr>
-                        <td colspan="3" class="text-center py-4">
+                        <td colspan="4" class="text-center py-4">
                             <div class="text-muted">
                                 <i class="ti ti-search-off fs-4 mb-2"></i>
                                 <p class="mb-0">No documents found</p>

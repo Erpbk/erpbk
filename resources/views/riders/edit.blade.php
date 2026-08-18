@@ -79,7 +79,7 @@
     }
 </style>
 
-{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch', 'id' => 'rider-edit-form', 'class' => 'form-with-fixed-footer', 'data-reload-table' => '0', 'data-rfp-entity' => 'rider']) !!}
+{!! Form::model($riders, ['route' => ['riders.update', $riders->id], 'method' => 'patch', 'files' => true, 'id' => 'rider-edit-form', 'class' => 'form-with-fixed-footer', 'data-reload-table' => '0', 'data-rfp-entity' => 'rider']) !!}
 <input type="hidden" id="redirect_url" value="{{route('riders.index')}}" />
 <div class="card-body card-body-with-footer">
     @include('riders.fields')
@@ -119,6 +119,12 @@
             if ($form.data('submitting')) {
                 return false;
             }
+
+            if (typeof window.riderDocumentReplacementValidate === 'function'
+                && !window.riderDocumentReplacementValidate(this)) {
+                return false;
+            }
+
             $form.data('submitting', true);
             const submitButton = $form.find('button[type="submit"]');
             const originalText = submitButton.html();
@@ -179,9 +185,23 @@
                                     allErrorMessages.push('• ' + errorMsg);
                                 });
 
-                                const fieldElement = $('[name="' + key + '"]');
+                                const inputName = key.indexOf('.') === -1
+                                    ? key
+                                    : key.split('.')[0] + key.split('.').slice(1).map(function(part) {
+                                        return '[' + part + ']';
+                                    }).join('');
+                                const fieldElement = $('[name="' + inputName + '"]');
                                 if (fieldElement.length) {
                                     fieldElement.addClass('is-invalid');
+                                    const slot = fieldElement.closest('.rider-document-upload');
+                                    if (slot.length) {
+                                        slot.prop('hidden', false);
+                                        fieldElement.prop('disabled', false);
+                                        const errorBox = slot.find('.rider-document-upload-error');
+                                        if (errorBox.length) {
+                                            errorBox.text(errors[key][0]).show().css('display', 'block');
+                                        }
+                                    }
                                     const errorDiv = $('#' + key + '_error');
                                     if (errorDiv.length) {
                                         errorDiv.text(errors[key][0]).show().css('display', 'block');

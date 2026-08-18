@@ -80,16 +80,21 @@
                 <button type="button" class="btn-close" id="closeSidebar"></button>
             </div>
             <div class="filter-body" id="searchTopbody">
-                <form id="filterForm" action="{{ route('employees.index') }}" method="GET">
+                <form id="filterForm" action="{{ route('employees.index') }}" method="GET" data-rfp-skip-lock="1">
                     <div class="row">
+                        @fieldVisible('employees', 'employee_id')
                         <div class="form-group col-md-12">
                             <label for="employee_id">Employee ID</label>
                             <input type="text" name="employee_id" class="form-control" placeholder="Filter by Employee ID" value="{{ request('employee_id') }}">
                         </div>
+                        @endfieldVisible
+                        @fieldVisible('employees', 'name')
                         <div class="form-group col-md-12">
                             <label for="name">Employee Name</label>
                             <input type="text" name="name" class="form-control" placeholder="Filter by Name" value="{{ request('name') }}">
                         </div>
+                        @endfieldVisible
+                        @fieldVisible('employees', 'branch_id')
                         <div class="form-group col-md-12">
                             <label for="branch_id">Branch</label>
                             <select class="form-control" id="branch_id" name="branch_id">
@@ -99,6 +104,8 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endfieldVisible
+                        @fieldVisible('employees', 'department_id')
                         <div class="form-group col-md-12">
                             <label for="department_id">Department</label>
                             <select class="form-control" id="department_id" name="department_id">
@@ -108,6 +115,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endfieldVisible
                         <div class="col-md-12 form-group text-center">
                             <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                         </div>

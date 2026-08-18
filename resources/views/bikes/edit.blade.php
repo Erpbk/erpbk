@@ -5,7 +5,7 @@
 <div class="card card-action p-0">
 
 
-  {!! Form::model($bikes, ['route' => ['bikes.update', $bikes->id], 'method' => 'patch', 'id' => 'formajax']) !!}
+  {!! Form::model($bikes, ['route' => ['bikes.update', $bikes->id], 'method' => 'patch', 'id' => 'formajax', 'data-rfp-entity' => 'bike']) !!}
   <input type="hidden" name="updated_by" value="{{ Auth::user()->id }}">
 
   <div class="card-body">

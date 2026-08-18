@@ -671,6 +671,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         ->name('riders.import_rider_vouchers');
     Route::post('riders/storeadvanceloan', [RidersController::class, 'storeadvanceloan'])->name('riders.storeadvanceloan');
     Route::post('riders/update-section/{id}', [RidersController::class, 'updateSection'])->name('riders.updateSection');
+    Route::post('riders/{id}/replace-document', [RidersController::class, 'replaceDocument'])->name('riders.replaceDocument')->whereNumber('id');
     Route::post('riders/set-rider-top-option/{id}', [RidersController::class, 'setRiderTopOption'])->name('riders.setRiderTopOption');
     Route::post('riders/return-bike/{id}', [RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');

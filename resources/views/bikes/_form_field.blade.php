@@ -50,7 +50,7 @@ $value = 'own';
 @endphp
 
 @if ($rfpVisible)
-<div class="form-group {{ !empty($fullWidth) ? 'col-sm-12' : 'col-sm-4' }}{{ $wrapperExtraClass }}">
+<div class="form-group {{ !empty($fullWidth) ? 'col-sm-12' : 'col-sm-4' }}{{ $wrapperExtraClass }}" data-rfp-entity="bike" data-rfp-field="{{ $rfpField }}">
     @if ($item->kind === 'fixed')
     @php
     $spec = $item->spec ?? [];

@@ -147,6 +147,25 @@ class RiderDocumentReplacement
     }
 
     /**
+     * How many mapped rider documents have an expired date.
+     */
+    public static function expiredCountForRider(Riders $rider): int
+    {
+        $count = 0;
+        foreach (self::definitions() as $def) {
+            if (! $def['expiry']) {
+                continue;
+            }
+            $status = self::expiryStatus($rider->{$def['expiry']} ?? null);
+            if ($status['status'] === 'expired') {
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * @return array{key: string, role: string}|null
      */
     public static function definitionForField(string $fieldKey): ?array

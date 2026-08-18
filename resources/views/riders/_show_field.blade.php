@@ -46,10 +46,20 @@ $displayValue = $rider->recruiter->name;
 }
 }
 $rfpField = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
+$docRider = $rider ?? $riders ?? null;
+$expiryBadge = ($item->kind === 'fixed' && $docRider instanceof \App\Models\Riders)
+  ? \App\Support\RiderDocumentReplacement::expiryBadgeForField($docRider, (string) ($item->field_key ?? ''), $value)
+  : null;
 @endphp
 @if (field_visible('rider', (string) $rfpField))
 <div class="col-md-3 form-group col-3">
   <label><b>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</b></label>
-  <p>{{ $displayValue }}</p>
+  <p class="mb-0">
+    @if ($expiryBadge)
+      @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
+    @else
+      <span>{{ $displayValue }}</span>
+    @endif
+  </p>
 </div>
 @endif

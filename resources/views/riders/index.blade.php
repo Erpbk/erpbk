@@ -144,7 +144,7 @@
                 <button type="button" class="btn-close" id="closeSidebar"></button>
             </div>
             <div class="filter-body" id="searchTopbody">
-                <form id="filterForm" action="{{ route('riders.index') }}" method="GET">
+                <form id="filterForm" action="{{ route('riders.index') }}" method="GET" data-rfp-skip-lock="1">
                     {{-- Preserve top-bar filters when applying sidebar filters --}}
                     @if(request()->filled('rider_top_option_id'))
                         <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
@@ -158,14 +158,19 @@
                         <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
                     @endif
                     <div class="row">
+                        @fieldVisible('rider', 'rider_id')
                         <div class="form-group col-md-12">
                             <label for="id">Rider Id</label>
                             <input type="number" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
                         </div>
+                        @endfieldVisible
+                        @fieldVisible('rider', 'name')
                         <div class="form-group col-md-12">
                             <label for="name">Rider Name</label>
                             <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
                         </div>
+                        @endfieldVisible
+                        @fieldVisible('rider', 'customer_id')
                         <div class="form-group col-md-12">
                             <label for="customer_id">Filter by Project</label>
                             <select class="form-control " id="customer_id" name="customer_id">
@@ -187,6 +192,8 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endfieldVisible
+                        @fieldVisible('rider', 'attendance')
                         <div class="form-group col-md-12">
                             <label for="attandence">Filter by Attandence</label>
                             <select class="form-control " id="attendance" name="attendance">
@@ -204,6 +211,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endfieldVisible
                         <div class="form-group col-md-12">
                             <label for="bike_assignment_status">Filter by Status</label>
                             <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
@@ -217,6 +225,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @fieldVisible('rider', 'fleet_supervisor')
                         <div class="form-group col-md-12">
                             <label for="fleet_supervisor">Filter by Supervisor</label>
                             <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
@@ -229,6 +238,7 @@
                                 @endforeach
                             </select>
                         </div>
+                        @endfieldVisible
                         <div class="col-md-12 form-group text-center">
                             <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                         </div>

@@ -1,77 +1,78 @@
 @extends('layouts.app')
 
 @section('title','SIM Companies')
+@push('third_party_stylesheets')
+<style>
+    .table-responsive { max-height: calc(100vh - 280px); }
+</style>
+@endpush
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
+
 <section class="content-header">
-    <div class="container-fluid">
+    @include('flash::message')
+    <div>
         <div class="row mb-2">
-            <div class="col-sm-6">
-                <h3>SIM Companies</h3>
-            </div>
-            <div class="col-sm-6">
-                @can('sims_companies_create')
-                <a class="btn btn-primary float-right show-modal action-btn"
-                    href="javascript:void(0);" data-action="{{ route('simCompanies.create') }}" data-title="Add SIM company" data-size="lg">
-                    Add New
-                </a>
-                @endcan
-                <div class="modal modal-default filtetmodal fade" id="searchModal" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-                    <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Filter SIM companies</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body" id="searchTopbody">
-                                <form id="filterForm" action="{{ route('simCompanies.index') }}" method="GET">
-                                    <div class="row">
-                                        <div class="form-group col-md-4">
-                                            <label for="name">Name</label>
-                                            <input type="text" name="name" class="form-control" value="{{ request('name') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="email">Email</label>
-                                            <input type="text" name="email" class="form-control" value="{{ request('email') }}">
-                                        </div>
-                                        <div class="form-group col-md-4">
-                                            <label for="status">Status</label>
-                                            <select class="form-control" id="status" name="status">
-                                                <option value="" selected>All</option>
-                                                <option value="1" {{ request('status') == 1 ? 'selected' : '' }}>Active</option>
-                                                <option value="2" {{ request('status') == 2 ? 'selected' : '' }}>Inactive</option>
-                                            </select>
-                                        </div>
-                                        @if(auth()->user()->hasMultiplebranches())
-                                        <div class="form-group col-md-4">
-                                            <label for="branch_id">Branch</label>
-                                            <select class="form-control" id="branch_id" name="branch_id">
-                                                @foreach(auth()->user()->branchDropdown() as $id => $name)
-                                                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
-                                                @endforeach
-                                            </select>
-                                        </div>
-                                        @endif
-                                        <div class="col-md-12 form-group text-center">
-                                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter</button>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="col-sm-12 col-lg-12">
+                @include('sims.partials.actions_dropdown')
             </div>
         </div>
     </div>
 </section>
 
-<div class="content px-3">
-    @include('flash::message')
+@include('sims.partials.nav_tabs')
+
+<div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
+    <div class="filter-header">
+        <h5>Filter SIM Companies</h5>
+        <button type="button" class="btn-close" id="closeSidebar"></button>
+    </div>
+    <div class="filter-body" id="searchTopbody">
+        <form id="filterForm" action="{{ route('simCompanies.index') }}" method="GET">
+            <div class="row">
+                <div class="form-group col-md-12">
+                    <label for="name">Name</label>
+                    <input type="text" name="name" class="form-control" value="{{ request('name') }}" placeholder="Filter by name">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="email">Email</label>
+                    <input type="text" name="email" class="form-control" value="{{ request('email') }}" placeholder="Filter by email">
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="status">Status</label>
+                    <select class="form-control" id="status" name="status">
+                        <option value="">All</option>
+                        <option value="1" {{ (string) request('status') === '1' ? 'selected' : '' }}>Active</option>
+                        <option value="2" {{ (string) request('status') === '2' ? 'selected' : '' }}>Inactive</option>
+                    </select>
+                </div>
+                @if(auth()->user()->hasMultiplebranches())
+                <div class="form-group col-md-12">
+                    <label for="branch_id">Branch</label>
+                    <select class="form-control" id="branch_id" name="branch_id">
+                        @foreach(auth()->user()->branchDropdown() as $id => $name)
+                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+                <div class="col-md-12 form-group text-center">
+                    <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="filterOverlay" class="filter-overlay"></div>
+
+<div class="content">
     <div class="clearfix"></div>
     <div class="card">
+        <div class="card-header text-end">
+            <button class="btn btn-primary openFilterSidebar" type="button"><i class="fa fa-search"></i> Filter Companies</button>
+        </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('sim_companies.table', ['data' => $data])
         </div>
@@ -122,20 +123,26 @@
             }
         });
     }
+
     $(document).ready(function() {
         $('#status').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Status",
             allowClear: true
         });
-    });
-</script>
-<script type="text/javascript">
-    $(document).ready(function() {
+        @if(auth()->user()->hasMultiplebranches())
+        $('#branch_id').select2({
+            dropdownParent: $('#searchTopbody'),
+            placeholder: "Branch",
+            allowClear: true
+        });
+        @endif
+
         $('#filterForm').on('submit', function(e) {
             e.preventDefault();
             $('#loading-overlay').show();
-            $('#searchModal').modal('hide');
+            $('#filterSidebar').removeClass('open');
+            $('#filterOverlay').removeClass('show');
             const loaderStartTime = Date.now();
             let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
             let formData = $.param(filteredFields);

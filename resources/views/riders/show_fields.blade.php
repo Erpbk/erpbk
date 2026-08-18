@@ -66,7 +66,9 @@
             <p>{{@$result['passport']}}</p>
         </div>
         <div class="col-md-3 form-group col-3">
-            <label @if($dateExpired($result['passport_expiry'] ?? null)) style="color:red;" @endif>Passport Expiry </label>
+            <label @if($dateExpired($result['passport_expiry'] ?? null)) style="color:red;" @endif>Passport Expiry
+                @include('riders._document_field_badges', ['fieldKey' => 'passport_expiry'])
+            </label>
             <p @if($dateExpired($result['passport_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['passport_expiry'] ?? null)}}</p>
         </div>
         <div class="col-md-3 form-group col-3">
@@ -83,7 +85,7 @@
 </div>
 <!-- Edit Form for Personal Information -->
 <div class="card-body edit-form" id="edit-personal" style="display: none;" data-rfp-entity="rider">
-    <form class="section-form" data-section="personal" data-rfp-entity="rider">
+    <form class="section-form" data-section="personal" data-rfp-entity="rider" enctype="multipart/form-data">
         @csrf
         <div class="row">
             <div class="col-md-3 form-group col-3">
@@ -165,7 +167,9 @@
                 <p>{{@$result['license_no']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if($dateExpired($result['license_expiry'] ?? null)) style="color:red;" @endif>Licence Expiry </label>
+                <label @if($dateExpired($result['license_expiry'] ?? null)) style="color:red;" @endif>Licence Expiry
+                    @include('riders._document_field_badges', ['fieldKey' => 'license_expiry'])
+                </label>
                 <p @if($dateExpired($result['license_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['license_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
@@ -173,7 +177,9 @@
                 <p>{{$result['road_permit'] ?? ''}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if($dateExpired($result['road_permit_expiry'] ?? null)) style="color:red;" @endif>ROAD PERMIT EXPIRY </label>
+                <label @if($dateExpired($result['road_permit_expiry'] ?? null)) style="color:red;" @endif>ROAD PERMIT EXPIRY
+                    @include('riders._document_field_badges', ['fieldKey' => 'road_permit_expiry'])
+                </label>
                 <p @if($dateExpired($result['road_permit_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['road_permit_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
@@ -189,7 +195,7 @@
     </div>
     <!-- Edit Form for Visa & Registrations -->
     <div class="card-body edit-form" id="edit-visa" style="display: none;">
-        <form class="section-form" data-section="visa">
+        <form class="section-form" data-section="visa" enctype="multipart/form-data">
             @csrf
             <div class="row">
                 <div class="col-md-3 form-group col-3">
@@ -249,7 +255,9 @@
                 <p>{{@$result['emirate_id']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if($dateExpired($result['emirate_exp'] ?? null)) style="color:red;" @endif>EID EXP Date </label>
+                <label @if($dateExpired($result['emirate_exp'] ?? null)) style="color:red;" @endif>EID EXP Date
+                    @include('riders._document_field_badges', ['fieldKey' => 'emirate_exp'])
+                </label>
                 <p @if($dateExpired($result['emirate_exp'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['emirate_exp'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
@@ -287,7 +295,7 @@
     </div>
     <!-- Edit Form for Job Detail -->
     <div class="card-body edit-form" id="edit-job" style="display: none;">
-        <form class="section-form" data-section="job">
+        <form class="section-form" data-section="job" enctype="multipart/form-data">
             @csrf
             <div class="row">
                 <div class="col-md-3 form-group col-3">
@@ -390,7 +398,9 @@
                 <p>{{@$result['labor_card_number']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if($dateExpired($result['labor_card_expiry'] ?? null)) style="color:red;" @endif>Labor Card Expiry </label>
+                <label @if($dateExpired($result['labor_card_expiry'] ?? null)) style="color:red;" @endif>Labor Card Expiry
+                    @include('riders._document_field_badges', ['fieldKey' => 'labor_card_expiry'])
+                </label>
                 <p @if($dateExpired($result['labor_card_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['labor_card_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
@@ -398,7 +408,9 @@
                 <p>{{@$result['insurance']}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
-                <label @if($dateExpired($result['insurance_expiry'] ?? null)) style="color:red;" @endif>Insurance Expiry</label>
+                <label @if($dateExpired($result['insurance_expiry'] ?? null)) style="color:red;" @endif>Insurance Expiry
+                    @include('riders._document_field_badges', ['fieldKey' => 'insurance_expiry'])
+                </label>
                 <p @if($dateExpired($result['insurance_expiry'] ?? null)) style="color:red;" @endif>{{@App\Helpers\General::DateFormat($result['insurance_expiry'] ?? null)}}</p>
             </div>
             <div class="col-md-3 form-group col-3">
@@ -417,7 +429,7 @@
     </div>
     <!-- Edit Form for Labor Info -->
     <div class="card-body edit-form" id="edit-labor" style="display: none;">
-        <form class="section-form" data-section="labor">
+        <form class="section-form" data-section="labor" enctype="multipart/form-data">
             @csrf
             <div class="row">
                 <div class="col-md-3 form-group col-3">
@@ -497,7 +509,7 @@
     </div>
     <!-- Edit Form for Additional Information -->
     <div class="card-body edit-form" id="edit-additional" style="display: none;">
-        <form class="section-form" data-section="additional">
+        <form class="section-form" data-section="additional" enctype="multipart/form-data">
             @csrf
             <div class="row">
                 <div class="col-md-3 form-group col-3">
@@ -742,6 +754,11 @@
             const formData = new FormData(this);
             formData.append('section', section);
 
+            if (typeof window.riderDocumentReplacementValidate === 'function'
+                && !window.riderDocumentReplacementValidate(this)) {
+                return;
+            }
+
             // Add loading state
             const submitBtn = form.find('button[type="submit"]');
             const originalText = submitBtn.html();
@@ -769,11 +786,15 @@
                 },
                 error: function(xhr) {
                     if (xhr.status === 422) {
-                        const errors = xhr.responseJSON.errors;
-                        let errorMessage = 'Validation errors:\n';
+                        const payload = xhr.responseJSON || {};
+                        const errors = payload.errors || {};
+                        let errorMessage = payload.message || 'Validation errors:\n';
                         Object.keys(errors).forEach(function(key) {
                             errorMessage += errors[key][0] + '\n';
                         });
+                        if (typeof window.riderDocumentReplacementShowErrors === 'function') {
+                            window.riderDocumentReplacementShowErrors(errors);
+                        }
                         toastr.error(errorMessage);
                     } else {
                         toastr.error('Error updating ' + section + ' information');

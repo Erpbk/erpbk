@@ -443,9 +443,10 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('bikes.index') }}" method="GET">
+        <form id="filterForm" action="{{ route('bikes.index') }}" method="GET" data-rfp-skip-lock="1">
             <div class="row">
                 @if(auth()->user()->hasMultiplebranches())
+                @fieldVisible('bike', 'branch_id')
                 <div class="form-group col-md-12">
                     <label for="bike_code">Filter by Branch</label>
                     <select class="form-control " id="branch_id" name="branch_id">
@@ -454,7 +455,9 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
                 @endif
+                @fieldVisible('bike', 'bike_code')
                 <div class="form-group col-md-12">
                     <label for="bike_code">Filter by Code</label>
                     <select class="form-control " id="bike_code" name="bike_code">
@@ -471,10 +474,14 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
+                @fieldVisible('bike', 'plate')
                 <div class="form-group col-md-12">
                     <label for="plate">Plate</label>
                     <input type="text" name="plate" class="form-control" placeholder="Filter By Plate" value="{{ request('plate') }}">
                 </div>
+                @endfieldVisible
+                @fieldVisible('bike', 'rider_id')
                 <div class="form-group col-md-12">
                     <label for="rider_id">Rider ID</label>
                     <input type="text" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
@@ -499,6 +506,8 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
+                @fieldVisible('bike', 'customer_id')
                 <div class="form-group col-md-12">
                     <label for="customer_id">Filter by Customer</label>
                     <select class="form-control " id="customer_id" name="customer_id">
@@ -519,6 +528,8 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
+                @fieldVisible('bike', 'company')
                 <div class="form-group col-md-12">
                     <label for="company">Filter by Company</label>
                     <select class="form-control " id="company" name="company">
@@ -544,6 +555,8 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
+                @fieldVisible('bike', 'emirates')
                 <div class="form-group col-md-12">
                     <label for="emirates">Filter by Emirates</label>
                     <select class="form-control " id="emirates" name="emirates">
@@ -560,6 +573,7 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
                 <div class="form-group col-md-12">
                     <label for="status">Filter by Status</label>
                     <select class="form-control" id="status" name="status">
@@ -581,6 +595,7 @@
                         @endforeach
                     </select>
                 </div>
+                @fieldVisible('bike', 'expiry_date')
                 <div class="form-group col-md-12">
                     <label for="expiry_date_from">Expiry Date From</label>
                     <input type="date" name="expiry_date_from" class="form-control" placeholder="Filter By Expiry Date From" value="{{ request('expiry_date_from') }}">
@@ -589,6 +604,7 @@
                     <label for="expiry_date_to">Expiry Date To</label>
                     <input type="date" name="expiry_date_to" class="form-control" placeholder="Filter By Expiry Date To" value="{{ request('expiry_date_to') }}">
                 </div>
+                @endfieldVisible
                 <div class="col-md-12 form-group text-center">
                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                 </div>

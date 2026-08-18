@@ -495,12 +495,15 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('RiderInventory/assign', [RiderInventoryController::class, 'assignStore'])->name('RiderInventory.assignStore');
     Route::get('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnForm'])->name('RiderInventory.returnForm');
     Route::post('RiderInventory/return/{assignmentId}', [RiderInventoryController::class, 'returnStore'])->name('RiderInventory.returnStore');
+    Route::get('RiderInventory/edit/{assignmentId}', [RiderInventoryController::class, 'editForm'])->name('RiderInventory.editForm');
+    Route::post('RiderInventory/edit/{assignmentId}', [RiderInventoryController::class, 'editStore'])->name('RiderInventory.editStore');
     Route::get('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'lostForm'])->name('RiderInventory.lostForm');
     Route::post('RiderInventory/lost/{assignmentId}', [RiderInventoryController::class, 'markLost'])->name('RiderInventory.markLost');
     Route::get('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusForm'])->name('RiderInventory.changeStatusForm');
     Route::post('RiderInventory/change-status/{assignmentId}', [RiderInventoryController::class, 'changeStatusStore'])->name('RiderInventory.changeStatusStore');
     Route::delete('RiderInventory/assignment/{assignmentId}', [RiderInventoryController::class, 'destroyAssignment'])->name('RiderInventory.destroyAssignment');
-    Route::get('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContract'])->name('RiderInventory.assignmentContract');
+    Route::get('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContractForm'])->name('RiderInventory.assignmentContractForm');
+    Route::post('RiderInventory/assignment-contract/{riderId}', [RiderInventoryController::class, 'assignmentContractProcess'])->name('RiderInventory.assignmentContractProcess');
     Route::get('RiderInventory/clearance-certificate/{riderId}', [RiderInventoryController::class, 'clearanceCertificate'])->name('RiderInventory.clearanceCertificate');
     Route::get('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractForm'])->name('RiderInventory.returnContractForm');
     Route::post('RiderInventory/return-contract/{riderId}', [RiderInventoryController::class, 'returnContractProcess'])->name('RiderInventory.returnContractProcess');
@@ -559,12 +562,14 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simInvoices', [SimInvoicesController::class, 'index'])->name('simInvoices.index');
     Route::get('simInvoices/create/{vendorId?}', [SimInvoicesController::class, 'create'])->name('simInvoices.create');
     Route::get('simInvoices/create-from-clone/{id}', [SimInvoicesController::class, 'createFromClone'])->name('simInvoices.createFromClone');
+    Route::get('simInvoices/import', [SimInvoicesController::class, 'importForm'])->name('simInvoices.import.form');
+    Route::post('simInvoices/import', [SimInvoicesController::class, 'import'])->name('simInvoices.import');
     Route::post('simInvoices/store', [SimInvoicesController::class, 'store'])->name('simInvoices.store');
-    Route::get('simInvoices/{id}', [SimInvoicesController::class, 'show'])->name('simInvoices.show');
-    Route::get('simInvoices/{id}/edit', [SimInvoicesController::class, 'edit'])->name('simInvoices.edit');
-    Route::put('simInvoices/{id}', [SimInvoicesController::class, 'update'])->name('simInvoices.update');
-    Route::delete('simInvoices/{id}', [SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy');
-    Route::post('simInvoices/{id}/clone', [SimInvoicesController::class, 'clone'])->name('simInvoices.clone');
+    Route::get('simInvoices/{id}', [SimInvoicesController::class, 'show'])->name('simInvoices.show')->whereNumber('id');
+    Route::get('simInvoices/{id}/edit', [SimInvoicesController::class, 'edit'])->name('simInvoices.edit')->whereNumber('id');
+    Route::put('simInvoices/{id}', [SimInvoicesController::class, 'update'])->name('simInvoices.update')->whereNumber('id');
+    Route::delete('simInvoices/{id}', [SimInvoicesController::class, 'destroy'])->name('simInvoices.destroy')->whereNumber('id');
+    Route::post('simInvoices/{id}/clone', [SimInvoicesController::class, 'clone'])->name('simInvoices.clone')->whereNumber('id');
     Route::get('simInvoices/vendor/{id}/sims', [SimInvoicesController::class, 'getSims'])->name('simInvoices.getSims');
     Route::get('sim/payments', [SimInvoicesController::class, 'payments'])->name('sim.payments');
 
@@ -610,7 +615,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::any('riders/picture_upload/{id?}', [RidersController::class, 'picture_upload'])->name('rider_picture_upload');
     Route::any('riders/rider-document/{id}', [RidersController::class, 'document'])->name('rider.document');
     Route::get('riders/inventory/{id}', [RidersController::class, 'inventory'])->name('rider.inventory');
-    Route::get('riders/clearance/{id}', [RidersController::class, 'clearance'])->name('rider.clearance');
+    Route::get('riders/clearance/{id}', function ($company_slug, $id) {
+        return redirect()->route('rider.inventory', ['company_slug' => $company_slug, 'id' => $id]);
+    });
     Route::get('rider/updateRider', [RidersController::class, 'updateRider'])->name('rider.updateRider');
     Route::get('rider/delete/{id}', [RidersController::class, 'destroy'])->name('rider.delete');
     Route::get('riders/ledger/{id}', [RidersController::class, 'ledger'])->name('rider.ledger');
@@ -661,6 +668,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         ->name('riders.import_rider_vouchers');
     Route::post('riders/storeadvanceloan', [RidersController::class, 'storeadvanceloan'])->name('riders.storeadvanceloan');
     Route::post('riders/update-section/{id}', [RidersController::class, 'updateSection'])->name('riders.updateSection');
+    Route::post('riders/{id}/replace-document', [RidersController::class, 'replaceDocument'])->name('riders.replaceDocument')->whereNumber('id');
     Route::post('riders/set-rider-top-option/{id}', [RidersController::class, 'setRiderTopOption'])->name('riders.setRiderTopOption');
     Route::post('riders/return-bike/{id}', [RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');
@@ -1050,6 +1058,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('salik/top-up/create', [SalikController::class, 'createTopUp'])->name('salik.topUp.create');
     Route::post('salik/top-up', [SalikController::class, 'storeTopUp'])->name('salik.topUp.store');
     Route::get('salik/payment', [SalikController::class, 'paymentForm'])->name('salik.payment');
+    Route::get('salik/payment/{voucher}/edit', [SalikController::class, 'paymentForm'])->name('salik.payment.edit');
+    Route::post('salik/payment/{voucher}/unpay', [SalikController::class, 'unpayPayment'])->name('salik.payment.unpay');
     Route::post('salik/payment/records', [SalikController::class, 'getPaymentRecords'])->name('salik.payment.records');
     Route::post('salik/payment/record-ids', [SalikController::class, 'getPaymentRecordIds'])->name('salik.payment.recordIds');
     Route::post('salik/payment/calculate', [SalikController::class, 'calculatePaymentVoucher'])->name('salik.payment.calculate');

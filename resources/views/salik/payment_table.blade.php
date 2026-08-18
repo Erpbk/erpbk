@@ -4,9 +4,9 @@
 <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
     <small class="text-muted" id="paymentRecordsCount">
         @if($isPaginator)
-            Showing {{ $records->firstItem() ?? 0 }}–{{ $records->lastItem() ?? 0 }} of {{ $records->total() }} unpaid record(s)
+            Showing {{ $records->firstItem() ?? 0 }}–{{ $records->lastItem() ?? 0 }} of {{ $records->total() }} record(s) in this filter
         @else
-            {{ $records->count() }} unpaid record(s)
+            {{ $records->count() }} record(s) in this filter
         @endif
     </small>
 </div>
@@ -23,51 +23,15 @@
             <th>Admin</th>
             <th>VAT</th>
             <th>Total</th>
+            <th>Status</th>
         </tr>
     </thead>
     <tbody>
         @forelse($records as $record)
-        @php
-            $bike = $record->bike;
-            $isOwnedBike = $bike && (
-                strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0
-                || !$bike->leasingCompany
-            );
-            if (!$bike) {
-                $companyLabel = '-';
-            } elseif ($isOwnedBike) {
-                $companyLabel = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
-                if ($companyLabel === '') {
-                    $currentCompany = view()->shared('currentCompany');
-                    $companyLabel = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
-                }
-                if ($companyLabel === '') {
-                    $companyLabel = '-';
-                }
-            } else {
-                $companyLabel = $bike->leasingCompany?->name ?? '-';
-            }
-            $riderLabel = $record->rider
-                ? trim(($record->rider->rider_id ?? '') . ' - ' . ($record->rider->name ?? ''))
-                : 'N/A';
-        @endphp
-        <tr data-transaction-id="{{ $record->transaction_id }}"
-            data-plate="{{ $record->plate }}"
-            data-rider="{{ $riderLabel }}">
-            <td><input type="checkbox" class="salik-checkbox" value="{{ $record->id }}"></td>
-            <td>{{ $record->transaction_id }}</td>
-            <td>{{ $record->plate }}</td>
-            <td>{{ $companyLabel }}</td>
-            <td>{{ $riderLabel }}</td>
-            <td>{{ \App\Helpers\General::DateFormat($record->trip_date) }}</td>
-            <td>{{ \App\Helpers\Currency::format($record->amount, 2) }}</td>
-            <td>{{ \App\Helpers\Currency::format($record->admin_charges ?? 0, 2) }}</td>
-            <td>{{ \App\Helpers\Currency::format($record->vat ?? 0, 2) }}</td>
-            <td>{{ \App\Helpers\Currency::format($record->total_amount, 2) }}</td>
-        </tr>
+            @include('salik._payment_record_row', ['record' => $record, 'pinned' => false])
         @empty
         <tr>
-            <td colspan="10" class="text-center text-muted py-3">No unpaid salik records found for the selected filters.</td>
+            <td colspan="11" class="text-center text-muted py-3">No salik records found for the selected filters.</td>
         </tr>
         @endforelse
     </tbody>

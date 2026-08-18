@@ -368,11 +368,21 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('sims'))
 @canany(['sims_sim_view', 'sims_invoices_view', 'sims_companies_view', 'sims_payments_view'])
-<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') || Route::is('sim.payments') ? 'open' : '' }}">
-  <a href="javascript:void(0);" class="menu-link menu-toggle ">
+@php
+  $simsUrl = user_can('sims_sim_view')
+      ? route('sims.index')
+      : (user_can('sims_companies_view')
+          ? route('simCompanies.index')
+          : (user_can('sims_invoices_view')
+              ? route('simInvoices.index')
+              : route('sim.payments')));
+@endphp
+<li class="menu-item {{ Route::is('sims*') || Route::is('simInvoices*') || Route::is('simCompanies*') || Route::is('sim.payments') ? 'active' : '' }}">
+  <a href="{{ $simsUrl }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'sims'])
     <div>{{ $menuLabels['sims'] ?? 'Sims' }}</div>
   </a>
+  {{-- Child links moved to shared in-page nav tabs (Sims / Companies / Invoices / Payments)
   <ul class="menu-sub">
     @can('sims_sim_view')
     <li class="menu-item {{ Route::is('sims*') ? 'active' : '' }}">
@@ -407,6 +417,7 @@ $homeLink = $isAdminLogin
     </li>
     @endcan
   </ul>
+  --}}
 </li>
 @endcanany
 @endif

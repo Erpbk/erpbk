@@ -14,16 +14,18 @@ class SimInvoiceItem extends BaseModel
     protected $fillable = [
         'inv_id',
         'sim_id',
-        'days',
         'rental_amount',
+        'additional_charges',
+        'international_usage_charges',
         'tax_rate',
         'tax_amount',
         'total_amount',
     ];
 
     protected $casts = [
-        'days' => 'integer',
         'rental_amount' => 'decimal:2',
+        'additional_charges' => 'decimal:2',
+        'international_usage_charges' => 'decimal:2',
         'tax_rate' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'total_amount' => 'decimal:2',

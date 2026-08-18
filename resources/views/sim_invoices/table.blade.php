@@ -5,7 +5,7 @@
             <th>Invoice #</th>
             <th>Inv Date</th>
             <th>Billing Month</th>
-            <th>Vendor</th>
+            <th>Company</th>
             <th>SIMs</th>
             <th>Subtotal</th>
             <th>Vat</th>
@@ -16,13 +16,17 @@
     </thead>
     <tbody>
         @forelse($data as $invoice)
-            <tr class="text-center">
+            @php $invoicePendingDeletion = record_is_pending_deletion($invoice); @endphp
+            <tr class="text-center {{ $invoicePendingDeletion ? 'table-warning' : '' }}">
                 <td>{{ $invoice->id }}</td>
-                <td><a href="javascript:void(0);" data-action="{{ route('simInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'SIMI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a></td>
+                <td>
+                    <a href="javascript:void(0);" data-action="{{ route('simInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'SIMI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a>
+                    @include('delete_requests._pending_badge', ['model' => $invoice])
+                </td>
                 <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
-                <td>{{ $invoice->vendor->name ?? '-' }}</td>
-                <td><span class="badge bg-info">{{ $invoice->items->count() }} sim(s)</span></td>
+                <td>{{ $invoice->company->name ?? '-' }}</td>
+                <td><span class="badge bg-info">{{ $invoice->items_count ?? $invoice->items->count() }} sim(s)</span></td>
                 <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0, 2) }}</td>
                 <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0, 2) }}</td>
                 <td><strong>{{ \App\Helpers\Currency::format($invoice->total_amount ?? 0, 2) }}</strong></td>
@@ -36,6 +40,9 @@
                     @endif
                 </td>
                 <td>
+                    @if($invoicePendingDeletion)
+                        @include('delete_requests._locked_cell', ['model' => $invoice])
+                    @else
                     <div class="dropdown">
                         <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" data-bs-toggle="dropdown">
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -69,6 +76,7 @@
                             @endcan
                         </div>
                     </div>
+                    @endif
                 </td>
             </tr>
         @empty

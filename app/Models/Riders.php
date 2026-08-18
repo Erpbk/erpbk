@@ -619,4 +619,33 @@ class Riders extends BaseModel
   {
     return $this->hasMany(RiderInventoryAssignment::class, 'rider_id', 'id');
   }
+
+  public function currentlyAssignedItemCount(): int
+  {
+    $count = 0;
+
+    if ($this->bikes()->exists()) {
+      $count++;
+    }
+
+    if (FuelCards::query()->where('assigned_to', $this->id)->exists()) {
+      $count++;
+    }
+
+    $hasSim = Sims::query()
+      ->where('assign_to', $this->id)
+      ->where(function ($q) {
+        $q->where('assign_type', 'rider')->orWhereNull('assign_type');
+      })
+      ->exists();
+    if ($hasSim) {
+      $count++;
+    }
+
+    $count += (int) $this->inventoryAssignments()
+      ->where('status', RiderInventoryAssignment::STATUS_ASSIGNED)
+      ->count();
+
+    return $count;
+  }
 }

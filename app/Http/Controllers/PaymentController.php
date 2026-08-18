@@ -189,24 +189,24 @@ class PaymentController extends Controller
             $invoiceType = 'sim';
             $selectedInvoice = null;
             if (request()->input('invoice_id')) {
-                $selectedInvoice = SimInvoice::with('vendor.account')->find(request()->input('invoice_id'));
+                $selectedInvoice = SimInvoice::with('company.account')->find(request()->input('invoice_id'));
             }
             if ($selectedInvoice) {
-                $invoices = SimInvoice::with('vendor.account')
+                $invoices = SimInvoice::with('company.account')
                     ->where('vendor_id', $selectedInvoice->vendor_id)
                     ->where('status', '!=', 1)
                     ->get();
             } else {
-                $invoices = SimInvoice::with('vendor.account')
+                $invoices = SimInvoice::with('company.account')
                     ->where('status', '!=', 1)
-                    ->whereHas('vendor', fn($q) => $q->whereNotNull('account_id'))
+                    ->whereHas('company', fn($q) => $q->whereNotNull('account_id'))
                     ->orderBy('billing_month', 'desc')
                     ->get();
             }
             $payeeOptions = $this->buildPayeeOptionsFromInvoices($invoices, 'sim');
             $accountIds = $payeeOptions->pluck('account_id')->all();
-            if ($selectedInvoice && $selectedInvoice->vendor) {
-                $lockedPayee = $this->makePayeeOption($selectedInvoice->vendor);
+            if ($selectedInvoice && $selectedInvoice->company) {
+                $lockedPayee = $this->makePayeeOption($selectedInvoice->company);
             } elseif ($payeeOptions->count() === 1) {
                 $lockedPayee = $payeeOptions->first();
             }
@@ -742,10 +742,10 @@ class PaymentController extends Controller
                     $invoiceIds[] = $invoiceId;
                 }
             }
-            $existingInvoices = SimInvoice::with('vendor.account')
+            $existingInvoices = SimInvoice::with('company.account')
                 ->whereIn('id', $invoiceIds)
                 ->get();
-            $invoices = SimInvoice::with('vendor.account')
+            $invoices = SimInvoice::with('company.account')
                 ->whereIn('vendor_id', $existingInvoices->pluck('vendor_id'))
                 ->where('status', '!=', 1)
                 ->whereNotIn('id', $invoiceIds)
@@ -1288,7 +1288,7 @@ class PaymentController extends Controller
                 'supplier' => $invoice->supplier ?? null,
                 'employee' => $invoice->employee ?? null,
                 'rider' => $invoice->rider ?? null,
-                'sim' => $invoice->vendor ?? null,
+                'sim' => $invoice->company ?? null,
                 'customer' => $invoice->customer ?? null,
                 default => null,
             };

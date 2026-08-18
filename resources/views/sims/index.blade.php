@@ -383,48 +383,13 @@
         <div>
             <div class="row mb-2">
                 <div class="col-sm-12 col-lg-12">
-                    <div class="action-buttons d-flex justify-content-end" >
-                    <div class="action-dropdown-container">
-                        <button class="action-dropdown-btn" id="addSimDropdownBtn">
-                            <i class="ti ti-plus"></i>
-                            <span>Add Sim</span>
-                            <i class="ti ti-chevron-down"></i>
-                        </button>
-                        <div class="action-dropdown-menu" id="addSimDropdown">
-                            @can('sims_sim_create')
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Add New Sim" data-action="{{ route('sims.create') }}">
-                                <i class="ti ti-plus"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Add Sim</div>
-                                    <div class="action-dropdown-item-desc">Add a new Sim to the system</div>
-                                </div>
-                            </a>
-                            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Import Sim Data" data-action="{{ route('sims.import') }}">
-                                <i class="ti ti-file-upload"></i>
-                                <span>Import Sim Data</span>
-                            </a>
-                            @endcan
-                            @can('sims_export_data_create')
-                            <a class="action-dropdown-item" href="{{ route('sims.export')}}" data-size="xl" data-title="Export Vehicles" data-action="{{ route('bikes.export') }}">
-                                <i class="ti ti-file-export"></i>
-                                <span>Export Sim Data</span>
-                            </a>
-                            @endcan
-                            <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
-                                <i class="ti ti-columns"></i>
-                                <div>
-                                    <div class="action-dropdown-item-text">Column Control</div>
-                                    <div class="action-dropdown-item-desc">Open column control modal</div>
-                                </div>
-                            </a>
-                        </div>
-                    </div>
-                </div>
+                    @include('sims.partials.actions_dropdown')
                 </div>
             </div>
         </div>
     </section>
-    
+
+    @include('sims.partials.nav_tabs')
 
     {{-- Include Column Control Panel --}}
     @include('components.column-control-panel', [
@@ -440,10 +405,11 @@
             <button type="button" class="btn-close" id="closeSidebar"></button>
         </div>
         <div class="filter-body" id="searchTopbody">
-            <form id="filterForm" action="{{ route('sims.index') }}" method="GET">
+            <form id="filterForm" action="{{ route('sims.index') }}" method="GET" data-rfp-skip-lock="1">
                 @csrf
                 <div class="row">
                     @if(auth()->user()->hasMultiplebranches())
+                    @fieldVisible('sim', 'branch_id')
                     <div class="form-group col-md-12">
                         <label for="branch_id">Filter by Branch</label>
                         <select class="form-control " id="branch_id" name="branch_id">
@@ -452,15 +418,21 @@
                             @endforeach
                         </select>
                     </div>
+                    @endfieldVisible
                     @endif
+                    @fieldVisible('sim', 'number')
                     <div class="form-group col-md-12 col-sm-12">
                             <label for="number">Sim Number</label>
                             <input type="text" name="number" class="form-control" placeholder="Filter By Sim Number" value="{{ request('number') }}">
                         </div>
+                    @endfieldVisible
+                    @fieldVisible('sim', 'emi')
                     <div class="form-group col-md-12">
                         <label for="emi">EMI Number</label>
                         <input type="text" name="emi" class="form-control" placeholder="Filter By EMI Number" value="{{ request('emi') }}">
                     </div>
+                    @endfieldVisible
+                    @fieldVisible('sim', 'company')
                     <div class="form-group col-md-12">
                         <label for="company">Company</label>
                             <select class="form-control " id="company" name="company">
@@ -477,6 +449,8 @@
                             @endforeach
                         </select>
                     </div>
+                    @endfieldVisible
+                    @fieldVisible('sim', 'status')
                     <div class="form-group col-md-12">
                         <label for="status">Status</label>
                         <select class="form-control " id="status" name="status">
@@ -485,6 +459,7 @@
                             <option value='inactive' >Inactive</option>
                         </select>
                     </div>
+                    @endfieldVisible
                     <div class="col-md-12 form-group text-center">
                         <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                     </div>

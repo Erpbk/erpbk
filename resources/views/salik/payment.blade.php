@@ -1,16 +1,32 @@
 @extends('layouts.app')
-@section('title', 'Salik Payment')
+@section('title', !empty($editingVoucher) ? 'Edit Salik Payment' : 'Salik Payment')
 @section('content')
 @php
-    $defaultFrom = now()->startOfMonth()->format('Y-m-d');
-    $defaultTo = now()->endOfMonth()->format('Y-m-d');
+    $isEditingPayment = !empty($editingVoucher);
+    $defaultFrom = $defaultFrom ?? now()->startOfMonth()->format('Y-m-d');
+    $defaultTo = $defaultTo ?? now()->endOfMonth()->format('Y-m-d');
+    $editingSelectedIds = $editingSelectedIds ?? [];
+    $editingLeasingFilter = $editingLeasingFilter ?? null;
+    $voucherLabel = $isEditingPayment
+        ? ($editingVoucher->voucher_type . '-' . str_pad((string) $editingVoucher->id, 4, '0', STR_PAD_LEFT))
+        : null;
+    $editRemarks = '';
+    if ($isEditingPayment) {
+        $rawRemarks = trim((string) ($editingVoucher->remarks ?? ''));
+        $isDefaultRemarks = (bool) preg_match('/^Salik payment for \d+ record\(s\)$/i', $rawRemarks);
+        $editRemarks = $isDefaultRemarks ? '' : $rawRemarks;
+    }
 @endphp
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6"><h3>Salik Payment</h3></div>
+            <div class="col-sm-6">
+                <h3>{{ $isEditingPayment ? 'Edit Salik Payment' : 'Salik Payment' }}</h3>
+            </div>
             <div class="col-sm-6 text-end">
-                <a href="{{ route('salik.index') }}" class="btn btn-outline-primary">Back to Salik List</a>
+                <a href="{{ $isEditingPayment ? route('salik.payments') : route('salik.index') }}" class="btn btn-outline-primary">
+                    {{ $isEditingPayment ? 'Back to Payment Records' : 'Back to Salik List' }}
+                </a>
             </div>
         </div>
     </div>
@@ -18,12 +34,18 @@
 
 <div class="content px-3">
     @include('flash::message')
+    @if($isEditingPayment)
+    <div class="alert alert-warning">
+        Editing {{ $voucherLabel }}. Selected trips stay pinned if you change the date range.
+        Saving reverses the original payment voucher and posts a new one. Rider monthly invoices are not changed.
+    </div>
+    @endif
     <div class="card mb-3">
         <div class="card-body">
             <div class="row">
                 <div class="col-md-4 form-group">
                     <label>Company <span class="text-danger">*</span></label>
-                    <select id="leasing_company_id" class="form-select select2" required>
+                    <select id="leasing_company_id" class="form-select select2" required {{ $isEditingPayment ? 'disabled' : '' }}>
                         <option value="">Select Bike company</option>
                         @php
                         $ownCompanyName = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
@@ -35,9 +57,9 @@
                             $ownCompanyName = 'Own Vehicles';
                         }
                         @endphp
-                        <option value="own">{{ $ownCompanyName }}</option>
+                        <option value="own" {{ $editingLeasingFilter === 'own' ? 'selected' : '' }}>{{ $ownCompanyName }}</option>
                         @foreach($leasingCompanies as $company)
-                        <option value="{{ $company->id }}">{{ $company->name }}</option>
+                        <option value="{{ $company->id }}" {{ (string) $editingLeasingFilter === (string) $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -58,24 +80,33 @@
 
     <form id="salikPaymentForm" action="{{ route('salik.payment.store') }}" method="POST">
         @csrf
+        @if($isEditingPayment)
+        <input type="hidden" name="editing_voucher_id" id="editing_voucher_id" value="{{ $editingVoucher->id }}">
+        @endif
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <strong>Voucher Details</strong>
-                <button type="submit" class="btn btn-primary" id="submitPayment" disabled>Submit Payment</button>
+                <button type="submit" class="btn btn-primary" id="submitPayment" disabled>
+                    {{ $isEditingPayment ? 'Save Payment' : 'Submit Payment' }}
+                </button>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-3 form-group">
                         <label>Payment Date</label>
-                        <input type="date" name="trans_date" class="form-control" value="{{ date('Y-m-d') }}" required>
+                        <input type="date" name="trans_date" class="form-control" value="{{ $isEditingPayment ? \Carbon\Carbon::parse($editingVoucher->trans_date)->format('Y-m-d') : date('Y-m-d') }}" required>
                     </div>
                     <div class="col-md-3 form-group">
                         <label>Billing Month <span class="text-danger">*</span></label>
-                        <input type="month" name="billing_month" id="billing_month_voucher" class="form-control" value="{{ date('Y-m') }}" required>
+                        <input type="month" name="billing_month" id="billing_month_voucher" class="form-control" value="{{ $isEditingPayment && $editingVoucher->billing_month ? \Carbon\Carbon::parse($editingVoucher->billing_month)->format('Y-m') : date('Y-m') }}" required>
                     </div>
-                    <div class="col-md-6 form-group">
+                    <div class="col-md-3 form-group">
+                        <label>Reference</label>
+                        <input type="text" name="reference_number" class="form-control" maxlength="255" placeholder="Reference number" value="{{ $isEditingPayment ? ($editingVoucher->reference_number ?? '') : '' }}">
+                    </div>
+                    <div class="col-md-3 form-group">
                         <label>Remarks</label>
-                        <input type="text" name="remarks" class="form-control" placeholder="Salik payment remarks">
+                        <input type="text" name="remarks" class="form-control" placeholder="Salik payment remarks" value="{{ $editRemarks }}">
                     </div>
                 </div>
                 <div class="table-responsive mt-2">
@@ -107,7 +138,7 @@
 
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <strong>Unpaid Salik Records <span id="selectedCountBadge" class="badge bg-primary ms-1" style="display:none;">0 selected</span></strong>
+                <strong>Salik Records <span id="selectedCountBadge" class="badge bg-primary ms-1" style="display:none;">0 selected</span></strong>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <input type="text" id="salikRecordsSearch" class="form-control form-control-sm" style="min-width: 220px;" placeholder="Search transaction / plate / rider...">
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="selectPageSaliks">Select Page</button>
@@ -116,26 +147,63 @@
                     <button type="button" class="btn btn-sm btn-outline-primary" id="deselectAllSaliks">Deselect All</button>
                 </div>
             </div>
-            <div class="card-body table-responsive" id="payment-records-table">
-                <p class="text-muted mb-0">Select company and date range, then click Load Records.</p>
+            <div class="card-body">
+                <div id="pinned-salik-records"></div>
+                <div class="table-responsive" id="payment-records-table">
+                    <p class="text-muted mb-0">Select company and date range, then click Load Records. Selected records stay selected if you change the date range.</p>
+                </div>
             </div>
         </div>
     </form>
 </div>
 @endsection
 
+@section('page-style')
+<style>
+    .pinned-salik-scroll {
+        max-height: 280px;
+        overflow: auto;
+    }
+    .pinned-salik-scroll table {
+        margin-bottom: 0;
+        min-width: 900px;
+    }
+    .pinned-salik-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background-color: #f8f9fa;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+        white-space: nowrap;
+    }
+    .pinned-salik-scroll td {
+        white-space: nowrap;
+    }
+</style>
+@endsection
+
 @section('page-script')
 <script>
 $(function () {
-    $('.select2').select2({ allowClear: true, placeholder: 'Select Bike company' });
+    var editingVoucherId = @json($isEditingPayment ? (int) $editingVoucher->id : null);
+    var editingLeasingFilter = @json($editingLeasingFilter);
+    var initialSelectedIds = @json($editingSelectedIds);
+    var paymentsIndexUrl = @json(route('salik.payments'));
+    var salikIndexUrl = @json(route('salik.index'));
 
-    var selectedSalikIds = new Set();
+    $('.select2').select2({ allowClear: !editingVoucherId, placeholder: 'Select Bike company' });
+
+    var selectedSalikIds = new Set((initialSelectedIds || []).map(String));
     var searchTimer = null;
     var recordsLoaded = false;
     var currentPerPage = 50;
 
     function getSelectedIds() {
         return Array.from(selectedSalikIds);
+    }
+
+    function leasingCompanyId() {
+        return $('#leasing_company_id').val() || editingLeasingFilter || '';
     }
 
     function updateSelectedBadge() {
@@ -158,14 +226,21 @@ $(function () {
         $('.salik-checkbox').each(function () {
             $(this).prop('checked', selectedSalikIds.has(String($(this).val())));
         });
-        var allChecked = $('.salik-checkbox').length > 0 && $('.salik-checkbox:not(:checked)').length === 0;
+        var $pageBoxes = $('#paymentSalikTable .salik-checkbox');
+        var allChecked = $pageBoxes.length > 0 && $pageBoxes.filter(':not(:checked)').length === 0;
         $('#checkAllSaliks').prop('checked', allChecked);
+    }
+
+    function applyDroppedIds(dropped) {
+        (dropped || []).forEach(function (id) {
+            selectedSalikIds.delete(String(id));
+        });
     }
 
     function loadRecords(page) {
         var dateFrom = $('#date_from').val();
         var dateTo = $('#date_to').val();
-        var leasingCompanyId = $('#leasing_company_id').val();
+        var companyId = leasingCompanyId();
         if (!dateFrom || !dateTo) {
             alert('Please select From and To dates.');
             return;
@@ -174,7 +249,7 @@ $(function () {
             alert('From date cannot be after To date.');
             return;
         }
-        if (!leasingCompanyId) {
+        if (!companyId) {
             alert('Please select a leasing company.');
             return;
         }
@@ -186,18 +261,25 @@ $(function () {
             _token: '{{ csrf_token() }}',
             date_from: dateFrom,
             date_to: dateTo,
-            leasing_company_id: leasingCompanyId,
+            leasing_company_id: companyId,
             search: $('#salikRecordsSearch').val() || '',
             page: page || 1,
-            per_page: currentPerPage
+            per_page: currentPerPage,
+            selected_ids: getSelectedIds(),
+            editing_voucher_id: editingVoucherId || ''
         })
         .done(function (res) {
             recordsLoaded = true;
+            applyDroppedIds(res.dropped_ids);
+            $('#pinned-salik-records').html(res.pinned_html || '');
             $('#payment-records-table').html(res.html);
             bindSalikSelection();
             restoreSelectionToDom();
             updateSelectedBadge();
             syncHiddenInputs();
+            if (selectedSalikIds.size > 0) {
+                recalculateVoucher();
+            }
         })
         .fail(function (xhr) {
             var msg = xhr.responseJSON?.message || xhr.responseJSON?.errors?.date_to?.[0] || 'Failed to load records.';
@@ -209,11 +291,19 @@ $(function () {
     }
 
     $('#loadSalikRecords').on('click', function () {
+        loadRecords(1);
+    });
+
+    $('#leasing_company_id').on('change', function () {
+        if (editingVoucherId) {
+            return;
+        }
         selectedSalikIds.clear();
+        $('#pinned-salik-records').empty();
         clearVoucherLines();
         $('#submitPayment').prop('disabled', true);
         updateSelectedBadge();
-        loadRecords(1);
+        syncHiddenInputs();
     });
 
     $('#salikRecordsSearch').on('keyup', function (e) {
@@ -257,8 +347,9 @@ $(function () {
             _token: '{{ csrf_token() }}',
             date_from: $('#date_from').val(),
             date_to: $('#date_to').val(),
-            leasing_company_id: $('#leasing_company_id').val(),
-            search: $('#salikRecordsSearch').val() || ''
+            leasing_company_id: leasingCompanyId(),
+            search: $('#salikRecordsSearch').val() || '',
+            editing_voucher_id: editingVoucherId || ''
         };
     }
 
@@ -269,14 +360,21 @@ $(function () {
                 selectedSalikIds.add(id);
             } else {
                 selectedSalikIds.delete(id);
+                if ($(this).closest('#pinnedSalikTable').length) {
+                    $(this).closest('tr').remove();
+                    if ($('#pinnedSalikTable tbody tr').length === 0) {
+                        $('#pinned-salik-records').empty();
+                    }
+                }
             }
+            restoreSelectionToDom();
             updateSelectedBadge();
             recalculateVoucher();
         });
 
         $('#checkAllSaliks').off('change').on('change', function () {
             var checked = $(this).is(':checked');
-            $('.salik-checkbox').each(function () {
+            $('#paymentSalikTable .salik-checkbox').each(function () {
                 $(this).prop('checked', checked);
                 var id = String($(this).val());
                 if (checked) selectedSalikIds.add(id);
@@ -287,7 +385,7 @@ $(function () {
         });
 
         $('#selectPageSaliks').off('click').on('click', function () {
-            $('.salik-checkbox').each(function () {
+            $('#paymentSalikTable .salik-checkbox').each(function () {
                 $(this).prop('checked', true);
                 selectedSalikIds.add(String($(this).val()));
             });
@@ -297,7 +395,7 @@ $(function () {
         });
 
         $('#deselectPageSaliks').off('click').on('click', function () {
-            $('.salik-checkbox').each(function () {
+            $('#paymentSalikTable .salik-checkbox').each(function () {
                 $(this).prop('checked', false);
                 selectedSalikIds.delete(String($(this).val()));
             });
@@ -315,7 +413,9 @@ $(function () {
             $btn.prop('disabled', true).text('Selecting...');
             $.post('{{ route("salik.payment.recordIds") }}', currentFilterPayload())
                 .done(function (res) {
-                    selectedSalikIds = new Set((res.ids || []).map(String));
+                    (res.ids || []).forEach(function (id) {
+                        selectedSalikIds.add(String(id));
+                    });
                     restoreSelectionToDom();
                     updateSelectedBadge();
                     recalculateVoucher();
@@ -332,6 +432,7 @@ $(function () {
             selectedSalikIds.clear();
             $('.salik-checkbox').prop('checked', false);
             $('#checkAllSaliks').prop('checked', false);
+            $('#pinned-salik-records').empty();
             updateSelectedBadge();
             recalculateVoucher();
         });
@@ -417,12 +518,17 @@ $(function () {
             return;
         }
 
-        $.post('{{ route("salik.payment.calculate") }}', {
+        var payload = {
             _token: '{{ csrf_token() }}',
             salik_ids: ids,
             billing_month: $('#billing_month_voucher').val(),
-            leasing_company_id: $('#leasing_company_id').val()
-        }, function (data) {
+            leasing_company_id: leasingCompanyId()
+        };
+        if (editingVoucherId) {
+            payload.editing_voucher_id = editingVoucherId;
+        }
+
+        $.post('{{ route("salik.payment.calculate") }}', payload, function (data) {
             lastVoucherData = data;
             renderVoucherLines(data);
             $('#submitPayment').prop('disabled', !data.balanced);
@@ -443,26 +549,39 @@ $(function () {
         e.preventDefault();
         syncHiddenInputs();
         if (!getSelectedIds().length) {
-            alert('Please select at least one salik record.');
+            alert(editingVoucherId
+                ? 'Select at least one salik record. To reverse this payment with no replacement, use Unpay on the payment records page.'
+                : 'Please select at least one salik record.');
             return;
         }
         if (!$('#billing_month_voucher').val()) {
             alert('Please select a billing month for the voucher.');
             return;
         }
+        if (editingVoucherId && !confirm('Save will reverse the original payment voucher and post a new one for the selected saliks. Continue?')) {
+            return;
+        }
         var form = $(this);
+        var $submit = $('#submitPayment');
+        $submit.prop('disabled', true);
         $.ajax({
             url: form.attr('action'),
             type: 'POST',
             data: form.serialize(),
             success: function () {
-                window.location.href = '{{ route("salik.index") }}';
+                window.location.href = editingVoucherId ? paymentsIndexUrl : salikIndexUrl;
             },
             error: function (xhr) {
+                $submit.prop('disabled', false);
                 alert(xhr.responseJSON?.errors?.error || xhr.responseJSON?.message || 'Payment failed');
             }
         });
     });
+
+    updateSelectedBadge();
+    if (editingVoucherId && leasingCompanyId()) {
+        loadRecords(1);
+    }
 });
 </script>
 @endsection

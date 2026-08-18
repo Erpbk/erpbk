@@ -1,3 +1,6 @@
+@php
+    $manageActions = $manageActions ?? true;
+@endphp
 <table class="table dataTable no-footer" id="dataTableBuilder">
     <thead class="text-center">
         <tr>
@@ -14,7 +17,9 @@
             <th>Returned to Customer</th>
             <th>IL Voucher</th>
             <th>Remarks</th>
+            @if($manageActions)
             <th>Actions</th>
+            @endif
         </tr>
     </thead>
     <tbody>
@@ -79,10 +84,16 @@
             <td>—</td>
             @endif
             <td class="small">{{ $row->remarks ?? '-' }}</td>
+            @if($manageActions)
             <td>
                 @if($row->isAssigned())
                 <div class="btn-group">
                     @can('riders_inventory_edit')
+                    <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal"
+                        data-action="{{ route('RiderInventory.editForm', $row->id) }}"
+                        data-size="md" data-title="Edit Inventory Assignment">
+                        Edit
+                    </a>
                     <a href="javascript:void(0);" class="btn btn-sm btn-warning show-modal"
                         data-action="{{ route('RiderInventory.returnForm', $row->id) }}"
                         data-size="md" data-title="Return Inventory Item">
@@ -130,12 +141,15 @@
                 —
                 @endif
             </td>
+            @endif
         </tr>
         @empty
         <tr>
-            <td colspan="15" class="text-center text-muted py-4">No inventory assignments for this rider.</td>
+            <td colspan="{{ $manageActions ? 14 : 13 }}" class="text-center text-muted py-4">No inventory assignments for this rider.</td>
         </tr>
         @endforelse
     </tbody>
 </table>
+@if($manageActions)
 @include('delete_requests._pending_table_script', ['items' => $assignments])
+@endif

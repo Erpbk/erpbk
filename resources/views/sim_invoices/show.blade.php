@@ -208,6 +208,12 @@
         }
 
         /* footer */
+        .invoice-page-end {
+            margin-top: auto;
+            width: 100%;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
         .footer-note {
             margin-top: 28px;
             text-align: center;
@@ -215,7 +221,6 @@
             color: #5b6e8c;
             border-top: 1px solid #e2e8f0;
             padding-top: 16px;
-            margin-top: auto;
         }
 
         /* table improvements: consistent with modern designs */
@@ -237,18 +242,43 @@
         }
 
         @media print {
-            body {
-                background: white;
-                padding: 0;
-                margin: 0;
+            html,
+            body,
+            body:has(> .invoice-box),
+            body:has(> .controls),
+            #rightSideModalBody,
+            #rightSideModalBody:has(.invoice-box) {
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                min-height: 100% !important;
+                height: auto !important;
             }
             .invoice-box {
-                box-shadow: none;
-                padding: 10px;
-                max-width: 100%;
-                border-radius: 0;
+                box-shadow: none !important;
+                padding: 10px !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                min-height: 100vh !important;
+                height: auto !important;
+                display: flex !important;
+                flex-direction: column !important;
+                background: #fff !important;
             }
-            #rightSideModalBody > .controls,            body > .controls {
+            .invoice-page-end {
+                margin-top: auto !important;
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .footer-note {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .no-print,
+            #rightSideModalBody > .controls,
+            body > .controls {
                 display: none !important;
             }
             .supplier-card, .details-card {
@@ -296,7 +326,7 @@
         } catch (\Exception $e) {
             $settings = [];
         }
-        $companyName = $settings['company_name'] ?? ($invoice->vendor->company_name ?? 'SIM Solutions Ltd');
+        $companyName = $settings['company_name'] ?? ($invoice->company->company_name ?? 'SIM Solutions Ltd');
         $companyAddress = $settings['company_address'] ?? 'Dubai, UAE';
         $vatNumber = $settings['vat_number'] ?? 'TRN 123456789';
         $companyPhone = $settings['company_phone'] ?? '+971 4 123 4567';
@@ -326,23 +356,22 @@
         </tr>
     </table>
 
-    <!-- CARD LAYOUT: Vendor Details + Invoice Details (exactly like supplier invoice structure) -->
+    <!-- CARD LAYOUT: Company Details + Invoice Details -->
     <div class="flex-row-cards">
-        <!-- Vendor Information Card (replaces supplier card) -->
         <div class="supplier-card">
             <div class="card-header">
-                <strong>📇 Vendor Details</strong>
+                <strong>📇 Company Details</strong>
             </div>
             <div class="details-grid">
-                <span class="detail-label">Vendor Name:</span>
-                <span class="detail-value">{{ $invoice->vendor->name ?? '—' }}</span>
+                <span class="detail-label">Company Name:</span>
+                <span class="detail-value">{{ $invoice->company->name ?? '—' }}</span>
 
                 <span class="detail-label">Contact Number:</span>
-                <span class="detail-value">{{ $invoice->vendor->contact_number ?? ($invoice->vendor->phone ?? '—') }}</span>
+                <span class="detail-value">{{ $invoice->company->contact_number ?? ($invoice->company->phone ?? '—') }}</span>
                 
-                @if(!empty($invoice->vendor->email))
+                @if(!empty($invoice->company->email))
                 <span class="detail-label">Email:</span>
-                <span class="detail-value">{{ $invoice->vendor->email }}</span>
+                <span class="detail-value">{{ $invoice->company->email }}</span>
                 @endif
             </div>
         </div>
@@ -379,32 +408,30 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 5%;">#</th>
-                    <th style="width: 20%;">SIM Number</th>
-                    <th style="width: 8%;">Qty</th>
-                    <th style="width: 10%;">Days</th>
-                    <th style="width: 15%;">Monthly Rate ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
-                    <th style="width: 12%;">Amount (Excl. VAT)</th>
-                    <th style="width: 10%;">VAT Rate</th>
-                    <th style="width: 10%;">VAT Amount</th>
-                    <th style="width: 12%;">Total ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
+                    <th style="width: 18%;">SIM Number</th>
+                    <th style="width: 12%;">Monthly Rate ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
+                    <th style="width: 12%;">Additional Charges</th>
+                    <th style="width: 12%;">Intl. Usage Charges</th>
+                    <th style="width: 10%;">Amount (Excl. VAT)</th>
+                    <th style="width: 8%;">VAT Rate</th>
+                    <th style="width: 8%;">VAT Amount</th>
+                    <th style="width: 9%;">Total ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($invoice->items as $key => $item)
+                @foreach($invoice->items as $item)
                     @php
                         $vatAmtRow = $item->tax_amount ?? 0;
                         $rowTotal = $item->total_amount ?? 0;
-                        $proratedAmount = $rowTotal - $vatAmtRow;
-                        // Fallback to rental_amount if prorated empty
-                        $displayAmountExcl = $proratedAmount ?: ($item->rental_amount ?? 0);
+                        $additionalCharges = (float) ($item->additional_charges ?? 0);
+                        $internationalUsage = (float) ($item->international_usage_charges ?? 0);
+                        $displayAmountExcl = (float) ($item->rental_amount ?? 0) + $additionalCharges + $internationalUsage;
                     @endphp
                     <tr>
-                        <td class="num">{{ $loop->iteration }}</td>
                         <td>{{ $item->sim->number ?? $item->sim_number ?? 'N/A' }}</td>
-                        <td class="num">{{ number_format($item->qty ?? 1, 2) }}</td>
-                        <td class="num">{{ number_format($item->days ?? 1, 2) }}</td>
                         <td class="num">{{ number_format($item->rental_amount ?? 0, 2) }}</td>
+                        <td class="num">{{ number_format($additionalCharges, 2) }}</td>
+                        <td class="num">{{ number_format($internationalUsage, 2) }}</td>
                         <td class="num">{{ number_format($displayAmountExcl, 2) }}</td>
                         <td class="num">{{ number_format($item->tax_rate ?? 0, 0) }}%</td>
                         <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
@@ -445,18 +472,19 @@
     </div>
     @endif
 
-    <!-- Grand Total Card (identical to supplier invoice, but uses $grandTotal) -->
-    <div class="grand-total-wrapper">
-        <div class="grand-total-card">
-            <div>GRAND TOTAL</div>
-            <div>{{ \App\Helpers\Currency::format($grandTotal, 2) ?? number_format($grandTotal, 2) }}</div>
+    <!-- Closing block: grand total + thank-you stay at the page end -->
+    <div class="invoice-page-end">
+        <div class="grand-total-wrapper">
+            <div class="grand-total-card">
+                <div>GRAND TOTAL</div>
+                <div>{{ \App\Helpers\Currency::format($grandTotal, 2) ?? number_format($grandTotal, 2) }}</div>
+            </div>
         </div>
-    </div>
 
-    <!-- Footer (same as supplier invoice) -->
-    <div class="footer-note">
-        <p>Thank you for your business!</p>
-        <p>For any queries, please contact: {{ $companyPhone }} | {{ $companyEmail }}</p>
+        <div class="footer-note">
+            <p>Thank you for your business!</p>
+            <p>For any queries, please contact: {{ $companyPhone }} | {{ $companyEmail }}</p>
+        </div>
     </div>
 </div>
 

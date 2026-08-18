@@ -151,6 +151,12 @@ return [
             'display_columns' => ['id', 'invoice_number', 'billing_month', 'total_amount', 'status'],
             'show_route' => 'leasingCompanyInvoices.show',
         ],
+        'sim_invoices' => [
+            'model' => \App\Models\SimInvoice::class,
+            'name' => 'SIM Invoices',
+            'display_columns' => ['invoice_number', 'reference_number', 'billing_month', 'total_amount', 'status'],
+            'show_route' => 'simInvoices.show',
+        ],
         'loans' => [
             'model' => \App\Models\Loan::class,
             'name' => 'Bank Loans',

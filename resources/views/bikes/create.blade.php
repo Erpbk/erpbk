@@ -1,4 +1,4 @@
-{!! Form::open(['route' => 'bikes.store','id'=>'formajax']) !!}
+{!! Form::open(['route' => 'bikes.store','id'=>'formajax', 'data-rfp-entity' => 'bike']) !!}
 
 <div class="card-body">
   <input type="hidden" name="created_by" value="{{ Auth::user()->id }}">

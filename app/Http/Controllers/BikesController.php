@@ -1383,7 +1383,6 @@ class BikesController extends AppBaseController
                     $bikeUpdate = [
                         'rider_id' => $request->rider_id,
                         'rental_company_id' => null,
-                        'company' => null,
                         'warehouse' => $request->warehouse ?? $bike->warehouse,
                         'customer_id' => $customer_id,
                     ];

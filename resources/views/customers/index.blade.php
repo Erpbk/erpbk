@@ -54,8 +54,9 @@
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('customers.index') }}" method="GET">
+        <form id="filterForm" action="{{ route('customers.index') }}" method="GET" data-rfp-skip-lock="1">
             <div class="row">
+                @fieldVisible('customer', 'name')
                 <div class="form-group col-md-12">
                     <label for="company_name">Filter by Customer</label>
                     <select class="form-control select2" id="name" name="company_name">
@@ -68,6 +69,8 @@
                         @endforeach
                     </select>
                 </div>
+                @endfieldVisible
+                @fieldVisible('customer', 'status')
                 <div class="form-group col-md-12">
                     <label for="status">Filter by Status</label>
                     <select class="form-control select2" id="status" name="status">
@@ -76,6 +79,7 @@
                         <option value="2" {{ request('status') == 2 ? 'selected' : '' }}>In Active</option>
                     </select>
                 </div>
+                @endfieldVisible
                 <div class="col-md-12 form-group text-center">
                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                 </div>

@@ -58,6 +58,7 @@ use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
 use App\Support\CompanyScope;
+use App\Support\RiderDocumentReplacement;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
 use App\Traits\GlobalPagination;
@@ -72,6 +73,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\FuelCards;
 use App\Models\FuelCardHistory;
@@ -933,17 +935,25 @@ class RidersController extends AppBaseController
         return redirect()->back()->withInput();
       }
     }
-    $data = $request->except(['_token', 'items']);
+    $data = $request->except(['_token', 'items', 'document_files']);
     if (Schema::hasColumn('riders', 'company_id')) {
       $data['company_id'] = auth()->user()->company_id;
     }
     $data = SimAssigneeContactSync::stripManagedContactFromRequestData($data, $riders, 'rider');
     $data = \App\Support\RoleFieldAccess::stripNonEditableInput($data, 'rider', is_array($riders->custom_field_values ?? null) ? $riders->custom_field_values : []);
 
+    $documentErrors = RiderDocumentReplacement::validationErrors($riders, $request, $data);
+    if ($documentErrors !== []) {
+      throw ValidationException::withMessages($documentErrors);
+    }
+
     $prevCustomerId = $riders->customer_id;
     $prevFleetSupervisor = $riders->fleet_supervisor;
 
-    $riders->update($data);
+    DB::transaction(function () use ($riders, $request, $data) {
+      RiderDocumentReplacement::storeUploadedFiles($riders, $request, $data);
+      $riders->update($data);
+    });
     if (array_key_exists('customer_id', $data) && (string) $prevCustomerId !== (string) ($riders->customer_id ?? '')) {
       RiderHistoryLogger::projectChange(
         (int) $riders->id,
@@ -1016,114 +1026,120 @@ class RidersController extends AppBaseController
       return redirect(route('riders.index'));
     }
 
-    // Check if rider account has any transactions (like Banks does)
-    if ($riders->account_id) {
-      $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
-      if ($accountTransactions > 0) {
-        Flash::error('Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.');
+    $isAdministrator = Auth::user()?->isAdmin() === true;
+
+    // Non-administrators cannot delete a rider that still has ledger or related records.
+    // Administrators may proceed and also remove the Chart of Accounts account (soft delete).
+    if (! $isAdministrator) {
+      // Check if rider account has any transactions (like Banks does)
+      if ($riders->account_id) {
+        $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
+        if ($accountTransactions > 0) {
+          Flash::error('Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.');
+
+          return redirect(route('riders.index'));
+        }
+      }
+
+      // Check if rider has any vouchers (by ref_id or rider_id)
+      $vouchersCount = Vouchers::where(function ($query) use ($id) {
+        $query->where('ref_id', $id);
+      })->count();
+
+      if ($vouchersCount > 0) {
+        Flash::error('Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.');
 
         return redirect(route('riders.index'));
       }
-    }
 
-    // Check if rider has any vouchers (by ref_id or rider_id)
-    $vouchersCount = Vouchers::where(function ($query) use ($id) {
-      $query->where('ref_id', $id);
-    })->count();
+      // Check for other related records
+      $relatedRecords = [];
 
-    if ($vouchersCount > 0) {
-      Flash::error('Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.');
+      // Check rider invoices
+      $riderInvoicesCount = RiderInvoices::where('rider_id', $id)->count();
+      if ($riderInvoicesCount > 0) {
+        $relatedRecords[] = $riderInvoicesCount . ' invoice(s)';
+      }
 
-      return redirect(route('riders.index'));
-    }
+      // Check rider activities
+      $riderActivitiesCount = RiderActivities::where('rider_id', $id)->count();
+      if ($riderActivitiesCount > 0) {
+        $relatedRecords[] = $riderActivitiesCount . ' activity record(s)';
+      }
 
-    // Check for other related records
-    $relatedRecords = [];
+      // Check rider attendance
+      $riderAttendanceCount = RiderAttendance::where('rider_id', $id)->count();
+      if ($riderAttendanceCount > 0) {
+        $relatedRecords[] = $riderAttendanceCount . ' attendance record(s)';
+      }
 
-    // Check rider invoices
-    $riderInvoicesCount = RiderInvoices::where('rider_id', $id)->count();
-    if ($riderInvoicesCount > 0) {
-      $relatedRecords[] = $riderInvoicesCount . ' invoice(s)';
-    }
+      // Check rider emails
+      $riderEmailsCount = RiderEmails::where('rider_id', $id)->count();
+      if ($riderEmailsCount > 0) {
+        $relatedRecords[] = $riderEmailsCount . ' email record(s)';
+      }
 
-    // Check rider activities
-    $riderActivitiesCount = RiderActivities::where('rider_id', $id)->count();
-    if ($riderActivitiesCount > 0) {
-      $relatedRecords[] = $riderActivitiesCount . ' activity record(s)';
-    }
+      // Check rider item prices
+      $riderItemPricesCount = RiderItemPrice::where('RID', $id)->count();
+      if ($riderItemPricesCount > 0) {
+        $relatedRecords[] = $riderItemPricesCount . ' item price record(s)';
+      }
 
-    // Check rider attendance
-    $riderAttendanceCount = RiderAttendance::where('rider_id', $id)->count();
-    if ($riderAttendanceCount > 0) {
-      $relatedRecords[] = $riderAttendanceCount . ' attendance record(s)';
-    }
+      // Check bikes
+      $bikesCount = Bikes::where('rider_id', $id)->count();
+      if ($bikesCount > 0) {
+        $relatedRecords[] = $bikesCount . ' bike assignment(s)';
+      }
 
-    // Check rider emails
-    $riderEmailsCount = RiderEmails::where('rider_id', $id)->count();
-    if ($riderEmailsCount > 0) {
-      $relatedRecords[] = $riderEmailsCount . ' email record(s)';
-    }
+      // Check bike history
+      $bikeHistoryCount = BikeHistory::where('rider_id', $id)->count();
+      if ($bikeHistoryCount > 0) {
+        $relatedRecords[] = $bikeHistoryCount . ' bike history record(s)';
+      }
 
-    // Check rider item prices
-    $riderItemPricesCount = RiderItemPrice::where('RID', $id)->count();
-    if ($riderItemPricesCount > 0) {
-      $relatedRecords[] = $riderItemPricesCount . ' item price record(s)';
-    }
+      // Check RTA fines
+      $rtaFinesCount = RtaFines::where('rider_id', $id)->count();
+      if ($rtaFinesCount > 0) {
+        $relatedRecords[] = $rtaFinesCount . ' RTA fine record(s)';
+      }
 
-    // Check bikes
-    $bikesCount = Bikes::where('rider_id', $id)->count();
-    if ($bikesCount > 0) {
-      $relatedRecords[] = $bikesCount . ' bike assignment(s)';
-    }
+      // Check Salik records
+      $salikCount = salik::where('rider_id', $id)->count();
+      if ($salikCount > 0) {
+        $relatedRecords[] = $salikCount . ' Salik record(s)';
+      }
 
-    // Check bike history
-    $bikeHistoryCount = BikeHistory::where('rider_id', $id)->count();
-    if ($bikeHistoryCount > 0) {
-      $relatedRecords[] = $bikeHistoryCount . ' bike history record(s)';
-    }
+      // Check visa expenses
+      $visaExpensesCount = visa_expenses::where('rider_id', $riders->account_id)->count();
+      if ($visaExpensesCount > 0) {
+        $relatedRecords[] = $visaExpensesCount . ' visa expense record(s)';
+      }
 
-    // Check RTA fines
-    $rtaFinesCount = RtaFines::where('rider_id', $id)->count();
-    if ($rtaFinesCount > 0) {
-      $relatedRecords[] = $rtaFinesCount . ' RTA fine record(s)';
-    }
+      // Check visa installment plans
+      $visaInstallmentCount = visa_installment_plan::where('rider_id', $riders->account_id)->count();
+      if ($visaInstallmentCount > 0) {
+        $relatedRecords[] = $visaInstallmentCount . ' visa installment plan record(s)';
+      }
 
-    // Check Salik records
-    $salikCount = salik::where('rider_id', $id)->count();
-    if ($salikCount > 0) {
-      $relatedRecords[] = $salikCount . ' Salik record(s)';
-    }
+      // Check job status
+      $jobStatusCount = JobStatus::where('RID', $id)->count();
+      if ($jobStatusCount > 0) {
+        $relatedRecords[] = $jobStatusCount . ' job status record(s)';
+      }
 
-    // Check visa expenses
-    $visaExpensesCount = visa_expenses::where('rider_id', $riders->account_id)->count();
-    if ($visaExpensesCount > 0) {
-      $relatedRecords[] = $visaExpensesCount . ' visa expense record(s)';
-    }
+      // Check files
+      $filesCount = Files::where('type_id', $id)->where('type', 'rider')->count();
+      if ($filesCount > 0) {
+        $relatedRecords[] = $filesCount . ' file(s)';
+      }
 
-    // Check visa installment plans
-    $visaInstallmentCount = visa_installment_plan::where('rider_id', $riders->account_id)->count();
-    if ($visaInstallmentCount > 0) {
-      $relatedRecords[] = $visaInstallmentCount . ' visa installment plan record(s)';
-    }
+      // If there are any related records, prevent deletion
+      if (! empty($relatedRecords)) {
+        $message = 'Cannot delete rider. The rider has the following related records: ' . implode(', ', $relatedRecords) . '. Please remove all related records first.';
+        Flash::error($message);
 
-    // Check job status
-    $jobStatusCount = JobStatus::where('RID', $id)->count();
-    if ($jobStatusCount > 0) {
-      $relatedRecords[] = $jobStatusCount . ' job status record(s)';
-    }
-
-    // Check files
-    $filesCount = Files::where('type_id', $id)->where('type', 'rider')->count();
-    if ($filesCount > 0) {
-      $relatedRecords[] = $filesCount . ' file(s)';
-    }
-
-    // If there are any related records, prevent deletion
-    if (! empty($relatedRecords)) {
-      $message = 'Cannot delete rider. The rider has the following related records: ' . implode(', ', $relatedRecords) . '. Please remove all related records first.';
-      Flash::error($message);
-
-      return redirect(route('riders.index'));
+        return redirect(route('riders.index'));
+      }
     }
 
     // Track cascaded deletions
@@ -1133,6 +1149,12 @@ class RidersController extends AppBaseController
     $riderId = $riders->id;
     $riderName = $riders->name . ' (' . $riders->rider_id . ')';
     $relatedAccount = $riders->account;
+    if (! $relatedAccount && $riders->account_id) {
+      $relatedAccount = Accounts::find($riders->account_id);
+    }
+    if (! $relatedAccount) {
+      $relatedAccount = Accounts::where('ref_name', 'Rider')->where('ref_id', $riders->id)->first();
+    }
 
     // Set deleted_by if column exists
     if (Schema::hasColumn('riders', 'deleted_by')) {
@@ -1143,10 +1165,11 @@ class RidersController extends AppBaseController
     // Soft delete the rider
     $riders->delete();
 
-    // Also soft delete the related account if exists and track it
-    if ($relatedAccount) {
+    // Soft-delete the Chart of Accounts entry. Administrators may do this even when
+    // the account has transactions (same as AccountsController::destroy).
+    if ($relatedAccount && ($isAdministrator || Transactions::where('account_id', $relatedAccount->id)->count() === 0)) {
       $cascadedItems[] = [
-        'model' => 'Accounts',
+        'model' => 'Chart of Accounts',
         'id' => $relatedAccount->id,
         'name' => $relatedAccount->name,
       ];
@@ -2079,29 +2102,6 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
-    $riders = $rider;
-    $assignments = RiderInventoryAssignment::query()
-      ->with(['inventoryItem', 'customer', 'assignedByUser', 'returnedByUser', 'lostByUser', 'voucher'])
-      ->where('rider_id', $rider_id)
-      ->orderByDesc('assigned_date')
-      ->orderByDesc('id')
-      ->get();
-
-    return view('riders.inventory', compact(
-      'riders',
-      'rider',
-      'assignments'
-    ));
-  }
-
-  public function clearance($company_slug, $rider_id)
-  {
-    $rider = $this->findAccessibleRider((int) $rider_id);
-    if (empty($rider) || (! empty($rider->branch_id) && ! in_array($rider->branch_id, app('user_branches')))) {
-      Flash::error('Rider not found');
-
-      return redirect(route('riders.index'));
-    }
 
     $riders = $rider;
     $rider->load(['bikes.LeasingCompany', 'sim.telecomCompany', 'customer']);
@@ -2111,7 +2111,7 @@ class RidersController extends AppBaseController
     $bikeHistory = BikeHistory::query()
       ->with('bike.LeasingCompany')
       ->where('rider_id', $rider->id)
-      ->when($bikeStillAssigned, fn ($q) => $q->whereNull('return_date'))
+      ->when($bikeStillAssigned, fn($q) => $q->whereNull('return_date'))
       ->orderByDesc('note_date')
       ->orderByDesc('id')
       ->first();
@@ -2132,7 +2132,7 @@ class RidersController extends AppBaseController
       ->first();
     $fuelHistory = FuelCardHistory::query()
       ->where('assigned_to', $rider->id)
-      ->when($fuelCard, fn ($q) => $q->where('card_id', $fuelCard->id))
+      ->when($fuelCard, fn($q) => $q->where('card_id', $fuelCard->id))
       ->orderByDesc('assign_date')
       ->orderByDesc('id')
       ->first();
@@ -2157,7 +2157,7 @@ class RidersController extends AppBaseController
       ->first() ?? $rider->sim;
     $simHistory = SimHistory::query()
       ->where('rider_id', $rider->id)
-      ->when($sim, fn ($q) => $q->where('sim_id', $sim->id))
+      ->when($sim, fn($q) => $q->where('sim_id', $sim->id))
       ->orderByDesc('note_date')
       ->orderByDesc('id')
       ->first();
@@ -2204,7 +2204,7 @@ class RidersController extends AppBaseController
         'url' => $fuelCard ? route('fuelCards.show', $fuelCard->id) : null,
         'assign_date' => $fuelHistory?->assign_date?->format('Y-m-d'),
         'return_date' => $fuelHistory?->return_date?->format('Y-m-d'),
-        'status' => $fuelReturned ? 'Returned' : (($fuelCard?->status ?: null) ?: 'Assigned'),
+        'status' => $fuelReturned ? 'Returned' : 'Assigned',
       ] : null,
       'sim_card' => ($sim || $simHistory) ? [
         'label' => $sim?->number ?? 'SIM Card',
@@ -2212,15 +2212,7 @@ class RidersController extends AppBaseController
         'url' => $sim ? route('sims.show', $sim->id) : null,
         'assign_date' => $simHistory?->note_date?->format('Y-m-d'),
         'return_date' => $simHistory?->return_date?->format('Y-m-d'),
-        'status' => $simReturned ? 'Returned' : (($sim?->status ?: null) ?: 'Assigned'),
-      ] : null,
-      'account_balance' => $accountClosingBalance !== null ? [
-        'label' => number_format((float) $accountClosingBalance, 2),
-        'meta' => 'Closing balance',
-        'url' => route('rider.ledger', $rider->id),
-        'assign_date' => null,
-        'return_date' => null,
-        'status' => null,
+        'status' => $simReturned ? 'Returned' : 'Assigned',
       ] : null,
     ];
 
@@ -2304,7 +2296,7 @@ class RidersController extends AppBaseController
       ->with(['inventoryItem', 'customer'])
       ->where('rider_id', $rider->id)
       ->where('status', RiderInventoryAssignment::STATUS_ASSIGNED)
-      ->when(! empty($shownAssignmentIds), fn ($q) => $q->whereNotIn('id', $shownAssignmentIds))
+      ->when(! empty($shownAssignmentIds), fn($q) => $q->whereNotIn('id', $shownAssignmentIds))
       ->orderByDesc('assigned_date')
       ->orderByDesc('id')
       ->get();
@@ -2313,7 +2305,7 @@ class RidersController extends AppBaseController
       $pushInventoryRow($row);
     }
 
-    return view('riders.clearance', compact(
+    return view('riders.inventory', compact(
       'riders',
       'rider',
       'assignedItems',
@@ -2482,7 +2474,7 @@ class RidersController extends AppBaseController
     }
 
     $section = $request->input('section');
-    $data = $request->except(['_token', 'section']);
+    $data = $request->except(['_token', 'section', 'document_files']);
     $data = \App\Support\RoleFieldAccess::stripNonEditableInput($data, 'rider', is_array($rider->custom_field_values ?? null) ? $rider->custom_field_values : []);
     $data = SimAssigneeContactSync::stripManagedContactFromRequestData($data, $rider, 'rider');
     $prevFleetSupervisor = $rider->fleet_supervisor;
@@ -2492,6 +2484,11 @@ class RidersController extends AppBaseController
         'success' => false,
         'message' => 'No editable fields were submitted for this section.',
       ], 422);
+    }
+
+    $documentErrors = RiderDocumentReplacement::validationErrors($rider, $request, $data);
+    if ($documentErrors !== []) {
+      throw ValidationException::withMessages($documentErrors);
     }
 
     if (array_key_exists('rider_status', $data)) {
@@ -2511,8 +2508,10 @@ class RidersController extends AppBaseController
     }
 
     try {
-      // Update only the fields for the specific section
-      $rider->update($data);
+      DB::transaction(function () use ($rider, $request, $data) {
+        RiderDocumentReplacement::storeUploadedFiles($rider, $request, $data);
+        $rider->update($data);
+      });
       $rider->refresh();
       if (array_key_exists('fleet_supervisor', $data)) {
         RiderHistoryLogger::fleetSupervisorChange(
@@ -2530,12 +2529,46 @@ class RidersController extends AppBaseController
         'success' => true,
         'message' => ucfirst($section) . ' information updated successfully',
       ]);
+    } catch (ValidationException $e) {
+      throw $e;
     } catch (\Exception $e) {
       return response()->json([
         'success' => false,
         'message' => 'Error updating ' . $section . ' information',
       ], 500);
     }
+  }
+
+  public function replaceDocument(Request $request, $company_slug, $id)
+  {
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider)) {
+      return response()->json([
+        'success' => false,
+        'message' => 'Rider not found',
+      ], 404);
+    }
+
+    $key = trim((string) $request->input('document_key'));
+
+    try {
+      $result = RiderDocumentReplacement::commitTypeChange($rider, $request, $key);
+    } catch (ValidationException $e) {
+      return response()->json([
+        'success' => false,
+        'message' => collect($e->errors())->flatten()->first() ?: 'Please upload the required document(s).',
+        'errors' => $e->errors(),
+      ], 422);
+    }
+
+    return response()->json([
+      'success' => true,
+      'message' => 'Document information updated successfully.',
+      'saved' => $result['saved'],
+      'badge' => $result['badge'],
+      'badge_html' => $result['badge_html'],
+      'expiry_field' => $result['expiry_field'],
+    ]);
   }
 
   public function setRiderTopOption(Request $request, $company_slug, $id)

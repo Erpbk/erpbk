@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -892,8 +893,8 @@ class BikesController extends AppBaseController
                 if ($rider) {
                     $message .= "*ID:* {$rider->rider_id}\n";
                     $message .= "*Name:* {$rider->name}\n";
-                } else {
-                    $message .= "*Rental Company:* {$company->name}\n";
+                } elseif ($company) {
+                    $message .= "*{$company->assignmentHistoryLabel()}:* {$company->name}\n";
                 }
                 $returnDateFormatted = Carbon::parse($request->return_date)->format('d-m-Y');
                 if ($request->warehouse == 'Absconded') {
@@ -1212,7 +1213,18 @@ class BikesController extends AppBaseController
     {
         if ($request->isMethod('post')) {
             $rules = [
-                'assign_type' => 'required|in:rider,company',
+                'assign_type' => [
+                    'required',
+                    'in:rider,rental,garage',
+                    function ($attribute, $value, $fail) {
+                        if ($value === 'rental' && ! CompanyModuleVisibility::bikeOnRentEnabled()) {
+                            $fail('Bike on rent is not enabled for this company.');
+                        }
+                        if ($value === 'garage' && ! CompanyModuleVisibility::garageCustomersEnabled()) {
+                            $fail('Garage customers is not enabled for this company.');
+                        }
+                    },
+                ],
                 'bike_id' => 'required|exists:bikes,id',
                 'customer_id' => 'required_if:assign_type,rider|nullable|exists:customers,id',
                 'rider_id' => [
@@ -1253,7 +1265,27 @@ class BikesController extends AppBaseController
                         }
                     },
                 ],
-                'rental_company_id' => ['required_if:assign_type,company', 'nullable', 'exists:bike_rent_companies,id'],
+                'rental_company_id' => [
+                    Rule::requiredIf(fn () => in_array($request->input('assign_type'), ['rental', 'garage'], true)),
+                    'nullable',
+                    'exists:bike_rent_companies,id',
+                    function ($attribute, $value, $fail) use ($request) {
+                        $assignType = $request->input('assign_type');
+                        if (! in_array($assignType, ['rental', 'garage'], true) || empty($value)) {
+                            return;
+                        }
+                        $rentCustomer = BikeRentCompany::find($value);
+                        if (! $rentCustomer) {
+                            $fail('Selected customer is invalid.');
+
+                            return;
+                        }
+                        $expectedType = $assignType === 'garage' ? 'garage' : 'bike_rental';
+                        if (($rentCustomer->customer_type ?? '') !== $expectedType) {
+                            $fail('Selected customer does not match the assignment type.');
+                        }
+                    },
+                ],
                 'note_date' => [
                     'required',
                     'date',
@@ -1288,13 +1320,13 @@ class BikesController extends AppBaseController
 
             $message = [
                 'assign_type.required' => 'Assignment type is required.',
-                'assign_type.in' => 'Assignment type must be rider or company.',
+                'assign_type.in' => 'Assignment type must be rider, rental customer, or garage customer.',
                 'bike_id.required' => 'Bike ID is required.',
                 'bike_id.exists' => 'Bike Not Found',
                 'note_date.required' => 'Assignment date is required.',
                 'customer_id.required' => 'Project is required.',
-                'rental_company_id.required_if' => 'Company is required when assignment type is Company.',
-                'rental_company_id.exists' => 'Selected company is invalid.',
+                'rental_company_id.required' => 'Customer is required for this assignment type.',
+                'rental_company_id.exists' => 'Selected customer is invalid.',
                 'rider_id.required_if' => 'Rider is required when assignment type is Rider.',
                 'rider_id.exists' => 'Selected rider is invalid.',
             ];
@@ -1321,7 +1353,8 @@ class BikesController extends AppBaseController
                     $historyMessage .= "*Name:* {$rider->name}\n";
                 } else {
                     $rentCompany = BikeRentCompany::find($request->rental_company_id);
-                    $historyMessage .= "*Company:* {$rentCompany->name}\n";
+                    $historyLabel = $rentCompany ? $rentCompany->assignmentHistoryLabel() : 'Rental customer';
+                    $historyMessage .= "*{$historyLabel}:* " . ($rentCompany?->name ?? '') . "\n";
                 }
 
                 $historyMessage .= '*Assign Date:* ' . Carbon::parse($request->note_date)->format('d-m-Y') . "\n";
@@ -1431,10 +1464,22 @@ class BikesController extends AppBaseController
 
         $bike = Bikes::find($id);
         $assignFields = BikeCustomField::assignModalFields('active');
+        $allowBikeOnRent = CompanyModuleVisibility::bikeOnRentEnabled();
+        $allowGarageCustomers = CompanyModuleVisibility::garageCustomersEnabled();
+        $allowTypeSelection = $allowBikeOnRent || $allowGarageCustomers;
+        $assignTypeOptions = ['' => 'Select Type', 'rider' => 'Rider'];
+        if ($allowBikeOnRent) {
+            $assignTypeOptions['rental'] = 'Rental customer';
+        }
+        if ($allowGarageCustomers) {
+            $assignTypeOptions['garage'] = 'Garage customer';
+        }
         $assignBranchScopedOptions = [
             'rider_id' => Riders::dropdownForBikeAssign($bike?->branch_id ? (int) $bike->branch_id : null),
+            'assign_type' => $assignTypeOptions,
+            'rental_company_id' => BikeRentCompany::rentalAssignDropdown(),
+            'garage_customer_id' => BikeRentCompany::garageAssignDropdown(),
         ];
-        $allowTypeSelection = (CompanyModuleVisibility::enabled('garage_customers') && CompanyModuleVisibility::enabled('bike_on_rent')) ? true : false;
 
         return view('bikes.assignBike_active', compact('id', 'assignFields', 'bike', 'assignBranchScopedOptions', 'allowTypeSelection'));
     }

@@ -115,8 +115,10 @@
     function confirmDelete(url) {
         Swal.fire({
             title: 'Are you sure?',
-            text: "This will move the record to the Recycle Bin!",
+            text: "This will move the record to the Recycle Bin, or queue a delete request if approval is required.",
             icon: 'warning',
+            input: 'textarea',
+            inputPlaceholder: 'Reason (optional)',
             showCancelButton: true,
             confirmButtonColor: '#3085d6',
             cancelButtonColor: '#d33',
@@ -128,13 +130,15 @@
                     url: url,
                     type: 'DELETE',
                     data: {
-                        _token: '{{ csrf_token() }}'
+                        _token: '{{ csrf_token() }}',
+                        delete_reason: result.value || ''
                     },
                     success: function(response) {
                         $('#loading-overlay').hide();
+                        var queued = !!(response && response.queued);
                         Swal.fire({
-                            icon: 'success',
-                            title: 'Deleted!',
+                            icon: queued ? 'warning' : 'success',
+                            title: queued ? 'Delete request submitted' : 'Deleted!',
                             html: response.message,
                             showConfirmButton: true,
                             confirmButtonText: 'OK'

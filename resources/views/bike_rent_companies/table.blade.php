@@ -5,6 +5,7 @@
    <thead class="text-center">
       <tr role="row">
          @if($vf('name'))<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending" aria-sort="descending">Name</th>@endif
+         @if(($type ?? null) === 'bike_rental')<th title="Type">Type</th>@endif
          @if($vf('company_contact'))<th title="Contact" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact: activate to sort column ascending">Contact</th>@endif
          @if($vf('email'))<th title="Email" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending">Email</th>@endif
          <th title="Chart Account" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Chart Account: activate to sort column ascending">Chart Account</th>
@@ -23,6 +24,15 @@
                  {{ $row->name }}
               </a>
           </td>@endif
+          @if(($type ?? null) === 'bike_rental')
+          <td>
+              @if($row->party_type === 'individual')
+                  <span class="badge bg-info">Individual</span>
+              @else
+                  <span class="badge bg-secondary">Company</span>
+              @endif
+          </td>
+          @endif
           @if($vf('company_contact'))<td>{{ $row->company_contact }}</td>@endif
           @if($vf('email'))<td>{{ $row->email }}</td>@endif
           <td>
@@ -45,16 +55,29 @@
                       <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $row->id }}" style="z-index: 1050;">
-                      @canany(['bike_on_rent_customers_edit', 'garages_customers_edit'])
+                      @if(($row->customer_type ?? $type ?? null) === 'garage')
+                          @can('garages_customers_edit')
                           <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Update customer" data-action="{{ route('bikeRentCompanies.edit', $row->id) }}">
                               <i class="fa fa-edit my-1"></i> Edit
                           </a>
-                      @endcanany
-                      @canany(['bike_on_rent_customers_delete', 'garages_customers_delete'])
+                          @endcan
+                          @can('garages_customers_delete')
                           <a href="javascript:void(0);" onclick="confirmDelete('{{ route('bikeRentCompanies.delete', $row->id) }}')" class="dropdown-item waves-effect">
                               <i class="fa fa-trash"></i> Delete
                           </a>
-                      @endcanany
+                          @endcan
+                      @else
+                          @can('bike_on_rent_customers_edit')
+                          <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Update customer" data-action="{{ route('bikeRentCompanies.edit', $row->id) }}">
+                              <i class="fa fa-edit my-1"></i> Edit
+                          </a>
+                          @endcan
+                          @can('bike_on_rent_customers_delete')
+                          <a href="javascript:void(0);" onclick="confirmDelete('{{ route('bikeRentCompanies.delete', $row->id) }}')" class="dropdown-item waves-effect">
+                              <i class="fa fa-trash"></i> Delete
+                          </a>
+                          @endcan
+                      @endif
                   </div>
               </div>
           </td>

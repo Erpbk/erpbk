@@ -177,9 +177,9 @@ class BikeAssignFieldAssignment extends BaseModel
         }
 
         $defaults = match ($fieldKey) {
-            'assign_type' => ['' => 'Select Type', 'rider' => 'Rider', 'company' => 'Company'],
+            'assign_type' => ['' => 'Select Type', 'rider' => 'Rider', 'rental' => 'Rental customer', 'garage' => 'Garage customer'],
             'rider_id' => Riders::dropdownForBikeAssign(),
-            'rental_company_id' => BikeRentCompany::pluck('name', 'id')->prepend('Select', '')->all(),
+            'rental_company_id' => BikeRentCompany::rentalAssignDropdown(),
             'customer_id' => Customers::dropdown(),
             default => ['' => 'Select'],
         };

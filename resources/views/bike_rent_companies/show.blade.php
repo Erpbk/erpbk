@@ -25,12 +25,40 @@
             <dl class="row mb-0">
                 @if($vf('name'))<dt class="col-sm-3">Name</dt>
                 <dd class="col-sm-9">{{ $bikeRentCompany->name }}</dd>@endif
-                @if($vf('company_contact'))<dt class="col-sm-3">Company contact</dt>
+                @if($bikeRentCompany->customer_type === 'bike_rental')
+                <dt class="col-sm-3">Type</dt>
+                <dd class="col-sm-9">
+                    @if($bikeRentCompany->party_type === 'individual')
+                        <span class="badge bg-info">Individual</span>
+                    @else
+                        <span class="badge bg-secondary">Company</span>
+                    @endif
+                </dd>
+                @endif
+                @if($vf('company_contact'))<dt class="col-sm-3">Contact</dt>
                 <dd class="col-sm-9">{{ $bikeRentCompany->company_contact ?: '—' }}</dd>@endif
                 @if($vf('email'))<dt class="col-sm-3">Email</dt>
                 <dd class="col-sm-9">{{ $bikeRentCompany->email ?: '—' }}</dd>@endif
                 @if($vf('address'))<dt class="col-sm-3">Address</dt>
                 <dd class="col-sm-9">{{ $bikeRentCompany->address ?: '—' }}</dd>@endif
+                @if($bikeRentCompany->party_type === 'individual')
+                <dt class="col-sm-3">Emirates ID</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->emirates_id ?: '—' }}</dd>
+                <dt class="col-sm-3">Emirates ID expiry</dt>
+                <dd class="col-sm-9">{{ optional($bikeRentCompany->emirates_expiry)->format('d-m-Y') ?: '—' }}</dd>
+                <dt class="col-sm-3">Passport no</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->passport_no ?: '—' }}</dd>
+                <dt class="col-sm-3">Passport expiry</dt>
+                <dd class="col-sm-9">{{ optional($bikeRentCompany->passport_expiry)->format('d-m-Y') ?: '—' }}</dd>
+                <dt class="col-sm-3">Date of birth</dt>
+                <dd class="col-sm-9">{{ optional($bikeRentCompany->dob)->format('d-m-Y') ?: '—' }}</dd>
+                <dt class="col-sm-3">Nationality</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->nationality ?: '—' }}</dd>
+                <dt class="col-sm-3">License no</dt>
+                <dd class="col-sm-9">{{ $bikeRentCompany->license_no ?: '—' }}</dd>
+                <dt class="col-sm-3">License expiry</dt>
+                <dd class="col-sm-9">{{ optional($bikeRentCompany->license_expiry)->format('d-m-Y') ?: '—' }}</dd>
+                @endif
                 @if($vf('status'))<dt class="col-sm-3">Status</dt>
                 <dd class="col-sm-9">
                     @if($bikeRentCompany->status == 1)

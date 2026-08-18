@@ -572,9 +572,9 @@ class BikeCustomField extends BaseModel
     {
         return [
             ['field_key' => 'warehouse', 'kind' => 'virtual', 'display_label' => 'Status', 'input_type' => 'text', 'display_order' => 0, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => true],
-            ['field_key' => 'assign_type', 'kind' => 'virtual', 'display_label' => 'Assign To', 'input_type' => 'select', 'display_order' => 1, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true, 'input_config' => ['assign_options' => ['rider' => 'Rider', 'company' => 'Company']]],
+            ['field_key' => 'assign_type', 'kind' => 'virtual', 'display_label' => 'Assign To', 'input_type' => 'select', 'display_order' => 1, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true, 'input_config' => ['assign_options' => ['rider' => 'Rider', 'rental' => 'Rental customer', 'garage' => 'Garage customer']]],
             ['field_key' => 'rider_id', 'kind' => 'virtual', 'display_label' => 'Rider', 'input_type' => 'select', 'display_order' => 2, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
-            ['field_key' => 'rental_company_id', 'kind' => 'virtual', 'display_label' => 'Company', 'input_type' => 'select', 'display_order' => 3, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'company']],
+            ['field_key' => 'rental_company_id', 'kind' => 'virtual', 'display_label' => 'Rental customer', 'input_type' => 'select', 'display_order' => 3, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rental']],
             ['field_key' => 'designation', 'kind' => 'virtual', 'display_label' => 'Designation', 'input_type' => 'text', 'display_order' => 4, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider', 'readonly' => true]],
             ['field_key' => 'customer_id', 'kind' => 'virtual', 'display_label' => 'Project', 'input_type' => 'select', 'display_order' => 5, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
             ['field_key' => 'note_date', 'kind' => 'virtual', 'display_label' => 'Date', 'input_type' => 'date', 'display_order' => 6, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true],
@@ -627,6 +627,28 @@ class BikeCustomField extends BaseModel
                 ]
             );
         }
+
+        $assignType = BikeAssignFieldAssignment::query()->where('field_key', 'assign_type')->first();
+        if ($assignType) {
+            $config = is_array($assignType->input_config) ? $assignType->input_config : [];
+            $options = $config['assign_options'] ?? [];
+            if (isset($options['company']) || ! isset($options['rental'])) {
+                $config['assign_options'] = [
+                    'rider' => 'Rider',
+                    'rental' => 'Rental customer',
+                    'garage' => 'Garage customer',
+                ];
+                $assignType->input_config = $config;
+                $assignType->save();
+            }
+        }
+
+        BikeAssignFieldAssignment::query()
+            ->where('field_key', 'rental_company_id')
+            ->where(function ($q) {
+                $q->whereNull('display_label')->orWhere('display_label', 'Company');
+            })
+            ->update(['display_label' => 'Rental customer']);
     }
 
     /**

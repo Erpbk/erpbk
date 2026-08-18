@@ -584,6 +584,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('bikeRentCompany/receipts', [BikeRentCompaniesController::class, 'allReceipts'])->name('bikeRentCompanies.all_receipts');
     Route::get('bikeRentCompanies/receipts/{id}', [BikeRentCompaniesController::class, 'receipts'])->name('bikeRentCompanies.receipts');
     Route::get('bikeRentCompanies/bikes/{id}', [BikeRentCompaniesController::class, 'bikes'])->name('bikeRentCompanies.bikes');
+    Route::get('GarageCustomers/trash', [BikeRentCompaniesController::class, 'trash'])->name('garage_customer.trash');
+    Route::post('GarageCustomers/trash/{id}/restore', [BikeRentCompaniesController::class, 'restoreTrash'])->name('garage_customer.restore');
+    Route::delete('GarageCustomers/trash/{id}/force-destroy', [BikeRentCompaniesController::class, 'forceDestroyTrash'])->name('garage_customer.force-destroy');
     Route::get('GarageCustomers/', [BikeRentCompaniesController::class, 'garageIndex'])->name('garage_customer.index');
     Route::get('GarageCustomers/ledger/{id}', [BikeRentCompaniesController::class, 'ledger'])->name('garage_customer.ledger');
     Route::get('GarageCustomers/files/{id}', [BikeRentCompaniesController::class, 'files'])->name('garage_customer.files');

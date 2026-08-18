@@ -269,6 +269,7 @@
     }
   }
 
+  .rider-tab-count-badge,
   .rider-inventory-count-badge {
     min-width: 1.1rem;
     padding: 0.15rem;
@@ -276,6 +277,74 @@
     font-size: 0.8rem;
     line-height: 1.2;
     vertical-align: middle;
+  }
+
+  @keyframes rider-expired-tab-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .nav-align-top.has-expired-docs .card-body {
+    padding-top: 2.65rem !important;
+  }
+
+  .nav-align-top.has-expired-docs #mainNavigation {
+    overflow: visible !important;
+  }
+
+  .nav-link.rider-expired-count-link {
+    position: relative;
+  }
+
+  .rider-expired-count-dot {
+    position: absolute;
+    top: -0.35rem;
+    right: -0.15rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.28rem;
+    border-radius: 999px;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1.15rem;
+    text-align: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px #fff;
+    animation: rider-expired-tab-blink 0.9s ease-in-out infinite;
+  }
+
+  .rider-expired-docs-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 10px);
+    transform: translateX(-50%);
+    background: #e53935;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    padding: 0.38rem 0.7rem;
+    border-radius: 0.4rem;
+    line-height: 1.2;
+    pointer-events: none;
+    z-index: 20;
+    box-shadow: 0 4px 12px rgba(229, 57, 53, 0.28);
+    animation: rider-expired-tab-blink 1.1s ease-in-out infinite;
+  }
+
+  .rider-expired-docs-bubble::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -6px;
+    border-width: 6px;
+    border-style: solid;
+    border-color: #e53935 transparent transparent transparent;
   }
 </style>
 @php
@@ -302,11 +371,13 @@ $riderDocumentFrontend = [];
 $riderExistingDocuments = [];
 $riderDocumentDefinitions = [];
 $riderDocumentFiles = [];
+$riderExpiredDocumentCount = 0;
 if ($inventoryTabRider instanceof \App\Models\Riders) {
     $riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
     $riderExistingDocuments = $riderDocumentFrontend['existing'] ?? [];
     $riderDocumentDefinitions = \App\Support\RiderDocumentReplacement::definitions();
     $riderDocumentFiles = $riderDocumentFrontend['files'] ?? [];
+    $riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCountForRider($inventoryTabRider);
 }
 
 @endphp
@@ -620,7 +691,7 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
     </div>
   </div>
   <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
-    <div class="nav-align-top mb-4" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
+    <div class="nav-align-top mb-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
       <div class="card" style="z-index: 1;">
         <div class="card-body p-2">
           <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
@@ -628,9 +699,10 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
               <ul class="nav nav-pills flex-nowrap mb-0 overflow-hidden" id="mainNavigation" style="gap: 0.25rem;">
                 <!-- Priority navigation items (always visible when possible) -->
                 <li class="nav-item nav-priority-1">
-                  <a class="nav-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
+                  <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
                     href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
                     <i class="ti ti-user-check ti-sm me-1_5"></i>Information
+                    @include('riders._expired_documents_tab_badge')
                   </a>
                 </li>
 
@@ -664,10 +736,11 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
                 @endif
 
                 @can('riders_documents_view')
-                <li class="nav-item nav-priority-3">
-                  <a class="nav-link @if(Route::is('rider.files')) active @endif"
+                <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0) > 0) style="z-index: 5;" @endif>
+                  <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
                     href="{{route('rider.files',$result['id'])}}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
+                    @include('riders._expired_documents_tab_badge', ['showExpiredBubble' => true])
                   </a>
                 </li>
                 @endcan

@@ -641,11 +641,11 @@
                                 $company = $bikes->rentalCompany;
                                 $Name = $rider->name ?? $company->name ?? 'Not Assigned';
                                 @endphp
-                                <span class="info-label">Rider/Company</span>
+                                <span class="info-label">Rider / Customer</span>
                                 @if($rider)
                                 <a href="{{ route('riders.show', $rider->id) }}">{{ $Name }}</a>
                                 @elseif($company)
-                                <a href="{{ route('bikeRentCompanies.show', $company->id) }}">{{ $Name }}</a>
+                                <a href="{{ ($company->customer_type ?? '') === 'garage' ? route('garage_customer.bikes', $company->id) : route('bikeRentCompanies.bikes', $company->id) }}">{{ $Name }}</a>
                                 @else
                                 <span>{{ $Name }}</span>
                                 @endif

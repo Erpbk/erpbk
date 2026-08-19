@@ -23,4 +23,14 @@ class CompanyModuleVisibility
 
         return ! in_array($moduleKey, $disabled, true);
     }
+
+    public static function bikeOnRentEnabled(): bool
+    {
+        return self::enabled('bike_on_rent');
+    }
+
+    public static function garageCustomersEnabled(): bool
+    {
+        return self::enabled('garages') && self::enabled('garages_customers');
+    }
 }

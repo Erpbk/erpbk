@@ -52,7 +52,7 @@ return false;
         @endif
         @if($company)
         <div class="col-md-3 form-group">
-            <label>Rental Company</label>
+            <label>{{ $company->assignmentHistoryLabel() }}</label>
             <input type="text" class="form-control" readonly value="{{ $company->name ?? 'N/A' }}">
         </div>
         @endif

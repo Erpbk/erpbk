@@ -70,6 +70,15 @@ class TrashController extends Controller
         return TrashedRecordQuery::find($modelClass, $id);
     }
 
+    private function applyTrashModuleConstraints(Builder $query, array $config): Builder
+    {
+        if (! empty($config['where']) && is_array($config['where'])) {
+            $query->where($config['where']);
+        }
+
+        return $query;
+    }
+
     private function forgetDeletionCascades(string $modelClass, $id): void
     {
         \App\Support\CompanyQuery::table('deletion_cascades')
@@ -163,6 +172,14 @@ class TrashController extends Controller
             'name' => 'Bike on rent — Customers',
             'icon' => 'fa-building',
             'display_columns' => ['name', 'email', 'company_contact'],
+            'where' => ['customer_type' => 'bike_rental'],
+        ],
+        'garage_customers' => [
+            'model' => BikeRentCompany::class,
+            'name' => 'Garage — Customers',
+            'icon' => 'fa-wrench',
+            'display_columns' => ['name', 'email', 'company_contact'],
+            'where' => ['customer_type' => 'garage'],
         ],
         'fuel_companies' => [
             'model' => FuelCompany::class,
@@ -274,6 +291,7 @@ class TrashController extends Controller
             // Use Eloquent model with onlyTrashed() to get soft-deleted records
             try {
                 $query = $this->trashedQuery($model);
+                $this->applyTrashModuleConstraints($query, $config);
 
                 // Apply search if provided
                 if ($searchQuery) {
@@ -906,7 +924,7 @@ class TrashController extends Controller
 
             try {
                 // Use Eloquent to count soft-deleted records for current company
-                $count = $this->trashedQuery($model)->count();
+                $count = $this->applyTrashModuleConstraints($this->trashedQuery($model), $config)->count();
 
                 if ($count > 0) {
                     $stats[] = [

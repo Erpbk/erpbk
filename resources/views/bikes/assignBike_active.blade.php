@@ -118,19 +118,37 @@ $wideFields = $assignFields->filter(function ($f) {
 
     function toggleAssignmentFields() {
         var assignType = $('#assign_type').val();
+        if (assignType === 'company') {
+            assignType = 'rental';
+        }
+        var $rentalSelect = $('#rental_company_id');
+        var $garageSelect = $('#garage_company_id');
+        $rentalSelect.prop('disabled', true);
+        $garageSelect.prop('disabled', true);
+
         if (assignType === 'rider') {
             $('#rider_select, #designation_field, #project_field').removeClass('hidden-field').show();
-            $('#company_select').addClass('hidden-field').hide();
-            $('#company_id').val('').trigger('change');
+            $('#rental_customer_select, #garage_customer_select, #company_select').addClass('hidden-field').hide();
+            $rentalSelect.add($garageSelect).val('').trigger('change');
             initAssignModalSelect2($('#rider_select, #designation_field, #project_field'));
-        } else if (assignType === 'company') {
-            $('#company_select').removeClass('hidden-field').show();
-            $('#rider_select, #designation_field, #project_field').addClass('hidden-field').hide();
+        } else if (assignType === 'rental') {
+            $('#rental_customer_select').removeClass('hidden-field').show();
+            $('#rider_select, #designation_field, #project_field, #garage_customer_select, #company_select').addClass('hidden-field').hide();
             $('#rider_id').val('').trigger('change');
-            initAssignModalSelect2($('#company_select'));
+            $garageSelect.val('').trigger('change');
+            $rentalSelect.prop('disabled', false);
+            initAssignModalSelect2($('#rental_customer_select'));
+        } else if (assignType === 'garage') {
+            $('#garage_customer_select').removeClass('hidden-field').show();
+            $('#rider_select, #designation_field, #project_field, #rental_customer_select, #company_select').addClass('hidden-field').hide();
+            $('#rider_id').val('').trigger('change');
+            $rentalSelect.val('').trigger('change');
+            $garageSelect.prop('disabled', false);
+            initAssignModalSelect2($('#garage_customer_select'));
         } else {
-            $('#rider_select, #company_select, #designation_field, #project_field').addClass('hidden-field').hide();
-            $('#rider_id, #company_id').val('').trigger('change');
+            $('#rider_select, #rental_customer_select, #garage_customer_select, #company_select, #designation_field, #project_field').addClass('hidden-field').hide();
+            $('#rider_id').val('').trigger('change');
+            $rentalSelect.add($garageSelect).val('').trigger('change');
         }
     }
 

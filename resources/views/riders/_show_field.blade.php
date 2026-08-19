@@ -52,8 +52,8 @@ $expiryBadge = ($item->kind === 'fixed' && $docRider instanceof \App\Models\Ride
   : null;
 @endphp
 @if (field_visible('rider', (string) $rfpField))
-<div class="col-md-3 form-group col-3">
-  <label><b>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</b></label>
+<div class="col-md-3 form-group col-3 rider-info-field">
+  <label>{{ $item->kind === 'fixed' ? $item->label : $item->field->label }}</label>
   <p class="mb-0">
     @if ($expiryBadge)
       @include('riders._document_expiry_badge', ['badge' => $expiryBadge])

@@ -21,6 +21,7 @@ use App\Traits\TracksCascadingDeletions;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BikeRentCompaniesController extends AppBaseController
 {
@@ -35,9 +36,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function index(Request $request)
     {
-        if (!user_can('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeCustomer('view', 'bike_rental');
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = BikeRentCompany::query()
@@ -60,7 +59,7 @@ class BikeRentCompaniesController extends AppBaseController
 
         $data = $this->applyPagination($query, $paginationParams);
         if ($request->ajax()) {
-            $tableData = view('bike_rent_companies.table', ['data' => $data])->render();
+            $tableData = view('bike_rent_companies.table', ['data' => $data, 'type' => 'bike_rental'])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
                 'tableData' => $tableData,
@@ -73,9 +72,7 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function garageIndex(Request $request)
     {
-        if (!user_can('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
+        $this->authorizeCustomer('view', 'garage');
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = BikeRentCompany::query()
@@ -98,7 +95,7 @@ class BikeRentCompaniesController extends AppBaseController
 
         $data = $this->applyPagination($query, $paginationParams);
         if ($request->ajax()) {
-            $tableData = view('bike_rent_companies.table', ['data' => $data])->render();
+            $tableData = view('bike_rent_companies.table', ['data' => $data, 'type' => 'garage'])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
                 'tableData' => $tableData,
@@ -111,20 +108,15 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function create()
     {
-        if (!user_can('bike_create')) {
-            abort(403, 'Unauthorized action.');
-        }
         $type = request()->input('type');
+        $this->authorizeCustomer('create', $type);
         return view('bike_rent_companies.create', compact('type'));
     }
 
     public function store(CreateBikeRentCompaniesRequest $request)
     {
-        if (!user_can('bike_create')) {
-            abort(403, 'Unauthorized action.');
-        }
-
-        $input = $request->all();
+        $input = $this->normalizePartyInput($request->all());
+        $this->authorizeCustomer('create', $input['customer_type'] ?? null);
         if ($input['customer_type'] == 'bike_rental') {
             $customersAsset = \App\Support\GlobalAccounts::id('VEHICLE_RENTAL_CUSTOMERS');
         } else {
@@ -174,15 +166,12 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function show($company_slug, $id)
     {
-        if (!user_can('bike_view')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
             Flash::error('Record not found');
             return redirect(route('bikeRentCompanies.index'));
         }
+        $this->authorizeCustomer('view', $bikeRentCompany);
 
         $bikeRentCompany->load('account');
 
@@ -191,31 +180,25 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function edit($company_slug, $id)
     {
-        if (!user_can('bike_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
             Flash::error('Record not found');
             return redirect(route('bikeRentCompanies.index'));
         }
+        $this->authorizeCustomer('edit', $bikeRentCompany);
 
         return view('bike_rent_companies.edit', ['bikeRentCompany' => $bikeRentCompany]);
     }
 
     public function update($company_slug, $id, UpdateBikeRentCompaniesRequest $request)
     {
-        if (!user_can('bike_edit')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
             return response()->json(['errors' => ['error' => 'Record not found!']], 422);
         }
+        $this->authorizeCustomer('edit', $bikeRentCompany);
 
-        $input = $request->all();
+        $input = $this->normalizePartyInput($request->all());
         $input['updated_by'] = auth()->id();
 
         $bikeRentCompany = $this->bikeRentCompaniesRepository->update($input, (int) $id);
@@ -232,19 +215,25 @@ class BikeRentCompaniesController extends AppBaseController
 
     public function destroy($company_slug, $id)
     {
-        if (!user_can('bike_delete')) {
-            abort(403, 'Unauthorized action.');
-        }
-
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
             return response()->json(['errors' => ['error' => 'Record not found!']], 422);
         }
+        $this->authorizeCustomer('delete', $bikeRentCompany);
 
         if ($bikeRentCompany->transactions()->count() > 0) {
             return response()->json([
                 'errors' => [
                     'error' => 'Cannot delete this Customer. It has ' . $bikeRentCompany->transactions()->count() . ' transaction(s). Please deactivate instead.',
+                ],
+            ], 422);
+        }
+
+        $assignedBikes = Bikes::query()->where('rental_company_id', $bikeRentCompany->id)->count();
+        if ($assignedBikes > 0) {
+            return response()->json([
+                'errors' => [
+                    'error' => 'Cannot delete this Customer. It has ' . $assignedBikes . ' assigned bike(s). Unassign them first.',
                 ],
             ], 422);
         }
@@ -262,31 +251,51 @@ class BikeRentCompaniesController extends AppBaseController
             }
         }
 
+        $willQueue = \App\Services\DeleteRequestService::enabled()
+            && ! \App\Services\DeleteRequestService::shouldBypassApproval();
+
+        if (! $willQueue && Schema::hasColumn($bikeRentCompany->getTable(), 'deleted_by')) {
+            $bikeRentCompany->deleted_by = auth()->id();
+            $bikeRentCompany->save();
+        }
+
         $cascadedItems = [];
         $relatedAccount = $bikeRentCompany->account;
 
         $bikeRentCompany->delete();
+        $queued = (bool) request()->attributes->get('delete_approval_created');
 
         if ($relatedAccount) {
-            $cascadedItems[] = [
-                'model' => 'Accounts',
-                'id' => $relatedAccount->id,
-                'name' => $relatedAccount->name,
-            ];
+            if (! $queued && Schema::hasColumn($relatedAccount->getTable(), 'deleted_by')) {
+                $relatedAccount->deleted_by = auth()->id();
+                $relatedAccount->save();
+            }
+
             $relatedAccount->delete();
 
-            $this->trackCascadeDeletion(
-                BikeRentCompany::class,
-                $bikeRentCompany->id,
-                $bikeRentCompany->name,
-                Accounts::class,
-                $relatedAccount->id,
-                $relatedAccount->name,
-                'hasOne',
-                'account',
-                'soft'
-            );
+            if (! $queued) {
+                $cascadedItems[] = [
+                    'model' => 'Accounts',
+                    'id' => $relatedAccount->id,
+                    'name' => $relatedAccount->name,
+                ];
+                $this->trackCascadeDeletion(
+                    BikeRentCompany::class,
+                    $bikeRentCompany->id,
+                    $bikeRentCompany->name,
+                    Accounts::class,
+                    $relatedAccount->id,
+                    $relatedAccount->name,
+                    'hasOne',
+                    'account',
+                    'soft'
+                );
+            }
         }
+
+        $trashModule = $bikeRentCompany->customer_type === 'garage'
+            ? 'garage_customers'
+            : 'bike_rent_companies';
 
         $cascadeMessage = '';
         if (!empty($cascadedItems)) {
@@ -295,7 +304,8 @@ class BikeRentCompaniesController extends AppBaseController
         }
 
         return response()->json([
-            'message' => 'Moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=bike_rent_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
+            'queued' => $queued,
+            'message' => 'Moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index', ['module' => $trashModule]) . '" class="alert-link">View Recycle Bin</a> to restore if needed.',
         ]);
     }
 
@@ -306,11 +316,24 @@ class BikeRentCompaniesController extends AppBaseController
 
     protected function getTrashConfig()
     {
+        if ($this->isGarageCustomerContext()) {
+            return [
+                'name' => 'Garage customer',
+                'display_columns' => ['name', 'email', 'company_contact'],
+                'trash_view' => 'bike_rent_companies.trash',
+                'index_route' => 'garage_customer.index',
+                'module_key' => 'garage_customers',
+                'where' => ['customer_type' => 'garage'],
+            ];
+        }
+
         return [
             'name' => 'Bike on rent customer',
             'display_columns' => ['name', 'email', 'company_contact'],
             'trash_view' => 'bike_rent_companies.trash',
             'index_route' => 'bikeRentCompanies.index',
+            'module_key' => 'bike_rent_companies',
+            'where' => ['customer_type' => 'bike_rental'],
         ];
     }
 
@@ -449,4 +472,60 @@ class BikeRentCompaniesController extends AppBaseController
       'balance' => $balance
     ];
   }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function normalizePartyInput(array $input): array
+    {
+        if (($input['customer_type'] ?? '') === 'garage') {
+            $input['party_type'] = BikeRentCompany::PARTY_COMPANY;
+        }
+
+        $input['party_type'] = $input['party_type'] ?? BikeRentCompany::PARTY_COMPANY;
+        if ($input['party_type'] !== BikeRentCompany::PARTY_INDIVIDUAL) {
+            foreach (BikeRentCompany::individualFieldKeys() as $key) {
+                $input[$key] = null;
+            }
+        }
+
+        return $input;
+    }
+
+    private function authorizeCustomer(string $action, BikeRentCompany|string|null $customerOrType = null): void
+    {
+        if (! user_can($this->customerPermission($action, $customerOrType))) {
+            abort(403, 'Unauthorized action.');
+        }
+    }
+
+    private function customerPermission(string $action, BikeRentCompany|string|null $customerOrType = null): string
+    {
+        $type = $customerOrType instanceof BikeRentCompany
+            ? (string) $customerOrType->customer_type
+            : (string) ($customerOrType ?? '');
+
+        if ($type === '') {
+            $type = $this->isGarageCustomerContext() ? 'garage' : (string) request()->input('type', 'bike_rental');
+        }
+
+        $prefix = $type === 'garage' ? 'garages_customers' : 'bike_on_rent_customers';
+
+        return $prefix . '_' . $action;
+    }
+
+    private function isGarageCustomerContext(?BikeRentCompany $customer = null): bool
+    {
+        if ($customer) {
+            return $customer->customer_type === 'garage';
+        }
+
+        $routeName = (string) (request()->route()?->getName() ?? '');
+        if (str_starts_with($routeName, 'garage_customer.')) {
+            return true;
+        }
+
+        return (string) request()->input('type') === 'garage';
+    }
 }

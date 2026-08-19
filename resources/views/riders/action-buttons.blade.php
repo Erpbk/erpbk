@@ -13,19 +13,19 @@ $riderPendingDeletion = record_is_pending_deletion($riderModel);
             <span class="text-muted small">This record is locked pending delete approval.</span>
         @else
             @can('riders_rider_edit')
-            <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-outline-primary btn-sm waves-effect waves-light">
-                <i class="fa fa-edit"></i>&nbsp;Edit
+            <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-outline-primary waves-effect waves-light">
+                <i class="fa fa-edit"></i>&nbsp;Edit Profile
             </a>
             @endcan
             @can('email_create')
             <a href="javascript:void(0);" data-action="{{ route('rider.sendemail', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md"
                 data-title="{{ $result['name'] . ' (' . $result['rider_id'] . ')' }}"
-                class="btn btn-outline-warning btn-sm show-modal text-nowrap">
+                class="btn btn-outline-warning show-modal text-nowrap">
                 <i class="fas fa-envelope"></i>&nbsp;Send Email
             </a>
             @endcan
             @can('riders_timeline_create')
-            <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md" data-title="Add Timeline" class="btn btn-outline-success btn-sm text-nowrap show-modal">
+            <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md" data-title="Add Timeline" class="btn btn-outline-success text-nowrap show-modal">
                 <i class="fas fa-chart-bar"></i>&nbsp;Add Timeline
             </a>
             @endcan

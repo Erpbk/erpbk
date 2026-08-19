@@ -13,7 +13,7 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
         <a class="nav-link d-flex align-items-center justify-content-center py-3 info-link"
           href="javascript:void(0);">
           <i class="fas fa-building fa-lg me-2"></i>
-          <span class="fw-semibold">Company Info</span>
+          <span class="fw-semibold">Customer Info</span>
         </a>
       </li>
       @canany(['bike_on_rent_documents_view', 'garages_documents_view'])
@@ -222,41 +222,113 @@ $statusText = $customer->status == 1 ? 'Active' : 'Inactive';
                 <i class="fas fa-user fa-sm text-info"></i>
               </div>
               <div class="flex-grow-1">
-                <small class="text-muted d-block">Contact Person</small>
+                <small class="text-muted d-block">Name</small>
                 <p class="mb-0 fw-semibold small">{{ $customer->name ?? '-' }}</p>
               </div>
             </div>
+
+            @if($customer->customer_type === 'bike_rental')
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-id-badge fa-sm text-primary"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Type</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->party_type === 'individual' ? 'Individual' : 'Company' }}</p>
+              </div>
+            </div>
+            @endif
 
             <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
               <div class="icon-container p-1 me-2">
                 <i class="fas fa-phone fa-sm text-success"></i>
               </div>
               <div class="flex-grow-1">
-                <small class="text-muted d-block">Contact Number</small>
-                <p class="mb-0 fw-semibold small">{{ $customer->contact_number ?? '-' }}</p>
+                <small class="text-muted d-block">Contact</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->company_contact ?: '-' }}</p>
               </div>
             </div>
 
             <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
               <div class="icon-container p-1 me-2">
-                <i class="fas fa-receipt fa-sm text-warning"></i>
+                <i class="fas fa-envelope fa-sm text-warning"></i>
               </div>
               <div class="flex-grow-1">
-                <small class="text-muted d-block">TRN Number</small>
-                <p class="mb-0 fw-semibold small font-monospace">{{ $customer->tax_number ?? '-' }}</p>
+                <small class="text-muted d-block">Email</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->email ?: '-' }}</p>
               </div>
             </div>
 
-            @if($customer->detail)
+            @if($customer->address)
             <div class="info-item mb-2 p-2 rounded bg-light-hover">
               <div class="d-flex align-items-start">
                 <div class="icon-container p-1 me-2">
-                  <i class="fas fa-sticky-note fa-sm text-secondary"></i>
+                  <i class="fas fa-map-marker-alt fa-sm text-secondary"></i>
                 </div>
                 <div class="flex-grow-1">
-                  <small class="text-muted d-block mb-1">Additional Details</small>
-                  <p class="mb-0 text-muted small">{{ $customer->detail }}</p>
+                  <small class="text-muted d-block mb-1">Address</small>
+                  <p class="mb-0 text-muted small">{{ $customer->address }}</p>
                 </div>
+              </div>
+            </div>
+            @endif
+
+            @if($customer->party_type === 'individual')
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-id-card fa-sm text-info"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Emirates ID</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->emirates_id ?: '-' }}
+                  @if($customer->emirates_expiry)
+                    <span class="text-muted">(exp {{ $customer->emirates_expiry->format('d-m-Y') }})</span>
+                  @endif
+                </p>
+              </div>
+            </div>
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-passport fa-sm text-info"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Passport</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->passport_no ?: '-' }}
+                  @if($customer->passport_expiry)
+                    <span class="text-muted">(exp {{ $customer->passport_expiry->format('d-m-Y') }})</span>
+                  @endif
+                </p>
+              </div>
+            </div>
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-birthday-cake fa-sm text-info"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Date of birth</small>
+                <p class="mb-0 fw-semibold small">{{ optional($customer->dob)->format('d-m-Y') ?: '-' }}</p>
+              </div>
+            </div>
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-flag fa-sm text-info"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">Nationality</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->nationality ?: '-' }}</p>
+              </div>
+            </div>
+            <div class="info-item d-flex align-items-center mb-2 p-2 rounded bg-light-hover">
+              <div class="icon-container p-1 me-2">
+                <i class="fas fa-id-card-alt fa-sm text-info"></i>
+              </div>
+              <div class="flex-grow-1">
+                <small class="text-muted d-block">License</small>
+                <p class="mb-0 fw-semibold small">{{ $customer->license_no ?: '-' }}
+                  @if($customer->license_expiry)
+                    <span class="text-muted">(exp {{ $customer->license_expiry->format('d-m-Y') }})</span>
+                  @endif
+                </p>
               </div>
             </div>
             @endif

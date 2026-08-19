@@ -27,6 +27,10 @@ trait HasTrashFunctionality
         
         $query = TrashedRecordQuery::for($modelClass)
             ->orderBy('deleted_at', 'desc');
+
+        if (! empty($config['where']) && is_array($config['where'])) {
+            $query->where($config['where']);
+        }
         
         // Apply search if provided
         if ($searchQuery) {

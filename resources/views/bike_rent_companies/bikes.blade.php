@@ -46,11 +46,11 @@
                             $history = $bike->history->first();
                         @endphp
                         <td>{{ $history?->note_date?->format('M d Y') ?? '-'}}</td>
-                        <td>{{ $history->return_date?->format('M d Y') ?? '-'}}</td>
+                        <td>{{ $history?->return_date?->format('M d Y') ?? '-'}}</td>
                         <td>
                             @php
-                                $statusText = $history->return_date ? 'Returned' : 'Active';
-                                $badgeClass = $history->return_date ? 'bg-label-danger' : 'bg-label-success';
+                                $statusText = $history?->return_date ? 'Returned' : 'Active';
+                                $badgeClass = $history?->return_date ? 'bg-label-danger' : 'bg-label-success';
                             @endphp
                             <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
                         </td>

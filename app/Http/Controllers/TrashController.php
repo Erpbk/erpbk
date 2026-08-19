@@ -39,6 +39,11 @@ use App\Models\LeasingCompanyInvoice;
 use App\Models\SimInvoice;
 use App\Models\SimInvoiceItem;
 use App\Models\Loan;
+use App\Models\visa_expenses;
+use App\Models\license_expenses;
+use App\Models\visa_installment_plan;
+use App\Models\license_installment_plan;
+use App\Models\ExpenseAccount;
 use Illuminate\Support\Facades\Storage;
 use App\Support\CompanyContext;
 use App\Support\TrashedRecordQuery;
@@ -258,6 +263,30 @@ class TrashController extends Controller
             'name' => 'Bank Loans',
             'icon' => 'fa-university',
             'display_columns' => ['loan_number', 'bank_name', 'agreement_ref', 'status'],
+        ],
+        'visa_expenses' => [
+            'model' => visa_expenses::class,
+            'name' => 'Visa Expenses',
+            'icon' => 'fa-id-card',
+            'display_columns' => ['id', 'visa_status', 'billing_month', 'amount', 'payment_status'],
+        ],
+        'license_expenses' => [
+            'model' => license_expenses::class,
+            'name' => 'License Expenses',
+            'icon' => 'fa-id-badge',
+            'display_columns' => ['id', 'license_status', 'billing_month', 'amount', 'payment_status'],
+        ],
+        'visa_installment_plans' => [
+            'model' => visa_installment_plan::class,
+            'name' => 'Visa Installment Plans',
+            'icon' => 'fa-calendar-check',
+            'display_columns' => ['id', 'billing_month', 'amount', 'status', 'reference_number'],
+        ],
+        'license_installment_plans' => [
+            'model' => license_installment_plan::class,
+            'name' => 'License Installment Plans',
+            'icon' => 'fa-calendar-check',
+            'display_columns' => ['id', 'billing_month', 'amount', 'status', 'reference_number'],
         ],
     ];
 
@@ -538,6 +567,20 @@ class TrashController extends Controller
                 }
             }
 
+            if (in_array($module, ['visa_expenses', 'license_expenses'], true)) {
+                $restoredItems = array_merge(
+                    $restoredItems,
+                    $this->restoreExpenseRelatedRecords($module, $record)
+                );
+            }
+
+            if (in_array($module, ['visa_installment_plans', 'license_installment_plans'], true)) {
+                $restoredItems = array_merge(
+                    $restoredItems,
+                    $this->restoreInstallmentRelatedRecords($module, $record)
+                );
+            }
+
             $this->forgetDeletionCascades($config['model'], $id);
 
             DB::commit();
@@ -617,7 +660,7 @@ class TrashController extends Controller
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
             // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
-            if (! in_array($module, ['fuel_data', 'vouchers', 'sim_invoices'], true)) {
+            if (! in_array($module, ['fuel_data', 'vouchers', 'sim_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -781,6 +824,20 @@ class TrashController extends Controller
                 if ($record->attachment && Storage::disk('public')->exists($record->attachment)) {
                     Storage::disk('public')->delete($record->attachment);
                 }
+            }
+
+            if (in_array($module, ['visa_expenses', 'license_expenses'], true)) {
+                $deletedItems = array_merge(
+                    $deletedItems,
+                    $this->forceDestroyExpenseRelatedRecords($module, $record)
+                );
+            }
+
+            if (in_array($module, ['visa_installment_plans', 'license_installment_plans'], true)) {
+                $deletedItems = array_merge(
+                    $deletedItems,
+                    $this->forceDestroyInstallmentRelatedRecords($module, $record)
+                );
             }
 
             $record->forceDelete();
@@ -976,5 +1033,217 @@ class TrashController extends Controller
             $salikRecord->billing_month,
             $salikRecord->rental_company_id ? (int) $salikRecord->rental_company_id : null
         );
+    }
+
+    /**
+     * Restore cascaded LE/LV vouchers and transactions, then rebuild rider ledger.
+     *
+     * @return array<int, string>
+     */
+    private function restoreExpenseRelatedRecords(string $module, $record): array
+    {
+        $restoredItems = [];
+        [$vouchers, $transactions] = $this->expenseRelatedRecords($module, $record, true);
+
+        foreach ($vouchers as $voucher) {
+            $voucher->restore();
+            if (Schema::hasColumn($voucher->getTable(), 'deleted_by') && $voucher->deleted_by) {
+                $voucher->deleted_by = null;
+                $voucher->save();
+            }
+            $restoredItems[] = 'Voucher #' . $voucher->id;
+        }
+
+        foreach ($transactions as $transaction) {
+            $transaction->restore();
+            if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $transaction->deleted_by) {
+                $transaction->deleted_by = null;
+                $transaction->save();
+            }
+            $restoredItems[] = 'Transaction #' . $transaction->id;
+        }
+
+        DeleteRequestService::recalculateExpenseRiderLedger($record);
+        $restoredItems[] = 'rider ledger synced';
+
+        return $restoredItems;
+    }
+
+    /**
+     * Permanently delete cascaded LE/LV vouchers and transactions, then rebuild rider ledger.
+     *
+     * @return array<int, string>
+     */
+    private function forceDestroyExpenseRelatedRecords(string $module, $record): array
+    {
+        $deletedItems = [];
+        [$vouchers, $transactions] = $this->expenseRelatedRecords($module, $record, false);
+
+        foreach ($vouchers as $voucher) {
+            $voucher->forceDelete();
+            $deletedItems[] = 'Voucher #' . $voucher->id;
+        }
+
+        foreach ($transactions as $transaction) {
+            $transaction->forceDelete();
+            $deletedItems[] = 'Transaction #' . $transaction->id;
+        }
+
+        DeleteRequestService::recalculateExpenseRiderLedger($record);
+        $deletedItems[] = 'rider ledger synced';
+
+        return $deletedItems;
+    }
+
+    /**
+     * Restore cascaded installment vouchers/transactions and rebuild liability ledger.
+     *
+     * @return array<int, string>
+     */
+    private function restoreInstallmentRelatedRecords(string $module, $record): array
+    {
+        $restoredItems = [];
+        [$vouchers, $transactions] = $this->installmentRelatedRecords($module, $record, true);
+
+        foreach ($vouchers as $voucher) {
+            $voucher->restore();
+            if (Schema::hasColumn($voucher->getTable(), 'deleted_by') && $voucher->deleted_by) {
+                $voucher->deleted_by = null;
+                $voucher->save();
+            }
+            $restoredItems[] = 'Voucher #' . $voucher->id;
+        }
+
+        foreach ($transactions as $transaction) {
+            $transaction->restore();
+            if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $transaction->deleted_by) {
+                $transaction->deleted_by = null;
+                $transaction->save();
+            }
+            $restoredItems[] = 'Transaction #' . $transaction->id;
+        }
+
+        $this->syncInstallmentLiabilityLedger($record);
+        $restoredItems[] = 'liability ledger synced';
+
+        return $restoredItems;
+    }
+
+    /**
+     * Permanently delete cascaded installment vouchers/transactions and rebuild liability ledger.
+     *
+     * @return array<int, string>
+     */
+    private function forceDestroyInstallmentRelatedRecords(string $module, $record): array
+    {
+        $deletedItems = [];
+        [$vouchers, $transactions] = $this->installmentRelatedRecords($module, $record, false);
+
+        foreach ($vouchers as $voucher) {
+            $voucher->forceDelete();
+            $deletedItems[] = 'Voucher #' . $voucher->id;
+        }
+
+        foreach ($transactions as $transaction) {
+            $transaction->forceDelete();
+            $deletedItems[] = 'Transaction #' . $transaction->id;
+        }
+
+        $this->syncInstallmentLiabilityLedger($record);
+        $deletedItems[] = 'liability ledger synced';
+
+        return $deletedItems;
+    }
+
+    /**
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function installmentRelatedRecords(string $module, $record, bool $onlyTrashed): array
+    {
+        $isLicense = $module === 'license_installment_plans';
+        $voucherType = $isLicense ? license_installment_plan::VOUCHER_TYPE : 'VL';
+        $referenceType = $isLicense ? license_installment_plan::REFERENCE_TYPE : 'VL';
+
+        $voucherQuery = Vouchers::query()
+            ->withoutGlobalScope('branch')
+            ->where('ref_id', $record->id)
+            ->where('voucher_type', $voucherType);
+        if ($isLicense) {
+            $voucherQuery->where('reason', license_installment_plan::VOUCHER_REASON);
+        }
+        $vouchers = $onlyTrashed ? $voucherQuery->onlyTrashed()->get() : $voucherQuery->withTrashed()->get();
+
+        $transactionQuery = Transactions::query()
+            ->withoutGlobalScope('branch')
+            ->where('reference_id', $record->id)
+            ->where('reference_type', $referenceType);
+        $transactions = $onlyTrashed
+            ? $transactionQuery->onlyTrashed()->get()
+            : $transactionQuery->withTrashed()->get();
+
+        return [$vouchers, $transactions];
+    }
+
+    private function syncInstallmentLiabilityLedger($installment): void
+    {
+        $billingMonth = $installment->billing_month ?? null;
+        $billingMonthForLedger = (strlen((string) $billingMonth) <= 7)
+            ? $billingMonth . '-01'
+            : $billingMonth;
+
+        $rider = \App\Models\Riders::find($installment->rider_id)
+            ?? ExpenseAccount::find($installment->rider_id)?->rider;
+        if (!$rider || !$billingMonthForLedger) {
+            return;
+        }
+
+        $liabilityAccount = Accounts::where('ref_id', $rider->id)
+            ->where('account_type', 'Liability')
+            ->orderBy('id')
+            ->first();
+        if (!$liabilityAccount) {
+            return;
+        }
+
+        DeleteRequestService::recalculateLedgerAfterVoucherDeletion((int) $liabilityAccount->id, $billingMonthForLedger);
+    }
+
+    /**
+     * @return array{0: \Illuminate\Support\Collection, 1: \Illuminate\Support\Collection}
+     */
+    private function expenseRelatedRecords(string $module, $record, bool $onlyTrashed): array
+    {
+        $referenceType = $module === 'visa_expenses' ? 'LV' : 'LE';
+
+        $voucherQuery = Vouchers::query()
+            ->withoutGlobalScope('branch')
+            ->where('ref_id', $record->id)
+            ->where('voucher_type', $referenceType);
+        if ($module === 'license_expenses') {
+            $voucherQuery->where(function ($q) {
+                $q->whereNull('reason')->orWhere('reason', '!=', license_installment_plan::VOUCHER_REASON);
+            });
+        }
+        $vouchers = $onlyTrashed ? $voucherQuery->onlyTrashed()->get() : $voucherQuery->withTrashed()->get();
+
+        $transactionQuery = Transactions::query()
+            ->withoutGlobalScope('branch')
+            ->where(function ($q) use ($record, $referenceType) {
+                $q->where(function ($inner) use ($record, $referenceType) {
+                    $inner->where('reference_id', $record->id)
+                        ->where('reference_type', $referenceType);
+                });
+                if (!empty($record->trans_code)) {
+                    $q->orWhere(function ($inner) use ($record, $referenceType) {
+                        $inner->where('trans_code', $record->trans_code)
+                            ->where('reference_type', $referenceType);
+                    });
+                }
+            });
+        $transactions = $onlyTrashed
+            ? $transactionQuery->onlyTrashed()->get()->unique('id')
+            : $transactionQuery->withTrashed()->get()->unique('id');
+
+        return [$vouchers, $transactions];
     }
 }

@@ -20,6 +20,9 @@ class DeleteRequest extends BaseModel
     /** After approval: permanently removed from Recycle Bin. */
     public const BIN_PERMANENTLY_DELETED = 'permanently_deleted';
 
+    /** After approval: paid visa/license expense stayed in place; payment was reversed. */
+    public const BIN_PAYMENT_REVERSED = 'payment_reversed';
+
     protected $fillable = [
         'company_id',
         'module_key',

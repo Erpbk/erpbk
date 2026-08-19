@@ -44,6 +44,61 @@ $paidCount = company_table('license_expenses')->where('rider_id', $accountId)->w
       @include('license_expenses.table', ['data' => $data])
     </div>
   </div>
+
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <h3 class="mb-0">License Installments</h3>
+      <div class="d-flex flex-wrap gap-2">
+        @if(!empty($canCreateInstallment))
+        <a class="btn btn-sm btn-success action-btn show-modal"
+          href="javascript:void(0);"
+          data-action="{{ route($installmentCreateFormRoute ?? 'LicenseExpense.createInstallmentPlanForm', $account->id) }}"
+          data-size="lg"
+          data-title="Create Installment Entry">
+          <i class="fa fa-plus"></i> Installment Plan
+        </a>
+        @endif
+        @if(isset($installmentData) && $installmentData->count() > 0)
+        <a href="javascript:void(0);"
+          class="btn btn-sm btn-info action-btn show-modal"
+          data-action="{{ route($installmentInvoiceRoute ?? 'LicenseExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
+          data-size="xl"
+          data-title="Installment plan invoice — {{ $account->name ?? 'Rider' }}">
+          <i class="fa fa-file-invoice"></i> Invoice
+        </a>
+        @endif
+      </div>
+    </div>
+    @php
+      $installmentStats = $installmentStats ?? [
+          'unpaid_amount' => 0,
+          'paid_amount' => 0,
+          'paid_count' => 0,
+          'unpaid_count' => 0,
+      ];
+    @endphp
+    <div class="totals-cards pt-3">
+      <div class="total-card total-red">
+        <div class="label">Total Unpaid Amount</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $installmentStats['unpaid_amount'], 2) }}</div>
+      </div>
+      <div class="total-card total-green">
+        <div class="label">Total Paid Amount</div>
+        <div class="value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $installmentStats['paid_amount'], 2) }}</div>
+      </div>
+      <div class="total-card total-red">
+        <div class="label">Unpaid Installments</div>
+        <div class="value">{{ (int) $installmentStats['unpaid_count'] }}</div>
+      </div>
+      <div class="total-card total-green">
+        <div class="label">Paid Installments</div>
+        <div class="value">{{ (int) $installmentStats['paid_count'] }}</div>
+      </div>
+    </div>
+    <div class="card-body table-responsive px-2 py-0">
+      @include('visa_expenses.installmentPlanTable', ['data' => $installmentData ?? collect(), 'account' => $account])
+    </div>
+  </div>
 </div>
 
 @endsection

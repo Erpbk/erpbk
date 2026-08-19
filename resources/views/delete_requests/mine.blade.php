@@ -59,6 +59,8 @@
                                             </span>
                                             @if($req->bin_outcome === 'in_recycle_bin')
                                                 <div class="small text-warning">In Recycle Bin</div>
+                                            @elseif($req->bin_outcome === 'payment_reversed')
+                                                <div class="small text-success">Payment reversed</div>
                                             @elseif($req->bin_outcome === 'restored')
                                                 <div class="small text-primary">Restored</div>
                                             @elseif($req->bin_outcome === 'permanently_deleted')

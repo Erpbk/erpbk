@@ -9,6 +9,7 @@
     ];
     $outcomeLabels = [
         'in_recycle_bin' => 'In Recycle Bin',
+        'payment_reversed' => 'Payment reversed (expense kept)',
         'restored' => 'Restored to module',
         'permanently_deleted' => 'Permanently deleted',
     ];

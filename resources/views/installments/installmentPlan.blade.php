@@ -6,26 +6,31 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-12">
+                @if(!empty($installmentIndexRoute))
                 <a class="btn btn-primary mx-2"
-                    href="{{ route('Installments.index') }}">
+                    href="{{ route($installmentIndexRoute) }}">
                     <i class="fa fa-arrow-left me-2"></i>Back
                 </a>
-                @can('visa_expense_create')
+                @else
+                <a class="btn btn-primary mx-2"
+                    href="{{ route($installmentEntriesRoute ?? 'LicenseExpense.generatentries', $account->id) }}">
+                    <i class="fa fa-arrow-left me-2"></i>Back
+                </a>
+                @endif
+                @if(!empty($canCreateInstallment) || user_can('visa_expense_create'))
                 <a class="btn btn-success action-btn show-modal"
-                    href="javascript:void(0);" data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
+                    href="javascript:void(0);" data-action="{{ route($installmentCreateFormRoute ?? 'Installments.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
                     <i class="fa fa-plus me-2"></i>Installment Plan
                 </a>
-                @endcan
+                @endif
                 @if($data->count() > 0)
-                @canany(['visa_expense_create', 'visa_expense_edit', 'visa_expense_view'])
                 <a href="javascript:void(0);"
                     class="btn btn-info action-btn mx-2 show-modal"
-                    data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
+                    data-action="{{ route($installmentInvoiceRoute ?? 'Installments.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
                     data-size="xl"
                     data-title="Installment plan invoice">
                     <i class="fa fa-file-invoice me-2"></i>Invoice
                 </a>
-                @endcanany
                 @endif
             </div>
             <div class="col-12 col-md-12 mt-3">
@@ -92,7 +97,7 @@
 
     <div class="card">
         <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('installments.installmentPlanTable', ['data' => $data, 'account' => $account])
+            @include($installmentPlanTableView ?? 'installments.installmentPlanTable', ['data' => $data, 'account' => $account])
         </div>
     </div>
 </div>
@@ -150,14 +155,14 @@
             let formData = $.param(filteredFields);
 
             $.ajax({
-                url: "{{ route('Installments.installmentPlan', $account->id) }}",
+                url: "{{ route($installmentPlanRoute ?? 'Installments.installmentPlan', $account->id) }}",
                 type: "GET",
                 data: formData,
                 success: function(data) {
                     $('#table-data').html(data.tableData);
 
                     // Update URL
-                    let newUrl = "{{ route('Installments.installmentPlan', $account->id) }}" + (formData ? '?' + formData : '');
+                    let newUrl = "{{ route($installmentPlanRoute ?? 'Installments.installmentPlan', $account->id) }}" + (formData ? '?' + formData : '');
                     history.pushState(null, '', newUrl);
 
 

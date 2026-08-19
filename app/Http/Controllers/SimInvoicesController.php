@@ -326,7 +326,7 @@ class SimInvoicesController extends AppBaseController
                     'imported_count' => $importedCount,
                     'skipped_count' => $skippedCount,
                     'skipped_log' => $skippedLog,
-                    'redirect' => route('simInvoices.show', $invoice->id),
+                    'reload' => true,
                 ]);
             }
 

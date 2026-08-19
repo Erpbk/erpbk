@@ -71,7 +71,10 @@ class license_expenses extends BaseModel
     public function vouchers()
     {
         return $this->hasMany(Vouchers::class, 'ref_id', 'id')
-            ->where('voucher_type', 'LE');
+            ->where('voucher_type', 'LE')
+            ->where(function ($q) {
+                $q->whereNull('reason')->orWhere('reason', '!=', license_installment_plan::VOUCHER_REASON);
+            });
     }
 
 

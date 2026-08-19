@@ -422,6 +422,17 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('VisaExpense/update-voucher-credit', [VisaexpenseController::class, 'updateVoucherCredit'])->name('VisaExpense.updateVoucherCredit');
 
     // License Expense custom routes (register before resource to avoid {LicenseExpense} shadowing)
+    Route::get('LicenseExpense/createInstallmentPlanForm/{riderId}', [LicenseexpenseController::class, 'createInstallmentPlanForm'])->name('LicenseExpense.createInstallmentPlanForm');
+    Route::get('LicenseExpense/installmentPlan/{id}', [LicenseexpenseController::class, 'installmentPlan'])->name('LicenseExpense.installmentPlan');
+    Route::post('LicenseExpense/createInstallmentPlan', [LicenseexpenseController::class, 'createInstallmentPlan'])->name('LicenseExpense.createInstallmentPlan');
+    Route::post('LicenseExpense/payInstallment', [LicenseexpenseController::class, 'payInstallment'])->name('LicenseExpense.payInstallment');
+    Route::post('LicenseExpense/updateInstallmentField', [LicenseexpenseController::class, 'updateInstallmentField'])->name('LicenseExpense.updateInstallmentField');
+    Route::post('LicenseExpense/finalizePayment', [LicenseexpenseController::class, 'finalizePayment'])->name('LicenseExpense.finalizePayment');
+    Route::get('LicenseExpense/deleteInstallment/{id}', [LicenseexpenseController::class, 'deleteInstallment'])->name('LicenseExpense.deleteInstallment')->whereNumber('id');
+    Route::get('LicenseExpense/generateInstallmentInvoice/{riderId}', [LicenseexpenseController::class, 'generateInstallmentInvoice'])->name('LicenseExpense.generateInstallmentInvoice');
+    Route::get('LicenseExpense/autoMarkInstallments/{riderId?}', [LicenseexpenseController::class, 'autoMarkInstallmentsAsPaid'])->name('LicenseExpense.autoMarkInstallments');
+    Route::post('LicenseExpense/recalculateInstallments', [LicenseexpenseController::class, 'recalculateInstallments'])->name('LicenseExpense.recalculateInstallments');
+
     Route::get('LicenseExpense/generatentries/{id}', [LicenseexpenseController::class, 'generatentries'])->name('LicenseExpense.generatentries');
     Route::get('LicenseExpense/create/{id}', [LicenseexpenseController::class, 'create'])->name('LicenseExpense.create');
     Route::get('LicenseExpense/edit/{id}', [LicenseexpenseController::class, 'edit'])->name('LicenseExpense.edit');

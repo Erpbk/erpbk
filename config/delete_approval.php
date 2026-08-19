@@ -187,9 +187,21 @@ return [
             'display_columns' => ['id', 'visa_status', 'billing_month', 'amount', 'payment_status'],
             'show_route' => 'VisaExpense.viewvoucher',
         ],
+        'license_expenses' => [
+            'model' => \App\Models\license_expenses::class,
+            'name' => 'License Expenses',
+            'display_columns' => ['id', 'license_status', 'billing_month', 'amount', 'payment_status'],
+            'show_route' => 'LicenseExpense.viewvoucher',
+        ],
         'visa_installment_plans' => [
             'model' => \App\Models\visa_installment_plan::class,
             'name' => 'Visa Installment Plans',
+            'display_columns' => ['id', 'billing_month', 'amount', 'status', 'reference_number'],
+            'show_route' => null,
+        ],
+        'license_installment_plans' => [
+            'model' => \App\Models\license_installment_plan::class,
+            'name' => 'License Installment Plans',
             'display_columns' => ['id', 'billing_month', 'amount', 'status', 'reference_number'],
             'show_route' => null,
         ],

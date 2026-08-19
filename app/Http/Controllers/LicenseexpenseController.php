@@ -15,7 +15,6 @@ use App\Models\license_expenses;
 use App\Models\Accounts;
 use App\Models\Vouchers;
 use App\Models\VoucherType;
-use App\Models\LedgerEntry;
 use App\Models\Transactions;
 use App\Models\LicenseStatus;
 use App\Models\ExpenseAccount;
@@ -26,6 +25,9 @@ use App\Support\CompanyAuthRedirect;
 use App\Support\CompanyContext;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\ManagesExpenseEntryDeletion;
+use App\Http\Controllers\Concerns\ManagesVisaInstallments;
+use App\Models\license_installment_plan;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\CompanyQuery;
@@ -36,7 +38,7 @@ use DB;
 
 class LicenseexpenseController extends AppBaseController
 {
-    use GlobalPagination, TracksCascadingDeletions;
+    use GlobalPagination, TracksCascadingDeletions, ManagesVisaInstallments, ManagesExpenseEntryDeletion;
 
     protected $licenseRepo;
 
@@ -44,6 +46,90 @@ class LicenseexpenseController extends AppBaseController
     {
         $this->licenseRepo = $licenseRepo;
     }
+
+    protected function installmentModelClass(): string
+    {
+        return license_installment_plan::class;
+    }
+
+    protected function installmentVoucherType(): string
+    {
+        return license_installment_plan::VOUCHER_TYPE;
+    }
+
+    protected function installmentReferenceType(): string
+    {
+        return license_installment_plan::REFERENCE_TYPE;
+    }
+
+    protected function installmentVoucherReason(): ?string
+    {
+        return license_installment_plan::VOUCHER_REASON;
+    }
+
+    protected function installmentHeadAccountKey(): string
+    {
+        return 'LICENSE_EXPENSE_ACCOUNT';
+    }
+
+    protected function installmentNarrationLabel(): string
+    {
+        return 'license installment';
+    }
+
+    protected function installmentVoucherRemarksPrefix(): string
+    {
+        return 'License Installment Voucher';
+    }
+
+    protected function installmentAccountNotFoundMessage(): string
+    {
+        return 'License expense account not found.';
+    }
+
+    protected function installmentEntriesRouteName(): string
+    {
+        return 'LicenseExpense.generatentries';
+    }
+
+    protected function installmentIndexRouteName(): ?string
+    {
+        return null;
+    }
+
+    protected function installmentViewPlanTable(): string
+    {
+        return 'visa_expenses.installmentPlanTable';
+    }
+
+    protected function installmentRouteNames(): array
+    {
+        return [
+            'create' => 'LicenseExpense.createInstallmentPlan',
+            'create_form' => 'LicenseExpense.createInstallmentPlanForm',
+            'pay' => 'LicenseExpense.payInstallment',
+            'update_field' => 'LicenseExpense.updateInstallmentField',
+            'delete' => 'LicenseExpense.deleteInstallment',
+            'invoice' => 'LicenseExpense.generateInstallmentInvoice',
+            'plan' => 'LicenseExpense.installmentPlan',
+        ];
+    }
+
+    protected function installmentPermissionMap(): array
+    {
+        return [
+            'view' => ['licenseexpense_view', 'license_expense_view'],
+            'create' => ['license_expense_create', 'licenseexpense_create'],
+            'edit' => ['license_expense_edit', 'licenseexpense_edit'],
+            'delete' => ['license_expense_delete', 'licenseexpense_delete'],
+        ];
+    }
+
+    protected function expenseAccountBaseQuery()
+    {
+        return ExpenseAccount::query()->license();
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -498,45 +584,19 @@ class LicenseexpenseController extends AppBaseController
 
     public function deleteaccount($company_slug, $id)
     {
-        // Check if any license_expenses exist for this account
-        $hasExpenses = license_expenses::where('expense_account_id', $id)
-            ->Where('payment_status', 'paid')
-            ->exists();
-
-        if ($hasExpenses) {
-            Flash::error('Cannot delete account. License Expense entries exist for this account.');
-            return redirect()->back();
-        }
-
-        // Check if any transactions exist for this account related to License Expenses
-        $hasTransactions = Transactions::where('account_id', $id)
-            ->where('reference_type', 'LE')
-            ->exists();
-
-        if ($hasTransactions) {
-            Flash::error('Cannot delete account. Transactions related to License Expenses exist for this account.');
-            return redirect()->back();
-        }
-
-        // Check if any vouchers exist for this account related to License Expenses
         $account = ExpenseAccount::query()->license()->findOrFail($id);
-        $riderId = $account->rider_id;
-        if ($riderId) {
-            $hasVouchers = Vouchers::where('rider_id', $riderId)
-                ->where('voucher_type', 'LE')
-                ->exists();
 
-            if ($hasVouchers) {
-                Flash::error('Cannot delete account. Vouchers related to License Expenses exist for this account.');
-                return redirect()->back();
-            }
-        }
+        $hasInstallments = license_installment_plan::where('rider_id', $id)->exists();
+        $extraBlock = $hasInstallments
+            ? 'Cannot delete account. Installment Plan entries exist for this account.'
+            : null;
 
-        // No related records — safe to delete
-        $LicenseExpense = license_expenses::where('expense_account_id', $id)->delete();
-        ExpenseAccount::query()->license()->where('id', $id)->delete();
-        Flash::success('Account deleted successfully.');
-        return redirect()->back();
+        return $this->destroyExpenseAccount(
+            $account,
+            license_expenses::class,
+            'Cannot delete account. Paid License Expense entries exist. Reverse those payments first.',
+            $extraBlock
+        );
     }
 
     public function generatentries(Request $request, $company_slug, $id)
@@ -551,6 +611,7 @@ class LicenseexpenseController extends AppBaseController
         }
         $account = ExpenseAccount::query()->license()->with('rider')->where('id', $id)->firstOrFail();
         $riderId = $account->rider_id;
+        $this->checkAndAutoMarkInstallments($account);
         // Use global pagination traits
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $headId = $this->licenseExpenseHeadAccountId();
@@ -586,6 +647,13 @@ class LicenseexpenseController extends AppBaseController
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
 
+        $installmentQuery = $this->installmentQuery()
+            ->with(['vouchers', 'installmentTransactions'])
+            ->orderBy('date', 'asc');
+        $this->applyInstallmentRiderScope($installmentQuery, $account);
+        $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
+        $installmentStats = $this->installmentPlanSummary($account);
+
         if ($request->ajax()) {
             $tableData = view('license_expenses.table', [
                 'data' => $data,
@@ -600,12 +668,14 @@ class LicenseexpenseController extends AppBaseController
         $LicenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
         $riders = Riders::findOrFail($riderId);
         \Log::info('License Expense entries', ['rider_id' => $id, 'rider' => $riders]);
-        return view('license_expenses.index', [
+        return view('license_expenses.index', array_merge([
             'data' => $data,
+            'installmentData' => $installmentData,
+            'installmentStats' => $installmentStats,
             'account' => $account,
             'LicenseStatuses' => $LicenseStatuses,
             'riders' => $riders,
-        ]);
+        ], $this->installmentTableViewData()));
     }
 
     /**
@@ -979,6 +1049,9 @@ class LicenseexpenseController extends AppBaseController
                 // Update voucher amount(s) linked to this License Expense
                 $vouchers = Vouchers::where('ref_id', $LicenseExpenses->id)
                     ->where('voucher_type', 'LE')
+                    ->where(function ($q) {
+                        $q->whereNull('reason')->orWhere('reason', '!=', license_installment_plan::VOUCHER_REASON);
+                    })
                     ->first();
                 if ($vouchers) {
                     $vouchers->reference_number = $LicenseExpenses->reference_number;
@@ -1060,7 +1133,12 @@ class LicenseexpenseController extends AppBaseController
 
         $voucher = $expense->vouchers->first();
         if (!$voucher) {
-            $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'LE')->first();
+            $voucher = Vouchers::where('ref_id', $expense->id)
+                ->where('voucher_type', 'LE')
+                ->where(function ($q) {
+                    $q->whereNull('reason')->orWhere('reason', '!=', license_installment_plan::VOUCHER_REASON);
+                })
+                ->first();
         }
         if (!$voucher) {
             return response(
@@ -1137,7 +1215,12 @@ class LicenseexpenseController extends AppBaseController
             return redirect()->back();
         }
 
-        $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'LE')->first();
+        $voucher = Vouchers::where('ref_id', $expense->id)
+            ->where('voucher_type', 'LE')
+            ->where(function ($q) {
+                $q->whereNull('reason')->orWhere('reason', '!=', license_installment_plan::VOUCHER_REASON);
+            })
+            ->first();
         if (!$voucher) {
             Flash::error('No voucher found for this expense.');
             return redirect()->back();
@@ -1217,181 +1300,14 @@ class LicenseexpenseController extends AppBaseController
     {
         $LicenseExpenses = license_expenses::find($id);
 
-        if (empty($LicenseExpenses)) {
-            Flash::error('License Expense Entry not found');
-            return redirect()->back();
-        }
-
-        DB::beginTransaction();
-        try {
-            $billingMonth = $LicenseExpenses->billing_month;
-            $riderAccountId = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $LicenseExpenses->rider_id)->value('id');
-            $LicenseExpenseIdentifier = "License Expense #{$id} - {$LicenseExpenses->license_status} (Amount: " . number_format($LicenseExpenses->amount, 2) . ")";
-
-            // Get related transactions before deletion
-            $relatedTransactions = Transactions::where('reference_id', $LicenseExpenses->id)
-                ->where('reference_type', 'LE')
-                ->get();
-
-            // Get related transactions by trans_code
-            $transCodeTransactions = Transactions::where('trans_code', $LicenseExpenses->trans_code)
-                ->where('reference_type', 'LE')
-                ->get();
-
-            // Get related vouchers before deletion (include soft deleted to be safe)
-            $relatedVouchers = Vouchers::withTrashed()
-                ->where('ref_id', $LicenseExpenses->id)
-                ->where('voucher_type', 'LE')
-                ->whereNull('deleted_at') // Only get non-deleted vouchers
-                ->get();
-
-            \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for License Expense {$id}", [
-                'voucher_ids' => $relatedVouchers->pluck('id')->toArray()
-            ]);
-
-            // Track cascade deletions for transactions
-            foreach ($relatedTransactions as $transaction) {
-                try {
-                    $this->trackCascadeDeletion(
-                        license_expenses::class,
-                        $LicenseExpenses->id,
-                        $LicenseExpenseIdentifier,
-                        Transactions::class,
-                        $transaction->id,
-                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
-                        'hasMany',
-                        'transactions',
-                        'soft',
-                        'Cascade deletion from License Expense deletion - transaction by reference_id'
-                    );
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-                }
-            }
-
-            // Track cascade deletions for transactions by trans_code
-            foreach ($transCodeTransactions as $transaction) {
-                // Skip if already tracked
-                if ($relatedTransactions->contains('id', $transaction->id)) {
-                    continue;
-                }
-                try {
-                    $this->trackCascadeDeletion(
-                        license_expenses::class,
-                        $LicenseExpenses->id,
-                        $LicenseExpenseIdentifier,
-                        Transactions::class,
-                        $transaction->id,
-                        "Transaction #{$transaction->id} (Trans Code: {$transaction->trans_code}, Amount: " . ($transaction->debit > 0 ? number_format($transaction->debit, 2) : number_format($transaction->credit, 2)) . ")",
-                        'hasMany',
-                        'transactions',
-                        'soft',
-                        'Cascade deletion from License Expense deletion - transaction by trans_code'
-                    );
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for transaction {$transaction->id}: " . $e->getMessage());
-                }
-            }
-
-            // Track cascade deletions for vouchers BEFORE deletion
-            foreach ($relatedVouchers as $voucher) {
-                try {
-                    \Log::info("Attempting to track cascade deletion for voucher {$voucher->id}", [
-                        'primary_model' => license_expenses::class,
-                        'primary_id' => $LicenseExpenses->id,
-                        'related_model' => Vouchers::class,
-                        'related_id' => $voucher->id,
-                    ]);
-
-                    $cascadeRecord = $this->trackCascadeDeletion(
-                        license_expenses::class,
-                        $LicenseExpenses->id,
-                        $LicenseExpenseIdentifier,
-                        Vouchers::class,
-                        $voucher->id,
-                        "Voucher #{$voucher->id} ({$voucher->voucher_type}-" . str_pad($voucher->id, 4, '0', STR_PAD_LEFT) . ", Amount: " . number_format($voucher->amount, 2) . ")",
-                        'hasMany',
-                        'vouchers',
-                        'soft',
-                        'Cascade deletion from License Expense deletion - voucher'
-                    );
-
-                    if ($cascadeRecord && $cascadeRecord->id) {
-                        \Log::info("Cascade deletion tracked successfully for voucher {$voucher->id}, cascade record ID: {$cascadeRecord->id}");
-                    } else {
-                        \Log::warning("Cascade deletion tracking returned null for voucher {$voucher->id}");
-                    }
-                } catch (\Exception $e) {
-                    \Log::error("Failed to track cascade deletion for voucher {$voucher->id}: " . $e->getMessage(), [
-                        'exception' => $e,
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                }
-            }
-
-            // Delete only specific transactions related to this License Expense
-            Transactions::where('reference_id', $LicenseExpenses->id)
-                ->where('reference_type', 'LE')
-                ->delete();
-
-            // Delete transactions by trans_code if they exist
-            Transactions::where('trans_code', $LicenseExpenses->trans_code)
-                ->where('reference_type', 'LE')
-                ->delete();
-
-            // Cascade delete vouchers related to this License Expense (soft delete with deleted_by)
-            // Use the same collection that was used for tracking
-            foreach ($relatedVouchers as $voucher) {
-                $voucher->deleted_by = auth()->id();
-                $voucher->save();
-                $voucher->delete();
-            }
-
-            // âœ… FIX: Delete only the ledger entry for this specific billing month, not all entries
-            // Recalculate ledger entries after deletion instead of deleting all
-            if ($riderAccountId) {
-                // Track ledger entry deletion if it exists
-                $ledgerEntry = \App\Support\CompanyQuery::table('ledger_entries')
-                    ->where('account_id', $riderAccountId)
-                    ->where('billing_month', $billingMonth)
-                    ->first();
-
-                if ($ledgerEntry) {
-                    try {
-                        $this->trackCascadeDeletion(
-                            license_expenses::class,
-                            $LicenseExpenses->id,
-                            $LicenseExpenseIdentifier,
-                            \App\Models\LedgerEntry::class,
-                            $ledgerEntry->id,
-                            "Ledger Entry #{$ledgerEntry->id} (Account ID: {$riderAccountId}, Billing Month: {$billingMonth})",
-                            'hasOne',
-                            'ledger_entry',
-                            'hard',
-                            'Cascade deletion from License Expense deletion - ledger entry recalculation'
-                        );
-                    } catch (\Exception $e) {
-                        \Log::error("Failed to track cascade deletion for ledger entry {$ledgerEntry->id}: " . $e->getMessage());
-                    }
-                }
-
-                $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
-            }
-
-            // Delete the License Expense record (soft delete with deleted_by)
-            $LicenseExpenses->deleted_by = auth()->id();
-            $LicenseExpenses->save();
-            $LicenseExpenses->delete();
-
-            DB::commit();
-            Flash::success('License Expenses Entry deleted successfully.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error("Error deleting License Expense ID: {$id} - " . $e->getMessage());
-            Flash::error('Error deleting License Expense: ' . $e->getMessage());
-        }
-
-        return redirect()->back();
+        return $this->destroyExpenseEntry(
+            $LicenseExpenses,
+            'LE',
+            'LE',
+            'License Expense Entry not found',
+            'License Expenses Entry deleted successfully.',
+            'License Expense payment reversed. Status is now unpaid.'
+        );
     }
 
     /**

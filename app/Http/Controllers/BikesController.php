@@ -1212,16 +1212,27 @@ class BikesController extends AppBaseController
     public function assign_rider(Request $request, $company_slug, $id)
     {
         if ($request->isMethod('post')) {
+            $assignTargets = CompanyModuleVisibility::bikeAssignTargets();
+            if ($assignTargets === []) {
+                return response()->json([
+                    'errors' => ['error' => 'No assignable resources found in the system.'],
+                ], 422);
+            }
+            $assignTypeLabels = CompanyModuleVisibility::bikeAssignTypeLabels();
+
             $rules = [
                 'assign_type' => [
                     'required',
-                    'in:rider,rental,garage',
-                    function ($attribute, $value, $fail) {
+                    Rule::in($assignTargets),
+                    function ($attribute, $value, $fail) use ($assignTypeLabels) {
+                        if ($value === 'rider' && ! CompanyModuleVisibility::ridersEnabled()) {
+                            $fail(($assignTypeLabels['rider'] ?? 'Riders') . ' is not enabled for this company.');
+                        }
                         if ($value === 'rental' && ! CompanyModuleVisibility::bikeOnRentEnabled()) {
                             $fail('Bike on rent is not enabled for this company.');
                         }
                         if ($value === 'garage' && ! CompanyModuleVisibility::garageCustomersEnabled()) {
-                            $fail('Garage customers is not enabled for this company.');
+                            $fail(($assignTypeLabels['garage'] ?? 'Garage customers') . ' is not enabled for this company.');
                         }
                     },
                 ],
@@ -1231,12 +1242,12 @@ class BikesController extends AppBaseController
                     'required_if:assign_type,rider',
                     'nullable',
                     'exists:riders,id',
-                    function ($attribute, $value, $fail) use ($request) {
+                    function ($attribute, $value, $fail) use ($request, $assignTypeLabels) {
                         if ($request->input('assign_type') !== 'rider') {
                             return;
                         }
                         if (empty($value)) {
-                            $fail('Rider is required when assigning to a rider.');
+                            $fail(($assignTypeLabels['rider'] ?? 'Rider') . ' is required when assigning to a ' . strtolower($assignTypeLabels['rider'] ?? 'rider') . '.');
 
                             return;
                         }
@@ -1320,15 +1331,15 @@ class BikesController extends AppBaseController
 
             $message = [
                 'assign_type.required' => 'Assignment type is required.',
-                'assign_type.in' => 'Assignment type must be rider, rental customer, or garage customer.',
+                'assign_type.in' => 'Assignment type is not available for this company.',
                 'bike_id.required' => 'Bike ID is required.',
                 'bike_id.exists' => 'Bike Not Found',
                 'note_date.required' => 'Assignment date is required.',
                 'customer_id.required' => 'Project is required.',
                 'rental_company_id.required' => 'Customer is required for this assignment type.',
                 'rental_company_id.exists' => 'Selected customer is invalid.',
-                'rider_id.required_if' => 'Rider is required when assignment type is Rider.',
-                'rider_id.exists' => 'Selected rider is invalid.',
+                'rider_id.required_if' => ($assignTypeLabels['rider'] ?? 'Rider') . ' is required when assignment type is ' . ($assignTypeLabels['rider'] ?? 'Rider') . '.',
+                'rider_id.exists' => 'Selected ' . strtolower($assignTypeLabels['rider'] ?? 'rider') . ' is invalid.',
             ];
 
             $this->validate($request, $rules, $message);
@@ -1464,24 +1475,29 @@ class BikesController extends AppBaseController
 
         $bike = Bikes::find($id);
         $assignFields = BikeCustomField::assignModalFields('active');
-        $allowBikeOnRent = CompanyModuleVisibility::bikeOnRentEnabled();
-        $allowGarageCustomers = CompanyModuleVisibility::garageCustomersEnabled();
-        $allowTypeSelection = $allowBikeOnRent || $allowGarageCustomers;
-        $assignTypeOptions = ['' => 'Select Type', 'rider' => 'Rider'];
-        if ($allowBikeOnRent) {
-            $assignTypeOptions['rental'] = 'Rental customer';
-        }
-        if ($allowGarageCustomers) {
-            $assignTypeOptions['garage'] = 'Garage customer';
-        }
+        $assignTargets = CompanyModuleVisibility::bikeAssignTargets();
+        $allowTypeSelection = count($assignTargets) >= 2;
+        $defaultAssignType = count($assignTargets) === 1 ? $assignTargets[0] : '';
+        $assignFormLocked = $assignTargets === [];
+        $assignTypeLabels = CompanyModuleVisibility::bikeAssignTypeLabels();
         $assignBranchScopedOptions = [
             'rider_id' => Riders::dropdownForBikeAssign($bike?->branch_id ? (int) $bike->branch_id : null),
-            'assign_type' => $assignTypeOptions,
+            'assign_type' => CompanyModuleVisibility::bikeAssignTypeOptions(),
             'rental_company_id' => BikeRentCompany::rentalAssignDropdown(),
             'garage_customer_id' => BikeRentCompany::garageAssignDropdown(),
         ];
 
-        return view('bikes.assignBike_active', compact('id', 'assignFields', 'bike', 'assignBranchScopedOptions', 'allowTypeSelection'));
+        return view('bikes.assignBike_active', compact(
+            'id',
+            'assignFields',
+            'bike',
+            'assignBranchScopedOptions',
+            'allowTypeSelection',
+            'defaultAssignType',
+            'assignFormLocked',
+            'assignTargets',
+            'assignTypeLabels'
+        ));
     }
 
     /**

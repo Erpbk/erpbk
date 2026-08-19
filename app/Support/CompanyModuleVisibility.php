@@ -24,6 +24,11 @@ class CompanyModuleVisibility
         return ! in_array($moduleKey, $disabled, true);
     }
 
+    public static function ridersEnabled(): bool
+    {
+        return self::enabled('riders');
+    }
+
     public static function bikeOnRentEnabled(): bool
     {
         return self::enabled('bike_on_rent');
@@ -32,5 +37,70 @@ class CompanyModuleVisibility
     public static function garageCustomersEnabled(): bool
     {
         return self::enabled('garages') && self::enabled('garages_customers');
+    }
+
+    /**
+     * Bike assign targets currently enabled: rider, rental, garage.
+     *
+     * @return list<string>
+     */
+    public static function bikeAssignTargets(): array
+    {
+        $targets = [];
+        if (self::ridersEnabled()) {
+            $targets[] = 'rider';
+        }
+        if (self::bikeOnRentEnabled()) {
+            $targets[] = 'rental';
+        }
+        if (self::garageCustomersEnabled()) {
+            $targets[] = 'garage';
+        }
+
+        return $targets;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function bikeAssignTypeLabels(): array
+    {
+        $riderCustom = self::customizedMenuLabel('riders');
+        $garageCustom = self::customizedMenuLabel('garages');
+
+        return [
+            'rider' => $riderCustom ?? 'Rider',
+            'rental' => 'Rental customer',
+            'garage' => $garageCustom !== null ? $garageCustom . ' customers' : 'Garage customer',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function bikeAssignTypeOptions(): array
+    {
+        $labels = self::bikeAssignTypeLabels();
+        $options = ['' => 'Select Type'];
+        foreach (self::bikeAssignTargets() as $key) {
+            $options[$key] = $labels[$key];
+        }
+
+        return $options;
+    }
+
+    /**
+     * Menu title from Settings when it differs from the default, otherwise null.
+     */
+    public static function customizedMenuLabel(string $key): ?string
+    {
+        $default = trim((string) (config('menu_labels.defaults.' . $key) ?? ''));
+        $labels = \App\Models\Settings::getMenuLabels();
+        $value = trim((string) ($labels[$key] ?? ''));
+        if ($value === '' || strcasecmp($value, $default) === 0) {
+            return null;
+        }
+
+        return $value;
     }
 }

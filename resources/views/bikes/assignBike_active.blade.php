@@ -16,6 +16,11 @@ if (strpos($vehicleTypeName, 'bike') !== false) {
 }
 
 $assignFields = $assignFields ?? \App\Models\BikeCustomField::assignModalFields('active');
+$assignTargets = $assignTargets ?? \App\Support\CompanyModuleVisibility::bikeAssignTargets();
+$assignFormLocked = (bool) ($assignFormLocked ?? ($assignTargets === []));
+$allowTypeSelection = (bool) ($allowTypeSelection ?? (count($assignTargets) >= 2));
+$defaultAssignType = $defaultAssignType ?? (count($assignTargets) === 1 ? $assignTargets[0] : '');
+$assignTypeLabels = $assignTypeLabels ?? \App\Support\CompanyModuleVisibility::bikeAssignTypeLabels();
 $inlineFields = $assignFields->filter(function ($f) {
     if (($f->field_key ?? '') === 'notes') {
         return false;
@@ -37,6 +42,11 @@ $wideFields = $assignFields->filter(function ($f) {
     return false;
 });
 @endphp
+@if($assignFormLocked)
+<div class="alert alert-warning mb-0" role="alert">
+    <i class="ti ti-lock me-1"></i> No assignable resources found in the system.
+</div>
+@else
 <form action="{{ route('bikes.assign_rider', $id) }}" method="post" id="formajax">
     @csrf
     <input type="hidden" name="bike_id" value="{{ $id }}" />
@@ -74,7 +84,9 @@ $wideFields = $assignFields->filter(function ($f) {
         </div>
     </div>
 </form>
+@endif
 
+@unless($assignFormLocked)
 <style>
     .hidden-field {
         display: none !important;
@@ -161,3 +173,4 @@ $wideFields = $assignFields->filter(function ($f) {
         }
     });
 </script>
+@endunless

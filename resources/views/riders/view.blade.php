@@ -280,13 +280,17 @@
   }
 
   @keyframes rider-expired-tab-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.4;
+    }
   }
 
-  .nav-align-top.has-expired-docs .card-body {
-    padding-top: 2.65rem !important;
-  }
 
   .nav-align-top.has-expired-docs #mainNavigation {
     overflow: visible !important;
@@ -346,6 +350,284 @@
     border-style: solid;
     border-color: #e53935 transparent transparent transparent;
   }
+
+  .rider-view-card {
+    border-radius: 1rem;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+  }
+
+  .rider-view-card-hero {
+    position: relative;
+    background: linear-gradient(180deg, #1e4b8e 0%, #163a6e 100%);
+    min-height: 210px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.25rem 1rem 1.5rem;
+    overflow: hidden;
+  }
+
+  .rider-view-card-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.2;
+    background-image:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.35) 25%, transparent 25%),
+      linear-gradient(225deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%);
+    background-size: 42px 42px;
+  }
+
+  .rider-view-card-star {
+    position: absolute;
+    top: 0.85rem;
+    left: 0.9rem;
+    color: #fff;
+    font-size: 1.15rem;
+    opacity: 0.95;
+  }
+
+  .rider-view-card-status {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.15rem;
+    z-index: 1;
+  }
+
+  .rider-view-card-active {
+    background: #22c55e;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.72rem;
+    padding: 0.28rem 0.6rem;
+    border-radius: 999px;
+  }
+
+  .rider-view-card-days {
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.2;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+
+  .rider-view-card-photo-wrap {
+    position: relative;
+    width: 148px;
+    height: 148px;
+  }
+
+  .rider-view-card-photo {
+    width: 148px;
+    height: 148px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    background: #fff;
+    display: block;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .rider-view-card-camera {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    color: #1e4b8e;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .rider-view-card-camera i {
+    font-size: 1rem;
+  }
+
+  .rider-view-card .user-info h6 {
+    font-size: 1.05rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .rider-view-card-id {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+
+  .rider-view-card-active.is-inactive {
+    background: #64748b;
+  }
+
+  .rider-view-card-active.is-vacation {
+    background: #f59e0b;
+  }
+
+  .rider-view-card .user_list {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    border: 0;
+    background: transparent;
+    padding: 0.7rem 0;
+    margin: 0;
+  }
+
+  .rider-view-card .user_list+.user_list {
+    margin-top: 0;
+  }
+
+  .rider-view-card .user_list .icons {
+    flex: 0 0 1.25rem;
+    width: 1.25rem;
+    color: #5b6472;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rider-view-card .user_list .icons i {
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+
+  .rider-view-card .user_list_content {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    align-items: center;
+    column-gap: 0.4rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .rider-view-card .user_list_content span {
+    color: #8b8d97;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .rider-view-card .user_list_content b,
+  .rider-view-card .user_list_content a {
+    color: #1f2937;
+    font-weight: 700;
+    font-size: 0.875rem;
+    line-height: 1.3;
+    text-decoration: none;
+    word-break: break-word;
+  }
+
+  .rider-view-card .user_list_content .is-phone,
+  .rider-view-card .user_list_content .is-phone a {
+    color: #2f6fed;
+  }
+
+  .rider-view-card .user_list_content .is-whatsapp,
+  .rider-view-card .user_list_content .is-whatsapp a {
+    color: #22c55e;
+  }
+
+  .rider-profile-tabs .nav-pills .nav-link {
+    background: transparent !important;
+    border-radius: 0;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    box-shadow: none !important;
+  }
+
+  .rider-profile-tabs .nav-pills .nav-link.active {
+    color: #1e4b8e !important;
+    background: transparent !important;
+    border-bottom-color: #1e4b8e;
+  }
+
+  .rider-info-section.card {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .rider-info-section .rider-info-group>.card,
+  .rider-info-section [data-rfp-entity="rider"]>.card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.9rem;
+    box-shadow: 0 2px 14px rgba(16, 24, 40, 0.06);
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+
+  .rider-info-section .rider-info-group>.card>.card-header,
+  .rider-info-section [data-rfp-entity="rider"]>.card>.card-header {
+    background: transparent;
+    border-bottom: 0;
+    padding: 1.1rem 1.25rem 0.25rem;
+    color: #2c3345;
+    font-size: 0.95rem;
+  }
+
+  .rider-info-section .rider-info-group>.card>.card-body,
+  .rider-info-section [data-rfp-entity="rider"]>.card>.card-body {
+    padding: 0.5rem 1.25rem 1.15rem;
+  }
+
+  .rider-info-field label,
+  .rider-info-section .form-group label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500 !important;
+    color: #8b8d97;
+    margin-bottom: 0.2rem;
+  }
+
+  .rider-info-field p,
+  .rider-info-section .form-group p {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #2c3345;
+    margin-bottom: 0.85rem;
+  }
+
+  .rider-view-card #rider-status-cards {
+    margin-top: 0.75rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .rider-view-card #rider-status-cards .status-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: unset;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .rider-view-card #rider-status-cards .status-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    margin-bottom: 0.4rem;
+  }
+
+  .rider-view-card #rider-status-cards .status-title {
+    font-size: 0.78rem;
+  }
+
+  .rider-view-card #rider-status-cards .status-subtitle {
+    font-size: 0.65rem;
+  }
 </style>
 @php
 $rider = $riders ?? $rider ?? null;
@@ -361,153 +643,135 @@ $account = App\Models\ExpenseAccount::where('rider_id', $result['id'])
 }
 $companySlug = request()->route('company_slug');
 $inventoryTabRider = (isset($riders) && $riders instanceof \App\Models\Riders)
-    ? $riders
-    : ((isset($rider) && $rider instanceof \App\Models\Riders) ? $rider : null);
+? $riders
+: ((isset($rider) && $rider instanceof \App\Models\Riders) ? $rider : null);
 $riderAssignedItemCount = ($inventoryTabRider && \App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
-    ? $inventoryTabRider->currentlyAssignedItemCount()
-    : 0;
+? $inventoryTabRider->currentlyAssignedItemCount()
+: 0;
 
 $riderDocumentFrontend = [];
 $riderExistingDocuments = [];
 $riderDocumentDefinitions = [];
 $riderDocumentFiles = [];
 $riderExpiredDocumentCount = 0;
+$riderTopViewCategories = collect();
 if ($inventoryTabRider instanceof \App\Models\Riders) {
-    $riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
-    $riderExistingDocuments = $riderDocumentFrontend['existing'] ?? [];
-    $riderDocumentDefinitions = \App\Support\RiderDocumentReplacement::definitions();
-    $riderDocumentFiles = $riderDocumentFrontend['files'] ?? [];
-    $riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCountForRider($inventoryTabRider);
+$riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
+$riderExistingDocuments = $riderDocumentFrontend['existing'] ?? [];
+$riderDocumentDefinitions = \App\Support\RiderDocumentReplacement::definitions();
+$riderDocumentFiles = $riderDocumentFrontend['files'] ?? [];
+$riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCountForRider($inventoryTabRider);
 }
 
 @endphp
 <div class="row" style="">
   <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
     <!-- User Card -->
-    <div class="card mb-6" style="border-radius: 25px 25px 0px 0px;">
-      <div class="card-header p-0" style="border-radius: 25px 25px 0px 0px; height: 310px; position: relative; background-image: url({{ asset('assets/img/user_back.jpg') }}); background-size: cover;">
-        @isset($result)
-        <div class="profile-img">
-          @php
-          $profile = company_table('files')
-          ->where('type', 'rider')
-          ->where('type_id', $result['id'])
-          ->where(function($query) {
-          $query->where('name', 'LIKE', '%photo%')
-          ->orWhere('name', 'LIKE', '%Photo%')
-          ->orWhere('name', 'LIKE', '%picture%')
-          ->orWhere('name', 'LIKE', '%Picture%')
-          ->orWhere('name', 'LIKE', '%profile%')
-          ->orWhere('name', 'LIKE', '%Profile%');
-          })
-          ->first();
-          if(@$result['image_name'])
-          $image_name = storage_url('profile/'.$result['image_name']);
-          elseif (isset($profile))
-          $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
-          else
-          $image_name = asset('uploads/default.png');
-
-          @endphp
-          <img src="{{ $image_name}}" id="output" style="width: 100%; height: 260px;" class="profile-user-img img-fluid" />
+    <div class="card rider-view-card mb-6">
+      @isset($result)
+      @php
+      $profile = company_table('files')
+      ->where('type', 'rider')
+      ->where('type_id', $result['id'])
+      ->where(function($query) {
+      $query->where('name', 'LIKE', '%photo%')
+      ->orWhere('name', 'LIKE', '%Photo%')
+      ->orWhere('name', 'LIKE', '%picture%')
+      ->orWhere('name', 'LIKE', '%Picture%')
+      ->orWhere('name', 'LIKE', '%profile%')
+      ->orWhere('name', 'LIKE', '%Profile%');
+      })
+      ->first();
+      if (@$result['image_name']) {
+      $image_name = storage_url('profile/'.$result['image_name']);
+      } elseif (isset($profile)) {
+      $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+      } else {
+      $image_name = asset('uploads/default.png');
+      }
+      $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
+      $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+      }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+      ->filter(function ($category) {
+      if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
+      return true;
+      }
+      if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
+      return true;
+      }
+      $column = trim((string) ($category->rider_column ?? ''));
+      return $column === 'rider_status'
+      && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
+      })->map(function ($category) {
+      $column = trim((string) ($category->rider_column ?? ''));
+      if ($column === 'rider_status') {
+      $category->setRelation(
+      'options',
+      \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
+      );
+      } else {
+      $category->setRelation(
+      'options',
+      \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
+      );
+      }
+      return $category;
+      })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
+      $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
+      $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
+      $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
+      $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
+      $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+      ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+      : 'Days in current status';
+      @endphp
+      @endisset
+      <div class="user-avatar-section">
+        <div class="rider-view-card-hero">
+          <i class="ti ti-star rider-view-card-star"></i>
+          @isset($result)
+          <div class="rider-view-card-status">
+            <span class="rider-view-card-active {{ strtolower($employmentBadge['label'] ?? '') === 'active' ? '' : (strtolower($employmentBadge['label'] ?? '') === 'vacation' ? 'is-vacation' : 'is-inactive') }}" id="rider-hero-status-badge">{{ $employmentBadge['label'] ?? 'Inactive' }}</span>
+            <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null) === null) style="display:none" @endif>
+              @if(($statusDaysInfo['days'] ?? null) !== null)
+              {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
+              @endif
+            </small>
+          </div>
+          <div class="rider-view-card-photo-wrap">
+            <img src="{{ $image_name }}" id="output" class="rider-view-card-photo" alt="{{ $result['name'] ?? 'Rider' }}" />
+            @can('riders_rider_edit')
+            <button type="button" class="rider-view-card-camera" id="edit-icon" title="Change photo">
+              <i class="ti ti-camera"></i>
+            </button>
+            @endcan
+          </div>
+          @endisset
         </div>
-        @endisset
-      </div>
-      <div class="card-body pt-12">
-        @isset($result)
-        @php
-        $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
-        $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-        }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
-        ->filter(function ($category) {
-        if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
-          return true;
-        }
-        if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
-          return true;
-        }
-        $column = trim((string) ($category->rider_column ?? ''));
-        return $column === 'rider_status'
-          && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
-        })->map(function ($category) {
-        $column = trim((string) ($category->rider_column ?? ''));
-        if ($column === 'rider_status') {
-        $category->setRelation(
-        'options',
-        \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
-        );
-        } else {
-        $category->setRelation(
-        'options',
-        \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
-        );
-        }
-        return $category;
-        })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
-        $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
-        $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
-        $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
-        $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
-        ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
-        : 'Days in current status';
-        @endphp
-        @endisset
-        <div class="user-avatar-section">
-          <div class=" d-flex align-items-center flex-column">
-            <div class="col-md-12 mt-2">
-              <div class="d-flex align-items-baseline">
-                <div class="user-info" style="width: 100%;">
-                  <div class="mt-2" style="width: 100%;display: flex;gap: 10px; margin-bottom: 10px; align-items: flex-start;">
-                    <span class="badge bg-label-primary" id="rider-designation-badge">@isset($result){{ $result['designation'] ?? 'not-set' }}@endisset</span>
-                    <div class="d-inline-flex flex-column align-items-start gap-1">
-                      <span class="badge {{ $currentStatusBadge['badge'] ?? 'bg-label-danger' }}" id="rider-status-value-badge" title="Rider Status">@isset($result){{ $currentStatusBadge['label'] ?? 'Inactive' }}@endisset</span>
-                      @isset($result)
-                      <small class="text-muted lh-1" id="rider-status-days" title="{{ $statusDaysTitle }}" @if($statusDaysInfo['days']===null) style="display:none" @endif>
-                        @if($statusDaysInfo['days'] !== null)
-                        {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
-                        @endif
-                      </small>
-                      @endisset
-                    </div>
-                  </div>
-                  <span>{{ $result['rider_id'] ?? 'not-set' }}</span>
-                  <h6>
-                    <b>
-                      @isset($result)
-                      {{ $result['name'] ?? 'not-set' }}
-                      @endisset
-                    </b>
-                  </h6>
-                </div>
-                <div class="text-end" style="width: 14%;">
-                  <i class="ti ti-edit ti-sm"
-                    style="border: 2px solid #9593997a !important; border-radius: 24px; padding: 8px; cursor: pointer;"
-                    id="edit-icon">
-                  </i>
-                </div>
+        <div class="card-body pt-3">
+          <div class="user-info text-center mb-3">
+            <h6 class="mb-0"><b>@isset($result){{ $result['name'] ?? 'not-set' }}@endisset</b></h6>
+            <div class="rider-view-card-id">@isset($result){{ $result['rider_id'] ?? 'not-set' }}@endisset</div>
+          </div>
+          <div id="photo-upload-form" class="mt-2" style="display: none;">
+            @isset($result)
+            <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
+              @csrf
+              <div class="button-wrapper text-center">
+                <label for="upload" class="btn btn-default me-2 mb-2" tabindex="0">
+                  <span class="d-none d-sm-block">Change Photo</span>
+                  <i class="ti ti-upload d-block d-sm-none"></i>
+                  <input type="file" id="upload" name="image_name" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
+                </label>
+                <button type="submit" class="btn btn-primary mb-2">Upload</button>
               </div>
-            </div>
-            <div id="photo-upload-form" class="mt-4" style="display: none;">
-              @isset($result)
-              <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
-                @endisset
-                @csrf
-                @isset($result)
-                <div class="button-wrapper">
-                  <label for="upload" class="btn btn-default me-2 mb-3 mt-3" tabindex="0">
-                    <span class="d-none d-sm-block">Change Photo</span>
-                    <i class="ti ti-upload d-block d-sm-none"></i>
-                    <input type="file" id="upload" name="image_name" class="account-file-input " hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
-                  </label>
-                  <button type="submit" class="btn btn-primary">Upload</button>
-                </div>
-                @endisset
-              </form>
-            </div>
+            </form>
+            @endisset
           </div>
         </div>
-        <div class="info-container mt-3">
-          <h3>Basic Information</h3>
+      </div>
+      <div class="card-body pt-0">
+        <div class="info-container">
           <ul class="list-unstyled mb-6">
             <script>
               var loadFile = function(event) {
@@ -520,100 +784,123 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
                       </div> --}}
 
 
-            <ul class="p-0 mb-3">
-              <li class="list-group-item pb-1 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-mail ti-sm me-1_5"></i>
+            @isset($result)
+            <ul class="p-0 mb-3 rider-view-card-list">
+              @php
+              $cardPhone = $result['personal_contact'] ?? $result['company_contact'] ?? 'not-set';
+              $cardEmail = $result['email'] ?? 'not-set';
+              $cardNationality = $rider?->country?->name
+              ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? 'not-set') : 'not-set');
+              $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : 'not-set';
+              $cardAge = !empty($result['dob'] ?? null) ? (\Carbon\Carbon::parse($result['dob'])->age . ' Years') : 'not-set';
+              $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : 'not-set';
+              $cardProject = $rider?->customer?->name ?? 'not-set';
+              $cardAddress = $result['address']
+              ?? $rider?->address
+              ?? $rider?->emirate_hub
+              ?? $rider?->customer?->address
+              ?? 'not-set';
+              if ($cardAddress === '' || $cardAddress === null) {
+              $cardAddress = 'not-set';
+              }
+              @endphp
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-phone"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Email:</span><br> <b class="float-right">@isset($result){{$result['email']??'not-set'}}@endisset</b>
+                  <span>Phone</span>
+                  <b class="is-phone">{{ $cardPhone }}</b>
                 </div>
               </li>
-              <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-phone ti-sm me-1_5"></i>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-mail"></i>
                 </div>
-                <div class="user_list_content mt-2">
-                  <span>WhatsApp:</span><br>
-                  <b class="float-right">
+                <div class="user_list_content">
+                  <span>Email</span>
+                  <b>{{ $cardEmail }}</b>
+                </div>
+              </li>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-brand-whatsapp"></i>
+                </div>
+                <div class="user_list_content">
+                  <span>WhatsApp</span>
+                  <b class="is-whatsapp">
                     @if($rider?->sim?->number)
                     @php
                     $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
                     if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
                     else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
                     @endphp
-                    <a href="https://wa.me/{{ $whatsappNumber }}"
-                      target="_blank"
-                      class="text-success">
-                      {{ $displayNumber }}
-                    </a>
+                    <a href="https://wa.me/{{ $whatsappNumber }}" target="_blank">{{ $displayNumber }}</a>
                     @else
                     N/A
                     @endif
-
                   </b>
                 </div>
               </li>
-              <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-flag ti-sm me-1_5"></i>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-flag"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Nationality:</span><br> <b class="float-right">@isset($result){{company_table('countries')->where('id' , $result['nationality'])->first()->name ??'not-set'}}@endisset</b>
+                  <span>Nationality</span>
+                  <b>{{ $cardNationality }}</b>
                 </div>
               </li>
-              <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-cake ti-sm me-1_5"></i>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-calendar"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Age:</span><br>
-                  <b class="float-right">
-                    @isset($result['dob'])
-                    {{ \Carbon\Carbon::parse($result['dob'])->age }}
-                    @else
-                    not-set
-                    @endisset
-                  </b>
+                  <span>Date of Birth</span>
+                  <b>{{ $cardDob }}</b>
                 </div>
               </li>
-
-              <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-calendar-due ti-sm me-1_5"></i>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-user"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Date of Joining:</span><br> <b class="float-right">@isset($result){{App\Helpers\General::DateFormat($result['doj'])??'not-set'}}@endisset</b>
+                  <span>Age</span>
+                  <b>{{ $cardAge }}</b>
                 </div>
               </li>
-              <!-- <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-user-check ti-sm me-1_5"></i>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-calendar"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Shift:</span><br> <b class="float-right">@isset($result){{$result['shift']??'not-set'}}@endisset</b>
+                  <span>Date of Joining</span>
+                  <b>{{ $cardDoj }}</b>
                 </div>
               </li>
-              <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-file-invoice ti-sm me-1_5"></i>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-briefcase"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Attendance:</span><br> <b class="float-right">@isset($result){{$result['attendance']??'not-set'}}@endisset</b>
+                  <span>Project / Client</span>
+                  <b>{{ $cardProject }}</b>
                 </div>
-              </li> -->
-              <li class="list-group-item pb-1 mt-3 user_list d-flex align-items-center">
-                <div class="icons me-2">
-                  <i class="ti ti-cash-banknote ti-sm me-1_5"></i>
+              </li>
+              <li class="list-group-item user_list">
+                <div class="icons">
+                  <i class="ti ti-map-pin"></i>
                 </div>
                 <div class="user_list_content">
-                  <span>Balance:</span><br> <b class="float-right">@isset($result){{App\Helpers\Accounts::getBalance($result['account_id'])}}@endisset</b>
+                  <span>Address</span>
+                  <b>{{ $cardAddress }}</b>
                 </div>
               </li>
             </ul>
+            @endisset
           </ul>
           @isset($result)
-          <div class="d-flex flex-wrap justify-content-start gap-2 gap-md-3" id="rider-status-cards">
+          <div id="rider-status-cards">
             @php $cardIndex = 0; @endphp
             @foreach($riderTopViewCategories as $category)
             @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
@@ -691,7 +978,7 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
     </div>
   </div>
   <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
-    <div class="nav-align-top mb-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
+    <div class="nav-align-top rider-profile-tabs mb-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
       <div class="card" style="z-index: 1;">
         <div class="card-body p-2">
           <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
@@ -736,7 +1023,7 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
                 @endif
 
                 @can('riders_documents_view')
-                <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0) > 0) style="z-index: 5;" @endif>
+                <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0)> 0) style="z-index: 5;" @endif>
                   <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
                     href="{{route('rider.files',$result['id'])}}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
@@ -875,7 +1162,7 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
         </div>
       </div>
     </div>
-    <div class="card mb-5" id="cardBody" style="margin-top: 20px; position: relative;">
+    <div class="card rider-info-section mb-5" id="cardBody" style="margin-top: 12px; position: relative;">
       @yield('page_content')
     </div>
   </div>
@@ -1155,12 +1442,32 @@ if ($inventoryTabRider instanceof \App\Models\Riders) {
       const designationBadge = document.getElementById('rider-designation-badge');
       const statusValueBadge = document.getElementById('rider-status-value-badge');
       const statusDaysEl = document.getElementById('rider-status-days');
+      const heroBadge = document.getElementById('rider-hero-status-badge');
       if (designationBadge && data.column === 'designation' && data.value) {
         designationBadge.textContent = data.value;
       }
+      const currentLabel = data.status_label || data.rider_status || data.employment_label || 'Inactive';
+      const employmentLabel = data.employment_label || currentLabel;
+      if (heroBadge) {
+        heroBadge.textContent = employmentLabel;
+        heroBadge.classList.remove('is-inactive', 'is-vacation');
+        const employmentLower = String(employmentLabel).toLowerCase();
+        if (employmentLower === 'vacation') {
+          heroBadge.classList.add('is-vacation');
+        } else if (employmentLower !== 'active') {
+          heroBadge.classList.add('is-inactive');
+        }
+      }
       if (statusValueBadge) {
-        const label = data.status_label || data.rider_status || data.employment_label || 'Inactive';
-        statusValueBadge.textContent = label;
+        let text = currentLabel;
+        const days = data.employment_status_days;
+        if (days !== null && days !== undefined && days !== '') {
+          const dayNum = parseInt(days, 10);
+          if (!Number.isNaN(dayNum)) {
+            text = currentLabel + ' ' + dayNum + (dayNum === 1 ? ' day' : ' days');
+          }
+        }
+        statusValueBadge.textContent = text;
         statusValueBadge.className = 'badge ' + (data.status_badge || data.employment_badge || 'bg-label-danger');
       }
       if (statusDaysEl) {

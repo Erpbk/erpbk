@@ -387,6 +387,19 @@
     color: #fff;
     font-size: 1.15rem;
     opacity: 0.95;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 2;
+  }
+
+  .rider-view-card-star:hover {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+
+  .rider-view-card-star.is-favorited {
+    color: #fbbf24;
+    opacity: 1;
   }
 
   .rider-view-card-status {
@@ -724,11 +737,15 @@ $riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCount
       $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
       ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
       : 'Days in current status';
+      $isFavorited = isset($rider) && in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true);
       @endphp
       @endisset
       <div class="user-avatar-section">
         <div class="rider-view-card-hero">
-          <i class="ti ti-star rider-view-card-star"></i>
+          <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
+             id="rider-favorite-star"
+             data-rider-id="{{ $result['id'] ?? '' }}"
+             title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
           @isset($result)
           <div class="rider-view-card-status">
             <span class="rider-view-card-active {{ strtolower($employmentBadge['label'] ?? '') === 'active' ? '' : (strtolower($employmentBadge['label'] ?? '') === 'vacation' ? 'is-vacation' : 'is-inactive') }}" id="rider-hero-status-badge">{{ $employmentBadge['label'] ?? 'Inactive' }}</span>
@@ -1662,6 +1679,50 @@ $riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCount
           }
         }).finally(() => {
           riderTopOptionRequestInFlight = false;
+        });
+      });
+    }
+
+    // Toggle favorite rider
+    const favoriteStar = document.getElementById('rider-favorite-star');
+    if (favoriteStar) {
+      favoriteStar.addEventListener('click', function() {
+        const riderId = this.getAttribute('data-rider-id');
+        if (!riderId) {
+          showNotification('Rider ID not found', 'error');
+          return;
+        }
+
+        const isFavorited = this.classList.contains('is-favorited');
+        const toggleFavoriteUrlTemplate = "{{ route('riders.toggleFavorite', ['id' => '__RID__']) }}";
+        const toggleFavoriteUrl = toggleFavoriteUrlTemplate.replace('__RID__', riderId);
+
+        fetch(toggleFavoriteUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            if (data.favorited) {
+              this.classList.add('is-favorited');
+              this.setAttribute('title', 'Remove from favorites');
+            } else {
+              this.classList.remove('is-favorited');
+              this.setAttribute('title', 'Add to favorites');
+            }
+            showNotification(data.message, 'success');
+          } else {
+            showNotification(data.message || 'Failed to update favorite', 'error');
+          }
+        })
+        .catch(error => {
+          console.error('Favorite toggle error:', error);
+          showNotification('An error occurred while updating favorite', 'error');
         });
       });
     }

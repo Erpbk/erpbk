@@ -4259,4 +4259,42 @@ class RidersController extends AppBaseController
       ], 500);
     }
   }
+
+  /**
+   * Toggle rider favorite status for the authenticated user.
+   */
+  public function toggleFavorite(Request $request, $company_slug, $id)
+  {
+    $rider = $this->findAccessibleRider((int) $id);
+    if (empty($rider)) {
+      return response()->json(['success' => false, 'message' => 'Rider not found'], 404);
+    }
+
+    $user = auth()->user();
+    $favoriteIds = $user->favorite_rider_ids ?? [];
+
+    $riderId = (int) $id;
+    $isFavorited = in_array($riderId, $favoriteIds, true);
+
+    if ($isFavorited) {
+      // Remove from favorites
+      $favoriteIds = array_values(array_filter($favoriteIds, fn($fid) => $fid !== $riderId));
+      $message = 'Rider removed from favorites';
+      $favorited = false;
+    } else {
+      // Add to favorites
+      $favoriteIds[] = $riderId;
+      $message = 'Rider added to favorites';
+      $favorited = true;
+    }
+
+    $user->favorite_rider_ids = $favoriteIds;
+    $user->save();
+
+    return response()->json([
+      'success' => true,
+      'message' => $message,
+      'favorited' => $favorited,
+    ]);
+  }
 }

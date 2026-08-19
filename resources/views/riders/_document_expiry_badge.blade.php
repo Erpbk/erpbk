@@ -9,6 +9,31 @@
   if ($statusLabel !== '') {
     $title = trim($title . ' · ' . $statusLabel);
   }
+  
+  // Calculate days until expiry for precise color coding
+  $daysUntilExpiry = null;
+  $colorStatus = $status;
+  if (!empty($badge['expiry'])) {
+    try {
+      $expiryDate = \Carbon\Carbon::parse($badge['expiry']);
+      $daysUntilExpiry = now()->startOfDay()->diffInDays($expiryDate, false);
+      
+      // Override status based on days until expiry
+      if ($daysUntilExpiry < 0) {
+        $colorStatus = 'expired'; // Red - Already expired
+      } elseif ($daysUntilExpiry <= 7) {
+        $colorStatus = 'critical'; // Dark Red - Critical (within 7 days)
+      } elseif ($daysUntilExpiry <= 30) {
+        $colorStatus = 'expiring'; // Orange - Expiring soon (within 30 days)
+      } elseif ($daysUntilExpiry <= 60) {
+        $colorStatus = 'warning'; // Yellow - Warning (within 60 days)
+      } else {
+        $colorStatus = 'valid'; // Green - Valid (60+ days)
+      }
+    } catch (\Exception $e) {
+      $colorStatus = $status;
+    }
+  }
 @endphp
 @once
 <style>
@@ -47,28 +72,49 @@
   a.rider-doc-expiry-badge:hover {
     filter: brightness(0.96);
   }
+  /* Red - Already Expired */
   .rider-doc-expiry-badge.is-expired {
-    color: #dc3545;
-    background: #fde8ea;
-    border-color: #dc3545;
+    color: #fff;
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    border-color: #991b1b;
     animation: rider-doc-badge-blink 0.8s ease-in-out infinite;
   }
+  
+  /* Dark Red - Critical (Expiring within 7 days) */
+  .rider-doc-expiry-badge.is-critical {
+    color: #fff;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    border-color: #dc2626;
+    animation: rider-doc-badge-blink 1s ease-in-out infinite;
+  }
+  
+  /* Orange - Expiring Soon (8-30 days) */
   .rider-doc-expiry-badge.is-expiring {
-    color: #c27a00;
-    background: #fff4d6;
-    border-color: #e6a817;
-    animation: rider-doc-badge-blink 1.15s ease-in-out infinite;
+    color: #fff;
+    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    border-color: #ea580c;
+    animation: rider-doc-badge-pulse 1.5s ease-in-out infinite;
   }
+  
+  /* Yellow - Warning (31-60 days) */
+  .rider-doc-expiry-badge.is-warning {
+    color: #fff;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-color: #f59e0b;
+  }
+  
+  /* Green - Valid (60+ days) */
   .rider-doc-expiry-badge.is-valid {
-    color: #198754;
-    background: #e8f6ee;
-    border-color: #198754;
-    animation: rider-doc-badge-pulse 1.8s ease-in-out infinite;
+    color: #fff;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-color: #16a34a;
   }
+  
+  /* Gray - No Date */
   .rider-doc-expiry-badge.is-none {
-    color: #6c757d;
-    background: #f1f3f5;
-    border-color: #adb5bd;
+    color: #fff;
+    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+    border-color: #6b7280;
   }
 </style>
 @endonce
@@ -76,9 +122,9 @@
   <a href="{{ $url }}"
     target="_blank"
     rel="noopener noreferrer"
-    class="rider-doc-expiry-badge is-{{ $status }}"
+    class="rider-doc-expiry-badge is-{{ $colorStatus }}"
     title="{{ $title }} — click to open document">{{ $text }}</a>
 @else
-  <span class="rider-doc-expiry-badge is-{{ $status }}"
+  <span class="rider-doc-expiry-badge is-{{ $colorStatus }}"
     title="{{ $title }}">{{ $text }}</span>
 @endif

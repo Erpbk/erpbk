@@ -166,6 +166,113 @@ class RiderDocumentReplacement
     }
 
     /**
+     * Count expired files from Files tab for a rider.
+     */
+    public static function expiredFilesCountForRider(Riders $rider): int
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('files')) {
+            return 0;
+        }
+
+        $today = now()->startOfDay();
+        
+        try {
+            $count = (int) CompanyQuery::table('files')
+                ->where('type', 'rider')
+                ->where('type_id', $rider->id)
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '<', $today)
+                ->count();
+            
+            return $count;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error counting expired files', [
+                'rider_id' => $rider->id,
+                'error' => $e->getMessage(),
+            ]);
+            return 0;
+        }
+    }
+
+    /**
+     * Combined count of expired documents from both Rider Information and Files tab.
+     */
+    public static function totalExpiredCountForRider(Riders $rider): int
+    {
+        return self::expiredCountForRider($rider) + self::expiredFilesCountForRider($rider);
+    }
+
+    /**
+     * Count expiring soon fields from Rider Information (within specified days).
+     */
+    public static function expiringCountForRider(Riders $rider, int $days = 30): int
+    {
+        $count = 0;
+        $today = now()->startOfDay();
+        $endDate = now()->addDays($days)->endOfDay();
+
+        foreach (self::definitions() as $def) {
+            if (! $def['expiry']) {
+                continue;
+            }
+            $expiryValue = $rider->{$def['expiry']} ?? null;
+            if (empty($expiryValue)) {
+                continue;
+            }
+
+            try {
+                $expiryDate = \Carbon\Carbon::parse($expiryValue);
+                if ($expiryDate->between($today, $endDate)) {
+                    $count++;
+                }
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Count expiring soon files from Files tab (within specified days).
+     */
+    public static function expiringFilesCountForRider(Riders $rider, int $days = 30): int
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('files')) {
+            return 0;
+        }
+
+        $today = now()->startOfDay();
+        $endDate = now()->addDays($days)->endOfDay();
+        
+        try {
+            $count = (int) CompanyQuery::table('files')
+                ->where('type', 'rider')
+                ->where('type_id', $rider->id)
+                ->whereNotNull('expiry_date')
+                ->where('expiry_date', '>=', $today)
+                ->where('expiry_date', '<=', $endDate)
+                ->count();
+            
+            return $count;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error counting expiring files', [
+                'rider_id' => $rider->id,
+                'error' => $e->getMessage(),
+            ]);
+            return 0;
+        }
+    }
+
+    /**
+     * Combined count of expiring soon documents from both sources.
+     */
+    public static function totalExpiringCountForRider(Riders $rider, int $days = 30): int
+    {
+        return self::expiringCountForRider($rider, $days) + self::expiringFilesCountForRider($rider, $days);
+    }
+
+    /**
      * @return array{key: string, role: string}|null
      */
     public static function definitionForField(string $fieldKey): ?array

@@ -44,6 +44,9 @@ class AppServiceProvider extends ServiceProvider
   {
     PublicStorageLink::ensure();
 
+    // Register model observers
+    \App\Models\Files::observe(\App\Observers\FileObserver::class);
+
     DB::macro('companyTable', function (string $table, ?string $connection = null) {
       return CompanyQuery::table($table, $connection);
     });

@@ -91,6 +91,8 @@
                                             @if($req->bin_outcome === 'in_recycle_bin')
                                                 <span class="badge bg-label-warning">In Recycle Bin</span>
                                                 <div class="small text-muted">{{ $req->moved_to_bin_at?->format('d-m-Y H:i') }}</div>
+                                            @elseif($req->bin_outcome === 'payment_reversed')
+                                                <span class="badge bg-label-success">Payment reversed</span>
                                             @elseif($req->bin_outcome === 'restored')
                                                 <span class="badge bg-label-primary">Restored</span>
                                             @elseif($req->bin_outcome === 'permanently_deleted')

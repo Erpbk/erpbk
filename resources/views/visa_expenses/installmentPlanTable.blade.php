@@ -1,5 +1,13 @@
 @push('third_party_stylesheets')
 @endpush
+@php
+    $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
+    $installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
+    $installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
+    $canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
+    $canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
+    $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
+@endphp
 <div id="visa-installments-inline-edit-scope">
     <table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
         <thead class="text-center">
@@ -25,13 +33,13 @@
             <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
                 <td>
                     <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                    @can('visa_expense_edit')
+                    @if($canEditInstallment)
                     @if(!$rowPendingDeletion)
                     <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
-                    @endcan
+                    @endif
                     <input type="date"
                         id="inst_date_input_{{ $installment->id }}"
                         value="{{ \Carbon\Carbon::parse($installment->date)->format('Y-m-d') }}"
@@ -54,13 +62,13 @@
                 </td>
                 <td>
                     <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                    @can('visa_expense_edit')
+                    @if($canEditInstallment)
                     @if(!$rowPendingDeletion)
                     <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
-                    @endcan
+                    @endif
                     <input type="month"
                         id="inst_billing_input_{{ $installment->id }}"
                         value="{{ \Carbon\Carbon::parse($installment->billing_month)->format('Y-m') }}"
@@ -70,13 +78,13 @@
                 </td>
                 <td>
                     <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                    @can('visa_expense_edit')
+                    @if($canEditInstallment)
                     @if(!$rowPendingDeletion)
                     <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
-                    @endcan
+                    @endif
                     <input type="number"
                         step="0.01"
                         id="inst_amount_input_{{ $installment->id }}"
@@ -87,13 +95,13 @@
                 </td>
                 <td class="text-start" style="min-width: 260px;">
                     <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                    @can('visa_expense_edit')
+                    @if($canEditInstallment)
                     @if(!$rowPendingDeletion)
                     <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
-                    @endcan
+                    @endif
                     <textarea
                         id="inst_narration_input_{{ $installment->id }}"
                         rows="2"
@@ -119,7 +127,7 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
-                            @can('visa_expense_edit')
+                            @if($canEditInstallment)
                             @if($installment->status === 'pending')
                             <a href="javascript:void(0);"
                                 onclick="markAsPaid({{ $installment->id }})"
@@ -133,15 +141,15 @@
                                 <i class="fa fa-undo me-2"></i> Mark as Pending
                             </a>
                             @endif
-                            @endcan
-                            @can('visa_expense_delete')
+                            @endif
+                            @if($canDeleteInstallment)
                             <div class="dropdown-divider"></div>
                             <a href="javascript:void(0);"
-                                onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
+                                onclick='confirmDeleteProtected("{{ route($installmentDeleteRoute, ['id' => $installment->id]) }}")'
                                 class='dropdown-item waves-effect text-danger'>
                                 <i class="fa fa-trash me-2"></i> Delete
                             </a>
-                            @endcan
+                            @endif
                         </div>
                     </div>
                     @endif
@@ -167,8 +175,8 @@
                         $totalAmount = $data->first()->total_amount ?? 0;
                         $currentTotal = $data->sum('amount');
                         $riderId = $data->first()->rider_id ?? null;
-                        $paidTotal = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
-                        $pendingTotalAll = $riderId ? \App\Models\visa_installment_plan::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
+                        $paidTotal = $riderId ? $installmentPlanModel::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
+                        $pendingTotalAll = $riderId ? $installmentPlanModel::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
                         @endphp
                         <span id="total-amount-reference">{{ number_format($currentTotal, 2) }}</span>
                         <br>
@@ -222,7 +230,7 @@
                     }
                 });
 
-                submitForm('{{ route("Installments.payInstallment") }}', {
+                submitForm('{{ route($installmentPayRoute) }}', {
                     'installment_id': installmentId
                 });
             }
@@ -253,7 +261,7 @@
                     }
                 });
 
-                submitForm('{{ route("Installments.payInstallment") }}', {
+                submitForm('{{ route($installmentPayRoute) }}', {
                     'installment_id': installmentId,
                     'status': 'pending'
                 });
@@ -361,7 +369,7 @@
                     cancelButtonColor: '#6c757d'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        submitForm('{{ route("Installments.updateInstallmentField") }}', {
+                        submitForm('{{ route($installmentUpdateFieldRoute) }}', {
                             'installment_id': installmentId,
                             'field': 'date',
                             'value': newValue,
@@ -403,7 +411,7 @@
                 cancelButtonColor: '#6c757d'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    submitForm('{{ route("Installments.updateInstallmentField") }}', {
+                    submitForm('{{ route($installmentUpdateFieldRoute) }}', {
                         'installment_id': installmentId,
                         'field': 'billing_month',
                         'value': newValue,
@@ -464,7 +472,7 @@
                 cancelButtonColor: '#6c757d'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    submitForm('{{ route("Installments.updateInstallmentField") }}', {
+                    submitForm('{{ route($installmentUpdateFieldRoute) }}', {
                         'installment_id': installmentId,
                         'field': 'amount',
                         'value': newValue,
@@ -498,7 +506,7 @@
             return;
         }
 
-        submitForm('{{ route("Installments.updateInstallmentField") }}', {
+        submitForm('{{ route($installmentUpdateFieldRoute) }}', {
             'installment_id': installmentId,
             'field': 'narration',
             'value': newValue,

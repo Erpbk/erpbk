@@ -7,9 +7,11 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use App\Models\visa_installment_plan;
+use App\Models\license_installment_plan;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class AutoMarkInstallments
 {
@@ -54,8 +56,12 @@ class AutoMarkInstallments
 
         $routeName = $route->getName();
 
-        // Run on Visa Expense and Installments routes
-        return $routeName && (str_contains($routeName, 'VisaExpense') || str_contains($routeName, 'Installments'));
+        // Run on Visa Expense, License Expense, and Installments routes
+        return $routeName && (
+            str_contains($routeName, 'VisaExpense')
+            || str_contains($routeName, 'LicenseExpense')
+            || str_contains($routeName, 'Installments')
+        );
     }
 
     /**
@@ -69,6 +75,14 @@ class AutoMarkInstallments
             $overdueInstallments = visa_installment_plan::where('status', visa_installment_plan::STATUS_PENDING)
                 ->where('date', '<=', $today)
                 ->get();
+
+            if (Schema::hasTable('license_installment_plans')) {
+                $overdueInstallments = $overdueInstallments->concat(
+                    license_installment_plan::where('status', license_installment_plan::STATUS_PENDING)
+                        ->where('date', '<=', $today)
+                        ->get()
+                );
+            }
 
             if ($overdueInstallments->isEmpty()) {
                 return;

@@ -1,4 +1,4 @@
-﻿<form action="{{ route('Installments.createInstallmentPlan') }}" method="POST" id="formajax" class="installment-plan-form">
+﻿<form action="{{ route($installmentStoreRoute ?? 'Installments.createInstallmentPlan') }}" method="POST" id="formajax" class="installment-plan-form">
     @csrf
     <input type="hidden" name="rider_id" value="{{ $account->id }}">
     @if(!empty($branchId))

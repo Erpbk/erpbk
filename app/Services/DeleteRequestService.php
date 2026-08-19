@@ -485,16 +485,20 @@ class DeleteRequestService
         }
 
         $movedAt = now();
+        $keepPaidExpense = static::shouldKeepPaidExpense($model);
 
         static::bypass(true);
         try {
-            // Soft-delete primary record only — never forceDelete on approval.
-            if (method_exists($model, 'trashed') && ! $model->trashed()) {
+            // Paid visa/license expenses stay in place; only related financials are removed.
+            if (! $keepPaidExpense && method_exists($model, 'trashed') && ! $model->trashed()) {
                 if (Schema::hasColumn($model->getTable(), 'deleted_by') && $admin?->id) {
                     $model->deleted_by = $admin->id;
                     $model->save();
                 }
                 $model->delete();
+            } elseif ($keepPaidExpense && Schema::hasColumn($model->getTable(), 'deleted_by') && $model->deleted_by) {
+                $model->deleted_by = null;
+                $model->save();
             }
 
             // Soft-delete queued related records so they remain intact for restore.
@@ -522,13 +526,17 @@ class DeleteRequestService
             static::bypass(false);
         }
 
+        $binOutcome = $keepPaidExpense
+            ? DeleteRequest::BIN_PAYMENT_REVERSED
+            : DeleteRequest::BIN_IN_RECYCLE_BIN;
+
         $deleteRequest->update([
             'status' => DeleteRequest::STATUS_APPROVED,
             'reviewed_by' => $admin?->id,
             'reviewed_at' => $movedAt,
             'admin_remarks' => $remarks,
-            'moved_to_bin_at' => $movedAt,
-            'bin_outcome' => DeleteRequest::BIN_IN_RECYCLE_BIN,
+            'moved_to_bin_at' => $keepPaidExpense ? null : $movedAt,
+            'bin_outcome' => $binOutcome,
             'restored_by' => null,
             'restored_at' => null,
             'permanently_deleted_by' => null,
@@ -538,15 +546,21 @@ class DeleteRequestService
         static::clearPendingIdsCache($deleteRequest->deletable_type);
         static::$activeRootRequest = null;
 
-        ActivityLogger::custom('moved_to_recycle_bin', $deleteRequest->module_key, $model, [
-            'delete_request_id' => $deleteRequest->id,
-            'requested_by' => $deleteRequest->requested_by,
-            'approved_by' => $admin?->id,
-            'moved_to_bin_at' => $movedAt->toDateTimeString(),
-            'admin_remarks' => $remarks,
-            'label' => $deleteRequest->record_label,
-            'outcome' => DeleteRequest::BIN_IN_RECYCLE_BIN,
-        ]);
+        $freshModel = static::resolveDeletable($deleteRequest) ?? $model;
+        ActivityLogger::custom(
+            $keepPaidExpense ? 'payment_reversed' : 'moved_to_recycle_bin',
+            $deleteRequest->module_key,
+            $freshModel,
+            [
+                'delete_request_id' => $deleteRequest->id,
+                'requested_by' => $deleteRequest->requested_by,
+                'approved_by' => $admin?->id,
+                'moved_to_bin_at' => $keepPaidExpense ? null : $movedAt->toDateTimeString(),
+                'admin_remarks' => $remarks,
+                'label' => $deleteRequest->record_label,
+                'outcome' => $binOutcome,
+            ]
+        );
 
         return $deleteRequest->fresh(['requester', 'reviewer', 'restoredByUser', 'permanentlyDeletedByUser']);
     }
@@ -792,8 +806,16 @@ class DeleteRequestService
             static::finalizeApprovedVisaInstallmentDeletion($deleteRequest, $model, $admin);
         }
 
+        if ($deleteRequest->module_key === 'license_installment_plans' && $model instanceof \App\Models\license_installment_plan) {
+            static::finalizeApprovedVisaInstallmentDeletion($deleteRequest, $model, $admin);
+        }
+
         if ($deleteRequest->module_key === 'visa_expenses' && $model instanceof \App\Models\visa_expenses) {
             static::finalizeApprovedVisaExpenseDeletion($deleteRequest, $model, $admin);
+        }
+
+        if ($deleteRequest->module_key === 'license_expenses' && $model instanceof \App\Models\license_expenses) {
+            static::finalizeApprovedLicenseExpenseDeletion($deleteRequest, $model, $admin);
         }
 
         if ($deleteRequest->module_key === 'salik' && $model instanceof \App\Models\salik) {
@@ -872,7 +894,7 @@ class DeleteRequestService
      */
     protected static function finalizeApprovedVisaInstallmentDeletion(
         DeleteRequest $deleteRequest,
-        \App\Models\visa_installment_plan $installment,
+        Model $installment,
         ?User $admin
     ): void {
         $billingMonth = $installment->billing_month;
@@ -906,18 +928,129 @@ class DeleteRequestService
     }
 
     /**
-     * After visa expense approval: recalculate rider account ledger for the billing month.
+     * After visa expense approval: reverse payment in place, or fully delete unpaid rows.
      */
     protected static function finalizeApprovedVisaExpenseDeletion(
         DeleteRequest $deleteRequest,
         \App\Models\visa_expenses $expense,
         ?User $admin
     ): void {
+        static::finalizeApprovedExpenseEntry($expense, 'LV');
+    }
+
+    /**
+     * After license expense approval: reverse payment in place, or fully delete unpaid rows.
+     */
+    protected static function finalizeApprovedLicenseExpenseDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\license_expenses $expense,
+        ?User $admin
+    ): void {
+        static::finalizeApprovedExpenseEntry($expense, 'LE');
+    }
+
+    protected static function finalizeApprovedExpenseEntry(Model $expense, string $referenceType): void
+    {
+        if (static::isPaidExpense($expense)) {
+            static::unpayExpenseInPlace($expense, $referenceType);
+
+            return;
+        }
+
+        static::recalculateExpenseFinancialLedgers($expense, $referenceType);
+        static::deleteOrphanExpenseAccount($expense);
+    }
+
+    public static function isPaidExpense(Model $expense): bool
+    {
+        return strtolower((string) ($expense->payment_status ?? '')) === 'paid';
+    }
+
+    public static function shouldKeepPaidExpense(Model $model): bool
+    {
+        return ($model instanceof \App\Models\visa_expenses || $model instanceof \App\Models\license_expenses)
+            && static::isPaidExpense($model);
+    }
+
+    /**
+     * Keep the expense row, mark it unpaid, and rebuild ledgers after financials were removed.
+     */
+    public static function unpayExpenseInPlace(Model $expense, string $referenceType): void
+    {
+        $expense->payment_status = 'unpaid';
+        if (Schema::hasColumn($expense->getTable(), 'deleted_by') && $expense->deleted_by) {
+            $expense->deleted_by = null;
+        }
+        $expense->save();
+
+        static::recalculateExpenseFinancialLedgers($expense, $referenceType);
+    }
+
+    /**
+     * Rebuild ledgers for every account touched by this expense's (trashed) payment rows.
+     */
+    public static function recalculateExpenseFinancialLedgers(Model $expense, string $referenceType): void
+    {
+        $accountIds = \App\Models\Transactions::withTrashed()
+            ->where(function ($q) use ($expense, $referenceType) {
+                $q->where(function ($inner) use ($expense, $referenceType) {
+                    $inner->where('reference_id', $expense->id)
+                        ->where('reference_type', $referenceType);
+                });
+                if (! empty($expense->trans_code)) {
+                    $q->orWhere(function ($inner) use ($expense, $referenceType) {
+                        $inner->where('trans_code', $expense->trans_code)
+                            ->where('reference_type', $referenceType);
+                    });
+                }
+            })
+            ->pluck('account_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        foreach ($accountIds as $accountId) {
+            if ($expense->billing_month) {
+                static::recalculateLedgerAfterVoucherDeletion((int) $accountId, $expense->billing_month);
+            }
+        }
+
+        static::recalculateExpenseRiderLedger($expense);
+    }
+
+    /**
+     * Remove the parent expense account when no live expense rows remain.
+     */
+    public static function deleteOrphanExpenseAccount(Model $expense): void
+    {
+        $accountId = $expense->getAttribute('expense_account_id');
+        if (! $accountId) {
+            return;
+        }
+
+        $remaining = get_class($expense)::query()
+            ->where('expense_account_id', $accountId)
+            ->exists();
+
+        if (! $remaining) {
+            \App\Models\ExpenseAccount::query()->where('id', $accountId)->delete();
+        }
+    }
+
+    /**
+     * Rebuild the rider ledger for a visa/license expense billing month.
+     */
+    public static function recalculateExpenseRiderLedger($expense): void
+    {
+        if (empty($expense->billing_month) || empty($expense->rider_id)) {
+            return;
+        }
+
         $riderAccountId = \App\Support\CompanyQuery::table('accounts')
             ->where('ref_id', $expense->rider_id)
             ->value('id');
 
-        if ($riderAccountId && $expense->billing_month) {
+        if ($riderAccountId) {
             static::recalculateLedgerAfterVoucherDeletion((int) $riderAccountId, $expense->billing_month);
         }
     }
@@ -1036,7 +1169,7 @@ class DeleteRequestService
         }
     }
 
-    protected static function recalculateLedgerAfterVoucherDeletion(int $accountId, $billingMonth): void
+    public static function recalculateLedgerAfterVoucherDeletion(int $accountId, $billingMonth): void
     {
         \App\Support\CompanyQuery::table('ledger_entries')
             ->where('account_id', $accountId)

@@ -23,6 +23,185 @@ use DB;
 
 trait ManagesVisaInstallments
 {
+    protected function installmentModelClass(): string
+    {
+        return visa_installment_plan::class;
+    }
+
+    protected function installmentQuery()
+    {
+        return $this->installmentModelClass()::query();
+    }
+
+    protected function installmentVoucherType(): string
+    {
+        return 'VL';
+    }
+
+    protected function installmentReferenceType(): string
+    {
+        return 'VL';
+    }
+
+    protected function installmentVoucherReason(): ?string
+    {
+        return null;
+    }
+
+    protected function installmentHeadAccountKey(): string
+    {
+        return 'VISA_EXPENSE_ACCOUNT';
+    }
+
+    protected function installmentNarrationLabel(): string
+    {
+        return 'visa loan installment';
+    }
+
+    protected function installmentVoucherRemarksPrefix(): string
+    {
+        return 'Loan Voucher';
+    }
+
+    protected function installmentAccountNotFoundMessage(): string
+    {
+        return 'Visa expense account not found.';
+    }
+
+    protected function installmentEntriesRouteName(): string
+    {
+        return 'VisaExpense.generatentries';
+    }
+
+    protected function installmentIndexRouteName(): ?string
+    {
+        return 'Installments.index';
+    }
+
+    protected function installmentViewPlanTable(): string
+    {
+        return 'installments.installmentPlanTable';
+    }
+
+    protected function installmentViewPlan(): string
+    {
+        return 'installments.installmentPlan';
+    }
+
+    protected function installmentViewCreate(): string
+    {
+        return 'installments.createInstallmentPlan';
+    }
+
+    protected function installmentViewInvoice(): string
+    {
+        return 'installments.installmentInvoice';
+    }
+
+    protected function installmentViewInvoiceAjax(): string
+    {
+        return 'installments.installmentInvoice_ajax';
+    }
+
+    protected function installmentRouteNames(): array
+    {
+        return [
+            'create' => 'Installments.createInstallmentPlan',
+            'create_form' => 'Installments.createInstallmentPlanForm',
+            'pay' => 'Installments.payInstallment',
+            'update_field' => 'Installments.updateInstallmentField',
+            'delete' => 'Installments.deleteInstallment',
+            'invoice' => 'Installments.generateInstallmentInvoice',
+            'plan' => 'Installments.installmentPlan',
+        ];
+    }
+
+    protected function installmentPermissionMap(): array
+    {
+        return [
+            'view' => ['visa_expense_view', 'installment_view'],
+            'create' => ['visa_expense_create', 'installment_create'],
+            'edit' => ['visa_expense_edit', 'installment_edit'],
+            'delete' => ['visa_expense_delete', 'installment_delete'],
+        ];
+    }
+
+    protected function installmentAllows(string $action): bool
+    {
+        foreach ($this->installmentPermissionMap()[$action] ?? [] as $perm) {
+            if (user_can($perm)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function expenseAccountBaseQuery()
+    {
+        return ExpenseAccount::query()->visa();
+    }
+
+    protected function installmentVouchersFor($installmentId)
+    {
+        $query = Vouchers::where('ref_id', $installmentId)
+            ->where('voucher_type', $this->installmentVoucherType());
+        $reason = $this->installmentVoucherReason();
+        if ($reason) {
+            $query->where('reason', $reason);
+        }
+
+        return $query;
+    }
+
+    protected function installmentTransactionsFor($installmentId)
+    {
+        return Transactions::where('reference_id', $installmentId)
+            ->where('reference_type', $this->installmentReferenceType());
+    }
+
+    protected function installmentTable(): string
+    {
+        return (new ($this->installmentModelClass()))->getTable();
+    }
+
+    protected function withInstallmentVoucherReason(array $attributes): array
+    {
+        $reason = $this->installmentVoucherReason();
+        if ($reason) {
+            $attributes['reason'] = $reason;
+        }
+
+        return $attributes;
+    }
+
+    protected function createInstallmentVoucher(array $attributes): Vouchers
+    {
+        return Vouchers::create($this->withInstallmentVoucherReason($attributes));
+    }
+
+    protected function installmentTableViewData(array $extra = []): array
+    {
+        $routes = $this->installmentRouteNames();
+
+        return array_merge([
+            'installmentPayRoute' => $routes['pay'],
+            'installmentUpdateFieldRoute' => $routes['update_field'],
+            'installmentDeleteRoute' => $routes['delete'],
+            'installmentStoreRoute' => $routes['create'],
+            'installmentCreateFormRoute' => $routes['create_form'],
+            'installmentInvoiceRoute' => $routes['invoice'],
+            'installmentPlanRoute' => $routes['plan'] ?? 'Installments.installmentPlan',
+            'installmentPlanTableView' => $this->installmentViewPlanTable(),
+            'installmentIndexRoute' => $this->installmentIndexRouteName(),
+            'installmentEntriesRoute' => $this->installmentEntriesRouteName(),
+            'canEditInstallment' => $this->installmentAllows('edit'),
+            'canDeleteInstallment' => $this->installmentAllows('delete'),
+            'canCreateInstallment' => $this->installmentAllows('create'),
+            'installmentPlanModel' => $this->installmentModelClass(),
+        ], $extra);
+    }
+
     public function installmentPlan(Request $request, $company_slug, $id)
     {
         // Debug session information
@@ -44,7 +223,7 @@ trait ManagesVisaInstallments
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!user_can('visa_expense_view') && !user_can('installment_view')) {
+        if (!$this->installmentAllows('view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -56,7 +235,7 @@ trait ManagesVisaInstallments
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-        $query = visa_installment_plan::query()
+        $query = $this->installmentQuery()
             ->with(['vouchers', 'installmentTransactions'])
             ->orderBy('date', 'asc');
         $this->applyInstallmentRiderScope($query, $account);
@@ -76,10 +255,10 @@ trait ManagesVisaInstallments
         $installmentStats = $this->installmentPlanSummary($account);
 
         if ($request->ajax()) {
-            $tableData = view('installments.installmentPlanTable', [
+            $tableData = view($this->installmentViewPlanTable(), $this->installmentTableViewData([
                 'data' => $data,
                 'account' => $account,
-            ])->render();
+            ]))->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
                 'tableData' => $tableData,
@@ -89,12 +268,15 @@ trait ManagesVisaInstallments
 
         $riders = Riders::findOrFail($account->rider_id);
 
-        return view('installments.installmentPlan', compact('data', 'account', 'riders', 'installmentStats'));
+        return view($this->installmentViewPlan(), array_merge(
+            compact('data', 'account', 'riders', 'installmentStats'),
+            $this->installmentTableViewData()
+        ));
     }
 
     public function createInstallmentPlanForm(Request $request, $company_slug, $riderId)
     {
-        if (!user_can('visa_expense_create') && !user_can('installment_create')) {
+        if (!$this->installmentAllows('create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -106,7 +288,7 @@ trait ManagesVisaInstallments
         $account->loadMissing('rider.branch');
         $rider = $account->rider ?? Riders::find($account->rider_id);
         if (!$rider) {
-            abort(404, 'Rider not found for this visa expense account.');
+            abort(404, 'Rider not found for this expense account.');
         }
 
         $branch = $rider->branch;
@@ -116,18 +298,18 @@ trait ManagesVisaInstallments
             $branches = Branch::query()->orderBy('name')->get(['id', 'name', 'code']);
         }
 
-        return view('installments.createInstallmentPlan', compact(
+        return view($this->installmentViewCreate(), array_merge(compact(
             'account',
             'rider',
             'branch',
             'branchId',
             'branches'
-        ));
+        ), $this->installmentTableViewData()));
     }
 
     public function createInstallmentPlan(Request $request, $company_slug)
     {
-        if (!user_can('visa_expense_create') && !user_can('installment_create')) {
+        if (!$this->installmentAllows('create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -252,25 +434,25 @@ trait ManagesVisaInstallments
 
     public function payInstallment(Request $request)
     {
-        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
+        if (!$this->installmentAllows('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
         $validated = $request->validate([
-            'installment_id' => 'required|exists:visa_installment_plans,id',
+            'installment_id' => 'required|exists:' . $this->installmentTable() . ',id',
             'status' => 'nullable|in:pending,paid'
         ]);
 
         try {
             DB::beginTransaction();
 
-            $installment = visa_installment_plan::findOrFail($validated['installment_id']);
+            $installment = $this->installmentModelClass()::findOrFail($validated['installment_id']);
             $currentStatus = $installment->status;
-            $newStatus = $request->has('status') ? $validated['status'] : visa_installment_plan::STATUS_PAID;
+            $newStatus = $request->has('status') ? $validated['status'] : $this->installmentModelClass()::STATUS_PAID;
 
             // If status is already what we want to set it to
             if ($currentStatus === $newStatus) {
-                $actionText = $newStatus === visa_installment_plan::STATUS_PAID ? 'paid' : 'pending';
+                $actionText = $newStatus === $this->installmentModelClass()::STATUS_PAID ? 'paid' : 'pending';
                 Flash::info('This installment is already marked as ' . $actionText . '.');
                 return redirect()->back();
             }
@@ -282,7 +464,7 @@ trait ManagesVisaInstallments
 
             DB::commit();
 
-            $actionText = $newStatus === visa_installment_plan::STATUS_PAID ? 'paid' : 'pending';
+            $actionText = $newStatus === $this->installmentModelClass()::STATUS_PAID ? 'paid' : 'pending';
             Flash::success('Installment marked as ' . $actionText . ' successfully.');
             return redirect()->back();
         } catch (\Exception $e) {
@@ -294,12 +476,12 @@ trait ManagesVisaInstallments
 
     public function updateInstallmentField(Request $request)
     {
-        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
+        if (!$this->installmentAllows('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
         $validated = $request->validate([
-            'installment_id' => 'required|exists:visa_installment_plans,id',
+            'installment_id' => 'required|exists:' . $this->installmentTable() . ',id',
             'field' => 'required|in:date,billing_month,amount,narration',
             'value' => 'required',
             'update_subsequent' => 'nullable|in:true,false,1,0',
@@ -313,8 +495,8 @@ trait ManagesVisaInstallments
         try {
             DB::beginTransaction();
 
-            $installment = visa_installment_plan::findOrFail($validated['installment_id']);
-            $isPaid = $installment->status === visa_installment_plan::STATUS_PAID;
+            $installment = $this->installmentModelClass()::findOrFail($validated['installment_id']);
+            $isPaid = $installment->status === $this->installmentModelClass()::STATUS_PAID;
 
             ['riderAccount' => $riderAccount, 'rider' => $rider] = $this->resolveInstallmentRiderContext($installment);
             $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
@@ -380,8 +562,7 @@ trait ManagesVisaInstallments
             }
 
             // Update voucher (no narration column on vouchers â€” narration lives on transactions)
-            $voucher = Vouchers::where('ref_id', $installment->id)
-                ->where('voucher_type', 'VL')
+            $voucher = $this->installmentVouchersFor($installment->id)
                 ->first();
 
             if ($voucher && in_array($validated['field'], ['billing_month', 'amount', 'date'], true)) {
@@ -397,8 +578,7 @@ trait ManagesVisaInstallments
             }
 
             // Update transactions
-            $transactions = Transactions::where('reference_id', $installment->id)
-                ->where('reference_type', 'VL')
+            $transactions = $this->installmentTransactionsFor($installment->id)
                 ->get();
 
             foreach ($transactions as $transaction) {
@@ -442,7 +622,7 @@ trait ManagesVisaInstallments
 
             // If this is a paid installment and we want to keep it paid
             if ($markAsPaid && !$isPaid) {
-                $installment->status = visa_installment_plan::STATUS_PAID;
+                $installment->status = $this->installmentModelClass()::STATUS_PAID;
                 $installment->save();
             }
 
@@ -467,7 +647,7 @@ trait ManagesVisaInstallments
 
     public function finalizePayment(Request $request)
     {
-        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
+        if (!$this->installmentAllows('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -510,7 +690,7 @@ trait ManagesVisaInstallments
                 }
 
                 /** @var \App\Models\visa_installment_plan $installment */
-                $installment = visa_installment_plan::findOrFail($installmentId);
+                $installment = $this->installmentModelClass()::findOrFail($installmentId);
 
                 // Allow editing paid installments - this check is removed
 
@@ -538,8 +718,7 @@ trait ManagesVisaInstallments
                 }
 
                 // Update or create voucher
-                $voucher = Vouchers::where('ref_id', $installment->id)
-                    ->where('voucher_type', 'VL')
+                $voucher = $this->installmentVouchersFor($installment->id)
                     ->first();
 
                 if ($voucher) {
@@ -550,14 +729,14 @@ trait ManagesVisaInstallments
                     $trans_code = Account::trans_code();
                     $trans_date = Carbon::parse($installment->date ?? Carbon::today());
 
-                    $voucher = Vouchers::create([
+                    $voucher = $this->createInstallmentVoucher([
                         'rider_id' => $rider->id,
                         'trans_date' => $trans_date,
                         'trans_code' => $trans_code,
                         'billing_month' => $billingMonth,
                         'payment_type' => 1,
-                        'voucher_type' => 'VL',
-                        'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - visa loan installment',
+                        'voucher_type' => $this->installmentVoucherType(),
+                        'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - ' . $this->installmentNarrationLabel(),
                         'amount' => (float) $newAmount,
                         'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
@@ -571,7 +750,7 @@ trait ManagesVisaInstallments
                     $TransactionService->recordTransaction([
                         'account_id' => $liabilityAccount?->id,
                         'reference_id' => $installment->id,
-                        'reference_type' => 'VL',
+                        'reference_type' => $this->installmentReferenceType(),
                         'trans_code' => $trans_code,
                         'trans_date' => $trans_date,
                         'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting <b> installment </b> - ' . $installment->billing_month,
@@ -584,7 +763,7 @@ trait ManagesVisaInstallments
                     $TransactionService->recordTransaction([
                         'account_id' => $riderAccount->id,
                         'reference_id' => $installment->id,
-                        'reference_type' => 'VL',
+                        'reference_type' => $this->installmentReferenceType(),
                         'trans_code' => $trans_code,
                         'trans_date' => $trans_date,
                         'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting <b> installment </b> - ' . $installment->billing_month,
@@ -596,8 +775,7 @@ trait ManagesVisaInstallments
                 }
 
                 // Update transactions (if existed prior)
-                $transactions = Transactions::where('reference_id', $installment->id)
-                    ->where('reference_type', 'VL')
+                $transactions = $this->installmentTransactionsFor($installment->id)
                     ->get();
 
                 foreach ($transactions as $transaction) {
@@ -650,8 +828,8 @@ trait ManagesVisaInstallments
             if (is_array($deletions) && !empty($deletions)) {
                 foreach ($deletions as $deleteId) {
                     /** @var \App\Models\visa_installment_plan $inst */
-                    $inst = visa_installment_plan::findOrFail($deleteId);
-                    if ($inst->status === visa_installment_plan::STATUS_PAID) {
+                    $inst = $this->installmentModelClass()::findOrFail($deleteId);
+                    if ($inst->status === $this->installmentModelClass()::STATUS_PAID) {
                         throw new \RuntimeException('Cannot delete a paid installment (ID: ' . $deleteId . ').');
                     }
 
@@ -660,10 +838,7 @@ trait ManagesVisaInstallments
                     $installmentIdentifier = "Installment Plan #{$deleteId} - Billing Month: {$inst->billing_month} (Amount: " . number_format($inst->amount, 2) . ")";
 
                     // Get related vouchers before deletion (include soft deleted to be safe)
-                    $relatedVouchers = Vouchers::withTrashed()
-                        ->where('ref_id', $inst->id)
-                        ->where('voucher_type', 'VL')
-                        ->whereNull('deleted_at') // Only get non-deleted vouchers
+                    $relatedVouchers = $this->installmentVouchersFor($inst->id)
                         ->get();
 
                     \Log::info("Found " . $relatedVouchers->count() . " vouchers to track for installment {$deleteId} in finalizePayment", [
@@ -671,22 +846,21 @@ trait ManagesVisaInstallments
                     ]);
 
                     // Get related transactions before deletion
-                    $relatedTransactions = Transactions::where('reference_id', $inst->id)
-                        ->where('reference_type', 'VL')
+                    $relatedTransactions = $this->installmentTransactionsFor($inst->id)
                         ->get();
 
                     // Track cascade deletions for vouchers BEFORE deletion
                     foreach ($relatedVouchers as $voucher) {
                         try {
                             \Log::info("Attempting to track cascade deletion for voucher {$voucher->id}", [
-                                'primary_model' => visa_installment_plan::class,
+                                'primary_model' => $this->installmentModelClass(),
                                 'primary_id' => $inst->id,
                                 'related_model' => Vouchers::class,
                                 'related_id' => $voucher->id,
                             ]);
 
                             $cascadeRecord = $this->trackCascadeDeletion(
-                                visa_installment_plan::class,
+                                $this->installmentModelClass(),
                                 $inst->id,
                                 $installmentIdentifier,
                                 Vouchers::class,
@@ -715,7 +889,7 @@ trait ManagesVisaInstallments
                     foreach ($relatedTransactions as $transaction) {
                         try {
                             $this->trackCascadeDeletion(
-                                visa_installment_plan::class,
+                                $this->installmentModelClass(),
                                 $inst->id,
                                 $installmentIdentifier,
                                 Transactions::class,
@@ -738,9 +912,13 @@ trait ManagesVisaInstallments
                         $voucher->save();
                         $voucher->delete();
                     }
-                    Transactions::where('reference_id', $inst->id)
-                        ->where('reference_type', 'VL')
-                        ->delete();
+                    foreach ($relatedTransactions as $transaction) {
+                        if (\Illuminate\Support\Facades\Schema::hasColumn($transaction->getTable(), 'deleted_by')) {
+                            $transaction->deleted_by = auth()->id();
+                            $transaction->save();
+                        }
+                        $transaction->delete();
+                    }
 
                     // Delete related ledger entries for the liability account for that billing month
                     ['riderAccount' => $riderAccount] = $this->resolveInstallmentRiderContext($inst);
@@ -758,7 +936,7 @@ trait ManagesVisaInstallments
                         if ($ledgerEntry) {
                             try {
                                 $this->trackCascadeDeletion(
-                                    visa_installment_plan::class,
+                                    $this->installmentModelClass(),
                                     $inst->id,
                                     $installmentIdentifier,
                                     \App\Models\LedgerEntry::class,
@@ -793,13 +971,13 @@ trait ManagesVisaInstallments
                 $contextInstallment = null;
                 if (!empty($changes)) {
                     $firstChangeId = array_key_first($changes);
-                    $contextInstallment = visa_installment_plan::find($firstChangeId);
+                    $contextInstallment = $this->installmentModelClass()::find($firstChangeId);
                 }
                 if (!$contextInstallment && !empty($deletions)) {
-                    $contextInstallment = visa_installment_plan::find($deletions[0]);
+                    $contextInstallment = $this->installmentModelClass()::find($deletions[0]);
                 }
                 if (!$contextInstallment) {
-                    $contextInstallment = visa_installment_plan::first();
+                    $contextInstallment = $this->installmentModelClass()::first();
                 }
                 if (!$contextInstallment) {
                     throw new \RuntimeException('Unable to determine rider for new installment.');
@@ -811,7 +989,7 @@ trait ManagesVisaInstallments
                     ->where('account_type', 'Liability')
                     ->where('parent_id', 1)
                     ->first();
-                $existingTotalAmount = (float) (visa_installment_plan::where('rider_id', $contextInstallment->rider_id)->value('total_amount') ?? 0);
+                $existingTotalAmount = (float) ($this->installmentModelClass()::where('rider_id', $contextInstallment->rider_id)->value('total_amount') ?? 0);
 
                 foreach ($additions as $addition) {
                     $amount = isset($addition['amount']) ? (float) $addition['amount'] : null;
@@ -824,14 +1002,14 @@ trait ManagesVisaInstallments
                         $date = Carbon::parse($bm . '-01')->copy()->addMonth()->day(10)->format('Y-m-d');
                     }
 
-                    $installment = visa_installment_plan::create([
+                    $installment = $this->installmentModelClass()::create([
                         'rider_id' => $contextInstallment->rider_id,
                         'billing_month' => $bm,
                         'amount' => $amount,
                         'total_amount' => $existingTotalAmount,
                         'reference_number' => $contextInstallment->reference_number ?? null,
                         'narration' => $rider->rider_id . ' - ' . $rider->name . ' - installment - ' . $bm,
-                        'status' => visa_installment_plan::STATUS_PENDING,
+                        'status' => $this->installmentModelClass()::STATUS_PENDING,
                         'date' => $date,
                         'created_by' => auth()->user()->id,
                     ]);
@@ -841,14 +1019,14 @@ trait ManagesVisaInstallments
                     $trans_date = Carbon::parse($date);
                     $billingMonthFull = strlen($bm) <= 7 ? $bm . '-01' : $bm;
 
-                    Vouchers::create([
+                    $this->createInstallmentVoucher([
                         'rider_id' => $rider->id,
                         'trans_date' => $trans_date,
                         'trans_code' => $trans_code,
                         'billing_month' => $billingMonthFull,
                         'payment_type' => 1,
-                        'voucher_type' => 'VL',
-                        'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - visa loan installment (new)',
+                        'voucher_type' => $this->installmentVoucherType(),
+                        'remarks' => $rider->rider_id . ' - ' . $rider->name . ' - ' . $this->installmentNarrationLabel() . ' (new)',
                         'amount' => $amount,
                         'reference_number' => $installment->reference_number ?? null,
                         'Created_By' => auth()->user()->id,
@@ -862,7 +1040,7 @@ trait ManagesVisaInstallments
                         $TransactionService->recordTransaction([
                             'account_id' => $liabilityAccount->id,
                             'reference_id' => $installment->id,
-                            'reference_type' => 'VL',
+                            'reference_type' => $this->installmentReferenceType(),
                             'trans_code' => $trans_code,
                             'trans_date' => $trans_date,
                             'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting installment - ' . $bm,
@@ -909,7 +1087,7 @@ trait ManagesVisaInstallments
                     $TransactionService->recordTransaction([
                         'account_id' => $riderAccount->id,
                         'reference_id' => $installment->id,
-                        'reference_type' => 'VL',
+                        'reference_type' => $this->installmentReferenceType(),
                         'trans_code' => $trans_code,
                         'trans_date' => $trans_date,
                         'narration' => $rider->rider_id . ' - ' . $rider->name . ' - deducting installment - ' . $bm,
@@ -923,9 +1101,9 @@ trait ManagesVisaInstallments
 
             // Server-side validation: paid + pending must equal required total
             if ($firstRiderId) {
-                $totalAmount = (float) visa_installment_plan::where('rider_id', $firstRiderId)->value('total_amount') ?? 0.0;
-                $paidTotal = (float) visa_installment_plan::where('rider_id', $firstRiderId)->where('status', 'paid')->sum('amount');
-                $pendingTotal = (float) visa_installment_plan::where('rider_id', $firstRiderId)->where('status', 'pending')->sum('amount');
+                $totalAmount = (float) $this->installmentModelClass()::where('rider_id', $firstRiderId)->value('total_amount') ?? 0.0;
+                $paidTotal = (float) $this->installmentModelClass()::where('rider_id', $firstRiderId)->where('status', 'paid')->sum('amount');
+                $pendingTotal = (float) $this->installmentModelClass()::where('rider_id', $firstRiderId)->where('status', 'pending')->sum('amount');
                 $combined = $paidTotal + $pendingTotal;
                 if (abs($totalAmount - $combined) > 0.009) {
                     throw new \RuntimeException('Totals mismatch after finalize. Please adjust amounts to match the required total.');
@@ -935,14 +1113,13 @@ trait ManagesVisaInstallments
             // Process date changes if any
             if (is_array($dateChanges) && !empty($dateChanges)) {
                 foreach ($dateChanges as $installmentId => $newDate) {
-                    $installment = visa_installment_plan::findOrFail($installmentId);
+                    $installment = $this->installmentModelClass()::findOrFail($installmentId);
                     $installment->date = $newDate;
                     $installment->updated_by = auth()->user()->id;
                     $installment->save();
 
                     // Update related voucher
-                    $voucher = Vouchers::where('ref_id', $installment->id)
-                        ->where('voucher_type', 'VL')
+                    $voucher = $this->installmentVouchersFor($installment->id)
                         ->first();
                     if ($voucher) {
                         $voucher->trans_date = $newDate;
@@ -951,8 +1128,7 @@ trait ManagesVisaInstallments
                     }
 
                     // Update related transactions
-                    $transactions = Transactions::where('reference_id', $installment->id)
-                        ->where('reference_type', 'VL')
+                    $transactions = $this->installmentTransactionsFor($installment->id)
                         ->get();
                     foreach ($transactions as $transaction) {
                         $transaction->trans_date = $newDate;
@@ -965,7 +1141,7 @@ trait ManagesVisaInstallments
             // Process billing month changes if any
             if (is_array($billingChanges) && !empty($billingChanges)) {
                 foreach ($billingChanges as $installmentId => $newBillingMonth) {
-                    $installment = visa_installment_plan::findOrFail($installmentId);
+                    $installment = $this->installmentModelClass()::findOrFail($installmentId);
                     $installment->billing_month = $newBillingMonth;
                     $installment->updated_by = auth()->user()->id;
                     $installment->save();
@@ -974,8 +1150,7 @@ trait ManagesVisaInstallments
                     $billingMonthWithDay = (strlen($newBillingMonth) <= 7) ? $newBillingMonth . "-01" : $newBillingMonth;
 
                     // Update related voucher
-                    $voucher = Vouchers::where('ref_id', $installment->id)
-                        ->where('voucher_type', 'VL')
+                    $voucher = $this->installmentVouchersFor($installment->id)
                         ->first();
                     if ($voucher) {
                         $voucher->billing_month = $billingMonthWithDay;
@@ -984,8 +1159,7 @@ trait ManagesVisaInstallments
                     }
 
                     // Update related transactions
-                    $transactions = Transactions::where('reference_id', $installment->id)
-                        ->where('reference_type', 'VL')
+                    $transactions = $this->installmentTransactionsFor($installment->id)
                         ->get();
                     foreach ($transactions as $transaction) {
                         $transaction->billing_month = $billingMonthWithDay;
@@ -999,7 +1173,7 @@ trait ManagesVisaInstallments
 
             \Flash::success('Payment finalized. All changes saved and vouchers updated successfully.');
             if ($firstRiderId) {
-                return redirect()->route('VisaExpense.generatentries', $firstRiderId);
+                return redirect()->route($this->installmentEntriesRouteName(), $firstRiderId);
             }
             return redirect()->back();
         } catch (\Exception $e) {
@@ -1011,21 +1185,19 @@ trait ManagesVisaInstallments
 
     public function deleteInstallment($company_slug, $id)
     {
-        if (!user_can('visa_expense_delete') && !user_can('installment_delete')) {
+        if (!$this->installmentAllows('delete')) {
             abort(403, 'Unauthorized action.');
         }
 
         try {
             DB::beginTransaction();
 
-            $installment = visa_installment_plan::findOrFail($id);
+            $installment = $this->installmentModelClass()::findOrFail($id);
 
-            $relatedVouchers = Vouchers::where('ref_id', $installment->id)
-                ->where('voucher_type', 'VL')
+            $relatedVouchers = $this->installmentVouchersFor($installment->id)
                 ->get();
 
-            $relatedTransactions = Transactions::where('reference_id', $installment->id)
-                ->where('reference_type', 'VL')
+            $relatedTransactions = $this->installmentTransactionsFor($installment->id)
                 ->get();
 
             $billingMonth = $installment->billing_month;
@@ -1136,7 +1308,7 @@ trait ManagesVisaInstallments
 
     public function generateInstallmentInvoice($company_slug, $riderId)
     {
-        if (!user_can('visa_expense_view') && !user_can('installment_view')) {
+        if (!$this->installmentAllows('view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1149,7 +1321,7 @@ trait ManagesVisaInstallments
             if ($expenseAccount) {
                 $account = $expenseAccount;
                 $rider = $expenseAccount->rider ?? Riders::findOrFail($expenseAccount->rider_id);
-                $installments = visa_installment_plan::query()
+                $installments = $this->installmentQuery()
                     ->where(function ($q) use ($expenseAccount) {
                         $this->applyInstallmentRiderScope($q, $expenseAccount);
                     })
@@ -1160,14 +1332,14 @@ trait ManagesVisaInstallments
             if ($installments->isEmpty() && ($ledgerAccount = Accounts::find($riderId))) {
                 $account = $ledgerAccount;
                 $rider = Riders::findOrFail($ledgerAccount->ref_id);
-                $installments = visa_installment_plan::where('rider_id', $riderId)
+                $installments = $this->installmentModelClass()::where('rider_id', $riderId)
                     ->orderBy('billing_month', 'asc')
                     ->get();
             }
 
             if ($installments->isEmpty()) {
                 $rider = Riders::findOrFail($riderId);
-                $installments = visa_installment_plan::where('rider_id', $riderId)
+                $installments = $this->installmentModelClass()::where('rider_id', $riderId)
                     ->orderBy('billing_month', 'asc')
                     ->get();
             }
@@ -1184,10 +1356,10 @@ trait ManagesVisaInstallments
             $rider->loadMissing(['vendor', 'sim']);
 
             if (request()->ajax()) {
-                return view('installments.installmentInvoice_ajax', compact('rider', 'installments', 'account'));
+                return view($this->installmentViewInvoiceAjax(), compact('rider', 'installments', 'account'));
             }
 
-            return view('installments.installmentInvoice', compact('rider', 'installments', 'account'));
+            return view($this->installmentViewInvoice(), compact('rider', 'installments', 'account'));
         } catch (\Exception $e) {
             if (request()->ajax()) {
                 return response(
@@ -1201,45 +1373,45 @@ trait ManagesVisaInstallments
     }
     private function resolveExpenseAccountContext(int $id): ExpenseAccount
     {
-        $expense = ExpenseAccount::with('rider')->visa()->find($id);
+        $expense = $this->expenseAccountBaseQuery()->with('rider')->find($id);
         if ($expense) {
             return $expense;
         }
 
-        $expense = ExpenseAccount::with('rider')->visa()->where('rider_id', $id)->orderBy('id')->first();
+        $expense = $this->expenseAccountBaseQuery()->with('rider')->where('rider_id', $id)->orderBy('id')->first();
         if ($expense) {
             return $expense;
         }
 
-        $expense = ExpenseAccount::with('rider')->visa()->where('account_id', $id)->first();
+        $expense = $this->expenseAccountBaseQuery()->with('rider')->where('account_id', $id)->first();
         if ($expense) {
             return $expense;
         }
 
         $legacyAccount = Accounts::find($id);
         if ($legacyAccount && $legacyAccount->ref_id) {
-            $expense = ExpenseAccount::with('rider')->visa()->where('rider_id', $legacyAccount->ref_id)->orderBy('id')->first();
+            $expense = $this->expenseAccountBaseQuery()->with('rider')->where('rider_id', $legacyAccount->ref_id)->orderBy('id')->first();
             if ($expense) {
                 return $expense;
             }
         }
 
-        abort(404, 'Visa expense account not found.');
+        abort(404, $this->installmentAccountNotFoundMessage());
     }
 
     /**
      * @return array{unpaid_amount: float, paid_amount: float, paid_count: int, unpaid_count: int}
      */
-    private function installmentPlanSummary(ExpenseAccount $account): array
+    protected function installmentPlanSummary(ExpenseAccount $account): array
     {
-        $base = visa_installment_plan::query();
+        $base = $this->installmentQuery();
         $this->applyInstallmentRiderScope($base, $account);
 
         return [
-            'unpaid_amount' => (float) (clone $base)->where('status', visa_installment_plan::STATUS_PENDING)->sum('amount'),
-            'paid_amount' => (float) (clone $base)->where('status', visa_installment_plan::STATUS_PAID)->sum('amount'),
-            'paid_count' => (int) (clone $base)->where('status', visa_installment_plan::STATUS_PAID)->count(),
-            'unpaid_count' => (int) (clone $base)->where('status', visa_installment_plan::STATUS_PENDING)->count(),
+            'unpaid_amount' => (float) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PENDING)->sum('amount'),
+            'paid_amount' => (float) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PAID)->sum('amount'),
+            'paid_count' => (int) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PAID)->count(),
+            'unpaid_count' => (int) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PENDING)->count(),
         ];
     }
 
@@ -1254,8 +1426,7 @@ trait ManagesVisaInstallments
     {
         $keys = [(int) $account->id];
 
-        $oldestAccountId = ExpenseAccount::query()
-            ->visa()
+        $oldestAccountId = $this->expenseAccountBaseQuery()
             ->where('rider_id', $account->rider_id)
             ->orderBy('id')
             ->value('id');
@@ -1273,7 +1444,7 @@ trait ManagesVisaInstallments
     /**
      * @param  \Illuminate\Database\Eloquent\Builder<visa_installment_plan>  $query
      */
-    private function applyInstallmentRiderScope($query, ExpenseAccount $account)
+    protected function applyInstallmentRiderScope($query, ExpenseAccount $account)
     {
         $keys = $this->installmentPlanRiderIdKeys($account);
         if ($keys === []) {
@@ -1302,16 +1473,19 @@ trait ManagesVisaInstallments
         float $totalAmount,
         array $installmentAmounts
     ): int {
-        $existingInstallmentCount = (int) visa_installment_plan::query()
+        $existingInstallmentCount = (int) $this->installmentQuery()
             ->where(function ($q) use ($expenseAccount) {
                 $this->applyInstallmentRiderScope($q, $expenseAccount);
             })
             ->count();
 
         $numberOfInstallments = count($installmentAmounts);
-        $categoryLabel = $expenseAccount->relationLoaded('renewalCategory')
-            ? ($expenseAccount->renewalCategory->name ?? null)
-            : ($expenseAccount->renewalCategory()->value('name'));
+        $categoryLabel = null;
+        if ($expenseAccount->renewal_category_id) {
+            $categoryLabel = $expenseAccount->relationLoaded('renewalCategory')
+                ? ($expenseAccount->renewalCategory->name ?? null)
+                : ($expenseAccount->renewalCategory()->value('name'));
+        }
         $categorySuffix = $categoryLabel ? (' - ' . $categoryLabel) : '';
 
         $TransactionService = new TransactionService();
@@ -1324,7 +1498,7 @@ trait ManagesVisaInstallments
             $installmentAmount = round((float) $installmentAmounts[$i], 2);
             $installmentNumber = $i + 1 + $existingInstallmentCount;
 
-            $installment = visa_installment_plan::create([
+            $installment = $this->installmentModelClass()::create([
                 'rider_id' => $expenseAccount->id,
                 'branch_id' => $branchId,
                 'billing_month' => $billingMonthFormatted,
@@ -1333,7 +1507,7 @@ trait ManagesVisaInstallments
                 'reference_number' => $referenceNumber,
                 'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
                     . '<b> - installment ' . $installmentNumber . '</b>',
-                'status' => visa_installment_plan::STATUS_PENDING,
+                'status' => $this->installmentModelClass()::STATUS_PENDING,
                 'date' => $installmentDate,
                 'created_by' => auth()->user()->id ?? null,
             ]);
@@ -1341,13 +1515,13 @@ trait ManagesVisaInstallments
             $trans_code = Account::trans_code();
             $trans_date = Carbon::today();
 
-            Vouchers::create([
+            $this->createInstallmentVoucher([
                 'trans_date' => $trans_date,
                 'trans_code' => $trans_code,
                 'billing_month' => $billingMonth,
                 'payment_type' => 1,
-                'voucher_type' => 'VL',
-                'remarks' => 'Loan Voucher' . $categorySuffix . ' - <b>Installment ' . $installmentNumber . ' of '
+                'voucher_type' => $this->installmentVoucherType(),
+                'remarks' => $this->installmentVoucherRemarksPrefix() . $categorySuffix . ' - <b>Installment ' . $installmentNumber . ' of '
                     . ($numberOfInstallments + $existingInstallmentCount) . '</b>'
                     . ' (Amount: <b>' . number_format($installmentAmount, 2) . '</b>)',
                 'amount' => $installmentAmount,
@@ -1361,7 +1535,7 @@ trait ManagesVisaInstallments
             $TransactionService->recordTransaction([
                 'account_id' => $liabilityAccount->id,
                 'reference_id' => $installment->id,
-                'reference_type' => 'VL',
+                'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
                 'trans_date' => $trans_date,
                 'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
@@ -1373,9 +1547,9 @@ trait ManagesVisaInstallments
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id' => GlobalAccounts::id('VISA_EXPENSE_ACCOUNT'),
+                'account_id' => GlobalAccounts::id($this->installmentHeadAccountKey()),
                 'reference_id' => $installment->id,
-                'reference_type' => 'VL',
+                'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
                 'trans_date' => $trans_date,
                 'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
@@ -1486,8 +1660,7 @@ trait ManagesVisaInstallments
 
     private function resolveAutoInstallmentCountForRenewal(ExpenseAccount $expenseAccount): int
     {
-        $previousAccount = ExpenseAccount::query()
-            ->visa()
+        $previousAccount = $this->expenseAccountBaseQuery()
             ->where('rider_id', $expenseAccount->rider_id)
             ->where('id', '<', $expenseAccount->id)
             ->orderByDesc('id')
@@ -1497,7 +1670,7 @@ trait ManagesVisaInstallments
             return 1;
         }
 
-        $previousCount = (int) visa_installment_plan::query()
+        $previousCount = (int) $this->installmentQuery()
             ->where(function ($q) use ($previousAccount) {
                 $this->applyInstallmentRiderScope($q, $previousAccount);
             })
@@ -1527,7 +1700,7 @@ trait ManagesVisaInstallments
      *
      * @return array{riderAccount: Accounts, rider: Riders}
      */
-    private function resolveInstallmentRiderContext(visa_installment_plan $installment): array
+    private function resolveInstallmentRiderContext($installment): array
     {
         $key = (int) $installment->rider_id;
 
@@ -1577,9 +1750,9 @@ trait ManagesVisaInstallments
     {
         // Get subsequent pending installments (id > current, same rider), ordered by ID
         // Works for both paid and pending current installment
-        $subsequentInstallments = visa_installment_plan::where('rider_id', $currentInstallment->rider_id)
+        $subsequentInstallments = $this->installmentModelClass()::where('rider_id', $currentInstallment->rider_id)
             ->where('id', '>', $currentInstallment->id)
-            ->where('status', visa_installment_plan::STATUS_PENDING)
+            ->where('status', $this->installmentModelClass()::STATUS_PENDING)
             ->orderBy('id', 'asc')
             ->get();
 
@@ -1604,8 +1777,7 @@ trait ManagesVisaInstallments
                 $subsequentInstallment->save();
 
                 // Update related voucher
-                $voucher = Vouchers::where('ref_id', $subsequentInstallment->id)
-                    ->where('voucher_type', 'VL')
+                $voucher = $this->installmentVouchersFor($subsequentInstallment->id)
                     ->first();
                 if ($voucher) {
                     $voucher->billing_month = $billingMonthWithDay;
@@ -1615,8 +1787,7 @@ trait ManagesVisaInstallments
                 }
 
                 // Update related transactions
-                $transactions = Transactions::where('reference_id', $subsequentInstallment->id)
-                    ->where('reference_type', 'VL')
+                $transactions = $this->installmentTransactionsFor($subsequentInstallment->id)
                     ->get();
                 foreach ($transactions as $transaction) {
                     $transaction->billing_month = $billingMonthWithDay;
@@ -1634,8 +1805,7 @@ trait ManagesVisaInstallments
                 $subsequentInstallment->save();
 
                 // Update related voucher
-                $voucher = Vouchers::where('ref_id', $subsequentInstallment->id)
-                    ->where('voucher_type', 'VL')
+                $voucher = $this->installmentVouchersFor($subsequentInstallment->id)
                     ->first();
                 if ($voucher) {
                     $voucher->trans_date = $newDate;
@@ -1644,8 +1814,7 @@ trait ManagesVisaInstallments
                 }
 
                 // Update related transactions
-                $transactions = Transactions::where('reference_id', $subsequentInstallment->id)
-                    ->where('reference_type', 'VL')
+                $transactions = $this->installmentTransactionsFor($subsequentInstallment->id)
                     ->get();
                 foreach ($transactions as $transaction) {
                     $transaction->trans_date = $newDate;
@@ -1669,8 +1838,8 @@ trait ManagesVisaInstallments
     private function recalculateInstallmentAmounts($currentInstallment, $newAmount, $rider)
     {
         // Get all installments for this rider (including current one)
-        $allInstallments = visa_installment_plan::where('rider_id', $currentInstallment->rider_id)
-            ->where('status', visa_installment_plan::STATUS_PENDING)
+        $allInstallments = $this->installmentModelClass()::where('rider_id', $currentInstallment->rider_id)
+            ->where('status', $this->installmentModelClass()::STATUS_PENDING)
             ->orderBy('date', 'asc')
             ->get();
 
@@ -1695,8 +1864,7 @@ trait ManagesVisaInstallments
             $installment->save();
 
             // Update related voucher
-            $voucher = Vouchers::where('ref_id', $installment->id)
-                ->where('voucher_type', 'VL')
+            $voucher = $this->installmentVouchersFor($installment->id)
                 ->first();
             if ($voucher) {
                 $voucher->amount = $newAmountPerInstallment;
@@ -1705,8 +1873,7 @@ trait ManagesVisaInstallments
             }
 
             // Update related transactions
-            $transactions = Transactions::where('reference_id', $installment->id)
-                ->where('reference_type', 'VL')
+            $transactions = $this->installmentTransactionsFor($installment->id)
                 ->get();
             foreach ($transactions as $transaction) {
                 if ($transaction->credit > 0) {
@@ -1757,14 +1924,14 @@ trait ManagesVisaInstallments
     {
         $today = Carbon::today()->format('Y-m-d');
 
-        $query = visa_installment_plan::where('status', visa_installment_plan::STATUS_PENDING)
+        $query = $this->installmentModelClass()::where('status', $this->installmentModelClass()::STATUS_PENDING)
             ->where('date', '<=', $today);
 
         if ($riderId instanceof ExpenseAccount) {
             $this->applyInstallmentRiderScope($query, $riderId);
         } elseif ($riderId) {
-            $expenseAccount = ExpenseAccount::query()->visa()->find($riderId)
-                ?? ExpenseAccount::query()->visa()->where('rider_id', $riderId)->orderBy('id')->first();
+            $expenseAccount = $this->expenseAccountBaseQuery()->find($riderId)
+                ?? $this->expenseAccountBaseQuery()->where('rider_id', $riderId)->orderBy('id')->first();
             if ($expenseAccount) {
                 $this->applyInstallmentRiderScope($query, $expenseAccount);
             } else {
@@ -1795,13 +1962,12 @@ trait ManagesVisaInstallments
                 }
 
                 // Mark installment as paid
-                $installment->status = visa_installment_plan::STATUS_PAID;
+                $installment->status = $this->installmentModelClass()::STATUS_PAID;
                 $installment->updated_by = auth()->user()->id ?? 1;
                 $installment->save();
 
                 // Update related voucher
-                $voucher = Vouchers::where('ref_id', $installment->id)
-                    ->where('voucher_type', 'VL')
+                $voucher = $this->installmentVouchersFor($installment->id)
                     ->first();
 
                 if ($voucher) {
@@ -1860,13 +2026,13 @@ trait ManagesVisaInstallments
      */
     public function recalculateInstallments(Request $request)
     {
-        if (!user_can('visa_expense_edit') && !user_can('installment_edit')) {
+        if (!$this->installmentAllows('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
         $validated = $request->validate([
             'rider_id' => 'required|exists:accounts,id',
-            'edited_installment_id' => 'required|exists:visa_installment_plans,id',
+            'edited_installment_id' => 'required|exists:' . $this->installmentTable() . ',id',
             'new_amount' => 'required|numeric|min:0'
         ]);
 
@@ -1874,8 +2040,8 @@ trait ManagesVisaInstallments
             DB::beginTransaction();
 
             // Get all pending installments for this rider
-            $installments = visa_installment_plan::where('rider_id', $validated['rider_id'])
-                ->where('status', visa_installment_plan::STATUS_PENDING)
+            $installments = $this->installmentModelClass()::where('rider_id', $validated['rider_id'])
+                ->where('status', $this->installmentModelClass()::STATUS_PENDING)
                 ->orderBy('id', 'asc')
                 ->get();
 
@@ -1930,8 +2096,7 @@ trait ManagesVisaInstallments
                 $installment->save();
 
                 // Update related voucher
-                $voucher = Vouchers::where('ref_id', $installment->id)
-                    ->where('voucher_type', 'VL')
+                $voucher = $this->installmentVouchersFor($installment->id)
                     ->first();
                 if ($voucher) {
                     $voucher->amount = $installment->amount;
@@ -1940,8 +2105,7 @@ trait ManagesVisaInstallments
                 }
 
                 // Update related transactions
-                $transactions = Transactions::where('reference_id', $installment->id)
-                    ->where('reference_type', 'VL')
+                $transactions = $this->installmentTransactionsFor($installment->id)
                     ->get();
                 foreach ($transactions as $transaction) {
                     if ($transaction->credit > 0) {
@@ -1960,8 +2124,7 @@ trait ManagesVisaInstallments
             $editedInstallment->save();
 
             // Update related voucher for edited installment
-            $voucher = Vouchers::where('ref_id', $editedInstallment->id)
-                ->where('voucher_type', 'VL')
+            $voucher = $this->installmentVouchersFor($editedInstallment->id)
                 ->first();
             if ($voucher) {
                 $voucher->amount = $editedInstallment->amount;
@@ -1970,8 +2133,7 @@ trait ManagesVisaInstallments
             }
 
             // Update related transactions for edited installment
-            $transactions = Transactions::where('reference_id', $editedInstallment->id)
-                ->where('reference_type', 'VL')
+            $transactions = $this->installmentTransactionsFor($editedInstallment->id)
                 ->get();
             foreach ($transactions as $transaction) {
                 if ($transaction->credit > 0) {

@@ -61,6 +61,11 @@ class ExpenseAccount extends BaseModel
         return $this->hasMany(license_expenses::class, 'expense_account_id');
     }
 
+    public function licenseInstallmentPlans(): HasMany
+    {
+        return $this->hasMany(license_installment_plan::class, 'rider_id', 'id');
+    }
+
     public function scopeVisa(Builder $query): Builder
     {
         return $query->where('module', self::MODULE_VISA);

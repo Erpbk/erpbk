@@ -15,6 +15,9 @@ $assignContext = $assignContext ?? 'active';
 $bikeModel = $bike ?? null;
 $lockedWarehouse = $bikeModel && in_array((string) $bikeModel->warehouse, ['Absconded', 'Theft'], true);
 $allowTypeSelection = (bool) ($allowTypeSelection ?? false);
+$defaultAssignType = $defaultAssignType ?? '';
+$assignTargets = $assignTargets ?? [];
+$assignTypeLabels = $assignTypeLabels ?? \App\Support\CompanyModuleVisibility::bikeAssignTypeLabels();
 $hasRider = !empty($rider);
 @endphp
 
@@ -40,33 +43,43 @@ $hasRider = !empty($rider);
         <label>{{ $label }}{!! $requiredMark !!}</label>
         {!! Form::select('assign_type', $selectOpts, '', ['class' => 'form-select select2', 'id' => 'assign_type', 'required' => $required]) !!}
     </div>
-    @else
-    <input type="hidden" name="assign_type" value="rider" id="assign_type">
+    @elseif($defaultAssignType !== '')
+    <input type="hidden" name="assign_type" value="{{ $defaultAssignType }}" id="assign_type">
     @endif
 @elseif($fieldKey === 'rider_id')
+@if(in_array('rider', $assignTargets, true))
 <div class="{{ $colClass }} form-group hidden-field assign-group-rider" id="rider_select" data-assign-field="rider_id">
-    <label>{{ $label }}{!! $requiredMark !!}</label>
+    <label>{{ \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? $label }}{!! $requiredMark !!}</label>
     {!! Form::select('rider_id', $selectOpts, '', ['class' => 'form-select select2', 'id' => 'rider_id', 'required' => $required]) !!}
 </div>
+@endif
 @elseif($fieldKey === 'rental_company_id')
+@if(in_array('rental', $assignTargets, true))
 <div class="{{ $colClass }} form-group hidden-field assign-group-rental" id="rental_customer_select" data-assign-field="rental_company_id">
     <label>Rental customer{!! $requiredMark !!}</label>
     {!! Form::select('rental_company_id', $selectOpts, '', ['class' => 'form-select select2', 'id' => 'rental_company_id', 'required' => $required, 'disabled' => true]) !!}
 </div>
+@endif
+@if(in_array('garage', $assignTargets, true))
 <div class="{{ $colClass }} form-group hidden-field assign-group-garage" id="garage_customer_select" data-assign-field="garage_customer_id">
-    <label>Garage customer{!! $requiredMark !!}</label>
+    <label>{{ $assignTypeLabels['garage'] ?? 'Garage customer' }}{!! $requiredMark !!}</label>
     {!! Form::select('rental_company_id', $garageOpts, '', ['class' => 'form-select select2', 'id' => 'garage_company_id', 'required' => $required, 'disabled' => true]) !!}
 </div>
+@endif
 @elseif($fieldKey === 'designation')
+@if(in_array('rider', $assignTargets, true))
 <div class="{{ $colClass }} form-group hidden-field assign-group-rider" id="designation_field" data-assign-field="designation">
     <label>{{ $label }}{!! $requiredMark !!}</label>
     <input type="text" name="designation" id="designation" class="form-control" readonly value="{{ $selectedDesignation ?? '' }}">
 </div>
+@endif
 @elseif($fieldKey === 'customer_id')
+@if(in_array('rider', $assignTargets, true))
 <div class="{{ $colClass }} form-group hidden-field assign-group-rider" id="project_field" data-assign-field="customer_id">
     <label for="customer_id">{{ $label }}{!! $requiredMark !!}</label>
     {!! Form::select('customer_id', $selectOpts, '', ['class' => 'form-select select2', 'id' => 'customer_id', 'required' => $required]) !!}
 </div>
+@endif
 @elseif($fieldKey === 'visa_sponsor' && $assignContext === 'change' && $hasRider)
 <div class="{{ $colClass }} form-group" id="{{ $wrapperId }}" data-assign-field="visa_sponsor">
     <label>{{ $label }}</label>

@@ -667,13 +667,23 @@ $riderExistingDocuments = [];
 $riderDocumentDefinitions = [];
 $riderDocumentFiles = [];
 $riderExpiredDocumentCount = 0;
+$riderExpiringDocumentCount = 0;
+$riderInfoExpiredCount = 0;
+$riderInfoExpiringCount = 0;
+$riderFilesExpiredCount = 0;
+$riderFilesExpiringCount = 0;
 $riderTopViewCategories = collect();
 if ($inventoryTabRider instanceof \App\Models\Riders) {
 $riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
 $riderExistingDocuments = $riderDocumentFrontend['existing'] ?? [];
 $riderDocumentDefinitions = \App\Support\RiderDocumentReplacement::definitions();
 $riderDocumentFiles = $riderDocumentFrontend['files'] ?? [];
-$riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCountForRider($inventoryTabRider);
+$riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::totalExpiredCountForRider($inventoryTabRider);
+$riderExpiringDocumentCount = \App\Support\RiderDocumentReplacement::totalExpiringCountForRider($inventoryTabRider, 30);
+$riderInfoExpiredCount = \App\Support\RiderDocumentReplacement::expiredCountForRider($inventoryTabRider);
+$riderInfoExpiringCount = \App\Support\RiderDocumentReplacement::expiringCountForRider($inventoryTabRider, 30);
+$riderFilesExpiredCount = \App\Support\RiderDocumentReplacement::expiredFilesCountForRider($inventoryTabRider);
+$riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesCountForRider($inventoryTabRider, 30);
 }
 
 @endphp
@@ -1006,7 +1016,7 @@ $riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCount
                   <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
                     href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
                     <i class="ti ti-user-check ti-sm me-1_5"></i>Information
-                    @include('riders._expired_documents_tab_badge')
+                    @include('riders._document_status_badges', ['expiredCount' => $riderInfoExpiredCount ?? 0, 'expiringCount' => $riderInfoExpiringCount ?? 0])
                   </a>
                 </li>
 
@@ -1044,7 +1054,7 @@ $riderExpiredDocumentCount = \App\Support\RiderDocumentReplacement::expiredCount
                   <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
                     href="{{route('rider.files',$result['id'])}}">
                     <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
-                    @include('riders._expired_documents_tab_badge', ['showExpiredBubble' => true])
+                    @include('riders._document_status_badges', ['expiredCount' => $riderFilesExpiredCount ?? 0, 'expiringCount' => $riderFilesExpiringCount ?? 0])
                   </a>
                 </li>
                 @endcan

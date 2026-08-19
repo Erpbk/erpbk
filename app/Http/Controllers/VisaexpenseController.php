@@ -9,6 +9,7 @@ use App\Helpers\Common;
 use App\Http\Requests\StoreVisaExpenseRequest;
 use App\Http\Requests\UpdateVisaExpenseRequest;
 use App\Http\Controllers\Concerns\ManagesVisaInstallments;
+use App\Http\Controllers\Concerns\ManagesExpenseEntryDeletion;
 use App\Http\Controllers\AppBaseController;
 use App\Models\Bikes;
 use App\Models\Branch;
@@ -39,7 +40,7 @@ use DB;
 
 class VisaexpenseController extends AppBaseController
 {
-    use GlobalPagination, TracksCascadingDeletions, ManagesVisaInstallments;
+    use GlobalPagination, TracksCascadingDeletions, ManagesVisaInstallments, ManagesExpenseEntryDeletion;
 
     protected $visaRepo;
     public function __construct(VisaExpensesRepository $visaRepo)
@@ -572,60 +573,19 @@ class VisaexpenseController extends AppBaseController
 
     public function deleteaccount($company_slug, $id)
     {
-        // Check if any visa_expenses exist for this account
-        $hasExpenses = visa_expenses::where('expense_account_id', $id)
-            ->Where('payment_status', 'paid')
-            ->exists();
-
-        if ($hasExpenses) {
-            Flash::error('Cannot delete account. Visa Expense entries exist for this account.');
-            return redirect()->back();
-        }
-
-        // Check if any installment plans exist for this account
-        $hasInstallments = visa_installment_plan::where('rider_id', $id)->exists();
-
-        if ($hasInstallments) {
-            Flash::error('Cannot delete account. Installment Plan entries exist for this account.');
-            return redirect()->back();
-        }
-
-        // Check if any transactions exist for this account related to visa expenses
-        $hasTransactions = Transactions::where('account_id', $id)
-            ->where(function ($query) {
-                $query->where('reference_type', 'LV')
-                    ->orWhere('reference_type', 'VL')
-                    ->orWhere('reference_type', 'VE');
-            })
-            ->exists();
-
-        if ($hasTransactions) {
-            Flash::error('Cannot delete account. Transactions related to Visa Expenses exist for this account.');
-            return redirect()->back();
-        }
-
-        // Check if any vouchers exist for this account related to visa expenses
         $account = ExpenseAccount::query()->visa()->findOrFail($id);
-        $riderId = $account->rider_id;
-        if ($riderId) {
-            $hasVouchers = Vouchers::where('rider_id', $riderId)
-                ->where(function ($query) {
-                    $query->where('voucher_type', 'LV')
-                        ->orWhere('voucher_type', 'VL');
-                })
-                ->exists();
 
-            if ($hasVouchers) {
-                Flash::error('Cannot delete account. Vouchers related to Visa Expenses exist for this account.');
-                return redirect()->back();
-            }
-        }
+        $hasInstallments = visa_installment_plan::where('rider_id', $id)->exists();
+        $extraBlock = $hasInstallments
+            ? 'Cannot delete account. Installment Plan entries exist for this account.'
+            : null;
 
-        // No related records — safe to delete
-        $visaexpense = visa_expenses::where('expense_account_id', $id)->delete();
-        ExpenseAccount::query()->visa()->where('id', $id)->delete();
-        Flash::success('Account deleted successfully.');
-        return redirect()->back();
+        return $this->destroyExpenseAccount(
+            $account,
+            visa_expenses::class,
+            'Cannot delete account. Paid Visa Expense entries exist. Reverse those payments first.',
+            $extraBlock
+        );
     }
 
     public function generatentries(Request $request, $company_slug, $id)
@@ -1304,74 +1264,14 @@ class VisaexpenseController extends AppBaseController
     {
         $visaExpenses = visa_expenses::find($id);
 
-        if (empty($visaExpenses)) {
-            Flash::error('Visa Expense Entry not found');
-            return redirect()->back();
-        }
-
-        DB::beginTransaction();
-        try {
-            $billingMonth = $visaExpenses->billing_month;
-            $riderAccountId = \App\Support\CompanyQuery::table('accounts')->where('ref_id', $visaExpenses->rider_id)->value('id');
-
-            $relatedTransactions = Transactions::where(function ($q) use ($visaExpenses) {
-                $q->where(function ($inner) use ($visaExpenses) {
-                    $inner->where('reference_id', $visaExpenses->id)
-                        ->where('reference_type', 'LV');
-                });
-                if (!empty($visaExpenses->trans_code)) {
-                    $q->orWhere(function ($inner) use ($visaExpenses) {
-                        $inner->where('trans_code', $visaExpenses->trans_code)
-                            ->where('reference_type', 'LV');
-                    });
-                }
-            })->get()->unique('id');
-
-            $relatedVouchers = Vouchers::where('ref_id', $visaExpenses->id)
-                ->where('voucher_type', 'LV')
-                ->get();
-
-            // Queue the expense first so related deletes attach as cascades
-            // and stay visible until an administrator approves.
-            $visaExpenses->deleted_by = auth()->id();
-            $visaExpenses->save();
-            $visaExpenses->delete();
-
-            $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
-
-            foreach ($relatedVouchers as $voucher) {
-                $voucher->deleted_by = auth()->id();
-                $voucher->save();
-                $voucher->delete();
-            }
-
-            foreach ($relatedTransactions as $transaction) {
-                if (\Illuminate\Support\Facades\Schema::hasColumn($transaction->getTable(), 'deleted_by')) {
-                    $transaction->deleted_by = auth()->id();
-                    $transaction->save();
-                }
-                $transaction->delete();
-            }
-
-            // Ledger only when delete actually happened (approval bypassed/disabled).
-            if (!$pendingQueued && $riderAccountId) {
-                $this->recalculateLedgerAfterDeletion($riderAccountId, $billingMonth);
-            }
-
-            DB::commit();
-
-            if ($pendingQueued) {
-                return redirect()->back();
-            }
-
-            Flash::success('Visa Expenses Entry deleted successfully.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error("Error deleting Visa Expense ID: {$id} - " . $e->getMessage());
-            Flash::error('Error deleting Visa Expense: ' . $e->getMessage());
-        }
-
-        return redirect()->back();
+        return $this->destroyExpenseEntry(
+            $visaExpenses,
+            'LV',
+            'LV',
+            'Visa Expense Entry not found',
+            'Visa Expenses Entry deleted successfully.',
+            'Visa Expense payment reversed. Status is now unpaid.'
+        );
     }
 
     /**

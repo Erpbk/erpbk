@@ -684,6 +684,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('riders/update-section/{id}', [RidersController::class, 'updateSection'])->name('riders.updateSection');
     Route::post('riders/{id}/replace-document', [RidersController::class, 'replaceDocument'])->name('riders.replaceDocument')->whereNumber('id');
     Route::post('riders/set-rider-top-option/{id}', [RidersController::class, 'setRiderTopOption'])->name('riders.setRiderTopOption');
+    Route::post('riders/toggle-favorite/{id}', [RidersController::class, 'toggleFavorite'])->name('riders.toggleFavorite');
     Route::post('riders/return-bike/{id}', [RidersController::class, 'returnBike'])->name('riders.returnBike');
     Route::post('riders/add-recruiter', [RidersController::class, 'addRecruiter'])->name('riders.addRecruiter');
     Route::get('riders/vendorcharges/{id}', [RidersController::class, 'vendorcharges'])->name('riders.vendorcharges');

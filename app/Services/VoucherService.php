@@ -645,23 +645,43 @@ class VoucherService
     ];
     $request->validate($rules, $message);
 
+    $accountIds = array_values($request->account_id ?? []);
+    $drAmounts = array_values($request->dr_amount ?? []);
+    $crAmounts = array_values($request->cr_amount ?? []);
+    $narrations = array_values($request->narration ?? []);
+
     $data['trans_date'] = $request->trans_date;
     $data['voucher_type'] = $request->voucher_type;
     $data['payment_type'] = $request->payment_type ?? 0;
-    $data['payment_from'] = $request->account_id[0];
     $data['billing_month'] = $request->billing_month;
     $data['reference_number'] = $request->reference_number;
     $data['branch_id'] = $request->branch_id ;
     $data['remarks'] = General::VoucherType($request->voucher_type) . ' Month of ' . date('M-Y', strtotime($data['billing_month']));
-    $data['amount'] = array_sum($request->dr_amount);
+    $data['amount'] = array_sum($drAmounts);
     $data['custom_field_values'] = $request->input('custom_field_values', []);
     $id = $request->v_trans_code;
 
+    $typedReferenceTypes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
+    $referenceType = in_array($request->voucher_type, $typedReferenceTypes, true)
+      ? $request->voucher_type
+      : 'Voucher';
+
+    $paymentFrom = $request->payment_from ?? null;
+    if (empty($paymentFrom)) {
+      foreach ($accountIds as $key => $val) {
+        if (!empty($val) && !empty($crAmounts[$key]) && $crAmounts[$key] > 0) {
+          $paymentFrom = $val;
+          break;
+        }
+      }
+    }
+    $data['payment_from'] = $paymentFrom ?: ($accountIds[0] ?? 0);
+
     // ALLOW duplicate debit/credit for these voucher types:
-    $skipDupAccountTypes = ['AL', 'COD', 'PN', 'PAY', 'VC'];
-    if (!in_array($request->voucher_type, $skipDupAccountTypes)) {
+    $skipDupAccountTypes = ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC'];
+    if (!in_array($request->voucher_type, $skipDupAccountTypes, true)) {
       $head_account_id = $request->payment_from;
-      $party_accounts = array_filter($request->account_id, fn($id) => !empty($id) && $id != 0);
+      $party_accounts = array_filter($accountIds, fn($accountId) => !empty($accountId) && $accountId != 0);
       if (!empty($head_account_id) && $head_account_id != 0 && in_array($head_account_id, $party_accounts)) {
         throw \Illuminate\Validation\ValidationException::withMessages([
           'account_id' => ['Credit/Head Account must not be the same as any Debit/Party Account.']
@@ -670,12 +690,17 @@ class VoucherService
     }
 
     if ($id) {
-      Transactions::where('trans_code', $id)->delete();
+      $this->TransactionService->deleteTransaction($id);
       $trans_code = $id;
 
       $data['Updated_By'] = \Auth::user()->id;
 
       $ret = Vouchers::where('trans_code', $id)->first();
+      if (!$ret) {
+        throw \Illuminate\Validation\ValidationException::withMessages([
+          'v_trans_code' => ['Voucher not found for update.']
+        ]);
+      }
       $ret->update($data);
     } else {
       $trans_code = Account::trans_code();
@@ -686,31 +711,31 @@ class VoucherService
     }
 
     //dr/cr logic for each party/account: ALLOW both a debit and a credit per account in the same voucher
-    foreach ($request->account_id as $key => $val) {
+    foreach ($accountIds as $key => $val) {
       if (!empty($val) && $val != 0) {
-        if (!empty($request->dr_amount[$key]) && $request->dr_amount[$key] > 0) {
+        if (!empty($drAmounts[$key]) && $drAmounts[$key] > 0) {
           $transactionData = [
             'account_id' => $val,
             'reference_id' => $ret->id,
-            'reference_type' => 'Voucher',
+            'reference_type' => $referenceType,
             'trans_code' => $trans_code,
             'trans_date' => $data['trans_date'],
-            'narration' => $request->narration[$key],
-            'debit' => $request->dr_amount[$key],
+            'narration' => $narrations[$key] ?? '',
+            'debit' => $drAmounts[$key],
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
             'branch_id' => $data['branch_id'],
           ];
           $this->TransactionService->recordTransaction($transactionData);
         }
-        if (!empty($request->cr_amount[$key]) && $request->cr_amount[$key] > 0) {
+        if (!empty($crAmounts[$key]) && $crAmounts[$key] > 0) {
           $transactionData = [
             'account_id' => $val,
             'reference_id' => $ret->id,
-            'reference_type' => 'Voucher',
+            'reference_type' => $referenceType,
             'trans_code' => $trans_code,
             'trans_date' => $data['trans_date'],
-            'narration' => $request->narration[$key],
-            'credit' => $request->cr_amount[$key],
+            'narration' => $narrations[$key] ?? '',
+            'credit' => $crAmounts[$key],
             'billing_month' => $data['billing_month'] ?? date('Y-m-01'),
             'branch_id' => $data['branch_id'],
           ];
@@ -718,5 +743,7 @@ class VoucherService
         }
       }
     }
+
+    return $ret;
   }
 }

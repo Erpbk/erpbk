@@ -753,7 +753,7 @@ class BikeSettingsController extends Controller
 
     /**
      * Assign a bike custom field to a category (button-only in UI).
-     * Supports moving to "Unassigned" by sending empty `category_id`.
+     * Keep current category when empty is submitted; otherwise move to selected category.
      */
     public function assignCustomFieldCategory(Request $request, string $company_slug, int $id)
     {
@@ -762,8 +762,10 @@ class BikeSettingsController extends Controller
         ]);
 
         $field = BikeCustomField::where('id', $id)->firstOrFail();
-        $field->category_id = isset($validated['category_id']) ? (int) $validated['category_id'] : null;
-        $field->save();
+        if (isset($validated['category_id']) && $validated['category_id'] !== null && $validated['category_id'] !== '') {
+            $field->category_id = (int) $validated['category_id'];
+            $field->save();
+        }
 
         $activeCategoryId = $field->category_id !== null ? (int) $field->category_id : 0;
         return $this->bikeSettingsIndexRedirect($activeCategoryId)->with('success', 'Custom field moved.');

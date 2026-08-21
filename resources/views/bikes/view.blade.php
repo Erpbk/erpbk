@@ -76,7 +76,7 @@
         word-break: break-word;
     }
 
-    /* Bike code - top right corner */
+    /* Vehicle code - top right corner */
     .plate-bike-code-corner {
         position: absolute;
         top: 5px;
@@ -581,7 +581,7 @@
                         <!-- Arabic emirate name - top left corner -->
                         <div class="plate-arabic-corner">{{ $currentEmirate['arabic'] }}</div>
 
-                        <!-- Bike code - top right corner -->
+                        <!-- Vehicle code - top right corner -->
                         @if($bikeCode != 'N/A')
                         <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
                         @endif
@@ -596,7 +596,7 @@
                     <!-- Default Badge for other emirates -->
                     <div class="number-plate ">
 
-                        <!-- Bike code - top right corner -->
+                        <!-- Vehicle code - top right corner -->
                         @if($bikeCode != 'N/A')
                         <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
                         @endif
@@ -641,7 +641,7 @@
                                 $company = $bikes->rentalCompany;
                                 $Name = $rider->name ?? $company->name ?? 'Not Assigned';
                                 @endphp
-                                <span class="info-label">Rider / Customer</span>
+                                <span class="info-label">Driver / Customer</span>
                                 @if($rider)
                                 <a href="{{ route('riders.show', $rider->id) }}">{{ $Name }}</a>
                                 @elseif($company)
@@ -665,13 +665,13 @@
                             </div>
                         </li>
 
-                        <!-- Bike Expiry -->
+                        <!-- Vehicle Expiry -->
                         <li class="info-item">
                             <div class="info-icon">
                                 <i class="ti ti-calendar-stats"></i>
                             </div>
                             <div class="info-content">
-                                <span class="info-label">Bike Expiry</span>
+                                <span class="info-label">Vehicle Expiry</span>
                                 @php
                                 $expiryDate = $bikes->expiry_date? \Carbon\Carbon::parse($bikes->expiry_date)->format('d M Y') : null;
                                 $isExpiring = false;
@@ -823,7 +823,7 @@
     <div class="col-xl-9 col-md-9 col-lg-8 order-0 order-md-1">
         <div class="nav-align-top">
             <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
-                <li class="nav-item"><a class="nav-link @if(Route::is('bikes.show')) active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Bike</a></li>
+                <li class="nav-item"><a class="nav-link @if(Route::is('bikes.show')) active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Vehicle</a></li>
                 @can('bikes_assign_view')
                 <li class="nav-item">
                     <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(Route::is('bikeHistories.index')) active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>

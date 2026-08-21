@@ -113,11 +113,6 @@ class SupplierInvoicesRepository extends BaseRepository
                     'tax_amount' => $itemVat,
                     'total_amount' => $itemTotal,
                 ];
-
-                if ($request->has('is_invoice') && $request['is_invoice']) {
-                    if($item->rate < $rate)
-                        $item->update(['cost'=>$rate, 'price' => $rate + ($rate*0.25)]);
-                }
             }
             if ($request->has('is_invoice'))
                 $request['billing_month'] = $request['billing_month'] . '-01';
@@ -126,12 +121,18 @@ class SupplierInvoicesRepository extends BaseRepository
             $request['total_amount'] = $grandTotal;
 
             if ($id) {
-                $request['updated_by'] = auth()->id();
                 $invoice = SupplierInvoices::find($id);
+                $isInvoice = $request->has('is_invoice') && $request['is_invoice'];
+                InventoryPurchase::reassignUsageForInvoice($invoice->id);
+                if (! $isInvoice && InventoryPurchase::hasBeenUsedForInvoice($invoice->id)) {
+                    throw new \Exception('Cannot convert to order. Inventory from this Purchase has already been used');
+                }
+                $request['updated_by'] = auth()->id();
                 $invoice->update($request->all());
                 $invoice->items()->delete();
-                InventoryPurchase::where('inv_no', $invoice->inv_id)->delete();
-
+                if (! $isInvoice) {
+                    InventoryPurchase::where('inv_id', $invoice->id)->forceDelete();
+                }
             } else {
                 $request['created_by'] = auth()->id();
                 $invoice = SupplierInvoices::create($request->all());
@@ -143,25 +144,7 @@ class SupplierInvoicesRepository extends BaseRepository
             }
 
             if ($request->has('is_invoice') && $request['is_invoice']) {
-
-                $batch = 'Batch-'.strtoUpper(substr(uniqid(),0,5));
-                //add items to inventory
-                foreach($itemsData as $item) {
-                    InventoryPurchase::create([
-                        'item_id' => $item['item_id'],
-                        'supplier_id' => $invoice->supplier_id,
-                        'item_name' => $item['item_des'],
-                        'purchase_date' => $invoice->inv_date,
-                        'inv_id' => $invoice->id,
-                        'quantity' => $item['qty'],
-                        'remaining_quantity' => $item['qty'],
-                        'unit_cost' => $item['rate'],
-                        'batch_no' => $batch,
-                        'garage_id' => $invoice->garage_id,
-                        'created_by' => $invoice->created_by,
-                    ]);
-
-                }
+                $this->syncInvoiceInventory($invoice, $itemsData);
 
                 //Create Transactions Against Invoice
                 $transCode = null;
@@ -238,6 +221,88 @@ class SupplierInvoicesRepository extends BaseRepository
                 'success' => false,
                 'error' => $e->getMessage() . $e->getTraceAsString(),
             ];
+        }
+    }
+
+    private function uniqueInventoryBatchNo(): string
+    {
+        do {
+            $batchNo = 'Batch-' . strtoupper(bin2hex(random_bytes(5)));
+        } while (InventoryPurchase::where('batch_no', $batchNo)->exists());
+
+        return $batchNo;
+    }
+
+    private function syncInvoiceInventory(SupplierInvoices $invoice, array $itemsData): void
+    {
+        $purchases = InventoryPurchase::where('inv_id', $invoice->id)->orderBy('id')->get();
+        $batchNo = $purchases->first()->batch_no ?? $this->uniqueInventoryBatchNo();
+
+        $incomingByItem = [];
+        foreach ($itemsData as $index => $line) {
+            $incomingByItem[(int) $line['item_id']][] = $index;
+        }
+
+        $matched = [];
+
+        foreach ($purchases as $purchase) {
+            $itemId = (int) $purchase->item_id;
+            $nextIndex = null;
+            if (! empty($incomingByItem[$itemId])) {
+                $nextIndex = array_shift($incomingByItem[$itemId]);
+            }
+
+            if ($purchase->isUsed()) {
+                if ($nextIndex === null) {
+                    throw new \Exception('Cannot remove '.$purchase->item_name.'. Inventory from this item has already been used');
+                }
+                $line = $itemsData[$nextIndex];
+                if (round((float) $line['qty'], 2) !== round((float) $purchase->quantity, 2)) {
+                    throw new \Exception('Cannot change quantity of '.$purchase->item_name.'. Inventory from this item has already been used');
+                }
+                if (round((float) $line['rate'], 2) !== round((float) $purchase->unit_cost, 2)) {
+                    throw new \Exception('Cannot change cost of '.$purchase->item_name.'. Inventory from this item has already been used');
+                }
+                $matched[$nextIndex] = true;
+                continue;
+            }
+
+            if ($nextIndex === null) {
+                $purchase->delete();
+                continue;
+            }
+
+            $line = $itemsData[$nextIndex];
+            $matched[$nextIndex] = true;
+            $purchase->update([
+                'item_name' => $line['item_des'],
+                'quantity' => $line['qty'],
+                'remaining_quantity' => $line['qty'],
+                'unit_cost' => $line['rate'],
+                'purchase_date' => $invoice->inv_date,
+                'supplier_id' => $invoice->supplier_id,
+                'garage_id' => $invoice->garage_id,
+            ]);
+        }
+
+        foreach ($itemsData as $index => $line) {
+            if (isset($matched[$index])) {
+                continue;
+            }
+
+            InventoryPurchase::create([
+                'item_id' => $line['item_id'],
+                'supplier_id' => $invoice->supplier_id,
+                'item_name' => $line['item_des'],
+                'purchase_date' => $invoice->inv_date,
+                'inv_id' => $invoice->id,
+                'quantity' => $line['qty'],
+                'remaining_quantity' => $line['qty'],
+                'unit_cost' => $line['rate'],
+                'batch_no' => $batchNo,
+                'garage_id' => $invoice->garage_id,
+                'created_by' => $invoice->created_by,
+            ]);
         }
     }
 }

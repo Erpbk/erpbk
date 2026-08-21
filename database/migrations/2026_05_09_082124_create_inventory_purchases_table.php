@@ -23,7 +23,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->integer('remaining_quantity');
             $table->decimal('unit_cost', 10, 2);
-            $table->string('batch_no', 100)->unique();
+            $table->string('batch_no', 100);
             $table->text('notes')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->softDeletes();

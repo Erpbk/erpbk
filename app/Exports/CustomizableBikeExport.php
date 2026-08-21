@@ -2,15 +2,20 @@
 
 namespace App\Exports;
 
+use App\Exports\Concerns\BindsTextColumns;
 use App\Models\Bikes;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\DefaultValueBinder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-class CustomizableBikeExport implements FromCollection, WithHeadings, WithMapping
+class CustomizableBikeExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithCustomValueBinder
 {
+    use BindsTextColumns;
+
     protected $visibleColumns;
     protected $columnOrder;
     protected $filters;
@@ -313,5 +318,10 @@ class CustomizableBikeExport implements FromCollection, WithHeadings, WithMappin
     public static function getAvailableColumns()
     {
         return (new self())->availableColumns;
+    }
+
+    protected function textColumns(): array
+    {
+        return $this->columnLettersForKeys($this->columnOrder, $this->visibleColumns, ['rider_id']);
     }
 }

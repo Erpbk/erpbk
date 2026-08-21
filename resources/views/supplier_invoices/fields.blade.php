@@ -92,26 +92,39 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
         </div>
         <div id="rows-container">
             @if(isset($invoice) && $invoice->items->count())
+            @php
+                $invoicePurchaseIds = $invoice->inventoryPurchases->pluck('id')->all();
+            @endphp
             @foreach($invoice->items as $itm)
-            <div class="row mb-2">
+            @php
+                $purchase = $invoice->inventoryPurchases->values()->get($loop->index);
+                $isLocked = $purchase && $purchase->isUsed() && ! $purchase->canReassignUsage($invoicePurchaseIds);
+            @endphp
+            <div class="row mb-2 {{ $isLocked ? 'inventory-used' : 'item-row' }}">
                 <div class="col-md-3 form-group">
-                    <select name="item_ids[]" class="form-select item select2" required>
+                    @if($isLocked)
+                    <input type="hidden" name="item_ids[]" value="{{ $itm->item_id }}">
+                    @endif
+                    <select @if(!$isLocked) name="item_ids[]" @endif class="form-select item select2" {{ $isLocked ? 'disabled' : '' }} required>
                         <option value="">Select Item</option>
                         @foreach($items as $item)
                         <option value="{{ $item->id }}"
-                            data-price="{{ $item->price ?? 0 }}"
+                            data-price="{{ $item->cost ?? 0 }}"
                             data-vat="{{ $item->vat ?? 0 }}"
                             {{ $itm->item_id == $item->id ? 'selected' : '' }}>
                             {{ $item->name }}
                         </option>
                         @endforeach
                     </select>
+                    @if($isLocked)
+                    <small class="text-muted">Stock used — item, qty and cost are locked</small>
+                    @endif
                 </div>
                 <div class="col-md-1 form-group">
-                    <input type="number" name="item_qty[]" value="{{ $itm->qty }}" class="form-control qty" min="0.01" step="any" required>
+                    <input type="number" name="item_qty[]" value="{{ $itm->qty }}" class="form-control qty" min="0.01" step="any" {{ $isLocked ? 'readonly' : '' }} required>
                 </div>
                 <div class="col-md-2 form-group">
-                    <input type="number" name="item_rate[]" value="{{ $itm->rate }}" class="form-control rate" min="0" step="any" required>
+                    <input type="number" name="item_rate[]" value="{{ $itm->rate }}" class="form-control rate" min="0" step="any" {{ $isLocked ? 'readonly' : '' }} required>
                 </div>
                 <div class="col-md-1 form-group">
                     <input type="number" name="item_vat[]" value="{{ $itm->tax }}" class="form-control vat" min="0" max="100" step="any">
@@ -123,7 +136,9 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
                     <input type="number" name="items_total[]" value="{{ $itm->total_amount }}" class="form-control amount" readonly>
                 </div>
                 <div class="form-group col-md-1 d-flex align-items-end">
+                    @if(!$isLocked)
                     <a href="javascript:void(0);" class="text-danger remove-row btn-remove-row"><i class="fa fa-trash"></i></a>
+                    @endif
                 </div>
             </div>
             @endforeach
@@ -134,7 +149,7 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
                         <option value="">Select Item</option>
                         @foreach($items as $item)
                         <option value="{{ $item->id }}"
-                            data-price="{{ $item->price ?? 0 }}"
+                            data-price="{{ $item->cost ?? 0 }}"
                             data-vat="{{ $item->vat ?? 0 }}">
                             {{ $item->name }}
                         </option>
@@ -207,6 +222,20 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
             setItemTotal($(this));
         });
         setTotal();
+
+        $(document).on('click', '#add-new-row', function () {
+            setTimeout(function () {
+                var $last = $('#rows-container .row:last');
+                $last.removeClass('inventory-used').addClass('item-row');
+                $last.find('select.item').prop('disabled', false).attr('name', 'item_ids[]');
+                $last.find('input[type="hidden"][name="item_ids[]"]').remove();
+                $last.find('.qty, .rate').prop('readonly', false);
+                $last.find('small.text-muted').remove();
+                if (!$last.find('.btn-remove-row').length) {
+                    $last.find('.col-md-1.d-flex').append('<a href="javascript:void(0);" class="text-danger remove-row btn-remove-row"><i class="fa fa-trash"></i></a>');
+                }
+            }, 0);
+        });
 
     });
 </script>

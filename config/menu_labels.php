@@ -44,6 +44,8 @@ return [
         'bike_registration'    => 'Bike Registration',
         'bike_on_rent'         => 'Bike on rent',
         'bike_rent_customers'  => 'Customers',
+        'bike_rent_companies'  => 'Companies',
+        'bike_rent_individuals'=> 'Individuals',
         'maintenance'          => 'Maintenance',
         'maintenance_overview' => 'Maintenance',
         'cheques'              => 'Cheques',

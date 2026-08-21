@@ -2,15 +2,20 @@
 
 namespace App\Exports;
 
-use Maatwebsite\Excel\Concerns\FromCollection;
+use App\Exports\Concerns\BindsTextColumns;
 use App\Models\Sims;
+use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class SimExport implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting
+class SimExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder
 {
+    use BindsTextColumns;
+
     /**
     * @return \Illuminate\Support\Collection
     */
@@ -57,5 +62,10 @@ class SimExport implements FromCollection, WithHeadings, WithMapping, WithColumn
             'E' => NumberFormat::FORMAT_TEXT,
             'G' => NumberFormat::FORMAT_TEXT,
         ];
+    }
+
+    protected function textColumns(): array
+    {
+        return ['G'];
     }
 }

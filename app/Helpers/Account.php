@@ -8,10 +8,13 @@ use App\Models\Accounts\TransactionAccount;
 use App\Models\Rider;
 use App\Models\RiderInvoice;
 use App\Models\Riders;
+use App\Models\TransCode;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Support\CompanyContext;
 use DB;
 use Session;
+use RuntimeException;
 
 class Account
 {
@@ -31,14 +34,14 @@ class Account
     }
     return $list;
   }
-  public static function trans_code()
+  public static function trans_code(): int
   {
-    $tc = Transactions::withTrashed()->max('trans_code');
-    if ($tc > 0) {
-      return $tc + 1;
-    } else {
-      return 1;
+    $companyId = CompanyContext::id();
+    if ($companyId === null) {
+      throw new RuntimeException('Cannot allocate a trans_code without a company context.');
     }
+
+    return TransCode::allocateNext($companyId);
   }
   public static function code()
   {

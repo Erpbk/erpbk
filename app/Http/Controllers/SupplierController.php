@@ -194,9 +194,9 @@ class SupplierController extends AppBaseController
     }
 
     // Check if supplier has transactions - protect from deletion
-    $transactionCount = $supplier->transactions()->count();
-    if ($transactionCount > 0) {
-      return response()->json(['errors' => ['error' => 'Cannot delete supplier. Supplier has ' . $transactionCount . ' transaction(s). Please deactivate instead.']], 422);
+    $blockReason = $supplier->cannotBeDeletedReason();
+    if ($blockReason) {
+      return response()->json(['errors' => ['error' => $blockReason]], 422);
     }
 
     // Check if supplier account has ledger entries before deletion
@@ -210,18 +210,35 @@ class SupplierController extends AppBaseController
       }
     }
 
-    // Track cascaded deletions
     $cascadedItems = [];
     $supplierId = $supplier->id;
     $supplierName = $supplier->name;
-
-    // Get account data BEFORE deleting (important!)
     $relatedAccount = $supplier->account;
+    $purchaseOrders = $supplier->purchaseOrders()->get();
 
-    // Soft delete the supplier
     $supplier->delete();
 
-    // Also soft delete the related account if exists and track it
+    foreach ($purchaseOrders as $order) {
+      $cascadedItems[] = [
+        'model' => 'SupplierInvoices',
+        'id' => $order->id,
+        'name' => $order->inv_id ?: ('PO #' . $order->id),
+      ];
+      $order->delete();
+      $this->trackCascadeDeletion(
+        'App\Models\Supplier',
+        $supplierId,
+        $supplierName,
+        'App\Models\SupplierInvoices',
+        $order->id,
+        $order->inv_id ?: ('PO #' . $order->id),
+        'hasMany',
+        'invoices',
+        'soft',
+        'Cascade deletion from Supplier deletion'
+      );
+    }
+
     if ($relatedAccount) {
       $cascadedItems[] = [
         'model' => 'Accounts',
@@ -231,7 +248,6 @@ class SupplierController extends AppBaseController
 
       $relatedAccount->delete();
 
-      // Log the cascade
       $this->trackCascadeDeletion(
         'App\Models\Supplier',
         $supplierId,
@@ -246,7 +262,14 @@ class SupplierController extends AppBaseController
       );
     }
 
-    // Build cascade message
+    if (request()->attributes->get('delete_approval_created')) {
+      return response()->json([
+        'message' => \App\Services\DeleteRequestService::pendingMessage(
+          \App\Services\DeleteRequestService::lastCreatedFor($supplier)
+        ),
+      ]);
+    }
+
     $cascadeMessage = '';
     if (!empty($cascadedItems)) {
       $cascadeMessage = ' (Also deleted: ';
@@ -365,5 +388,17 @@ class SupplierController extends AppBaseController
       'trash_view' => 'Suppliers.trash',
       'index_route' => 'suppliers.index',
     ];
+  }
+
+  public function forceDestroyTrash($id)
+  {
+    $record = \App\Support\TrashedRecordQuery::find(Supplier::class, $id);
+    if ($record && ($reason = $record->cannotBeDeletedReason())) {
+      Flash::error($reason);
+
+      return redirect()->back();
+    }
+
+    return parent::forceDestroyTrash($id);
   }
 }

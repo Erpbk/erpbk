@@ -106,6 +106,9 @@ trait HasTrashFunctionality
                         if ($relatedRecord) {
                             $relatedRecord->restore();
                             $restoredItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
+                            if ($relatedRecord instanceof \App\Models\SupplierInvoices) {
+                                $restoredItems = array_merge($restoredItems, $relatedRecord->restoreRelatedRecords());
+                            }
                         }
                     } catch (\Exception $e) {
                         Log::error("Error restoring cascaded record: " . $e->getMessage());
@@ -184,6 +187,9 @@ trait HasTrashFunctionality
                         $relatedRecord = $relatedModelClass::onlyTrashed()->find($cascade->related_id);
                         
                         if ($relatedRecord) {
+                            if ($relatedRecord instanceof \App\Models\SupplierInvoices) {
+                                $deletedItems = array_merge($deletedItems, $relatedRecord->purgeRelatedRecords());
+                            }
                             $relatedRecord->forceDelete();
                             $deletedItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
                         }

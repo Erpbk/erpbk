@@ -17,13 +17,14 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
+      @php $invoicePendingDeletion = record_is_pending_deletion($r); @endphp
+      <tr class="text-center {{ $invoicePendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}">
          @if(str_contains(url()->current(), 'order'))
          <td>{{$r->order_date?->format('d M Y') ?? ''}}</td>
          @else
          <td>{{$r->inv_date->format('d M Y')}}</td>
          @endif
-         <td><a href="javascript:void(0);" class="show-modal-right" data-action="{{ route('supplierInvoices.show', $r->id) }}@if(str_contains(url()->current(), 'order'))?order={{ true }} @endif">{{$r->inv_id}}</a></td>
+         <td><a href="javascript:void(0);" class="show-modal-right" data-action="{{ route('supplierInvoices.show', $r->id) }}@if(str_contains(url()->current(), 'order'))?order={{ true }} @endif">{{$r->inv_id}}</a> @include('delete_requests._pending_badge', ['model' => $r])</td>
          @if(!str_contains(url()->current(), 'order')) <td>{{ $r->billing_month?->format('M Y') ?? '-' }}</td>
          @else <td>{{ $r->createdNy?->name ?? '-' }}</td>
          @endif
@@ -34,6 +35,9 @@
          <td>{{$r->descriptions ?? 'N/A' }}</td>
          <td>{{$r->total_amount ?? 'N/A' }}</td>
          <td style="position: relative;">
+            @if($invoicePendingDeletion)
+               <span class="text-muted small"><i class="ti ti-lock me-1"></i>Locked</span>
+            @else
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -64,6 +68,7 @@
                   @endcanany
                </div>
             </div>
+            @endif
             {{-- </td>
          <td>
             <div class='btn-group'>
@@ -85,3 +90,4 @@
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

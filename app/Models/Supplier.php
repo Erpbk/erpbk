@@ -75,6 +75,41 @@ class Supplier extends BaseModel
     }
 
     /**
+     * Suppliers with ledger activity must never be deleted (deactivate instead).
+     */
+    public function cannotBeDeletedReason(): ?string
+    {
+        if ($this->account_id) {
+            $transactionCount = Transactions::withTrashed()
+                ->withoutGlobalScope('branch')
+                ->where('account_id', $this->account_id)
+                ->count();
+
+            if ($transactionCount > 0) {
+                return 'Cannot delete supplier. This supplier\'s account has '
+                    . $transactionCount
+                    . ' transaction(s). Deactivate the supplier instead.';
+            }
+        }
+
+        $invoiceCount = $this->invoices()->where('is_invoice', true)->count();
+        if ($invoiceCount > 0) {
+            return 'Cannot delete supplier. This supplier has '
+                . $invoiceCount
+                . ' invoice(s). Delete or recycle those invoices first.';
+        }
+
+        return null;
+    }
+
+    public function purchaseOrders()
+    {
+        return $this->invoices()->where(function ($query) {
+            $query->where('is_invoice', false)->orWhereNull('is_invoice');
+        });
+    }
+
+    /**
      * Generate dropdown list of active suppliers
      * Returns an array with id as key and name as value
      * Prepends 'Select' option at the beginning

@@ -17,13 +17,17 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center" data-id="{{ $r->id }}">
-         @if($vf('name'))<td><a href="{{route('suppliers.show', $r->id)}}">{{$r->name}}</a></br></td>@endif
+      @php $supplierPendingDeletion = record_is_pending_deletion($r); @endphp
+      <tr class="text-center {{ $supplierPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}">
+         @if($vf('name'))<td><a href="{{route('suppliers.show', $r->id)}}">{{$r->name}}</a> @include('delete_requests._pending_badge', ['model' => $r])<br /></td>@endif
          @if($vf('email'))<td>{{$r->email}}</td>@endif
          @if($vf('phone'))<td>{{$r->phone ?? 'N/A'}}</td>@endif
          @if($vf('company_name'))<td>{{$r->company_name ?? 'N/A' }}</td>@endif
          @if($vf('address'))<td>{{$r->address ?? 'N/A' }}</td>@endif
          <td>
+            @if($supplierPendingDeletion)
+               <span class="text-muted small">Locked</span>
+            @else
             <div class='btn-group'>
                <a href="{{ route('suppliers.show', $r->id) }}"  class='btn btn-default btn-sm show-modal'>
                     <i class="fa fa-eye"></i>
@@ -39,6 +43,7 @@
                </a>
                @endcan
             </div>
+            @endif
          </td>
          <td></td>
       </tr>

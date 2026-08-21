@@ -284,6 +284,16 @@ class BikesController extends AppBaseController
 
                 continue;
             }
+            if ($key === 'bike_code') {
+                $columns[] = ['data' => 'bike_code', 'title' => 'Vehicle Code'];
+                $added['bike_code'] = true;
+                continue;
+            }
+            if ($key === 'rider_id') {
+                $columns[] = ['data' => 'rider_id', 'title' => 'ID'];
+                $added['rider_id'] = true;
+                continue;
+            }
             if ($key === 'branch_id') {
                 $columns[] = ['data' => 'branch_id', 'title' => 'Branch'];
                 $added['branch_id'] = true;
@@ -1277,7 +1287,7 @@ class BikesController extends AppBaseController
                     },
                 ],
                 'rental_company_id' => [
-                    Rule::requiredIf(fn () => in_array($request->input('assign_type'), ['rental', 'garage'], true)),
+                    Rule::requiredIf(fn() => in_array($request->input('assign_type'), ['rental', 'garage'], true)),
                     'nullable',
                     'exists:bike_rent_companies,id',
                     function ($attribute, $value, $fail) use ($request) {

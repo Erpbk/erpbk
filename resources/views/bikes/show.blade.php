@@ -4,40 +4,40 @@
 
 <div class="card card-action mb-1">
   <div class="card-header align-items-center">
-    <h5 class="card-action-title mb-0">Bike Detail</h5>
+    <h5 class="card-action-title mb-0">Vehicle Detail</h5>
   </div>
   <div class="card-body">
     <div class="row">
       <div class="col-md-3 form-group col-3">
-        <label>Bike Code:</label>
+        <label>Vehicle Code:</label>
         <p>{{ $bikes->bike_code ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Plate #:</label>
+        <label>Vehicle Plate #:</label>
         <p>{{ $bikes->plate ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Chassis #:</label>
+        <label>Vehicle Chassis #:</label>
         <p>{{ $bikes->chassis_number ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Color</label>
+        <label>Vehicle Color</label>
         <p>{{ $bikes->color ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Model #:</label>
+        <label>Vehicle Model #:</label>
         <p>{{ $bikes->model ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Model Type:</label>
+        <label>Vehicle Model Type:</label>
         <p>{{ $bikes->model_type ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Engine #:</label>
+        <label>Vehicle Engine #:</label>
         <p>{{ $bikes->engine ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">
-        <label>Bike Traffic File #:</label>
+        <label>Vehicle Traffic File #:</label>
         <p>{{ $bikes->traffic_file_number ?? 'N/A' }}</p>
       </div>
       <div class="col-md-3 form-group col-3">

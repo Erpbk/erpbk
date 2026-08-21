@@ -542,11 +542,11 @@
                         @php
                         $ownCompanyName = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
                         if ($ownCompanyName === '') {
-                            $currentCompany = view()->shared('currentCompany');
-                            $ownCompanyName = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+                        $currentCompany = view()->shared('currentCompany');
+                        $ownCompanyName = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
                         }
                         if ($ownCompanyName === '') {
-                            $ownCompanyName = 'Own Vehicles';
+                        $ownCompanyName = 'Own Vehicles';
                         }
                         @endphp
                         <option value="own" {{ request('company') == 'own' ? 'selected' : '' }}>{{ $ownCompanyName }}</option>
@@ -579,14 +579,14 @@
                     <select class="form-control" id="status" name="status">
                         @php
                         $statusOptions = [
-                            'on_road' => 'On Road',
-                            'off_road' => 'Off Road',
-                            'returned' => 'Returned',
-                            'absconded' => 'Absconded',
-                            'theft' => 'Theft',
-                            'total_loss' => 'Total Loss',
-                            'impound' => 'Impound',
-                            'accident' => 'Accident',
+                        'on_road' => 'On Road',
+                        'off_road' => 'Off Road',
+                        'returned' => 'Returned',
+                        'absconded' => 'Absconded',
+                        'theft' => 'Theft',
+                        'total_loss' => 'Total Loss',
+                        'impound' => 'Impound',
+                        'accident' => 'Accident',
                         ];
                         @endphp
                         <option value="">Select</option>
@@ -633,19 +633,19 @@
         </div>
         <div class="totals-cards">
             <div class="total-card total-bikes">
-                <div class="label"><i class="fa fa-motorcycle"></i>Total Bikes</div>
+                <div class="label"><i class="fa fa-motorcycle"></i>Total Vehicles</div>
                 <div class="value" id="stat_total">{{ $stats['total'] ?? 0 }}</div>
             </div>
             @php
             $statusCards = [
-                'on_road' => ['label' => 'On Road', 'icon' => 'fa fa-road', 'class' => 'total-onroad'],
-                'off_road' => ['label' => 'Off Road', 'icon' => 'fa fa-ban', 'class' => 'total-offroad'],
-                'returned' => ['label' => 'Returned', 'icon' => 'fa fa-undo', 'class' => 'total-returned'],
-                'absconded' => ['label' => 'Absconded', 'icon' => 'fa fa-user-secret', 'class' => 'total-absconded'],
-                'theft' => ['label' => 'Theft', 'icon' => 'fa fa-exclamation-triangle', 'class' => 'total-theft'],
-                'total_loss' => ['label' => 'Total Loss', 'icon' => 'fa fa-times-circle', 'class' => 'total-loss'],
-                'impound' => ['label' => 'Impound', 'icon' => 'fa fa-lock', 'class' => 'total-impound'],
-                'accident' => ['label' => 'Accident', 'icon' => 'fa fa-ambulance', 'class' => 'total-accident'],
+            'on_road' => ['label' => 'On Road', 'icon' => 'fa fa-road', 'class' => 'total-onroad'],
+            'off_road' => ['label' => 'Off Road', 'icon' => 'fa fa-ban', 'class' => 'total-offroad'],
+            'returned' => ['label' => 'Returned', 'icon' => 'fa fa-undo', 'class' => 'total-returned'],
+            'absconded' => ['label' => 'Absconded', 'icon' => 'fa fa-user-secret', 'class' => 'total-absconded'],
+            'theft' => ['label' => 'Theft', 'icon' => 'fa fa-exclamation-triangle', 'class' => 'total-theft'],
+            'total_loss' => ['label' => 'Total Loss', 'icon' => 'fa fa-times-circle', 'class' => 'total-loss'],
+            'impound' => ['label' => 'Impound', 'icon' => 'fa fa-lock', 'class' => 'total-impound'],
+            'accident' => ['label' => 'Accident', 'icon' => 'fa fa-ambulance', 'class' => 'total-accident'],
             ];
             @endphp
             @foreach($statusCards as $statusKey => $card)
@@ -699,7 +699,7 @@
     $(document).ready(function() {
         $('#bike_code').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Bike Code",
+            placeholder: "Filter By Vehicle Code",
             allowClear: true
         });
         $('#branch_id').select2({
@@ -857,4 +857,4 @@
         });
     });
 
-@endsection
+    @endsection

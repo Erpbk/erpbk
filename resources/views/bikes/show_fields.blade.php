@@ -82,9 +82,9 @@
     <p>{{ $bikes->emirates }}</p>
 </div>
 
-<!-- Bike Code Field -->
+<!-- Vehicle Code Field -->
 <div class="col-sm-12">
-    {!! Form::label('bike_code', 'Bike Code:') !!}
+    {!! Form::label('bike_code', 'Vehicle Code:') !!}
     <p>{{ $bikes->bike_code }}</p>
 </div>
 
@@ -117,4 +117,3 @@
     {!! Form::label('policy_no', 'Policy No:') !!}
     <p>{{ $bikes->policy_no }}</p>
 </div>
-

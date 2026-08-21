@@ -61,8 +61,12 @@ $selectedCustomerId = (int) old('customer_id', $defaultCustomerId);
       </select>
     </div>
     <div class="col-12 mt-3 mb-3">
-      <label class="mb-3 pl-2">Select file</label>
-      <input type="file" name="file" class="form-control mb-3" style="height: 40px;" accept=".csv,.xlsx,.xls" />
+      @include('rider_activities.partials.file_preview', [
+        'previewPrefix' => 'live-act-import',
+        'previewUrl' => $previewUrl ?? route('rider.activities_import_preview'),
+        'fieldLabels' => $fieldLabels ?? \App\Services\RiderActivities\RiderActivityImportMappingService::fieldLabels(),
+        'previewConfigs' => $previewConfigs ?? [],
+      ])
     </div>
   </div>
   <button type="submit" name="submit" class="btn btn-primary" style="width: 100%;">Start Import</button>

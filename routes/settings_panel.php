@@ -303,6 +303,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
 
     Route::get('rider-activity-import-settings', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'index'])->name('settings-panel.rider-activity-import-settings.index');
     Route::post('rider-activity-import-settings', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'store'])->name('settings-panel.rider-activity-import-settings.store');
+    Route::post('rider-activity-import-settings/preview', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'preview'])->name('settings-panel.rider-activity-import-settings.preview');
+    Route::match(['get', 'post'], 'rider-activity-import-settings/export-template', [App\Http\Controllers\RiderActivityImportSettingsController::class, 'exportTemplate'])->name('settings-panel.rider-activity-import-settings.export-template');
 
     Route::resource('legal-case-statuses', App\Http\Controllers\LegalCaseStatusController::class)->names('settings-panel.legal-case-statuses');
     Route::post('legal-case-statuses/reorder', [App\Http\Controllers\LegalCaseStatusController::class, 'reorder'])->name('settings-panel.legal-case-statuses.reorder');

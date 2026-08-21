@@ -726,9 +726,9 @@ $attendanceRefType = $attendanceRefType ?? null;
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
-                              <option value="">Keep current</option>
+                              <option value="" {{ empty($row->category_id) ? 'selected' : '' }}>Keep current</option>
                               @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)$row->category_id === (int)$dst->id ? 'selected' : '' }}>
+                              <option value="{{ $dst->id }}" {{ (int)($row->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
                               </option>
                               @endforeach
@@ -789,8 +789,9 @@ $attendanceRefType = $attendanceRefType ?? null;
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
+                              <option value="" {{ empty($customField->category_id) ? 'selected' : '' }}>Keep current</option>
                               @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? $defaultCategoryId) === (int)$dst->id ? 'selected' : '' }}>
+                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
                               </option>
                               @endforeach
@@ -902,9 +903,9 @@ $attendanceRefType = $attendanceRefType ?? null;
                             <input type="hidden" name="input_config_options" value="{{ $inputOptions }}">
 
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
-                              <option value="">Keep current</option>
+                              <option value="" {{ empty($row->category_id) ? 'selected' : '' }}>Keep current</option>
                               @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)$cat->id === (int)$dst->id ? 'selected' : '' }}>{{ $dst->label }}</option>
+                              <option value="{{ $dst->id }}" {{ (int)($row->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>{{ $dst->label }}</option>
                               @endforeach
                             </select>
                             <button type="submit" class="btn btn-sm btn-outline-primary">Move</button>
@@ -948,8 +949,9 @@ $attendanceRefType = $attendanceRefType ?? null;
                           <form action="{{ route($settingsRoutePrefix . '.assign-custom-field-category', array_merge($settingsRouteParams, ['id' => $customField->id])) }}" method="POST" class="d-flex gap-2 align-items-center flex-wrap">
                             @csrf
                             <select name="category_id" class="form-select form-select-sm" style="width: 180px;">
+                              <option value="" {{ empty($customField->category_id) ? 'selected' : '' }}>Keep current</option>
                               @foreach($categories as $dst)
-                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? $defaultCategoryId) === (int)$dst->id ? 'selected' : '' }}>
+                              <option value="{{ $dst->id }}" {{ (int)($customField->category_id ?? 0) === (int)$dst->id ? 'selected' : '' }}>
                                 {{ $dst->label }}
                               </option>
                               @endforeach

@@ -1058,9 +1058,23 @@ class ModuleSettingsController extends Controller
 
         $defaultCategoryId = (int) app(ModuleDefaultCategoryService::class)->ensureForModule($module)->id;
 
+        $existingAssignment = ModuleFieldCategoryAssignment::query()
+            ->where('module_key', $module)
+            ->where('field_key', $fieldKey)
+            ->first();
+
+        $requestedCategoryId = $validated['category_id'] ?? null;
+        if ($requestedCategoryId === null || $requestedCategoryId === '') {
+            $categoryId = $existingAssignment
+                ? (int) $existingAssignment->category_id
+                : $defaultCategoryId;
+        } else {
+            $categoryId = (int) $requestedCategoryId;
+        }
+
         $payload = [
             'field_label' => $validated['field_label'] ?? null,
-            'category_id' => $validated['category_id'] ?? $defaultCategoryId,
+            'category_id' => $categoryId,
             'display_label' => $validated['display_label'] ?? null,
             'is_visible' => $isVisible,
             'is_required' => $isRequired,
@@ -1302,12 +1316,14 @@ class ModuleSettingsController extends Controller
     {
         $module = $this->normalizeModuleKey($module);
         $validated = $request->validate([
-            'category_id' => ['required', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'category_id' => ['nullable', 'integer', $this->categoryBelongsToModuleRule($module)],
         ]);
 
         $field = ModuleCustomField::where('module_key', $module)->where('id', $id)->firstOrFail();
-        $field->category_id = (int) $validated['category_id'];
-        $field->save();
+        if (isset($validated['category_id']) && $validated['category_id'] !== null && $validated['category_id'] !== '') {
+            $field->category_id = (int) $validated['category_id'];
+            $field->save();
+        }
 
         return back()->with('success', 'Custom field moved.');
     }

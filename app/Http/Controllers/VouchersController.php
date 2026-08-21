@@ -240,10 +240,10 @@ class VouchersController extends Controller
       if (in_array($request->voucher_type, ['COD'])) {
         $result = $voucherService->DefaultVoucher($request, 'debit');
       }
-      if (in_array($request->voucher_type, ['PENALTY'])) {
+      if (in_array($request->voucher_type, ['PN'], true)) {
         $result = $voucherService->DefaultVoucher($request, 'debit');
       }
-      if (in_array($request->voucher_type, ['INCENTIVE'])) {
+      if (in_array($request->voucher_type, ['INC'], true)) {
         $result = $voucherService->DefaultVoucher($request, 'debit');
       }
       /* if (in_array($request->voucher_type, [13])) {
@@ -462,7 +462,7 @@ class VouchersController extends Controller
 
 
 
-    if (in_array($request->voucher_type, ['LV', 'LE', 'AL', 'COD', 'PN', 'PAY', 'VC', 'INC'])) {
+    if (in_array($request->voucher_type, ['LV', 'LE', 'AL', 'COD', 'PN', 'PAY', 'VC', 'INC'], true)) {
       $result = $voucherService->DefaultVoucher($request, 'debit');
     }
     /*  if (in_array($request->voucher_type, [13])) {

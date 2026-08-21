@@ -41,6 +41,8 @@ return [
         'bike_registration' => 'ti-id',
         'bike_on_rent' => 'ti-motorbike',
         'bike_rent_customers' => 'ti-users',
+        'bike_rent_companies' => 'ti-building',
+        'bike_rent_individuals' => 'ti-user',
         'maintenance' => 'ti-motorbike',
         'maintenance_overview' => 'ti-motorbike',
         'cheques' => 'ti-file',

@@ -338,10 +338,16 @@ $homeLink = $isAdminLogin
   </a>
   <ul class="menu-sub">
     @can('bike_on_rent_customers_view')
-    <li class="menu-item {{ Route::is('bikeRentCompanies.*') && !Route::is('bikeRentCompanies.all_receipts') ? 'active' : '' }}">
-      <a href="{{ route('bikeRentCompanies.index') }}" class="menu-link">
-        @include('layouts.partials.module_menu_icon', ['key' => 'bike_rent_customers'])
-        <div>{{ $menuLabels['bike_rent_customers'] ?? 'Customers' }}</div>
+    <li class="menu-item {{ Route::is('bikeRentCompanies.index') && request('party_type', 'company') === 'company' ? 'active' : '' }}">
+      <a href="{{ route('bikeRentCompanies.index', ['party_type' => 'company']) }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_rent_companies'])
+        <div>{{ $menuLabels['bike_rent_companies'] ?? 'Companies' }}</div>
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('bikeRentCompanies.index') && request('party_type') === 'individual' ? 'active' : '' }}">
+      <a href="{{ route('bikeRentCompanies.index', ['party_type' => 'individual']) }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'bike_rent_individuals'])
+        <div>{{ $menuLabels['bike_rent_individuals'] ?? 'Individuals' }}</div>
       </a>
     </li>
     @endcan

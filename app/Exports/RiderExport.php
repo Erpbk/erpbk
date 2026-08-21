@@ -2,19 +2,21 @@
 
 namespace App\Exports;
 
+use App\Exports\Concerns\BindsTextColumns;
 use App\Helpers\General;
-use App\Models\RiderActivities;
 use App\Models\Riders;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-use Carbon\Carbon;
-
-class RiderExport implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting
+class RiderExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder
 {
+  use BindsTextColumns;
+
   protected $month;
 
   public function __construct()
@@ -180,7 +182,13 @@ class RiderExport implements FromCollection, WithHeadings, WithMapping, WithColu
   public function columnFormats(): array
   {
     return [
-      'C' => \PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT,
+      'B' => NumberFormat::FORMAT_TEXT,
+      'C' => NumberFormat::FORMAT_TEXT,
     ];
+  }
+
+  protected function textColumns(): array
+  {
+    return ['B'];
   }
 }

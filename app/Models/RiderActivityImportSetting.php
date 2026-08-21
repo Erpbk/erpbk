@@ -12,12 +12,14 @@ class RiderActivityImportSetting extends BaseModel
         'import_type',
         'header_rows_to_skip',
         'column_mappings',
+        'required_fields',
         'is_active',
     ];
 
     protected $casts = [
         'header_rows_to_skip' => 'integer',
         'column_mappings' => 'array',
+        'required_fields' => 'array',
         'is_active' => 'boolean',
     ];
 

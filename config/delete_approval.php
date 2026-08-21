@@ -157,6 +157,12 @@ return [
             'display_columns' => ['invoice_number', 'reference_number', 'billing_month', 'total_amount', 'status'],
             'show_route' => 'simInvoices.show',
         ],
+        'supplier_invoices' => [
+            'model' => \App\Models\SupplierInvoices::class,
+            'name' => 'Supplier Invoices',
+            'display_columns' => ['inv_id', 'billing_month', 'total_amount', 'status'],
+            'show_route' => 'supplierInvoices.show',
+        ],
         'loans' => [
             'model' => \App\Models\Loan::class,
             'name' => 'Bank Loans',

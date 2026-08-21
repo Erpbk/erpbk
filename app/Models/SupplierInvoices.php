@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class SupplierInvoices extends BaseModel
 {
-    use LogsActivity;
+    use LogsActivity, SoftDeletes;
 
   public $table = 'supplier_invoices';
 
@@ -30,6 +32,7 @@ class SupplierInvoices extends BaseModel
     'attachment',
     'created_by',
     'updated_by',
+    'deleted_by',
     'order_date'
   ];
 
@@ -85,6 +88,11 @@ class SupplierInvoices extends BaseModel
       return $this->hasMany(SupplierInvoicesItem::class, 'inv_id');
   }
 
+  public function inventoryPurchases()
+  {
+      return $this->hasMany(InventoryPurchase::class, 'inv_id')->orderBy('id');
+  }
+
   public function createdBy()
   {
     return $this->belongsTo(User::class, 'created_by');
@@ -120,5 +128,132 @@ class SupplierInvoices extends BaseModel
     
     // Verify the invoice exists
     return self::where('id', $id)->exists() ? $id : null;
+  }
+
+  public function usedInventoryBlocksDeletion(): bool
+  {
+    return InventoryPurchase::hasBeenUsedForInvoice($this->id)
+      && ! InventoryPurchase::canReassignUsageForInvoice($this->id);
+  }
+
+  /**
+   * After the invoice is actually soft-deleted (approval or bypass), reassign
+   * used stock and soft-delete related inventory + SUP ledger rows.
+   */
+  public function finalizeSoftDeletion(?int $deletedBy = null): void
+  {
+    $wasBypassing = \App\Services\DeleteRequestService::isBypassing();
+    \App\Services\DeleteRequestService::bypass(true);
+
+    try {
+      InventoryPurchase::reassignUsageForInvoice($this->id);
+
+      if (InventoryPurchase::hasBeenUsedForInvoice($this->id)) {
+        if (method_exists($this, 'trashed') && $this->trashed()) {
+          $this->restore();
+          if (Schema::hasColumn($this->getTable(), 'deleted_by') && $this->deleted_by) {
+            $this->deleted_by = null;
+            $this->save();
+          }
+        }
+
+        throw new \RuntimeException('Cannot delete Invoice. Inventory from this Purchase has already been used and cannot be moved to other stock in the same garage.');
+      }
+
+      if ($deletedBy && Schema::hasColumn($this->getTable(), 'deleted_by')) {
+        $this->deleted_by = $deletedBy;
+        $this->save();
+      }
+
+      foreach (InventoryPurchase::where('inv_id', $this->id)->get() as $purchase) {
+        $purchase->delete();
+      }
+
+      $transactions = Transactions::withoutGlobalScope('branch')
+        ->where('reference_type', 'SUP')
+        ->where('reference_id', $this->id)
+        ->get();
+
+      foreach ($transactions as $transaction) {
+        if ($deletedBy && Schema::hasColumn($transaction->getTable(), 'deleted_by')) {
+          $transaction->deleted_by = $deletedBy;
+          $transaction->save();
+        }
+        $transaction->delete();
+      }
+    } finally {
+      if (! $wasBypassing) {
+        \App\Services\DeleteRequestService::bypass(false);
+      }
+    }
+  }
+
+  /**
+   * @return array<int, string>
+   */
+  public function restoreRelatedRecords(): array
+  {
+    $restored = [];
+
+    foreach (InventoryPurchase::onlyTrashed()->where('inv_id', $this->id)->get() as $purchase) {
+      $purchase->restore();
+      $restored[] = 'Inventory ' . ($purchase->batch_no ?: '#' . $purchase->id);
+    }
+
+    $transactions = Transactions::onlyTrashed()
+      ->withoutGlobalScope('branch')
+      ->where('reference_type', 'SUP')
+      ->where('reference_id', $this->id)
+      ->get();
+
+    foreach ($transactions as $transaction) {
+      $transaction->restore();
+      if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $transaction->deleted_by) {
+        $transaction->deleted_by = null;
+        $transaction->save();
+      }
+      $restored[] = 'Transaction #' . $transaction->id;
+    }
+
+    if (Schema::hasColumn($this->getTable(), 'deleted_by') && $this->deleted_by) {
+      $this->deleted_by = null;
+      $this->save();
+    }
+
+    return $restored;
+  }
+
+  /**
+   * Permanently remove related inventory, ledger rows, line items, and attachment.
+   *
+   * @return array<int, string>
+   */
+  public function purgeRelatedRecords(): array
+  {
+    $deleted = [];
+
+    foreach (InventoryPurchase::withTrashed()->where('inv_id', $this->id)->get() as $purchase) {
+      $deleted[] = 'Inventory ' . ($purchase->batch_no ?: '#' . $purchase->id);
+      $purchase->forceDelete();
+    }
+
+    $transactions = Transactions::withTrashed()
+      ->withoutGlobalScope('branch')
+      ->where('reference_type', 'SUP')
+      ->where('reference_id', $this->id)
+      ->get();
+
+    foreach ($transactions as $transaction) {
+      $deleted[] = 'Transaction #' . $transaction->id;
+      $transaction->forceDelete();
+    }
+
+    $this->items()->delete();
+
+    if ($this->attachment && Storage::disk('public')->exists($this->attachment)) {
+      Storage::disk('public')->delete($this->attachment);
+    }
+
+    return $deleted;
   }
 }

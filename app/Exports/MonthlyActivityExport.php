@@ -1,15 +1,22 @@
 <?php
 
 namespace App\Exports;
+
+use App\Exports\Concerns\BindsTextColumns;
 use App\Models\RiderActivities;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\DefaultValueBinder;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-use Carbon\Carbon;
-
-class MonthlyActivityExport implements FromCollection, WithHeadings, WithMapping
+class MonthlyActivityExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder
 {
+  use BindsTextColumns;
+
   protected $month;
 
   public function __construct($id, $month)
@@ -65,5 +72,17 @@ class MonthlyActivityExport implements FromCollection, WithHeadings, WithMapping
       'HR',
       'Rating',
     ];
+  }
+
+  public function columnFormats(): array
+  {
+    return [
+      'B' => NumberFormat::FORMAT_TEXT,
+    ];
+  }
+
+  protected function textColumns(): array
+  {
+    return ['B'];
   }
 }

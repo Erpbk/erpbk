@@ -825,6 +825,48 @@ class DeleteRequestService
         if ($deleteRequest->module_key === 'sim_invoices' && $model instanceof \App\Models\SimInvoice) {
             static::finalizeApprovedSimInvoiceDeletion($deleteRequest, $model, $admin);
         }
+
+        if ($deleteRequest->module_key === 'supplier_invoices' && $model instanceof \App\Models\SupplierInvoices) {
+            static::finalizeApprovedSupplierInvoiceDeletion($deleteRequest, $model, $admin);
+        }
+
+        if ($deleteRequest->module_key === 'suppliers' && $model instanceof \App\Models\Supplier) {
+            static::finalizeApprovedSupplierDeletion($deleteRequest, $model, $admin);
+        }
+    }
+
+    /**
+     * After supplier-invoice approval: reassign used stock (same garage), then
+     * soft-delete inventory purchases and SUP ledger rows so they stay in the bin.
+     */
+    protected static function finalizeApprovedSupplierInvoiceDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\SupplierInvoices $invoice,
+        ?User $admin
+    ): void {
+        $invoice->finalizeSoftDeletion($admin?->id);
+    }
+
+    /**
+     * After supplier approval: finalize any cascaded purchase orders / invoices.
+     */
+    protected static function finalizeApprovedSupplierDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\Supplier $supplier,
+        ?User $admin
+    ): void {
+        foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+            $type = $cascaded['type'] ?? null;
+            $id = $cascaded['id'] ?? null;
+            if ($type !== \App\Models\SupplierInvoices::class || ! $id) {
+                continue;
+            }
+
+            $invoice = \App\Models\SupplierInvoices::withTrashed()->find($id);
+            if ($invoice) {
+                $invoice->finalizeSoftDeletion($admin?->id);
+            }
+        }
     }
 
     /**

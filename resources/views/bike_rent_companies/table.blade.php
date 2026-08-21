@@ -5,7 +5,7 @@
    <thead class="text-center">
       <tr role="row">
          @if($vf('name'))<th title="Name" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Name: activate to sort column ascending" aria-sort="descending">Name</th>@endif
-         @if(($type ?? null) === 'bike_rental')<th title="Type">Type</th>@endif
+         @if(($type ?? null) === 'bike_rental' && ! in_array($partyType ?? null, ['company', 'individual'], true))<th title="Type">Type</th>@endif
          @if($vf('company_contact'))<th title="Contact" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Contact: activate to sort column ascending">Contact</th>@endif
          @if($vf('email'))<th title="Email" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Email: activate to sort column ascending">Email</th>@endif
          <th title="Chart Account" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Chart Account: activate to sort column ascending">Chart Account</th>
@@ -24,7 +24,7 @@
                  {{ $row->name }}
               </a>
           </td>@endif
-          @if(($type ?? null) === 'bike_rental')
+          @if(($type ?? null) === 'bike_rental' && ! in_array($partyType ?? null, ['company', 'individual'], true))
           <td>
               @if($row->party_type === 'individual')
                   <span class="badge bg-info">Individual</span>

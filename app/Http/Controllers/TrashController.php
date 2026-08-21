@@ -35,7 +35,7 @@ use App\Services\ActivityLogger;
 use App\Services\DeleteRequestService;
 use App\Services\FuelMonthlyLedgerService;
 use App\Services\SalikPaymentReversalService;
-use App\Models\LeasingCompanyInvoice;
+use App\Models\SupplierInvoices;
 use App\Models\SimInvoice;
 use App\Models\SimInvoiceItem;
 use App\Models\Loan;
@@ -257,6 +257,12 @@ class TrashController extends Controller
             'name' => 'SIM Invoices',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'invoice_number', 'billing_month', 'total_amount', 'status'],
+        ],
+        'supplier_invoices' => [
+            'model' => SupplierInvoices::class,
+            'name' => 'Supplier Invoices',
+            'icon' => 'fa-file-invoice',
+            'display_columns' => ['id', 'inv_id', 'billing_month', 'total_amount', 'status'],
         ],
         'loans' => [
             'model' => Loan::class,
@@ -514,6 +520,9 @@ class TrashController extends Controller
                         if ($relatedRecord) {
                             $relatedRecord->restore();
                             $restoredItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
+                            if ($relatedRecord instanceof SupplierInvoices) {
+                                $restoredItems = array_merge($restoredItems, $relatedRecord->restoreRelatedRecords());
+                            }
 
                             // Log the restoration
                             ActivityLogger::custom(
@@ -565,6 +574,10 @@ class TrashController extends Controller
                     }
                     $restoredItems[] = 'Transaction #' . $transaction->id;
                 }
+            }
+
+            if ($module === 'supplier_invoices' && $record instanceof SupplierInvoices) {
+                $restoredItems = array_merge($restoredItems, $record->restoreRelatedRecords());
             }
 
             if (in_array($module, ['visa_expenses', 'license_expenses'], true)) {
@@ -647,6 +660,14 @@ class TrashController extends Controller
             return redirect()->route('settings-panel.delete-requests.index');
         }
 
+        if ($module === 'suppliers' && $record instanceof Supplier) {
+            $blockReason = $record->cannotBeDeletedReason();
+            if ($blockReason) {
+                Flash::error($blockReason);
+                return redirect()->route('settings-panel.trash.index');
+            }
+        }
+
         DB::beginTransaction();
         try {
             $deletedItems = [];
@@ -660,7 +681,7 @@ class TrashController extends Controller
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
             // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
-            if (! in_array($module, ['fuel_data', 'vouchers', 'sim_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
+            if (! in_array($module, ['fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -743,6 +764,9 @@ class TrashController extends Controller
                         $relatedRecord = $this->findTrashedRecord($relatedModelClass, $cascade->related_id);
 
                         if ($relatedRecord) {
+                            if ($relatedRecord instanceof SupplierInvoices) {
+                                $deletedItems = array_merge($deletedItems, $relatedRecord->purgeRelatedRecords());
+                            }
                             $relatedRecord->forceDelete();
                             $deletedItems[] = class_basename($relatedModelClass) . ": {$cascade->related_name}";
 
@@ -824,6 +848,10 @@ class TrashController extends Controller
                 if ($record->attachment && Storage::disk('public')->exists($record->attachment)) {
                     Storage::disk('public')->delete($record->attachment);
                 }
+            }
+
+            if ($module === 'supplier_invoices' && $record instanceof SupplierInvoices) {
+                $deletedItems = array_merge($deletedItems, $record->purgeRelatedRecords());
             }
 
             if (in_array($module, ['visa_expenses', 'license_expenses'], true)) {

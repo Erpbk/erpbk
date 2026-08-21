@@ -38,11 +38,17 @@ class BikeRentCompaniesController extends AppBaseController
     {
         $this->authorizeCustomer('view', 'bike_rental');
 
+        $partyType = $request->input('party_type', BikeRentCompany::PARTY_COMPANY);
+        if (! in_array($partyType, [BikeRentCompany::PARTY_COMPANY, BikeRentCompany::PARTY_INDIVIDUAL], true)) {
+            $partyType = BikeRentCompany::PARTY_COMPANY;
+        }
+
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = BikeRentCompany::query()
             ->with('account')
             ->orderBy('id', 'desc')
-            ->where('customer_type', 'bike_rental');
+            ->where('customer_type', 'bike_rental')
+            ->where('party_type', $partyType);
 
         if ($request->filled('name')) {
             $query->where('name', 'like', '%' . $request->name . '%');
@@ -59,7 +65,11 @@ class BikeRentCompaniesController extends AppBaseController
 
         $data = $this->applyPagination($query, $paginationParams);
         if ($request->ajax()) {
-            $tableData = view('bike_rent_companies.table', ['data' => $data, 'type' => 'bike_rental'])->render();
+            $tableData = view('bike_rent_companies.table', [
+                'data' => $data,
+                'type' => 'bike_rental',
+                'partyType' => $partyType,
+            ])->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
                 'tableData' => $tableData,
@@ -67,7 +77,11 @@ class BikeRentCompaniesController extends AppBaseController
             ]);
         }
 
-        return view('bike_rent_companies.index', ['data' => $data, 'type' => 'bike_rental']);
+        return view('bike_rent_companies.index', [
+            'data' => $data,
+            'type' => 'bike_rental',
+            'partyType' => $partyType,
+        ]);
     }
 
     public function garageIndex(Request $request)
@@ -109,8 +123,12 @@ class BikeRentCompaniesController extends AppBaseController
     public function create()
     {
         $type = request()->input('type');
+        $partyType = request()->input('party_type');
+        if (! in_array($partyType, [BikeRentCompany::PARTY_COMPANY, BikeRentCompany::PARTY_INDIVIDUAL], true)) {
+            $partyType = BikeRentCompany::PARTY_COMPANY;
+        }
         $this->authorizeCustomer('create', $type);
-        return view('bike_rent_companies.create', compact('type'));
+        return view('bike_rent_companies.create', compact('type', 'partyType'));
     }
 
     public function store(CreateBikeRentCompaniesRequest $request)
@@ -152,7 +170,11 @@ class BikeRentCompaniesController extends AppBaseController
                 return response()->json(['message' => 'Bike on rent customer added successfully.', 'reload' => true], 200);
             }
             Flash::success('Bike on rent customer created successfully.');
-            return redirect(route('bikeRentCompanies.index'));
+            $redirectParams = [];
+            if (($input['customer_type'] ?? null) === 'bike_rental') {
+                $redirectParams['party_type'] = $input['party_type'] ?? BikeRentCompany::PARTY_COMPANY;
+            }
+            return redirect(route('bikeRentCompanies.index', $redirectParams));
         } catch (\Exception $e) {
             \Log::error('Bike rent company store failed: ' . $e->getMessage());
             DB::rollBack();

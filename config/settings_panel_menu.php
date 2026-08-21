@@ -113,7 +113,8 @@ return [
             'permission' => 'bike_on_rent_view',
             'icon' => 'ti-motorbike',
             'children' => [
-                ['key' => 'bike_rent_customers', 'settings' => 'bike_on_rent'],
+                ['key' => 'bike_rent_companies', 'settings' => 'bike_on_rent'],
+                ['key' => 'bike_rent_individuals', 'settings' => 'bike_on_rent'],
                 ['key' => 'leasing_billing_invoice', 'permission' => 'billing_invoice_view', 'settings' => 'bike_on_rent'],
                 ['key' => 'bike_rent_customer_receipts', 'settings' => 'bike_on_rent'],
             ],

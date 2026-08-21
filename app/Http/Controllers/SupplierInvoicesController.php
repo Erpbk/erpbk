@@ -6,7 +6,6 @@ use App\DataTables\LedgerDataTable;
 use App\Http\Requests\CreateSupplierInvoicesRequest;
 use App\Http\Requests\UpdateSupplierInvoicesRequest;
 use App\Imports\ImportSupplierInvoice;
-use App\Models\InventoryPurchase;
 use App\Models\Items;
 use App\Models\Payment;
 use App\Models\Supplier;
@@ -166,7 +165,7 @@ class SupplierInvoicesController extends AppBaseController
      */
     public function edit($company_slug, $id)
     {
-        $invoice = SupplierInvoices::with('items')->find($id);
+        $invoice = SupplierInvoices::with(['items', 'inventoryPurchases'])->find($id);
 
         if (! $invoice) {
             Flash::error('Supplier Invoice not found');
@@ -246,33 +245,47 @@ class SupplierInvoicesController extends AppBaseController
                 'message' => 'Cannot Delete Invoice. Payment has already been Made',
             ], 500);
         }
-        $inventory = InventoryPurchase::where('inv_id', $supplierInvoice->id)->get();
-        $items = $supplierInvoice->items;
-        if ($inventory && ($inventory->sum('remaining_quantity') < $items->sum('qty'))) {
+
+        if ($supplierInvoice->usedInventoryBlocksDeletion()) {
             return response()->json([
-                'message' => 'Cannot delete Invoice. Inventory from this Purchase has already been used',
+                'message' => 'Cannot delete Invoice. Inventory from this Purchase has already been used and cannot be moved to other stock in the same garage.',
             ], 500);
         }
-        DB::beginTransaction();
+
         try {
-            $attachment = $supplierInvoice->attachment;
-            InventoryPurchase::where('inv_id', $supplierInvoice->id)->delete();
-            Transactions::where(['reference_id' => $supplierInvoice->id, 'reference_type' => 'SUP'])->delete();
-            $supplierInvoice->items()->delete();
             $supplierInvoice->delete();
 
-            if ($attachment && Storage::disk('public')->exists($attachment)) {
-                Storage::disk('public')->delete($attachment);
+            if (request()->attributes->get('delete_approval_created')) {
+                $message = \App\Services\DeleteRequestService::pendingMessage(
+                    \App\Services\DeleteRequestService::lastCreatedFor($supplierInvoice)
+                );
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 200);
+                }
+                Flash::success($message);
+
+                return redirect()->back();
             }
+
+            DB::beginTransaction();
+            $supplierInvoice->finalizeSoftDeletion(auth()->id());
             DB::commit();
+
             if ($request->ajax()) {
-                return response()->json(['message' => 'Record deleted successfully.'], 200);
+                return response()->json([
+                    'message' => 'Supplier invoice moved to Recycle Bin. <a href="'.route('settings-panel.trash.index').'?module=supplier_invoices" class="alert-link">View Recycle Bin</a> to restore if needed.',
+                ], 200);
             }
-            Flash::success('Supplier Invoice deleted successfully.');
+            Flash::success('Supplier invoice moved to Recycle Bin.');
 
             return redirect()->back();
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            if (method_exists($supplierInvoice, 'trashed') && $supplierInvoice->trashed()) {
+                $supplierInvoice->restore();
+            }
             \Log::error("Error deleting Supplier Invoice ID: {$id} - ".$e->getMessage());
             if ($request->ajax()) {
                 return response()->json(['message' => 'Error: '.$e->getMessage()], 500);
@@ -281,8 +294,6 @@ class SupplierInvoicesController extends AppBaseController
 
             return redirect()->back();
         }
-
-        return redirect(route('supplierInvoices.index'));
     }
 
     /**

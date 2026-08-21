@@ -1,6 +1,15 @@
 @extends('layouts.app')
 
-@section('title','Customers')
+@php
+    $partyType = ($type ?? null) === 'bike_rental'
+        ? ($partyType ?? request('party_type', 'company'))
+        : null;
+    $isIndividual = ($type ?? null) === 'bike_rental' && $partyType === 'individual';
+    $isCompany = ($type ?? null) === 'bike_rental' && $partyType === 'company';
+    $pageTitle = $isIndividual ? 'Individuals' : ($isCompany ? 'Companies' : 'Customers');
+    $addLabel = $isIndividual ? 'Individual' : ($isCompany ? 'Company' : 'Customer');
+@endphp
+@section('title', $pageTitle)
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
@@ -19,11 +28,17 @@
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
                         @canany(['bike_on_rent_customers_create', 'garages_customers_create'])
-                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}?type={{ $type }}" data-title="Add customer" data-size="lg">
+                        @php
+                            $createQuery = ['type' => $type];
+                            if (in_array($partyType, ['company', 'individual'], true)) {
+                                $createQuery['party_type'] = $partyType;
+                            }
+                        @endphp
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-action="{{ route('bikeRentCompanies.create') }}?{{ http_build_query($createQuery) }}" data-title="Add {{ $addLabel }}" data-size="lg">
                             <i class="ti ti-plus"></i>
                             <div>
                                 <div class="action-dropdown-item-text">New</div>
-                                <div class="action-dropdown-item-desc">Add New Customer</div>
+                                <div class="action-dropdown-item-desc">Add New {{ $addLabel }}</div>
                             </div>
                         </a>
                         @endcanany
@@ -38,17 +53,29 @@
 <!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
-        <h5>Filter Customers</h5>
+        <h5>Filter {{ $pageTitle }}</h5>
         <button type="button" class="btn-close" id="closeSidebar"></button>
     </div>
     <div class="filter-body" id="searchTopbody">
-        <form id="filterForm" action="{{ route('bikeRentCompanies.index') }}" method="GET">
+        @php
+            $filterAction = ($type ?? null) === 'garage'
+                ? route('garage_customer.index')
+                : route('bikeRentCompanies.index', array_filter(['party_type' => $partyType]));
+        @endphp
+        <form id="filterForm" action="{{ $filterAction }}" method="GET">
+            @if(in_array($partyType, ['company', 'individual'], true))
+                <input type="hidden" name="party_type" value="{{ $partyType }}">
+            @endif
             <div class="row">
                 <div class="form-group col-md-12">
-                    <label for="company_name">Filter by Customer</label>
+                    <label for="company_name">Filter by {{ $addLabel }}</label>
                     <select class="form-control select2" id="name" name="name">
                         @php
-                        $customers = \App\Models\BikeRentCompany::active()->get();
+                        $customersQuery = \App\Models\BikeRentCompany::active()->where('customer_type', $type ?? 'bike_rental');
+                        if (in_array($partyType, ['company', 'individual'], true)) {
+                            $customersQuery->where('party_type', $partyType);
+                        }
+                        $customers = $customersQuery->orderBy('name')->get();
                         @endphp
                         <option value="" selected>Select</option>
                         @foreach($customers as $company)
@@ -95,7 +122,7 @@
             <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('bike_rent_companies.table', ['data' => $data])
+            @include('bike_rent_companies.table', ['data' => $data, 'partyType' => $partyType ?? null])
         </div>
     </div>
 </div>

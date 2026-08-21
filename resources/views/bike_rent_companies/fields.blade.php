@@ -1,11 +1,21 @@
 @php
     $customerType = $type ?? ($bikeRentCompany->customer_type ?? 'bike_rental');
-    $partyType = old('party_type', isset($bikeRentCompany) ? ($bikeRentCompany->party_type ?? 'company') : 'company');
+    $partyType = old(
+        'party_type',
+        isset($bikeRentCompany)
+            ? ($bikeRentCompany->party_type ?? 'company')
+            : ($partyType ?? request('party_type', 'company'))
+    );
+    $lockPartyType = $customerType === 'bike_rental'
+        && ! isset($bikeRentCompany)
+        && in_array($partyType, ['company', 'individual'], true);
     $nationalityOptions = ['' => 'Select'] + \App\Models\Countries::query()->orderBy('name')->pluck('name', 'name')->all();
 @endphp
 <input type="hidden" name="customer_type" value="{{ $customerType }}">
 @if($customerType === 'garage')
     <input type="hidden" name="party_type" value="company">
+@elseif($lockPartyType)
+    <input type="hidden" name="party_type" value="{{ $partyType }}">
 @else
     <div class="form-group col-sm-12">
         <label class="d-block mb-2">Customer type</label>

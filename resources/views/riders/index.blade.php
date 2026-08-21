@@ -147,15 +147,15 @@
                 <form id="filterForm" action="{{ route('riders.index') }}" method="GET" data-rfp-skip-lock="1">
                     {{-- Preserve top-bar filters when applying sidebar filters --}}
                     @if(request()->filled('rider_top_option_id'))
-                        <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
+                    <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
                     @endif
                     @foreach((array) request('rider_status', []) as $statusKey)
-                        @if($statusKey !== null && $statusKey !== '')
-                            <input type="hidden" name="rider_status[]" value="{{ $statusKey }}">
-                        @endif
+                    @if($statusKey !== null && $statusKey !== '')
+                    <input type="hidden" name="rider_status[]" value="{{ $statusKey }}">
+                    @endif
                     @endforeach
                     @if(request()->filled('quick_search'))
-                        <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
+                    <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
                     @endif
                     <div class="row">
                         @fieldVisible('rider', 'rider_id')
@@ -799,5 +799,258 @@
             }, 300);
         }, 3000);
     }
+</script>
+<script>
+/* ── Excel-like column copy ── */
+(function () {
+  'use strict';
+
+  var COL_HEAD_SEL  = '#dataTableBuilder thead th.sorting';
+  var COL_SELECTED  = 'riders-col-selected';
+  var HEAD_SELECTED = 'riders-col-head-selected';
+
+  /* ── styles ── */
+  var css = `
+    #dataTableBuilder thead th.${HEAD_SELECTED} {
+      background: #1e3a8a !important;
+      color: #ffffff !important;
+      position: relative;
+    }
+    #dataTableBuilder thead th.${HEAD_SELECTED}::after {
+      content: "Ctrl+C";
+      position: absolute;
+      bottom: 2px;
+      right: 6px;
+      font-size: 9px;
+      font-weight: 400;
+      opacity: .7;
+      letter-spacing: .03em;
+    }
+    #dataTableBuilder td.${COL_SELECTED} {
+      background: #dbeafe !important;
+    }
+    #dataTableBuilder thead th.sorting:not(.${HEAD_SELECTED}):hover {
+      cursor: copy;
+    }
+    /* toast */
+    #rdrs-col-toast {
+      position: fixed;
+      bottom: 36px;
+      left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: #1e293b;
+      color: #fff;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.22);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .22s, transform .22s;
+    }
+    #rdrs-col-toast.rdrs-toast-show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    /* context menu */
+    #rdrs-col-ctx {
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.14);
+      z-index: 10001;
+      display: none;
+      min-width: 190px;
+      padding: 4px 0;
+      user-select: none;
+    }
+    #rdrs-col-ctx.rdrs-ctx-show { display: block; }
+    #rdrs-col-ctx button {
+      display: flex; align-items: center; gap: 9px;
+      width: 100%; padding: 8px 14px;
+      border: none; background: none; cursor: pointer;
+      font-size: 13px; color: #111827; text-align: left;
+    }
+    #rdrs-col-ctx button:hover { background: #f3f4f6; }
+    #rdrs-col-ctx .ctx-divider { border-top: 1px solid #f0f0f0; margin: 3px 0; }
+  `;
+  var styleEl = document.createElement('style');
+  styleEl.textContent = css;
+  document.head.appendChild(styleEl);
+
+  /* ── toast ── */
+  var toast = document.createElement('div');
+  toast.id = 'rdrs-col-toast';
+  toast.innerHTML = '<i class="ti ti-check" style="font-size:15px;color:#4ade80;"></i><span id="rdrs-col-toast-msg"></span>';
+  document.body.appendChild(toast);
+  var toastTimer;
+  function showToast(msg) {
+    document.getElementById('rdrs-col-toast-msg').textContent = msg;
+    toast.classList.add('rdrs-toast-show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('rdrs-toast-show'); }, 2400);
+  }
+
+  /* ── context menu ── */
+  var ctx = document.createElement('div');
+  ctx.id = 'rdrs-col-ctx';
+  ctx.innerHTML = [
+    '<button id="rdrs-ctx-copy"><i class="ti ti-copy"></i> Copy column (Ctrl+C)</button>',
+    '<div class="ctx-divider"></div>',
+    '<button id="rdrs-ctx-deselect"><i class="ti ti-x"></i> Deselect column (Esc)</button>',
+  ].join('');
+  document.body.appendChild(ctx);
+
+  /* ── state ── */
+  var selectedColIdx = -1;
+
+  /* ── helpers ── */
+  function getTable() { return document.querySelector('#dataTableBuilder'); }
+
+  function clearSelection() {
+    var t = getTable();
+    if (!t) return;
+    t.querySelectorAll('.' + HEAD_SELECTED).forEach(function (el) { el.classList.remove(HEAD_SELECTED); });
+    t.querySelectorAll('.' + COL_SELECTED).forEach(function (el) { el.classList.remove(COL_SELECTED); });
+    selectedColIdx = -1;
+  }
+
+  function selectColumn(colIdx) {
+    var t = getTable();
+    if (!t) return;
+    clearSelection();
+    selectedColIdx = colIdx;
+
+    /* header */
+    var allThs = t.querySelectorAll('thead th');
+    if (allThs[colIdx]) allThs[colIdx].classList.add(HEAD_SELECTED);
+
+    /* body cells */
+    t.querySelectorAll('tbody tr').forEach(function (row) {
+      var cell = row.children[colIdx];
+      if (cell) cell.classList.add(COL_SELECTED);
+    });
+  }
+
+  function getCellText(cell) {
+    /* prefer links, then raw text; collapse whitespace */
+    var link = cell.querySelector('a');
+    var raw = (link ? link.textContent : cell.textContent).replace(/\s+/g, ' ').trim();
+    return raw;
+  }
+
+  function buildColumnText(colIdx) {
+    var t = getTable();
+    if (!t) return '';
+    var lines = [];
+    t.querySelectorAll('tbody tr').forEach(function (row) {
+      var cell = row.children[colIdx];
+      lines.push(cell ? getCellText(cell) : '');
+    });
+    return lines.join('\n');
+  }
+
+  function doCopy(colIdx) {
+    if (colIdx < 0) return;
+    var text = buildColumnText(colIdx);
+    var rowCount = text.split('\n').length;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        showToast(rowCount + ' row' + (rowCount !== 1 ? 's' : '') + ' copied to clipboard');
+      }).catch(function () { fallbackCopy(text, rowCount); });
+    } else {
+      fallbackCopy(text, rowCount);
+    }
+  }
+
+  function fallbackCopy(text, rowCount) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+    showToast(rowCount + ' row' + (rowCount !== 1 ? 's' : '') + ' copied to clipboard');
+  }
+
+  function hideCtx() { ctx.classList.remove('rdrs-ctx-show'); }
+
+  function showCtx(x, y) {
+    ctx.style.left = x + 'px';
+    ctx.style.top  = y + 'px';
+    ctx.classList.add('rdrs-ctx-show');
+  }
+
+  /* ── wire up after DOM ready ── */
+  document.addEventListener('DOMContentLoaded', function () {
+    var t = getTable();
+    if (!t) return;
+
+    /* header click → select column */
+    t.querySelectorAll('thead th.sorting').forEach(function (th) {
+      th.addEventListener('click', function () {
+        var allThs = Array.from(t.querySelectorAll('thead th'));
+        var colIdx = allThs.indexOf(th);
+        if (selectedColIdx === colIdx) {
+          clearSelection();
+        } else {
+          selectColumn(colIdx);
+        }
+      });
+    });
+
+    /* right-click on selected header or cell → context menu */
+    t.addEventListener('contextmenu', function (e) {
+      if (selectedColIdx < 0) return;
+      var th = e.target.closest('.' + HEAD_SELECTED);
+      var td = e.target.closest('.' + COL_SELECTED);
+      if (!th && !td) return;
+      e.preventDefault();
+      /* keep menu inside viewport */
+      var mx = Math.min(e.clientX, window.innerWidth - 200);
+      var my = Math.min(e.clientY, window.innerHeight - 100);
+      showCtx(mx, my);
+    });
+
+    /* context menu actions */
+    document.getElementById('rdrs-ctx-copy').addEventListener('click', function () {
+      hideCtx();
+      doCopy(selectedColIdx);
+    });
+    document.getElementById('rdrs-ctx-deselect').addEventListener('click', function () {
+      hideCtx();
+      clearSelection();
+    });
+
+    /* Ctrl+C / Meta+C → copy selected column */
+    document.addEventListener('keydown', function (e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (selectedColIdx < 0) return;
+        var sel = window.getSelection ? window.getSelection() : null;
+        if (sel && sel.toString().length > 0) return; /* let normal copy win */
+        e.preventDefault();
+        doCopy(selectedColIdx);
+      }
+      if (e.key === 'Escape') {
+        hideCtx();
+        clearSelection();
+      }
+    });
+
+    /* click outside table or context menu → deselect */
+    document.addEventListener('click', function (e) {
+      if (ctx.contains(e.target)) return;
+      if (!t.contains(e.target)) clearSelection();
+      if (!ctx.contains(e.target)) hideCtx();
+    });
+  });
+}());
 </script>
 @endsection

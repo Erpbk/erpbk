@@ -27,7 +27,7 @@ return [
     ['key' => 'riders', 'children' => ['riders_list', 'rider_inventory', 'invoices', 'activities', 'live_activities', 'rider_report']],
 
     ['key' => 'bikes', 'children' => ['bike_list', 'bike_registration']],
-    ['key' => 'bike_on_rent', 'children' => ['bike_rent_customers', 'leasing_billing_invoice']],
+    ['key' => 'bike_on_rent', 'children' => ['bike_rent_companies', 'bike_rent_individuals', 'leasing_billing_invoice']],
 
     ['key' => 'sims', 'children' => ['sims', 'sim_companies']],
 

@@ -104,7 +104,7 @@
                             <li>Model</li>
                             <li>Model Type</li>
                             <li>Engine</li>
-                            <li>Bike Code</li>
+                            <li>Vehicle Code</li>
                             <li>Emirates</li>
                             <li>Warehouse</li>
                             <li>Status (1 = Active, 0 = Inactive)</li>

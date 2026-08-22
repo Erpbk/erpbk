@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Support\CompanyContext;
 
 class BikeFieldCategoryAssignment extends BaseModel
 {
@@ -10,13 +10,31 @@ class BikeFieldCategoryAssignment extends BaseModel
 
     /**
      * Assignments are globally unique by field_key.
+     * Company scope is off so shared rows stay visible, but company_id is still stored on save.
      */
     protected function shouldApplyCompanyScope(): bool
     {
         return false;
     }
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function (BikeFieldCategoryAssignment $assignment): void {
+            if (! $assignment->hasCompanyColumn()) {
+                return;
+            }
+
+            $companyId = CompanyContext::id();
+            if ($companyId !== null) {
+                $assignment->company_id = $companyId;
+            }
+        });
+    }
+
     protected $fillable = [
+        'company_id',
         'field_key',
         'display_label',
         'input_type',
@@ -38,4 +56,3 @@ class BikeFieldCategoryAssignment extends BaseModel
         return $this->belongsTo(BikeCategory::class, 'category_id', 'id');
     }
 }
-

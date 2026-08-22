@@ -3,6 +3,10 @@
 namespace App\Services\RiderActivities;
 
 use App\Models\RiderActivityImportSetting;
+use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class RiderActivityImportMappingService
 {
@@ -105,6 +109,52 @@ class RiderActivityImportMappingService
         ];
     }
 
+    public static function columnIndexToLetter(int $index): string
+    {
+        $index = max(0, $index);
+        $letter = '';
+        $n = $index + 1;
+
+        while ($n > 0) {
+            $n--;
+            $letter = chr(65 + ($n % 26)) . $letter;
+            $n = intdiv($n, 26);
+        }
+
+        return $letter;
+    }
+
+    public static function columnLetterToIndex(string $letter): int
+    {
+        $letter = strtoupper((string) preg_replace('/[^A-Za-z]/', '', $letter));
+        if ($letter === '') {
+            return 0;
+        }
+
+        $index = 0;
+        $length = strlen($letter);
+        for ($i = 0; $i < $length; $i++) {
+            $index = ($index * 26) + (ord($letter[$i]) - 64);
+        }
+
+        return max(0, $index - 1);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function excelColumnChoices(int $maxIndex = 25): array
+    {
+        $maxIndex = max(25, $maxIndex);
+        $choices = [];
+
+        for ($i = 0; $i <= $maxIndex; $i++) {
+            $choices[$i] = self::columnIndexToLetter($i);
+        }
+
+        return $choices;
+    }
+
     /**
      * @return array{customer_id: int, import_type: string, header_rows_to_skip: int, column_mappings: array<string, int>}
      */
@@ -191,6 +241,91 @@ class RiderActivityImportMappingService
         }
 
         return $sanitized;
+    }
+
+    /**
+     * @return array<int, array{header_rows_to_skip: int, column_mappings: array<string, int>}>
+     */
+    public function previewConfigsForType(string $importType = self::TYPE_RIDER): array
+    {
+        $importType = self::normalizeImportType($importType);
+        $payload = [];
+
+        foreach ($this->getConfiguredCustomerIds($importType) as $customerId) {
+            $resolved = $this->resolve((int) $customerId, $importType);
+            $payload[(int) $customerId] = [
+                'header_rows_to_skip' => $resolved['header_rows_to_skip'],
+                'column_mappings' => $resolved['column_mappings'],
+            ];
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @return array{file_name: string, sheet_name: string, rows: list<list<string>>, column_count: int, row_count: int, preview_row_count: int}
+     */
+    public function previewUploadedFile(UploadedFile $file, int $maxRows = 40, int $maxCols = 40): array
+    {
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+        if (!in_array($extension, ['xlsx', 'xls', 'csv'], true)) {
+            throw new \InvalidArgumentException('Please upload a valid .xlsx, .xls, or .csv file.');
+        }
+
+        $readerType = match ($extension) {
+            'csv' => 'Csv',
+            'xls' => 'Xls',
+            default => 'Xlsx',
+        };
+
+        $reader = IOFactory::createReader($readerType);
+        if (method_exists($reader, 'setReadDataOnly')) {
+            $reader->setReadDataOnly(true);
+        }
+
+        $spreadsheet = $reader->load($file->getRealPath());
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheetName = $sheet->getTitle();
+        $highestRow = (int) $sheet->getHighestRow();
+        $highestColumn = $sheet->getHighestColumn() ?: 'A';
+        $highestColIndex = max(1, (int) Coordinate::columnIndexFromString($highestColumn));
+        $previewRows = min($highestRow, $maxRows);
+        $previewCols = min($highestColIndex, $maxCols);
+
+        $rows = [];
+        for ($row = 1; $row <= $previewRows; $row++) {
+            $cells = [];
+            for ($col = 1; $col <= $previewCols; $col++) {
+                $coordinate = Coordinate::stringFromColumnIndex($col) . $row;
+                $cell = $sheet->getCell($coordinate);
+                $value = $cell->getValue();
+
+                if (ExcelDate::isDateTime($cell) && is_numeric($value)) {
+                    try {
+                        $value = ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
+                    } catch (\Throwable $e) {
+                        $value = $cell->getFormattedValue();
+                    }
+                } else {
+                    $value = $cell->getFormattedValue();
+                }
+
+                $cells[] = is_scalar($value) || $value === null ? (string) $value : '';
+            }
+            $rows[] = $cells;
+        }
+
+        $spreadsheet->disconnectWorksheets();
+        unset($spreadsheet);
+
+        return [
+            'file_name' => $file->getClientOriginalName(),
+            'sheet_name' => $sheetName,
+            'rows' => $rows,
+            'column_count' => $previewCols,
+            'row_count' => $highestRow,
+            'preview_row_count' => count($rows),
+        ];
     }
 
     private function findStoredSetting(int $customerId, string $importType): ?RiderActivityImportSetting

@@ -15,6 +15,7 @@ use App\Http\Controllers\Concerns\SavesModuleDisplayLabel;
 use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\Settings;
 use App\Models\UserTableSettings;
+use App\Support\CompanyContext;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +89,23 @@ class BikeSettingsController extends Controller
     protected function bikeCategoryQuery()
     {
         return BikeCategory::query();
+    }
+
+    protected function syncAssignmentCompanyId(BikeFieldCategoryAssignment $assignment): void
+    {
+        if (!Schema::hasColumn($assignment->getTable(), 'company_id')) {
+            return;
+        }
+
+        $companyId = CompanyContext::id() ?? $this->bikeCategoryCompanyId();
+        if ($companyId !== null) {
+            $assignment->company_id = $companyId;
+        }
+    }
+
+    protected function currentCompanyId(): ?int
+    {
+        return CompanyContext::id() ?? $this->bikeCategoryCompanyId();
     }
 
     protected function ensureDefaultBikeCategorySetup(): BikeCategory
@@ -326,6 +344,7 @@ class BikeSettingsController extends Controller
         ]);
 
         $assignment = BikeFieldCategoryAssignment::where('field_key', $validated['field_key'])->firstOrFail();
+        $this->syncAssignmentCompanyId($assignment);
         if (in_array((string) $assignment->field_key, $this->hiddenFixedFieldKeys, true)) {
             if (!$request->wantsJson() && !$request->ajax()) {
                 return $this->bikeSettingsIndexRedirect()->with('error', 'This field is hidden and cannot be edited.');
@@ -662,7 +681,7 @@ class BikeSettingsController extends Controller
             $config = ['options' => $validated['config_options']];
         }
 
-        BikeCustomField::create([
+        $payload = [
             'label' => $validated['label'],
             'help_text' => $validated['help_text'] ?? null,
             'data_privacy' => null,
@@ -675,7 +694,13 @@ class BikeSettingsController extends Controller
             'config' => $config,
             'category_id' => $categoryId,
             'display_order' => $displayOrder,
-        ]);
+        ];
+        $companyId = $this->currentCompanyId();
+        if ($companyId !== null && Schema::hasColumn((new BikeCustomField())->getTable(), 'company_id')) {
+            $payload['company_id'] = $companyId;
+        }
+
+        BikeCustomField::create($payload);
 
         return $this->bikeSettingsIndexRedirect($categoryId !== null ? (int) $categoryId : 0)
             ->with('success', 'Custom field added.');
@@ -715,6 +740,10 @@ class BikeSettingsController extends Controller
             $config = ['options' => $validated['config_options']];
         }
         $field->config = $config;
+        $companyId = $this->currentCompanyId();
+        if ($companyId !== null && Schema::hasColumn($field->getTable(), 'company_id')) {
+            $field->company_id = $companyId;
+        }
         $field->save();
 
         return $this->bikeSettingsIndexRedirect($field->category_id !== null ? (int) $field->category_id : 0)
@@ -764,6 +793,10 @@ class BikeSettingsController extends Controller
         $field = BikeCustomField::where('id', $id)->firstOrFail();
         if (isset($validated['category_id']) && $validated['category_id'] !== null && $validated['category_id'] !== '') {
             $field->category_id = (int) $validated['category_id'];
+            $companyId = $this->currentCompanyId();
+            if ($companyId !== null && Schema::hasColumn($field->getTable(), 'company_id')) {
+                $field->company_id = $companyId;
+            }
             $field->save();
         }
 

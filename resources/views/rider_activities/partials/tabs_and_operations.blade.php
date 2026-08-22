@@ -121,7 +121,7 @@ $activeActivitiesTab = $activeActivitiesTab
       <i class="ti ti-chevron-down"></i>
     </button>
     <div class="action-dropdown-menu" id="riderActivitiesOpsMenu">
-      <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Rider Activities" data-action="{{ route('rider.activities_import') }}">
+      <a class="action-dropdown-item" href="{{ route('rider.activities_import_page') }}">
         <i class="ti ti-activity"></i>
         <div>
           <div class="action-dropdown-item-text">Import Rider Activities</div>
@@ -135,7 +135,7 @@ $activeActivitiesTab = $activeActivitiesTab
           <div class="action-dropdown-item-desc">View last rider activities import errors</div>
         </div>
       </a>
-      <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Live Activities" data-action="{{ route('rider.live_activities_import') }}">
+      <a class="action-dropdown-item" href="{{ route('rider.live_activities_import_page') }}">
         <i class="ti ti-live-photo"></i>
         <div>
           <div class="action-dropdown-item-text">Import Live Activities</div>

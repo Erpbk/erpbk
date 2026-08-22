@@ -34,10 +34,11 @@ class RiderActivitiesController extends AppBaseController
         $this->middleware('permission:riders_activities_view')->only('index', 'show');
         $this->middleware('permission:riders_activities_create')->only('create', 'store');
         $this->middleware('permission:riders_activities_edit')->only('edit', 'update');
-        $this->middleware('permission:riders_activities_edit|riders_activities_create')->only('import', 'importErrors');
+        $this->middleware('permission:riders_activities_edit|riders_activities_create')->only('import', 'importErrors', 'importPage');
         $this->middleware('permission:riders_activities_delete')->only('destroy');
-        $this->middleware('permission:riders_live_activities_view')->only('liveactivities', 'liveimportactivities');
-        $this->middleware('permission:riders_live_activities_create')->only('liveimportactivities', 'liveimportErrors');
+        $this->middleware('permission:riders_live_activities_view')->only('liveactivities', 'liveimportactivities', 'liveImportPage');
+        $this->middleware('permission:riders_live_activities_create')->only('liveimportactivities', 'liveimportErrors', 'liveImportPage');
+        $this->middleware('permission:riders_activities_edit|riders_activities_create|riders_live_activities_create')->only('previewImport');
     }
 
     /**
@@ -784,12 +785,19 @@ class RiderActivitiesController extends AppBaseController
             ]);
         }
 
+        $fieldLabels = RiderActivityImportMappingService::fieldLabels();
+        $previewConfigs = $importMappingService->previewConfigsForType(RiderActivityImportMappingService::TYPE_RIDER);
+        $previewUrl = route('rider.activities_import_preview');
+
         return view('rider_activities.import', compact(
             'summary',
             'customers',
             'configuredCustomerIds',
             'defaultCustomerId',
-            'importSettingsUrl'
+            'importSettingsUrl',
+            'fieldLabels',
+            'previewConfigs',
+            'previewUrl'
         ));
     }
 
@@ -1208,12 +1216,203 @@ class RiderActivitiesController extends AppBaseController
             ]);
         }
 
+        $fieldLabels = RiderActivityImportMappingService::fieldLabels();
+        $previewConfigs = $importMappingService->previewConfigsForType(RiderActivityImportMappingService::TYPE_LIVE);
+        $previewUrl = route('rider.activities_import_preview');
+
         return view('rider_live_activities.import', compact(
             'summary',
             'customers',
             'configuredCustomerIds',
             'defaultCustomerId',
-            'importSettingsUrl'
+            'importSettingsUrl',
+            'fieldLabels',
+            'previewConfigs',
+            'previewUrl'
         ));
+    }
+
+    /**
+     * Standalone page for rider activities import.
+     */
+    public function importPage(Request $request, RiderActivityImportMappingService $importMappingService)
+    {
+        $customers = Customers::query()->orderBy('name')->get(['id', 'name']);
+        $configuredCustomerIds = $importMappingService->getConfiguredCustomerIds(RiderActivityImportMappingService::TYPE_RIDER);
+
+        if ($request->isMethod('post')) {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,xlsx,xls|max:51200',
+                'customer_id' => 'required|integer|exists:customers,id',
+            ], [
+                'file.required' => 'Please select a file to upload.',
+                'file.mimes' => 'The file must be a CSV or Excel document.',
+                'customer_id.required' => 'Please select a project for this import.',
+            ]);
+
+            $customerId = (int) $request->input('customer_id');
+
+            if (!$importMappingService->isImportReady($customerId, RiderActivityImportMappingService::TYPE_RIDER)) {
+                session()->flash('error', 'Import is not configured for the selected project. Configure column mappings in Rider Activity Import Settings first.');
+                return redirect()->route('rider.activities_import_page');
+            }
+
+            session()->forget('activities_import_summary');
+            $import = new ImportRiderActivities($customerId, $importMappingService);
+
+            try {
+                Excel::import($import, $request->file('file'));
+            } catch (ValidationException $e) {
+                session()->flash('error', 'Import validation failed: ' . implode(' | ', array_map(fn ($f) => implode(', ', $f), $e->errors())));
+                return redirect()->route('rider.activities_import_page');
+            } catch (\Throwable $e) {
+                session()->flash('error', 'Import failed: ' . $e->getMessage());
+                return redirect()->route('rider.activities_import_page');
+            }
+
+            $result = $import->getResult();
+            $successCount = $result['success_count'] ?? 0;
+            $errors = $result['errors'] ?? [];
+
+            session()->put('activities_import_summary', array_merge($result, ['errors' => $errors]));
+
+            if (!empty($errors)) {
+                session()->flash('error', 'Import completed with errors.');
+            } else {
+                session()->flash('success', "Rider activities imported successfully. {$successCount} record(s) saved.");
+            }
+
+            return redirect()->route('rider.activities_import_page');
+        }
+
+        $summary = session('activities_import_summary');
+        $defaultCustomerId = RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID;
+        $importSettingsUrl = null;
+        $companySlug = $request->route('company_slug') ?? session('company_slug');
+        if ($companySlug) {
+            $importSettingsUrl = route('settings-panel.rider-activity-import-settings.index', [
+                'company_slug' => $companySlug,
+                'import_type' => RiderActivityImportMappingService::TYPE_RIDER,
+            ]);
+        }
+
+        $fieldLabels = RiderActivityImportMappingService::fieldLabels();
+        $previewConfigs = $importMappingService->previewConfigsForType(RiderActivityImportMappingService::TYPE_RIDER);
+        $previewUrl = route('rider.activities_import_preview');
+
+        return view('rider_activities.import_page', compact(
+            'summary',
+            'customers',
+            'configuredCustomerIds',
+            'defaultCustomerId',
+            'importSettingsUrl',
+            'fieldLabels',
+            'previewConfigs',
+            'previewUrl'
+        ));
+    }
+
+    /**
+     * Standalone page for live activities import.
+     */
+    public function liveImportPage(Request $request, RiderActivityImportMappingService $importMappingService)
+    {
+        $customers = Customers::query()->orderBy('name')->get(['id', 'name']);
+        $configuredCustomerIds = $importMappingService->getConfiguredCustomerIds(RiderActivityImportMappingService::TYPE_LIVE);
+
+        if ($request->isMethod('post')) {
+            $request->validate([
+                'file' => 'required|file|mimes:csv,xlsx,xls|max:51200',
+                'customer_id' => 'required|integer|exists:customers,id',
+            ], [
+                'file.required' => 'Please select a file to upload.',
+                'file.mimes' => 'The file must be a CSV or Excel document.',
+                'customer_id.required' => 'Please select a project for this import.',
+            ]);
+
+            $customerId = (int) $request->input('customer_id');
+
+            if (!$importMappingService->isImportReady($customerId, RiderActivityImportMappingService::TYPE_LIVE)) {
+                session()->flash('error', 'Import is not configured for the selected project. Configure column mappings in Rider Activity Import Settings first.');
+                return redirect()->route('rider.live_activities_import_page');
+            }
+
+            session()->forget('activities_import_summary');
+            $import = new ImportLiveActivities($customerId, $importMappingService);
+
+            try {
+                Excel::import($import, $request->file('file'));
+            } catch (ValidationException $e) {
+                session()->flash('error', 'Import validation failed: ' . implode(' | ', array_map(fn ($f) => implode(', ', $f), $e->errors())));
+                return redirect()->route('rider.live_activities_import_page');
+            } catch (\Throwable $e) {
+                session()->flash('error', 'Import failed: ' . $e->getMessage());
+                return redirect()->route('rider.live_activities_import_page');
+            }
+
+            $result = $import->getResult();
+            $successCount = $result['success_count'] ?? ($result['success'] ?? 0);
+            $errors = $result['errors'] ?? [];
+            $missingRecords = $result['missing_records'] ?? [];
+
+            session()->put('activities_import_summary', array_merge($result, ['errors' => $errors]));
+
+            if (!empty($errors)) {
+                session()->flash('error', 'Import completed with errors.');
+            } else {
+                $message = "Live activities imported successfully. {$successCount} record(s) saved.";
+                if (!empty($missingRecords)) {
+                    $message .= ' ' . count($missingRecords) . ' record(s) skipped due to missing riders.';
+                }
+                session()->flash('success', $message);
+            }
+
+            return redirect()->route('rider.live_activities_import_page');
+        }
+
+        $summary = session('activities_import_summary');
+        $defaultCustomerId = RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID;
+        $importSettingsUrl = null;
+        $companySlug = $request->route('company_slug') ?? session('company_slug');
+        if ($companySlug) {
+            $importSettingsUrl = route('settings-panel.rider-activity-import-settings.index', [
+                'company_slug' => $companySlug,
+                'import_type' => RiderActivityImportMappingService::TYPE_LIVE,
+            ]);
+        }
+
+        $fieldLabels = RiderActivityImportMappingService::fieldLabels();
+        $previewConfigs = $importMappingService->previewConfigsForType(RiderActivityImportMappingService::TYPE_LIVE);
+        $previewUrl = route('rider.activities_import_preview');
+
+        return view('rider_live_activities.import_page', compact(
+            'summary',
+            'customers',
+            'configuredCustomerIds',
+            'defaultCustomerId',
+            'importSettingsUrl',
+            'fieldLabels',
+            'previewConfigs',
+            'previewUrl'
+        ));
+    }
+
+    public function previewImport(Request $request, RiderActivityImportMappingService $importMappingService)
+    {
+        $request->validate([
+            'file' => 'required|file|max:10240',
+        ]);
+
+        try {
+            $preview = $importMappingService->previewUploadedFile($request->file('file'));
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Could not read the Excel file. Please upload a valid .xlsx, .xls, or .csv file.',
+            ], 422);
+        }
+
+        return response()->json($preview);
     }
 }

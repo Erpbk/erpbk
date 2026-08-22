@@ -725,11 +725,14 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::resource('riderActivities', RiderActivitiesController::class);
     Route::any('rider/activities-import', [RiderActivitiesController::class, 'import'])->name('rider.activities_import');
+    Route::any('rider/activities-import/page', [RiderActivitiesController::class, 'importPage'])->name('rider.activities_import_page');
+    Route::post('rider/activities-import/preview', [RiderActivitiesController::class, 'previewImport'])->name('rider.activities_import_preview');
     Route::any('rider/keeta-activities-import', [RiderActivitiesController::class, 'importKeeta'])->name('rider.keeta_activities_import');
     Route::get('rider/activities-import/errors', [RiderActivitiesController::class, 'importErrors'])->name('rider.activities_import_errors');
 
     Route::get('rider/riderliveActivities', [RiderActivitiesController::class, 'liveactivities'])->name('rider.liveactivities');
     Route::any('rider/live-activities-import', [RiderActivitiesController::class, 'liveimportactivities'])->name('rider.live_activities_import');
+    Route::any('rider/live-activities-import/page', [RiderActivitiesController::class, 'liveImportPage'])->name('rider.live_activities_import_page');
     Route::get('rider/live-activities-import/errors', [RiderActivitiesController::class, 'liveimportErrors'])->name('rider.live_activities_import_errors');
     /* Rider section end here */
 

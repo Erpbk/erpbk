@@ -7,6 +7,7 @@ use App\Models\BikeCustomField;
 use App\Models\BikeFieldCategoryAssignment;
 use App\Models\Settings;
 use App\Services\Settings\FixedFieldCategoryAssignmentSync;
+use App\Support\CompanyContext;
 use Illuminate\Support\Facades\Schema;
 
 final class BikeDefaultCategoryService
@@ -101,7 +102,7 @@ final class BikeDefaultCategoryService
             }
 
             $order++;
-            BikeFieldCategoryAssignment::query()->create([
+            $payload = [
                 'field_key' => $fieldKey,
                 'category_id' => $categoryId,
                 'display_order' => $order,
@@ -110,7 +111,13 @@ final class BikeDefaultCategoryService
                 'input_config' => null,
                 'is_visible' => true,
                 'is_required' => true,
-            ]);
+            ];
+            $companyId = CompanyContext::id();
+            if ($companyId !== null && Schema::hasColumn((new BikeFieldCategoryAssignment())->getTable(), 'company_id')) {
+                $payload['company_id'] = $companyId;
+            }
+
+            BikeFieldCategoryAssignment::query()->create($payload);
         }
     }
 

@@ -13,6 +13,7 @@ class BikeCustomField extends BaseModel
     protected $table = 'bike_custom_fields';
 
     protected $fillable = [
+        'company_id',
         'label',
         'help_text',
         'data_privacy',

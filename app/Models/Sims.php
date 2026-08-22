@@ -13,6 +13,12 @@ class Sims extends BaseModel
 
   public $table = 'sims';
 
+  public const STATUS_INACTIVE = 0;
+
+  public const STATUS_ASSIGNED = 1;
+
+  public const STATUS_IN_OFFICE = 2;
+
   public $fillable = [
     'branch_id',
     'number',
@@ -89,5 +95,44 @@ class Sims extends BaseModel
   public function branch()
   {
     return $this->belongsTo(Branch::class, 'branch_id', 'id');
+  }
+
+  /**
+   * Person currently holding this SIM (rider or employee).
+   */
+  public function assignedPerson()
+  {
+    if (!$this->assign_to) {
+      return null;
+    }
+
+    return $this->assign_type === 'employee' ? $this->employee : $this->riders;
+  }
+
+  public function assigneeIsAbsconded(): bool
+  {
+    $person = $this->assignedPerson();
+    if (!$person || !method_exists($person, 'isAbsconded')) {
+      return false;
+    }
+
+    return $person->isAbsconded();
+  }
+
+  /**
+   * @return array{label: string, badge: string}
+   */
+  public static function statusDisplay(mixed $status): array
+  {
+    if ($status === null || $status === '') {
+      return ['label' => 'Unknown', 'badge' => 'bg-secondary'];
+    }
+
+    return match ((int) $status) {
+      self::STATUS_ASSIGNED => ['label' => 'Assigned', 'badge' => 'bg-success'],
+      self::STATUS_IN_OFFICE => ['label' => 'In office', 'badge' => 'bg-info'],
+      self::STATUS_INACTIVE => ['label' => 'Inactive', 'badge' => 'bg-danger'],
+      default => ['label' => 'Unknown', 'badge' => 'bg-secondary'],
+    };
   }
 }

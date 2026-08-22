@@ -9,27 +9,29 @@
         <div></div>
         <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Sims</button>
       </div>
-      <div class="totals-cards">
+      <div class="totals-cards totals-cards-single-row">
         <div class="total-card total-sims">
           <div class="label"><i class="fa fa-sim-card"></i>Total Sims</div>
           <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
         </div>
         <div class="total-card total-active">
-          <div class="label"><i class="fa fa-check-circle"></i>Active</div>
+          <div class="label"><i class="fa fa-check-circle"></i>Assigned</div>
           <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
+        </div>
+        <div class="total-card total-in-office">
+          <div class="label"><i class="fa fa-building"></i>In office</div>
+          <div class="value" id="total_in_office">{{ $stats['in_office'] ?? 0 }}</div>
         </div>
         <div class="total-card total-inactive">
           <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
           <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
         </div>
-        <div class="total-card total-du">
-          <div class="label"><i class="fa fa-building"></i>Du Sims</div>
-          <div class="value" id="total_hours">{{ $stats['du'] ?? 0 }}</div>
+        @foreach(($stats['companies'] ?? []) as $i => $companyStat)
+        <div class="total-card total-sim-company total-sim-company-{{ $i % 3 }}">
+          <div class="label"><i class="fa fa-building"></i>{{ $companyStat['name'] }} Sims</div>
+          <div class="value">{{ $companyStat['count'] ?? 0 }}</div>
         </div>
-        <div class="total-card total-etisalat">
-          <div class="label"><i class="fa fa-building"></i>Etisalat Sims</div>
-          <div class="value" id="total_hours">{{ $stats['etisalat'] ?? 0 }}</div>
-        </div>
+        @endforeach
       </div>
     </div>
   </div>
@@ -79,12 +81,16 @@
         </td>@endif
         @if($vf('rider_name'))<td>
           @if($r->assign_to)
+          @php $assigneeAbsconded = $r->assigneeIsAbsconded(); @endphp
           @if($r->assign_type === 'employee' && $r->employee)
           <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->name }}</a>
           @elseif($r->riders)
           <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->name }}</a>
           @else
           -
+          @endif
+          @if($assigneeAbsconded)
+          <span class="badge bg-label-danger ms-1">Absconded</span>
           @endif
           @else
           -
@@ -98,13 +104,8 @@
           @endif
         </td>@endif
         @if($vf('status'))<td>
-          @if($r->status === null)
-          <span class="badge bg-secondary">Unknown</span>
-          @elseif($r->status)
-          <span class="badge bg-success" style="font-size: 0.8rem;">Active</span>
-          @else
-          <span class="badge bg-danger">Inactive</span>
-          @endif
+          @php $simStatus = \App\Models\Sims::statusDisplay($r->status); @endphp
+          <span class="badge {{ $simStatus['badge'] }}" style="font-size: 0.8rem;">{{ $simStatus['label'] }}</span>
         </td>@endif
         <td style="position: relative;">
           <div class="dropdown sim-table-action-dropdown">

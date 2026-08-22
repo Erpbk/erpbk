@@ -112,6 +112,11 @@ class Employee extends BaseModel
         'notes' => 'nullable|string',
     ];
 
+    public function isAbsconded(): bool
+    {
+        return in_array(strtolower(trim((string) $this->status)), ['absconded', 'absconder'], true);
+    }
+
     /**
      * Scope a query to only include active employees.
      */

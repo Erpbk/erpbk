@@ -70,28 +70,53 @@ class SimsController extends AppBaseController
         if ($simListKeys !== []) {
             $query->where(function ($q) use ($simListKeys) {
                 if (in_array(TopBarNumericStatus::ACTIVE_KEY, $simListKeys, true)) {
-                    $q->orWhere('status', '1');
+                    $q->orWhere('status', (string) Sims::STATUS_ASSIGNED);
                 }
                 if (in_array(TopBarNumericStatus::INACTIVE_KEY, $simListKeys, true)) {
-                    $q->orWhere('status', '0');
+                    $q->orWhere('status', (string) Sims::STATUS_INACTIVE);
                 }
             });
-        } elseif ($request->has('status') && !empty($request->status)) {
-            if ($request->status == 'active')
-                $query->where('status', '1');
-            else
-                $query->where('status', '0');
+        } elseif ($request->filled('status')) {
+            $statusFilter = strtolower((string) $request->status);
+            if (in_array($statusFilter, ['active', 'assigned'], true)) {
+                $query->where('status', (string) Sims::STATUS_ASSIGNED);
+            } elseif (in_array($statusFilter, ['in_office', 'in-office', 'office'], true)) {
+                $query->where('status', (string) Sims::STATUS_IN_OFFICE);
+            } elseif ($statusFilter === 'inactive') {
+                $query->where('status', (string) Sims::STATUS_INACTIVE);
+            }
         }
 
         $statsQuery = clone $query;
 
-        // Calculate statistics
+        $companyCounts = (clone $statsQuery)
+            ->reorder()
+            ->toBase()
+            ->select('company', DB::raw('COUNT(*) as aggregate'))
+            ->groupBy('company')
+            ->pluck('aggregate', 'company');
+
+        $companyStats = SimCompany::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(function (SimCompany $company) use ($companyCounts) {
+                $byId = (int) ($companyCounts[$company->id] ?? $companyCounts[(string) $company->id] ?? 0);
+                $byName = (int) ($companyCounts[$company->name] ?? 0);
+
+                return [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'count' => $byId + $byName,
+                ];
+            })
+            ->all();
+
         $stats = [
             'total' => $statsQuery->count(),
-            'active' => $statsQuery->clone()->where('status', '1')->count(),
-            'inactive' => $statsQuery->clone()->where('status', '0')->count(),
-            'du' => $statsQuery->clone()->whereIn('company', ['du', 'Du', 'DU'])->count(),
-            'etisalat' => $statsQuery->clone()->whereIn('company', ['etisalat', 'Etisalat'])->count(),
+            'active' => $statsQuery->clone()->where('status', (string) Sims::STATUS_ASSIGNED)->count(),
+            'inactive' => $statsQuery->clone()->where('status', (string) Sims::STATUS_INACTIVE)->count(),
+            'in_office' => $statsQuery->clone()->where('status', (string) Sims::STATUS_IN_OFFICE)->count(),
+            'companies' => $companyStats,
         ];
 
         $tableColumns = $this->getTableColumns();
@@ -203,7 +228,7 @@ class SimsController extends AppBaseController
     {
         $input = $request->all();
         $input['created_by'] = auth()->id();
-        $input['status'] = 0;
+        $input['status'] = Sims::STATUS_IN_OFFICE;
 
         $this->validate($request, $this->simValidationRules(), $this->simValidationMessages());
 
@@ -308,11 +333,24 @@ class SimsController extends AppBaseController
         }
 
         $branchId = $sims->branch_id ? (int) $sims->branch_id : null;
+        $assignTargets = \App\Support\CompanyModuleVisibility::simAssignTargets();
+        $allowTypeSelection = count($assignTargets) >= 2;
+        $defaultAssigneeType = count($assignTargets) === 1 ? $assignTargets[0] : 'rider';
+        $assignFormLocked = $assignTargets === [];
 
         if ($request->isMethod('post')) {
-            $assigneeType = $request->input('assignee_type', 'rider');
+            if ($assignFormLocked) {
+                return response()->json([
+                    'errors' => ['error' => 'No assignable user module is enabled for this company.'],
+                ], 422);
+            }
+
+            $assigneeType = count($assignTargets) === 1
+                ? $assignTargets[0]
+                : $request->input('assignee_type', $defaultAssigneeType);
+            $request->merge(['assignee_type' => $assigneeType]);
             $rules = [
-                'assignee_type' => 'required|in:rider,employee',
+                'assignee_type' => 'required|in:' . implode(',', $assignTargets),
                 'assign_to' => [
                     'required',
                     'integer',
@@ -361,7 +399,7 @@ class SimsController extends AppBaseController
             ];
 
             $messages = [
-                'assignee_type.required' => 'Please select user type (Rider or Employee).',
+                'assignee_type.required' => 'Please select user type.',
                 'assign_to.required' => 'Please select who to assign the SIM to.',
                 'note_date.required' => 'Assign date is required.',
                 'note_date.date' => 'Assign date must be a valid date.',
@@ -380,7 +418,7 @@ class SimsController extends AppBaseController
                     $sims->update([
                         'assign_to' => $assignTo,
                         'assign_type' => 'employee',
-                        'status' => 1,
+                        'status' => Sims::STATUS_ASSIGNED,
                         'branch_id' => $assignBranchId,
                     ]);
 
@@ -407,7 +445,7 @@ class SimsController extends AppBaseController
                     $sims->update([
                         'assign_to' => $assignTo,
                         'assign_type' => 'rider',
-                        'status' => 1,
+                        'status' => Sims::STATUS_ASSIGNED,
                         'branch_id' => $assignBranchId,
                     ]);
 
@@ -447,8 +485,12 @@ class SimsController extends AppBaseController
         }
 
         $branchScopedOptions = [
-            'assign_to_rider' => Riders::dropdownForSimAssign(),
-            'assign_to_employee' => Employee::dropdownForSimAssign(),
+            'assign_to_rider' => in_array('rider', $assignTargets, true)
+                ? Riders::dropdownForSimAssign()
+                : ['' => 'Select'],
+            'assign_to_employee' => in_array('employee', $assignTargets, true)
+                ? Employee::dropdownForSimAssign()
+                : ['' => 'Select'],
         ];
 
         return view('sims.assign', [
@@ -457,6 +499,10 @@ class SimsController extends AppBaseController
             'employees' => $branchScopedOptions['assign_to_employee'],
             'branchScopedOptions' => $branchScopedOptions,
             'assignFields' => \App\Support\SimAssignFields::assignModalFields('assign'),
+            'assignTargets' => $assignTargets,
+            'allowTypeSelection' => $allowTypeSelection,
+            'defaultAssigneeType' => $defaultAssigneeType,
+            'assignFormLocked' => $assignFormLocked,
         ]);
     }
 
@@ -509,7 +555,7 @@ class SimsController extends AppBaseController
             $sims->update([
                 'assign_to' => null,
                 'assign_type' => null,
-                'status' => 0,
+                'status' => Sims::STATUS_IN_OFFICE,
             ]);
 
             if ($rider) {
@@ -558,6 +604,54 @@ class SimsController extends AppBaseController
         }
     }
 
+    public function markInactive(Request $request)
+    {
+        if ($request->isMethod('get')) {
+            $officeSims = Sims::query()
+                ->with('telecomCompany')
+                ->where('status', Sims::STATUS_IN_OFFICE)
+                ->whereNull('assign_to')
+                ->orderBy('number')
+                ->get();
+
+            return view('sims.mark_inactive', [
+                'officeSims' => $officeSims,
+            ]);
+        }
+
+        $this->validate($request, [
+            'sim_ids' => 'required|array|min:1',
+            'sim_ids.*' => 'integer|exists:sims,id',
+        ], [
+            'sim_ids.required' => 'Please select at least one SIM.',
+            'sim_ids.min' => 'Please select at least one SIM.',
+        ]);
+
+        $simIds = array_map('intval', $request->input('sim_ids', []));
+
+        $updated = Sims::query()
+            ->whereIn('id', $simIds)
+            ->where('status', Sims::STATUS_IN_OFFICE)
+            ->whereNull('assign_to')
+            ->update([
+                'status' => Sims::STATUS_INACTIVE,
+                'updated_by' => auth()->id(),
+            ]);
+
+        if ($updated === 0) {
+            return response()->json([
+                'errors' => ['error' => 'No in-office SIMs were updated. Select SIMs that are currently in office.'],
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => $updated === 1
+                ? '1 SIM marked inactive.'
+                : $updated . ' SIMs marked inactive.',
+            'reload' => true,
+        ]);
+    }
+
     public function destroy($company_slug, $id)
     {
         // Find including soft deleted
@@ -580,26 +674,29 @@ class SimsController extends AppBaseController
             return $this->respondSimDeleteError('Cannot delete SIM because it has usage history. Please keep the record or clear history before deleting.');
         }
 
-        if ($sims->status == 1) {
-            return $this->respondSimDeleteError('Active SIMs cannot be deleted. Please return the SIM before deleting.');
+        if ((int) $sims->status === Sims::STATUS_ASSIGNED) {
+            return $this->respondSimDeleteError('Assigned SIMs cannot be deleted. Please return the SIM before deleting.');
         }
 
         DB::beginTransaction();
         try {
-            $sims->delete(); // Soft delete
+            $sims->delete(); // Soft delete — may only queue a delete request
+            $queued = (bool) request()->attributes->get('delete_approval_created');
 
-            // Log deletion to cascade table for audit (self-reference to capture the deletion event)
-            $this->trackCascadeDeletion(
-                \App\Models\Sims::class,
-                $sims->id,
-                $sims->number,
-                \App\Models\Sims::class,
-                $sims->id,
-                $sims->number,
-                'self',
-                null,
-                'soft'
-            );
+            // Do not write cascade audit rows until the SIM is actually in the bin.
+            if (! $queued) {
+                $this->trackCascadeDeletion(
+                    \App\Models\Sims::class,
+                    $sims->id,
+                    $sims->number,
+                    \App\Models\Sims::class,
+                    $sims->id,
+                    $sims->number,
+                    'self',
+                    null,
+                    'soft'
+                );
+            }
 
             DB::commit();
         } catch (\Exception $e) {
@@ -608,15 +705,20 @@ class SimsController extends AppBaseController
             return $this->respondSimDeleteError('Failed to delete SIM. Please try again.');
         }
 
+        $message = delete_outcome_message(
+            'Sim',
+            route('settings-panel.trash.index') . '?module=sims'
+        );
+
         if (request()->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Sim moved to Recycle Bin.'
+                'queued' => (bool) request()->attributes->get('delete_approval_created'),
+                'message' => $message,
             ]);
         }
 
-        // For regular requests
-        return redirect()->back()->with('message', 'Sim moved to Recycle Bin.');
+        return redirect()->back()->with('message', $message);
     }
 
     public function export()

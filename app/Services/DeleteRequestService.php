@@ -511,12 +511,16 @@ class DeleteRequestService
                 }
                 /** @var Model|null $related */
                 $related = static::findModel($type, $id);
-                if ($related && static::usesSoftDeletes($related) && method_exists($related, 'trashed') && ! $related->trashed()) {
-                    if (Schema::hasColumn($related->getTable(), 'deleted_by') && $admin?->id) {
-                        $related->deleted_by = $admin->id;
-                        $related->save();
+                if ($related && static::usesSoftDeletes($related) && method_exists($related, 'trashed')) {
+                    if (! $related->trashed()) {
+                        if (Schema::hasColumn($related->getTable(), 'deleted_by') && $admin?->id) {
+                            $related->deleted_by = $admin->id;
+                            $related->save();
+                        }
+                        $related->delete();
                     }
-                    $related->delete();
+
+                    static::logApprovedCascade($deleteRequest, $related, $cascaded);
                 }
             }
 
@@ -794,6 +798,35 @@ class DeleteRequestService
     }
 
     /**
+     * Write a Recycle Bin cascade row after an approved related-record soft-delete
+     * so restore can bring the child back with the parent.
+     */
+    protected static function logApprovedCascade(DeleteRequest $deleteRequest, Model $related, array $cascaded): void
+    {
+        try {
+            \App\Models\DeletionCascade::logCascade(
+                $deleteRequest->deletable_type,
+                $deleteRequest->deletable_id,
+                $deleteRequest->record_label,
+                get_class($related),
+                $related->getKey(),
+                $cascaded['label'] ?? (class_basename($related) . ' #' . $related->getKey()),
+                'hasOne',
+                null,
+                'soft',
+                'Cascade deletion from approved delete request #' . $deleteRequest->id
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to track cascade on approve', [
+                'delete_request_id' => $deleteRequest->id,
+                'related_type' => get_class($related),
+                'related_id' => $related->getKey(),
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Extra work after an approved soft-delete (still inside bypass).
      */
     protected static function afterApprovedSoftDelete(DeleteRequest $deleteRequest, Model $model, ?User $admin): void
@@ -878,23 +911,7 @@ class DeleteRequestService
         \App\Models\SimInvoice $invoice,
         ?User $admin
     ): void {
-        $transactions = \App\Models\Transactions::withTrashed()
-            ->where('reference_type', 'SimInvoice')
-            ->where('reference_id', $invoice->id)
-            ->get();
-
-        foreach ($transactions as $transaction) {
-            if ($transaction->trashed()) {
-                continue;
-            }
-
-            if (Schema::hasColumn($transaction->getTable(), 'deleted_by') && $admin?->id) {
-                $transaction->deleted_by = $admin->id;
-                $transaction->save();
-            }
-
-            $transaction->delete();
-        }
+        $invoice->finalizeSoftDeletion($admin?->id);
     }
 
     /**

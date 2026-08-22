@@ -14,6 +14,7 @@ use App\Traits\TracksCascadingDeletions;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SimCompaniesController extends AppBaseController
 {
@@ -230,30 +231,47 @@ class SimCompaniesController extends AppBaseController
             }
         }
 
+        $willQueue = \App\Services\DeleteRequestService::enabled()
+            && ! \App\Services\DeleteRequestService::shouldBypassApproval();
+
+        if (! $willQueue && Schema::hasColumn($simCompany->getTable(), 'deleted_by')) {
+            $simCompany->deleted_by = auth()->id();
+            $simCompany->save();
+        }
+
         $cascadedItems = [];
         $relatedAccount = $simCompany->account;
 
         $simCompany->delete();
+        $queued = (bool) request()->attributes->get('delete_approval_created');
 
         if ($relatedAccount) {
-            $cascadedItems[] = [
-                'model' => 'Accounts',
-                'id' => $relatedAccount->id,
-                'name' => $relatedAccount->name,
-            ];
+            if (! $queued && Schema::hasColumn($relatedAccount->getTable(), 'deleted_by')) {
+                $relatedAccount->deleted_by = auth()->id();
+                $relatedAccount->save();
+            }
+
+            // Queued: intercepts into cascaded_records (account stays live until approve).
             $relatedAccount->delete();
 
-            $this->trackCascadeDeletion(
-                SimCompany::class,
-                $simCompany->id,
-                $simCompany->name,
-                Accounts::class,
-                $relatedAccount->id,
-                $relatedAccount->name,
-                'hasOne',
-                'account',
-                'soft'
-            );
+            if (! $queued) {
+                $cascadedItems[] = [
+                    'model' => 'Accounts',
+                    'id' => $relatedAccount->id,
+                    'name' => $relatedAccount->name,
+                ];
+                $this->trackCascadeDeletion(
+                    SimCompany::class,
+                    $simCompany->id,
+                    $simCompany->name,
+                    Accounts::class,
+                    $relatedAccount->id,
+                    $relatedAccount->name,
+                    'hasOne',
+                    'account',
+                    'soft'
+                );
+            }
         }
 
         $cascadeMessage = '';
@@ -262,8 +280,13 @@ class SimCompaniesController extends AppBaseController
             $cascadeMessage = ' (Also deleted: ' . implode(', ', $parts) . ')';
         }
 
+        $message = $queued
+            ? delete_outcome_message('SIM company')
+            : ('SIM company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=sim_companies" class="alert-link">View Recycle Bin</a> to restore if needed.');
+
         return response()->json([
-            'message' => 'SIM company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=sim_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
+            'queued' => $queued,
+            'message' => $message,
         ]);
     }
 

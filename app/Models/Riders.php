@@ -427,6 +427,21 @@ class Riders extends BaseModel
     }
   }
 
+  public function isAbsconded(): bool
+  {
+    if ((int) $this->status === 5) {
+      return true;
+    }
+
+    if ((int) ($this->absconder ?? 0) === 1) {
+      return true;
+    }
+
+    $option = strtolower(trim((string) ($this->rider_status ?? '')));
+
+    return in_array($option, ['absconded', 'absconder'], true);
+  }
+
   public function scopeActive($query)
   {
     return $query->where('status', 1);

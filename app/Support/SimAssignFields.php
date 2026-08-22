@@ -25,8 +25,8 @@ class SimAssignFields
             ['field_key' => 'number', 'kind' => 'virtual', 'display_label' => 'Number', 'input_type' => 'text', 'display_order' => 0, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => false, 'input_config' => ['readonly' => true]],
             ['field_key' => 'assign_to_display', 'kind' => 'virtual', 'display_label' => 'Assigned to', 'input_type' => 'text', 'display_order' => 1, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => false, 'input_config' => ['readonly' => true]],
             ['field_key' => 'assignee_type', 'kind' => 'virtual', 'display_label' => 'User type', 'input_type' => 'select', 'display_order' => 2, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true, 'input_config' => ['assign_options' => ['rider' => 'Rider', 'employee' => 'Employee']]],
-            ['field_key' => 'assign_to_rider', 'kind' => 'virtual', 'display_label' => 'Assign to rider', 'input_type' => 'select', 'display_order' => 3, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
-            ['field_key' => 'assign_to_employee', 'kind' => 'virtual', 'display_label' => 'Assign to employee', 'input_type' => 'select', 'display_order' => 4, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'employee']],
+            ['field_key' => 'assign_to_rider', 'kind' => 'virtual', 'display_label' => 'Assign to', 'input_type' => 'select', 'display_order' => 3, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'rider']],
+            ['field_key' => 'assign_to_employee', 'kind' => 'virtual', 'display_label' => 'Assign to', 'input_type' => 'select', 'display_order' => 4, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => false, 'input_config' => ['assign_group' => 'employee']],
             ['field_key' => 'note_date', 'kind' => 'virtual', 'display_label' => 'Assign date', 'input_type' => 'date', 'display_order' => 5, 'show_on_active' => true, 'show_on_change' => false, 'is_required' => true],
             ['field_key' => 'return_date', 'kind' => 'virtual', 'display_label' => 'Return date', 'input_type' => 'date', 'display_order' => 6, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => true],
             ['field_key' => 'notes', 'kind' => 'virtual', 'display_label' => 'Notes', 'input_type' => 'textarea', 'display_order' => 7, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => false],
@@ -47,6 +47,12 @@ class SimAssignFields
                 ->first();
 
             if ($assignment) {
+                if (in_array($key, ['assign_to_rider', 'assign_to_employee'], true)
+                    && in_array((string) $assignment->display_label, ['Assign to rider', 'Assign to employee'], true)
+                ) {
+                    $assignment->display_label = 'Assign to';
+                    $assignment->save();
+                }
                 continue;
             }
 

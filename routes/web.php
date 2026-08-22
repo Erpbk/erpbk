@@ -558,6 +558,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::match(['get', 'post'], 'sims/assign/{id}', [SimsController::class, 'assign'])->name('sims.assign');
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
+    Route::match(['get', 'post'], 'sims/mark-inactive', [SimsController::class, 'markInactive'])->name('sims.markInactive');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
     Route::match(['get', 'post'], 'sims/import', [SimsController::class, 'import'])->name('sims.import');
     Route::get('sims/import_template', [SimsController::class, 'downloadTemplate'])->name('sims.import_template');

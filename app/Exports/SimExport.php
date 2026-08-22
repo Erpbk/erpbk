@@ -35,7 +35,7 @@ class SimExport extends DefaultValueBinder implements FromCollection, WithHeadin
             $sim->vendors?->name??'',
             $sim->assignee?->employee_id ?? $sim->assignee?->rider_id ?? '',
             $sim->assignee?->name ?? '',
-            $sim->status?'Active':'inactive',
+            Sims::statusDisplay($sim->status)['label'],
             
         ];
     }

@@ -25,6 +25,15 @@
                 <span>Export Sim Data</span>
             </a>
             @endcan
+            @can('sims_sim_edit')
+            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Mark SIMs Inactive" data-action="{{ route('sims.markInactive') }}">
+                <i class="ti ti-ban"></i>
+                <div>
+                    <div class="action-dropdown-item-text">Mark Inactive</div>
+                    <div class="action-dropdown-item-desc">Mark in-office SIMs as inactive</div>
+                </div>
+            </a>
+            @endcan
             @can('sims_companies_create')
             <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add SIM company" data-action="{{ route('simCompanies.create') }}">
                 <i class="ti ti-building"></i>

@@ -453,18 +453,26 @@ class SimInvoicesController extends AppBaseController
             $invoice->delete();
 
             if (request()->attributes->get('delete_approval_created')) {
+                Flash::success(delete_outcome_message('SIM invoice'));
+
                 return redirect(route('simInvoices.index'));
             }
 
-            \App\Support\CompanyQuery::table('transactions')->where('reference_type', 'SimInvoice')->where('reference_id', $id)->delete();
-            \App\Support\CompanyQuery::table('sim_invoice_items')->where('inv_id', $id)->delete();
+            DB::beginTransaction();
+            $invoice->finalizeSoftDeletion(auth()->id());
+            DB::commit();
 
-            if ($invoice->attachment && Storage::disk('public')->exists($invoice->attachment)) {
-                Storage::disk('public')->delete($invoice->attachment);
-            }
-
-            Flash::success('Invoice deleted successfully.');
+            Flash::success(delete_outcome_message(
+                'SIM invoice',
+                route('settings-panel.trash.index') . '?module=sim_invoices'
+            ));
         } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            if (method_exists($invoice, 'trashed') && $invoice->trashed()) {
+                $invoice->restore();
+            }
             Flash::error('Error deleting invoice: ' . $e->getMessage());
         }
 

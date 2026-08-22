@@ -29,6 +29,29 @@ class CompanyModuleVisibility
         return self::enabled('riders');
     }
 
+    public static function employeesEnabled(): bool
+    {
+        return self::enabled('employees');
+    }
+
+    /**
+     * SIM assign targets currently enabled: rider, employee.
+     *
+     * @return list<string>
+     */
+    public static function simAssignTargets(): array
+    {
+        $targets = [];
+        if (self::ridersEnabled()) {
+            $targets[] = 'rider';
+        }
+        if (self::employeesEnabled()) {
+            $targets[] = 'employee';
+        }
+
+        return $targets;
+    }
+
     public static function bikeOnRentEnabled(): bool
     {
         return self::enabled('bike_on_rent');

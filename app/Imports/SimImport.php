@@ -89,7 +89,7 @@ class SimImport implements ToCollection
                         'company_id' => $compny->id,
                         'vendor' => $vendors?->id ?? null,
                         'emi' => $emi ?? null,
-                        'status' => 0,
+                        'status' => Sims::STATUS_IN_OFFICE,
                         'created_by' => Auth::id(),
                     ]);
 

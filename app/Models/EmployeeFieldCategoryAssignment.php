@@ -8,15 +8,8 @@ class EmployeeFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'employee_field_category_assignments';
 
-    /**
-     * Assignments are unique by field_key globally, not per company_id.
-     */
-    protected function shouldApplyCompanyScope(): bool
-    {
-        return false;
-    }
-
     protected $fillable = [
+        'company_id',
         'field_key',
         'display_label',
         'input_type',

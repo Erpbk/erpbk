@@ -13,6 +13,8 @@ use App\Models\RiderTopCategory;
 use App\Models\RiderTopOption;
 use App\Models\Riders;
 use App\Models\Settings;
+use App\Support\CompanyContext;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -36,11 +38,9 @@ class RiderSettingsController extends Controller
 
     protected function riderCategoryCompanyId(): ?int
     {
-        $user = auth()->user();
-        if (!$user) {
-            return null;
-        }
-        return $user->company_id ? (int) $user->company_id : null;
+        $id = \App\Support\CompanyContext::id();
+
+        return $id !== null && $id > 0 ? (int) $id : null;
     }
 
     protected function riderCategoryQuery()
@@ -949,7 +949,7 @@ class RiderSettingsController extends Controller
         ]);
 
         $riderColumn = $validated['rider_column'];
-        $companyId = auth()->user()->company_id ?? null;
+        $companyId = $this->riderCategoryCompanyId();
         $existsQuery = RiderTopCategory::where('rider_column', $riderColumn);
         if ($companyId) {
             $existsQuery->where('company_id', $companyId);
@@ -959,6 +959,7 @@ class RiderSettingsController extends Controller
         }
 
         $category = RiderTopCategory::create([
+            'company_id' => $companyId,
             'name' => RiderCustomField::humanizeFieldKey($riderColumn),
             'rider_column' => $riderColumn,
             'display_order' => ((int) RiderTopCategory::max('display_order')) + 1,
@@ -1273,7 +1274,7 @@ class RiderSettingsController extends Controller
     public function storeDocumentType(Request $request)
     {
         $validated = $request->validate([
-            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:rider_document_types,key',
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', CompanyScope::unique('rider_document_types', 'key')],
             'type' => 'required|in:single,dual',
             'label' => 'nullable|string|max:255',
             'front_label' => 'nullable|string|max:255',
@@ -1288,6 +1289,7 @@ class RiderSettingsController extends Controller
         }
         $maxOrder = (int) RiderDocumentType::max('display_order');
         RiderDocumentType::create([
+            'company_id' => $this->riderCategoryCompanyId(),
             'key' => $validated['key'],
             'type' => $validated['type'],
             'label' => $validated['type'] === 'single' ? trim($validated['label']) : null,
@@ -1303,7 +1305,7 @@ class RiderSettingsController extends Controller
     {
         $docType = RiderDocumentType::findOrFail($id);
         $validated = $request->validate([
-            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:rider_document_types,key,' . $id,
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', CompanyScope::unique('rider_document_types', 'key', $id)],
             'type' => 'required|in:single,dual',
             'label' => 'nullable|string|max:255',
             'front_label' => 'nullable|string|max:255',

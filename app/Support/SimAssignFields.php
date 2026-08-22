@@ -41,10 +41,13 @@ class SimAssignFields
 
         foreach (self::defaultAssignFieldCatalog() as $def) {
             $key = $def['field_key'];
+            $companyId = \App\Support\CompanyContext::id();
 
-            $assignment = SimAssignFieldAssignment::query()
-                ->where('field_key', $key)
-                ->first();
+            $query = SimAssignFieldAssignment::query()->where('field_key', $key);
+            if ($companyId !== null && Schema::hasColumn((new SimAssignFieldAssignment())->getTable(), 'company_id')) {
+                $query->where('company_id', $companyId);
+            }
+            $assignment = $query->first();
 
             if ($assignment) {
                 if (in_array($key, ['assign_to_rider', 'assign_to_employee'], true)
@@ -56,7 +59,7 @@ class SimAssignFields
                 continue;
             }
 
-            SimAssignFieldAssignment::query()->create([
+            $payload = [
                 'field_key' => $key,
                 'kind' => $def['kind'],
                 'display_label' => $def['display_label'],
@@ -67,7 +70,12 @@ class SimAssignFields
                 'is_required' => $def['is_required'] ?? false,
                 'show_on_active' => $def['show_on_active'] ?? false,
                 'show_on_change' => $def['show_on_change'] ?? false,
-            ]);
+            ];
+            if ($companyId !== null && Schema::hasColumn((new SimAssignFieldAssignment())->getTable(), 'company_id')) {
+                $payload['company_id'] = $companyId;
+            }
+
+            SimAssignFieldAssignment::query()->create($payload);
         }
     }
 

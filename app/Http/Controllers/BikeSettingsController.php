@@ -16,6 +16,7 @@ use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Models\Settings;
 use App\Models\UserTableSettings;
 use App\Support\CompanyContext;
+use App\Support\CompanyScope;
 use App\Support\ModuleFieldSource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -82,8 +83,9 @@ class BikeSettingsController extends Controller
 
     protected function bikeCategoryCompanyId(): ?int
     {
-        $user = auth()->user();
-        return $user && $user->company_id ? (int) $user->company_id : null;
+        $id = CompanyContext::id();
+
+        return $id !== null && $id > 0 ? (int) $id : null;
     }
 
     protected function bikeCategoryQuery()
@@ -807,7 +809,7 @@ class BikeSettingsController extends Controller
     public function storeDocumentType(Request $request)
     {
         $validated = $request->validate([
-            'key' => 'required|string|max:80|unique:bike_document_types,key',
+            'key' => ['required', 'string', 'max:80', CompanyScope::unique('bike_document_types', 'key')],
             'label' => 'nullable|string|max:255',
             'type' => ['required', 'string', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
@@ -818,6 +820,7 @@ class BikeSettingsController extends Controller
         $validated['display_order'] = $validated['display_order'] ?? ((int) BikeDocumentType::max('display_order')) + 1;
 
         BikeDocumentType::create([
+            'company_id' => $this->currentCompanyId(),
             'key' => trim((string) $validated['key']),
             'label' => $validated['label'] ?? null,
             'type' => $validated['type'],
@@ -835,7 +838,7 @@ class BikeSettingsController extends Controller
         $field = BikeDocumentType::where('id', $id)->firstOrFail();
 
         $validated = $request->validate([
-            'key' => 'required|string|max:80|unique:bike_document_types,key,' . $id,
+            'key' => ['required', 'string', 'max:80', CompanyScope::unique('bike_document_types', 'key', $id)],
             'label' => 'nullable|string|max:255',
             'type' => ['required', 'string', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
@@ -930,6 +933,7 @@ class BikeSettingsController extends Controller
         }
 
         $category = BikeTopCategory::create([
+            'company_id' => $this->currentCompanyId(),
             'name' => BikeCustomField::humanizeFieldKey($bikeColumn),
             'bike_column' => $bikeColumn,
             'display_order' => ((int) BikeTopCategory::max('display_order')) + 1,
@@ -1282,6 +1286,7 @@ class BikeSettingsController extends Controller
         $displayOrder = ((int) BikeAssignFieldAssignment::max('display_order')) + 1;
 
         $customField = BikeCustomField::create([
+            'company_id' => $this->currentCompanyId(),
             'label' => $validated['label'],
             'help_text' => $validated['help_text'] ?? null,
             'data_privacy' => null,
@@ -1296,6 +1301,7 @@ class BikeSettingsController extends Controller
         ]);
 
         BikeAssignFieldAssignment::create([
+            'company_id' => $this->currentCompanyId(),
             'field_key' => null,
             'custom_field_id' => $customField->id,
             'kind' => 'custom',

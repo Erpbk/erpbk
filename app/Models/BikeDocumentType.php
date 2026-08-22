@@ -9,6 +9,7 @@ class BikeDocumentType extends BaseModel
     protected $table = 'bike_document_types';
 
     protected $fillable = [
+        'company_id',
         'key',
         'type',
         'label',

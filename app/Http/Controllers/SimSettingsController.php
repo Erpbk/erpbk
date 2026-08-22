@@ -83,7 +83,7 @@ class SimSettingsController extends Controller
     public function storeAssignField(Request $request)
     {
         $allowedTypes = array_keys(ModuleCustomField::dataTypes());
-        $companyId = optional(auth()->user())->company_id;
+        $companyId = \App\Support\CompanyContext::id();
 
         $validated = $request->validate([
             'label' => 'required|string|max:255',
@@ -121,6 +121,7 @@ class SimSettingsController extends Controller
         ]);
 
         SimAssignFieldAssignment::create([
+            'company_id' => $companyId,
             'field_key' => null,
             'custom_field_id' => $customField->id,
             'kind' => 'custom',

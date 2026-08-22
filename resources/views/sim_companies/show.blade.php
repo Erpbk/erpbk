@@ -9,6 +9,9 @@
                 <h3>{{ $simCompany->name }}</h3>
             </div>
             <div class="col-sm-6 text-end">
+                @if($simCompany->account_id)
+                <a href="{{ route('simCompanies.ledger', $simCompany->id) }}" class="btn btn-outline-primary">Ledger</a>
+                @endif
                 @can('sims_companies_edit')
                 <a href="javascript:void(0);" class="btn btn-primary show-modal" data-action="{{ route('simCompanies.edit', $simCompany->id) }}" data-title="Edit SIM company" data-size="lg">Edit</a>
                 @endcan

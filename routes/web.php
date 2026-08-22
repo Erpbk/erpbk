@@ -568,6 +568,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simCompanies/trash', [SimCompaniesController::class, 'trash'])->name('simCompanies.trash');
     Route::post('simCompanies/trash/{id}/restore', [SimCompaniesController::class, 'restoreTrash'])->name('simCompanies.restore');
     Route::delete('simCompanies/trash/{id}/force-destroy', [SimCompaniesController::class, 'forceDestroyTrash'])->name('simCompanies.force-destroy');
+    Route::get('simCompanies/ledger/{id}', [SimCompaniesController::class, 'ledger'])->name('simCompanies.ledger');
     Route::resource('simCompanies', SimCompaniesController::class);
     Route::delete('simCompanies/delete/{id}', [SimCompaniesController::class, 'destroy'])->name('simCompanies.delete');
     Route::get('simInvoices', [SimInvoicesController::class, 'index'])->name('simInvoices.index');

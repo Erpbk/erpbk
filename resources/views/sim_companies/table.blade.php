@@ -37,6 +37,11 @@
             </td>@endif
             <td>
                 <div class="btn-group">
+                    @if($row->account_id)
+                    <a href="{{ route('simCompanies.ledger', $row->id) }}" class="btn btn-default btn-sm" title="Ledger">
+                        <i class="fa fa-book"></i>
+                    </a>
+                    @endif
                     @can('sims_companies_edit')
                     <a href="javascript:void(0);" data-action="{{ route('simCompanies.edit', $row->id) }}" class="btn btn-info btn-sm show-modal" data-size="lg" data-title="Update SIM company">
                         <i class="fa fa-edit"></i>

@@ -10,27 +10,56 @@
         <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Sims</button>
       </div>
       <div class="totals-cards totals-cards-single-row">
-        <div class="total-card total-sims">
+        @php
+          $statBaseQuery = request()->except(['page']);
+          $currentStatus = strtolower((string) request('status', ''));
+          $currentCompany = (string) request('company', '');
+          $assignedActive = in_array($currentStatus, ['assigned', 'active'], true);
+          $inOfficeActive = in_array($currentStatus, ['in_office', 'in-office', 'office'], true);
+          $inactiveActive = $currentStatus === 'inactive';
+          $abscondedActive = in_array($currentStatus, ['user_absconded', 'absconded'], true);
+          $totalActive = $currentStatus === '' && $currentCompany === '';
+          $simStatUrl = function (array $overrides) use ($statBaseQuery) {
+              $params = array_merge($statBaseQuery, $overrides);
+              foreach ($params as $key => $value) {
+                  if ($value === null || $value === '') {
+                      unset($params[$key]);
+                  }
+              }
+              return route('sims.index', $params);
+          };
+        @endphp
+        <a href="{{ $simStatUrl(['status' => null, 'company' => null]) }}" class="total-card total-sims{{ $totalActive ? ' is-active' : '' }}" title="{{ $totalActive ? 'Showing all SIMs' : 'Show all SIMs' }}">
           <div class="label"><i class="fa fa-sim-card"></i>Total Sims</div>
           <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-active">
+        </a>
+        <a href="{{ $simStatUrl(['status' => $assignedActive ? null : 'assigned']) }}" class="total-card total-active{{ $assignedActive ? ' is-active' : '' }}" title="{{ $assignedActive ? 'Clear Assigned filter' : 'Show assigned SIMs' }}">
           <div class="label"><i class="fa fa-check-circle"></i>Assigned</div>
           <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-in-office">
+        </a>
+        <a href="{{ $simStatUrl(['status' => $inOfficeActive ? null : 'in_office']) }}" class="total-card total-in-office{{ $inOfficeActive ? ' is-active' : '' }}" title="{{ $inOfficeActive ? 'Clear In office filter' : 'Show in-office SIMs' }}">
           <div class="label"><i class="fa fa-building"></i>In office</div>
           <div class="value" id="total_in_office">{{ $stats['in_office'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-inactive">
+        </a>
+        <a href="{{ $simStatUrl(['status' => $inactiveActive ? null : 'inactive']) }}" class="total-card total-inactive{{ $inactiveActive ? ' is-active' : '' }}" title="{{ $inactiveActive ? 'Clear Inactive filter' : 'Show inactive SIMs' }}">
           <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
           <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
-        </div>
+        </a>
+        <a href="{{ $simStatUrl(['status' => $abscondedActive ? null : 'user_absconded']) }}" class="total-card total-user-absconded{{ $abscondedActive ? ' is-active' : '' }}" title="{{ $abscondedActive ? 'Clear User Absconded filter' : 'Show SIMs assigned to absconded users' }}">
+          <div class="label"><i class="fa fa-user-secret"></i>User Absconded</div>
+          <div class="value" id="total_user_absconded">{{ $stats['user_absconded'] ?? 0 }}</div>
+        </a>
         @foreach(($stats['companies'] ?? []) as $i => $companyStat)
-        <div class="total-card total-sim-company total-sim-company-{{ $i % 3 }}">
+        @php
+          $companyKey = (string) ($companyStat['id'] ?? '');
+          $companyIsActive = $currentCompany !== '' && (
+              $currentCompany === $companyKey || $currentCompany === (string) ($companyStat['name'] ?? '')
+          );
+        @endphp
+        <a href="{{ $simStatUrl(['company' => $companyIsActive ? null : $companyKey]) }}" class="total-card total-sim-company total-sim-company-{{ $i % 3 }}{{ $companyIsActive ? ' is-active' : '' }}" title="{{ $companyIsActive ? 'Clear '.$companyStat['name'].' filter' : 'Show '.$companyStat['name'].' SIMs' }}">
           <div class="label"><i class="fa fa-building"></i>{{ $companyStat['name'] }} Sims</div>
           <div class="value">{{ $companyStat['count'] ?? 0 }}</div>
-        </div>
+        </a>
         @endforeach
       </div>
     </div>

@@ -63,29 +63,6 @@ class SimsController extends AppBaseController
         if ($request->has('emi') && !empty($request->emi)) {
             $query->where('emi', 'like', '%' . $request->emi . '%');
         }
-        if ($request->has('company') && !empty($request->company)) {
-            $query->where('company', $request->company);
-        }
-        $simListKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('list_status'));
-        if ($simListKeys !== []) {
-            $query->where(function ($q) use ($simListKeys) {
-                if (in_array(TopBarNumericStatus::ACTIVE_KEY, $simListKeys, true)) {
-                    $q->orWhere('status', (string) Sims::STATUS_ASSIGNED);
-                }
-                if (in_array(TopBarNumericStatus::INACTIVE_KEY, $simListKeys, true)) {
-                    $q->orWhere('status', (string) Sims::STATUS_INACTIVE);
-                }
-            });
-        } elseif ($request->filled('status')) {
-            $statusFilter = strtolower((string) $request->status);
-            if (in_array($statusFilter, ['active', 'assigned'], true)) {
-                $query->where('status', (string) Sims::STATUS_ASSIGNED);
-            } elseif (in_array($statusFilter, ['in_office', 'in-office', 'office'], true)) {
-                $query->where('status', (string) Sims::STATUS_IN_OFFICE);
-            } elseif ($statusFilter === 'inactive') {
-                $query->where('status', (string) Sims::STATUS_INACTIVE);
-            }
-        }
 
         $statsQuery = clone $query;
 
@@ -111,13 +88,48 @@ class SimsController extends AppBaseController
             })
             ->all();
 
+        $userAbscondedCount = (int) (clone $statsQuery)
+            ->whereAssigneeAbsconded()
+            ->reorder()
+            ->toBase()
+            ->selectRaw("COUNT(DISTINCT CONCAT(IFNULL(assign_type, 'rider'), '-', assign_to)) as aggregate")
+            ->value('aggregate');
+
         $stats = [
             'total' => $statsQuery->count(),
             'active' => $statsQuery->clone()->where('status', (string) Sims::STATUS_ASSIGNED)->count(),
             'inactive' => $statsQuery->clone()->where('status', (string) Sims::STATUS_INACTIVE)->count(),
             'in_office' => $statsQuery->clone()->where('status', (string) Sims::STATUS_IN_OFFICE)->count(),
+            'user_absconded' => $userAbscondedCount,
             'companies' => $companyStats,
         ];
+
+        if ($request->filled('company')) {
+            $this->applySimCompanyFilter($query, $request->input('company'));
+        }
+
+        $simListKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('list_status'));
+        if ($simListKeys !== []) {
+            $query->where(function ($q) use ($simListKeys) {
+                if (in_array(TopBarNumericStatus::ACTIVE_KEY, $simListKeys, true)) {
+                    $q->orWhere('status', (string) Sims::STATUS_ASSIGNED);
+                }
+                if (in_array(TopBarNumericStatus::INACTIVE_KEY, $simListKeys, true)) {
+                    $q->orWhere('status', (string) Sims::STATUS_INACTIVE);
+                }
+            });
+        } elseif ($request->filled('status')) {
+            $statusFilter = strtolower((string) $request->status);
+            if (in_array($statusFilter, ['active', 'assigned'], true)) {
+                $query->where('status', (string) Sims::STATUS_ASSIGNED);
+            } elseif (in_array($statusFilter, ['in_office', 'in-office', 'office'], true)) {
+                $query->where('status', (string) Sims::STATUS_IN_OFFICE);
+            } elseif ($statusFilter === 'inactive') {
+                $query->where('status', (string) Sims::STATUS_INACTIVE);
+            } elseif (in_array($statusFilter, ['user_absconded', 'absconded'], true)) {
+                $query->whereAssigneeAbsconded();
+            }
+        }
 
         $tableColumns = $this->getTableColumns();
 
@@ -142,6 +154,30 @@ class SimsController extends AppBaseController
             'stats' => $stats,
             'tableColumns' => $tableColumns,
         ]);
+    }
+
+    private function applySimCompanyFilter($query, mixed $company): void
+    {
+        $company = is_scalar($company) ? trim((string) $company) : '';
+        if ($company === '') {
+            return;
+        }
+
+        $companyModel = ctype_digit($company)
+            ? SimCompany::find((int) $company)
+            : SimCompany::query()->where('name', $company)->first();
+
+        if ($companyModel) {
+            $query->where(function ($q) use ($companyModel) {
+                $q->where('company', $companyModel->id)
+                    ->orWhere('company', (string) $companyModel->id)
+                    ->orWhere('company', $companyModel->name);
+            });
+
+            return;
+        }
+
+        $query->where('company', $company);
     }
 
     private function getTableColumns()

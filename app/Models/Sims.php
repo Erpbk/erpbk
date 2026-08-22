@@ -120,6 +120,28 @@ class Sims extends BaseModel
   }
 
   /**
+   * SIMs whose assigned rider or employee is currently absconded.
+   */
+  public function scopeWhereAssigneeAbsconded($query)
+  {
+    return $query->whereNotNull('assign_to')->where(function ($q) {
+      $q->where(function ($riderQ) {
+        $riderQ->where(function ($type) {
+          $type->whereNull('assign_type')
+            ->orWhere('assign_type', '<>', 'employee');
+        })->whereHas('riders', function ($riders) {
+          $riders->whereAbsconded();
+        });
+      })->orWhere(function ($empQ) {
+        $empQ->where('assign_type', 'employee')
+          ->whereHas('employee', function ($employees) {
+            $employees->whereAbsconded();
+          });
+      });
+    });
+  }
+
+  /**
    * @return array{label: string, badge: string}
    */
   public static function statusDisplay(mixed $status): array

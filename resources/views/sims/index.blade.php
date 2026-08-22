@@ -134,6 +134,31 @@
     color: #dc3545;
   }
 
+  .sticky-statistics .total-user-absconded {
+    border-left-color: #7c2d12;
+    background: linear-gradient(180deg, rgba(124, 45, 18, 0.08), rgba(124, 45, 18, 0.02));
+  }
+
+  .sticky-statistics .total-user-absconded .label {
+    color: #9a3412;
+  }
+
+  .sticky-statistics a.total-card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .sticky-statistics a.total-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .sticky-statistics a.total-card.is-active {
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.28);
+  }
+
   .sticky-statistics .total-in-office {
     border-left-color: #0dcaf0;
     background: linear-gradient(180deg, rgba(13, 202, 240, 0.08), rgba(13, 202, 240, 0.02));
@@ -488,6 +513,7 @@
                             <option value="assigned" {{ in_array(request('status'), ['assigned', 'active'], true) ? 'selected' : '' }}>Assigned</option>
                             <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
                             <option value="in_office" {{ request('status') == 'in_office' ? 'selected' : '' }}>In office</option>
+                            <option value="user_absconded" {{ in_array(request('status'), ['user_absconded', 'absconded'], true) ? 'selected' : '' }}>User Absconded</option>
                         </select>
                     </div>
                     @endfieldVisible

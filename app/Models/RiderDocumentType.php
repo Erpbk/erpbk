@@ -9,6 +9,7 @@ class RiderDocumentType extends BaseModel
     protected $table = 'rider_document_types';
 
     protected $fillable = [
+        'company_id',
         'key',
         'label',
         'type',

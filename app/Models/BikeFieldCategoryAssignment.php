@@ -8,15 +8,6 @@ class BikeFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'bike_field_category_assignments';
 
-    /**
-     * Assignments are globally unique by field_key.
-     * Company scope is off so shared rows stay visible, but company_id is still stored on save.
-     */
-    protected function shouldApplyCompanyScope(): bool
-    {
-        return false;
-    }
-
     protected static function boot()
     {
         parent::boot();

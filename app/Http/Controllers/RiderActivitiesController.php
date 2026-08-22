@@ -1262,22 +1262,72 @@ class RiderActivitiesController extends AppBaseController
 
             try {
                 Excel::import($import, $request->file('file'));
-            } catch (ValidationException $e) {
-                session()->flash('error', 'Import validation failed: ' . implode(' | ', array_map(fn ($f) => implode(', ', $f), $e->errors())));
+            } catch (\Illuminate\Validation\ValidationException $ve) {
+                $summary = session('activities_import_summary', []);
+                $unmatchedRiderIds = $summary['unmatched_rider_ids'] ?? [];
+                $errors = $ve->errors();
+                $fileErrors = is_array($errors['file'] ?? null) ? $errors['file'] : [];
+
+                if (!empty($unmatchedRiderIds)) {
+                    $listedIds = implode(', ', array_map(fn ($id) => "'{$id}'", $unmatchedRiderIds));
+                    $errorMessage = 'The following rider_id(s) do not exist or do not match any rider: ' . $listedIds . '.';
+                    $otherErrors = array_values(array_filter($fileErrors, fn ($m) => stripos($m, 'do not exist or do not match any rider') === false));
+                    if (!empty($otherErrors)) {
+                        $errorMessage .= ' | ' . implode(' | ', $otherErrors);
+                    }
+                } else {
+                    $errorMessage = !empty($fileErrors) ? implode(' | ', $fileErrors) : ($errors['file'][0] ?? 'Import validation failed');
+                }
+                session()->flash('error', 'Import failed: ' . $errorMessage);
                 return redirect()->route('rider.activities_import_page');
-            } catch (\Throwable $e) {
-                session()->flash('error', 'Import failed: ' . $e->getMessage());
+            } catch (\Throwable $th) {
+                $summary = session('activities_import_summary', []);
+                $errors = $summary['errors'] ?? [];
+                if (!empty($errors)) {
+                    $errorMessages = [];
+                    foreach ($errors as $error) {
+                        $riderId = $error['rider_id'] ?? 'N/A';
+                        $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
+                    }
+                    session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
+                } else {
+                    session()->flash('error', 'Import failed: ' . $th->getMessage());
+                }
                 return redirect()->route('rider.activities_import_page');
             }
 
-            $result = $import->getResult();
-            $successCount = $result['success_count'] ?? 0;
-            $errors = $result['errors'] ?? [];
-
-            session()->put('activities_import_summary', array_merge($result, ['errors' => $errors]));
+            $summary = session('activities_import_summary', []);
+            $errors = $summary['errors'] ?? [];
+            $successCount = $summary['success'] ?? 0;
 
             if (!empty($errors)) {
-                session()->flash('error', 'Import completed with errors.');
+                $unmatchedRiderIds = $summary['unmatched_rider_ids'] ?? [];
+                if (empty($unmatchedRiderIds)) {
+                    foreach ($errors as $error) {
+                        if (($error['error_type'] ?? '') === 'Rider Not Found' && !empty($error['rider_id'])) {
+                            $unmatchedRiderIds[] = $error['rider_id'];
+                        }
+                    }
+                    $unmatchedRiderIds = array_values(array_unique($unmatchedRiderIds));
+                }
+                $errorMessages = [];
+                if (!empty($unmatchedRiderIds)) {
+                    $listedIds = implode(', ', array_map(fn ($id) => "'{$id}'", $unmatchedRiderIds));
+                    $errorMessages[] = 'The following rider_id(s) do not exist or do not match any rider: ' . $listedIds . '.';
+                }
+                foreach ($errors as $error) {
+                    if (($error['error_type'] ?? '') === 'Rider Not Found') {
+                        continue;
+                    }
+                    $riderId = $error['rider_id'] ?? 'N/A';
+                    $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
+                }
+                if (empty($errorMessages)) {
+                    $errorMessages[] = 'Import validation failed.';
+                }
+                session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
+            } elseif ($successCount == 0) {
+                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data.');
             } else {
                 session()->flash('success', "Rider activities imported successfully. {$successCount} record(s) saved.");
             }
@@ -1342,27 +1392,44 @@ class RiderActivitiesController extends AppBaseController
 
             try {
                 Excel::import($import, $request->file('file'));
-            } catch (ValidationException $e) {
-                session()->flash('error', 'Import validation failed: ' . implode(' | ', array_map(fn ($f) => implode(', ', $f), $e->errors())));
+            } catch (\Illuminate\Validation\ValidationException $ve) {
+                $messages = collect($ve->errors())->flatten()->filter()->values()->all();
+                session()->flash('error', 'Import failed: ' . (!empty($messages) ? implode(' | ', $messages) : 'Validation failed.'));
                 return redirect()->route('rider.live_activities_import_page');
-            } catch (\Throwable $e) {
-                session()->flash('error', 'Import failed: ' . $e->getMessage());
+            } catch (\Throwable $th) {
+                $summary = session('activities_import_summary', []);
+                $errors = $summary['errors'] ?? [];
+                if (!empty($errors)) {
+                    $errorMessages = [];
+                    foreach ($errors as $error) {
+                        $riderId = $error['rider_id'] ?? 'N/A';
+                        $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
+                    }
+                    session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
+                } else {
+                    session()->flash('error', 'Import failed: ' . $th->getMessage());
+                }
                 return redirect()->route('rider.live_activities_import_page');
             }
 
-            $result = $import->getResult();
-            $successCount = $result['success_count'] ?? ($result['success'] ?? 0);
-            $errors = $result['errors'] ?? [];
-            $missingRecords = $result['missing_records'] ?? [];
-
-            session()->put('activities_import_summary', array_merge($result, ['errors' => $errors]));
+            $summary = session('activities_import_summary', []);
+            $errors = $summary['errors'] ?? [];
+            $missingRecords = $summary['missing_records'] ?? [];
+            $successCount = $summary['success'] ?? 0;
 
             if (!empty($errors)) {
-                session()->flash('error', 'Import completed with errors.');
+                $errorMessages = [];
+                foreach ($errors as $error) {
+                    $riderId = $error['rider_id'] ?? 'N/A';
+                    $errorMessages[] = 'Row(' . $error['row'] . ') - ' . $error['error_type'] . ': ' . $error['message'] . ($riderId !== 'N/A' ? ' (Rider ID: ' . $riderId . ')' : '');
+                }
+                session()->flash('error', 'Import failed: ' . implode(' | ', $errorMessages));
+            } elseif ($successCount == 0 && empty($missingRecords)) {
+                session()->flash('error', 'Import failed: No records were imported. Please check that your file contains valid data.');
             } else {
                 $message = "Live activities imported successfully. {$successCount} record(s) saved.";
                 if (!empty($missingRecords)) {
-                    $message .= ' ' . count($missingRecords) . ' record(s) skipped due to missing riders.';
+                    $message .= ' ' . count($missingRecords) . ' record(s) skipped due to missing riders. Check Missing Records list for details.';
                 }
                 session()->flash('success', $message);
             }

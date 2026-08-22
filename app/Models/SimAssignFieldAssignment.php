@@ -8,15 +8,8 @@ class SimAssignFieldAssignment extends BaseModel
 {
     protected $table = 'sim_assign_field_assignments';
 
-    /**
-     * Assignments are unique by field_key (or custom_field_id), not per company.
-     */
-    protected function shouldApplyCompanyScope(): bool
-    {
-        return false;
-    }
-
     protected $fillable = [
+        'company_id',
         'field_key',
         'custom_field_id',
         'kind',

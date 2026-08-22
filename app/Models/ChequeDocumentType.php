@@ -9,6 +9,7 @@ class ChequeDocumentType extends BaseModel
     protected $table = 'cheque_document_types';
 
     protected $fillable = [
+        'company_id',
         'key',
         'label',
         'type',

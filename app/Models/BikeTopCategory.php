@@ -9,6 +9,7 @@ class BikeTopCategory extends BaseModel
     protected $table = 'bike_top_categories';
 
     protected $fillable = [
+        'company_id',
         'name',
         'filter_type',
         'bike_column',

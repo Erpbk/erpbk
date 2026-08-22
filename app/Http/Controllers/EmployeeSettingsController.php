@@ -37,11 +37,9 @@ class EmployeeSettingsController extends Controller
 
     protected function employeeCategoryCompanyId(): ?int
     {
-        $user = auth()->user();
-        if (!$user) {
-            return null;
-        }
-        return $user->company_id ? (int) $user->company_id : null;
+        $id = \App\Support\CompanyContext::id();
+
+        return $id !== null && $id > 0 ? (int) $id : null;
     }
 
     protected function employeeCategoryQuery()
@@ -950,7 +948,7 @@ class EmployeeSettingsController extends Controller
         ]);
 
         $employeeColumn = $validated['employee_column'];
-        $companyId = auth()->user()->company_id ?? null;
+        $companyId = $this->employeeCategoryCompanyId();
         $existsQuery = EmployeeTopCategory::where('employee_column', $employeeColumn);
         if ($companyId) {
             $existsQuery->where('company_id', $companyId);
@@ -960,6 +958,7 @@ class EmployeeSettingsController extends Controller
         }
 
         $category = EmployeeTopCategory::create([
+            'company_id' => $companyId,
             'name' => EmployeeCustomField::humanizeFieldKey($employeeColumn),
             'employee_column' => $employeeColumn,
             'display_order' => ((int) EmployeeTopCategory::max('display_order')) + 1,
@@ -1281,6 +1280,7 @@ class EmployeeSettingsController extends Controller
         }
         $maxOrder = (int) EmployeeDocumentType::max('display_order');
         EmployeeDocumentType::create([
+            'company_id' => $this->employeeCategoryCompanyId(),
             'key' => $validated['key'],
             'type' => $validated['type'],
             'label' => $validated['type'] === 'single' ? trim($validated['label']) : null,

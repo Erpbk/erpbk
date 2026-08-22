@@ -9,6 +9,7 @@ class ChequeTopCategory extends BaseModel
     protected $table = 'cheque_top_categories';
 
     protected $fillable = [
+        'company_id',
         'name',
         'filter_type',
         'cheque_column',

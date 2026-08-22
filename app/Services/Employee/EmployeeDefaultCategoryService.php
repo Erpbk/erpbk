@@ -7,6 +7,7 @@ use App\Models\EmployeeCustomField;
 use App\Models\EmployeeFieldCategoryAssignment;
 use App\Models\Settings;
 use App\Services\Settings\FixedFieldCategoryAssignmentSync;
+use App\Services\Settings\PerCompanyDefaultCategory;
 use Illuminate\Support\Facades\Schema;
 
 final class EmployeeDefaultCategoryService
@@ -17,84 +18,32 @@ final class EmployeeDefaultCategoryService
 
     public const FALLBACK_SLUG = 'other';
 
-    public function ensure(): EmployeeCategory
+    public function ensure(?int $companyId = null): EmployeeCategory
     {
-        $category = EmployeeCategory::withoutGlobalScopes(['company'])
-            ->where('slug', self::DEFAULT_SLUG)
-            ->first();
-
-        if ($category) {
-            return $this->normalizeDefaultCategory($category);
-        }
-
-        try {
-            return EmployeeCategory::withoutGlobalScopes(['company'])->create([
-                'slug' => self::DEFAULT_SLUG,
-                'label' => $this->defaultLabel(),
-                'display_order' => 0,
-                'is_system' => true,
-                'company_id' => null,
-            ]);
-        } catch (\Illuminate\Database\QueryException $e) {
-            if (! $this->isDuplicateSlugException($e)) {
-                throw $e;
-            }
-
-            $category = EmployeeCategory::withoutGlobalScopes(['company'])
-                ->where('slug', self::DEFAULT_SLUG)
-                ->first();
-
-            if ($category) {
-                return $this->normalizeDefaultCategory($category);
-            }
-
-            throw $e;
-        }
-    }
-
-    private function normalizeDefaultCategory(EmployeeCategory $category): EmployeeCategory
-    {
-        $dirty = false;
-
-        if ($category->company_id !== null) {
-            $category->company_id = null;
-            $dirty = true;
-        }
-
-        if (! $category->is_system) {
-            $category->is_system = true;
-            $dirty = true;
-        }
-
-        if (trim((string) $category->label) === '') {
-            $category->label = $this->defaultLabel();
-            $dirty = true;
-        }
-
-        if ($dirty) {
-            $category->save();
-        }
+        /** @var EmployeeCategory $category */
+        $category = PerCompanyDefaultCategory::ensure(
+            EmployeeCategory::class,
+            self::DEFAULT_SLUG,
+            fn () => $this->defaultLabel(),
+            $companyId,
+        );
 
         return $category;
-    }
-
-    private function isDuplicateSlugException(\Illuminate\Database\QueryException $e): bool
-    {
-        $code = (string) $e->getCode();
-        $message = $e->getMessage();
-
-        return $code === '23000'
-            || str_contains($message, '1062')
-            || str_contains($message, 'employee_categories_slug_unique');
     }
 
     /**
      * @return array<string, int>
      */
-    public function categoryIdsBySlug(): array
+    public function categoryIdsBySlug(?int $companyId = null): array
     {
-        return EmployeeCategory::query()
-            ->whereNotNull('slug')
+        $query = EmployeeCategory::query()->whereNotNull('slug');
+        if ($companyId !== null) {
+            $query = EmployeeCategory::withoutGlobalScopes(['company'])
+                ->where('company_id', $companyId)
+                ->whereNotNull('slug');
+        }
+
+        return $query
             ->pluck('id', 'slug')
             ->map(fn ($id) => (int) $id)
             ->all();
@@ -103,21 +52,29 @@ final class EmployeeDefaultCategoryService
     /**
      * @param  list<string>  $fieldKeys
      */
-    public function syncFixedFieldAssignments(array $fieldKeys): void
+    public function syncFixedFieldAssignments(array $fieldKeys, ?int $companyId = null): void
     {
-        $category = $this->ensure();
+        $category = $this->ensure($companyId);
+        $companyId = (int) $category->company_id;
         $categoryId = (int) $category->id;
-        $order = (int) EmployeeFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order');
+        $order = (int) EmployeeFieldCategoryAssignment::withoutGlobalScopes(['company'])
+            ->where('category_id', $categoryId)
+            ->max('display_order');
 
         foreach ($fieldKeys as $fieldKey) {
-            if (EmployeeFieldCategoryAssignment::query()->where('field_key', $fieldKey)->exists()) {
+            $exists = EmployeeFieldCategoryAssignment::withoutGlobalScopes(['company'])
+                ->where('field_key', $fieldKey)
+                ->where('company_id', $companyId)
+                ->exists();
+            if ($exists) {
                 continue;
             }
 
             $order++;
-            EmployeeFieldCategoryAssignment::query()->create([
+            EmployeeFieldCategoryAssignment::withoutGlobalScopes(['company'])->create([
                 'field_key' => $fieldKey,
                 'category_id' => $categoryId,
+                'company_id' => $companyId,
                 'display_order' => $order,
                 'is_visible' => true,
                 'is_required' => false,
@@ -125,15 +82,17 @@ final class EmployeeDefaultCategoryService
         }
     }
 
-    public function relocateVisibleFieldsToDefaultCategory(): void
+    public function relocateVisibleFieldsToDefaultCategory(?int $companyId = null): void
     {
-        $category = $this->ensure();
+        $category = $this->ensure($companyId);
+        $companyId = (int) $category->company_id;
         $categoryId = (int) $category->id;
 
         if (Schema::hasTable('employee_field_category_assignments')) {
             $allowedKeys = $this->discoverAssignableFieldKeys();
             if ($allowedKeys !== []) {
-                EmployeeFieldCategoryAssignment::query()
+                EmployeeFieldCategoryAssignment::withoutGlobalScopes(['company'])
+                    ->where('company_id', $companyId)
                     ->whereIn('field_key', $allowedKeys)
                     ->where(function ($query) {
                         $query->whereNull('is_visible')->orWhere('is_visible', true);
@@ -143,7 +102,8 @@ final class EmployeeDefaultCategoryService
         }
 
         if (Schema::hasTable('employee_custom_fields')) {
-            EmployeeCustomField::query()
+            EmployeeCustomField::withoutGlobalScopes(['company'])
+                ->where('company_id', $companyId)
                 ->where(function ($query) {
                     $query->where('is_visible', true)->orWhereNull('is_visible');
                 })
@@ -157,26 +117,29 @@ final class EmployeeDefaultCategoryService
             return;
         }
 
-        $categoryId = (int) ($category ?? $this->ensure())->id;
+        $category = $category ?? $this->ensure();
+        $categoryId = (int) $category->id;
+        $companyId = $category->company_id !== null ? (int) $category->company_id : null;
 
         FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
             EmployeeCustomField::class,
             $categoryId,
+            $companyId,
         );
     }
 
     public function isDefaultCategory(EmployeeCategory $category): bool
     {
-        return (string) $category->slug === self::DEFAULT_SLUG
-            && (bool) $category->is_system
-            && $category->company_id === null;
+        return PerCompanyDefaultCategory::isDefault($category, self::DEFAULT_SLUG);
     }
 
-    public function bootstrap(): void
+    public function bootstrap(?int $companyId = null): void
     {
-        $defaultCategory = $this->ensure();
-        $this->syncFixedFieldAssignments($this->discoverAssignableFieldKeys());
-        $this->assignUnassignedCustomFields($defaultCategory);
+        foreach (PerCompanyDefaultCategory::bootstrapCompanyIds($companyId) as $id) {
+            $defaultCategory = $this->ensure($id);
+            $this->syncFixedFieldAssignments($this->discoverAssignableFieldKeys(), $id);
+            $this->assignUnassignedCustomFields($defaultCategory);
+        }
     }
 
     /**

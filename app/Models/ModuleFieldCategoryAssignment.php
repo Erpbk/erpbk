@@ -6,14 +6,6 @@ class ModuleFieldCategoryAssignment extends BaseModel
 {
     protected $table = 'module_field_category_assignments';
 
-    /**
-     * Assignments are unique per module_key + field_key (not per company_id).
-     */
-    protected function shouldApplyCompanyScope(): bool
-    {
-        return false;
-    }
-
     protected $fillable = [
         'module_key',
         'company_id',

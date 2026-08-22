@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\LedgerDataTable;
 use App\Http\Requests\CreateSimCompaniesRequest;
 use App\Http\Requests\UpdateSimCompaniesRequest;
 use App\Models\Accounts;
@@ -131,6 +132,29 @@ class SimCompaniesController extends AppBaseController
         $simCompany->load('account');
 
         return view('sim_companies.show', ['simCompany' => $simCompany]);
+    }
+
+    public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
+    {
+        if (!user_can('sim_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $simCompany = $this->simCompaniesRepository->find((int) $id);
+        if (empty($simCompany)) {
+            Flash::error('SIM company not found');
+            return redirect(route('simCompanies.index'));
+        }
+
+        if (empty($simCompany->account_id)) {
+            Flash::error('SIM company has no linked ledger account.');
+            return redirect(route('simCompanies.show', $simCompany->id));
+        }
+
+        return $ledgerDataTable->with(['account_id' => $simCompany->account_id])
+            ->render('sim_companies.ledger', [
+                'simCompany' => $simCompany,
+            ]);
     }
 
     public function edit($company_slug, $id)

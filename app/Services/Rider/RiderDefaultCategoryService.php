@@ -7,6 +7,7 @@ use App\Models\RiderCustomField;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\Settings;
 use App\Services\Settings\FixedFieldCategoryAssignmentSync;
+use App\Services\Settings\PerCompanyDefaultCategory;
 use Illuminate\Support\Facades\Schema;
 
 final class RiderDefaultCategoryService
@@ -17,117 +18,68 @@ final class RiderDefaultCategoryService
 
     public const FALLBACK_SLUG = 'other';
 
-    /**
-     * Ensure the default shared "General" rider category exists (for delete protection / overflow).
-     */
-    public function ensure(): RiderCategory
+    public function ensure(?int $companyId = null): RiderCategory
     {
-        $category = RiderCategory::withoutGlobalScopes(['company'])
-            ->where('slug', self::DEFAULT_SLUG)
-            ->first();
-
-        if ($category) {
-            return $this->normalizeDefaultCategory($category);
-        }
-
-        try {
-            return RiderCategory::withoutGlobalScopes(['company'])->create([
-                'slug' => self::DEFAULT_SLUG,
-                'label' => $this->defaultLabel(),
-                'display_order' => 0,
-                'is_system' => true,
-                'company_id' => null,
-            ]);
-        } catch (\Illuminate\Database\QueryException $e) {
-            if (! $this->isDuplicateSlugException($e)) {
-                throw $e;
-            }
-
-            $category = RiderCategory::withoutGlobalScopes(['company'])
-                ->where('slug', self::DEFAULT_SLUG)
-                ->first();
-
-            if ($category) {
-                return $this->normalizeDefaultCategory($category);
-            }
-
-            throw $e;
-        }
-    }
-
-    private function normalizeDefaultCategory(RiderCategory $category): RiderCategory
-    {
-        $dirty = false;
-
-        if ($category->company_id !== null) {
-            $category->company_id = null;
-            $dirty = true;
-        }
-
-        if (! $category->is_system) {
-            $category->is_system = true;
-            $dirty = true;
-        }
-
-        if (trim((string) $category->label) === '') {
-            $category->label = $this->defaultLabel();
-            $dirty = true;
-        }
-
-        if ($dirty) {
-            $category->save();
-        }
+        /** @var RiderCategory $category */
+        $category = PerCompanyDefaultCategory::ensure(
+            RiderCategory::class,
+            self::DEFAULT_SLUG,
+            fn () => $this->defaultLabel(),
+            $companyId,
+        );
 
         return $category;
-    }
-
-    private function isDuplicateSlugException(\Illuminate\Database\QueryException $e): bool
-    {
-        $code = (string) $e->getCode();
-        $message = $e->getMessage();
-
-        return $code === '23000'
-            || str_contains($message, '1062')
-            || str_contains($message, 'rider_categories_slug_unique');
     }
 
     /**
      * @return array<string, int>
      */
-    public function categoryIdsBySlug(): array
+    public function categoryIdsBySlug(?int $companyId = null): array
     {
-        return RiderCategory::query()
-            ->whereNotNull('slug')
+        $query = RiderCategory::query()->whereNotNull('slug');
+        if ($companyId !== null) {
+            $query = RiderCategory::withoutGlobalScopes(['company'])
+                ->where('company_id', $companyId)
+                ->whereNotNull('slug');
+        }
+
+        return $query
             ->pluck('id', 'slug')
             ->map(fn ($id) => (int) $id)
             ->all();
     }
 
-    public function categoryIdForSlug(string $slug): ?int
+    public function categoryIdForSlug(string $slug, ?int $companyId = null): ?int
     {
-        return $this->categoryIdsBySlug()[$slug] ?? null;
+        return $this->categoryIdsBySlug($companyId)[$slug] ?? null;
     }
 
     /**
-     * Create assignments for fixed rider fields that are not assigned yet (default category).
-     *
      * @param  list<string>  $fieldKeys
      */
-    public function syncFixedFieldAssignments(array $fieldKeys): void
+    public function syncFixedFieldAssignments(array $fieldKeys, ?int $companyId = null): void
     {
-        $category = $this->ensure();
+        $category = $this->ensure($companyId);
+        $companyId = (int) $category->company_id;
         $categoryId = (int) $category->id;
-        $order = (int) RiderFieldCategoryAssignment::where('category_id', $categoryId)->max('display_order');
+        $order = (int) RiderFieldCategoryAssignment::withoutGlobalScopes(['company'])
+            ->where('category_id', $categoryId)
+            ->max('display_order');
 
         foreach ($fieldKeys as $fieldKey) {
-            if (RiderFieldCategoryAssignment::query()->where('field_key', $fieldKey)->exists()) {
+            $exists = RiderFieldCategoryAssignment::withoutGlobalScopes(['company'])
+                ->where('field_key', $fieldKey)
+                ->where('company_id', $companyId)
+                ->exists();
+            if ($exists) {
                 continue;
             }
 
             $order++;
-            RiderFieldCategoryAssignment::query()->create([
+            RiderFieldCategoryAssignment::withoutGlobalScopes(['company'])->create([
                 'field_key' => $fieldKey,
                 'category_id' => $categoryId,
+                'company_id' => $companyId,
                 'display_order' => $order,
                 'is_visible' => true,
                 'is_required' => false,
@@ -135,18 +87,17 @@ final class RiderDefaultCategoryService
         }
     }
 
-    /**
-     * One-time: move all visible essential fields into the default category.
-     */
-    public function relocateVisibleFieldsToDefaultCategory(): void
+    public function relocateVisibleFieldsToDefaultCategory(?int $companyId = null): void
     {
-        $category = $this->ensure();
+        $category = $this->ensure($companyId);
+        $companyId = (int) $category->company_id;
         $categoryId = (int) $category->id;
 
         if (Schema::hasTable('rider_field_category_assignments')) {
             $allowedKeys = RiderCustomField::allFixedFieldKeys();
             if ($allowedKeys !== []) {
-                RiderFieldCategoryAssignment::query()
+                RiderFieldCategoryAssignment::withoutGlobalScopes(['company'])
+                    ->where('company_id', $companyId)
                     ->whereIn('field_key', $allowedKeys)
                     ->where(function ($query) {
                         $query->whereNull('is_visible')->orWhere('is_visible', true);
@@ -156,7 +107,8 @@ final class RiderDefaultCategoryService
         }
 
         if (Schema::hasTable('rider_custom_fields')) {
-            RiderCustomField::query()
+            RiderCustomField::withoutGlobalScopes(['company'])
+                ->where('company_id', $companyId)
                 ->where(function ($query) {
                     $query->where('is_visible', true)->orWhereNull('is_visible');
                 })
@@ -164,54 +116,51 @@ final class RiderDefaultCategoryService
         }
     }
 
-    /**
-     * Assign custom fields with no category to the default category.
-     */
     public function assignUnassignedCustomFields(?RiderCategory $category = null): void
     {
         if (! Schema::hasTable('rider_custom_fields')) {
             return;
         }
 
-        $categoryId = (int) ($category ?? $this->ensure())->id;
+        $category = $category ?? $this->ensure();
+        $categoryId = (int) $category->id;
+        $companyId = $category->company_id !== null ? (int) $category->company_id : null;
 
         FixedFieldCategoryAssignmentSync::assignCustomFieldsWithoutCategory(
             RiderCustomField::class,
             $categoryId,
+            $companyId,
         );
     }
 
     public function isDefaultCategory(RiderCategory $category): bool
     {
-        return (string) $category->slug === self::DEFAULT_SLUG
-            && (bool) $category->is_system
-            && $category->company_id === null;
+        return PerCompanyDefaultCategory::isDefault($category, self::DEFAULT_SLUG);
     }
 
-    public function bootstrap(): void
+    public function bootstrap(?int $companyId = null): void
     {
-        $this->ensure();
-        $defaultCategory = $this->ensure();
-        $this->pruneNonEssentialAssignments();
-        $fieldKeys = $this->discoverAssignableFieldKeys();
-        $this->syncFixedFieldAssignments($fieldKeys);
-        $this->assignUnassignedCustomFields($defaultCategory);
+        foreach (PerCompanyDefaultCategory::bootstrapCompanyIds($companyId) as $id) {
+            $defaultCategory = $this->ensure($id);
+            $this->pruneNonEssentialAssignments($id);
+            $this->syncFixedFieldAssignments($this->discoverAssignableFieldKeys(), $id);
+            $this->assignUnassignedCustomFields($defaultCategory);
+        }
     }
 
-    /**
-     * Remove field assignments that are no longer part of the essential rider form.
-     */
-    public function pruneNonEssentialAssignments(): void
+    public function pruneNonEssentialAssignments(?int $companyId = null): void
     {
         if (! Schema::hasTable('rider_field_category_assignments')) {
             return;
         }
 
         $allowed = array_flip(RiderCustomField::allFixedFieldKeys());
-
-        RiderFieldCategoryAssignment::query()
-            ->whereNotIn('field_key', array_keys($allowed))
-            ->delete();
+        $query = RiderFieldCategoryAssignment::withoutGlobalScopes(['company'])
+            ->whereNotIn('field_key', array_keys($allowed));
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+        $query->delete();
     }
 
     /**

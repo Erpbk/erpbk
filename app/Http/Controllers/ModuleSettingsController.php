@@ -19,6 +19,8 @@ use App\Services\Module\ModuleDefaultCategoryService;
 use App\Http\Controllers\Concerns\SavesModuleMenuIcons;
 use App\Services\Module\ModuleLabelService;
 use App\Services\Module\ModuleTopBarSettingsService;
+use App\Support\CompanyContext;
+use App\Support\CompanyScope;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleTopBarRoutes;
 use App\Support\SimAssignFields;
@@ -1465,7 +1467,7 @@ class ModuleSettingsController extends Controller
     {
         $module = $this->normalizeModuleKey($module);
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->where(fn($q) => $q->where('module_key', $module))],
+            'key' => ['required', 'string', 'max:80', CompanyScope::unique('module_document_types', 'key')->where(fn($q) => $q->where('module_key', $module))],
             'label' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',
@@ -1501,7 +1503,7 @@ class ModuleSettingsController extends Controller
         $module = $this->normalizeModuleKey($module);
         $document = ModuleDocumentType::where('module_key', $module)->where('id', $id)->firstOrFail();
         $validated = $request->validate([
-            'key' => ['required', 'string', 'max:80', Rule::unique('module_document_types', 'key')->ignore($id)->where(fn($q) => $q->where('module_key', $module))],
+            'key' => ['required', 'string', 'max:80', CompanyScope::unique('module_document_types', 'key', $id)->where(fn($q) => $q->where('module_key', $module))],
             'label' => 'nullable|string|max:255',
             'type' => ['required', Rule::in(['single', 'dual'])],
             'front_label' => 'nullable|string|max:255',

@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.app', ['hideModuleTopBarSlider' => true])
 
 @section('title', 'Import Live Activities')
 
@@ -91,13 +91,13 @@
 
 @section('content')
 @php
-  $successMessage = session('success');
-  $errorMessage   = session('error');
-  $importSummary  = session('activities_import_summary');
-  $validationErrors = $errors ? $errors->all() : [];
-  $defaultCustomerId = $defaultCustomerId ?? \App\Services\RiderActivities\RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID;
-  $selectedCustomerId = (int) old('customer_id', $defaultCustomerId);
-  $errorsRoute = route('rider.live_activities_import_errors', ['type' => 'noon']);
+$successMessage = session('success');
+$errorMessage = session('error');
+$importSummary = session('activities_import_summary');
+$validationErrors = $errors ? $errors->all() : [];
+$defaultCustomerId = $defaultCustomerId ?? \App\Services\RiderActivities\RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID;
+$selectedCustomerId = (int) old('customer_id', $defaultCustomerId);
+$errorsRoute = route('rider.live_activities_import_errors', ['type' => 'noon']);
 @endphp
 
 <div class="container-fluid">
@@ -148,15 +148,13 @@
         <select name="customer_id" class="form-control" required>
           @forelse($customers as $customer)
           @php
-            $isReady = in_array((int) $customer->id, $configuredCustomerIds, true)
-              || (int) $customer->id === (int) $defaultCustomerId;
+          $isReady = in_array((int) $customer->id, $configuredCustomerIds, true)
+          || (int) $customer->id === (int) $defaultCustomerId;
           @endphp
           <option value="{{ $customer->id }}"
             @selected((int) $customer->id === $selectedCustomerId)
             @disabled(!$isReady)>
-            {{ $customer->name }}
-            @if((int) $customer->id === (int) $defaultCustomerId) (Noon — default)@endif
-            @if(!$isReady) — configure in settings@endif
+            {{ $customer->name }}{{ (int) $customer->id === (int) $defaultCustomerId ? ' (Noon — default)' : '' }}{{ !$isReady ? ' — configure in settings' : '' }}
           </option>
           @empty
           <option value="{{ $defaultCustomerId }}" selected>Default Project (ID: {{ $defaultCustomerId }})</option>
@@ -170,10 +168,10 @@
       <div class="mb-3">
         <label class="imp-section-label">File</label>
         @include('rider_activities.partials.file_preview', [
-          'previewPrefix'   => 'live-act-import-pg',
-          'previewUrl'      => $previewUrl ?? route('rider.activities_import_preview'),
-          'fieldLabels'     => $fieldLabels ?? \App\Services\RiderActivities\RiderActivityImportMappingService::fieldLabels(),
-          'previewConfigs'  => $previewConfigs ?? [],
+        'previewPrefix' => 'live-act-import-pg',
+        'previewUrl' => $previewUrl ?? route('rider.activities_import_preview'),
+        'fieldLabels' => $fieldLabels ?? \App\Services\RiderActivities\RiderActivityImportMappingService::fieldLabels(),
+        'previewConfigs' => $previewConfigs ?? [],
         ])
       </div>
 
@@ -189,41 +187,58 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const errorsRoute = @json($errorsRoute);
-  const successMessage = @json($successMessage ?? '');
-  const errorMessage   = @json($errorMessage ?? '');
-  const summary        = @json($importSummary ?? null);
-  const validationErrors = @json($validationErrors ?? []);
+  document.addEventListener('DOMContentLoaded', function() {
+    const errorsRoute = @json($errorsRoute);
+    const successMessage = @json($successMessage ?? '');
+    const errorMessage = @json($errorMessage ?? '');
+    const summary = @json($importSummary ?? null);
+    const validationErrors = @json($validationErrors ?? []);
 
-  const escapeHtml = (v) => v == null ? '' : String(v)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    const escapeHtml = (v) => v == null ? '' : String(v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
-  if (errorMessage) {
-    const parts = errorMessage.split(' | ');
-    const body = parts.length > 1
-      ? '<ul style="text-align:left;margin:0;padding-left:20px;max-height:400px;overflow-y:auto;">'
-          + parts.map(p => `<li style="margin-bottom:8px;">${escapeHtml(p)}</li>`).join('') + '</ul>'
-      : null;
-    Swal.fire({ icon:'error', title:'⚠️ Import Failed',
-      ...(body ? {html:body,width:'700px'} : {text:errorMessage}),
-      confirmButtonText:'OK', confirmButtonColor:'#dc3545' });
-  }
+    if (errorMessage) {
+      const parts = errorMessage.split(' | ');
+      const body = parts.length > 1 ?
+        '<ul style="text-align:left;margin:0;padding-left:20px;max-height:400px;overflow-y:auto;">' +
+        parts.map(p => `<li style="margin-bottom:8px;">${escapeHtml(p)}</li>`).join('') + '</ul>' :
+        null;
+      Swal.fire({
+        icon: 'error',
+        title: '⚠️ Import Failed',
+        ...(body ? {
+          html: body,
+          width: '700px'
+        } : {
+          text: errorMessage
+        }),
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#dc3545'
+      });
+    }
 
-  if (successMessage && !errorMessage) {
-    Swal.fire({ icon:'success', title:'✅ Import Successful', text:successMessage,
-      confirmButtonText:'OK', confirmButtonColor:'#28a745', timer:3000, timerProgressBar:true });
-  }
+    if (successMessage && !errorMessage) {
+      Swal.fire({
+        icon: 'success',
+        title: '✅ Import Successful',
+        text: successMessage,
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#28a745',
+        timer: 3000,
+        timerProgressBar: true
+      });
+    }
 
-  if (summary && Array.isArray(summary.errors) && summary.errors.length) {
-    const totalRows    = summary.total_rows ?? 0;
-    const successCount = summary.success ?? summary.success_count ?? 0;
-    const skippedCount = summary.skipped ?? summary.skipped_count ?? 0;
-    const errorCount   = summary.errors.length;
+    if (summary && Array.isArray(summary.errors) && summary.errors.length) {
+      const totalRows = summary.total_rows ?? 0;
+      const successCount = summary.success ?? summary.success_count ?? 0;
+      const skippedCount = summary.skipped ?? summary.skipped_count ?? 0;
+      const errorCount = summary.errors.length;
 
-    let html = `<div style="text-align:left">
+      let html = `<div style="text-align:left">
       <div class="mb-3" style="background:#f8f9fa;padding:15px;border-radius:5px;">
         <div class="row">
           <div class="col-6"><strong>📊 Total Rows:</strong> <span style="color:#007bff">${escapeHtml(totalRows)}</span></div>
@@ -246,46 +261,58 @@ document.addEventListener('DOMContentLoaded', function () {
             </tr>
           </thead>
           <tbody>`;
-    summary.errors.forEach(e => {
-      html += `<tr>
+      summary.errors.forEach(e => {
+        html += `<tr>
         <td class="text-center" style="background:#fff3cd"><strong style="color:#856404;font-size:14px">Row ${escapeHtml(e.row ?? 'N/A')}</strong></td>
         <td><span class="badge badge-danger" style="font-size:11px">${escapeHtml(e.error_type ?? 'N/A')}</span></td>
         <td style="font-size:13px">${escapeHtml(e.message ?? '-')}</td>
         <td><code>${escapeHtml(e.rider_id ?? e.payout_type ?? 'N/A')}</code></td>
       </tr>`;
-    });
-    html += `</tbody></table></div></div>`;
+      });
+      html += `</tbody></table></div></div>`;
 
-    Swal.fire({
-      icon:'warning', title:`⚠️ Import Completed with ${escapeHtml(errorCount)} Error(s)`,
-      html, width:'950px', showCancelButton:true,
-      confirmButtonText:'View Detailed Report', cancelButtonText:'Close',
-      confirmButtonColor:'#17a2b8', cancelButtonColor:'#6c757d',
-    }).then(r => { if (r.isConfirmed && errorsRoute) window.open(errorsRoute, '_blank'); });
+      Swal.fire({
+        icon: 'warning',
+        title: `⚠️ Import Completed with ${escapeHtml(errorCount)} Error(s)`,
+        html,
+        width: '950px',
+        showCancelButton: true,
+        confirmButtonText: 'View Detailed Report',
+        cancelButtonText: 'Close',
+        confirmButtonColor: '#17a2b8',
+        cancelButtonColor: '#6c757d',
+      }).then(r => {
+        if (r.isConfirmed && errorsRoute) window.open(errorsRoute, '_blank');
+      });
 
-  } else if (summary) {
-    const totalRows    = summary.total_rows ?? 0;
-    const successCount = summary.success ?? summary.success_count ?? 0;
-    Swal.fire({
-      icon:'success', title:'Import Successful',
-      html:`<div style="text-align:center"><div style="background:#d4edda;padding:20px;border-radius:5px;border:2px solid #28a745">
+    } else if (summary) {
+      const totalRows = summary.total_rows ?? 0;
+      const successCount = summary.success ?? summary.success_count ?? 0;
+      Swal.fire({
+        icon: 'success',
+        title: 'Import Successful',
+        html: `<div style="text-align:center"><div style="background:#d4edda;padding:20px;border-radius:5px;border:2px solid #28a745">
         <h4 style="color:#155724;margin-bottom:15px">✅ All Records Imported Successfully!</h4>
         <div class="row">
           <div class="col-6"><strong style="font-size:16px">Total Rows:</strong><br><span style="color:#007bff;font-size:24px;font-weight:bold">${escapeHtml(totalRows)}</span></div>
           <div class="col-6"><strong style="font-size:16px">Imported:</strong><br><span style="color:#28a745;font-size:24px;font-weight:bold">${escapeHtml(successCount)}</span></div>
         </div></div></div>`,
-      confirmButtonText:'Great!', confirmButtonColor:'#28a745', width:'500px',
-    });
-  }
+        confirmButtonText: 'Great!',
+        confirmButtonColor: '#28a745',
+        width: '500px',
+      });
+    }
 
-  if (Array.isArray(validationErrors) && validationErrors.length) {
-    Swal.fire({
-      icon:'error', title:'Import Failed',
-      html:'<ul style="text-align:left;margin:0;padding-left:20px">'
-        + validationErrors.map(e => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>',
-      confirmButtonText:'OK', confirmButtonColor:'#dc3545',
-    });
-  }
-});
+    if (Array.isArray(validationErrors) && validationErrors.length) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Import Failed',
+        html: '<ul style="text-align:left;margin:0;padding-left:20px">' +
+          validationErrors.map(e => `<li>${escapeHtml(e)}</li>`).join('') + '</ul>',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#dc3545',
+      });
+    }
+  });
 </script>
 @endsection

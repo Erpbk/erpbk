@@ -612,21 +612,25 @@ class BikeCustomField extends BaseModel
 
         foreach (self::defaultAssignFieldCatalog() as $def) {
             $key = $def['field_key'];
+            $companyId = \App\Support\CompanyContext::id();
+            $lookup = ['field_key' => $key];
+            $attributes = [
+                'kind' => $def['kind'],
+                'display_label' => $def['display_label'],
+                'input_type' => $def['input_type'] ?? null,
+                'input_config' => $def['input_config'] ?? null,
+                'display_order' => $def['display_order'] ?? 0,
+                'is_visible' => true,
+                'is_required' => $def['is_required'] ?? false,
+                'show_on_active' => $def['show_on_active'] ?? false,
+                'show_on_change' => $def['show_on_change'] ?? false,
+            ];
+            if ($companyId !== null && Schema::hasColumn((new BikeAssignFieldAssignment())->getTable(), 'company_id')) {
+                $lookup['company_id'] = $companyId;
+                $attributes['company_id'] = $companyId;
+            }
 
-            BikeAssignFieldAssignment::query()->firstOrCreate(
-                ['field_key' => $key],
-                [
-                    'kind' => $def['kind'],
-                    'display_label' => $def['display_label'],
-                    'input_type' => $def['input_type'] ?? null,
-                    'input_config' => $def['input_config'] ?? null,
-                    'display_order' => $def['display_order'] ?? 0,
-                    'is_visible' => true,
-                    'is_required' => $def['is_required'] ?? false,
-                    'show_on_active' => $def['show_on_active'] ?? false,
-                    'show_on_change' => $def['show_on_change'] ?? false,
-                ]
-            );
+            BikeAssignFieldAssignment::query()->firstOrCreate($lookup, $attributes);
         }
 
         $assignType = BikeAssignFieldAssignment::query()->where('field_key', 'assign_type')->first();

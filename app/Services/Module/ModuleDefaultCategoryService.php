@@ -45,20 +45,20 @@ final class ModuleDefaultCategoryService
     }
 
     /**
-     * Ensure the default "General" category exists for a module (per company when scoped).
+     * Ensure the default "General" category exists for a module for one company.
      */
     public function ensureForModule(string $module, ?int $companyId = null): ModuleSettingCategory
     {
         $module = ErpModuleRegistry::settingsFieldsModuleKey($module);
         $companyId = $companyId ?? $this->resolveCompanyId();
-
-        $query = ModuleSettingCategory::query()
-            ->where('module_key', $module)
-            ->where('slug', self::DEFAULT_SLUG);
-
-        if ($companyId !== null && $this->categoriesAreCompanyScoped()) {
-            $query->where('company_id', $companyId);
+        if ($companyId === null) {
+            throw new \RuntimeException('Company context is required for module settings.');
         }
+
+        $query = ModuleSettingCategory::withoutGlobalScopes(['company'])
+            ->where('module_key', $module)
+            ->where('slug', self::DEFAULT_SLUG)
+            ->where('company_id', $companyId);
 
         $category = $query->first();
         if ($category) {
@@ -76,13 +76,10 @@ final class ModuleDefaultCategoryService
             'label' => $this->labelForModule($module),
             'display_order' => 0,
             'is_system' => true,
+            'company_id' => $companyId,
         ];
 
-        if ($companyId !== null && $this->categoriesAreCompanyScoped()) {
-            $payload['company_id'] = $companyId;
-        }
-
-        return ModuleSettingCategory::create($payload);
+        return ModuleSettingCategory::withoutGlobalScopes(['company'])->create($payload);
     }
 
     /**
@@ -93,19 +90,23 @@ final class ModuleDefaultCategoryService
         $module = ErpModuleRegistry::settingsFieldsModuleKey($module);
         $category = $category ?? $this->ensureForModule($module);
         $categoryId = (int) $category->id;
+        $companyId = $category->company_id !== null ? (int) $category->company_id : $this->resolveCompanyId();
 
-        ModuleFieldCategoryAssignment::query()
+        $assignmentQuery = ModuleFieldCategoryAssignment::withoutGlobalScopes(['company'])
             ->where('module_key', $module)
-            ->whereNull('category_id')
-            ->update(['category_id' => $categoryId]);
+            ->whereNull('category_id');
+        if ($companyId !== null) {
+            $assignmentQuery->where('company_id', $companyId);
+        }
+        $assignmentQuery->update(['category_id' => $categoryId]);
 
         if (Schema::hasTable('module_custom_fields')) {
-            $customQuery = ModuleCustomField::query()
+            $customQuery = ModuleCustomField::withoutGlobalScopes(['company'])
                 ->where('module_key', $module)
                 ->whereNull('category_id');
 
-            if ($category->company_id !== null) {
-                $customQuery->where('company_id', $category->company_id);
+            if ($companyId !== null) {
+                $customQuery->where('company_id', $companyId);
             }
 
             $customQuery->update(['category_id' => $categoryId]);
@@ -144,12 +145,6 @@ final class ModuleDefaultCategoryService
         }
 
         return self::DEFAULT_LABEL;
-    }
-
-    protected function categoriesAreCompanyScoped(): bool
-    {
-        return Schema::hasTable('module_setting_categories')
-            && Schema::hasColumn('module_setting_categories', 'company_id');
     }
 
     protected function resolveCompanyId(): ?int

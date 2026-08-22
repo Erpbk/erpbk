@@ -11,6 +11,7 @@ class RiderTopCategory extends BaseModel
     protected $table = 'rider_top_categories';
 
     protected $fillable = [
+        'company_id',
         'name',
         'filter_type',
         'rider_column',

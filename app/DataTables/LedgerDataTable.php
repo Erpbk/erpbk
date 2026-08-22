@@ -274,13 +274,13 @@ class LedgerDataTable extends DataTable
                 $invoice = CompanyQuery::table('sim_invoices')->where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('sim_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="' . route('simInvoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
                 } else {
-                    $voucher_ID = 'SUP' . ($row->reference_id ?? '?');
-                    $voucher_text = '<span class="text-danger">Supplier invoice not found</span>';
+                    $voucher_ID = 'SIM-' . ($row->reference_id ?? '?');
+                    $voucher_text = '<span class="text-danger">SIM invoice not found</span>';
                 }
             }
             if ($row->reference_type == 'EmployeeInvoice') {
@@ -341,7 +341,9 @@ class LedgerDataTable extends DataTable
                 $invoice_ID = $row->reference_id;
                 $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Billing Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" class="no-print show-modal">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
-            $month = "<span style='white-space: nowrap;'>" . date('M Y', strtotime($row->billing_month)) . '</span>';
+            $month = $row->billing_month
+                ? "<span style='white-space: nowrap;'>" . date('M Y', strtotime((string) $row->billing_month)) . '</span>'
+                : '';
             if ($row->reference_type == 'RTA' || $row->reference_type == 'RTA FINE' || $row->reference_type == 'RTA_FINE') {
                 // Ticket / bike / trip date are already in the stored narration.
                 $naration = $row->narration . ($view_file !== '' ? ' ' . $view_file : '');
@@ -440,7 +442,7 @@ class LedgerDataTable extends DataTable
         if (request('account')) {
             $query->where('account_id', request('account'));
         }
-        if ($this->account_id) {
+        if (! empty($this->account_id ?? null)) {
             $query->where('account_id', $this->account_id);
         }
 
@@ -469,7 +471,7 @@ class LedgerDataTable extends DataTable
         if (request('account')) {
             $account_id = request('account');
         } else {
-            $account_id = $this->account_id;
+            $account_id = $this->account_id ?? null;
         }
         if (! $account_id) {
             return 0;
@@ -493,7 +495,7 @@ class LedgerDataTable extends DataTable
     {
         $accountid = '';
         $accountName = 'All Accounts';
-        if ($this->account_id) {
+        if (! empty($this->account_id ?? null)) {
             $account = Accounts::find($this->account_id);
             $accountid = $account?->id ?? null;
             $accountName = $account ? $account->account_code . '-' . $account->name : 'All Accounts';

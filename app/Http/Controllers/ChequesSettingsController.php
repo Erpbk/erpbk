@@ -13,6 +13,7 @@ use App\Models\ChequeTopOption;
 use App\Models\Cheques;
 use App\Models\Settings;
 use App\Support\CompanyContext;
+use App\Support\CompanyScope;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
@@ -36,11 +37,9 @@ class ChequesSettingsController extends Controller
 
     protected function chequeCategoryCompanyId(): ?int
     {
-        $user = auth()->user();
-        if (!$user) {
-            return null;
-        }
-        return $user->company_id ? (int) $user->company_id : null;
+        $id = CompanyContext::id();
+
+        return $id !== null && $id > 0 ? (int) $id : null;
     }
 
     protected function chequeCategoryQuery()
@@ -965,7 +964,7 @@ class ChequesSettingsController extends Controller
         ]);
 
         $riderColumn = $validated['cheque_column'];
-        $companyId = auth()->user()->company_id ?? null;
+        $companyId = $this->chequeCategoryCompanyId();
         $existsQuery = ChequeTopCategory::where('cheque_column', $riderColumn);
         if ($companyId) {
             $existsQuery->where('company_id', $companyId);
@@ -975,6 +974,7 @@ class ChequesSettingsController extends Controller
         }
 
         $category = ChequeTopCategory::create([
+            'company_id' => $companyId,
             'name' => ChequeCustomField::humanizeFieldKey($riderColumn),
             'cheque_column' => $riderColumn,
             'display_order' => ((int) ChequeTopCategory::max('display_order')) + 1,
@@ -1294,7 +1294,7 @@ class ChequesSettingsController extends Controller
     public function storeDocumentType(Request $request)
     {
         $validated = $request->validate([
-            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:rider_document_types,key',
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', CompanyScope::unique('cheque_document_types', 'key')],
             'type' => 'required|in:single,dual',
             'label' => 'nullable|string|max:255',
             'front_label' => 'nullable|string|max:255',
@@ -1309,6 +1309,7 @@ class ChequesSettingsController extends Controller
         }
         $maxOrder = (int) ChequeDocumentType::max('display_order');
         ChequeDocumentType::create([
+            'company_id' => $this->chequeCategoryCompanyId(),
             'key' => $validated['key'],
             'type' => $validated['type'],
             'label' => $validated['type'] === 'single' ? trim($validated['label']) : null,
@@ -1324,7 +1325,7 @@ class ChequesSettingsController extends Controller
     {
         $docType = ChequeDocumentType::findOrFail($id);
         $validated = $request->validate([
-            'key' => 'required|string|max:80|regex:/^[a-z0-9_]+$/|unique:rider_document_types,key,' . $id,
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', CompanyScope::unique('cheque_document_types', 'key', $id)],
             'type' => 'required|in:single,dual',
             'label' => 'nullable|string|max:255',
             'front_label' => 'nullable|string|max:255',

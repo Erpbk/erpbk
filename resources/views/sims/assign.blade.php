@@ -4,6 +4,16 @@ $branchScopedOptions = $branchScopedOptions ?? [
     'assign_to_rider' => $riders ?? [],
     'assign_to_employee' => $employees ?? [],
 ];
+$assignTargets = $assignTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
+$allowTypeSelection = (bool) ($allowTypeSelection ?? (count($assignTargets) >= 2));
+$defaultAssigneeType = $defaultAssigneeType ?? (count($assignTargets) === 1 ? $assignTargets[0] : 'rider');
+$assignFormLocked = (bool) ($assignFormLocked ?? ($assignTargets === []));
+$assignHint = match (true) {
+    in_array('rider', $assignTargets, true) && in_array('employee', $assignTargets, true) => 'Showing all riders and employees (including inactive).',
+    in_array('rider', $assignTargets, true) => 'Showing all riders (including inactive).',
+    in_array('employee', $assignTargets, true) => 'Showing all employees (including inactive).',
+    default => '',
+};
 $inlineFields = $assignFields->filter(function ($f) {
     if (($f->field_key ?? '') === 'notes') {
         return false;
@@ -26,12 +36,19 @@ $wideFields = $assignFields->filter(function ($f) {
 });
 @endphp
 
+@if($assignFormLocked)
+<div class="alert alert-warning mb-0" role="alert">
+    <i class="ti ti-lock me-1"></i> No assignable user module is enabled for this company.
+</div>
+@else
 {!! Form::model($sims, ['url' => route('sims.assign', $sims->id), 'method' => 'post', 'id' => 'formajax']) !!}
 
 <div class="card-body">
+    @if($assignHint !== '')
     <p class="text-muted small mb-3">
-        <i class="ti ti-users me-1"></i>Showing all riders and employees (including inactive).
+        <i class="ti ti-users me-1"></i>{{ $assignHint }}
     </p>
+    @endif
 
     <div class="row">
         @foreach($inlineFields as $field)
@@ -40,6 +57,9 @@ $wideFields = $assignFields->filter(function ($f) {
                 'assignContext' => 'assign',
                 'sims' => $sims,
                 'branchScopedOptions' => $branchScopedOptions,
+                'assignTargets' => $assignTargets,
+                'allowTypeSelection' => $allowTypeSelection,
+                'defaultAssigneeType' => $defaultAssigneeType,
             ])
         @endforeach
     </div>
@@ -52,6 +72,9 @@ $wideFields = $assignFields->filter(function ($f) {
                 'assignContext' => 'assign',
                 'sims' => $sims,
                 'branchScopedOptions' => $branchScopedOptions,
+                'assignTargets' => $assignTargets,
+                'allowTypeSelection' => $allowTypeSelection,
+                'defaultAssigneeType' => $defaultAssigneeType,
             ])
         @endforeach
     </div>
@@ -85,8 +108,17 @@ $wideFields = $assignFields->filter(function ($f) {
         });
     }
 
+    function currentAssigneeType() {
+        const checked = document.querySelector('input[name="assignee_type"]:checked');
+        if (checked) {
+            return checked.value;
+        }
+
+        return document.querySelector('input[name="assignee_type"]')?.value || 'rider';
+    }
+
     function syncAssigneeFields() {
-        const type = document.querySelector('input[name="assignee_type"]:checked')?.value || 'rider';
+        const type = currentAssigneeType();
         const riderWrap = document.querySelector('.assignee-field-rider');
         const employeeWrap = document.querySelector('.assignee-field-employee');
         const riderSelect = document.getElementById('assign_to_rider');
@@ -130,3 +162,4 @@ $wideFields = $assignFields->filter(function ($f) {
     syncAssigneeFields();
 })();
 </script>
+@endif

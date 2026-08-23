@@ -427,6 +427,36 @@ class Riders extends BaseModel
     }
   }
 
+  public function isAbsconded(): bool
+  {
+    if ((int) $this->status === 5) {
+      return true;
+    }
+
+    if ((int) ($this->absconder ?? 0) === 1) {
+      return true;
+    }
+
+    $option = strtolower(trim((string) ($this->rider_status ?? '')));
+
+    return in_array($option, ['absconded', 'absconder'], true);
+  }
+
+  public function scopeWhereAbsconded($query)
+  {
+    return $query->where(function ($q) {
+      $q->where('status', 5);
+
+      $table = $this->getTable();
+      if (Schema::hasColumn($table, 'absconder')) {
+        $q->orWhere('absconder', 1);
+      }
+      if (Schema::hasColumn($table, 'rider_status')) {
+        $q->orWhereRaw('LOWER(TRIM(COALESCE(rider_status, ""))) IN (?, ?)', ['absconded', 'absconder']);
+      }
+    });
+  }
+
   public function scopeActive($query)
   {
     return $query->where('status', 1);

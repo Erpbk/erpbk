@@ -15,6 +15,9 @@ $groupClass = $assignGroup ? ' d-none assignee-field assignee-field-' . $assignG
 $wrapperId = $fieldKey ? 'assign-field-' . $fieldKey : 'assign-custom-' . ($field->custom_field_id ?? $field->id);
 $branchOpts = $branchScopedOptions ?? [];
 $simsModel = $sims ?? null;
+$assignTargets = $assignTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
+$allowTypeSelection = $allowTypeSelection ?? (count($assignTargets) >= 2);
+$defaultAssigneeType = $defaultAssigneeType ?? (count($assignTargets) === 1 ? $assignTargets[0] : 'rider');
 @endphp
 
 @if($field->kind === 'custom' && $field->customField)
@@ -46,6 +49,9 @@ $value = old('custom_field_values.' . $cf->id, $cf->default_value);
     'sims' => $simsModel,
     'branchScopedOptions' => $branchOpts,
     'assignee_name' => $assignee_name ?? null,
+    'assignTargets' => $assignTargets ?? null,
+    'allowTypeSelection' => $allowTypeSelection ?? null,
+    'defaultAssigneeType' => $defaultAssigneeType ?? null,
 ])
 @else
 <div class="{{ $colClass }} form-group{{ $groupClass }}" id="{{ $wrapperId }}" data-assign-field="{{ $fieldKey }}">

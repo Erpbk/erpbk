@@ -82,19 +82,9 @@
                 </div>
                 <div class="card-body">
                     @php
-                    $statusClass = 'bg-secondary';
-                    if( $sims->status == 1){
-                    $statusClass = 'bg-success';
-                    $statusText = 'Active';
-                    }
-                    elseif( $sims->status == 0) {
-                    $statusText = 'Inactive';
-                    $statusClass = 'bg-danger';
-                    }
-                    else {
-                    $statusText = 'Unknown';
-                    $statusClass = 'bg-secondary';
-                    }
+                    $simStatus = \App\Models\Sims::statusDisplay($sims->status);
+                    $statusClass = $simStatus['badge'];
+                    $statusText = $simStatus['label'];
                     @endphp
 
                     <!-- SIM Number and Status -->

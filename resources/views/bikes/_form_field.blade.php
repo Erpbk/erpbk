@@ -2,17 +2,31 @@
 $isEdit = isset($bikes);
 $value = null;
 
+$formatBikeDateInput = function ($raw, bool $asDatetime = false): ?string {
+    if ($raw === null || $raw === '' || $raw === false) {
+        return null;
+    }
+    if (is_string($raw) && (str_starts_with($raw, '0000-00-00') || trim($raw) === '0')) {
+        return null;
+    }
+    try {
+        $parsed = \Carbon\Carbon::parse($raw);
+        return $asDatetime ? $parsed->format('Y-m-d\TH:i') : $parsed->format('Y-m-d');
+    } catch (\Throwable $e) {
+        return null;
+    }
+};
+
 if ($item->kind === 'fixed') {
 $name = $item->field_key;
-$value = $isEdit ? ($bikes->{$item->field_key} ?? null) : old($item->field_key);
+$value = old($item->field_key, $isEdit ? ($bikes->{$item->field_key} ?? null) : null);
 } else {
 // Custom fields are stored in bikes.custom_field_values as an array keyed by field id.
 $name = 'custom_field_values[' . $item->field->id . ']';
-if ($isEdit && is_array($bikes->custom_field_values ?? null)) {
-$value = $bikes->custom_field_values[$item->field->id] ?? $item->field->default_value ?? null;
-} else {
-$value = old('custom_field_values.' . $item->field->id) ?? $item->field->default_value ?? null;
-}
+$storedCustom = ($isEdit && is_array($bikes->custom_field_values ?? null))
+    ? ($bikes->custom_field_values[$item->field->id] ?? $item->field->default_value ?? null)
+    : ($item->field->default_value ?? null);
+$value = old('custom_field_values.' . $item->field->id, $storedCustom);
 }
 
 // Existing UI uses this class to hide cyclist-only inputs.
@@ -127,12 +141,14 @@ $value = 'own';
     if (empty($opts) && !empty($dropdownKey)) {
     $opts = ['' => 'Select'] + (array) \App\Helpers\Common::Dropdowns($dropdownKey);
     }
-    if (empty($opts)) {
-    $opts = ['' => 'Select'];
+                if (empty($opts)) {
+                    $opts = [];
+                }
+                break;
     }
-    break;
     }
-    }
+    $opts = \App\Models\BikeCustomField::withoutPlaceholderSelectOptions($opts);
+    $selectPlaceholder = \App\Models\BikeCustomField::selectPlaceholderLabel($item->label);
     @endphp
 
     {!! Form::select(
@@ -143,6 +159,7 @@ $value = 'own';
     'class' => 'form-select select2',
     'id' => $fieldId,
     'required' => $req,
+    'placeholder' => $selectPlaceholder,
     ] + $rfpSelectLock
     ) !!}
     @elseif (($spec['type'] ?? '') === 'textarea')
@@ -171,6 +188,31 @@ $value = 'own';
         ['class' => 'form-check-label pt-0' . ($req ? ' required' : '')]
         ) !!}
     </div>
+    @elseif (($spec['type'] ?? '') === 'date')
+    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
+    {!! Form::date(
+    $item->field_key,
+    $formatBikeDateInput($value),
+    [
+    'class' => 'form-control',
+    'id' => $fieldId,
+    'required' => $req,
+    'autocomplete' => 'off',
+    ] + $rfpLock
+    ) !!}
+    @elseif (($spec['type'] ?? '') === 'datetime')
+    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
+    {!! Form::input(
+    'datetime-local',
+    $item->field_key,
+    $formatBikeDateInput($value, true),
+    [
+    'class' => 'form-control',
+    'id' => $fieldId,
+    'required' => $req,
+    'autocomplete' => 'off',
+    ] + $rfpLock
+    ) !!}
     @else
     {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ['class' => 'fw-bold' . ($req ? ' required' : '')]) !!}
     {!! Form::input(
@@ -216,25 +258,27 @@ $value = 'own';
     @break
 
     @case('date')
-    {!! Form::date($name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d')) : null, ['class' => 'form-control', 'required' => $req] + $rfpLock) !!}
+    {!! Form::date($name, $formatBikeDateInput($value), ['class' => 'form-control', 'required' => $req] + $rfpLock) !!}
     @break
 
     @case('datetime')
-    {!! Form::input('datetime-local', $name, $value ? (\Carbon\Carbon::parse($value)->format('Y-m-d\TH:i')) : null, ['class' => 'form-control', 'required' => $req] + $rfpLock) !!}
+    {!! Form::input('datetime-local', $name, $formatBikeDateInput($value, true), ['class' => 'form-control', 'required' => $req] + $rfpLock) !!}
     @break
 
     @case('dropdown')
     @php
     $lines = isset($f->config['options']) ? preg_split('/\r\n|\r|\n/', (string) $f->config['options']) : [];
-    $dd = ['' => 'Select'];
+    $dd = [];
     foreach ($lines as $line) {
     $line = trim($line);
     if ($line !== '') {
     $dd[$line] = $line;
     }
     }
+    $dd = \App\Models\BikeCustomField::withoutPlaceholderSelectOptions($dd);
+    $selectPlaceholder = \App\Models\BikeCustomField::selectPlaceholderLabel($f->label);
     @endphp
-    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req] + $rfpSelectLock) !!}
+    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req, 'placeholder' => $selectPlaceholder] + $rfpSelectLock) !!}
     @break
 
     @case('checkbox')

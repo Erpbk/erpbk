@@ -112,6 +112,16 @@ class Employee extends BaseModel
         'notes' => 'nullable|string',
     ];
 
+    public function isAbsconded(): bool
+    {
+        return in_array(strtolower(trim((string) $this->status)), ['absconded', 'absconder'], true);
+    }
+
+    public function scopeWhereAbsconded($query)
+    {
+        return $query->whereRaw('LOWER(TRIM(COALESCE(status, ""))) IN (?, ?)', ['absconded', 'absconder']);
+    }
+
     /**
      * Scope a query to only include active employees.
      */

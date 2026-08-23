@@ -23,9 +23,17 @@
   /* Make statistics cards compact */
   .sticky-statistics .totals-cards {
     display: flex;
-    flex-wrap: wrap;
     gap: 8px;
     margin-bottom: 0;
+  }
+
+  .sticky-statistics .totals-cards-single-row {
+    flex-wrap: nowrap;
+  }
+
+  .sticky-statistics .totals-cards-single-row .total-card {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .sticky-statistics .total-card {
@@ -125,23 +133,70 @@
   .sticky-statistics .total-inactive .label {
     color: #dc3545;
   }
+
+  .sticky-statistics .total-user-absconded {
+    border-left-color: #7c2d12;
+    background: linear-gradient(180deg, rgba(124, 45, 18, 0.08), rgba(124, 45, 18, 0.02));
+  }
+
+  .sticky-statistics .total-user-absconded .label {
+    color: #9a3412;
+  }
+
+  .sticky-statistics a.total-card {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .sticky-statistics a.total-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .sticky-statistics a.total-card.is-active {
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.28);
+  }
+
+  .sticky-statistics .total-in-office {
+    border-left-color: #0dcaf0;
+    background: linear-gradient(180deg, rgba(13, 202, 240, 0.08), rgba(13, 202, 240, 0.02));
+  }
+
+  .sticky-statistics .total-in-office .label {
+    color: #0aa2c0;
+  }
   
-  .sticky-statistics .total-du {
+  .sticky-statistics .total-du,
+  .sticky-statistics .total-sim-company-0 {
     border-left-color: #6f42c1;
     background: linear-gradient(180deg, rgba(111, 66, 193, 0.06), rgba(111, 66, 193, 0.02));
   }
 
-  .sticky-statistics .total-du .label {
+  .sticky-statistics .total-du .label,
+  .sticky-statistics .total-sim-company-0 .label {
     color: #6f42c1;
   }
 
-  .sticky-statistics .total-etisalat {
+  .sticky-statistics .total-etisalat,
+  .sticky-statistics .total-sim-company-1 {
     border-left-color: #c142bb;
     background: linear-gradient(180deg, rgba(193, 66, 187, 0.06), rgba(193, 66, 187, 0.02));
   }
 
-  .sticky-statistics .total-etisalat .label {
+  .sticky-statistics .total-etisalat .label,
+  .sticky-statistics .total-sim-company-1 .label {
     color: #c142bb;
+  }
+
+  .sticky-statistics .total-sim-company-2 {
+    border-left-color: #d97706;
+    background: linear-gradient(180deg, rgba(217, 119, 6, 0.08), rgba(217, 119, 6, 0.02));
+  }
+
+  .sticky-statistics .total-sim-company-2 .label {
+    color: #d97706;
   }
 
   /* Adjust table styling */
@@ -325,9 +380,9 @@
         gap: 6px;
         }
         
-        .sticky-statistics .total-card {
-        flex: 1 1 calc(50% - 6px);
-        min-width: 140px;
+        .sticky-statistics .totals-cards-single-row .total-card {
+        flex: 1 1 0;
+        min-width: 0;
         padding: 6px 8px;
         }
         
@@ -454,9 +509,11 @@
                     <div class="form-group col-md-12">
                         <label for="status">Status</label>
                         <select class="form-control " id="status" name="status">
-                            <option value="" selected>Select</option>
-                            <option value='active' >Active</option>
-                            <option value='inactive' >Inactive</option>
+                            <option value="" {{ request('status') ? '' : 'selected' }}>Select</option>
+                            <option value="assigned" {{ in_array(request('status'), ['assigned', 'active'], true) ? 'selected' : '' }}>Assigned</option>
+                            <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                            <option value="in_office" {{ request('status') == 'in_office' ? 'selected' : '' }}>In office</option>
+                            <option value="user_absconded" {{ in_array(request('status'), ['user_absconded', 'absconded'], true) ? 'selected' : '' }}>User Absconded</option>
                         </select>
                     </div>
                     @endfieldVisible
@@ -576,7 +633,7 @@ $(document).ready(function () {
 function confirmDelete(url) {
     Swal.fire({
         title: 'Are you sure?',
-        text: "Sim will be deleted permanently!",
+        text: "This will move the SIM to the Recycle Bin!",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -584,9 +641,30 @@ function confirmDelete(url) {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = url;
+            $.ajax({
+                url: url,
+                type: 'GET',
+                success: function(response) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: response.queued ? 'Delete requested' : 'Deleted!',
+                        html: response.message,
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK'
+                    }).then(() => { location.reload(); });
+                },
+                error: function(xhr) {
+                    let errorMessage = 'An error occurred while deleting.';
+                    if (xhr.responseJSON && xhr.responseJSON.errors) {
+                        errorMessage = Object.values(xhr.responseJSON.errors).join('<br>');
+                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    Swal.fire({ icon: 'error', title: 'Error!', html: errorMessage });
+                }
+            });
         }
-    })
+    });
 }
 
 document.addEventListener('DOMContentLoaded', function () {

@@ -9,27 +9,58 @@
         <div></div>
         <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Sims</button>
       </div>
-      <div class="totals-cards">
-        <div class="total-card total-sims">
+      <div class="totals-cards totals-cards-single-row">
+        @php
+          $statBaseQuery = request()->except(['page']);
+          $currentStatus = strtolower((string) request('status', ''));
+          $currentCompany = (string) request('company', '');
+          $assignedActive = in_array($currentStatus, ['assigned', 'active'], true);
+          $inOfficeActive = in_array($currentStatus, ['in_office', 'in-office', 'office'], true);
+          $inactiveActive = $currentStatus === 'inactive';
+          $abscondedActive = in_array($currentStatus, ['user_absconded', 'absconded'], true);
+          $totalActive = $currentStatus === '' && $currentCompany === '';
+          $simStatUrl = function (array $overrides) use ($statBaseQuery) {
+              $params = array_merge($statBaseQuery, $overrides);
+              foreach ($params as $key => $value) {
+                  if ($value === null || $value === '') {
+                      unset($params[$key]);
+                  }
+              }
+              return route('sims.index', $params);
+          };
+        @endphp
+        <a href="{{ $simStatUrl(['status' => null, 'company' => null]) }}" class="total-card total-sims{{ $totalActive ? ' is-active' : '' }}" title="{{ $totalActive ? 'Showing all SIMs' : 'Show all SIMs' }}">
           <div class="label"><i class="fa fa-sim-card"></i>Total Sims</div>
           <div class="value" id="total_orders">{{ $stats['total'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-active">
-          <div class="label"><i class="fa fa-check-circle"></i>Active</div>
+        </a>
+        <a href="{{ $simStatUrl(['status' => $assignedActive ? null : 'assigned']) }}" class="total-card total-active{{ $assignedActive ? ' is-active' : '' }}" title="{{ $assignedActive ? 'Clear Assigned filter' : 'Show assigned SIMs' }}">
+          <div class="label"><i class="fa fa-check-circle"></i>Assigned</div>
           <div class="value" id="avg_ontime">{{ $stats['active'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-inactive">
+        </a>
+        <a href="{{ $simStatUrl(['status' => $inOfficeActive ? null : 'in_office']) }}" class="total-card total-in-office{{ $inOfficeActive ? ' is-active' : '' }}" title="{{ $inOfficeActive ? 'Clear In office filter' : 'Show in-office SIMs' }}">
+          <div class="label"><i class="fa fa-building"></i>In office</div>
+          <div class="value" id="total_in_office">{{ $stats['in_office'] ?? 0 }}</div>
+        </a>
+        <a href="{{ $simStatUrl(['status' => $inactiveActive ? null : 'inactive']) }}" class="total-card total-inactive{{ $inactiveActive ? ' is-active' : '' }}" title="{{ $inactiveActive ? 'Clear Inactive filter' : 'Show inactive SIMs' }}">
           <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
           <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-du">
-          <div class="label"><i class="fa fa-building"></i>Du Sims</div>
-          <div class="value" id="total_hours">{{ $stats['du'] ?? 0 }}</div>
-        </div>
-        <div class="total-card total-etisalat">
-          <div class="label"><i class="fa fa-building"></i>Etisalat Sims</div>
-          <div class="value" id="total_hours">{{ $stats['etisalat'] ?? 0 }}</div>
-        </div>
+        </a>
+        <a href="{{ $simStatUrl(['status' => $abscondedActive ? null : 'user_absconded']) }}" class="total-card total-user-absconded{{ $abscondedActive ? ' is-active' : '' }}" title="{{ $abscondedActive ? 'Clear User Absconded filter' : 'Show SIMs assigned to absconded users' }}">
+          <div class="label"><i class="fa fa-user-secret"></i>User Absconded</div>
+          <div class="value" id="total_user_absconded">{{ $stats['user_absconded'] ?? 0 }}</div>
+        </a>
+        @foreach(($stats['companies'] ?? []) as $i => $companyStat)
+        @php
+          $companyKey = (string) ($companyStat['id'] ?? '');
+          $companyIsActive = $currentCompany !== '' && (
+              $currentCompany === $companyKey || $currentCompany === (string) ($companyStat['name'] ?? '')
+          );
+        @endphp
+        <a href="{{ $simStatUrl(['company' => $companyIsActive ? null : $companyKey]) }}" class="total-card total-sim-company total-sim-company-{{ $i % 3 }}{{ $companyIsActive ? ' is-active' : '' }}" title="{{ $companyIsActive ? 'Clear '.$companyStat['name'].' filter' : 'Show '.$companyStat['name'].' SIMs' }}">
+          <div class="label"><i class="fa fa-building"></i>{{ $companyStat['name'] }} Sims</div>
+          <div class="value">{{ $companyStat['count'] ?? 0 }}</div>
+        </a>
+        @endforeach
       </div>
     </div>
   </div>
@@ -79,12 +110,16 @@
         </td>@endif
         @if($vf('rider_name'))<td>
           @if($r->assign_to)
+          @php $assigneeAbsconded = $r->assigneeIsAbsconded(); @endphp
           @if($r->assign_type === 'employee' && $r->employee)
           <a href="{{ route('employees.show', $r->employee->id) }}" class="table-link">{{ $r->employee->name }}</a>
           @elseif($r->riders)
           <a href="{{ route('riders.show', $r->riders->id) }}" class="table-link">{{ $r->riders->name }}</a>
           @else
           -
+          @endif
+          @if($assigneeAbsconded)
+          <span class="badge bg-label-danger ms-1">Absconded</span>
           @endif
           @else
           -
@@ -98,13 +133,8 @@
           @endif
         </td>@endif
         @if($vf('status'))<td>
-          @if($r->status === null)
-          <span class="badge bg-secondary">Unknown</span>
-          @elseif($r->status)
-          <span class="badge bg-success" style="font-size: 0.8rem;">Active</span>
-          @else
-          <span class="badge bg-danger">Inactive</span>
-          @endif
+          @php $simStatus = \App\Models\Sims::statusDisplay($r->status); @endphp
+          <span class="badge {{ $simStatus['badge'] }}" style="font-size: 0.8rem;">{{ $simStatus['label'] }}</span>
         </td>@endif
         <td style="position: relative;">
           <div class="dropdown sim-table-action-dropdown">

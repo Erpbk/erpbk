@@ -50,13 +50,8 @@
             @endif
          </td>
          <td>
-            @if($r->status === null)
-               <span class="badge bg-secondary">Unknown</span>
-            @elseif($r->status)
-               <span class="badge bg-success" style="font-size: 0.8rem;">Active</span>
-            @else
-               <span class="badge bg-danger">Inactive</span>
-            @endif
+            @php $simStatus = \App\Models\Sims::statusDisplay($r->status); @endphp
+            <span class="badge {{ $simStatus['badge'] }}" style="font-size: 0.8rem;">{{ $simStatus['label'] }}</span>
          </td>
          <td>
             <small class="text-muted">

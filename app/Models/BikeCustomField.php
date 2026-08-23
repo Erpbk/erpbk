@@ -235,6 +235,57 @@ class BikeCustomField extends BaseModel
         return $spec;
     }
 
+    public static function isSelectPlaceholderLabel(?string $label): bool
+    {
+        $lower = mb_strtolower(trim((string) $label));
+        if ($lower === '') {
+            return true;
+        }
+
+        return in_array($lower, [
+            'select',
+            'select model',
+            'select warehouse',
+            'select recruiter',
+            'all',
+            'choose your option',
+            'choose an option',
+            'select value',
+            'select...',
+            'please select',
+        ], true);
+    }
+
+    /**
+     * Drop empty / "Select" / "All" entries so the form can use a single placeholder.
+     *
+     * @param  array<int|string, mixed>  $opts
+     * @return array<int|string, string>
+     */
+    public static function withoutPlaceholderSelectOptions(array $opts): array
+    {
+        $clean = [];
+        foreach ($opts as $value => $label) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $labelStr = trim((string) $label);
+            if (self::isSelectPlaceholderLabel($labelStr)) {
+                continue;
+            }
+            $clean[$value] = $labelStr;
+        }
+
+        return $clean;
+    }
+
+    public static function selectPlaceholderLabel(?string $fieldLabel): string
+    {
+        $fieldLabel = trim((string) $fieldLabel);
+
+        return $fieldLabel !== '' ? ('Select ' . $fieldLabel) : 'Select';
+    }
+
     /**
      * Select options for a fixed bikes column when it renders as a select on the bike form:
      * explicit newline options, or related-table / Common::Dropdowns sources (same as _form_field.blade.php).
@@ -333,19 +384,8 @@ class BikeCustomField extends BaseModel
         }
 
         $choices = [];
-        foreach ($opts as $value => $label) {
-            if ($value === null || $value === '') {
-                continue;
-            }
-            $labelStr = trim((string) $label);
-            if ($labelStr === '') {
-                continue;
-            }
-            $lower = mb_strtolower($labelStr);
-            if (in_array($lower, ['select', 'select model', 'all'], true)) {
-                continue;
-            }
-            $choices[] = ['value' => (string) $value, 'label' => $labelStr];
+        foreach (self::withoutPlaceholderSelectOptions($opts) as $value => $label) {
+            $choices[] = ['value' => (string) $value, 'label' => $label];
         }
 
         return $choices;

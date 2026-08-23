@@ -107,9 +107,11 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
                 $el.addClass('select2');
 
                 var $modalParent = $el.closest('.modal, .offcanvas');
+                var emptyOptionText = $.trim($el.find('option[value=""]').first().text());
                 var options = {
                     width: '100%',
-                    allowClear: true
+                    allowClear: true,
+                    placeholder: emptyOptionText || $el.data('placeholder') || 'Select'
                 };
 
                 if ($modalParent.length) {

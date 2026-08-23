@@ -141,12 +141,14 @@ $value = 'own';
     if (empty($opts) && !empty($dropdownKey)) {
     $opts = ['' => 'Select'] + (array) \App\Helpers\Common::Dropdowns($dropdownKey);
     }
-    if (empty($opts)) {
-    $opts = ['' => 'Select'];
+                if (empty($opts)) {
+                    $opts = [];
+                }
+                break;
     }
-    break;
     }
-    }
+    $opts = \App\Models\BikeCustomField::withoutPlaceholderSelectOptions($opts);
+    $selectPlaceholder = \App\Models\BikeCustomField::selectPlaceholderLabel($item->label);
     @endphp
 
     {!! Form::select(
@@ -157,6 +159,7 @@ $value = 'own';
     'class' => 'form-select select2',
     'id' => $fieldId,
     'required' => $req,
+    'placeholder' => $selectPlaceholder,
     ] + $rfpSelectLock
     ) !!}
     @elseif (($spec['type'] ?? '') === 'textarea')
@@ -265,15 +268,17 @@ $value = 'own';
     @case('dropdown')
     @php
     $lines = isset($f->config['options']) ? preg_split('/\r\n|\r|\n/', (string) $f->config['options']) : [];
-    $dd = ['' => 'Select'];
+    $dd = [];
     foreach ($lines as $line) {
     $line = trim($line);
     if ($line !== '') {
     $dd[$line] = $line;
     }
     }
+    $dd = \App\Models\BikeCustomField::withoutPlaceholderSelectOptions($dd);
+    $selectPlaceholder = \App\Models\BikeCustomField::selectPlaceholderLabel($f->label);
     @endphp
-    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req] + $rfpSelectLock) !!}
+    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req, 'placeholder' => $selectPlaceholder] + $rfpSelectLock) !!}
     @break
 
     @case('checkbox')

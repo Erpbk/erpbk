@@ -273,7 +273,7 @@
   .rider-inventory-count-badge {
     min-width: 1.1rem;
     padding: 0.15rem;
-    margin-left: 5px;
+    margin-left: 0;
     font-size: 0.8rem;
     line-height: 1.2;
     vertical-align: middle;
@@ -291,9 +291,81 @@
     }
   }
 
+  .rider-profile-tabs,
+  .rider-profile-tabs .card,
+  .rider-profile-tabs .card-body,
+  .rider-profile-tabs #mainNavigation,
+  .rider-profile-tabs #mainNavigation .nav-item,
+  .rider-profile-tabs #mainNavigation .nav-link {
+    overflow: visible;
+  }
 
-  .nav-align-top.has-expired-docs #mainNavigation {
-    overflow: visible !important;
+  .rider-profile-tabs #mainNavigation .nav-link {
+    position: relative;
+  }
+
+  .rider-profile-tabs #mainNavigation .nav-item:hover,
+  .rider-profile-tabs #mainNavigation .nav-item:has(> .nav-link.active) {
+    z-index: 8;
+  }
+
+  .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link .rider-expired-docs-bubble {
+    position: absolute;
+    left: 50%;
+    right: auto;
+    top: auto;
+    bottom: calc(100% + 0.2rem);
+    transform: translateX(-50%);
+    margin: 0;
+    pointer-events: none;
+    box-sizing: border-box;
+    max-width: none;
+    max-height: none;
+    opacity: 0;
+    visibility: hidden;
+    z-index: 20;
+  }
+
+  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link.active .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link.active .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link.active .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link.active .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-expired-docs-bubble,
+  .rider-profile-tabs #mainNavigation .nav-link.active .rider-expired-docs-bubble,
+  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-expired-docs-bubble {
+    opacity: 1;
+    visibility: visible;
+    animation: rider-expired-tab-blink 1.1s ease-in-out infinite;
+  }
+
+  .rider-profile-tabs #mainNavigation .nav-link .rider-doc-status-bubble {
+    position: static;
+    transform: none;
+    max-width: none;
+    overflow: visible;
+    animation: none;
+  }
+
+  .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.12rem;
+    overflow: visible;
+    white-space: nowrap;
   }
 
   .nav-link.rider-expired-count-link {
@@ -302,8 +374,6 @@
 
   .rider-expired-count-dot {
     position: absolute;
-    top: -0.35rem;
-    right: -0.15rem;
     min-width: 1.15rem;
     height: 1.15rem;
     padding: 0 0.28rem;
@@ -318,37 +388,21 @@
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 0 2px #fff;
-    animation: rider-expired-tab-blink 0.9s ease-in-out infinite;
   }
 
   .rider-expired-docs-bubble {
     position: absolute;
-    left: 50%;
-    bottom: calc(100% + 10px);
-    transform: translateX(-50%);
     background: #e53935;
     color: #fff;
     font-size: 0.75rem;
     font-weight: 700;
     white-space: nowrap;
-    padding: 0.38rem 0.7rem;
+    padding: 0.2rem 0.45rem;
     border-radius: 0.4rem;
     line-height: 1.2;
     pointer-events: none;
     z-index: 20;
     box-shadow: 0 4px 12px rgba(229, 57, 53, 0.28);
-    animation: rider-expired-tab-blink 1.1s ease-in-out infinite;
-  }
-
-  .rider-expired-docs-bubble::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    margin-left: -6px;
-    border-width: 6px;
-    border-style: solid;
-    border-color: #e53935 transparent transparent transparent;
   }
 
   .rider-view-card {
@@ -1010,7 +1064,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         <div class="card-body p-2">
           <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
             <div class="flex-grow-1" style="min-width: 0;">
-              <ul class="nav nav-pills flex-nowrap mb-0 overflow-hidden" id="mainNavigation" style="gap: 0.25rem;">
+              <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation" style="gap: 0.25rem;">
                 <!-- Priority navigation items (always visible when possible) -->
                 <li class="nav-item nav-priority-1">
                   <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
@@ -1405,7 +1459,11 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         const link = navItem.element.querySelector('.nav-link');
         const href = link.getAttribute('href');
         const icon = link.querySelector('i');
-        const text = link.textContent.trim();
+        const text = Array.from(link.childNodes)
+          .filter((node) => node.nodeType === Node.TEXT_NODE)
+          .map((node) => node.textContent.trim())
+          .filter(Boolean)
+          .join(' ');
         const isActive = link.classList.contains('active');
         const isActionItem = navItem.element.classList.contains('nav-action-item');
 
@@ -1811,16 +1869,18 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         max-width: 100%;
         border-radius: 0.5rem;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: visible;
       }
       
       .nav-align-top .card-body {
         padding: 0.75rem 1rem !important;
+        overflow: visible;
       }
       
       #mainNavigation {
         display: flex;
         flex-wrap: nowrap;
-        overflow: hidden;
+        overflow: visible;
         list-style: none;
         margin: 0;
         padding: 0;
@@ -1840,7 +1900,9 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         text-decoration: none;
         display: flex;
         align-items: center;
-        transition: all 0.2s ease;
+        position: relative;
+        overflow: visible;
+        transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
       }
       
       .overflow-nav-item {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Accounts;
+use App\Models\BikeCustomField;
 use App\Models\ModuleCustomField;
 use App\Models\ModuleDocumentType;
 use App\Models\ModuleFieldCategoryAssignment;
@@ -1052,6 +1053,11 @@ class ModuleSettingsController extends Controller
             'is_required' => 'nullable|boolean',
             'input_type' => 'nullable|string|max:50',
             'input_config_options' => 'nullable|string',
+            'config' => 'nullable',
+            'help_text' => 'nullable|string|max:1000',
+            'default_value' => 'nullable|string|max:500',
+            'input_format' => 'nullable|string|max:100',
+            'prevent_duplicate_values' => 'nullable|boolean',
         ]);
 
         $fieldKey = trim((string) $validated['field_key']);
@@ -1095,10 +1101,17 @@ class ModuleSettingsController extends Controller
             $payload['input_type'] = ($inputType === '' ? null : $inputType);
         }
 
-        if (array_key_exists('input_config_options', $validated)) {
-            $payload['input_config'] = !empty($validated['input_config_options'])
-                ? ['options' => $validated['input_config_options']]
-                : null;
+        if ($request->exists('help_text') || $request->exists('config')) {
+            $payload['input_config'] = BikeCustomField::assignmentInputConfigFromRequest(
+                $request,
+                $payload['input_type'] ?? ($existingAssignment?->input_type ?? null)
+            );
+        } elseif (array_key_exists('input_config_options', $validated)) {
+            $existing = is_array($existingAssignment?->input_config) ? $existingAssignment->input_config : [];
+            if (!empty($validated['input_config_options'])) {
+                $existing['options'] = $validated['input_config_options'];
+            }
+            $payload['input_config'] = $existing ?: null;
         }
 
         $assignment = ModuleFieldCategoryAssignment::query()->updateOrCreate(
@@ -1249,32 +1262,35 @@ class ModuleSettingsController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'data_type' => ['required', Rule::in($allowedTypes)],
             'is_mandatory' => 'nullable|boolean',
+            'is_visible' => 'nullable|boolean',
+            'prevent_duplicate_values' => 'nullable|boolean',
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
             'category_id' => ['nullable', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'config' => 'nullable',
             'config_options' => 'nullable|string',
         ]);
 
-        $config = null;
-        if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {
-            $config = ['options' => $validated['config_options']];
-        }
-
+        $meta = BikeCustomField::formMetaFromRequest($request);
         $defaultCategoryId = (int) app(ModuleDefaultCategoryService::class)->ensureForModule($module)->id;
+        $table = (new ModuleCustomField())->getTable();
 
-        ModuleCustomField::create([
+        ModuleCustomField::create(BikeCustomField::payloadForTable($table, [
             'module_key' => $module,
             'company_id' => \App\Support\CompanyContext::id(),
             'category_id' => $validated['category_id'] ?? $defaultCategoryId,
             'label' => $validated['label'],
-            'help_text' => $validated['help_text'] ?? null,
+            'help_text' => $meta['help_text'],
+            'data_privacy' => $meta['data_privacy'],
+            'prevent_duplicate_values' => $meta['prevent_duplicate_values'],
             'data_type' => $validated['data_type'],
-            'is_mandatory' => filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN),
-            'default_value' => $validated['default_value'] ?? null,
-            'input_format' => $validated['input_format'] ?? null,
-            'config' => $config,
+            'is_mandatory' => $meta['is_mandatory'],
+            'is_visible' => $meta['is_visible'],
+            'default_value' => $meta['default_value'],
+            'input_format' => $meta['input_format'],
+            'config' => $meta['config'],
             'display_order' => ((int) ModuleCustomField::where('module_key', $module)->max('display_order')) + 1,
-        ]);
+        ]));
 
         return back()->with('success', 'Custom field added.');
     }
@@ -1289,27 +1305,29 @@ class ModuleSettingsController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'data_type' => ['required', Rule::in($allowedTypes)],
             'is_mandatory' => 'nullable|boolean',
+            'is_visible' => 'nullable|boolean',
+            'prevent_duplicate_values' => 'nullable|boolean',
             'default_value' => 'nullable|string|max:500',
             'input_format' => 'nullable|string|max:100',
             'category_id' => ['nullable', 'integer', $this->categoryBelongsToModuleRule($module)],
+            'config' => 'nullable',
             'config_options' => 'nullable|string',
         ]);
 
-        $config = null;
-        if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {
-            $config = ['options' => $validated['config_options']];
-        }
-
-        $field->update([
+        $meta = BikeCustomField::formMetaFromRequest($request);
+        $field->update(BikeCustomField::payloadForTable($field->getTable(), [
             'category_id' => $validated['category_id'] ?? null,
             'label' => $validated['label'],
-            'help_text' => $validated['help_text'] ?? null,
+            'help_text' => $meta['help_text'],
+            'data_privacy' => $meta['data_privacy'],
+            'prevent_duplicate_values' => $meta['prevent_duplicate_values'],
             'data_type' => $validated['data_type'],
-            'is_mandatory' => filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN),
-            'default_value' => $validated['default_value'] ?? null,
-            'input_format' => $validated['input_format'] ?? null,
-            'config' => $config,
-        ]);
+            'is_mandatory' => $meta['is_mandatory'],
+            'is_visible' => $meta['is_visible'],
+            'default_value' => $meta['default_value'],
+            'input_format' => $meta['input_format'],
+            'config' => $meta['config'],
+        ]));
 
         return back()->with('success', 'Custom field updated.');
     }

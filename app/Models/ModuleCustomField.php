@@ -12,8 +12,11 @@ class ModuleCustomField extends BaseModel
         'category_id',
         'label',
         'help_text',
+        'data_privacy',
+        'prevent_duplicate_values',
         'data_type',
         'is_mandatory',
+        'is_visible',
         'default_value',
         'input_format',
         'config',
@@ -22,6 +25,9 @@ class ModuleCustomField extends BaseModel
 
     protected $casts = [
         'is_mandatory' => 'boolean',
+        'is_visible' => 'boolean',
+        'prevent_duplicate_values' => 'boolean',
+        'data_privacy' => 'array',
         'config' => 'array',
     ];
 

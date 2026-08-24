@@ -19,7 +19,9 @@ $formatBikeDateInput = function ($raw, bool $asDatetime = false): ?string {
 
 if ($item->kind === 'fixed') {
 $name = $item->field_key;
-$value = old($item->field_key, $isEdit ? ($bikes->{$item->field_key} ?? null) : null);
+$fixedDefault = ($item->spec['default'] ?? null);
+$storedFixed = $isEdit ? ($bikes->{$item->field_key} ?? null) : $fixedDefault;
+$value = old($item->field_key, $storedFixed);
 } else {
 // Custom fields are stored in bikes.custom_field_values as an array keyed by field id.
 $name = 'custom_field_values[' . $item->field->id . ']';
@@ -141,12 +143,14 @@ $value = 'own';
     if (empty($opts) && !empty($dropdownKey)) {
     $opts = ['' => 'Select'] + (array) \App\Helpers\Common::Dropdowns($dropdownKey);
     }
-    if (empty($opts)) {
-    $opts = ['' => 'Select'];
+                if (empty($opts)) {
+                    $opts = [];
+                }
+                break;
     }
-    break;
     }
-    }
+    $opts = \App\Models\BikeCustomField::withoutPlaceholderSelectOptions($opts);
+    $selectPlaceholder = \App\Models\BikeCustomField::selectPlaceholderLabel($item->label);
     @endphp
 
     {!! Form::select(
@@ -157,6 +161,7 @@ $value = 'own';
     'class' => 'form-select select2',
     'id' => $fieldId,
     'required' => $req,
+    'placeholder' => $selectPlaceholder,
     ] + $rfpSelectLock
     ) !!}
     @elseif (($spec['type'] ?? '') === 'textarea')
@@ -164,7 +169,13 @@ $value = 'own';
     {!! Form::textarea(
     $item->field_key,
     $value,
-    ['class' => 'form-control', 'rows' => $spec['rows'] ?? 3, 'required' => $req] + $rfpLock
+    [
+    'class' => 'form-control',
+    'rows' => $spec['rows'] ?? 3,
+    'required' => $req,
+    'maxlength' => $spec['maxlength'] ?? null,
+    'placeholder' => $spec['placeholder'] ?? null,
+    ] + $rfpLock
     ) !!}
     @elseif (($spec['type'] ?? '') === 'checkbox')
     <div class="form-check mt-4">
@@ -173,10 +184,16 @@ $value = 'own';
         $hiddenValue = $item->field_key === 'status' ? '2' : '0';
         @endphp
         <input type="hidden" name="{{ $item->field_key }}" value="{{ $hiddenValue }}" />
+        @php
+        $checked = $value == 1 || $value === true;
+        if ($item->field_key !== 'status' && !$isEdit && ($value === null || $value === '' || $value === false) && !empty($spec['default_checked'])) {
+            $checked = true;
+        }
+        @endphp
         {!! Form::checkbox(
         $item->field_key,
         $spec['value'] ?? 1,
-        $value == 1 || $value === true,
+        $checked,
         ['class' => 'form-check-input', 'id' => 'field_' . $item->field_key] + $rfpSelectLock
         ) !!}
         {!! Form::label(
@@ -220,11 +237,18 @@ $value = 'own';
     'class' => 'form-control',
     'id' => $fieldId,
     'required' => $req,
-    // Add max-length if provided via config/spec.
     'maxlength' => $spec['maxlength'] ?? null,
+    'placeholder' => $spec['placeholder'] ?? null,
+    'min' => $spec['min'] ?? null,
+    'max' => $spec['max'] ?? null,
+    'step' => $spec['step'] ?? null,
     'autocomplete' => 'off',
     ] + $rfpLock
     ) !!}
+    @endif
+
+    @if (!empty($spec['help_text']))
+    <p class="form-text small text-muted mb-1">{{ $spec['help_text'] }}</p>
     @endif
 
     @error($item->field_key)
@@ -242,7 +266,7 @@ $value = 'own';
 
     @switch($f->data_type)
     @case('textarea')
-    {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4, 'required' => $req] + $rfpLock) !!}
+    {!! Form::textarea($name, $value, ['class' => 'form-control', 'rows' => $f->config['rows'] ?? 4, 'maxlength' => $f->config['max_length'] ?? null, 'required' => $req] + $rfpLock) !!}
     @break
 
     @case('number')
@@ -265,15 +289,17 @@ $value = 'own';
     @case('dropdown')
     @php
     $lines = isset($f->config['options']) ? preg_split('/\r\n|\r|\n/', (string) $f->config['options']) : [];
-    $dd = ['' => 'Select'];
+    $dd = [];
     foreach ($lines as $line) {
     $line = trim($line);
     if ($line !== '') {
     $dd[$line] = $line;
     }
     }
+    $dd = \App\Models\BikeCustomField::withoutPlaceholderSelectOptions($dd);
+    $selectPlaceholder = \App\Models\BikeCustomField::selectPlaceholderLabel($f->label);
     @endphp
-    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req] + $rfpSelectLock) !!}
+    {!! Form::select($name, $dd, $value, ['class' => 'form-select select2', 'required' => $req, 'placeholder' => $selectPlaceholder] + $rfpSelectLock) !!}
     @break
 
     @case('checkbox')

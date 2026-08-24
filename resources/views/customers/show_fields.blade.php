@@ -1,64 +1,25 @@
 @php $vf = static fn (string $f): bool => field_visible('customer', $f); @endphp
 @if($vf('name'))
-<!-- Name Field -->
-<div class="col-sm-12">
-    {!! Form::label('name', 'Name:') !!}
-    <p>{{ $customers->name }}</p>
-</div>
+<x-entity-info-field label="Project Name" :value="$customers->name" />
 @endif
-
 @if($vf('company_name'))
-<!-- Company Name Field -->
-<div class="col-sm-12">
-    {!! Form::label('company_name', 'Company Name:') !!}
-    <p>{{ $customers->company_name }}</p>
-</div>
+<x-entity-info-field label="Company Name" :value="$customers->company_name" />
 @endif
-
 @if($vf('company_email'))
-<!-- Company Email Field -->
-<div class="col-sm-12">
-    {!! Form::label('company_email', 'Company Email:') !!}
-    <p>{{ $customers->company_email }}</p>
-</div>
+<x-entity-info-field label="Company Email" :value="$customers->company_email" />
 @endif
-
 @if($vf('contact_number'))
-<!-- Contact Number Field -->
-<div class="col-sm-12">
-    {!! Form::label('contact_number', 'Contact Number:') !!}
-    <p>{{ $customers->contact_number }}</p>
-</div>
+<x-entity-info-field label="Contact Number" :value="$customers->contact_number" />
 @endif
-
 @if($vf('address'))
-<!-- Address Field -->
-<div class="col-sm-12">
-    {!! Form::label('address', 'Address:') !!}
-    <p>{{ $customers->address }}</p>
-</div>
+<x-entity-info-field label="Address" :value="$customers->address" />
 @endif
-
 @if($vf('tax_number'))
-<!-- Tax Number Field -->
-<div class="col-sm-12">
-    {!! Form::label('tax_number', 'Tax Number:') !!}
-    <p>{{ $customers->tax_number }}</p>
-</div>
+<x-entity-info-field label="TRN" :value="$customers->tax_number" />
 @endif
-
-@if($vf('status'))
-<!-- Status Field -->
-<div class="col-sm-12">
-    {!! Form::label('status', 'Status:') !!}
-    <p>{{ $customers->status }}</p>
-</div>
-@endif
-
 @if($vf('tax_percentage'))
-<!-- Tax Percentage Field -->
-<div class="col-sm-12">
-    {!! Form::label('tax_percentage', 'Tax Percentage:') !!}
-    <p>{{ $customers->tax_percentage }}</p>
-</div>
+<x-entity-info-field label="Tax %" :value="$customers->tax_percentage" />
+@endif
+@if($vf('status'))
+<x-entity-info-field label="Status" :value="((int) $customers->status === 1) ? 'Active' : 'Inactive'" />
 @endif

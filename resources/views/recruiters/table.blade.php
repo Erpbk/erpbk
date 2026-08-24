@@ -18,7 +18,7 @@
         @foreach($data as $r)
       <tr class="text-center" data-id="{{ $r->id }}">
             @if($vf('name'))<td>
-                <a href="{{ route('recruiters.riders', $r->id) }}">{{$r->name}}</a>
+                <a href="{{ route('recruiters.show', $r->id) }}">{{$r->name}}</a>
                 <br />
             </td>@endif
             @if($vf('email'))<td>{{$r->email }}</td>@endif

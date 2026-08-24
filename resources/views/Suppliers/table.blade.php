@@ -29,7 +29,7 @@
                <span class="text-muted small">Locked</span>
             @else
             <div class='btn-group'>
-               <a href="{{ route('suppliers.show', $r->id) }}"  class='btn btn-default btn-sm show-modal'>
+               <a href="{{ route('suppliers.show', $r->id) }}" class='btn btn-default btn-sm'>
                     <i class="fa fa-eye"></i>
                 </a> 
                @can('suppliers_supplier_edit')

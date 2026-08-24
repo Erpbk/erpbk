@@ -50,6 +50,7 @@
                     <tr>
                         <th width="50">#</th>
                         <th class="text-start">Document</th>
+                        <th class="text-start">Expiry</th>
                         <th width="120" class="text-end">Action</th>
                     </tr>
                 </thead>
@@ -143,10 +144,11 @@
                             <td class="row-counter">{{ $counter++ }}</td>
                             <td class="text-start">
                                 <a href="{{ storage_url($riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name) }}" target="_blank">
-                                    {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
-                                </a>
-                            </td>
-                            <td class="text-end">
+                                {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
+                            </a>
+                        </td>
+                        @include('partials.entity_file_expiry_cell', ['file' => $riderFile])
+                        <td class="text-end">
                                 @can('cash_&_banks_banks_delete')
                                 <a href="javascript:void(0);"
                                     data-url="{{ route('files.destroy', $riderFile->id) }}"
@@ -166,10 +168,11 @@
                             <td class="row-counter">{{ $counter++ }}</td>
                             <td class="text-start">
                                 <a href="{{ storage_url($riderFile->type . '/'.$riderFile->type_id.'/'.$riderFile->file_name) }}" target="_blank">
-                                    {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
-                                </a>
-                            </td>
-                            <td class="text-end">
+                                {{ ucwords(str_replace('_', ' ', $riderFile->name)) }}
+                            </a>
+                        </td>
+                        @include('partials.entity_file_expiry_cell', ['file' => $riderFile])
+                        <td class="text-end">
                                 @can('cash_&_banks_banks_delete')
                                 <a href="javascript:void(0);"
                                     data-url="{{ route('files.destroy', $riderFile->id) }}"
@@ -185,9 +188,10 @@
                         @if(!empty($missingFiles))
                         @foreach($missingFiles as $key => $fileName)
                         <tr class="file-row" data-name="{{ strtolower($fileName) }}">
-                            <td class="row-counter">{{ $counter++ }}</td>
-                            <td class="text-start">{{ $fileName }}</td>
-                            <td class="text-end">
+                        <td class="row-counter">{{ $counter++ }}</td>
+                        <td class="text-start">{{ $fileName }}</td>
+                        @include('partials.entity_file_expiry_cell')
+                        <td class="text-end">
                                 @can('cash_&_banks_banks_create')
                                 <a class="btn btn-sm btn-primary show-modal action-btn"
                                     href="javascript:void(0);"
@@ -208,7 +212,7 @@
                 </tbody>
                 <tfoot id="no-results" style="display: none;">
                     <tr>
-                        <td colspan="3" class="text-center py-4">
+                        <td colspan="4" class="text-center py-4">
                             <div class="text-muted">
                                 <i class="ti ti-search-off fs-4 mb-2"></i>
                                 <p class="mb-0">No documents found</p>

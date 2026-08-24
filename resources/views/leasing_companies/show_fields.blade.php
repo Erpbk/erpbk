@@ -1,40 +1,19 @@
 @php $vf = static fn (string $f): bool => field_visible('leasing', $f); @endphp
 @if($vf('name'))
-<!-- Name Field -->
-<div class="col-sm-12">
-    {!! Form::label('name', 'Name:') !!}
-    <p>{{ $leasingCompanies->name }}</p>
-</div>
+<x-entity-info-field label="Name" :value="$leasingCompanies->name" />
 @endif
-
 @if($vf('contact_person'))
-<!-- Contact Person Field -->
-<div class="col-sm-12">
-    {!! Form::label('contact_person', 'Contact Person:') !!}
-    <p>{{ $leasingCompanies->contact_person }}</p>
-</div>
+<x-entity-info-field label="Contact Person" :value="$leasingCompanies->contact_person" />
 @endif
-
 @if($vf('contact_number'))
-<!-- Contact Number Field -->
-<div class="col-sm-12">
-    {!! Form::label('contact_number', 'Contact Number:') !!}
-    <p>{{ $leasingCompanies->contact_number }}</p>
-</div>
+<x-entity-info-field label="Contact Number" :value="$leasingCompanies->contact_number" />
 @endif
-
+@if($vf('trn_number'))
+<x-entity-info-field label="TRN" :value="$leasingCompanies->trn_number ?? null" />
+@endif
 @if($vf('detail'))
-<!-- Detail Field -->
-<div class="col-sm-12">
-    {!! Form::label('detail', 'Detail:') !!}
-    <p>{{ $leasingCompanies->detail }}</p>
-</div>
+<x-entity-info-field class="col-md-12" label="Detail" :value="$leasingCompanies->detail" />
 @endif
-
 @if($vf('status'))
-<!-- Status Field -->
-<div class="col-sm-12">
-    {!! Form::label('status', 'Status:') !!}
-    <p>{{ $leasingCompanies->status }}</p>
-</div>
+<x-entity-info-field label="Status" :value="((int) $leasingCompanies->status === 1) ? 'Active' : 'Inactive'" />
 @endif

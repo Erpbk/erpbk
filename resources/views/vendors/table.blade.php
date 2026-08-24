@@ -18,7 +18,7 @@
       @foreach($data as $r)
       @php $vendorPendingDeletion = record_is_pending_deletion($r); @endphp
       <tr class="text-center {{ $vendorPendingDeletion ? 'table-warning' : '' }}">
-         @if($vf('name'))<td>{{$r->name}} @include('delete_requests._pending_badge', ['model' => $r])<br /></td>@endif
+         @if($vf('name'))<td><a href="{{ route('vendors.show', $r->id) }}">{{$r->name}}</a> @include('delete_requests._pending_badge', ['model' => $r])<br /></td>@endif
          @if($vf('email'))<td>{{$r->email }}</td>@endif
          @if($vf('contact_number'))<td>{{$r->contact_number }}</td>@endif
          @if($vf('status'))<td>

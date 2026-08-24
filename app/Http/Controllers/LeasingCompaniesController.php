@@ -151,7 +151,10 @@ class LeasingCompaniesController extends AppBaseController
             return redirect(route('leasingCompanies.index'));
         }
 
-        return view('leasing_companies.show')->with('leasingCompanies', $leasingCompanies);
+        return view('leasing_companies.show', [
+            'leasingCompanies' => $leasingCompanies,
+            'leasingCompany' => $leasingCompanies,
+        ]);
     }
 
     /**

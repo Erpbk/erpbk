@@ -1,83 +1,47 @@
-@extends('layouts.app')
+@extends('bike_rent_companies.view')
 
-@section('title', 'Bike on rent customer')
-@section('content')
-<section class="content-header">
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h3>{{ $bikeRentCompany->name }}</h3>
-            </div>
-            <div class="col-sm-6 text-end">
-                @canany(['bike_on_rent_customers_edit', 'garages_customers_edit'])
-                <a href="javascript:void(0);" class="btn btn-primary show-modal" data-action="{{ route('bikeRentCompanies.edit', $bikeRentCompany->id) }}" data-title="Edit customer" data-size="lg">Edit</a>
-                @endcanany
-                <a href="{{ route('bikeRentCompanies.index') }}" class="btn btn-secondary">Back to list</a>
-            </div>
-        </div>
-    </div>
-</section>
-<div class="content px-3">
-    @include('flash::message')
-    <div class="card">
-        <div class="card-body">
-            @php $vf = static fn (string $f): bool => field_visible('bike_rent_company', $f); @endphp
-            <dl class="row mb-0">
-                @if($vf('name'))<dt class="col-sm-3">Name</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->name }}</dd>@endif
-                @if($bikeRentCompany->customer_type === 'bike_rental')
-                <dt class="col-sm-3">Type</dt>
-                <dd class="col-sm-9">
-                    @if($bikeRentCompany->party_type === 'individual')
-                        <span class="badge bg-info">Individual</span>
-                    @else
-                        <span class="badge bg-secondary">Company</span>
-                    @endif
-                </dd>
-                @endif
-                @if($vf('company_contact'))<dt class="col-sm-3">Contact</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->company_contact ?: '—' }}</dd>@endif
-                @if($vf('email'))<dt class="col-sm-3">Email</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->email ?: '—' }}</dd>@endif
-                @if($vf('address'))<dt class="col-sm-3">Address</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->address ?: '—' }}</dd>@endif
-                @if($bikeRentCompany->party_type === 'individual')
-                <dt class="col-sm-3">Emirates ID</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->emirates_id ?: '—' }}</dd>
-                <dt class="col-sm-3">Emirates ID expiry</dt>
-                <dd class="col-sm-9">{{ optional($bikeRentCompany->emirates_expiry)->format('d-m-Y') ?: '—' }}</dd>
-                <dt class="col-sm-3">Passport no</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->passport_no ?: '—' }}</dd>
-                <dt class="col-sm-3">Passport expiry</dt>
-                <dd class="col-sm-9">{{ optional($bikeRentCompany->passport_expiry)->format('d-m-Y') ?: '—' }}</dd>
-                <dt class="col-sm-3">Date of birth</dt>
-                <dd class="col-sm-9">{{ optional($bikeRentCompany->dob)->format('d-m-Y') ?: '—' }}</dd>
-                <dt class="col-sm-3">Nationality</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->nationality ?: '—' }}</dd>
-                <dt class="col-sm-3">License no</dt>
-                <dd class="col-sm-9">{{ $bikeRentCompany->license_no ?: '—' }}</dd>
-                <dt class="col-sm-3">License expiry</dt>
-                <dd class="col-sm-9">{{ optional($bikeRentCompany->license_expiry)->format('d-m-Y') ?: '—' }}</dd>
-                @endif
-                @if($vf('status'))<dt class="col-sm-3">Status</dt>
-                <dd class="col-sm-9">
-                    @if($bikeRentCompany->status == 1)
-                        <span class="badge bg-success">Active</span>
-                    @else
-                        <span class="badge bg-danger">Inactive</span>
-                    @endif
-                </dd>@endif
-                <dt class="col-sm-3">Chart of accounts</dt>
-                <dd class="col-sm-9">
-                    @if($bikeRentCompany->account)
-                        <strong>{{ $bikeRentCompany->account->account_code }}</strong> — {{ $bikeRentCompany->account->name }}
-                        <span class="text-muted">(ID {{ $bikeRentCompany->account_id }})</span>
-                    @else
-                        —
-                    @endif
-                </dd>
-            </dl>
-        </div>
-    </div>
-</div>
+@section('page_content')
+@php
+    $bikeRentCompany = $bikeRentCompany ?? $customer ?? null;
+    $vf = static fn (string $f): bool => field_visible('bike_rent_company', $f);
+@endphp
+<x-entity-info-card
+    title="Customer Information"
+    icon="ti ti-building"
+    :edit-url="isset($bikeRentCompany) ? route('bikeRentCompanies.edit', $bikeRentCompany->id) : null"
+    edit-title="Edit customer"
+>
+    @if($vf('name'))
+    <x-entity-info-field label="Name" :value="$bikeRentCompany->name" />
+    @endif
+    @if($bikeRentCompany->customer_type === 'bike_rental')
+    <x-entity-info-field label="Type" :value="$bikeRentCompany->party_type === 'individual' ? 'Individual' : 'Company'" />
+    @endif
+    @if($vf('company_contact'))
+    <x-entity-info-field label="Contact" :value="$bikeRentCompany->company_contact" />
+    @endif
+    @if($vf('email'))
+    <x-entity-info-field label="Email" :value="$bikeRentCompany->email" />
+    @endif
+    @if($vf('address'))
+    <x-entity-info-field label="Address" :value="$bikeRentCompany->address" />
+    @endif
+    @if($bikeRentCompany->party_type === 'individual')
+    <x-entity-info-field label="Emirates ID" :value="$bikeRentCompany->emirates_id" />
+    <x-entity-info-field label="Emirates ID expiry" :value="$bikeRentCompany->emirates_expiry" expiry expiry-name="Emirates ID" />
+    <x-entity-info-field label="Passport no" :value="$bikeRentCompany->passport_no" />
+    <x-entity-info-field label="Passport expiry" :value="$bikeRentCompany->passport_expiry" expiry expiry-name="Passport" />
+    <x-entity-info-field label="Date of birth" :value="optional($bikeRentCompany->dob)->format('d-m-Y')" />
+    <x-entity-info-field label="Nationality" :value="$bikeRentCompany->nationality" />
+    <x-entity-info-field label="License no" :value="$bikeRentCompany->license_no" />
+    <x-entity-info-field label="License expiry" :value="$bikeRentCompany->license_expiry" expiry expiry-name="License" />
+    @endif
+    @if($vf('status'))
+    <x-entity-info-field label="Status" :value="((int) $bikeRentCompany->status === 1) ? 'Active' : 'Inactive'" />
+    @endif
+    <x-entity-info-field
+        label="Chart of accounts"
+        :value="$bikeRentCompany->account ? ($bikeRentCompany->account->account_code . ' — ' . $bikeRentCompany->account->name) : null"
+    />
+</x-entity-info-card>
 @endsection

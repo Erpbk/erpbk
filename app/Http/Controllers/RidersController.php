@@ -57,7 +57,6 @@ use App\Services\Permissions\TopBarPermissionSync;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
-use App\Support\CompanyScope;
 use App\Support\RiderDocumentReplacement;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
@@ -89,11 +88,6 @@ class RidersController extends AppBaseController
 
   /** @var RidersRepository */
   private $ridersRepository;
-
-  private function applyCompanyScope($query)
-  {
-    return CompanyScope::apply($query, 'riders.company_id');
-  }
 
   /**
    * Status options from Rider Settings (rider_status top category) for the index filter.
@@ -302,10 +296,7 @@ class RidersController extends AppBaseController
 
   private function findAccessibleRider(int $id): ?Riders
   {
-    $query = Riders::query()->where('id', $id);
-    $this->applyCompanyScope($query);
-
-    return $query->first();
+    return Riders::query()->where('id', $id)->first();
   }
 
   /**
@@ -535,7 +526,6 @@ class RidersController extends AppBaseController
       ->select($indexSelect)
       ->orderBy('days_count', 'asc')
       ->with(['branch', 'customer', 'sim', 'bikes']);
-    $this->applyCompanyScope($query);
     if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
@@ -642,7 +632,6 @@ class RidersController extends AppBaseController
       ->orderBy('days_count', 'desc')
       ->orderBy('riders.id', 'desc')
       ->with(['branch', 'customer', 'sim', 'bikes']);
-    $this->applyCompanyScope($query);
 
     if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');

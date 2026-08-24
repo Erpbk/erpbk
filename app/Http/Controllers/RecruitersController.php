@@ -16,6 +16,8 @@ use App\Traits\TracksCascadingDeletions;
 use Illuminate\Support\Facades\DB;
 use Flash;
 use App\Models\Riders;
+use App\Models\Files;
+use App\DataTables\LedgerDataTable;
 
 class RecruitersController extends AppBaseController
 {
@@ -132,7 +134,50 @@ class RecruitersController extends AppBaseController
             return redirect(route('recruiters.index'));
         }
 
-        return view('recruiters.show')->with('recruiters', $recruiters);
+        return view('recruiters.show')->with([
+            'recruiters' => $recruiters,
+            'recruiter' => $recruiters,
+        ]);
+    }
+
+    public function files($company_slug, $id)
+    {
+        $recruiters = $this->recruitersRepository->find((int) $id);
+
+        if (empty($recruiters)) {
+            Flash::error('Recruiters not found');
+            return redirect(route('recruiters.index'));
+        }
+
+        $files = Files::where(['type' => 'recruiter', 'type_id' => $id])->latest('id')->get();
+
+        return view('recruiters.document', [
+            'files' => $files,
+            'recruiters' => $recruiters,
+            'recruiter' => $recruiters,
+        ]);
+    }
+
+    public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
+    {
+        $recruiters = $this->recruitersRepository->find((int) $id);
+
+        if (empty($recruiters)) {
+            Flash::error('Recruiters not found');
+            return redirect(route('recruiters.index'));
+        }
+
+        if (!$recruiters->account_id) {
+            Flash::error('Recruiter has no associated account.');
+            return redirect(route('recruiters.show', $id));
+        }
+
+        return $ledgerDataTable->with(['account_id' => $recruiters->account_id])
+            ->render('recruiters.ledger', [
+                'recruiters' => $recruiters,
+                'recruiter' => $recruiters,
+                'dataTable' => $ledgerDataTable,
+            ]);
     }
 
     /**
@@ -272,6 +317,7 @@ class RecruitersController extends AppBaseController
 
         return view('recruiters.riders', [
             'recruiter' => $recruiter,
+            'recruiters' => $recruiter,
             'riders' => $riders
         ]);
     }

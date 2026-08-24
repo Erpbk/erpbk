@@ -12,6 +12,8 @@ use App\Models\Accounts;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Traits\GlobalPagination;
+use App\Models\Files;
+use App\DataTables\LedgerDataTable;
 use Flash;
 use Illuminate\Support\Facades\DB;
 
@@ -145,6 +147,41 @@ class GaragesController extends AppBaseController
     }
 
     return view('garages.show')->with('garages', $garages);
+  }
+
+  public function files($company_slug, $id)
+  {
+    $garages = $this->garagesRepository->find($id);
+
+    if (empty($garages)) {
+      Flash::error('Garages not found');
+      return redirect(route('garages.index'));
+    }
+
+    $files = Files::where(['type' => 'garage', 'type_id' => $id])->latest('id')->get();
+
+    return view('garages.document', compact('files', 'garages'));
+  }
+
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
+  {
+    $garages = $this->garagesRepository->find($id);
+
+    if (empty($garages)) {
+      Flash::error('Garages not found');
+      return redirect(route('garages.index'));
+    }
+
+    if (!$garages->account_id) {
+      Flash::error('Garage has no associated account.');
+      return redirect(route('garages.show', $id));
+    }
+
+    return $ledgerDataTable->with(['account_id' => $garages->account_id])
+      ->render('garages.ledger', [
+        'garages' => $garages,
+        'dataTable' => $ledgerDataTable,
+      ]);
   }
 
   /**

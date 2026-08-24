@@ -26,6 +26,23 @@
     overflow: visible !important;
   }
 
+  .add-bike-field-form .form-text {
+    font-size: 0.8125rem;
+  }
+
+  #addBikeFieldConfigFields .form-group,
+  #editBikeCustomConfigFields .form-group,
+  #editBikeFixedConfigFields .form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  #addBikeFieldConfigFields label,
+  #editBikeCustomConfigFields label,
+  #editBikeFixedConfigFields label {
+    font-weight: 500;
+    font-size: 0.875rem;
+  }
+
   @if( !empty($showBikeRegistrationExtras) && $showBikeRegistrationExtras) .select2-container--open.br-registration-top-select2-wrap {
     z-index: 1060;
   }
@@ -58,6 +75,10 @@ $showLegalCaseStatusManagementTab = ($moduleKey ?? '') === 'legal_case';
 $legalCaseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'legal_case']) . '#tab-legal-case-status-management';
 $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
 $defaultCategoryId = isset($defaultCategory) ? (int) $defaultCategory->id : 0;
+$fallbackCategory = ($categories ?? collect())->first();
+$defaultCategoryLabel = isset($defaultCategory) ? (string) $defaultCategory->label : (string) ($fallbackCategory?->label ?? 'General');
+$fieldModalEntityLabel = ucwords((string) ($settingsEntityName ?? 'bike'));
+$defaultCategoryHiddenId = $defaultCategoryId ?: (int) ($fallbackCategory?->id ?? 0);
 $showAttendanceRiderOnlyHint = !empty($showAttendanceRiderOnlyHint);
 $attendanceRefType = $attendanceRefType ?? null;
 @endphp
@@ -569,60 +590,91 @@ $attendanceRefType = $attendanceRefType ?? null;
               <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                   <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title">Add New Bike Field</h5>
+                    <h5 class="modal-title">Add New {{ $fieldModalEntityLabel }} Field</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                   </div>
 
                   <form id="formAddBikeField" action="{{ route($settingsRoutePrefix . '.store-field', $settingsRouteParams) }}" method="POST">
                     @csrf
                     <div class="modal-body pt-0">
-                      <div class="row g-3 align-items-end">
-                        <div class="col-md-4">
-                          <label class="form-label">Label</label>
-                          <input type="text" name="label" class="form-control" required maxlength="255">
+                      <div class="add-bike-field-form">
+                        <div class="mb-3">
+                          <label class="form-label">Label Name <span class="text-danger">*</span></label>
+                          <input type="text" name="label" class="form-control" placeholder="e.g. Emergency Contact" required maxlength="255">
                         </div>
-
-                        <div class="col-md-3">
-                          <label class="form-label">Data Type</label>
-                          <select name="data_type" class="form-select" required>
+                        <div class="mb-3">
+                          <label class="form-label">Category</label>
+                          <input type="text" class="form-control" value="{{ $defaultCategoryLabel }}" disabled>
+                          <input type="hidden" name="category_id" value="{{ $defaultCategoryHiddenId ?: '' }}">
+                          <p class="form-text mb-0">New custom fields are placed in the default category. You can reassign them from the {{ $settingsFieldsTabLabel }} tab.</p>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label d-flex align-items-center gap-1">
+                            Data Type <span class="text-danger">*</span>
+                          </label>
+                          <select name="data_type" class="form-select" id="addBikeFieldDataType" required>
+                            <option value="">Select type</option>
                             @foreach($dataTypes as $typeKey => $spec)
                             <option value="{{ $typeKey }}">{{ $spec['label'] }}</option>
                             @endforeach
                           </select>
+                          <p class="form-text text-muted mb-0 mt-1">
+                            Remaining custom fields:
+                            <span id="remainingBikeFieldsCount">{{ max(0, 50 - ($customFields ?? collect())->count()) }}</span>
+                          </p>
                         </div>
-
-                        <div class="col-md-3">
-                          <label class="form-label">Category</label>
-                          <select name="category_id" class="form-select">
-                            @foreach($categories as $cat)
-                            <option value="{{ $cat->id }}" {{ $defaultCategoryId && (int) $cat->id === $defaultCategoryId ? 'selected' : '' }}>{{ $cat->label }}</option>
-                            @endforeach
-                          </select>
+                        <div id="addBikeFieldOptionsContainer" style="display: none;">
+                          <div class="mb-3" id="addBikeFieldHelpTextWrap">
+                            <label class="form-label">Help Text</label>
+                            <input type="text" name="help_text" class="form-control" placeholder="Optional help for users" maxlength="1000">
+                          </div>
+                          <div class="mb-3" id="addBikeFieldDataPrivacyWrap">
+                            <label class="form-label">Data Privacy</label>
+                            <div class="d-flex gap-4">
+                              <div class="form-check">
+                                <input type="checkbox" name="data_privacy_pii" value="1" class="form-check-input" id="addBikeFieldPii">
+                                <label class="form-check-label" for="addBikeFieldPii">PII</label>
+                              </div>
+                              <div class="form-check">
+                                <input type="checkbox" name="data_privacy_ephi" value="1" class="form-check-input" id="addBikeFieldEphi">
+                                <label class="form-check-label" for="addBikeFieldEphi">ePHI</label>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="mb-3" id="addBikeFieldPreventDupWrap">
+                            <label class="form-label">Prevent Duplicate Values</label>
+                            <div class="d-flex gap-3">
+                              <div class="form-check">
+                                <input type="radio" name="prevent_duplicate_values" value="1" class="form-check-input" id="addBikePreventDupYes">
+                                <label class="form-check-label" for="addBikePreventDupYes">Yes</label>
+                              </div>
+                              <div class="form-check">
+                                <input type="radio" name="prevent_duplicate_values" value="0" class="form-check-input" id="addBikePreventDupNo" checked>
+                                <label class="form-check-label" for="addBikePreventDupNo">No</label>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="mb-3" id="addBikeFieldDefaultValueWrap">
+                            <label class="form-label">Default Value</label>
+                            <input type="text" name="default_value" class="form-control" placeholder="Default value" maxlength="500">
+                          </div>
+                          <div class="mb-3" id="addBikeFieldInputFormatWrap" style="display: none;">
+                            <label class="form-label">Input Format</label>
+                            <input type="text" name="input_format" class="form-control" placeholder="e.g. email format" maxlength="100">
+                          </div>
+                          <div class="mb-3" id="addBikeFieldConfigOptionsWrap" style="display: none;">
+                            <label class="form-label small text-uppercase text-muted">Configuration options</label>
+                            <div id="addBikeFieldConfigFields"></div>
+                          </div>
                         </div>
-                      <input type="hidden" name="is_mandatory" value="0">
-
-                        <div class="col-md-12">
-                          <label class="form-label">Help Text</label>
-                          <input type="text" name="help_text" class="form-control" maxlength="1000">
-                        </div>
-
-                        <div class="col-md-6">
-                          <label class="form-label">Default Value</label>
-                          <input type="text" name="default_value" class="form-control" maxlength="500">
-                        </div>
-
-                        <div class="col-md-6">
-                          <label class="form-label">Dropdown Options (one per line)</label>
-                          <input type="hidden" name="config_options" id="addBikeFieldConfigOptionsHidden" value="">
-                          <div id="addBikeFieldOptionsRows" class="d-flex flex-column gap-2"></div>
-                          <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="addBikeFieldOptionRowBtn">Add Option</button>
-                        </div>
+                        <input type="hidden" name="is_mandatory" value="0">
+                        <input type="hidden" name="is_visible" value="1">
                       </div>
                     </div>
 
-                    <div class="modal-footer">
+                    <div class="modal-footer border-0 pt-0">
                       <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                      <button class="btn btn-primary" type="submit">Add custom field</button>
+                      <button class="btn btn-primary" type="submit">Save Field</button>
                     </div>
                   </form>
                 </div>
@@ -737,12 +789,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                           </form>
                         </td>
                         <td class="align-middle text-end">
-                          @php
-                          $fixedInputOptions = '';
-                          if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                          $fixedInputOptions = (string) $row->input_config['options'];
-                          }
-                          @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-fixed-field"
                             data-bs-toggle="modal"
@@ -752,7 +798,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                             data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
                             data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                             data-input-type="{{ $row->input_type ?? 'text' }}"
-                            data-input-config-options='@json($fixedInputOptions)'
+                            data-input-config='@json($row->input_config ?? [])'
                             data-category-id="{{ $row->category_id ?? '' }}"
                             data-schema-locked="{{ $isSchemaLocked ? '1' : '0' }}"
                             title="Edit fixed field">
@@ -800,12 +846,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                           </form>
                         </td>
                         <td class="align-middle text-end">
-                          @php
-                          $customConfigOptions = '';
-                          if (is_array($customField->config ?? null) && isset($customField->config['options'])) {
-                          $customConfigOptions = (string) $customField->config['options'];
-                          }
-                          @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-custom-field"
                             data-bs-toggle="modal"
@@ -816,9 +856,11 @@ $attendanceRefType = $attendanceRefType ?? null;
                             data-data-type="{{ $customField->data_type }}"
                             data-is-mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
                             data-is-visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
+                            data-prevent-duplicate="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
-                            data-config-options='@json($customConfigOptions)'
+                            data-data-privacy='@json($customField->data_privacy ?? [])'
+                            data-config='@json($customField->config ?? [])'
                             data-update-url="{{ route($settingsRoutePrefix . '.update-field', array_merge($settingsRouteParams, ['id' => $customField->id])) }}"
                             data-category-id="{{ $customField->category_id ?? '' }}"
                             title="Edit custom field">
@@ -912,12 +954,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                           </form>
                         </td>
                         <td class="align-middle text-end">
-                          @php
-                          $fixedInputOptions = '';
-                          if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
-                          $fixedInputOptions = (string) $row->input_config['options'];
-                          }
-                          @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-fixed-field"
                             data-bs-toggle="modal"
@@ -927,7 +963,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                             data-is-visible="{{ ($row->is_visible ?? true) ? 1 : 0 }}"
                             data-is-required="{{ ($row->is_required ?? false) ? 1 : 0 }}"
                             data-input-type="{{ $row->input_type ?? 'text' }}"
-                            data-input-config-options='@json($fixedInputOptions)'
+                            data-input-config='@json($row->input_config ?? [])'
                             data-category-id="{{ $row->category_id ?? '' }}"
                             data-schema-locked="{{ $isSchemaLocked ? '1' : '0' }}"
                             title="Edit fixed field">
@@ -960,12 +996,6 @@ $attendanceRefType = $attendanceRefType ?? null;
                           </form>
                         </td>
                         <td class="align-middle text-end">
-                          @php
-                          $customConfigOptions = '';
-                          if (is_array($customField->config ?? null) && isset($customField->config['options'])) {
-                          $customConfigOptions = (string) $customField->config['options'];
-                          }
-                          @endphp
                           <button type="button"
                             class="btn btn-sm btn-outline-primary btn-edit-bike-custom-field"
                             data-bs-toggle="modal"
@@ -976,9 +1006,11 @@ $attendanceRefType = $attendanceRefType ?? null;
                             data-data-type="{{ $customField->data_type }}"
                             data-is-mandatory="{{ $customField->is_mandatory ? 1 : 0 }}"
                             data-is-visible="{{ ($customField->is_visible ?? true) ? 1 : 0 }}"
+                            data-prevent-duplicate="{{ $customField->prevent_duplicate_values ? 1 : 0 }}"
                             data-default-value="{{ $customField->default_value }}"
                             data-input-format="{{ $customField->input_format }}"
-                            data-config-options='@json($customConfigOptions)'
+                            data-data-privacy='@json($customField->data_privacy ?? [])'
+                            data-config='@json($customField->config ?? [])'
                             data-update-url="{{ route($settingsRoutePrefix . '.update-field', array_merge($settingsRouteParams, ['id' => $customField->id])) }}"
                             data-category-id="{{ $customField->category_id ?? '' }}"
                             title="Edit custom field">
@@ -1025,62 +1057,97 @@ $attendanceRefType = $attendanceRefType ?? null;
             <div class="modal-dialog modal-dialog-centered modal-lg">
               <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
-                  <h5 class="modal-title">Edit bike fixed field</h5>
+                  <h5 class="modal-title">Edit Fixed {{ $fieldModalEntityLabel }} Field</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
                 <form id="formEditBikeFixedField" action="{{ route($settingsRoutePrefix . '.update-field-assignment', $settingsRouteParams) }}" method="POST">
                   @csrf
                   <div class="modal-body pt-0">
-                    <div class="row g-3 align-items-end">
-                      <div class="col-md-4">
-                        <label class="form-label">Field key</label>
+                    <div class="add-bike-field-form">
+                      <div class="mb-3">
+                        <label class="form-label">Field Key</label>
                         <input type="text" name="field_key" id="editBikeFixedFieldKey" class="form-control" readonly>
                       </div>
-
-                      <div class="col-md-4">
-                        <label class="form-label">Display label</label>
-                        <input type="text" name="display_label" id="editBikeFixedDisplayLabel" class="form-control">
+                      <div class="mb-3">
+                        <label class="form-label">Display Label</label>
+                        <input type="text" name="display_label" id="editBikeFixedDisplayLabel" class="form-control" maxlength="255" placeholder="Enter display label">
                       </div>
-
-                      <div class="col-md-4">
-                        <label class="form-label">Category</label>
+                      <div class="mb-3">
+                        <label class="form-label">Category <span class="text-danger">*</span></label>
                         <select name="category_id" id="editBikeFixedCategoryId" class="form-select" required>
+                          <option value="">Select category</option>
                           @foreach($categories as $cat)
                           <option value="{{ $cat->id }}">{{ $cat->label }}</option>
                           @endforeach
                         </select>
                       </div>
-
                       <input type="hidden" name="is_visible" id="editBikeFixedIsVisibleHidden" value="1">
                       <input type="hidden" name="is_required" id="editBikeFixedIsRequiredHidden" value="0">
-
-                      <div class="col-md-4">
-                        <label class="form-label">Input type</label>
+                      <div class="mb-3">
+                        <label class="form-label">Input Type</label>
                         <select name="input_type" id="editBikeFixedInputType" class="form-select">
-                          @foreach(['text','textarea','number','decimal','date','datetime','dropdown','checkbox'] as $t)
-                          <option value="{{ $t }}">{{ ucfirst($t) }}</option>
+                          <option value="">Select type</option>
+                          @foreach($dataTypes as $typeKey => $spec)
+                          <option value="{{ $typeKey }}">{{ $spec['label'] }}</option>
                           @endforeach
                         </select>
                       </div>
-
-                      <div class="col-md-12" id="editBikeFixedInputPreviewWrap">
-                        <label class="form-label">Preview</label>
-                        <div id="editBikeFixedInputPreview"></div>
-                      </div>
-
-                      <div class="col-md-12" id="editBikeFixedOptionsWrap">
-                        <label class="form-label">Dropdown options (one per line)</label>
-                        <input type="hidden" name="input_config_options" id="editBikeFixedInputConfigOptionsHidden" value="">
-                        <div id="editBikeFixedOptionsRows" class="d-flex flex-column gap-2"></div>
-                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="editBikeFixedOptionRowBtn">Add Option</button>
+                      <div id="editBikeFixedOptionsContainer" style="display: none;">
+                        <div class="mb-3" id="editBikeFixedInputPreviewWrap">
+                          <label class="form-label">Preview</label>
+                          <div id="editBikeFixedInputPreview"></div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Help Text</label>
+                          <input type="text" name="help_text" id="editBikeFixedHelpText" class="form-control" placeholder="Optional help for users" maxlength="1000">
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Data Privacy</label>
+                          <div class="d-flex gap-4">
+                            <div class="form-check">
+                              <input type="checkbox" name="data_privacy_pii" value="1" class="form-check-input" id="editBikeFixedPii">
+                              <label class="form-check-label" for="editBikeFixedPii">PII</label>
+                            </div>
+                            <div class="form-check">
+                              <input type="checkbox" name="data_privacy_ephi" value="1" class="form-check-input" id="editBikeFixedEphi">
+                              <label class="form-check-label" for="editBikeFixedEphi">ePHI</label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Prevent Duplicate Values</label>
+                          <div class="d-flex gap-3">
+                            <div class="form-check">
+                              <input type="radio" name="prevent_duplicate_values" value="1" class="form-check-input" id="editBikeFixedPreventDupYes">
+                              <label class="form-check-label" for="editBikeFixedPreventDupYes">Yes</label>
+                            </div>
+                            <div class="form-check">
+                              <input type="radio" name="prevent_duplicate_values" value="0" class="form-check-input" id="editBikeFixedPreventDupNo" checked>
+                              <label class="form-check-label" for="editBikeFixedPreventDupNo">No</label>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="mb-3">
+                          <label class="form-label">Default Value</label>
+                          <input type="text" name="default_value" id="editBikeFixedDefaultValue" class="form-control" placeholder="Default value" maxlength="500">
+                        </div>
+                        <div class="mb-3" id="editBikeFixedInputFormatWrap" style="display: none;">
+                          <label class="form-label">Input Format</label>
+                          <input type="text" name="input_format" id="editBikeFixedInputFormat" class="form-control" placeholder="e.g. email format" maxlength="100">
+                        </div>
+                        <div class="mb-3" id="editBikeFixedConfigOptionsWrap" style="display: none;">
+                          <label class="form-label small text-uppercase text-muted">Configuration options</label>
+                          <div id="editBikeFixedConfigFields"></div>
+                        </div>
+                        <input type="hidden" id="editBikeFixedConfigJson" value="{}">
                       </div>
                     </div>
                   </div>
 
-                  <div class="modal-footer">
+                  <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save fixed field</button>
+                    <button type="submit" class="btn btn-primary">Save Field</button>
                   </div>
                 </form>
               </div>
@@ -1092,7 +1159,7 @@ $attendanceRefType = $attendanceRefType ?? null;
             <div class="modal-dialog modal-dialog-centered modal-lg">
               <div class="modal-content">
                 <div class="modal-header border-0 pb-0">
-                  <h5 class="modal-title">Edit bike custom field</h5>
+                  <h5 class="modal-title">Edit {{ $fieldModalEntityLabel }} Field</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
@@ -1101,57 +1168,82 @@ $attendanceRefType = $attendanceRefType ?? null;
                   @method('PUT')
 
                   <div class="modal-body pt-0">
-                    <div class="row g-3 align-items-end">
-                      <div class="col-md-6">
-                        <label class="form-label">Label</label>
-                        <input type="text" name="label" id="editBikeCustomLabel" class="form-control" required maxlength="255">
+                    <div class="add-bike-field-form">
+                      <div class="mb-3">
+                        <label class="form-label">Label Name <span class="text-danger">*</span></label>
+                        <input type="text" name="label" id="editBikeCustomLabel" class="form-control" placeholder="e.g. Emergency Contact" required maxlength="255">
                       </div>
-                      <div class="col-md-6">
-                        <label class="form-label">Help text</label>
-                        <input type="text" name="help_text" id="editBikeCustomHelpText" class="form-control" maxlength="1000">
-                      </div>
-
-                      <div class="col-md-4">
-                        <label class="form-label">Data type</label>
-                        <select name="data_type" id="editBikeCustomDataType" class="form-select" required>
-                          @foreach($dataTypes as $typeKey => $spec)
-                          <option value="{{ $typeKey }}">{{ $spec['label'] }}</option>
-                          @endforeach
-                        </select>
-                      </div>
-                      <input type="hidden" name="is_mandatory" value="0">
-
-                      <div class="col-md-4">
-                        <label class="form-label">Category</label>
-                        <select name="category_id" id="editBikeCustomCategoryId" class="form-select">
+                      <div class="mb-3">
+                        <label class="form-label">Category <span class="text-danger">*</span></label>
+                        <select name="category_id" id="editBikeCustomCategoryId" class="form-select" required>
+                          <option value="">Select category</option>
                           @foreach($categories as $cat)
                           <option value="{{ $cat->id }}">{{ $cat->label }}</option>
                           @endforeach
                         </select>
                       </div>
-
-                      <div class="col-md-6">
-                        <label class="form-label">Default value</label>
-                        <input type="text" name="default_value" id="editBikeCustomDefaultValue" class="form-control" maxlength="500">
+                      <div class="mb-3">
+                        <label class="form-label d-flex align-items-center gap-1">
+                          Data Type <span class="text-danger">*</span>
+                        </label>
+                        <select name="data_type" id="editBikeCustomDataType" class="form-select" required>
+                          <option value="">Select type</option>
+                          @foreach($dataTypes as $typeKey => $spec)
+                          <option value="{{ $typeKey }}">{{ $spec['label'] }}</option>
+                          @endforeach
+                        </select>
                       </div>
-
-                      <div class="col-md-6">
-                        <label class="form-label">Input format</label>
-                        <input type="text" name="input_format" id="editBikeCustomInputFormat" class="form-control" maxlength="100">
+                      <div class="mb-3">
+                        <label class="form-label">Help Text</label>
+                        <input type="text" name="help_text" id="editBikeCustomHelpText" class="form-control" placeholder="Optional help for users" maxlength="1000">
                       </div>
-
-                      <div class="col-md-12">
-                        <label class="form-label">Config options (dropdown: one per line)</label>
-                        <input type="hidden" name="config_options" id="editBikeCustomConfigOptionsHidden" value="">
-                        <div id="editBikeCustomOptionsRows" class="d-flex flex-column gap-2"></div>
-                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="editBikeCustomOptionRowBtn">Add Option</button>
+                      <div class="mb-3">
+                        <label class="form-label">Data Privacy</label>
+                        <div class="d-flex gap-4">
+                          <div class="form-check">
+                            <input type="checkbox" name="data_privacy_pii" value="1" class="form-check-input" id="editBikeCustomPii">
+                            <label class="form-check-label" for="editBikeCustomPii">PII</label>
+                          </div>
+                          <div class="form-check">
+                            <input type="checkbox" name="data_privacy_ephi" value="1" class="form-check-input" id="editBikeCustomEphi">
+                            <label class="form-check-label" for="editBikeCustomEphi">ePHI</label>
+                          </div>
+                        </div>
                       </div>
+                      <div class="mb-3">
+                        <label class="form-label">Prevent Duplicate Values</label>
+                        <div class="d-flex gap-3">
+                          <div class="form-check">
+                            <input type="radio" name="prevent_duplicate_values" value="1" class="form-check-input" id="editBikePreventDupYes">
+                            <label class="form-check-label" for="editBikePreventDupYes">Yes</label>
+                          </div>
+                          <div class="form-check">
+                            <input type="radio" name="prevent_duplicate_values" value="0" class="form-check-input" id="editBikePreventDupNo" checked>
+                            <label class="form-check-label" for="editBikePreventDupNo">No</label>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="mb-3">
+                        <label class="form-label">Default Value</label>
+                        <input type="text" name="default_value" id="editBikeCustomDefaultValue" class="form-control" placeholder="Default value" maxlength="500">
+                      </div>
+                      <div class="mb-3" id="editBikeCustomInputFormatWrap" style="display: none;">
+                        <label class="form-label">Input Format</label>
+                        <input type="text" name="input_format" id="editBikeCustomInputFormat" class="form-control" placeholder="e.g. email format" maxlength="100">
+                      </div>
+                      <div class="mb-3" id="editBikeCustomConfigOptionsWrap" style="display: none;">
+                        <label class="form-label small text-uppercase text-muted">Configuration options</label>
+                        <div id="editBikeCustomConfigFields"></div>
+                      </div>
+                      <input type="hidden" name="is_mandatory" value="0">
+                      <input type="hidden" name="is_visible" id="editBikeCustomIsVisible" value="1">
+                      <input type="hidden" id="editBikeCustomConfigJson" value="{}">
                     </div>
                   </div>
 
-                  <div class="modal-footer">
+                  <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save custom field</button>
+                    <button type="submit" class="btn btn-primary">Save Field</button>
                   </div>
                 </form>
               </div>
@@ -1387,6 +1479,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     margin-left: 0.15rem;
   }
 </style>
+<input type="hidden" id="bikeDataTypesMetaJson" value='@json($dataTypes)'>
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
@@ -1975,9 +2068,16 @@ $attendanceRefType = $attendanceRefType ?? null;
     var preview = document.getElementById('editBikeFixedInputPreview');
     if (!preview) return;
     var type = String(inputType || 'text').toLowerCase();
+    var existingConfig = {};
+    var configInput = document.getElementById('editBikeFixedConfigJson');
+    if (configInput && configInput.value) {
+      existingConfig = bikeSafeJsonParse(configInput.value, {});
+    }
+    var rows = parseInt(existingConfig.rows, 10);
+    if (!rows || rows < 1) rows = 3;
     var html = '';
     if (type === 'textarea') {
-      html = '<textarea class="form-control" rows="3" placeholder="Sample textarea"></textarea>';
+      html = '<textarea class="form-control" rows="' + rows + '" placeholder="Sample textarea"></textarea>';
     } else if (type === 'number' || type === 'decimal') {
       html = '<input type="number" class="form-control" placeholder="0">';
     } else if (type === 'date') {
@@ -1998,12 +2098,259 @@ $attendanceRefType = $attendanceRefType ?? null;
     var type = String(inputType || 'text').toLowerCase();
     var wrap = document.getElementById('editBikeFixedOptionsWrap');
     if (!wrap) return;
-    wrap.style.display = (type === 'dropdown') ? '' : 'none';
+    wrap.style.display = (type === 'dropdown') ? 'block' : 'none';
+  }
+
+  function bikeCustomFieldDataTypes() {
+    try {
+      return JSON.parse((document.getElementById('bikeDataTypesMetaJson') && document.getElementById('bikeDataTypesMetaJson').value) || '{}');
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function bikeShowsInputFormat(typeKey) {
+    return ['text', 'number', 'decimal', 'email', 'url'].indexOf(String(typeKey || '')) !== -1;
+  }
+
+  function bikeBuildConfigFields(container, typeKey, existingConfig) {
+    if (!container) return;
+    container.innerHTML = '';
+    const dataTypesMeta = bikeCustomFieldDataTypes();
+    const typeMeta = dataTypesMeta[typeKey] || null;
+    if (!typeMeta || !typeMeta.config || !typeMeta.config.length) {
+      return;
+    }
+
+    function parseOptionLines(rawValue) {
+      return String(rawValue || '')
+        .split(/\r?\n/)
+        .map(function(line) {
+          return line.trim();
+        })
+        .filter(function(line) {
+          return line.length > 0;
+        });
+    }
+
+    typeMeta.config.forEach(function(cfg) {
+      const group = document.createElement('div');
+      group.className = 'form-group mb-2';
+
+      const label = document.createElement('label');
+      label.className = 'form-label';
+      label.textContent = cfg.label;
+
+      let input;
+      const name = 'config[' + cfg.key + ']';
+      const value = existingConfig && typeof existingConfig[cfg.key] !== 'undefined' ?
+        existingConfig[cfg.key] :
+        (typeof cfg.default !== 'undefined' ? cfg.default : '');
+
+      if (cfg.type === 'textarea') {
+        input = document.createElement('textarea');
+        input.className = 'form-control';
+        input.rows = 3;
+        if (cfg.placeholder) {
+          input.placeholder = cfg.placeholder;
+        }
+        input.name = name;
+        input.value = value;
+
+        if (cfg.key === 'options') {
+          const help = document.createElement('div');
+          help.className = 'form-text';
+          help.textContent = 'Each option is added as a separate item.';
+
+          const hiddenInput = document.createElement('input');
+          hiddenInput.type = 'hidden';
+          hiddenInput.name = name;
+          hiddenInput.value = Array.isArray(value) ? value.join('\n') : String(value || '');
+
+          const optionsWrap = document.createElement('div');
+          optionsWrap.className = 'mt-2';
+          const list = document.createElement('div');
+          list.className = 'd-flex flex-column gap-2';
+
+          const addBtn = document.createElement('button');
+          addBtn.type = 'button';
+          addBtn.className = 'btn btn-sm btn-outline-primary mt-2';
+          addBtn.textContent = 'Add Option';
+
+          var syncHiddenOptions = function() {
+            const items = Array.prototype.slice.call(list.querySelectorAll('input[type="text"]'))
+              .map(function(el) {
+                return (el.value || '').trim();
+              })
+              .filter(function(v) {
+                return v.length > 0;
+              });
+            hiddenInput.value = items.join('\n');
+          };
+
+          const createOptionRow = function(initialValue) {
+            const row = document.createElement('div');
+            row.className = 'd-flex align-items-center gap-2';
+
+            const rowInput = document.createElement('input');
+            rowInput.type = 'text';
+            rowInput.className = 'form-control';
+            rowInput.placeholder = 'Option value';
+            rowInput.value = initialValue || '';
+
+            const removeBtn = document.createElement('button');
+            removeBtn.type = 'button';
+            removeBtn.className = 'btn btn-sm btn-outline-danger';
+            removeBtn.textContent = 'Remove';
+
+            removeBtn.addEventListener('click', function() {
+              row.remove();
+              syncHiddenOptions();
+            });
+            rowInput.addEventListener('input', syncHiddenOptions);
+
+            row.appendChild(rowInput);
+            row.appendChild(removeBtn);
+            list.appendChild(row);
+          };
+
+          const existingItems = parseOptionLines(hiddenInput.value);
+          if (existingItems.length) {
+            existingItems.forEach(function(item) {
+              createOptionRow(item);
+            });
+          } else {
+            createOptionRow('');
+          }
+
+          addBtn.addEventListener('click', function() {
+            createOptionRow('');
+            syncHiddenOptions();
+          });
+
+          group.appendChild(label);
+          group.appendChild(hiddenInput);
+          group.appendChild(help);
+          optionsWrap.appendChild(list);
+          optionsWrap.appendChild(addBtn);
+          group.appendChild(optionsWrap);
+          container.appendChild(group);
+          syncHiddenOptions();
+          return;
+        }
+      } else if (cfg.type === 'checkbox') {
+        input = document.createElement('input');
+        input.type = 'checkbox';
+        input.className = 'form-check-input';
+        input.name = name;
+        input.value = 1;
+        if (value) {
+          input.checked = true;
+        }
+      } else {
+        input = document.createElement('input');
+        input.type = cfg.type || 'text';
+        input.className = 'form-control';
+        input.name = name;
+        input.value = value;
+        if (cfg.placeholder) {
+          input.placeholder = cfg.placeholder;
+        }
+      }
+
+      group.appendChild(label);
+      group.appendChild(input);
+      container.appendChild(group);
+    });
+  }
+
+  function bikeApplyCustomFieldTypeUI(typeKey, optionsContainer, configWrap, configContainer, inputFormatWrap, existingConfig) {
+    const typeMeta = bikeCustomFieldDataTypes()[typeKey] || {};
+    const hasConfig = typeMeta.config && typeMeta.config.length;
+    if (optionsContainer) {
+      optionsContainer.style.display = typeKey ? 'block' : 'none';
+    }
+    if (configWrap) {
+      configWrap.style.display = typeKey && hasConfig ? 'block' : 'none';
+    }
+    if (inputFormatWrap) {
+      inputFormatWrap.style.display = typeKey && bikeShowsInputFormat(typeKey) ? 'block' : 'none';
+    }
+    if (configContainer) {
+      if (typeKey && hasConfig) {
+        bikeBuildConfigFields(configContainer, typeKey, existingConfig || {});
+      } else {
+        configContainer.innerHTML = '';
+      }
+    }
+  }
+
+  function bikeInitCustomFieldTypeUI() {
+    const addTypeSelect = document.getElementById('addBikeFieldDataType');
+    if (addTypeSelect) {
+      addTypeSelect.addEventListener('change', function() {
+        bikeApplyCustomFieldTypeUI(
+          this.value,
+          document.getElementById('addBikeFieldOptionsContainer'),
+          document.getElementById('addBikeFieldConfigOptionsWrap'),
+          document.getElementById('addBikeFieldConfigFields'),
+          document.getElementById('addBikeFieldInputFormatWrap'),
+          {}
+        );
+      });
+    }
+
+    const editTypeSelect = document.getElementById('editBikeCustomDataType');
+    if (editTypeSelect) {
+      editTypeSelect.addEventListener('change', function() {
+        var existingConfig = {};
+        var fieldConfigInput = document.getElementById('editBikeCustomConfigJson');
+        if (fieldConfigInput && fieldConfigInput.value) {
+          existingConfig = bikeSafeJsonParse(fieldConfigInput.value, {});
+        }
+        bikeApplyCustomFieldTypeUI(
+          this.value,
+          null,
+          document.getElementById('editBikeCustomConfigOptionsWrap'),
+          document.getElementById('editBikeCustomConfigFields'),
+          document.getElementById('editBikeCustomInputFormatWrap'),
+          existingConfig
+        );
+      });
+    }
+
+    var addModal = document.getElementById('addBikeFieldModal');
+    if (addModal) {
+      addModal.addEventListener('hidden.bs.modal', function() {
+        var form = document.getElementById('formAddBikeField');
+        if (form) form.reset();
+        bikeApplyCustomFieldTypeUI(
+          '',
+          document.getElementById('addBikeFieldOptionsContainer'),
+          document.getElementById('addBikeFieldConfigOptionsWrap'),
+          document.getElementById('addBikeFieldConfigFields'),
+          document.getElementById('addBikeFieldInputFormatWrap'),
+          {}
+        );
+      });
+    }
   }
 
   function bikeUpdateFixedTypeUI(inputType) {
     bikeRenderFixedInputPreview(inputType);
-    bikeToggleFixedDropdownOptions(inputType);
+    var existingConfig = {};
+    var configInput = document.getElementById('editBikeFixedConfigJson');
+    if (configInput && configInput.value) {
+      existingConfig = bikeSafeJsonParse(configInput.value, {});
+    }
+    bikeApplyCustomFieldTypeUI(
+      inputType,
+      document.getElementById('editBikeFixedOptionsContainer'),
+      document.getElementById('editBikeFixedConfigOptionsWrap'),
+      document.getElementById('editBikeFixedConfigFields'),
+      document.getElementById('editBikeFixedInputFormatWrap'),
+      existingConfig
+    );
   }
 
   function bikeInitOptionRowButtons() {
@@ -2124,6 +2471,7 @@ $attendanceRefType = $attendanceRefType ?? null;
   }
 
   bikeInitOptionRowButtons();
+  bikeInitCustomFieldTypeUI();
 
   document.addEventListener('show.bs.modal', function(e) {
     const modalId = e.target && e.target.id ? e.target.id : null;
@@ -2138,8 +2486,10 @@ $attendanceRefType = $attendanceRefType ?? null;
 
       const categoryId = btn.dataset.categoryId || '';
       const catSelect = document.getElementById('editBikeFixedCategoryId');
-      if (categoryId && catSelect.querySelector('option[value="' + categoryId + '"]')) {
+      if (categoryId && catSelect && catSelect.querySelector('option[value="' + categoryId + '"]')) {
         catSelect.value = categoryId;
+      } else if (catSelect) {
+        catSelect.value = '';
       }
 
       var visHidden = document.getElementById('editBikeFixedIsVisibleHidden');
@@ -2147,15 +2497,33 @@ $attendanceRefType = $attendanceRefType ?? null;
       var reqHidden = document.getElementById('editBikeFixedIsRequiredHidden');
       if (reqHidden) reqHidden.value = String(btn.dataset.isRequired) === '1' ? '1' : '0';
       document.getElementById('editBikeFixedInputType').value = btn.dataset.inputType || 'text';
-      bikeUpdateFixedTypeUI(btn.dataset.inputType || 'text');
 
-      const configOptionsRaw = btn.dataset.inputConfigOptions;
-      const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
-      bikeRenderOptionRows(
-        document.getElementById('editBikeFixedOptionsRows'),
-        document.getElementById('editBikeFixedInputConfigOptionsHidden'),
-        configOptions || ''
-      );
+      var existingConfig = bikeSafeJsonParse(btn.dataset.inputConfig, {});
+      var configInput = document.getElementById('editBikeFixedConfigJson');
+      if (configInput) configInput.value = JSON.stringify(existingConfig || {});
+
+      var helpInput = document.getElementById('editBikeFixedHelpText');
+      if (helpInput) helpInput.value = existingConfig.help_text || '';
+      var defaultInput = document.getElementById('editBikeFixedDefaultValue');
+      if (defaultInput) defaultInput.value = existingConfig.default_value || '';
+      var formatInput = document.getElementById('editBikeFixedInputFormat');
+      if (formatInput) formatInput.value = existingConfig.input_format || '';
+
+      var privacy = existingConfig.data_privacy || {};
+      var pii = document.getElementById('editBikeFixedPii');
+      var ephi = document.getElementById('editBikeFixedEphi');
+      if (pii) pii.checked = !!privacy.pii;
+      if (ephi) ephi.checked = !!privacy.ephi;
+
+      var dupYes = document.getElementById('editBikeFixedPreventDupYes');
+      var dupNo = document.getElementById('editBikeFixedPreventDupNo');
+      if (dupYes && dupNo) {
+        var preventDup = String(existingConfig.prevent_duplicate_values || '0') === '1' || existingConfig.prevent_duplicate_values === true;
+        dupYes.checked = preventDup;
+        dupNo.checked = !preventDup;
+      }
+
+      bikeUpdateFixedTypeUI(btn.dataset.inputType || 'text');
     }
 
     // Custom field edit
@@ -2181,13 +2549,31 @@ $attendanceRefType = $attendanceRefType ?? null;
       document.getElementById('editBikeCustomDefaultValue').value = btn.dataset.defaultValue || '';
       document.getElementById('editBikeCustomInputFormat').value = btn.dataset.inputFormat || '';
 
-      const configOptionsRaw = btn.dataset.configOptions;
-      const configOptions = bikeSafeJsonParse(configOptionsRaw, '');
-      bikeRenderOptionRows(
-        document.getElementById('editBikeCustomOptionsRows'),
-        document.getElementById('editBikeCustomConfigOptionsHidden'),
-        configOptions || ''
-      );
+      var visHidden = document.getElementById('editBikeCustomIsVisible');
+      if (visHidden) visHidden.value = String(btn.dataset.isVisible) === '1' ? '1' : '0';
+
+      var privacy = bikeSafeJsonParse(btn.dataset.dataPrivacy, {});
+      var pii = document.getElementById('editBikeCustomPii');
+      var ephi = document.getElementById('editBikeCustomEphi');
+      if (pii) pii.checked = !!privacy.pii;
+      if (ephi) ephi.checked = !!privacy.ephi;
+
+      var dupYes = document.getElementById('editBikePreventDupYes');
+      var dupNo = document.getElementById('editBikePreventDupNo');
+      if (dupYes && dupNo) {
+        var preventDup = String(btn.dataset.preventDuplicate || '0') === '1';
+        dupYes.checked = preventDup;
+        dupNo.checked = !preventDup;
+      }
+
+      var configInput = document.getElementById('editBikeCustomConfigJson');
+      var existingConfig = bikeSafeJsonParse(btn.dataset.config, {});
+      if (configInput) configInput.value = JSON.stringify(existingConfig || {});
+
+      var typeSelect = document.getElementById('editBikeCustomDataType');
+      if (typeSelect && typeof typeSelect.dispatchEvent === 'function') {
+        typeSelect.dispatchEvent(new Event('change'));
+      }
     }
 
   });

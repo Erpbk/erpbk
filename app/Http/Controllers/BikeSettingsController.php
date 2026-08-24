@@ -130,7 +130,7 @@ class BikeSettingsController extends Controller
 
     public function index()
     {
-        $this->ensureDefaultBikeCategorySetup();
+        $defaultCategory = $this->ensureDefaultBikeCategorySetup();
         BikeCustomField::syncBikeAssignFieldAssignments();
 
         $categories = $this->bikeCategoryQuery()
@@ -216,6 +216,7 @@ class BikeSettingsController extends Controller
             'bikeTopUserVisibleOptionIds',
             'bikeTopAllOptionIds',
             'assignFieldAssignments',
+            'defaultCategory',
         ) + [
             'moduleKey' => 'bike_list',
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule('bike_list'),
@@ -343,6 +344,11 @@ class BikeSettingsController extends Controller
             'is_required' => ['nullable', 'boolean'],
             'input_type' => ['nullable', 'string', 'max:50'],
             'input_config_options' => ['nullable', 'string'],
+            'config' => ['nullable'],
+            'help_text' => ['nullable', 'string', 'max:1000'],
+            'default_value' => ['nullable', 'string', 'max:500'],
+            'input_format' => ['nullable', 'string', 'max:100'],
+            'prevent_duplicate_values' => ['nullable', 'boolean'],
         ]);
 
         $assignment = BikeFieldCategoryAssignment::where('field_key', $validated['field_key'])->firstOrFail();
@@ -385,11 +391,12 @@ class BikeSettingsController extends Controller
         $inputType = $validated['input_type'] !== null ? trim((string) $validated['input_type']) : null;
         $assignment->input_type = ($inputType === '' ? null : $inputType);
 
-        if (!empty($validated['input_config_options'])) {
-            // Used by fixed-field dropdown renderer (stored as newline-separated list).
-            $assignment->input_config = ['options' => $validated['input_config_options']];
-        } else {
-            $assignment->input_config = null;
+        if ($request->exists('help_text') || $request->exists('config')) {
+            $assignment->input_config = BikeCustomField::assignmentInputConfigFromRequest($request, $assignment->input_type);
+        } elseif (! empty($validated['input_config_options'])) {
+            $existing = is_array($assignment->input_config) ? $assignment->input_config : [];
+            $existing['options'] = $validated['input_config_options'];
+            $assignment->input_config = $existing;
         }
 
         $assignment->save();
@@ -668,37 +675,36 @@ class BikeSettingsController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'data_type' => ['required', 'string', Rule::in($allowedTypes)],
             'is_mandatory' => ['nullable', 'boolean'],
+            'is_visible' => ['nullable', 'boolean'],
+            'prevent_duplicate_values' => ['nullable', 'boolean'],
             'default_value' => ['nullable', 'string', 'max:500'],
             'input_format' => ['nullable', 'string', 'max:100'],
             'category_id' => ['nullable', 'integer', 'exists:bike_categories,id'],
+            'config' => ['nullable'],
             'config_options' => ['nullable', 'string'],
         ]);
 
+        $meta = BikeCustomField::formMetaFromRequest($request);
         $categoryId = $validated['category_id'] ?? (int) app(BikeDefaultCategoryService::class)->ensure()->id;
-
         $displayOrder = ((int) BikeCustomField::where('category_id', $categoryId)->max('display_order')) + 1;
+        $table = (new BikeCustomField())->getTable();
 
-        $config = null;
-        if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {
-            $config = ['options' => $validated['config_options']];
-        }
-
-        $payload = [
+        $payload = BikeCustomField::payloadForTable($table, [
             'label' => $validated['label'],
-            'help_text' => $validated['help_text'] ?? null,
-            'data_privacy' => null,
-            'prevent_duplicate_values' => false,
-            'default_value' => $validated['default_value'] ?? null,
-            'input_format' => $validated['input_format'] ?? null,
+            'help_text' => $meta['help_text'],
+            'data_privacy' => $meta['data_privacy'],
+            'prevent_duplicate_values' => $meta['prevent_duplicate_values'],
+            'default_value' => $meta['default_value'],
+            'input_format' => $meta['input_format'],
             'data_type' => $validated['data_type'],
-            'is_mandatory' => filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN),
-            'is_visible' => true,
-            'config' => $config,
+            'is_mandatory' => $meta['is_mandatory'],
+            'is_visible' => $meta['is_visible'],
+            'config' => $meta['config'],
             'category_id' => $categoryId,
             'display_order' => $displayOrder,
-        ];
+        ]);
         $companyId = $this->currentCompanyId();
-        if ($companyId !== null && Schema::hasColumn((new BikeCustomField())->getTable(), 'company_id')) {
+        if ($companyId !== null && Schema::hasColumn($table, 'company_id')) {
             $payload['company_id'] = $companyId;
         }
 
@@ -723,29 +729,37 @@ class BikeSettingsController extends Controller
             'help_text' => 'nullable|string|max:1000',
             'data_type' => ['required', 'string', Rule::in($allowedTypes)],
             'is_mandatory' => ['nullable', 'boolean'],
+            'is_visible' => ['nullable', 'boolean'],
+            'prevent_duplicate_values' => ['nullable', 'boolean'],
             'default_value' => ['nullable', 'string', 'max:500'],
             'input_format' => ['nullable', 'string', 'max:100'],
             'category_id' => ['nullable', 'integer', 'exists:bike_categories,id'],
+            'config' => ['nullable'],
             'config_options' => ['nullable', 'string'],
         ]);
 
-        $field->label = $validated['label'];
-        $field->help_text = $validated['help_text'] ?? null;
-        $field->data_type = $validated['data_type'];
-        $field->is_mandatory = filter_var((string) ($validated['is_mandatory'] ?? false), FILTER_VALIDATE_BOOLEAN);
-        $field->default_value = $validated['default_value'] ?? null;
-        $field->input_format = $validated['input_format'] ?? null;
-        $field->category_id = $validated['category_id'] ?? null;
+        $meta = BikeCustomField::formMetaFromRequest($request);
+        $table = $field->getTable();
+        $payload = BikeCustomField::payloadForTable($table, [
+            'label' => $validated['label'],
+            'help_text' => $meta['help_text'],
+            'data_privacy' => $meta['data_privacy'],
+            'prevent_duplicate_values' => $meta['prevent_duplicate_values'],
+            'default_value' => $meta['default_value'],
+            'input_format' => $meta['input_format'],
+            'data_type' => $validated['data_type'],
+            'is_mandatory' => $meta['is_mandatory'],
+            'is_visible' => $meta['is_visible'],
+            'config' => $meta['config'],
+            'category_id' => $validated['category_id'] ?? null,
+        ]);
 
-        $config = null;
-        if (!empty($validated['config_options']) && $validated['data_type'] === 'dropdown') {
-            $config = ['options' => $validated['config_options']];
-        }
-        $field->config = $config;
         $companyId = $this->currentCompanyId();
-        if ($companyId !== null && Schema::hasColumn($field->getTable(), 'company_id')) {
-            $field->company_id = $companyId;
+        if ($companyId !== null && Schema::hasColumn($table, 'company_id')) {
+            $payload['company_id'] = $companyId;
         }
+
+        $field->fill($payload);
         $field->save();
 
         return $this->bikeSettingsIndexRedirect($field->category_id !== null ? (int) $field->category_id : 0)

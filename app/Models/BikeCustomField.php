@@ -112,6 +112,137 @@ class BikeCustomField extends BaseModel
         ];
     }
 
+    /**
+     * Shared add/edit custom-field form values (config options, privacy, duplicates).
+     *
+     * @return array{config: array, data_privacy: array{pii: bool, ephi: bool}, prevent_duplicate_values: bool, is_mandatory: bool, is_visible: bool, help_text: ?string, default_value: ?string, input_format: ?string}
+     */
+    public static function formMetaFromRequest(\Illuminate\Http\Request $request): array
+    {
+        $config = $request->input('config');
+        if (is_string($config)) {
+            $decoded = json_decode($config, true);
+            $config = is_array($decoded) ? $decoded : [];
+        } elseif (! is_array($config)) {
+            $config = [];
+        }
+
+        if ($config === [] && $request->filled('config_options')) {
+            $config = ['options' => (string) $request->input('config_options')];
+        }
+
+        return [
+            'config' => $config,
+            'data_privacy' => [
+                'pii' => $request->boolean('data_privacy_pii'),
+                'ephi' => $request->boolean('data_privacy_ephi'),
+            ],
+            'prevent_duplicate_values' => $request->boolean('prevent_duplicate_values'),
+            'is_mandatory' => $request->boolean('is_mandatory'),
+            'is_visible' => $request->boolean('is_visible', true),
+            'help_text' => $request->input('help_text'),
+            'default_value' => $request->input('default_value'),
+            'input_format' => $request->input('input_format'),
+        ];
+    }
+
+    /**
+     * Keep only columns that exist on the destination table.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public static function payloadForTable(string $table, array $payload): array
+    {
+        foreach (array_keys($payload) as $column) {
+            if (! Schema::hasColumn($table, $column)) {
+                unset($payload[$column]);
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Merge assignment input_config (help, defaults, type options) into a fixed-field spec.
+     *
+     * @param  array<string, mixed>  $spec
+     * @param  array<string, mixed>|null  $inputConfig
+     * @return array<string, mixed>
+     */
+    public static function applyAssignmentConfigToSpec(array $spec, ?array $inputConfig): array
+    {
+        if (! is_array($inputConfig) || $inputConfig === []) {
+            return $spec;
+        }
+
+        if (array_key_exists('options', $inputConfig)) {
+            $spec['options'] = $inputConfig['options'];
+        }
+        if (! empty($inputConfig['dropdown'])) {
+            $spec['dropdown'] = $spec['dropdown'] ?? $inputConfig['dropdown'];
+        }
+        if (! empty($inputConfig['help_text'])) {
+            $spec['help_text'] = $inputConfig['help_text'];
+        }
+        if (array_key_exists('default_value', $inputConfig) && $inputConfig['default_value'] !== null && $inputConfig['default_value'] !== '') {
+            $spec['default'] = $inputConfig['default_value'];
+        }
+        if (! empty($inputConfig['max_length'])) {
+            $spec['maxlength'] = (int) $inputConfig['max_length'];
+        }
+        if (! empty($inputConfig['rows'])) {
+            $spec['rows'] = (int) $inputConfig['rows'];
+        }
+        if (! empty($inputConfig['placeholder'])) {
+            $spec['placeholder'] = $inputConfig['placeholder'];
+        }
+        if (! empty($inputConfig['input_format'])) {
+            $spec['input_format'] = $inputConfig['input_format'];
+        }
+        if (array_key_exists('default_checked', $inputConfig)) {
+            $spec['default_checked'] = (bool) $inputConfig['default_checked'];
+        }
+        foreach (['min', 'max', 'step', 'decimals', 'format'] as $key) {
+            if (isset($inputConfig[$key]) && $inputConfig[$key] !== '') {
+                $spec[$key] = $inputConfig[$key];
+            }
+        }
+
+        return $spec;
+    }
+
+    /**
+     * Type config plus help/privacy/default values stored on a fixed-field assignment.
+     *
+     * @return array<string, mixed>
+     */
+    public static function assignmentInputConfigFromRequest(\Illuminate\Http\Request $request, ?string $inputType): array
+    {
+        $meta = self::formMetaFromRequest($request);
+        $sanitized = [];
+        $typeMeta = $inputType ? (self::dataTypes()[$inputType] ?? null) : null;
+        foreach (($typeMeta['config'] ?? []) as $cfg) {
+            $key = $cfg['key'] ?? null;
+            if (! $key || ! array_key_exists($key, $meta['config'])) {
+                continue;
+            }
+            $value = $meta['config'][$key];
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+            $sanitized[$key] = $value;
+        }
+
+        $sanitized['help_text'] = $meta['help_text'];
+        $sanitized['default_value'] = $meta['default_value'];
+        $sanitized['input_format'] = $meta['input_format'];
+        $sanitized['data_privacy'] = $meta['data_privacy'];
+        $sanitized['prevent_duplicate_values'] = $meta['prevent_duplicate_values'] ? 1 : 0;
+
+        return $sanitized;
+    }
+
     public function category()
     {
         return $this->belongsTo(BikeCategory::class, 'category_id', 'id');
@@ -220,12 +351,7 @@ class BikeCustomField extends BaseModel
             if (!empty($assignment->input_type)) {
                 $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
             }
-            if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
-                $spec['options'] = $assignment->input_config['options'];
-            }
-            if (is_array($assignment->input_config) && array_key_exists('dropdown', $assignment->input_config)) {
-                $spec['dropdown'] = $spec['dropdown'] ?? $assignment->input_config['dropdown'];
-            }
+            $spec = self::applyAssignmentConfigToSpec($spec, is_array($assignment->input_config) ? $assignment->input_config : null);
         }
 
         if ($fieldKey === 'bike_owner') {
@@ -567,12 +693,7 @@ class BikeCustomField extends BaseModel
                 }
 
                 $spec['required'] = self::isAlwaysRequiredFixedField($fieldKey);
-
-                if (is_array($a->input_config) && array_key_exists('options', $a->input_config)) {
-                    $spec['options'] = $a->input_config['options'];
-                }
-
-                $spec['dropdown'] = $spec['dropdown'] ?? $a->input_config['dropdown'] ?? null;
+                $spec = self::applyAssignmentConfigToSpec($spec, is_array($a->input_config) ? $a->input_config : null);
 
                 if ($fieldKey === 'bike_owner') {
                     $spec = array_merge($spec, self::bikeOwnerFieldSpec());

@@ -319,8 +319,8 @@
                     <label for="status">Status</label>
                     <select class="form-control form-select" id="status" name="status">
                         <option value="">Select</option>
-                        @foreach(App\Helpers\General::RiderStatus() as $key=>$value)
-                        <option value="{{$key}}" @if(request('status')==$key) selected @endif>{{$value}}</option>
+                        @foreach(($riderStatusFilterOptions ?? []) as $statusOption)
+                        <option value="{{ $statusOption['value'] }}" @if(request('status') == $statusOption['value']) selected @endif>{{ $statusOption['label'] }}</option>
                         @endforeach
                     </select>
                 </div>

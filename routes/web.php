@@ -558,7 +558,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::match(['get', 'post'], 'sims/assign/{id}', [SimsController::class, 'assign'])->name('sims.assign');
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
-    Route::match(['get', 'post'], 'sims/mark-inactive', [SimsController::class, 'markInactive'])->name('sims.markInactive');
+    Route::match(['get', 'post'], 'sims/activate-deactivate', [SimsController::class, 'activateDeactivate'])->name('sims.activateDeactivate');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
     Route::match(['get', 'post'], 'sims/import', [SimsController::class, 'import'])->name('sims.import');
     Route::get('sims/import_template', [SimsController::class, 'downloadTemplate'])->name('sims.import_template');
@@ -797,6 +797,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::any('fuelcards/import', [FuelCardController::class, 'import'])->name('fuelCards.import');
     Route::get('fuelcards/import_template', [FuelCardController::class, 'downloadTemplate'])->name('fuelCards.import_template');
     Route::get('fuelcards/export', [FuelCardController::class, 'export'])->name('fuelCards.export');
+
+    Route::match(['get', 'post'], 'fuelcards/activate-deactivate', [FuelCardController::class, 'activateDeactivate'])->name('fuelCards.activateDeactivate');
+    Route::match(['get', 'post'], 'fuelcards/charge-lost/{id}', [FuelCardController::class, 'chargeLost'])->name('fuelCards.chargeLost');
 
     Route::any('fuelcards/assign/{id}', [FuelCardHistoryController::class, 'assign'])->name('fuelCards.assign');
     Route::any('fuelcards/return/{id}', [FuelCardHistoryController::class, 'return'])->name('fuelCards.return');

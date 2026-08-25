@@ -98,7 +98,7 @@ class SimsController extends AppBaseController
         $stats = [
             'total' => $statsQuery->count(),
             'active' => $statsQuery->clone()->where('status', (string) Sims::STATUS_ASSIGNED)->count(),
-            'inactive' => $statsQuery->clone()->where('status', (string) Sims::STATUS_INACTIVE)->count(),
+            'deactivated' => $statsQuery->clone()->where('status', (string) Sims::STATUS_DEACTIVATED)->count(),
             'in_office' => $statsQuery->clone()->where('status', (string) Sims::STATUS_IN_OFFICE)->count(),
             'user_absconded' => $userAbscondedCount,
             'companies' => $companyStats,
@@ -115,7 +115,7 @@ class SimsController extends AppBaseController
                     $q->orWhere('status', (string) Sims::STATUS_ASSIGNED);
                 }
                 if (in_array(TopBarNumericStatus::INACTIVE_KEY, $simListKeys, true)) {
-                    $q->orWhere('status', (string) Sims::STATUS_INACTIVE);
+                    $q->orWhere('status', (string) Sims::STATUS_DEACTIVATED);
                 }
             });
         } elseif ($request->filled('status')) {
@@ -124,8 +124,8 @@ class SimsController extends AppBaseController
                 $query->where('status', (string) Sims::STATUS_ASSIGNED);
             } elseif (in_array($statusFilter, ['in_office', 'in-office', 'office'], true)) {
                 $query->where('status', (string) Sims::STATUS_IN_OFFICE);
-            } elseif ($statusFilter === 'inactive') {
-                $query->where('status', (string) Sims::STATUS_INACTIVE);
+            } elseif (in_array($statusFilter, ['deactivated', 'inactive'], true)) {
+                $query->where('status', (string) Sims::STATUS_DEACTIVATED);
             } elseif (in_array($statusFilter, ['user_absconded', 'absconded'], true)) {
                 $query->whereAssigneeAbsconded();
             }
@@ -366,6 +366,13 @@ class SimsController extends AppBaseController
         $sims = Sims::find($id);
         if (empty($sims)) {
             return response()->json(['errors' => ['error' => 'Sim not found!']], 422);
+        }
+
+        // Deactivated SIMs are out of service until an admin activates them.
+        if ($sims->isDeactivated()) {
+            return response()->json([
+                'errors' => ['error' => 'This SIM is deactivated and cannot be assigned. Activate it first.'],
+            ], 422);
         }
 
         $branchId = $sims->branch_id ? (int) $sims->branch_id : null;
@@ -640,52 +647,89 @@ class SimsController extends AppBaseController
         }
     }
 
-    public function markInactive(Request $request)
+    /**
+     * Bulk activate / deactivate SIMs. Deactivating takes an in-office SIM out
+     * of service; activating returns it to the office so it can be assigned.
+     */
+    public function activateDeactivate(Request $request)
     {
-        if ($request->isMethod('get')) {
-            $officeSims = Sims::query()
-                ->with('telecomCompany')
-                ->where('status', Sims::STATUS_IN_OFFICE)
-                ->whereNull('assign_to')
-                ->orderBy('number')
-                ->get();
+        if (!user_can('sims_sim_edit')) {
+            if ($request->isMethod('get')) {
+                abort(403, 'Unauthorized action.');
+            }
 
-            return view('sims.mark_inactive', [
-                'officeSims' => $officeSims,
+            return response()->json([
+                'errors' => ['error' => 'You do not have permission to change SIM status.'],
+            ], 403);
+        }
+
+        if ($request->isMethod('get')) {
+            return view('sims.activate_deactivate', [
+                'inOfficeSims' => $this->simStatusPickList(Sims::STATUS_IN_OFFICE),
+                'deactivatedSims' => $this->simStatusPickList(Sims::STATUS_DEACTIVATED),
             ]);
         }
 
-        $this->validate($request, [
+        $data = $this->validate($request, [
+            'mode' => 'required|in:activate,deactivate',
             'sim_ids' => 'required|array|min:1',
             'sim_ids.*' => 'integer|exists:sims,id',
         ], [
+            'mode.required' => 'Please choose whether to activate or deactivate.',
             'sim_ids.required' => 'Please select at least one SIM.',
             'sim_ids.min' => 'Please select at least one SIM.',
         ]);
 
-        $simIds = array_map('intval', $request->input('sim_ids', []));
+        $deactivating = $data['mode'] === 'deactivate';
+        $from = $deactivating ? Sims::STATUS_IN_OFFICE : Sims::STATUS_DEACTIVATED;
+        $to = $deactivating ? Sims::STATUS_DEACTIVATED : Sims::STATUS_IN_OFFICE;
 
         $updated = Sims::query()
-            ->whereIn('id', $simIds)
-            ->where('status', Sims::STATUS_IN_OFFICE)
+            ->whereIn('id', array_map('intval', $data['sim_ids']))
+            ->where('status', $from)
             ->whereNull('assign_to')
             ->update([
-                'status' => Sims::STATUS_INACTIVE,
+                'status' => $to,
                 'updated_by' => auth()->id(),
             ]);
 
         if ($updated === 0) {
             return response()->json([
-                'errors' => ['error' => 'No in-office SIMs were updated. Select SIMs that are currently in office.'],
+                'errors' => ['error' => $deactivating
+                    ? 'No in-office SIMs were updated. Select SIMs that are currently in office.'
+                    : 'No deactivated SIMs were updated. Select SIMs that are currently deactivated.'],
             ], 422);
         }
 
+        $noun = $updated === 1 ? 'SIM' : 'SIMs';
+
         return response()->json([
-            'message' => $updated === 1
-                ? '1 SIM marked inactive.'
-                : $updated . ' SIMs marked inactive.',
+            'message' => $deactivating
+                ? "{$updated} {$noun} deactivated."
+                : "{$updated} {$noun} activated and returned to office.",
             'reload' => true,
         ]);
+    }
+
+    /**
+     * Unassigned SIMs in a given status, shaped for the shared picker partial.
+     *
+     * @return list<array{id: int, primary: string, secondary: string}>
+     */
+    private function simStatusPickList(int $status): array
+    {
+        return Sims::query()
+            ->with('telecomCompany')
+            ->where('status', $status)
+            ->whereNull('assign_to')
+            ->orderBy('number')
+            ->get()
+            ->map(fn (Sims $sim) => [
+                'id' => (int) $sim->id,
+                'primary' => (string) $sim->number,
+                'secondary' => (string) ($sim->telecomCompany?->name ?? ''),
+            ])
+            ->all();
     }
 
     public function destroy($company_slug, $id)

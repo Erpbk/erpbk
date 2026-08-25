@@ -353,6 +353,8 @@
         ['data' => 'status', 'title' => 'Status'],
         ['data' => 'emirates', 'title' => 'Emirates'],
         ['data' => 'designation', 'title' => 'Designation'],
+        ['data' => 'person_code', 'title' => 'Person Code'],
+        ['data' => 'wps', 'title' => 'WPS'],
         ['data' => 'project', 'title' => 'Project'],
         ['data' => 'billing_month', 'title' => 'Billing Month'],
         ['data' => 'total_amount', 'title' => 'Invoice'],
@@ -429,6 +431,8 @@
                                 <th title="Status">Status</th>
                                 <th title="Emirates">Emirates</th>
                                 <th title="Designation">Designation</th>
+                                <th title="Person Code">Person Code</th>
+                                <th title="WPS">WPS</th>
                                 <th title="Project">Project</th>
                                 <th title="Billing Month">Billing Month</th>
                                 <th title="Invoice" style="text-align: center;">Invoice</th>
@@ -903,7 +907,7 @@
                 }
 
                 if (!$('#get_data').children().length) {
-                    $('#get_data').html('<tr><td colspan="22"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                    $('#get_data').html('<tr><td colspan="24"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
                 }
             }
         });
@@ -979,7 +983,7 @@
                     errorMessage = 'Server error occurred. Please try again.';
                 }
 
-                $('#get_data').html('<tr><td colspan="22"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                $('#get_data').html('<tr><td colspan="24"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
             }
         });
     }

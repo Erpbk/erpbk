@@ -102,6 +102,8 @@ class ReportController extends Controller
       $result = $result->where(function ($query) use ($quickSearch) {
         $query->where('name', 'like', '%' . $quickSearch . '%')
           ->orWhere('rider_id', 'like', '%' . $quickSearch . '%')
+          ->orWhere('person_code', 'like', '%' . $quickSearch . '%')
+          ->orWhere('wps', 'like', '%' . $quickSearch . '%')
           ->orWhere('emirate_hub', 'like', '%' . $quickSearch . '%')
           ->orWhere('designation', 'like', '%' . $quickSearch . '%');
       });
@@ -310,6 +312,8 @@ class ReportController extends Controller
       $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
       $data .= '<td>' . e($rider->emirate_hub) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
+      $data .= '<td>' . e($rider->wps) . '</td>';
       $data .= '<td>' . e(optional($rider->customer)->name) . '</td>';
       $data .= '<td><a target="_blank" href="' . e($detailUrl) . '" title="View rider report details">' . e($billingMonthLabel) . '</a></td>';
       $data .= '<td align="center">' . $fmt($totalAmount) . '</td>';
@@ -351,7 +355,7 @@ class ReportController extends Controller
       // One cell per column (no colspan) so column re-ordering / hiding stays aligned.
       $data .= '<tr class="font-weight-bold total-row">';
       $data .= '<td style="font-weight:700;color:#000;">Totals</td>';
-      $data .= str_repeat('<td></td>', 6);
+      $data .= str_repeat('<td></td>', 8);
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumTotalAmount) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVc) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumCod) . '</td>';

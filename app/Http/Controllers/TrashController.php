@@ -12,6 +12,7 @@ use App\Models\Customers;
 use App\Models\Vendors;
 use App\Models\Supplier;
 use App\Models\LeasingCompanies;
+use App\Models\LeasingCompanyInvoice;
 use App\Models\Garages;
 use App\Models\Recruiters;
 use App\Models\Riders;

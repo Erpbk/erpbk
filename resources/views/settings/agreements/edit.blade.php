@@ -323,22 +323,15 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
       });
     }
 
-    if (templateSelect && editorWrap) {
-      tinymce.init({
+    if (templateSelect && editorWrap && window.erpbkAgreementWordEditor) {
+      tinymce.init(window.erpbkAgreementWordEditor.config({
         selector: '#agreement-template-editor',
-        height: 380,
-        menubar: false,
-        plugins: 'lists link table code fullscreen preview',
-        toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | table link | code fullscreen',
-        branding: false,
-        promotion: false,
-        content_style: 'body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.5; }',
         setup: function(editor) {
           editor.on('change keyup', function() {
             syncEditorToStore();
           });
         }
-      }).then(function() {
+      })).then(function() {
         if (activeTemplateId) {
           loadTemplateIntoEditor(activeTemplateId);
           updateOutputLinks(activeTemplateId);

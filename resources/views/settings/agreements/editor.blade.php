@@ -174,7 +174,9 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
 
           <div class="mb-3">
             <label class="form-label">Agreement content</label>
-            <textarea name="description" id="agreement-editor" rows="18" class="form-control">{{ old('description', $template->description) }}</textarea>
+            <div class="agreement-word-editor">
+              <textarea name="description" id="agreement-editor" rows="40" class="form-control">{{ old('description', $template->description) }}</textarea>
+            </div>
           </div>
 
           <div class="row mb-3">
@@ -256,20 +258,15 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
 </div>
 @endsection
 
+@include('agreements.partials.tinymce-word-document')
+
 @push('third_party_scripts')
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-    tinymce.init({
-      selector: '#agreement-editor',
-      height: 420,
-      menubar: false,
-      plugins: 'lists link table code fullscreen preview',
-      toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | table link | code fullscreen',
-      branding: false,
-      promotion: false,
-      content_style: 'body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.5; }'
-    });
+    tinymce.init(window.erpbkAgreementWordEditor.config({
+      selector: '#agreement-editor'
+    }));
 
     document.querySelectorAll('.agreement-style-card').forEach(function(card) {
       card.addEventListener('click', function() {

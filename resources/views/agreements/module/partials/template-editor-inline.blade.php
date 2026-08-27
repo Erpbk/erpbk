@@ -51,7 +51,9 @@
             Edit the agreement body below. Style (Corporate / Premium) is fixed; assign this template to contracts using the button above.
           </div>
           <label class="form-label">Agreement content</label>
-          <textarea name="description" id="agreement-editor" rows="16" class="form-control">{{ old('description', $activeTemplate->description) }}</textarea>
+          <div class="agreement-word-editor">
+            <textarea name="description" id="agreement-editor" rows="40" class="form-control">{{ old('description', $activeTemplate->description) }}</textarea>
+          </div>
           <div class="mt-3 d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Update template</button>
           </div>
@@ -94,6 +96,8 @@
   </div>
 </div>
 
+@include('agreements.partials.tinymce-word-document')
+
 @once
 @push('third_party_scripts')
 <script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
@@ -107,17 +111,10 @@
   if (!editorEl) {
     return;
   }
-  if (typeof tinymce !== 'undefined' && !tinymce.get('agreement-editor')) {
-    tinymce.init({
-      selector: '#agreement-editor',
-      height: 380,
-      menubar: false,
-      plugins: 'lists link table code fullscreen preview',
-      toolbar: 'undo redo | styles | bold italic underline | alignleft aligncenter alignright | bullist numlist | table link | code fullscreen',
-      branding: false,
-      promotion: false,
-      content_style: 'body { font-family: Calibri, sans-serif; font-size: 11pt; line-height: 1.5; }'
-    });
+  if (typeof tinymce !== 'undefined' && !tinymce.get('agreement-editor') && window.erpbkAgreementWordEditor) {
+    tinymce.init(window.erpbkAgreementWordEditor.config({
+      selector: '#agreement-editor'
+    }));
   }
   document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {

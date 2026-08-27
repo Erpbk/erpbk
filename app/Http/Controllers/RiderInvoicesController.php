@@ -780,23 +780,82 @@ class RiderInvoicesController extends AppBaseController
     public function importPaid(Request $request)
     {
         if ($request->isMethod('post')) {
-            $rules = [
-                'file' => 'required|max:50000|mimes:xlsx',
-            ];
-            $message = [
+            $this->validate($request, [
+                'file' => 'required|max:50000|mimes:xlsx,csv,xls',
+                'col_rider_id' => 'required|integer|min:1',
+                'col_billing_month' => 'required|integer|min:1',
+                'col_account_code' => 'required|integer|min:1',
+                'col_amount' => 'required|integer|min:1',
+                'col_payment_date' => 'required|integer|min:1',
+                'col_description' => 'required|integer|min:1',
+            ], [
                 'file.required' => 'Excel File Required',
+                'col_rider_id.required' => 'Map the Rider ID column.',
+                'col_billing_month.required' => 'Map the Billing Month column.',
+                'col_account_code.required' => 'Map the paying account code column.',
+                'col_amount.required' => 'Map the Amount column.',
+                'col_payment_date.required' => 'Map the Payment Date column.',
+                'col_description.required' => 'Map the Description column.',
+            ]);
+
+            $columnMap = [
+                'rider_id' => (int) $request->col_rider_id,
+                'billing_month' => (int) $request->col_billing_month,
+                'account_code' => (int) $request->col_account_code,
+                'amount' => (int) $request->col_amount,
+                'payment_date' => (int) $request->col_payment_date,
+                'description' => (int) $request->col_description,
             ];
 
-            $this->validate($request, $rules, $message);
+            $provided = array_filter($columnMap, fn ($v) => $v !== null);
+            if (count($provided) !== count(array_unique($provided))) {
+                $message = 'Column numbers must be unique.';
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $message], 422);
+                }
+                Flash::error($message);
 
-            try {
-                Excel::import(new ImportPaidRiderInvoice, $request->file('file'));
-                Flash::success('Paid rider invoices imported successfully.');
-            } catch (\Exception $e) {
-                Flash::error('Error importing paid invoices: ' . $e->getMessage());
+                return redirect()->back();
             }
 
-            return redirect()->back();
+            try {
+                $import = new ImportPaidRiderInvoice($columnMap);
+                Excel::import($import, $request->file('file'));
+                $importedCount = $import->importedCount;
+                $skippedLog = $import->skippedLog;
+                $skippedCount = count($skippedLog);
+
+                $message = "Import finished. Payments created: {$importedCount}.";
+                if ($skippedCount > 0) {
+                    $message .= " Skipped: {$skippedCount}.";
+                }
+
+                if ($request->ajax() || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => $message,
+                        'imported_count' => $importedCount,
+                        'skipped_count' => $skippedCount,
+                        'skipped_log' => array_values($skippedLog),
+                    ]);
+                }
+
+                Flash::success($message);
+
+                return redirect()->route('riderInvoices.index');
+            } catch (ValidationException $e) {
+                throw $e;
+            } catch (\Exception $e) {
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Error importing paid invoices: '.$e->getMessage(),
+                    ], 500);
+                }
+                Flash::error('Error importing paid invoices: '.$e->getMessage());
+
+                return redirect()->back();
+            }
         }
 
         return view('rider_invoices.import_paid');

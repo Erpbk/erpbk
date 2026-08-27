@@ -63,6 +63,9 @@
         <div class="filter-body" id="searchTopbody">
             <form id="filterForm" action="{{ route('riderInvoices.index') }}" method="GET">
                 @csrf
+                @if(request()->filled('quick_search'))
+                <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
+                @endif
                 <div class="row">
                     <div class="form-group col-md-12 col-sm-12">
                         <label for="name">ID</label>
@@ -137,11 +140,16 @@
     @include('flash::message')
     <div class="clearfix"></div>
     <div class="card">
-        <div class="card-header text-end">
-            <button id="deleteSelectedBtn" class="btn btn-danger me-2" style="display: none;" onclick="deleteSelectedInvoices()">
-                <i class="fa fa-trash"></i> Delete Selected
-            </button>
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-search">
+                <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
+            </div>
+            <div>
+                <button id="deleteSelectedBtn" class="btn btn-danger me-2" style="display: none;" onclick="deleteSelectedInvoices()">
+                    <i class="fa fa-trash"></i> Delete Selected
+                </button>
+                <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
+            </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('rider_invoices.table', [
@@ -239,6 +247,11 @@
 
             // Exclude _token and empty fields
             let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
+            const quickSearchValue = ($('#quickSearch').val() || '').trim();
+            filteredFields = filteredFields.filter(field => field.name !== 'quick_search');
+            if (quickSearchValue) {
+                filteredFields.push({ name: 'quick_search', value: quickSearchValue });
+            }
             let formData = $.param(filteredFields);
 
             $.ajax({
@@ -270,6 +283,22 @@
                     setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
                 }
             });
+        });
+
+        $('#quickSearch').on('keyup', function(e) {
+            if (e.keyCode === 13 || $(this).val().length === 0) {
+                const searchValue = $(this).val();
+                const url = new URL(window.location);
+
+                if (searchValue) {
+                    url.searchParams.set('quick_search', searchValue);
+                } else {
+                    url.searchParams.delete('quick_search');
+                }
+                url.searchParams.delete('page');
+
+                window.location.href = url.toString();
+            }
         });
     });
 </script>

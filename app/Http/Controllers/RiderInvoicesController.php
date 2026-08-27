@@ -80,6 +80,27 @@ class RiderInvoicesController extends AppBaseController
         if ($request->has('status') && ! empty($request->status)) {
             $query->where('status', $request->status);
         }
+        if ($request->filled('quick_search')) {
+            $search = trim((string) $request->input('quick_search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('rider_invoices.id', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.descriptions', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.zone', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.notes', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.performance', 'like', '%'.$search.'%')
+                    ->orWhereHas('rider', function ($riderQuery) use ($search) {
+                        $riderQuery->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('rider_id', 'like', '%'.$search.'%')
+                            ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                                $customerQuery->where('name', 'like', '%'.$search.'%');
+                            });
+                    });
+
+                if (preg_match('/^(?:RINV-?)?0*(\d+)$/i', $search, $matches)) {
+                    $q->orWhere('rider_invoices.id', (int) $matches[1]);
+                }
+            });
+        }
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -441,12 +462,11 @@ class RiderInvoicesController extends AppBaseController
     }
 
     /**
-     * Whether the invoice has been paid / partially paid and must not be deleted.
+     * Whether the invoice has a payment recorded and must not be deleted.
      */
     private function invoiceHasPayment(RiderInvoices $invoice): bool
     {
-        // Paid (1) or partially paid (3) — set by Payment module / mark-as-paid
-        if (in_array((int) $invoice->status, [1, 3], true)) {
+        if ($invoice->isPaid()) {
             return true;
         }
 
@@ -836,9 +856,7 @@ class RiderInvoicesController extends AppBaseController
                     return redirect()->back()->withInput();
                 }
 
-                // Update invoice status based on remaining due
-                $newTotalPaid = $invoice->paid_amount + $paymentAmount;
-                $invoice->status = $newTotalPaid >= $invoice->total_amount ? 1 : 3;
+                $invoice->status = 1;
                 $invoice->save();
 
                 // Create voucher entries for the payment amount

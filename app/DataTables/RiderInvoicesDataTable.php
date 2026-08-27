@@ -36,13 +36,7 @@ class RiderInvoicesDataTable extends DataTable
       });
     $dataTable
       ->addColumn('status', function (RiderInvoices $riderInvoices) {
-        if ($riderInvoices->status == 1) {
-            return 'Paid';
-        }
-        if ($riderInvoices->status == 3) {
-            return 'Partially Paid';
-        }
-        return 'Unpaid';
+        return $riderInvoices->isPaid() ? 'Paid' : 'Unpaid';
       });
 
     // Add filter for inv_date column

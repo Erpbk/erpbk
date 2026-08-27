@@ -123,14 +123,27 @@ class RiderInvoices extends BaseModel
     ];
 
     /**
-     * Invoices that can receive a payment (unpaid or partially paid).
+     * Any recorded payment settles the invoice (status 1). Status 3 is a legacy
+     * "partially paid" value and is also treated as settled.
+     */
+    public function isPaid(): bool
+    {
+        if (in_array((int) $this->status, [1, 3], true)) {
+            return true;
+        }
+
+        return (float) ($this->paid_amount ?? 0) > 0;
+    }
+
+    /**
+     * Invoices that can receive a payment (unpaid only).
      * Uses explicit status values because SQL `status != 1` excludes NULL rows.
      */
     public function scopePayable($query)
     {
         return $query->where(function ($q) {
             $q->whereNull('status')
-                ->orWhereIn('status', [0, 3]);
+                ->orWhere('status', 0);
         });
     }
 

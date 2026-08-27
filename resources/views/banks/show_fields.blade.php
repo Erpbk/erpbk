@@ -5,20 +5,18 @@
   ));
 @endphp
 @foreach($bankFieldKeys as $col)
-  <div class="col-sm-12">
-    <strong>{{ \App\Support\BankFormLayout::labelForFieldKey($col) }}:</strong>
-    <p>
-      @if($col === 'status')
-        @if($banks->status == 1)
-          <span class="badge bg-success">{{ __('Active') }}</span>
-        @else
-          <span class="badge bg-danger">{{ __('Inactive') }}</span>
-        @endif
-      @elseif($col === 'branch_id')
-        {{ $banks->branch_name ?? $banks->branch_id }}
-      @else
-        {{ data_get($banks, $col) }}
-      @endif
-    </p>
-  </div>
+  @php
+    if ($col === 'status') {
+      $value = ((int) $banks->status === 1) ? 'Active' : 'Inactive';
+    } elseif ($col === 'branch_id') {
+      $value = $banks->branch_name ?? $banks->branch_id;
+    } else {
+      $value = data_get($banks, $col);
+    }
+  @endphp
+  <x-entity-info-field
+    :label="\App\Support\BankFormLayout::labelForFieldKey($col)"
+    :value="$value"
+    :expiry="\App\Support\EntityExpiry::isExpiryKey((string) $col)"
+  />
 @endforeach

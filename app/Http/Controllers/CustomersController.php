@@ -152,7 +152,10 @@ class CustomersController extends AppBaseController
       return redirect(route('customers.index'));
     }
 
-    return view('customers.show')->with('customers', $customers);
+    return view('customers.show', [
+      'customers' => $customers,
+      'customer' => $customers,
+    ]);
   }
 
   /**

@@ -197,7 +197,10 @@ class BikeRentCompaniesController extends AppBaseController
 
         $bikeRentCompany->load('account');
 
-        return view('bike_rent_companies.show', ['bikeRentCompany' => $bikeRentCompany]);
+        return view('bike_rent_companies.show', [
+            'bikeRentCompany' => $bikeRentCompany,
+            'customer' => $bikeRentCompany,
+        ]);
     }
 
     public function edit($company_slug, $id)

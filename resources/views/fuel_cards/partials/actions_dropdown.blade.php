@@ -7,22 +7,31 @@
         </button>
         <div class="action-dropdown-menu" id="addBikeDropdown">
             @can('fuel_cards_card_create')
-            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add New Card" data-action="{{ route('fuelCards.create') }}">
+            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Add Fuel Card" data-action="{{ route('fuelCards.create') }}">
                 <i class="ti ti-plus"></i>
                 <div>
                     <div class="action-dropdown-item-text">Add Fuel Card</div>
                     <div class="action-dropdown-item-desc">Add a new Fuel Card</div>
                 </div>
             </a>
-            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Import Fuel Card Data" data-action="{{ route('fuelCards.import') }}">
+            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Import Fuel Cards" data-action="{{ route('fuelCards.import') }}">
                 <i class="ti ti-file-upload"></i>
-                <span>Import Fuel Card Data</span>
+                <span>Import Fuel Cards</span>
+            </a>
+            @endcan
+            @can('fuel_cards_card_edit')
+            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Activate / Deactivate Fuel Cards" data-action="{{ route('fuelCards.activateDeactivate') }}">
+                <i class="ti ti-toggle-left"></i>
+                <div>
+                    <div class="action-dropdown-item-text">Activate/Deactivate</div>
+                    <div class="action-dropdown-item-desc">Activate or deactivate selected cards</div>
+                </div>
             </a>
             @endcan
             @can('fuel_cards_export_data_create')
             <a class="action-dropdown-item" href="{{ route('fuelCards.export') }}">
                 <i class="ti ti-file-export"></i>
-                <span>Export Fuel Card Data</span>
+                <span>Export Fuel Cards</span>
             </a>
             @endcan
             @can('fuel_cards_companies_create')
@@ -43,7 +52,7 @@
                 <i class="ti ti-wallet"></i>
                 <div>
                     <div class="action-dropdown-item-text">Company Top-Up</div>
-                    <div class="action-dropdown-item-desc">Create a payment voucher to top up a fuel company</div>
+                    <div class="action-dropdown-item-desc">Top-Up a fuel company account</div>
                 </div>
             </a>
             @endif

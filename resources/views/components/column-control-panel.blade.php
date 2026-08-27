@@ -385,7 +385,7 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 document.getElementById('columnControlOverlay').classList.remove('show');
             },
 
-            toggleColumnVisibility(columnIndex, isVisible) {
+            toggleColumnVisibility(columnIndex, isVisible, persist = true) {
                 const table = document.getElementById(this.tableId);
                 if (!table) return;
 
@@ -408,8 +408,8 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
 
                 this.updateColumnStats();
 
-                // Only save settings if not during initial load
-                if (!this.isInitialLoad) {
+                // Only persist on real user changes, never while restoring saved layout
+                if (persist && !this.isInitialLoad) {
                     this.saveSettings();
                 }
             },
@@ -673,7 +673,7 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                         const isVisible = settings.visible_columns.includes(columnKey);
 
                         checkbox.checked = isVisible;
-                        this.toggleColumnVisibility(checkbox.dataset.columnIndex, isVisible);
+                        this.toggleColumnVisibility(checkbox.dataset.columnIndex, isVisible, false);
                     });
 
                     // Apply column order if available
@@ -698,7 +698,7 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 // Show all columns by default
                 document.querySelectorAll('.column-visibility-checkbox').forEach(checkbox => {
                     checkbox.checked = true;
-                    this.toggleColumnVisibility(checkbox.dataset.columnIndex, true);
+                    this.toggleColumnVisibility(checkbox.dataset.columnIndex, true, false);
                 });
                 this.updateColumnStats();
 
@@ -745,10 +745,9 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
 
             // Method to reapply settings after table content updates
             reapplySettings() {
-                // Reload user settings and apply them
+                // Restoring layout after AJAX must not look like a user save
+                this.isInitialLoad = true;
                 this.loadUserSettings();
-
-                // Reinitialize Bootstrap dropdowns after table update
                 this.initializeDropdowns();
             },
 

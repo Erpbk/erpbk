@@ -27,7 +27,9 @@
 
           <div class="mb-3">
             <label class="form-label">Template Content</label>
-            <textarea name="description" id="agreement_template_editor" class="form-control" rows="16">{{ old('description', $template->description) }}</textarea>
+            <div class="agreement-word-editor">
+              <textarea name="description" id="agreement_template_editor" class="form-control" rows="40">{{ old('description', $template->description) }}</textarea>
+            </div>
           </div>
 
           <div class="mb-3">
@@ -54,19 +56,16 @@
 </div>
 @endsection
 
-@push('scripts')
-<script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+@include('agreements.partials.tinymce-word-document')
+
+@push('third_party_scripts')
+<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
-    if (!window.tinymce) return;
-    tinymce.init({
-      selector: '#agreement_template_editor',
-      height: 520,
-      menubar: false,
-      plugins: 'lists link table code preview fullscreen',
-      toolbar: 'undo redo | bold italic underline | bullist numlist | link table | code preview fullscreen',
-      branding: false
-    });
+    if (!window.tinymce || !window.erpbkAgreementWordEditor) return;
+    tinymce.init(window.erpbkAgreementWordEditor.config({
+      selector: '#agreement_template_editor'
+    }));
   });
 </script>
 @endpush

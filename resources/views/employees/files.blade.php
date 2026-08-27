@@ -40,6 +40,7 @@
                         <tr>
                             <th width="50">#</th>
                             <th class="text-start">Document</th>
+                            <th class="text-start">Expiry</th>
                             <th width="120" class="text-end">Action</th>
                         </tr>
                     </thead>
@@ -53,6 +54,7 @@
                                         {{ ucwords(str_replace('_', ' ', $employeeFile->name)) }}
                                     </a>
                                 </td>
+                                @include('partials.entity_file_expiry_cell', ['file' => $employeeFile])
                                 <td class="text-end">
                                     @can('employees_document_delete')
                                     <a href="javascript:void(0);"
@@ -70,6 +72,7 @@
                                 <tr class="file-row" data-name="{{ strtolower($fileName) }}">
                                     <td class="row-counter">{{ $counter++ }}</td>
                                     <td class="text-start">{{ $fileName }}</td>
+                                    @include('partials.entity_file_expiry_cell')
                                     <td class="text-end">
                                         @can('employees_document_create')
                                         <a class="btn btn-sm btn-primary show-modal action-btn"
@@ -87,7 +90,7 @@
                     </tbody>
                     <tfoot id="no-results" style="display: none;">
                         <tr>
-                            <td colspan="3" class="text-center py-4">
+                            <td colspan="4" class="text-center py-4">
                                 <div class="text-muted">
                                     <i class="ti ti-search-off fs-4 mb-2"></i>
                                     <p class="mb-0">No documents found</p>

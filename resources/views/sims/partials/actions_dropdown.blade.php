@@ -26,11 +26,11 @@
             </a>
             @endcan
             @can('sims_sim_edit')
-            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Mark SIMs Inactive" data-action="{{ route('sims.markInactive') }}">
-                <i class="ti ti-ban"></i>
+            <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="lg" data-title="Activate / Deactivate SIMs" data-action="{{ route('sims.activateDeactivate') }}">
+                <i class="ti ti-toggle-left"></i>
                 <div>
-                    <div class="action-dropdown-item-text">Mark Inactive</div>
-                    <div class="action-dropdown-item-desc">Mark in-office SIMs as inactive</div>
+                    <div class="action-dropdown-item-text">Activate/Deactivate</div>
+                    <div class="action-dropdown-item-desc">Activate or deactivate selected SIMs</div>
                 </div>
             </a>
             @endcan

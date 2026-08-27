@@ -66,10 +66,8 @@
                         <tr>
                             <td><strong>Current Status:</strong></td>
                             <td>
-                                @if($invoice->status == 1)
+                                @if($invoice->isPaid())
                                 <span class="badge bg-success">Paid</span>
-                                @elseif($invoice->status == 3)
-                                <span class="badge bg-warning">Partially Paid</span>
                                 @else
                                 <span class="badge bg-danger">Unpaid</span>
                                 @endif
@@ -127,7 +125,7 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                             <small class="form-text text-muted">
-                                Enter the amount to pay against this invoice. Partial payments are supported and will mark the invoice as partially paid until fully settled.
+                                Enter the amount to pay against this invoice. Any payment will mark the invoice as paid.
                             </small>
                         </div>
                     </div>
@@ -138,8 +136,7 @@
                         <div class="alert alert-info">
                             <h6><i class="fas fa-info-circle"></i> Payment Process:</h6>
                             <ul class="mb-0">
-                                <li>If the payment is less than the invoice total, the invoice will be marked as "Partially Paid".</li>
-                                <li>If the payment covers the remaining balance, the invoice will be marked as "Paid".</li>
+                                <li>Any payment amount will mark the invoice as "Paid".</li>
                                 <li>Rider's account will be debited with the entered payment amount.</li>
                                 <li>Selected bank account will be credited with the entered payment amount.</li>
                                 <li>A voucher entry will be created for this payment.</li>

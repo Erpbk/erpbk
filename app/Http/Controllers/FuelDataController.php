@@ -384,7 +384,8 @@ class FuelDataController extends Controller
     }
 
     /**
-     * Show form to delete fuel data for a billing month (optional rider filter).
+     * Show form to delete fuel data for a billing month (optional rider and
+     * fuel company filters).
      */
     public function deleteMonthlyForm()
     {
@@ -396,12 +397,18 @@ class FuelDataController extends Controller
             ->orderBy('rider_id')
             ->get(['id', 'rider_id', 'name']);
 
-        return view('fuel_data.delete_monthly', compact('riders'));
+        // Inactive companies are included: their historical transactions still exist.
+        $fuelCompanies = \App\Models\FuelCompany::query()
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('fuel_data.delete_monthly', compact('riders', 'fuelCompanies'));
     }
 
     /**
-     * Delete fuel data for a billing month, optionally limited to one rider.
-     * Rebuilds monthly ledger totals for each affected rider.
+     * Delete fuel data for a billing month, optionally limited to one rider
+     * and/or one fuel company. Rebuilds monthly ledger totals for each
+     * affected rider.
      */
     public function deleteMonthly(Request $request)
     {
@@ -415,6 +422,7 @@ class FuelDataController extends Controller
         $request->validate([
             'billing_month' => 'required|date_format:Y-m',
             'rider_id' => 'nullable|exists:riders,id',
+            'fuel_company_id' => 'nullable|exists:fuel_companies,id',
         ], [
             'billing_month.required' => 'Billing month is required.',
             'billing_month.date_format' => 'Billing month must be a valid month.',
@@ -422,6 +430,11 @@ class FuelDataController extends Controller
 
         $billingMonth = Carbon::createFromFormat('Y-m', $request->billing_month)->startOfMonth()->toDateString();
         $riderId = $request->filled('rider_id') ? (int) $request->rider_id : null;
+        $fuelCompanyId = $request->filled('fuel_company_id') ? (int) $request->fuel_company_id : null;
+        // withTrashed so the confirmation message still names a retired company.
+        $fuelCompanyName = $fuelCompanyId
+            ? \App\Models\FuelCompany::withTrashed()->whereKey($fuelCompanyId)->value('name')
+            : null;
 
         try {
             DB::beginTransaction();
@@ -430,15 +443,24 @@ class FuelDataController extends Controller
             if ($riderId) {
                 $query->where('rider_id', $riderId);
             }
+            if ($fuelCompanyId) {
+                // fuel_data has no company column; it resolves through the card
+                // it was charged to (card_no -> fuel_cards.card_number).
+                $query->whereHas('card', function ($cardQuery) use ($fuelCompanyId) {
+                    $cardQuery->where('fuel_company_id', $fuelCompanyId);
+                });
+            }
 
             $affectedRiderIds = (clone $query)->distinct()->pluck('rider_id')->map(fn ($id) => (int) $id)->all();
             $deletedCount = (clone $query)->count();
 
+            $scopeSuffix = ($riderId ? ' and rider' : '')
+                . ($fuelCompanyName ? ' and ' . $fuelCompanyName . ' cards' : '');
+
             if ($deletedCount === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No fuel data found for the selected month'
-                        . ($riderId ? ' and rider.' : '.'),
+                    'message' => 'No fuel data found for the selected month' . $scopeSuffix . '.',
                 ], 404);
             }
 
@@ -452,9 +474,9 @@ class FuelDataController extends Controller
             DB::commit();
 
             $monthLabel = Carbon::parse($billingMonth)->format('F Y');
-            $scope = $riderId
-                ? 'for the selected rider in ' . $monthLabel
-                : 'for all riders in ' . $monthLabel;
+            $scope = 'for ' . ($riderId ? 'the selected rider' : 'all riders')
+                . ($fuelCompanyName ? ' on ' . $fuelCompanyName . ' cards' : '')
+                . ' in ' . $monthLabel;
 
             return response()->json([
                 'success' => true,

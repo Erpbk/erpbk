@@ -158,7 +158,7 @@ class BanksController extends AppBaseController
   /**
    * Display the specified Banks.
    */
-  public function show($id)
+  public function show($company_slug, $id)
   {
     $id = (int) $id;
     $banks = $this->banksRepository->find($id);

@@ -13,10 +13,12 @@ class Sims extends BaseModel
 
   public $table = 'sims';
 
-  public const STATUS_INACTIVE = 0;
+  /** Taken out of service; cannot be assigned until reactivated. */
+  public const STATUS_DEACTIVATED = 0;
 
   public const STATUS_ASSIGNED = 1;
 
+  /** Held by the office, available to assign. */
   public const STATUS_IN_OFFICE = 2;
 
   public $fillable = [
@@ -153,8 +155,13 @@ class Sims extends BaseModel
     return match ((int) $status) {
       self::STATUS_ASSIGNED => ['label' => 'Assigned', 'badge' => 'bg-success'],
       self::STATUS_IN_OFFICE => ['label' => 'In office', 'badge' => 'bg-info'],
-      self::STATUS_INACTIVE => ['label' => 'Inactive', 'badge' => 'bg-danger'],
+      self::STATUS_DEACTIVATED => ['label' => 'Deactivated', 'badge' => 'bg-danger'],
       default => ['label' => 'Unknown', 'badge' => 'bg-secondary'],
     };
+  }
+
+  public function isDeactivated(): bool
+  {
+    return (int) $this->status === self::STATUS_DEACTIVATED;
   }
 }

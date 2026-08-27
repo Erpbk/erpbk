@@ -40,10 +40,8 @@
          <td>{{ $r->vat }}</td>
          <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
          <td>
-            @if($r->status == 1)
+            @if($r->isPaid())
             <span class="badge  bg-success">Paid</span>
-            @elseif($r->status == 3 || ($r->paid_amount ?? 0) > 0)
-            <span class="badge  bg-warning">Partially Paid</span>
             @else
             <span class="badge  bg-danger">Unpaid</span>
             @endif
@@ -59,7 +57,7 @@
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
-                  @if($r->status != 1)
+                  @if(! $r->isPaid())
                   @can('riders_payments_create')
                   <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=rider&invoice_id={{ $r->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Record Rider Payment">
                      <i class="fa fa-money-bill mx-1 text-success"></i> Record Payment

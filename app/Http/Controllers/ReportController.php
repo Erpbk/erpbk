@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\General;
 use App\Models\Riders;
+use App\Models\RiderTopCategory;
+use App\Models\RiderTopOption;
 use App\Models\Transactions;
 use App\Services\FuelMonthlyLedgerService;
 use Illuminate\Http\Request;
@@ -26,11 +29,15 @@ class ReportController extends Controller
   public function rider_report()
   {
     $riders = [];
-    return view('reports.rider_report', compact('riders'));
+    $riderStatusFilterOptions = $this->riderStatusFilterOptions();
+
+    return view('reports.rider_report', compact('riders', 'riderStatusFilterOptions'));
   }
   public function rider_monthly_report()
   {
-    return view('reports.rider_monthly_report');
+    $riderStatusFilterOptions = $this->riderStatusFilterOptions();
+
+    return view('reports.rider_monthly_report', compact('riderStatusFilterOptions'));
   }
   public function rider_report_data(Request $request)
   {
@@ -81,25 +88,12 @@ class ReportController extends Controller
     if ($request->rider_id && $request->rider_id !== '') {
       $result = $result->where('id', $request->rider_id);
     }
-    if ($request->status && $request->status !== '') {
-      $result = $result->where('status', $request->status);
-    }
+    $this->applyRiderStatusFilter($result, $request);
     if ($request->customer_id && $request->customer_id !== '') {
       $result = $result->where('customer_id', $request->customer_id);
     }
     if ($request->designation && $request->designation !== '') {
       $result = $result->where('designation', $request->designation);
-    }
-    if ($request->has('bike_assignment_status') && !empty($request->bike_assignment_status)) {
-      if ($request->bike_assignment_status === 'Active') {
-        $result = $result->whereHas('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      } elseif ($request->bike_assignment_status === 'Inactive') {
-        $result = $result->whereDoesntHave('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      }
     }
     if ($request->has('wps_status') && !empty($request->wps_status)) {
       $result = $result->where('wps', $request->wps_status);
@@ -108,6 +102,8 @@ class ReportController extends Controller
       $result = $result->where(function ($query) use ($quickSearch) {
         $query->where('name', 'like', '%' . $quickSearch . '%')
           ->orWhere('rider_id', 'like', '%' . $quickSearch . '%')
+          ->orWhere('person_code', 'like', '%' . $quickSearch . '%')
+          ->orWhere('wps', 'like', '%' . $quickSearch . '%')
           ->orWhere('emirate_hub', 'like', '%' . $quickSearch . '%')
           ->orWhere('designation', 'like', '%' . $quickSearch . '%');
       });
@@ -142,15 +138,6 @@ class ReportController extends Controller
 
     $riderIds = $result->pluck('id')->filter()->values()->all();
     $accountIds = $result->pluck('account_id')->filter()->unique()->values()->all();
-
-    $activeBikeRiders = [];
-    if (!empty($riderIds)) {
-      $activeBikeRiders = \App\Support\CompanyQuery::table('bikes')
-        ->whereIn('rider_id', $riderIds)
-        ->where('warehouse', 'Active')
-        ->pluck('rider_id')
-        ->toArray();
-    }
 
     $invoiceTotals = collect();
     $voucherByRider = [];
@@ -307,32 +294,9 @@ class ReportController extends Controller
       $payable = $components['payable'];
       $balance = $payable - $paid;
 
-      $statusOptionLabel = !empty($rider->rider_status_option) ? $rider->rider_status_option : null;
-      if (!$statusOptionLabel) {
-        if (($rider->absconder ?? 0) == 1) {
-          $statusOptionLabel = 'Absconder';
-        } elseif (($rider->flowup ?? 0) == 1) {
-          $statusOptionLabel = 'Follow Up';
-        } elseif (($rider->l_license ?? 0) == 1) {
-          $statusOptionLabel = 'Learning License';
-        } elseif ($rider->designation === 'Walker') {
-          $statusOptionLabel = 'Walker';
-        } elseif ($rider->designation === 'Vacation') {
-          $statusOptionLabel = 'Vacation';
-        } elseif ($rider->designation === 'Cancel') {
-          $statusOptionLabel = 'Cancel';
-        } elseif ($rider->designation === 'PRO' || ($rider->pro ?? 0) == 1) {
-          $statusOptionLabel = 'PRO';
-        }
-      }
-      if ($statusOptionLabel) {
-        $statusText = $statusOptionLabel;
-        $badgeClass = 'bg-label-primary';
-      } else {
-        $isActive = in_array($rider->id, $activeBikeRiders);
-        $statusText = $isActive ? 'Active' : 'Inactive';
-        $badgeClass = $isActive ? 'bg-label-success' : 'bg-label-danger';
-      }
+      $statusDisplay = Riders::currentStatusDisplay($rider);
+      $statusText = $statusDisplay['label'];
+      $badgeClass = $statusDisplay['badge'];
 
       $fmt = static fn ($n) => number_format((float) $n, 2);
 
@@ -348,6 +312,8 @@ class ReportController extends Controller
       $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
       $data .= '<td>' . e($rider->emirate_hub) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
+      $data .= '<td>' . e($rider->wps) . '</td>';
       $data .= '<td>' . e(optional($rider->customer)->name) . '</td>';
       $data .= '<td><a target="_blank" href="' . e($detailUrl) . '" title="View rider report details">' . e($billingMonthLabel) . '</a></td>';
       $data .= '<td align="center">' . $fmt($totalAmount) . '</td>';
@@ -389,7 +355,7 @@ class ReportController extends Controller
       // One cell per column (no colspan) so column re-ordering / hiding stays aligned.
       $data .= '<tr class="font-weight-bold total-row">';
       $data .= '<td style="font-weight:700;color:#000;">Totals</td>';
-      $data .= str_repeat('<td></td>', 6);
+      $data .= str_repeat('<td></td>', 8);
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumTotalAmount) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumVc) . '</td>';
       $data .= '<td style="text-align:center;font-weight:700;color:#000;">' . $fmt($sumCod) . '</td>';
@@ -1018,28 +984,12 @@ class ReportController extends Controller
 
     $result = Riders::with(['vendor', 'bikes']);
 
-    if ($request->status && $request->status !== '') {
-      $result = $result->where('status', $request->status);
-    }
+    $this->applyRiderStatusFilter($result, $request);
     if ($request->VID && $request->VID !== '') {
       $result = $result->where('VID', $request->VID);
     }
     if ($request->designation && $request->designation !== '') {
       $result = $result->where('designation', $request->designation);
-    }
-    // Filter by bike assignment status (Active/Inactive based on bike assignment)
-    if ($request->has('bike_assignment_status') && !empty($request->bike_assignment_status)) {
-      if ($request->bike_assignment_status === 'Active') {
-        // Riders who have an active bike assigned
-        $result = $result->whereHas('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      } elseif ($request->bike_assignment_status === 'Inactive') {
-        // Riders who don't have an active bike assigned
-        $result = $result->whereDoesntHave('bikes', function ($q) {
-          $q->where('warehouse', 'Active');
-        });
-      }
     }
     // Filter by WPS status
     if ($request->has('wps_status') && !empty($request->wps_status)) {
@@ -1067,16 +1017,6 @@ class ReportController extends Controller
     $page = (int) ($request->get('page') ?: 1);
     $totalCount = $result->count();
     $result = $result->orderBy('rider_id')->forPage($page, $perPage)->get();
-
-    $riderIds = $result->pluck('id')->filter()->all();
-    $activeBikeRiders = [];
-    if (!empty($riderIds)) {
-      $activeBikeRiders = \App\Support\CompanyQuery::table('bikes')
-        ->whereIn('rider_id', $riderIds)
-        ->where('warehouse', 'Active')
-        ->pluck('rider_id')
-        ->toArray();
-    }
 
     $accountIds = $result->pluck('account_id')->filter()->unique()->values()->all();
 
@@ -1136,9 +1076,9 @@ class ReportController extends Controller
       $netActivity = $monthDebit - $monthCredit;
       $closingBalance = $openingBalance + $netActivity;
 
-      $isActive = in_array($rider->id, $activeBikeRiders);
-      $badgeClass = $isActive ? 'bg-label-success' : 'bg-label-danger';
-      $statusText = $isActive ? 'Active' : 'Inactive';
+      $statusDisplay = Riders::currentStatusDisplay($rider);
+      $badgeClass = $statusDisplay['badge'];
+      $statusText = $statusDisplay['label'];
 
       $data .= '<tr>';
       $data .= '<td>' . e($rider->rider_id) . '</td>';
@@ -1196,5 +1136,74 @@ class ReportController extends Controller
       'perPage' => $perPage,
       'page' => $page,
     ];
+  }
+
+  /**
+   * Status filter choices: fixed employment/lifecycle labels plus statuses created in Rider Settings.
+   *
+   * @return list<array{value: string, label: string}>
+   */
+  private function riderStatusFilterOptions(): array
+  {
+    $options = [];
+    $seen = [];
+
+    foreach ([1, 3, 4, 5] as $code) {
+      $label = trim((string) (Riders::employmentStatusDisplay($code)['label'] ?? ''));
+      $key = strtolower($label);
+      if ($label === '' || in_array($key, $seen, true)) {
+        continue;
+      }
+      $seen[] = $key;
+      $options[] = ['value' => $label, 'label' => $label];
+    }
+
+    $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
+    if (! $category) {
+      return $options;
+    }
+
+    $dynamic = RiderTopOption::where('category_id', $category->id)
+      ->where('is_active', true)
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get(['name']);
+
+    foreach ($dynamic as $option) {
+      $name = trim((string) $option->name);
+      $key = strtolower($name);
+      if ($name === '' || in_array($key, $seen, true)) {
+        continue;
+      }
+      $seen[] = $key;
+      $options[] = ['value' => $name, 'label' => $name];
+    }
+
+    return $options;
+  }
+
+  /**
+   * Restrict the report query to the rider's current/primary status
+   * (assigned rider_status when set, otherwise employment/lifecycle label).
+   */
+  private function applyRiderStatusFilter($query, Request $request): void
+  {
+    $raw = $request->filled('bike_assignment_status')
+      ? $request->input('bike_assignment_status')
+      : $request->input('status');
+
+    $status = trim((string) $raw);
+    if ($status === '') {
+      return;
+    }
+
+    if (preg_match('/^\d+$/', $status)) {
+      $mapped = General::RiderStatus((int) $status);
+      if ($mapped !== 'not-set') {
+        $status = $mapped;
+      }
+    }
+
+    Riders::applyCurrentStatusFilter($query, $status);
   }
 }

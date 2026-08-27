@@ -30,7 +30,7 @@ class FuelCardExport extends DefaultValueBinder implements FromCollection, WithH
             $card->branch?->name ?? '',
             $card->rider?->rider_id ?? '',
             $card->rider?->name ?? '',
-            $card->status ?? 'Inactive',
+            \App\Models\FuelCards::statusDisplay($card->status)['label'],
         ];
     }
 

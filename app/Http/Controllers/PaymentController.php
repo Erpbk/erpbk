@@ -443,9 +443,8 @@ class PaymentController extends Controller
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
                         if ($invoicePaymentAmount > 0) {
-                            // Payment already saved; balance is remaining due after deductions/payments.
                             $invoice->update([
-                                'status' => ((float) $invoice->balance) <= 0.01 ? 1 : 3,
+                                'status' => 1,
                                 'updated_by' => auth()->id(),
                             ]);
                         }
@@ -1048,7 +1047,14 @@ class PaymentController extends Controller
                         continue;
                     }
 
-                    if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
+                    if (($input['invoice_type'] ?? null) === 'rider') {
+                        $invoice->status = $paid;
+                        $invoice->updated_by = auth()->id();
+                        $invoice->save();
+                        continue;
+                    }
+
+                    if (($input['invoice_type'] ?? null) === 'employee') {
                         // Payment row already updated; balance reflects remaining due after this payment.
                         $invoice->status = ((float) $invoice->balance) <= 0.01 ? $paid : $partial;
                         $invoice->updated_by = auth()->id();

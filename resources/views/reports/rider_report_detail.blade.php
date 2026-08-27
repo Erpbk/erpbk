@@ -541,8 +541,7 @@
                         <td>{{ $fmtMonth($invoice->billing_month) }}</td>
                         <td>{{ $invoice->descriptions ?: '—' }}</td>
                         <td class="status-text">
-                            @if(($invoice->status ?? 0) == 1) Paid
-                            @elseif(($invoice->status ?? 0) == 3) Partially Paid
+                            @if($invoice->isPaid()) Paid
                             @else Unpaid
                             @endif
                         </td>

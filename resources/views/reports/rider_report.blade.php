@@ -353,6 +353,8 @@
         ['data' => 'status', 'title' => 'Status'],
         ['data' => 'emirates', 'title' => 'Emirates'],
         ['data' => 'designation', 'title' => 'Designation'],
+        ['data' => 'person_code', 'title' => 'Person Code'],
+        ['data' => 'wps', 'title' => 'WPS'],
         ['data' => 'project', 'title' => 'Project'],
         ['data' => 'billing_month', 'title' => 'Billing Month'],
         ['data' => 'total_amount', 'title' => 'Invoice'],
@@ -429,6 +431,8 @@
                                 <th title="Status">Status</th>
                                 <th title="Emirates">Emirates</th>
                                 <th title="Designation">Designation</th>
+                                <th title="Person Code">Person Code</th>
+                                <th title="WPS">WPS</th>
                                 <th title="Project">Project</th>
                                 <th title="Billing Month">Billing Month</th>
                                 <th title="Invoice" style="text-align: center;">Invoice</th>
@@ -493,8 +497,9 @@
                     <label for="bike_assignment_status">Filter by Status</label>
                     <select class="form-control form-select select2" id="bike_assignment_status" name="bike_assignment_status">
                         <option value="" selected>Select</option>
-                        <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
-                        <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                        @foreach(($riderStatusFilterOptions ?? []) as $statusOption)
+                        <option value="{{ $statusOption['value'] }}" {{ request('bike_assignment_status') == $statusOption['value'] ? 'selected' : '' }}>{{ $statusOption['label'] }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="form-group col-md-12">
@@ -774,10 +779,10 @@
                     apply();
                 };
 
-                controller.toggleColumnVisibility = function() {
+                controller.toggleColumnVisibility = function(_columnIndex, _isVisible, persist) {
                     scheduleApply();
                     this.updateColumnStats();
-                    if (!this.isInitialLoad) {
+                    if (persist !== false && !this.isInitialLoad) {
                         this.saveSettings();
                     }
                 };
@@ -902,7 +907,7 @@
                 }
 
                 if (!$('#get_data').children().length) {
-                    $('#get_data').html('<tr><td colspan="22"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                    $('#get_data').html('<tr><td colspan="24"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
                 }
             }
         });
@@ -978,7 +983,7 @@
                     errorMessage = 'Server error occurred. Please try again.';
                 }
 
-                $('#get_data').html('<tr><td colspan="22"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
+                $('#get_data').html('<tr><td colspan="24"><div class="alert alert-danger mb-0"><i class="ti ti-alert-triangle"></i> ' + errorMessage + '</div></td></tr>');
             }
         });
     }

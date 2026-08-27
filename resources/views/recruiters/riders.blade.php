@@ -1,15 +1,17 @@
-@extends('layouts.app')
-@section('content')
-<div class="container-fluid">
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h3 class="card-title">Riders for Recruiter: {{ $recruiter->name }}</h3>
-            <div class="card-tools">
-                <a href="{{ route('recruiters.assign-riders', $recruiter->id) }}" class="btn btn-success btn-sm">
-                    <i class="fa fa-plus"></i> Assign More Riders
-                </a>
-            </div>
+@extends('recruiters.view')
+@section('page_content')
+@php
+    $recruiter = $recruiter ?? $recruiters ?? null;
+@endphp
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title mb-0">Riders</h3>
+        <div class="card-tools">
+            <a href="{{ route('recruiters.assign-riders', $recruiter->id) }}" class="btn btn-success btn-sm">
+                <i class="fa fa-plus"></i> Assign More Riders
+            </a>
         </div>
+    </div>
         <div class="card-body">
             <table class="table table-striped">
                 <thead>
@@ -63,17 +65,11 @@
             {{ $riders->links('components.global-pagination') }}
         </div>
         <div class="card-footer">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <button id="remove-selected-riders" class="btn btn-danger" style="display:none;">
-                        <i class="fa fa-trash"></i> Remove Selected Riders
-                    </button>
-                </div>
-                <a href="{{ route('recruiters.index') }}" class="btn btn-secondary">Back to Recruiters</a>
-            </div>
+            <button id="remove-selected-riders" class="btn btn-danger" style="display:none;">
+                <i class="fa fa-trash"></i> Remove Selected Riders
+            </button>
         </div>
     </div>
-</div>
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>

@@ -1,37 +1,22 @@
-<!-- resources/views/suppliers/show.blade.php -->
 @extends('Suppliers.view')
 
 @section('page_content')
 @php $vf = static fn (string $f): bool => field_visible('supplier', $f); @endphp
-<div class="card p-4 shadow-sm">
-    <div class="row">
-        @if($vf('name'))
-        <div class="col-md-6 form-group col-6">
-            <label>Supplier Name:</label>
-            <p>{{ $supplier->name }}</p>
-        </div>
-        @endif
-        @if($vf('email'))
-        <div class="col-md-6 form-group col-6">
-            <label>Email:</label>
-            <p>{{ $supplier->email }}</p>
-        </div>
-        @endif
-        @if($vf('phone'))
-        <div class="col-md-6 form-group col-6">
-            <label>Phone:</label>
-            <p>{{ $supplier->phone }}</p>
-        </div>
-        @endif
-        @if($vf('address'))
-        <div class="col-md-6 form-group col-6">
-            <label>Address:</label>
-            <p>{{ $supplier->address }}</p>
-        </div>
-        @endif
-    </div>
-    <div class="col-sm-6">
-        <a href="{{ route('suppliers.index') }}" class="btn btn-primary float-right">Back</a>
-    </div>
-</div>
+<x-entity-info-card title="Supplier Information" icon="ti ti-truck" :edit-url="route('suppliers.edit', $supplier->id)" edit-title="Edit Supplier Details">
+    @if($vf('name'))
+    <x-entity-info-field label="Supplier Name" :value="$supplier->name" />
+    @endif
+    @if($vf('email'))
+    <x-entity-info-field label="Email" :value="$supplier->email" />
+    @endif
+    @if($vf('phone') || $vf('contact_number'))
+    <x-entity-info-field label="Phone" :value="$supplier->contact_number ?? $supplier->phone" />
+    @endif
+    @if($vf('address'))
+    <x-entity-info-field label="Address" :value="$supplier->address" />
+    @endif
+    @if($vf('tax_number'))
+    <x-entity-info-field label="TRN" :value="$supplier->tax_number" />
+    @endif
+</x-entity-info-card>
 @endsection

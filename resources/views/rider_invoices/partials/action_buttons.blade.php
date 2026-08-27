@@ -1,6 +1,6 @@
 @php
 $companySlug = request()->route('company_slug');
-$isPaid = (int) $riderInvoice->status === 1;
+$isPaid = $riderInvoice->isPaid();
 @endphp
 <div class="invoice-toolbar no-print">
     <div class="invoice-toolbar-inner">

@@ -511,7 +511,7 @@
                         <select class="form-control " id="status" name="status">
                             <option value="" {{ request('status') ? '' : 'selected' }}>Select</option>
                             <option value="assigned" {{ in_array(request('status'), ['assigned', 'active'], true) ? 'selected' : '' }}>Assigned</option>
-                            <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                            <option value="deactivated" {{ in_array(request('status'), ['deactivated', 'inactive'], true) ? 'selected' : '' }}>Deactivated</option>
                             <option value="in_office" {{ request('status') == 'in_office' ? 'selected' : '' }}>In office</option>
                             <option value="user_absconded" {{ in_array(request('status'), ['user_absconded', 'absconded'], true) ? 'selected' : '' }}>User Absconded</option>
                         </select>

@@ -1,39 +1,10 @@
-@extends('layouts.app')
+@extends('recruiters.view')
 
-@section('content')
-<section class="content-header">
-    <div class="container-fluid">
-        <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1>Recruiter Details</h1>
-            </div>
-            <div class="col-sm-6">
-                <div class="float-right">
-                    <a class="btn btn-primary mr-2"
-                        href="{{ route('recruiters.riders', $recruiters->id) }}">
-                        View Riders
-                    </a>
-                    <a class="btn btn-success"
-                        href="{{ route('recruiters.assign-riders', $recruiters->id) }}">
-                        Assign Riders
-                    </a>
-                    <a class="btn btn-default"
-                        href="{{ route('recruiters.index') }}">
-                        Back
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<div class="content px-3">
-    <div class="card">
-        <div class="card-body">
-            <div class="row">
-                @include('recruiters.show_fields')
-            </div>
-        </div>
-    </div>
-</div>
+@section('page_content')
+@php
+    $recruiters = $recruiters ?? $recruiter ?? null;
+@endphp
+<x-entity-info-card title="Recruiter Information" icon="ti ti-users" :edit-url="isset($recruiters) ? route('recruiters.edit', $recruiters->id) : null" edit-title="Edit Recruiter Details">
+    @include('recruiters.show_fields')
+</x-entity-info-card>
 @endsection

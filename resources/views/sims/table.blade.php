@@ -16,7 +16,7 @@
           $currentCompany = (string) request('company', '');
           $assignedActive = in_array($currentStatus, ['assigned', 'active'], true);
           $inOfficeActive = in_array($currentStatus, ['in_office', 'in-office', 'office'], true);
-          $inactiveActive = $currentStatus === 'inactive';
+          $deactivatedActive = in_array($currentStatus, ['deactivated', 'inactive'], true);
           $abscondedActive = in_array($currentStatus, ['user_absconded', 'absconded'], true);
           $totalActive = $currentStatus === '' && $currentCompany === '';
           $simStatUrl = function (array $overrides) use ($statBaseQuery) {
@@ -41,9 +41,9 @@
           <div class="label"><i class="fa fa-building"></i>In office</div>
           <div class="value" id="total_in_office">{{ $stats['in_office'] ?? 0 }}</div>
         </a>
-        <a href="{{ $simStatUrl(['status' => $inactiveActive ? null : 'inactive']) }}" class="total-card total-inactive{{ $inactiveActive ? ' is-active' : '' }}" title="{{ $inactiveActive ? 'Clear Inactive filter' : 'Show inactive SIMs' }}">
-          <div class="label"><i class="fa fa-times-circle"></i>Inactive</div>
-          <div class="value" id="total_rejected">{{ $stats['inactive'] ?? 0 }}</div>
+        <a href="{{ $simStatUrl(['status' => $deactivatedActive ? null : 'deactivated']) }}" class="total-card total-inactive{{ $deactivatedActive ? ' is-active' : '' }}" title="{{ $deactivatedActive ? 'Clear Deactivated filter' : 'Show deactivated SIMs' }}">
+          <div class="label"><i class="fa fa-times-circle"></i>Deactivated</div>
+          <div class="value" id="total_rejected">{{ $stats['deactivated'] ?? 0 }}</div>
         </a>
         <a href="{{ $simStatUrl(['status' => $abscondedActive ? null : 'user_absconded']) }}" class="total-card total-user-absconded{{ $abscondedActive ? ' is-active' : '' }}" title="{{ $abscondedActive ? 'Clear User Absconded filter' : 'Show SIMs assigned to absconded users' }}">
           <div class="label"><i class="fa fa-user-secret"></i>User Absconded</div>
@@ -144,9 +144,15 @@
             <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
               @can('sims_assign_create')
               @if(!$r->assign_to)
+              @if((int) $r->status === \App\Models\Sims::STATUS_DEACTIVATED)
+              <span class="dropdown-item text-muted" title="Activate this SIM before assigning it.">
+                <i class="fa fa-ban my-1"></i>Deactivated
+              </span>
+              @else
               <a href="javascript:void(0);" data-size="lg" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
                 <i class="fa fa-motorcycle my-1"></i>Assign
               </a>
+              @endif
               @else
               <a href="javascript:void(0);" data-size="lg" data-title="Return Sim" data-action="{{ route('sims.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-undo my-1"></i>Return

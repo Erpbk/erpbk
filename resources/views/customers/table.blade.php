@@ -47,6 +47,10 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+                  @include('layouts.partials.module_contract_action', [
+                     'module' => 'customers',
+                     'recordId' => $r->id,
+                  ])
                   @can('customer_edit')
                      <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Update Customer Details" data-action="{{ route('customers.edit', $r->id) }}">
                         <i class="fa fa-edit my-1"></i> Edit

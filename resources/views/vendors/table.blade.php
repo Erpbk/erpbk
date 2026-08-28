@@ -35,6 +35,11 @@
                <span class="text-muted small">Locked</span>
             @else
             <div class='btn-group'>
+               @include('layouts.partials.module_contract_action', [
+                  'module' => 'vendors',
+                  'recordId' => $r->id,
+                  'variant' => 'btn-group',
+               ])
                @can('vendors_edit')
                <a href="javascript:void(0);" data-action="{{ route('vendors.edit', $r->id) }}" class='btn btn-info btn-sm show-modal' data-size="lg" data-title="Update Vendors">
                   <i class="fa fa-edit"></i>

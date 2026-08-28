@@ -143,6 +143,10 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}">
+                     @include('layouts.partials.module_contract_action', [
+                        'module' => 'visa_expense',
+                        'recordId' => $r->id,
+                     ])
                      @can('visa_expense_view')
                      <a href="{{ route('VisaExpense.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
                         View Expense Detail

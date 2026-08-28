@@ -104,6 +104,10 @@
                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $cheque->id }}" style="z-index: 1050;">
+                    @include('layouts.partials.module_contract_action', [
+                        'module' => 'cheques',
+                        'recordId' => $cheque->id,
+                    ])
                     @can('cash_&_banks_cheques_edit')
                         @if($cheque->status != 'Cleared')
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">

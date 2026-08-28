@@ -32,6 +32,11 @@
             </td>@endif
             <td>
                 <div class='btn-group'>
+                    @include('layouts.partials.module_contract_action', [
+                        'module' => 'recruiters',
+                        'recordId' => $r->id,
+                        'variant' => 'btn-group',
+                    ])
                     @can('recruiters_edit')
                     <a href="javascript:void(0);" data-action="{{ route('recruiters.edit', $r->id) }}" class='btn btn-info btn-sm show-modal' data-size="lg" data-title="Update Recruiters">
                         <i class="fa fa-edit"></i>

@@ -142,6 +142,10 @@
               <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
             </button>
             <div class="dropdown-menu dropdown-menu-end sim-table-dropdown-menu" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+              @include('layouts.partials.module_contract_action', [
+                'module' => 'sims',
+                'recordId' => $r->id,
+              ])
               @can('sims_assign_create')
               @if(!$r->assign_to)
               @if((int) $r->status === \App\Models\Sims::STATUS_DEACTIVATED)

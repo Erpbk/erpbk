@@ -2,12 +2,23 @@
   /** @var string $module */
   /** @var int|string $recordId */
   /** @var string|null $recordLabel */
-  $contractService = app(\App\Services\Agreements\AgreementModuleService::class);
-  $agreementItems = $contractService->actionMenuItemsForModule($module);
-  $permissions = $contractService->permissionsFor($module);
+  $variant = $variant ?? 'dropdown';
+  $agreementItems = [];
+  try {
+    $contractService = app(\App\Services\Agreements\AgreementModuleService::class);
+    $agreementItems = $contractService->actionMenuItemsForModule($module);
+  } catch (\Throwable) {
+    $agreementItems = [];
+  }
 @endphp
 @if($agreementItems !== [])
-@canany($permissions)
+@if($variant === 'btn-group')
+<div class="dropdown d-inline-block">
+  <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Agreements">
+    <i class="ti ti-file-certificate"></i>
+  </button>
+  <div class="dropdown-menu">
+@endif
 @foreach($agreementItems as $agreementItem)
 @php
   $href = $agreementItem['record_preview_pattern']
@@ -22,5 +33,8 @@
 </a>
 @endif
 @endforeach
-@endcanany
+@if($variant === 'btn-group')
+  </div>
+</div>
+@endif
 @endif

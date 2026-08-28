@@ -272,23 +272,12 @@
   .rider-tab-count-badge,
   .rider-inventory-count-badge {
     min-width: 1.1rem;
-    padding: 0.15rem;
+    padding: 0.15rem 0.4rem;
     margin-left: 0;
     font-size: 0.8rem;
     line-height: 1.2;
     vertical-align: middle;
-  }
-
-  @keyframes rider-expired-tab-blink {
-
-    0%,
-    100% {
-      opacity: 1;
-    }
-
-    50% {
-      opacity: 0.4;
-    }
+    white-space: nowrap;
   }
 
   .rider-profile-tabs,
@@ -309,63 +298,36 @@
     z-index: 8;
   }
 
-  .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link .rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link .rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link .rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link .rider-expired-docs-bubble {
-    position: absolute;
-    left: 50%;
-    right: auto;
-    top: auto;
-    bottom: calc(100% + 0.2rem);
-    transform: translateX(-50%);
-    margin: 0;
-    pointer-events: none;
-    box-sizing: border-box;
-    max-width: none;
-    max-height: none;
-    opacity: 0;
-    visibility: hidden;
-    z-index: 20;
-  }
-
-  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link.active .rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link.active .rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link.active .rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link.active .rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link:hover .rider-expired-docs-bubble,
-  .rider-profile-tabs #mainNavigation .nav-link.active .rider-expired-docs-bubble,
-  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-expired-docs-bubble {
-    opacity: 1;
-    visibility: visible;
-    animation: rider-expired-tab-blink 1.1s ease-in-out infinite;
-  }
-
-  .rider-profile-tabs #mainNavigation .nav-link .rider-doc-status-bubble {
-    position: static;
-    transform: none;
-    max-width: none;
-    overflow: visible;
-    animation: none;
-  }
-
   .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges {
-    display: flex;
+    display: inline-flex;
     flex-wrap: nowrap;
     justify-content: center;
     align-items: center;
     gap: 0.12rem;
     overflow: visible;
     white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  /* Compact count on the tab; full label on hover, focus, or active tab. */
+  .rider-profile-tabs #mainNavigation .rider-tab-count-label {
+    display: inline-block;
+    max-width: 0;
+    margin: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    vertical-align: bottom;
+    transition: max-width 0.18s ease, opacity 0.18s ease;
+  }
+
+  .rider-profile-tabs #mainNavigation .nav-item:hover .rider-tab-count-label,
+  .rider-profile-tabs #mainNavigation .nav-link.active .rider-tab-count-label,
+  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-tab-count-label,
+  .rider-profile-tabs #overflowItems .rider-tab-count-label,
+  #overflowItems .rider-tab-count-label {
+    max-width: 16rem;
+    opacity: 1;
   }
 
   .nav-link.rider-expired-count-link {
@@ -1097,7 +1059,10 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                     <i class="ti ti-package ti-sm me-1_5"></i>
                     Inventory
                     @if($riderAssignedItemCount > 0)
-                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge me-1">{{ $riderAssignedItemCount }}</span>
+                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge ms-1"
+                      title="Rider Inventory {{ $riderAssignedItemCount }}">
+                      <span class="rider-tab-count-label">Rider Inventory </span>{{ $riderAssignedItemCount }}
+                    </span>
                     @endif
                   </a>
                 </li>

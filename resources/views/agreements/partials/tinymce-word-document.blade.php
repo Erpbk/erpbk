@@ -298,6 +298,12 @@
     margin-top: 4px !important;
   }
 
+  .agreement-word-editor .tox-tinymce .word-ribbon-field-label {
+    color: #605e5c !important;
+    font-size: 11px !important;
+    min-width: 32px;
+  }
+
   .agreement-word-editor .tox-tinymce .word-ribbon-table-wrap {
     position: relative;
   }
@@ -355,12 +361,16 @@
       var viewport = window.innerHeight || 900;
       return Math.max(viewport - 56, 920);
     },
-    contentStyle: function () {
+    contentStyle: function (margins) {
+      margins = margins || this.pageMargins();
+      var pad = [margins.top, margins.right, margins.bottom, margins.left].map(function (v) {
+        return v + 'mm';
+      }).join(' ');
       return [
         'html{background:#e8e8e8;height:100%;}',
         'body{font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;line-height:1.5;color:#1e293b;',
-        'background:#ffffff;width:210mm;max-width:calc(100% - 40px);min-height:297mm;',
-        'margin:20px auto 48px auto !important;padding:25.4mm;box-sizing:border-box;',
+        'background:#ffffff;width:210mm;max-width:calc(100% - 24px);min-height:297mm;',
+        'margin:16px auto 40px auto !important;padding:' + pad + ';box-sizing:border-box;',
         'box-shadow:0 1px 3px rgba(0,0,0,.16),0 0 0 1px #d0d0d0;}',
         'table{border-collapse:collapse;width:100%;}',
         'table td,table th{border:1px solid #94a3b8;padding:4px 8px;}',
@@ -368,6 +378,41 @@
         'h1,h2,h3,h4{margin:0 0 .55em;line-height:1.25;}',
         'img{max-width:100%;height:auto;}'
       ].join('');
+    },
+    pageMargins: function () {
+      var wrap = document.querySelector('.agreement-word-editor');
+      var defaults = { top: 18, right: 12, bottom: 15, left: 12 };
+      if (!wrap) {
+        return defaults;
+      }
+      ['top', 'right', 'bottom', 'left'].forEach(function (side) {
+        var raw = wrap.getAttribute('data-margin-' + side);
+        if (raw === null || raw === '') {
+          return;
+        }
+        var n = parseFloat(raw);
+        if (!isNaN(n)) {
+          defaults[side] = n;
+        }
+      });
+      return defaults;
+    },
+    applyPageMargins: function (editor, margins) {
+      if (!editor || !editor.getBody()) {
+        return;
+      }
+      editor.getBody().style.padding = margins.top + 'mm ' + margins.right + 'mm ' + margins.bottom + 'mm ' + margins.left + 'mm';
+      var wrap = document.querySelector('.agreement-word-editor');
+      if (wrap) {
+        wrap.setAttribute('data-margin-left', String(margins.left));
+        wrap.setAttribute('data-margin-right', String(margins.right));
+        wrap.setAttribute('data-margin-top', String(margins.top));
+        wrap.setAttribute('data-margin-bottom', String(margins.bottom));
+      }
+      var leftField = document.querySelector('input[name="letterhead_margins[left]"]');
+      var rightField = document.querySelector('input[name="letterhead_margins[right]"]');
+      if (leftField) leftField.value = margins.left;
+      if (rightField) rightField.value = margins.right;
     },
     icon: function (name) {
       var paths = {
@@ -500,6 +545,17 @@
         '          <option value="1.5" selected>1.5</option><option value="2">2.0</option>',
         '        </select>',
         '      </div></div></div><div class="word-ribbon-group-label">Paragraph</div></div>',
+        '    <div class="word-ribbon-group"><div class="word-ribbon-group-body"><div class="word-ribbon-col">',
+        '      <div class="word-ribbon-row">',
+        '        <span class="word-ribbon-field-label">Left</span>',
+        '        <input type="number" class="word-ribbon-select is-size" data-page-margin="left" min="5" max="40" step="0.5" title="Left margin (mm)">',
+        '        <span class="word-ribbon-field-label">mm</span>',
+        '      </div>',
+        '      <div class="word-ribbon-row">',
+        '        <span class="word-ribbon-field-label">Right</span>',
+        '        <input type="number" class="word-ribbon-select is-size" data-page-margin="right" min="5" max="40" step="0.5" title="Right margin (mm)">',
+        '        <span class="word-ribbon-field-label">mm</span>',
+        '      </div></div></div><div class="word-ribbon-group-label">Margins</div></div>',
         '    <div class="word-ribbon-group"><div class="word-ribbon-group-body">',
         '      <button type="button" class="word-ribbon-btn is-large" data-cmd="mcePageBreak" title="Page break">' + i('page') + 'Breaks</button>',
         '    </div><div class="word-ribbon-group-label">Page Setup</div></div>',
@@ -527,6 +583,7 @@
       this.bindRibbon(editor, ribbon);
     },
     bindRibbon: function (editor, ribbon) {
+      var self = this;
       var sizes = ['8pt', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '24pt', '28pt', '36pt', '48pt'];
 
       function run(name, value) {
@@ -619,6 +676,45 @@
           editor.formatter.apply('wordlineheight', { value: lineHeight.value });
         });
       }
+
+      var margins = self.pageMargins();
+      ribbon.querySelectorAll('[data-page-margin]').forEach(function (input) {
+        var side = input.getAttribute('data-page-margin');
+        if (side && margins[side] != null) {
+          input.value = margins[side];
+        }
+        input.addEventListener('change', function () {
+          var next = self.pageMargins();
+          var value = parseFloat(input.value);
+          if (isNaN(value)) {
+            return;
+          }
+          value = Math.max(5, Math.min(40, value));
+          input.value = value;
+          next[side] = value;
+          self.applyPageMargins(editor, next);
+        });
+      });
+
+      ['left', 'right'].forEach(function (side) {
+        var field = document.querySelector('input[name="letterhead_margins[' + side + ']"]');
+        if (!field) {
+          return;
+        }
+        field.addEventListener('input', function () {
+          var next = self.pageMargins();
+          var value = parseFloat(field.value);
+          if (isNaN(value)) {
+            return;
+          }
+          next[side] = value;
+          var ribbonInput = ribbon.querySelector('[data-page-margin="' + side + '"]');
+          if (ribbonInput) {
+            ribbonInput.value = value;
+          }
+          self.applyPageMargins(editor, next);
+        });
+      });
 
       var tableWrap = ribbon.querySelector('.word-ribbon-table-wrap');
       var tableGrid = ribbon.querySelector('.word-ribbon-table-grid');

@@ -30,12 +30,12 @@ class AgreementLetterheadLayout
             ),
             'left' => $this->clamp(
                 (float) (is_array($saved) ? ($saved['left'] ?? $side['left']) : $side['left']),
-                8,
+                5,
                 55
             ),
             'right' => $this->clamp(
                 (float) (is_array($saved) ? ($saved['right'] ?? $side['right']) : $side['right']),
-                8,
+                5,
                 55
             ),
         ];

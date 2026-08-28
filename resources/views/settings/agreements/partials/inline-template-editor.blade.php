@@ -5,6 +5,7 @@ $secondary = $pb['secondary_color'] ?? '#1e3a8a';
 $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
 $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
 $selectedTemplateId = (int) old('contract_template_id', $contractTemplateId ?? 0);
+$editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLetterheadMarginsMm() : ['top' => 18, 'bottom' => 15, 'left' => 12, 'right' => 12]);
 @endphp
 
 <div class="mb-3" id="template-content-panel" style="--agreement-primary: {{ $primary }}; --agreement-secondary: {{ $secondary }}; --agreement-on-primary: {{ $onPrimary }};">
@@ -51,7 +52,11 @@ $selectedTemplateId = (int) old('contract_template_id', $contractTemplateId ?? 0
   <textarea name="template_contents[{{ $tpl->id }}]" id="template_content_{{ $tpl->id }}" class="d-none template-content-store">{{ old('template_contents.'.$tpl->id, $tpl->description) }}</textarea>
   @endforeach
 
-  <div id="template-editor-wrap" class="agreement-word-editor {{ $category->templates->isEmpty() ? 'd-none' : '' }}">
+  <div id="template-editor-wrap" class="agreement-word-editor {{ $category->templates->isEmpty() ? 'd-none' : '' }}"
+    data-margin-top="{{ $editorMargins['top'] }}"
+    data-margin-right="{{ $editorMargins['right'] }}"
+    data-margin-bottom="{{ $editorMargins['bottom'] }}"
+    data-margin-left="{{ $editorMargins['left'] }}">
     <textarea id="agreement-template-editor" rows="40" class="form-control"></textarea>
     <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
       <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-template-quick-preview">

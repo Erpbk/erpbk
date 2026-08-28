@@ -198,4 +198,160 @@ class AgreementModuleService
     {
         return \App\Models\Settings::getMenuLabel($module);
     }
+
+    /**
+     * ERP assignment key for the current page (matches agreement_categories.assigned_modules).
+     */
+    public function assignmentKeyFromRequest(?\Illuminate\Http\Request $request = null): ?string
+    {
+        $request = $request ?? request();
+        $route = $request->route();
+        $assignable = $this->assignableModuleKeys();
+
+        if ($route) {
+            $param = $route->parameter('module');
+            if (is_string($param) && in_array($param, $assignable, true)) {
+                return $param;
+            }
+        }
+
+        $name = (string) ($route?->getName() ?? '');
+        $prefix = strtolower((string) explode('.', $name)[0]);
+
+        $aliases = [
+            'bikes' => 'bikes',
+            'bike' => 'bikes',
+            'riders' => 'riders',
+            'rider' => 'riders',
+            'employees' => 'employees',
+            'employee' => 'employees',
+            'customers' => 'customers',
+            'customer' => 'customers',
+            'vendors' => 'vendors',
+            'vendor' => 'vendors',
+            'garages' => 'garages',
+            'garage' => 'garages',
+            'sims' => 'sims',
+            'sim' => 'sims',
+            'simcompanies' => 'sims',
+            'siminvoices' => 'sims',
+            'cheques' => 'cheques',
+            'cheque' => 'cheques',
+            'rtafines' => 'rta_fines',
+            'salik' => 'rta_saliks',
+            'fuelcards' => 'fuel_cards',
+            'fueldata' => 'fuel_cards',
+            'visaexpenses' => 'visa_expense',
+            'legalcases' => 'legal_case',
+            'fixedassets' => 'assets',
+            'banks' => 'cash_banks',
+            'leasingcompanies' => 'leasing_companies',
+            'suppliers' => 'supplier',
+            'recruiters' => 'recruiters',
+            'items' => 'items',
+            'attendance' => 'attendance',
+            'expenses' => 'expenses',
+            'inventory' => 'inventory',
+            'riderinventory' => 'rider_inventory',
+            'installments' => 'installments',
+            'licenseexpenses' => 'license_expense',
+            'leads' => 'leads',
+            'loans' => 'loans',
+            'assets' => 'assets',
+        ];
+
+        $compact = str_replace(['-', '_'], '', $prefix);
+        if (isset($aliases[$compact])) {
+            return $aliases[$compact];
+        }
+
+        $snake = \Illuminate\Support\Str::snake(str_replace('-', '_', $prefix));
+        if (in_array($snake, $assignable, true)) {
+            return $snake;
+        }
+
+        $topBar = \App\Support\ModuleRouteResolver::fromRequest($request);
+        $topBarMap = [
+            'bike_list' => 'bikes',
+            'rta_fines_unpaid' => 'rta_fines',
+            'rta_fines_paid' => 'rta_fines',
+        ];
+        if ($topBar && isset($topBarMap[$topBar])) {
+            return $topBarMap[$topBar];
+        }
+        if ($topBar && in_array($topBar, $assignable, true)) {
+            return $topBar;
+        }
+
+        return null;
+    }
+
+    /**
+     * Action-menu payload for agreements assigned to a module.
+     *
+     * @return list<array{id:int,name:string,template_id:?int,show_url:?string,preview_url:?string,record_preview_pattern:?string}>
+     */
+    public function actionMenuItemsForModule(?string $module = null): array
+    {
+        $module = $module ?? $this->assignmentKeyFromRequest();
+        if ($module === null) {
+            return [];
+        }
+
+        $companySlug = request()->route('company_slug');
+        if (! is_string($companySlug) || $companySlug === '') {
+            return [];
+        }
+
+        try {
+            $agreements = $this->agreementsForModule($module);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $configured = $this->isConfiguredModule($module);
+        $items = [];
+
+        foreach ($agreements as $agreement) {
+            $template = $agreement->contractTemplate() ?? $agreement->defaultTemplate;
+            $templateId = $template?->id;
+            $showUrl = null;
+            $previewUrl = null;
+            $recordPreviewPattern = null;
+
+            if ($configured) {
+                $showUrl = route('module-agreements.show', [
+                    'company_slug' => $companySlug,
+                    'module' => $module,
+                    'category' => $agreement->id,
+                ]);
+            }
+
+            if ($templateId) {
+                $previewUrl = route('agreements.preview', [
+                    'company_slug' => $companySlug,
+                    'id' => $templateId,
+                ]);
+            }
+
+            if ($configured && $templateId) {
+                $recordPreviewPattern = route('module-contracts.preview', [
+                    'company_slug' => $companySlug,
+                    'module' => $module,
+                    'record' => '__RECORD__',
+                ]) . '?template_id=' . $templateId;
+            }
+
+            $items[] = [
+                'id' => (int) $agreement->id,
+                'name' => (string) $agreement->name,
+                'template_id' => $templateId ? (int) $templateId : null,
+                'show_url' => $showUrl,
+                'preview_url' => $previewUrl,
+                'record_preview_pattern' => $recordPreviewPattern,
+            ];
+        }
+
+        return $items;
+    }
 }

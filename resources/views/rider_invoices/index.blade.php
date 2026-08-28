@@ -40,7 +40,7 @@
                                 <div class="action-dropdown-item-desc">Import Invoices</div>
                             </div>
                         </a>
-                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="md" data-title="Import Paid Invoices" data-action="{{ route('riderInvoices.importPaid') }}">
+                        <a class="action-dropdown-item" href="{{ route('riderInvoices.importPaid') }}">
                             <i class="ti ti-plus"></i>
                             <div>
                                 <div class="action-dropdown-item-text">Paid Vouchers</div>

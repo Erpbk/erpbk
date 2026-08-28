@@ -184,8 +184,8 @@ class AgreementSettingsController extends Controller
             'letterhead_margins' => 'nullable|array',
             'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
             'letterhead_margins.bottom' => 'nullable|numeric|min:5|max:50',
-            'letterhead_margins.left' => 'nullable|numeric|min:8|max:50',
-            'letterhead_margins.right' => 'nullable|numeric|min:8|max:50',
+            'letterhead_margins.left' => 'nullable|numeric|min:5|max:50',
+            'letterhead_margins.right' => 'nullable|numeric|min:5|max:50',
         ], [
             'assigned_modules.required' => 'Select at least one module for this agreement.',
             'assigned_modules.min' => 'Select at least one module for this agreement.',

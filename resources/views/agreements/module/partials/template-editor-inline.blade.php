@@ -7,6 +7,7 @@
   $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
   $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
   $isContractTemplate = optional($category->defaultTemplate)->id === $activeTemplate->id;
+  $editorMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsMm();
 @endphp
 
 <div class="card border-primary border shadow-none" id="template-editor-panel">
@@ -51,7 +52,11 @@
             Edit the agreement body below. Style (Corporate / Premium) is fixed; assign this template to contracts using the button above.
           </div>
           <label class="form-label">Agreement content</label>
-          <div class="agreement-word-editor">
+          <div class="agreement-word-editor"
+            data-margin-top="{{ $editorMargins['top'] }}"
+            data-margin-right="{{ $editorMargins['right'] }}"
+            data-margin-bottom="{{ $editorMargins['bottom'] }}"
+            data-margin-left="{{ $editorMargins['left'] }}">
             <textarea name="description" id="agreement-editor" rows="40" class="form-control">{{ old('description', $activeTemplate->description) }}</textarea>
           </div>
           <div class="mt-3 d-flex flex-wrap gap-2">

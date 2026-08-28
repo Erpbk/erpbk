@@ -76,7 +76,7 @@ return [
         ],
         'bikes' => [
             'model' => Bikes::class,
-            'permissions' => ['agreements_view', 'agreements_generate', 'agreements_edit', 'bikes_view', 'bike_view'],
+            'permissions' => ['agreements_view', 'agreements_generate', 'agreements_edit', 'bikes_view', 'bike_view', 'bikes_bike_view', 'bikes_bike_edit'],
             'label_field' => 'plate',
             'code_field' => 'bike_code',
             'email_field' => 'email',

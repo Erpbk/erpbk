@@ -65,10 +65,14 @@
             <td>
                 @php $isPaid = \App\Models\salik::normalizePaymentStatus($r->status, !empty($r->payment_voucher_id)) === 'paid'; @endphp
                 <div class="dropdown">
-                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                    <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="">
+                        @include('layouts.partials.module_contract_action', [
+                            'module' => 'rta_saliks',
+                            'recordId' => $r->id,
+                        ])
                         @can('rta_saliks_salik_view')
                         <a href="{{ route('salik.show', $r->id) }}" class="dropdown-item waves-effect">
                             View

@@ -119,6 +119,10 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
+                        @include('layouts.partials.module_contract_action', [
+                            'module' => 'installments',
+                            'recordId' => $installment->id,
+                        ])
                         @canany(['visa_expense_edit', 'visa_expense_create'])
                         @if($installment->status === 'pending')
                         <a href="javascript:void(0);"

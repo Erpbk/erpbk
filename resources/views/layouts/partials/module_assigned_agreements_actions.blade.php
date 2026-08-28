@@ -1,7 +1,7 @@
 @php
   $agreementActionItems = [];
   try {
-    if (auth()->check() && (auth()->user()->can('agreements_view') || auth()->user()->can('agreements_generate') || auth()->user()->can('gn_settings'))) {
+    if (auth()->check()) {
       $agreementActionItems = app(\App\Services\Agreements\AgreementModuleService::class)->actionMenuItemsForModule();
     }
   } catch (\Throwable) {
@@ -76,7 +76,7 @@
   }
 
   function injectRowMenus() {
-    document.querySelectorAll('[id^="actiondropdown_"]').forEach(function (btn) {
+    document.querySelectorAll('[id^="actiondropdown"]').forEach(function (btn) {
       var menu = btn.parentElement ? btn.parentElement.querySelector('.dropdown-menu') : null;
       if (!menu || menu.getAttribute('data-agreement-injected') === '1') {
         return;
@@ -85,10 +85,7 @@
         menu.setAttribute('data-agreement-injected', '1');
         return;
       }
-      var recordId = String(btn.id || '').replace('actiondropdown_', '');
-      if (!recordId) {
-        return;
-      }
+      var recordId = String(btn.id || '').replace(/^actiondropdown_?/, '');
       items.forEach(function (item) {
         var el = rowItem(item, recordId);
         if (el) {
@@ -111,6 +108,25 @@
   }
 
   document.addEventListener('shown.bs.dropdown', injectAll);
+
+  if (window.MutationObserver) {
+    var scheduled = false;
+    var observer = new MutationObserver(function () {
+      if (scheduled) {
+        return;
+      }
+      scheduled = true;
+      setTimeout(function () {
+        scheduled = false;
+        injectAll();
+      }, 50);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  if (window.jQuery) {
+    jQuery(document).on('ajaxComplete', injectAll);
+  }
 })();
 </script>
 @endif

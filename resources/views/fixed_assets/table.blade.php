@@ -55,10 +55,14 @@
                 </td>@endif
                 <td>
                     <div class="dropdown">
-                        <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2" type="button" data-bs-toggle="dropdown">
+                        <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2" type="button" id="actiondropdown_{{ $asset->id }}" data-bs-toggle="dropdown">
                             <i class="icon-base ti ti-dots icon-md"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
+                            @include('layouts.partials.module_contract_action', [
+                                'module' => 'assets',
+                                'recordId' => $asset->id,
+                            ])
                             <a class="dropdown-item show-modal-right" href="javascript:void(0);" data-size="xl" data-title="Asset Details" data-action="{{ route('fixed-assets.show', $asset->id) }}">
                                 <i class="fa fa-eye"></i> View
                             </a>

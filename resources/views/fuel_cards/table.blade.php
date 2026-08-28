@@ -82,6 +82,10 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+                  @include('layouts.partials.module_contract_action', [
+                     'module' => 'fuel_cards',
+                     'recordId' => $r->id,
+                  ])
                   @canany(['fuel_cards_assign_create', 'fuel_cards_assign_edit'])
                      @if(!$r->assigned_to)
                         @if($r->status === \App\Models\FuelCards::STATUS_LOST)

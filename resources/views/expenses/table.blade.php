@@ -62,6 +62,10 @@
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}">
+            @include('layouts.partials.module_contract_action', [
+              'module' => 'expenses',
+              'recordId' => $voucher->id,
+            ])
             @canany(['expenses_create', 'expenses_edit'])
             <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
                 data-action="{{ route('voucher.fileupload', $expenseVoucherRouteParams($voucher->id)) }}" class="dropdown-item waves-effect show-modal">

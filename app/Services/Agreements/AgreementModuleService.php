@@ -12,6 +12,9 @@ class AgreementModuleService
     /** @var array<string, bool>|null */
     private static ?array $modulesWithContractsCache = null;
 
+    /** @var array<string, list<array{id:int,name:string,template_id:?int,show_url:?string,preview_url:?string,record_preview_pattern:?string}>> */
+    private static array $actionMenuItemsCache = [];
+
     public function isConfiguredModule(string $module): bool
     {
         return array_key_exists($module, config('agreement_modules.modules', []));
@@ -283,6 +286,14 @@ class AgreementModuleService
             return $topBar;
         }
 
+        $segments = explode('/', trim((string) $request->path(), '/'));
+        if (count($segments) >= 3 && strtolower($segments[0]) === 'app') {
+            $pathCompact = str_replace(['-', '_'], '', strtolower($segments[2]));
+            if (isset($aliases[$pathCompact])) {
+                return $aliases[$pathCompact];
+            }
+        }
+
         return null;
     }
 
@@ -298,60 +309,91 @@ class AgreementModuleService
             return [];
         }
 
-        $companySlug = request()->route('company_slug');
-        if (! is_string($companySlug) || $companySlug === '') {
-            return [];
+        if (array_key_exists($module, self::$actionMenuItemsCache)) {
+            return self::$actionMenuItemsCache[$module];
+        }
+
+        $companySlug = $this->companySlug();
+        if ($companySlug === null) {
+            return self::$actionMenuItemsCache[$module] = [];
         }
 
         try {
             $agreements = $this->agreementsForModule($module);
         } catch (\Throwable) {
-            return [];
+            return self::$actionMenuItemsCache[$module] = [];
         }
 
         $configured = $this->isConfiguredModule($module);
         $items = [];
 
         foreach ($agreements as $agreement) {
-            $template = $agreement->contractTemplate() ?? $agreement->defaultTemplate;
-            $templateId = $template?->id;
-            $showUrl = null;
-            $previewUrl = null;
-            $recordPreviewPattern = null;
+            try {
+                $template = $agreement->contractTemplate() ?? $agreement->defaultTemplate;
+                $templateId = $template?->id;
+                $showUrl = null;
+                $previewUrl = null;
+                $recordPreviewPattern = null;
 
-            if ($configured) {
-                $showUrl = route('module-agreements.show', [
-                    'company_slug' => $companySlug,
-                    'module' => $module,
-                    'category' => $agreement->id,
-                ]);
+                if ($configured) {
+                    $showUrl = route('module-agreements.show', [
+                        'company_slug' => $companySlug,
+                        'module' => $module,
+                        'category' => $agreement->id,
+                    ]);
+                }
+
+                if ($templateId) {
+                    $previewUrl = route('agreements.preview', [
+                        'company_slug' => $companySlug,
+                        'id' => $templateId,
+                    ]);
+                }
+
+                if ($configured && $templateId) {
+                    $recordPreviewPattern = route('module-contracts.preview', [
+                        'company_slug' => $companySlug,
+                        'module' => $module,
+                        'record' => '__RECORD__',
+                    ]) . '?template_id=' . $templateId;
+                }
+
+                $items[] = [
+                    'id' => (int) $agreement->id,
+                    'name' => (string) $agreement->name,
+                    'template_id' => $templateId ? (int) $templateId : null,
+                    'show_url' => $showUrl,
+                    'preview_url' => $previewUrl,
+                    'record_preview_pattern' => $recordPreviewPattern,
+                ];
+            } catch (\Throwable) {
+                continue;
             }
-
-            if ($templateId) {
-                $previewUrl = route('agreements.preview', [
-                    'company_slug' => $companySlug,
-                    'id' => $templateId,
-                ]);
-            }
-
-            if ($configured && $templateId) {
-                $recordPreviewPattern = route('module-contracts.preview', [
-                    'company_slug' => $companySlug,
-                    'module' => $module,
-                    'record' => '__RECORD__',
-                ]) . '?template_id=' . $templateId;
-            }
-
-            $items[] = [
-                'id' => (int) $agreement->id,
-                'name' => (string) $agreement->name,
-                'template_id' => $templateId ? (int) $templateId : null,
-                'show_url' => $showUrl,
-                'preview_url' => $previewUrl,
-                'record_preview_pattern' => $recordPreviewPattern,
-            ];
         }
 
-        return $items;
+        return self::$actionMenuItemsCache[$module] = $items;
+    }
+
+    private function companySlug(?\Illuminate\Http\Request $request = null): ?string
+    {
+        $request = $request ?? request();
+        $slug = $request->route('company_slug');
+        if (is_string($slug) && $slug !== '') {
+            return $slug;
+        }
+
+        if ($request->hasSession()) {
+            $sessionSlug = $request->session()->get('company_slug');
+            if (is_string($sessionSlug) && $sessionSlug !== '') {
+                return $sessionSlug;
+            }
+        }
+
+        $company = $request->attributes->get('company');
+        if (is_object($company) && ! empty($company->slug)) {
+            return (string) $company->slug;
+        }
+
+        return null;
     }
 }

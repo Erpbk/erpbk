@@ -257,6 +257,13 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::post('/categories/{category}/templates/{template}/assign', [App\Http\Controllers\ModuleAgreementController::class, 'assignContractTemplate'])->name('templates.assign')->whereNumber(['category', 'template']);
         Route::get('/templates/{template}/preview', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplate'])->name('templates.preview')->whereNumber('template');
         Route::get('/templates/{template}/preview-pdf', [App\Http\Controllers\ModuleAgreementController::class, 'previewTemplatePdf'])->name('templates.preview-pdf')->whereNumber('template');
+        Route::delete('/categories/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'destroy'])->name('destroy')->whereNumber('category');
+    });
+
+    Route::prefix('{module}/records/{record}/agreements')->where(['module' => $agreementModulePattern])->whereNumber('record')->name('module-record-agreements.')->group(function () {
+        Route::get('/', [App\Http\Controllers\ModuleAgreementController::class, 'forRecord'])->name('index');
+        Route::get('/{category}', [App\Http\Controllers\ModuleAgreementController::class, 'viewForRecord'])->name('show')->whereNumber('category');
+        Route::get('/{category}/download', [App\Http\Controllers\ModuleAgreementController::class, 'downloadForRecord'])->name('download')->whereNumber('category');
     });
 
     // Module record contracts (listing action → contract modal, PDF, email)

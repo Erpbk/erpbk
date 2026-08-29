@@ -7,7 +7,6 @@ use App\Models\Riders;
 use App\Services\Agreements\AgreementLetterheadLayout;
 use App\Services\Agreements\AgreementModuleService;
 use App\Services\Email\CompanyEmailBrandingService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Model;
 
 class AgreementPdfService
@@ -52,9 +51,10 @@ class AgreementPdfService
         $subject = app(AgreementModuleService::class)->pdfSubject($module, $record);
 
         $contentZoneMm = $this->letterheadLayout->contentZoneHeightMm($category, $withLetterhead);
-        $pages = $this->letterheadPaginator->paginate($body, $contentZoneMm);
         $margins = $this->letterheadLayout->resolvedMarginsMm($category);
         $contentPadding = $this->letterheadLayout->contentPaddingMm($category, $withLetterhead);
+        $pages = $this->letterheadPaginator->paginate($body, $contentZoneMm);
+        $pdfFontFaces = $this->pdfFontFaces();
 
         return view('agreements.pdf.letterhead', [
             'body' => $body,
@@ -72,6 +72,7 @@ class AgreementPdfService
             'template' => $template,
             'category' => $category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
+            'pdfFontFaces' => $pdfFontFaces,
         ])->render();
     }
 
@@ -120,25 +121,115 @@ class AgreementPdfService
 
     private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null)
     {
-        $pageW = $this->letterheadLayout->pageWidthMm();
-        $pageH = $this->letterheadLayout->pageHeightMm();
-        $paperSize = [0, 0, $pageW * 2.83465, $pageH * 2.83465];
+        $fontFaces = $this->pdfFontFaces();
+        $defaultFont = $fontFaces !== [] ? 'Calibri' : 'DejaVu Sans';
 
-        $pdf = Pdf::loadHTML($html)->setPaper($paperSize, 'portrait');
+        $pdf = app('dompdf.wrapper');
+        $pdf->setPaper('a4', 'portrait');
 
         $dompdf = $pdf->getDomPDF();
         $options = $dompdf->getOptions();
         $options->setIsHtml5ParserEnabled(true);
         $options->setIsRemoteEnabled(true);
-        $options->setDefaultFont('DejaVu Sans');
+        $options->setIsFontSubsettingEnabled(false);
+        $options->setIsJavascriptEnabled(false);
+        $options->setDefaultMediaType('screen');
+        $options->setFontHeightRatio(1.0);
         $options->setDpi(96);
-        $options->setDefaultPaperSize($paperSize);
-        $options->setChroot([
-            storage_path('app/public'),
-            public_path(),
-        ]);
+        $options->setDefaultFont($defaultFont);
+        $options->setChroot($this->fontChrootDirectories($fontFaces));
+        $dompdf->setOptions($options);
+        $dompdf->setBasePath(public_path());
+
+        $pdf->loadHTML($html);
 
         return $pdf;
+    }
+
+    /**
+     * Load the same body font the browser preview uses (Calibri / Carlito).
+     * Preview resolves Calibri as a system font; Dompdf must be given the file.
+     *
+     * @return list<array{family: string, weight: string, style: string, path: string, uri: string}>
+     */
+    private function pdfFontFaces(): array
+    {
+        $candidates = [
+            ['family' => 'Calibri', 'weight' => 'normal', 'style' => 'normal', 'paths' => [
+                'C:\\Windows\\Fonts\\calibri.ttf',
+                '/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+            ]],
+            ['family' => 'Calibri', 'weight' => 'bold', 'style' => 'normal', 'paths' => [
+                'C:\\Windows\\Fonts\\calibrib.ttf',
+                '/usr/share/fonts/truetype/crosextra/Carlito-Bold.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+            ]],
+            ['family' => 'Calibri', 'weight' => 'normal', 'style' => 'italic', 'paths' => [
+                'C:\\Windows\\Fonts\\calibrii.ttf',
+                '/usr/share/fonts/truetype/crosextra/Carlito-Italic.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf',
+            ]],
+            ['family' => 'Calibri', 'weight' => 'bold', 'style' => 'italic', 'paths' => [
+                'C:\\Windows\\Fonts\\calibriz.ttf',
+                '/usr/share/fonts/truetype/crosextra/Carlito-BoldItalic.ttf',
+                '/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf',
+            ]],
+        ];
+
+        $faces = [];
+        foreach ($candidates as $candidate) {
+            foreach ($candidate['paths'] as $path) {
+                if (! is_readable($path)) {
+                    continue;
+                }
+
+                $faces[] = [
+                    'family' => $candidate['family'],
+                    'weight' => $candidate['weight'],
+                    'style' => $candidate['style'],
+                    'path' => $path,
+                    'uri' => $this->fileUri($path),
+                ];
+
+                break;
+            }
+        }
+
+        return $faces;
+    }
+
+    /**
+     * @param  list<array{path: string}>  $faces
+     * @return list<string>
+     */
+    private function fontChrootDirectories(array $faces): array
+    {
+        $dirs = [
+            storage_path('app/public'),
+            public_path(),
+        ];
+
+        foreach ($faces as $face) {
+            $dirs[] = dirname($face['path']);
+        }
+
+        $dejavu = base_path('vendor/dompdf/dompdf/lib/fonts');
+        if (is_dir($dejavu)) {
+            $dirs[] = $dejavu;
+        }
+
+        return array_values(array_unique($dirs));
+    }
+
+    private function fileUri(string $path): string
+    {
+        $normalized = str_replace('\\', '/', $path);
+        if (! str_starts_with($normalized, '/')) {
+            $normalized = '/' . $normalized;
+        }
+
+        return 'file://' . $normalized;
     }
 
     private function sampleMap(): array

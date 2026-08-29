@@ -3,25 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgreementCategory;
-use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
 use App\Services\Agreements\AgreementModuleService;
-use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Agreements\AgreementPdfService;
+use App\Traits\GlobalPagination;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 
 class ModuleAgreementController extends Controller
 {
+    use GlobalPagination;
+
     public function __construct(
         protected AgreementModuleService $moduleService
     ) {
         $this->middleware('auth');
-        $this->middleware('permission:agreements_view')->only('index', 'show', 'previewTemplate', 'previewTemplatePdf');
-        $this->middleware('permission:agreements_edit')->only('editTemplate', 'updateTemplate', 'assignContractTemplate');
-        $this->middleware('permission:agreements_delete')->only('destroy');
     }
 
     public function index(Request $request, $company_slug, string $module)
@@ -30,18 +27,150 @@ class ModuleAgreementController extends Controller
 
         AgreementCategory::ensureDefaultsForCompany();
 
-        $categories = AgreementCategory::query()
-            ->assignedToModule($module)
-            ->where('status', true)
-            ->withCount(['templates' => fn($q) => $q->where('status', true)->sampleStyles()])
+        $baseQuery = AgreementCategory::query()->assignedToModule($module);
+        $assignedCount = (clone $baseQuery)->count();
+
+        $query = (clone $baseQuery)
             ->with('defaultTemplate')
             ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('agreement_code', 'like', '%' . $search . '%')
+                    ->orWhere('slug', 'like', '%' . $search . '%');
+            });
+        }
+
+        $status = (string) $request->input('status', '');
+        if ($status === 'active') {
+            $query->where('status', true);
+        } elseif ($status === 'inactive') {
+            $query->where('status', false);
+        }
+
+        $paginationParams = $this->getPaginationParams($request);
+        $categories = $this->applyPagination($query, $paginationParams);
+        if (method_exists($categories, 'appends')) {
+            $categories->appends($request->except('page'));
+        }
 
         $moduleLabel = $this->moduleLabel($module);
+        $hasFilters = $request->filled('search') || $request->filled('status');
 
-        return view('agreements.module.index', compact('categories', 'module', 'moduleLabel'));
+        return view('agreements.module.index', compact(
+            'categories',
+            'module',
+            'moduleLabel',
+            'assignedCount',
+            'hasFilters'
+        ));
+    }
+
+    public function forRecord(Request $request, $company_slug, string $module, int $record)
+    {
+        $this->authorizeModule($module);
+
+        $recordModel = $this->moduleService->resolveRecord($module, $record);
+        AgreementCategory::ensureDefaultsForCompany();
+
+        $baseQuery = AgreementCategory::query()->assignedToModule($module);
+        $assignedCount = (clone $baseQuery)->count();
+
+        $query = (clone $baseQuery)
+            ->with('defaultTemplate')
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                    ->orWhere('agreement_code', 'like', '%' . $search . '%')
+                    ->orWhere('slug', 'like', '%' . $search . '%');
+            });
+        }
+
+        $status = (string) $request->input('status', '');
+        if ($status === 'active') {
+            $query->where('status', true);
+        } elseif ($status === 'inactive') {
+            $query->where('status', false);
+        }
+
+        $paginationParams = $this->getPaginationParams($request);
+        $categories = $this->applyPagination($query, $paginationParams);
+        if (method_exists($categories, 'appends')) {
+            $categories->appends($request->except('page'));
+        }
+
+        $pageTitle = $this->moduleService->recordAgreementsTitle($module, $recordModel);
+        $hasFilters = $request->filled('search') || $request->filled('status');
+
+        return view('agreements.module.record-index', compact(
+            'categories',
+            'module',
+            'record',
+            'recordModel',
+            'pageTitle',
+            'assignedCount',
+            'hasFilters'
+        ));
+    }
+
+    public function viewForRecord(Request $request, $company_slug, string $module, int $record, int $category, AgreementPdfService $pdfService)
+    {
+        $this->authorizeModule($module);
+
+        [$recordModel, $agreement, $template] = $this->moduleService->resolveAssignedAgreementForRecord(
+            $module,
+            $record,
+            $category
+        );
+
+        $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
+        $withLetterhead = $request->boolean('letterhead', true);
+        $html = $pdfService->renderHtmlForModule(
+            $template,
+            $module,
+            $recordModel,
+            $agreementDate,
+            false,
+            false,
+            $withLetterhead
+        );
+
+        $pdfDownloadUrl = route('module-record-agreements.download', [
+            'company_slug' => $company_slug,
+            'module' => $module,
+            'record' => $record,
+            'category' => $agreement->id,
+            'agreement_date' => $agreementDate,
+            'letterhead' => $withLetterhead ? 1 : 0,
+        ]);
+
+        return view('agreements.preview', compact('html', 'template', 'pdfDownloadUrl', 'withLetterhead'));
+    }
+
+    public function downloadForRecord(Request $request, $company_slug, string $module, int $record, int $category, AgreementPdfService $pdfService)
+    {
+        $this->authorizeModule($module);
+
+        [$recordModel, $agreement, $template] = $this->moduleService->resolveAssignedAgreementForRecord(
+            $module,
+            $record,
+            $category
+        );
+
+        $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
+        $withLetterhead = $request->boolean('letterhead', true);
+        $meta = $this->moduleService->recordMeta($module, $recordModel);
+        $pdf = $pdfService->generatePdfForModule($template, $module, $recordModel, $agreementDate, $withLetterhead);
+        $filename = Str::slug($meta['code'] . '-' . $agreement->name) . '.pdf';
+
+        return $pdf->download($filename);
     }
 
     public function show(Request $request, $company_slug, string $module, AgreementCategory $category)
@@ -54,78 +183,28 @@ class ModuleAgreementController extends Controller
             'defaultTemplate',
         ]);
 
-        $placeholders = AgreementPlaceholder::grouped();
-        $pdfBranding = app(AgreementPdfBranding::class)->forCompany($category->company_id);
         $moduleLabel = $this->moduleLabel($module);
-
-        $activeTemplateId = (int) $request->query('template', 0);
-        $activeTemplate = $activeTemplateId
-            ? $category->templates->firstWhere('id', $activeTemplateId)
-            : null;
-        $activeTemplate = $activeTemplate ?? $category->templates->first();
 
         return view('agreements.module.show', compact(
             'category',
             'module',
-            'moduleLabel',
-            'placeholders',
-            'pdfBranding',
-            'activeTemplate'
+            'moduleLabel'
         ));
     }
 
     public function editTemplate(Request $request, $company_slug, string $module, int $template)
     {
-        $this->authorizeModule($module);
-
-        $template = $this->resolveModuleTemplate($template, $module);
-
-        return redirect()->route('module-agreements.show', [
-            'company_slug' => $company_slug,
-            'module' => $module,
-            'category' => $template->category_id,
-            'template' => $template->id,
-        ]);
+        $this->abortModuleManagement();
     }
 
     public function updateTemplate(Request $request, $company_slug, string $module, int $template)
     {
-        $this->authorizeModule($module);
-
-        $template = $this->resolveModuleTemplate($template, $module);
-        $validated = $request->validate([
-            'description' => 'nullable|string',
-        ]);
-
-        $template->description = $validated['description'] ?? '';
-        $template->save();
-
-        return redirect()->route('module-agreements.show', [
-            'company_slug' => $company_slug,
-            'module' => $module,
-            'category' => $template->category_id,
-            'template' => $template->id,
-        ])->with('success', 'Template updated successfully.');
+        $this->abortModuleManagement();
     }
 
     public function assignContractTemplate(Request $request, $company_slug, string $module, AgreementCategory $category, int $template)
     {
-        $this->authorizeModule($module);
-        $this->assertCategoryAssigned($category, $module);
-
-        $template = $this->resolveModuleTemplate($template, $module);
-        if ((int) $template->category_id !== (int) $category->id) {
-            abort(403, 'Template does not belong to this category.');
-        }
-
-        $template->setAsDefault();
-
-        return redirect()->route('module-agreements.show', [
-            'company_slug' => $company_slug,
-            'module' => $module,
-            'category' => $category->id,
-            'template' => $template->id,
-        ])->with('success', 'Contract template assigned for ' . $category->name . '.');
+        $this->abortModuleManagement();
     }
 
     public function previewTemplate(Request $request, $company_slug, string $module, int $template, AgreementPdfService $pdfService)
@@ -154,6 +233,11 @@ class ModuleAgreementController extends Controller
         return $pdf->download($filename);
     }
 
+    public function destroy(Request $request, $company_slug, string $module, AgreementCategory $category)
+    {
+        $this->abortModuleManagement();
+    }
+
     private function resolveModuleTemplate(int $templateId, string $module): AgreementTemplate
     {
         $template = AgreementTemplate::query()
@@ -167,7 +251,7 @@ class ModuleAgreementController extends Controller
 
     private function assertCategoryAssigned(?AgreementCategory $category, string $module): void
     {
-        if (! $category || ! $category->status || ! $category->assignedToModule($module)) {
+        if (! $category || ! $category->assignedToModule($module)) {
             abort(403, 'Agreement is not assigned to this module.');
         }
     }
@@ -190,5 +274,10 @@ class ModuleAgreementController extends Controller
     private function authorizeModule(string $module): void
     {
         $this->moduleService->authorize($module);
+    }
+
+    private function abortModuleManagement(): void
+    {
+        abort(403, 'Agreement management must be performed from the Agreements module.');
     }
 }

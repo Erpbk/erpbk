@@ -52,8 +52,12 @@ class AgreementSettingsController extends Controller
         $groupKey = (string) $request->get('group', 'rider_agreements');
         $groups = config('agreement_categories.groups', []);
         $modules = $this->moduleOptions();
+        $assignModule = (string) $request->query('assign_module', '');
+        if ($assignModule !== '' && ! in_array($assignModule, $this->assignableModuleKeys(), true)) {
+            $assignModule = '';
+        }
 
-        return view('settings.agreements.create', compact('groupKey', 'groups', 'modules'));
+        return view('settings.agreements.create', compact('groupKey', 'groups', 'modules', 'assignModule'));
     }
 
     public function storeAgreement(Request $request, $company_slug)
@@ -106,6 +110,14 @@ class AgreementSettingsController extends Controller
         $this->seedAgreementTemplates($category, $category->status);
 
         Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
+
+        $returnModule = (string) $request->input('return_module', '');
+        if ($returnModule !== '' && in_array($returnModule, $this->assignableModuleKeys(), true)) {
+            return redirect()->route('module-agreements.index', [
+                'company_slug' => $company_slug,
+                'module' => $returnModule,
+            ]);
+        }
 
         return redirect()->route('agreements.edit-agreement', [
             'company_slug' => $company_slug,

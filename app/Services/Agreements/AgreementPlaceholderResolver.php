@@ -20,7 +20,7 @@ class AgreementPlaceholderResolver
             'employees' => $record instanceof Employee
                 ? $this->resolveForEmployee($record, $agreementDate)
                 : $this->resolveForEmployee(Employee::query()->findOrFail($record->getKey()), $agreementDate),
-            default => [],
+            default => $this->resolveGeneric($module, $record, $agreementDate),
         };
     }
 
@@ -102,6 +102,56 @@ class AgreementPlaceholderResolver
             '{company_name}' => (string) ($company->name ?? config('app.name')),
             '{bike_number}' => (string) ($bike->plate ?? $bike->bike_number ?? ''),
             '{bike_model}' => (string) ($bike->model ?? $bike->vehicle_type ?? ''),
+            '{current_date}' => now()->format('d-M-Y'),
+            '{agreement_date}' => $agreementDateFormatted,
+        ];
+    }
+
+    /**
+     * Map common record fields onto agreement placeholders for non-rider/employee modules.
+     */
+    private function resolveGeneric(string $module, Model $record, ?string $agreementDate = null): array
+    {
+        $labelField = config("agreement_modules.modules.{$module}.label_field", 'name');
+        $codeField = config("agreement_modules.modules.{$module}.code_field", 'id');
+        $emailField = config("agreement_modules.modules.{$module}.email_field", 'email');
+        $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
+
+        $agreementDateFormatted = $agreementDate
+            ? Carbon::parse($agreementDate)->format('d-M-Y')
+            : now()->format('d-M-Y');
+
+        $attr = static function (Model $record, array $keys): string {
+            foreach ($keys as $key) {
+                $value = $record->getAttribute($key);
+                if ($value !== null && $value !== '') {
+                    return (string) $value;
+                }
+            }
+
+            return '';
+        };
+
+        return [
+            '{rider_name}' => $attr($record, [$labelField, 'name']),
+            '{rider_code}' => $attr($record, [$codeField]) ?: (string) $record->getKey(),
+            '{rider_email}' => $attr($record, [$emailField, 'email']),
+            '{rider_phone}' => $attr($record, ['phone', 'contact_number', 'personal_contact', 'company_contact']),
+            '{rider_cnic}' => $attr($record, ['emirate_id', 'nic', 'cnic']),
+            '{rider_passport_number}' => $attr($record, ['passport', 'passport_number']),
+            '{rider_nationality}' => $attr($record, ['nationality']),
+            '{rider_date_of_birth}' => $this->formatDate($record->getAttribute('dob')),
+            '{rider_gender}' => $attr($record, ['gender']),
+            '{rider_address}' => $attr($record, ['address']),
+            '{rider_city}' => $attr($record, ['city']) ?: (string) ($company->city ?? ''),
+            '{rider_country}' => $attr($record, ['country']) ?: (string) ($company->country ?? ''),
+            '{joining_date}' => $this->formatDate($record->getAttribute('doj') ?? $record->getAttribute('joining_date')),
+            '{designation}' => $attr($record, ['designation']),
+            '{salary}' => $attr($record, ['salary']),
+            '{branch_name}' => (string) (data_get($record, 'branch.name') ?? ''),
+            '{company_name}' => (string) ($company->name ?? config('app.name')),
+            '{bike_number}' => $attr($record, ['plate', 'bike_number', 'bike_code']),
+            '{bike_model}' => $attr($record, ['model', 'vehicle_type']),
             '{current_date}' => now()->format('d-M-Y'),
             '{agreement_date}' => $agreementDateFormatted,
         ];

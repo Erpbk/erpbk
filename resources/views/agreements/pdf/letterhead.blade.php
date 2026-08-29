@@ -16,65 +16,83 @@
   $contentPadBottomMm = $pad['bottom'];
   $headerTopMarginMm = (float) config('agreement_letterhead.header_top_margin_mm', 8);
   $headerChromeMm = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
-  $contentZoneMm = $contentZoneHeightMm ?? max(40, $pageH - (float) $m['top'] - (float) $m['bottom']);
-  $pageChromeMm = $withLetterhead ? $headerChromeMm : 0.0;
-  $contentFlowMaxMm = max(40, $pageH - $pageChromeMm);
   $p = $branding['primary_color'] ?? '#1e3a8a';
   $s = $branding['secondary_color'] ?? '#2563eb';
+  $renderPages = $pages ?? [$body];
+  $pdfFontFaces = $pdfFontFaces ?? [];
   @endphp
   <style>
     @page {
-      size: {{ $pageW }}mm {{ $pageH }}mm;
+      size: A4 portrait;
       margin: 0;
     }
+
+    @if ($forPdf)
+    @foreach ($pdfFontFaces as $face)
+    @font-face {
+      font-family: '{{ $face['family'] }}';
+      font-weight: {{ $face['weight'] }};
+      font-style: {{ $face['style'] }};
+      src: url('{{ $face['uri'] }}') format('truetype');
+    }
+    @endforeach
+    @endif
 
     * { box-sizing: border-box; }
 
     html, body {
       margin: 0;
       padding: 0;
+      width: {{ $pageW }}mm;
+      background: #fff;
     }
 
     body {
-      font-family: 'DejaVu Sans', Calibri, sans-serif;
-      font-size: 9.5pt;
+      font-family: Calibri, 'Segoe UI', 'DejaVu Sans', Arial, sans-serif;
+      font-size: 11pt;
       color: #1e293b;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
     .agreement-page {
       position: relative;
-      display: flex;
-      flex-direction: column;
       width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
       min-height: {{ $pageH }}mm;
-      max-height: {{ $pageH }}mm;
       overflow: hidden;
       background: #fff;
-      box-sizing: border-box;
+      page-break-before: auto;
+      break-before: auto;
       page-break-after: always;
-      page-break-inside: avoid;
+      break-after: page;
+    }
+
+    .agreement-page:first-child {
+      page-break-before: auto;
+      break-before: auto;
+    }
+
+    .agreement-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
     }
 
     .agreement-page-header {
-      flex: 0 0 auto;
       position: relative;
       z-index: 2;
     }
 
-    .agreement-page:last-child {
-      page-break-after: avoid;
+    .agreement-page-body {
+      position: relative;
+      z-index: 3;
+      padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
     }
 
     .page-decor {
       position: absolute;
       top: 0;
       left: 0;
-      right: 0;
-      bottom: 0;
-      width: 100%;
-      height: 100%;
+      width: {{ $pageW }}mm;
+      height: {{ $pageH }}mm;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
@@ -234,158 +252,81 @@
       width: 100%;
     }
 
-    .page-content-flow {
+    .content {
       position: relative;
       z-index: 3;
-      flex: 1 1 auto;
-      min-height: 0;
-      max-height: {{ $contentFlowMaxMm }}mm;
-      padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-
-    @if ($forPdf)
-    .page-content-flow .content {
-      padding-top: 0;
-    }
-    @endif
-
-    .content {
       width: 100%;
-      max-width: 100%;
-      max-height: {{ $contentZoneMm }}mm;
       margin: 0;
       padding: 0;
-      font-size: 8.5pt;
-      line-height: 1.35;
-      overflow: hidden;
-      overflow-wrap: break-word;
-      word-wrap: break-word;
-      word-break: break-word;
-      box-sizing: border-box;
+      font-family: Calibri, 'Segoe UI', 'DejaVu Sans', Arial, sans-serif;
+      font-size: 11pt;
+      line-height: 1.5;
     }
 
-    .content p { margin: 0 0 4pt; max-width: 100%; }
+    .content p { margin: 0 0 0.5em; }
     .content h1, .content h2, .content h3, .content h4 {
-      font-size: 10.5pt;
-      margin: 8pt 0 4pt;
+      margin: 0 0 0.55em;
+      line-height: 1.25;
       color: {{ $p }};
-      page-break-after: avoid;
-      max-width: 100%;
+      page-break-before: auto;
+      break-before: auto;
+      page-break-after: auto;
+      break-after: auto;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }
     .content table {
-      width: 100% !important;
-      max-width: 100% !important;
-      table-layout: fixed;
+      width: 100%;
       border-collapse: collapse;
       margin: 4pt 0;
-      page-break-inside: auto;
     }
     .content table th, .content table td {
-      padding: 4pt 6pt;
-      font-size: 8.5pt;
-      border: 1px solid #cbd5e1;
+      padding: 4px 8px;
+      border: 1px solid #94a3b8;
       vertical-align: top;
-      overflow-wrap: anywhere;
-      word-wrap: break-word;
-      word-break: break-word;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
     .content thead { display: table-header-group; }
-    .content tbody tr { page-break-inside: auto; }
-    .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; max-width: 100%; }
-    .content img { max-width: 100% !important; height: auto !important; }
-    .content div, .content span, .content li, .content blockquote {
-      max-width: 100%;
-      overflow-wrap: break-word;
-      word-wrap: break-word;
-    }
-    .content pre, .content code {
-      white-space: pre-wrap;
-      overflow-wrap: break-word;
-      word-break: break-word;
-      max-width: 100%;
-    }
+    .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; }
+    .content img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
 
-    @if ($forPdf)
-    .pdf-pages {
-      width: {{ $pageW }}mm;
-      margin: 0;
-      padding: 0;
-    }
-
-    .pdf-pages .agreement-page {
-      margin: 0;
-      box-shadow: none;
-      page-break-inside: avoid;
-    }
-
-    .pdf-pages .agreement-page:not(:last-child) {
-      page-break-after: always;
-    }
-
-    .pdf-pages .agreement-page:last-child {
-      page-break-after: avoid;
-    }
-    @else
     .preview-pages {
       width: {{ $pageW }}mm;
       margin: 0 auto;
     }
 
+    @if (! $forPdf)
     .preview-pages .agreement-page {
       margin: 0 auto 16px;
       box-shadow: 0 4px 20px rgba(15, 23, 42, 0.12);
     }
 
     @media screen {
-      body { background: #e2e8f0; padding: 0px; }
+      body { background: #e2e8f0; }
     }
 
     @media print {
       html, body {
-        width: {{ $pageW }}mm !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
         background: #fff !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        width: {{ $pageW }}mm;
+        margin: 0;
+        padding: 0;
       }
 
-      .preview-pages {
-        display: block !important;
-        width: {{ $pageW }}mm !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
+      .preview-pages,
       .preview-pages .agreement-page {
-        margin: 0 !important;
-        box-shadow: none !important;
-        page-break-after: avoid !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      .preview-pages .agreement-page + .agreement-page {
-        page-break-before: always !important;
-      }
-
-      .corner-blob,
-      .page-header-rule {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        margin: 0;
+        box-shadow: none;
       }
     }
     @endif
   </style>
 </head>
 <body>
-  @php $renderPages = $pages ?? [$body]; @endphp
-  <div class="{{ $forPdf ? 'pdf-pages' : 'preview-pages' }}" id="agreement-preview-pages" aria-live="polite">
+  <div class="preview-pages" id="agreement-preview-pages" @if(! $forPdf) aria-live="polite" @endif>
     @foreach ($renderPages as $pageBody)
-    <div class="agreement-page {{ $forPdf ? 'pdf-page' : 'preview-page' }}">
+    <div class="agreement-page preview-page">
       @if($withLetterhead)
       @include('agreements.pdf.partials.page-decor', [
         'pageWidthMm' => $pageW,
@@ -395,11 +336,11 @@
         @include('agreements.pdf.partials.page-header')
       </div>
       @endif
-      <main class="page-content-flow {{ $forPdf ? 'pdf-page-flow' : 'document-flow' }}">
-        <div class="content {{ $forPdf ? 'pdf-page-content' : '' }}">
+      <div class="agreement-page-body">
+        <div class="content">
           {!! $pageBody !!}
         </div>
-      </main>
+      </div>
     </div>
     @endforeach
   </div>

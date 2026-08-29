@@ -10,13 +10,13 @@ class AgreementLetterheadPaginator
 {
     private const ESTIMATE_SAFETY = 1.0;
 
-    private const CONTENT_FONT_PT = 8.5;
+    private const CONTENT_FONT_PT = 11.0;
 
-    private const HEADING_FONT_PT = 10.5;
+    private const HEADING_FONT_PT = 14.0;
 
-    private const LINE_HEIGHT_RATIO = 1.35;
+    private const LINE_HEIGHT_RATIO = 1.5;
 
-    private const CHARS_PER_LINE = 105;
+    private const CHARS_PER_LINE = 100;
 
     private const MAX_APPEND_DEPTH = 512;
 
@@ -33,9 +33,10 @@ class AgreementLetterheadPaginator
     {
         $this->appendDepth = 0;
         $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4);
+        $bodyHtml = $this->normalizeBodyHtml($bodyHtml);
 
         $dom = new DOMDocument('1.0', 'UTF-8');
-        $dom->preserveWhiteSpace = false;
+        $dom->preserveWhiteSpace = true;
         @$dom->loadHTML(
             '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $bodyHtml . '</div></body></html>',
             LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
@@ -61,6 +62,20 @@ class AgreementLetterheadPaginator
         $usedPt = 0.0;
 
         foreach ($children as $child) {
+            if ($this->isForcedPageBreak($child)) {
+                if ($currentNodes !== []) {
+                    $pages[] = $this->joinHtml($dom, $currentNodes);
+                    $currentNodes = [];
+                    $usedPt = 0.0;
+                }
+
+                continue;
+            }
+
+            if ($this->isVisuallyEmpty($child)) {
+                continue;
+            }
+
             if ($child instanceof DOMElement && strtolower($child->tagName) === 'table') {
                 $this->appendTableParts($dom, $child, $pages, $currentNodes, $usedPt);
 
@@ -74,9 +89,7 @@ class AgreementLetterheadPaginator
             $pages[] = $this->joinHtml($dom, $currentNodes);
         }
 
-        $pages = array_values(array_filter($pages, static function (string $html): bool {
-            return trim(strip_tags($html)) !== '';
-        }));
+        $pages = array_values(array_filter($pages, fn (string $html): bool => ! $this->isBlankHtml($html)));
 
         if ($pages !== []) {
             $pages = $this->rebalancePages($pages);
@@ -86,37 +99,39 @@ class AgreementLetterheadPaginator
     }
 
     /**
-     * Merge trailing short pages so content fills pages like the browser preview.
+     * Pack consecutive short pages so each page uses the content zone.
+     * Over-estimated heights previously left page 2/4 almost empty.
      *
      * @param  list<string>  $pages
      * @return list<string>
      */
     private function rebalancePages(array $pages): array
     {
-        $maxMerges = max(0, count($pages) - 1);
-        $merges = 0;
-
-        while (count($pages) >= 2 && $merges < $maxMerges) {
-            $last = $pages[count($pages) - 1];
-            if ($this->estimateHtmlHeightPt($last) >= $this->budgetPt * 0.32) {
-                break;
-            }
-
-            $tail = array_pop($pages);
-            $prev = array_pop($pages);
-            $combined = $prev . $tail;
-            if ($this->estimateHtmlHeightPt($combined) > $this->budgetPt * 0.97) {
-                $pages[] = $prev;
-                $pages[] = $tail;
-
-                break;
-            }
-
-            $pages[] = $combined;
-            $merges++;
+        if (count($pages) < 2) {
+            return $pages;
         }
 
-        return $pages;
+        $filled = [];
+        foreach ($pages as $page) {
+            if ($filled === []) {
+                $filled[] = $page;
+
+                continue;
+            }
+
+            $prev = array_pop($filled);
+            $combined = $prev . $page;
+            if ($this->estimateHtmlHeightPt($combined) <= $this->budgetPt) {
+                $filled[] = $combined;
+
+                continue;
+            }
+
+            $filled[] = $prev;
+            $filled[] = $page;
+        }
+
+        return $filled;
     }
 
     private function estimateHtmlHeightPt(string $html): float
@@ -198,7 +213,17 @@ class AgreementLetterheadPaginator
     ): void {
         $tag = strtolower($element->tagName);
 
+        $flow = $this->flattenElement($dom, $element);
+        if (count($flow) > 1) {
+            foreach ($flow as $part) {
+                $this->appendNode($dom, $part, $pages, $currentNodes, $usedPt);
+            }
+
+            return;
+        }
+
         if (in_array($tag, ['ul', 'ol'], true)) {
+
             $items = $this->splitList($dom, $element);
             if (count($items) === 1 && $this->safeEstimate($this->estimateNodeHeightPt($items[0])) > $this->budgetPt) {
                 $li = $items[0]->getElementsByTagName('li')->item(0);
@@ -319,7 +344,7 @@ class AgreementLetterheadPaginator
     ): void {
         $remaining = max(0.0, $this->budgetPt - $usedPt);
 
-        if ($remaining < 14 && $currentNodes !== []) {
+        if ($remaining < self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO && $currentNodes !== []) {
             $pages[] = $this->joinHtml($dom, $currentNodes);
             $currentNodes = [];
             $usedPt = 0.0;
@@ -353,6 +378,15 @@ class AgreementLetterheadPaginator
 
         $tag = strtolower($node->tagName);
         $estimate = $this->safeEstimate($this->estimateNodeHeightPt($node));
+
+        if ($tag === 'table' && $estimate > $this->budgetPt) {
+            [, $bodyRows] = $this->tableRows($node);
+            if (count($bodyRows) > 1) {
+                $this->appendTableParts($dom, $node, $pages, $currentNodes, $usedPt);
+
+                return;
+            }
+        }
 
         if ($estimate > $this->budgetPt && in_array($tag, ['table', 'ul', 'ol', 'p', 'blockquote', 'li'], true)) {
             $this->forcePlaceOversizedNode($dom, $node, $pages, $currentNodes, $usedPt);
@@ -398,11 +432,18 @@ class AgreementLetterheadPaginator
         array &$currentNodes,
         float &$usedPt
     ): bool {
-        if ($remainingPt < 14 || ! $child instanceof DOMElement) {
+        if ($remainingPt < self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO || ! $child instanceof DOMElement) {
             return false;
         }
 
         $tag = strtolower($child->tagName);
+
+        if ($this->hasBlockChildren($child)) {
+            $flow = $this->flattenElement($dom, $child);
+            if (count($flow) > 1) {
+                return $this->tryPackFlowIntoRemaining($dom, $flow, $remainingPt, $pages, $currentNodes, $usedPt);
+            }
+        }
 
         if (in_array($tag, ['p', 'blockquote'], true)) {
             $parts = $this->splitTextBlockForBudget($dom, $child, $remainingPt);
@@ -455,6 +496,11 @@ class AgreementLetterheadPaginator
             return true;
         }
 
+        $flow = $this->flattenElement($dom, $child);
+        if (count($flow) > 1) {
+            return $this->tryPackFlowIntoRemaining($dom, $flow, $remainingPt, $pages, $currentNodes, $usedPt);
+        }
+
         return false;
     }
 
@@ -469,9 +515,9 @@ class AgreementLetterheadPaginator
         array &$currentNodes,
         float &$usedPt
     ): bool {
-        $items = $this->splitList($dom, $list);
+        $items = $this->listFlowNodes($dom, $list);
         if (count($items) <= 1) {
-            return false;
+            return $this->tryPackSingleListItemIntoRemaining($dom, $list, $remainingPt, $pages, $currentNodes, $usedPt);
         }
 
         $packed = [];
@@ -503,10 +549,382 @@ class AgreementLetterheadPaginator
         $usedPt += $packedHeight;
 
         for ($i = $splitAt; $i < count($items); $i++) {
-            $this->appendNodeOrForce($dom, $items[$i], $pages, $currentNodes, $usedPt);
+            $this->appendNode($dom, $items[$i], $pages, $currentNodes, $usedPt);
         }
 
         return true;
+    }
+
+    /**
+     * Pack independently flowable nodes into leftover page space.
+     *
+     * @param  list<DOMNode>  $flow
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function tryPackFlowIntoRemaining(
+        DOMDocument $dom,
+        array $flow,
+        float $remainingPt,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): bool {
+        $packed = [];
+        $packedHeight = 0.0;
+        $splitAt = 0;
+
+        foreach ($flow as $index => $node) {
+            if ($this->isForcedPageBreak($node) || $this->isVisuallyEmpty($node)) {
+                $splitAt = $index + 1;
+
+                continue;
+            }
+
+            $estimate = $this->safeEstimate($this->estimateNodeHeightPt($node));
+            if ($packedHeight + $estimate <= $remainingPt) {
+                $packed[] = $node;
+                $packedHeight += $estimate;
+                $splitAt = $index + 1;
+
+                continue;
+            }
+
+            $leftover = $remainingPt - $packedHeight;
+            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
+                $sliced = $this->sliceElementForBudget($dom, $node, $leftover);
+                if ($sliced !== null) {
+                    foreach ($packed as $item) {
+                        $currentNodes[] = $item;
+                    }
+                    $currentNodes[] = $sliced[0];
+                    $usedPt += $packedHeight + $this->safeEstimate($this->estimateNodeHeightPt($sliced[0]));
+
+                    $pages[] = $this->joinHtml($dom, $currentNodes);
+                    $currentNodes = [];
+                    $usedPt = 0.0;
+                    $this->appendNode($dom, $sliced[1], $pages, $currentNodes, $usedPt);
+                    foreach (array_slice($flow, $index + 1) as $rest) {
+                        $this->appendNode($dom, $rest, $pages, $currentNodes, $usedPt);
+                    }
+
+                    return true;
+                }
+            }
+
+            if ($packed === []) {
+                return false;
+            }
+
+            break;
+        }
+
+        if ($packed === [] || $splitAt >= count($flow)) {
+            return false;
+        }
+
+        foreach ($packed as $item) {
+            $currentNodes[] = $item;
+        }
+        $usedPt += $packedHeight;
+
+        foreach (array_slice($flow, $splitAt) as $rest) {
+            $this->appendNode($dom, $rest, $pages, $currentNodes, $usedPt);
+        }
+
+        return true;
+    }
+
+    /**
+     * Split one list item against leftover space so a heading does not sit
+     * alone on a page while its body starts on the next page.
+     *
+     * @param  list<DOMNode>  $currentNodes
+     */
+    private function tryPackSingleListItemIntoRemaining(
+        DOMDocument $dom,
+        DOMElement $list,
+        float $remainingPt,
+        array &$pages,
+        array &$currentNodes,
+        float &$usedPt
+    ): bool {
+        $li = $this->firstListItem($list);
+        if (! $li instanceof DOMElement) {
+            return false;
+        }
+
+        $inner = $this->expandNodes($dom, $li);
+        if ($inner === []) {
+            $parts = $this->splitTextBlockForBudget($dom, $this->listItemAsParagraph($dom, $li), $remainingPt);
+            if (count($parts) <= 1) {
+                return false;
+            }
+
+            $currentNodes[] = $this->wrapNodesInList($dom, $list, [$parts[0]]);
+            $usedPt += $this->safeEstimate($this->estimateNodeHeightPt($parts[0]));
+
+            $rest = array_slice($parts, 1);
+            $pages[] = $this->joinHtml($dom, $currentNodes);
+            $currentNodes = [];
+            $usedPt = 0.0;
+            $this->appendNode($dom, $this->wrapNodesInList($dom, $list, $rest), $pages, $currentNodes, $usedPt);
+
+            return true;
+        }
+
+        $packed = [];
+        $packedHeight = 0.0;
+        $splitAt = 0;
+
+        foreach ($inner as $index => $node) {
+            $itemEstimate = $this->safeEstimate($this->estimateNodeHeightPt($node));
+            if ($packedHeight + $itemEstimate <= $remainingPt) {
+                $packed[] = $node;
+                $packedHeight += $itemEstimate;
+                $splitAt = $index + 1;
+
+                continue;
+            }
+
+            if ($packed === [] && $node instanceof DOMElement) {
+                $sliced = $this->sliceElementForBudget($dom, $node, $remainingPt);
+                if ($sliced === null) {
+                    return false;
+                }
+
+                $currentNodes[] = $this->wrapNodesInList($dom, $list, [$sliced[0]]);
+                $usedPt += $this->safeEstimate($this->estimateNodeHeightPt($sliced[0]));
+
+                $restInner = array_merge([$sliced[1]], array_slice($inner, 1));
+                $pages[] = $this->joinHtml($dom, $currentNodes);
+                $currentNodes = [];
+                $usedPt = 0.0;
+                $this->appendNode($dom, $this->wrapNodesInList($dom, $list, $restInner), $pages, $currentNodes, $usedPt);
+
+                return true;
+            }
+
+            break;
+        }
+
+        if ($packed === [] || $splitAt >= count($inner)) {
+            return false;
+        }
+
+        $currentNodes[] = $this->wrapNodesInList($dom, $list, $packed);
+        $usedPt += $packedHeight;
+
+        $restInner = array_slice($inner, $splitAt);
+        $pages[] = $this->joinHtml($dom, $currentNodes);
+        $currentNodes = [];
+        $usedPt = 0.0;
+        $this->appendNode($dom, $this->wrapNodesInList($dom, $list, $restInner), $pages, $currentNodes, $usedPt);
+
+        return true;
+    }
+
+    /**
+     * @return array{0: DOMElement, 1: DOMElement}|null
+     */
+    private function sliceElementForBudget(DOMDocument $dom, DOMElement $element, float $budgetPt): ?array
+    {
+        $tag = strtolower($element->tagName);
+
+        if (in_array($tag, ['p', 'blockquote'], true)) {
+            $parts = $this->splitTextBlockForBudget($dom, $element, $budgetPt);
+            if (count($parts) < 2) {
+                return null;
+            }
+
+            $rest = $dom->createElement($tag);
+            $this->copyElementAttributes($element, $rest);
+            for ($i = 1; $i < count($parts); $i++) {
+                foreach ($parts[$i]->childNodes as $child) {
+                    $rest->appendChild($child->cloneNode(true));
+                }
+            }
+
+            return [$parts[0], $rest];
+        }
+
+        if (in_array($tag, ['ul', 'ol'], true)) {
+            $flow = $this->listFlowNodes($dom, $element);
+            if (count($flow) < 2) {
+                return null;
+            }
+
+            $packed = [];
+            $packedHeight = 0.0;
+            $splitAt = 0;
+            foreach ($flow as $index => $node) {
+                $estimate = $this->safeEstimate($this->estimateNodeHeightPt($node));
+                if ($packedHeight + $estimate <= $budgetPt) {
+                    $packed[] = $node;
+                    $packedHeight += $estimate;
+                    $splitAt = $index + 1;
+
+                    continue;
+                }
+
+                break;
+            }
+
+            if ($packed === [] || $splitAt >= count($flow)) {
+                return null;
+            }
+
+            $first = $dom->createElement('div');
+            foreach ($packed as $node) {
+                $first->appendChild($node->cloneNode(true));
+            }
+            $rest = $dom->createElement('div');
+            foreach (array_slice($flow, $splitAt) as $node) {
+                $rest->appendChild($node->cloneNode(true));
+            }
+
+            return [$first, $rest];
+        }
+
+        if ($tag === 'table') {
+            $parts = $this->splitTable($dom, $element, $budgetPt);
+            if (count($parts) < 2) {
+                return null;
+            }
+
+            if (count($parts) === 2) {
+                return [$parts[0], $parts[1]];
+            }
+
+            $rest = $dom->createElement('div');
+            for ($i = 1; $i < count($parts); $i++) {
+                $rest->appendChild($parts[$i]->cloneNode(true));
+            }
+
+            return [$parts[0], $rest];
+        }
+
+        if (in_array($tag, ['h1', 'h2', 'h3', 'h4', 'div', 'section', 'article', 'li'], true) && $this->hasBlockChildren($element)) {
+            $flow = $this->flattenElement($dom, $element);
+            if (count($flow) < 2) {
+                return null;
+            }
+
+            $packed = [];
+            $packedHeight = 0.0;
+            $splitAt = 0;
+            foreach ($flow as $index => $node) {
+                $estimate = $this->safeEstimate($this->estimateNodeHeightPt($node));
+                if ($packedHeight + $estimate <= $budgetPt) {
+                    $packed[] = $node;
+                    $packedHeight += $estimate;
+                    $splitAt = $index + 1;
+
+                    continue;
+                }
+
+                break;
+            }
+
+            if ($packed === [] || $splitAt >= count($flow)) {
+                return null;
+            }
+
+            $first = $dom->createElement('div');
+            foreach ($packed as $node) {
+                $first->appendChild($node->cloneNode(true));
+            }
+            $rest = $dom->createElement('div');
+            foreach (array_slice($flow, $splitAt) as $node) {
+                $rest->appendChild($node->cloneNode(true));
+            }
+
+            return [$first, $rest];
+        }
+
+        return null;
+    }
+
+    private function listItemAsParagraph(DOMDocument $dom, DOMElement $li): DOMElement
+    {
+        $p = $dom->createElement('p');
+        $p->appendChild($dom->createTextNode(trim(preg_replace('/\s+/u', ' ', $li->textContent ?? '') ?? '')));
+
+        return $p;
+    }
+
+    /**
+     * Word templates and TinyMCE page gaps use print-break CSS and spacer boxes
+     * that Dompdf honors as hard page breaks. Pagination must use remaining
+     * content-zone height instead of those authoring artifacts.
+     */
+    private function normalizeBodyHtml(string $html): string
+    {
+        $html = preg_replace('/<div[^>]*(?:data-word-page-gap|word-page-gap)[^>]*>.*?<\/div>/is', '', $html) ?? $html;
+        $html = preg_replace('/<img[^>]*class="[^"]*mce-pagebreak[^"]*"[^>]*>/i', '', $html) ?? $html;
+        $html = preg_replace('/<img[^>]*data-mce-pagebreak[^>]*>/i', '', $html) ?? $html;
+        $html = preg_replace('/page-break-(?:before|after|inside)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
+        $html = preg_replace('/(?<!-)break-(?:before|after|inside)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
+        $html = preg_replace('/mso-(?:break-type|page-break(?:-before|-after)?)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
+        $html = preg_replace(
+            '/<div[^>]*style="[^"]*(?:min-)?height\s*:\s*\d+(?:\.\d+)?(?:px|pt|mm|em|rem)[^"]*"[^>]*>\s*(?:&nbsp;|\xC2\xA0|<br\s*\/?>|\s)*<\/div>/iu',
+            '',
+            $html
+        ) ?? $html;
+        $html = preg_replace(
+            '/<p[^>]*>\s*(?:&nbsp;|\xC2\xA0|<br\s*\/?>|\s)*<\/p>/iu',
+            '',
+            $html
+        ) ?? $html;
+
+        return $html;
+    }
+
+    private function isForcedPageBreak(DOMNode $node): bool
+    {
+        if (! $node instanceof DOMElement) {
+            return false;
+        }
+
+        if ($node->getAttribute('data-agreement-page-break') === '1') {
+            return true;
+        }
+
+        return false;
+    }
+
+    private function isVisuallyEmpty(DOMNode $node): bool
+    {
+        if ($this->isForcedPageBreak($node)) {
+            return false;
+        }
+
+        if ($node instanceof DOMElement) {
+            $tag = strtolower($node->tagName);
+            $class = strtolower($node->getAttribute('class'));
+            if (str_contains($class, 'mce-pagebreak') || str_contains($class, 'word-page-gap')) {
+                return true;
+            }
+            if ($tag === 'img' && trim($node->getAttribute('src')) !== '') {
+                return false;
+            }
+            if ($tag === 'table' && $node->getElementsByTagName('tr')->length > 0) {
+                return false;
+            }
+
+            $html = $node->ownerDocument?->saveHTML($node) ?? '';
+        } else {
+            $html = (string) $node->textContent;
+        }
+
+        return $this->isBlankHtml($html);
+    }
+
+    private function isBlankHtml(string $html): bool
+    {
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\x{00A0}/u', ' ', $text) ?? $text;
+
+        return trim($text) === '';
     }
 
     /**
@@ -532,25 +950,19 @@ class AgreementLetterheadPaginator
                 continue;
             }
 
+            if ($this->isForcedPageBreak($child)) {
+                $items[] = $child;
+
+                continue;
+            }
+
+            if ($this->isSpacerOnly($child) || $this->isVisuallyEmpty($child)) {
+                continue;
+            }
+
             $tag = strtolower($child->tagName);
 
-            if (in_array($tag, ['div', 'section', 'article', 'main', 'figure', 'center'], true)) {
-                foreach ($this->expandNodes($dom, $child) as $nested) {
-                    $items[] = $nested;
-                }
-
-                continue;
-            }
-
-            if (in_array($tag, ['ul', 'ol'], true)) {
-                foreach ($this->splitList($dom, $child) as $listPart) {
-                    $items[] = $listPart;
-                }
-
-                continue;
-            }
-
-            if (in_array($tag, ['p', 'blockquote'], true)) {
+            if (in_array($tag, ['p', 'blockquote'], true) && ! $this->hasBlockChildren($child)) {
                 foreach ($this->splitTextBlock($dom, $child) as $part) {
                     $items[] = $part;
                 }
@@ -558,10 +970,233 @@ class AgreementLetterheadPaginator
                 continue;
             }
 
-            $items[] = $child;
+            foreach ($this->flattenElement($dom, $child) as $part) {
+                $items[] = $part;
+            }
         }
 
         return $items;
+    }
+
+    /**
+     * Turn a stored block into independently packable nodes.
+     * Word/TinyMCE often wraps a whole numbered section in one heading, list
+     * item, or ol whose children are h2/p/table without wrapping li tags.
+     *
+     * @return list<DOMNode>
+     */
+    private function flattenElement(DOMDocument $dom, DOMElement $element): array
+    {
+        if ($this->isSpacerOnly($element) || ($this->isVisuallyEmpty($element) && ! $this->isForcedPageBreak($element))) {
+            return [];
+        }
+
+        $tag = strtolower($element->tagName);
+
+        if (in_array($tag, ['ul', 'ol'], true)) {
+            return $this->listFlowNodes($dom, $element);
+        }
+
+        if (in_array($tag, ['div', 'section', 'article', 'main', 'figure', 'center', 'li'], true)) {
+            $expanded = $this->expandNodes($dom, $element);
+
+            return $expanded !== [] ? $expanded : [$element];
+        }
+
+        if (in_array($tag, ['h1', 'h2', 'h3', 'h4'], true) && $this->hasBlockChildren($element)) {
+            return $this->unpackCompositeHeading($dom, $element);
+        }
+
+        if (in_array($tag, ['p', 'blockquote'], true) && $this->hasBlockChildren($element)) {
+            $expanded = $this->expandNodes($dom, $element);
+
+            return $expanded !== [] ? $expanded : [$element];
+        }
+
+        return [$element];
+    }
+
+    /**
+     * @return list<DOMNode>
+     */
+    private function unpackCompositeHeading(DOMDocument $dom, DOMElement $heading): array
+    {
+        $title = $dom->createElement($heading->tagName);
+        $this->copyElementAttributes($heading, $title);
+
+        foreach (iterator_to_array($heading->childNodes) as $child) {
+            if ($child instanceof DOMElement && $this->isBlockTag($child->tagName)) {
+                continue;
+            }
+
+            $title->appendChild($child->cloneNode(true));
+        }
+
+        $nodes = [];
+        if (! $this->isBlankHtml($dom->saveHTML($title) ?: '')) {
+            $nodes[] = $title;
+        }
+
+        foreach ($this->directElementChildren($heading) as $child) {
+            if (! $this->isBlockTag($child->tagName)) {
+                continue;
+            }
+
+            foreach ($this->flattenElement($dom, $child) as $part) {
+                $nodes[] = $part;
+            }
+        }
+
+        return $nodes !== [] ? $nodes : [$heading];
+    }
+
+    private function hasBlockChildren(DOMElement $element): bool
+    {
+        foreach ($element->childNodes as $child) {
+            if ($child instanceof DOMElement && $this->isBlockTag($child->tagName)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isBlockTag(string $tag): bool
+    {
+        return in_array(strtolower($tag), [
+            'p', 'div', 'table', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+            'blockquote', 'section', 'article', 'main', 'header', 'footer', 'figure',
+            'center', 'pre', 'hr',
+        ], true);
+    }
+
+    private function isSpacerOnly(DOMNode $node): bool
+    {
+        if (! $node instanceof DOMElement) {
+            return false;
+        }
+
+        $style = strtolower($node->getAttribute('style'));
+        $hasFixedHeight = (bool) preg_match('/(?:^|;)\s*(?:min-)?height\s*:\s*\d/', $style);
+
+        return $hasFixedHeight && $this->isVisuallyEmpty($node);
+    }
+
+    /**
+     * Flatten list items that wrap a whole section (title + body + nested blocks)
+     * into independently packable nodes. Simple one-line items stay as lists.
+     *
+     * @return list<DOMNode>
+     */
+    private function listFlowNodes(DOMDocument $dom, DOMElement $list): array
+    {
+        $items = [];
+        $index = 0;
+        $tag = strtolower($list->tagName);
+        $baseStart = $tag === 'ol' ? max(1, (int) ($list->getAttribute('start') ?: 1)) : 1;
+
+        foreach ($list->childNodes as $child) {
+            if (! $child instanceof DOMElement) {
+                continue;
+            }
+
+            if ($this->isSpacerOnly($child) || $this->isVisuallyEmpty($child)) {
+                continue;
+            }
+
+            if (strtolower($child->tagName) !== 'li') {
+                foreach ($this->flattenElement($dom, $child) as $part) {
+                    $items[] = $part;
+                }
+
+                continue;
+            }
+
+            $inner = $this->expandNodes($dom, $child);
+            if ($this->listItemIsComposite($inner)) {
+                foreach ($inner as $nested) {
+                    $items[] = $nested;
+                }
+            } else {
+                $items[] = $this->wrapSingleListItem($dom, $list, $child, $baseStart + $index);
+            }
+
+            $index++;
+        }
+
+        return $items !== [] ? $items : [$list];
+    }
+
+    /**
+     * @param  list<DOMNode>  $inner
+     */
+    private function listItemIsComposite(array $inner): bool
+    {
+        if (count($inner) > 1) {
+            return true;
+        }
+
+        $only = $inner[0] ?? null;
+        if (! $only instanceof DOMElement) {
+            return false;
+        }
+
+        $tag = strtolower($only->tagName);
+        if (in_array($tag, ['table', 'ul', 'ol', 'div', 'section', 'article'], true)) {
+            return true;
+        }
+
+        return in_array($tag, ['h1', 'h2', 'h3', 'h4', 'p', 'blockquote'], true)
+            && $this->hasBlockChildren($only);
+    }
+
+    private function wrapSingleListItem(DOMDocument $dom, DOMElement $list, DOMElement $li, int $start): DOMElement
+    {
+        $tag = strtolower($list->tagName);
+        $single = $dom->createElement($tag);
+        $this->copyListAttributes($list, $single);
+
+        if ($tag === 'ol') {
+            $this->setOrderedListStart($single, $start);
+        }
+
+        $single->appendChild($li->cloneNode(true));
+
+        return $single;
+    }
+
+    /**
+     * @param  list<DOMNode>  $nodes
+     */
+    private function wrapNodesInList(DOMDocument $dom, DOMElement $sourceList, array $nodes): DOMElement
+    {
+        $tag = in_array(strtolower($sourceList->tagName), ['ul', 'ol'], true)
+            ? strtolower($sourceList->tagName)
+            : 'ul';
+        $list = $dom->createElement($tag);
+        $this->copyListAttributes($sourceList, $list);
+        if ($tag === 'ol' && $sourceList->hasAttribute('start')) {
+            $list->setAttribute('start', $sourceList->getAttribute('start'));
+        }
+
+        $li = $dom->createElement('li');
+        foreach ($nodes as $node) {
+            $li->appendChild($node->cloneNode(true));
+        }
+        $list->appendChild($li);
+
+        return $list;
+    }
+
+    private function firstListItem(DOMElement $list): ?DOMElement
+    {
+        foreach ($list->childNodes as $child) {
+            if ($child instanceof DOMElement && strtolower($child->tagName) === 'li') {
+                return $child;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -818,13 +1453,14 @@ class AgreementLetterheadPaginator
             return [$table];
         }
 
-        $headerPt = $this->estimateRowsHeightPt($headerRows);
+        $charsPerLine = $this->cellCharsPerLine($table);
+        $headerPt = $this->estimateRowsHeightPt($headerRows, $charsPerLine);
         $chunks = [];
         $batch = [];
         $usedPt = 0.0;
 
         foreach ($bodyRows as $row) {
-            $rowPt = $this->estimateRowHeightPt($row);
+            $rowPt = $this->estimateRowHeightPt($row, $charsPerLine);
             $headerForRow = $batch === [] ? $headerPt : 0.0;
             $nextPt = $usedPt + $rowPt + $headerForRow;
 
@@ -863,45 +1499,95 @@ class AgreementLetterheadPaginator
         $headerRows = [];
         $bodyRows = [];
 
-        $thead = $table->getElementsByTagName('thead')->item(0);
-        if ($thead instanceof DOMElement) {
-            foreach ($thead->getElementsByTagName('tr') as $tr) {
-                if ($tr instanceof DOMElement) {
-                    $headerRows[] = $tr;
+        foreach ($this->directElementChildren($table) as $section) {
+            $tag = strtolower($section->tagName);
+
+            if ($tag === 'thead') {
+                $headerRows = array_merge($headerRows, $this->directRows($section));
+            } elseif (in_array($tag, ['tbody', 'tfoot'], true)) {
+                $bodyRows = array_merge($bodyRows, $this->directRows($section));
+            } elseif ($tag === 'tr') {
+                if ($headerRows === [] && $this->rowLooksLikeHeader($section)) {
+                    $headerRows[] = $section;
+                } else {
+                    $bodyRows[] = $section;
                 }
-            }
-        }
-
-        $tbody = $table->getElementsByTagName('tbody')->item(0);
-        if ($tbody instanceof DOMElement) {
-            foreach ($tbody->getElementsByTagName('tr') as $tr) {
-                if ($tr instanceof DOMElement) {
-                    $bodyRows[] = $tr;
-                }
-            }
-        }
-
-        if ($bodyRows === []) {
-            foreach ($table->getElementsByTagName('tr') as $tr) {
-                if (! $tr instanceof DOMElement) {
-                    continue;
-                }
-
-                if ($thead instanceof DOMElement && $this->nodeIsDescendantOf($tr, $thead)) {
-                    continue;
-                }
-
-                if ($headerRows === [] && $tr->getElementsByTagName('th')->length > 0) {
-                    $headerRows[] = $tr;
-
-                    continue;
-                }
-
-                $bodyRows[] = $tr;
             }
         }
 
         return [$headerRows, $bodyRows];
+    }
+
+    /**
+     * @return list<DOMElement>
+     */
+    private function directElementChildren(DOMElement $parent): array
+    {
+        $elements = [];
+        foreach ($parent->childNodes as $child) {
+            if ($child instanceof DOMElement) {
+                $elements[] = $child;
+            }
+        }
+
+        return $elements;
+    }
+
+    /**
+     * @return list<DOMElement>
+     */
+    private function directRows(DOMElement $parent): array
+    {
+        $rows = [];
+        foreach ($this->directElementChildren($parent) as $child) {
+            if (strtolower($child->tagName) === 'tr') {
+                $rows[] = $child;
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return list<DOMElement>
+     */
+    private function directCells(DOMElement $row): array
+    {
+        $cells = [];
+        foreach ($this->directElementChildren($row) as $child) {
+            if (in_array(strtolower($child->tagName), ['td', 'th'], true)) {
+                $cells[] = $child;
+            }
+        }
+
+        return $cells;
+    }
+
+    private function rowLooksLikeHeader(DOMElement $row): bool
+    {
+        foreach ($this->directCells($row) as $cell) {
+            if (strtolower($cell->tagName) === 'th') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function tableColumnCount(DOMElement $table): int
+    {
+        [$headerRows, $bodyRows] = $this->tableRows($table);
+        $row = $headerRows[0] ?? $bodyRows[0] ?? null;
+        if (! $row instanceof DOMElement) {
+            return 1;
+        }
+
+        $count = 0;
+        foreach ($this->directCells($row) as $cell) {
+            $count += max(1, (int) ($cell->getAttribute('colspan') ?: 1));
+        }
+
+        return max(1, $count);
     }
 
     /**
@@ -941,19 +1627,6 @@ class AgreementLetterheadPaginator
         return $table;
     }
 
-    private function nodeIsDescendantOf(DOMNode $node, DOMElement $ancestor): bool
-    {
-        $parent = $node->parentNode;
-        while ($parent instanceof DOMNode) {
-            if ($parent === $ancestor) {
-                return true;
-            }
-            $parent = $parent->parentNode;
-        }
-
-        return false;
-    }
-
     /**
      * @param  list<DOMNode>  $nodes
      */
@@ -975,6 +1648,10 @@ class AgreementLetterheadPaginator
         $total = 0.0;
 
         foreach ($nodes as $node) {
+            if ($this->isForcedPageBreak($node) || $this->isVisuallyEmpty($node)) {
+                continue;
+            }
+
             $total += $this->safeEstimate($this->estimateNodeHeightPt($node));
 
             if ($total > $this->budgetPt) {
@@ -987,7 +1664,7 @@ class AgreementLetterheadPaginator
 
     private function safeEstimate(float $estimate): float
     {
-        return max(6.0, $estimate * self::ESTIMATE_SAFETY);
+        return max(0.0, $estimate * self::ESTIMATE_SAFETY);
     }
 
     private function estimateNodeHeightPt(DOMNode $node): float
@@ -1003,9 +1680,11 @@ class AgreementLetterheadPaginator
         return match ($tag) {
             'table' => $this->estimateTableHeightPt($node),
             'ul', 'ol' => $this->estimateListHeightPt($node),
-            'h1', 'h2', 'h3', 'h4' => 8 + $this->estimateTextHeightPt($node->textContent ?? '', self::HEADING_FONT_PT),
-            'hr' => 10,
-            'img' => 72,
+            'h1', 'h2', 'h3', 'h4' => $this->hasBlockChildren($node)
+                ? $this->estimateBlockHeightPt($node)
+                : 8 + $this->estimateTextHeightPt($node->textContent ?? '', self::HEADING_FONT_PT),
+            'hr' => $this->isForcedPageBreak($node) ? 0.0 : 10,
+            'img' => $this->isForcedPageBreak($node) ? 0.0 : 72,
             'li' => $this->estimateTextHeightPt($node->textContent ?? '', self::CONTENT_FONT_PT) + 4,
             default => $this->estimateBlockHeightPt($node),
         };
@@ -1014,9 +1693,10 @@ class AgreementLetterheadPaginator
     private function estimateTableHeightPt(DOMElement $table): float
     {
         [$headerRows, $bodyRows] = $this->tableRows($table);
+        $charsPerLine = $this->cellCharsPerLine($table);
 
-        return $this->estimateRowsHeightPt($headerRows) + array_sum(array_map(
-            fn(DOMElement $row): float => $this->estimateRowHeightPt($row),
+        return $this->estimateRowsHeightPt($headerRows, $charsPerLine) + array_sum(array_map(
+            fn (DOMElement $row): float => $this->estimateRowHeightPt($row, $charsPerLine),
             $bodyRows
         ));
     }
@@ -1024,60 +1704,81 @@ class AgreementLetterheadPaginator
     /**
      * @param  list<DOMElement>  $rows
      */
-    private function estimateRowsHeightPt(array $rows): float
+    private function estimateRowsHeightPt(array $rows, ?int $charsPerLine = null): float
     {
         if ($rows === []) {
             return 0.0;
         }
 
         return array_sum(array_map(
-            fn(DOMElement $row): float => $this->estimateRowHeightPt($row),
+            fn (DOMElement $row): float => $this->estimateRowHeightPt($row, $charsPerLine),
             $rows
-        )) + 4;
+        ));
     }
 
-    private function estimateRowHeightPt(DOMElement $row): float
+    private function cellCharsPerLine(DOMElement $table): int
     {
-        $maxLines = 1;
+        $columns = $this->tableColumnCount($table);
 
-        foreach ($row->getElementsByTagName('td') as $cell) {
-            if (! $cell instanceof DOMElement) {
-                continue;
-            }
-
-            $maxLines = max($maxLines, $this->estimateCellLines($cell));
-        }
-
-        foreach ($row->getElementsByTagName('th') as $cell) {
-            if (! $cell instanceof DOMElement) {
-                continue;
-            }
-
-            $maxLines = max($maxLines, $this->estimateCellLines($cell));
-        }
-
-        return ($maxLines * (self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO)) + 4;
+        return max(20, (int) floor(self::CHARS_PER_LINE / $columns));
     }
 
-    private function estimateCellLines(DOMElement $cell): int
+    private function estimateRowHeightPt(DOMElement $row, ?int $charsPerLine = null): float
+    {
+        $charsPerLine = $charsPerLine ?? max(20, (int) floor(self::CHARS_PER_LINE / max(1, count($this->directCells($row)))));
+        $lineHeight = self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO;
+        $maxPt = $lineHeight;
+
+        foreach ($this->directCells($row) as $cell) {
+            $nestedHeight = 0.0;
+            foreach ($this->directElementChildren($cell) as $child) {
+                if (strtolower($child->tagName) === 'table') {
+                    $nestedHeight += $this->estimateTableHeightPt($child);
+                }
+            }
+
+            if ($nestedHeight > 0) {
+                $maxPt = max($maxPt, $nestedHeight + 4);
+
+                continue;
+            }
+
+            $lines = $this->estimateCellLines($cell, $charsPerLine);
+            $maxPt = max($maxPt, ($lines * $lineHeight) + 8);
+        }
+
+        return $maxPt;
+    }
+
+    private function estimateCellLines(DOMElement $cell, int $charsPerLine = 48): int
     {
         $html = strtolower($cell->ownerDocument?->saveHTML($cell) ?? '');
         $brLines = max(0, substr_count($html, '<br'));
         $text = trim(preg_replace('/\s+/u', ' ', $cell->textContent ?? '') ?? '');
+        $wrap = $text === '' ? 1 : (int) ceil(mb_strlen($text) / max(20, $charsPerLine));
 
-        return max(1, $brLines + 1, (int) ceil(mb_strlen($text) / 48));
+        return max(1, $brLines + 1, $wrap);
     }
 
     private function estimateListHeightPt(DOMElement $list): float
     {
         $total = 4.0;
+        $counted = false;
+
         foreach ($list->childNodes as $child) {
-            if ($child instanceof DOMElement && strtolower($child->tagName) === 'li') {
-                $total += $this->estimateNodeHeightPt($child);
+            if (! $child instanceof DOMElement) {
+                continue;
             }
+
+            $counted = true;
+            $total += $this->safeEstimate($this->estimateNodeHeightPt($child));
         }
 
-        return max(10.0, $total);
+        if (! $counted) {
+            return max(4.0, $this->estimateBlockHeightPt($list));
+        }
+
+        return $total;
     }
 
     private function estimateBlockHeightPt(DOMElement $node): float
@@ -1092,16 +1793,20 @@ class AgreementLetterheadPaginator
             $textHeight = max($textHeight, ($brLines + 1) * $lineHeight);
         }
 
-        $nestedTables = $node->getElementsByTagName('table');
-        if ($nestedTables->length > 0) {
-            $total = 2.0;
+        $nestedTables = [];
+        foreach ($this->directElementChildren($node) as $child) {
+            if (strtolower($child->tagName) === 'table') {
+                $nestedTables[] = $child;
+            }
+        }
+
+        if ($nestedTables !== []) {
+            $total = 0.0;
             foreach ($nestedTables as $table) {
-                if ($table instanceof DOMElement) {
-                    $total += $this->estimateTableHeightPt($table);
-                }
+                $total += $this->estimateTableHeightPt($table);
             }
 
-            return $total + $textHeight;
+            return $total + ($text === '' ? 0.0 : 4.0);
         }
 
         return $textHeight + 4;

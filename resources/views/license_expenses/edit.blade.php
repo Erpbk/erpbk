@@ -1,5 +1,5 @@
 
-            {!! Form::model($LicenseExpenses, ['route' => ['LicenseExpense.update'], 'method' => 'patch']) !!}
+            {!! Form::model($LicenseExpenses, ['route' => ['LicenseExpense.update'], 'method' => 'post']) !!}
             <input type="hidden" name="id" value="{{ $LicenseExpenses->id }}">
             <input type="hidden"  id="reload_page" value="1">
                 <div class="row">

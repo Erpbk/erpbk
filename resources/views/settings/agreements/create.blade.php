@@ -8,6 +8,8 @@
 @php
 $companySlug = request()->route('company_slug');
 $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
+$assignModule = $assignModule ?? '';
+$preselectedModules = old('assigned_modules', $assignModule !== '' ? [$assignModule] : []);
 @endphp
 
 <div class="row">
@@ -18,15 +20,24 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
           <h4 class="card-title mb-0">Create Agreement</h4>
           <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
+        @if($assignModule !== '')
+        <a href="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $assignModule]) }}" class="btn btn-outline-secondary btn-sm">
+          Back
+        </a>
+        @else
         <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary btn-sm">
           Back
         </a>
+        @endif
       </div>
 
       <div class="card-body">
         <form method="POST" action="{{ route('agreements.store-agreement', ['company_slug' => $companySlug]) }}">
           @csrf
           <input type="hidden" name="group_key" value="{{ $groupKey }}">
+          @if($assignModule !== '')
+          <input type="hidden" name="return_module" value="{{ $assignModule }}">
+          @endif
 
           <div class="mb-3">
             <label class="form-label">Agreement Name</label>
@@ -56,7 +67,7 @@ $groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
                 <div class="form-check">
                   <input class="form-check-input" type="checkbox" name="assigned_modules[]" value="{{ $moduleKey }}"
                     id="mod_{{ $moduleKey }}"
-                    {{ in_array($moduleKey, old('assigned_modules', []), true) ? 'checked' : '' }}>
+                    {{ in_array($moduleKey, $preselectedModules, true) ? 'checked' : '' }}>
                   <label class="form-check-label" for="mod_{{ $moduleKey }}">
                     {{ $label }}
                   </label>

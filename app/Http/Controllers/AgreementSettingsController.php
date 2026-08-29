@@ -183,7 +183,7 @@ class AgreementSettingsController extends Controller
             'remove_letterhead' => 'sometimes|boolean',
             'letterhead_margins' => 'nullable|array',
             'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
-            'letterhead_margins.bottom' => 'nullable|numeric|min:5|max:50',
+            'letterhead_margins.bottom' => 'nullable|numeric|min:0|max:50',
             'letterhead_margins.left' => 'nullable|numeric|min:5|max:50',
             'letterhead_margins.right' => 'nullable|numeric|min:5|max:50',
         ], [
@@ -665,9 +665,7 @@ class AgreementSettingsController extends Controller
                 continue;
             }
 
-            $min = in_array($side, ['top', 'bottom'], true)
-                ? ($side === 'top' ? 30 : 5)
-                : 8;
+            $min = $side === 'top' ? 30 : ($side === 'bottom' ? 0 : 8);
             $max = in_array($side, ['top', 'bottom'], true)
                 ? ($side === 'top' ? 100 : 50)
                 : 55;

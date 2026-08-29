@@ -3,7 +3,6 @@
 @section('title', 'Edit Template — ' . $category->name)
 
 @push('third_party_stylesheets')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tinymce@6/skins/ui/oxide/skin.min.css">
 <style>
   .branding-panel {
     border-radius: 10px;
@@ -145,7 +144,6 @@ $styleLabel = $template->template_type === 'premium' ? 'Modern Premium' : 'Corpo
 @include('agreements.partials.tinymce-word-document')
 
 @push('third_party_scripts')
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     tinymce.init(window.erpbkAgreementWordEditor.config({

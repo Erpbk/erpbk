@@ -5,7 +5,7 @@ $secondary = $pb['secondary_color'] ?? '#1e3a8a';
 $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
 $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
 $selectedTemplateId = (int) old('contract_template_id', $contractTemplateId ?? 0);
-$editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLetterheadMarginsMm() : ['top' => 18, 'bottom' => 15, 'left' => 12, 'right' => 12]);
+$editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLetterheadMarginsMm() : ['top' => 18, 'bottom' => 0, 'left' => 12, 'right' => 12]);
 @endphp
 
 <div class="mb-3" id="template-content-panel" style="--agreement-primary: {{ $primary }}; --agreement-secondary: {{ $secondary }}; --agreement-on-primary: {{ $onPrimary }};">
@@ -87,7 +87,6 @@ $editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLe
 
 @once
 @push('third_party_stylesheets')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tinymce@6/skins/ui/oxide/skin.min.css">
 <style>
   .branding-panel {
     border-radius: 10px;

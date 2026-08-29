@@ -1,5 +1,6 @@
 @once
 @push('third_party_stylesheets')
+<link rel="stylesheet" href="{{ asset('vendor/tinymce/skins/ui/oxide/skin.min.css') }}">
 <style>
   .agreement-word-editor .tox-tinymce {
     border: 1px solid #8a8a8a;
@@ -27,7 +28,7 @@
 
   .agreement-word-editor .tox .tox-edit-area,
   .agreement-word-editor .tox .tox-edit-area__iframe {
-    background: #e8e8e8;
+    background: #5c5c5c;
   }
 
   .agreement-word-editor .tox .tox-statusbar {
@@ -355,33 +356,58 @@
 @endpush
 
 @push('third_party_scripts')
+<script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
 <script>
   window.erpbkAgreementWordEditor = {
     height: function () {
       var viewport = window.innerHeight || 900;
       return Math.max(viewport - 56, 920);
     },
+    pageCanvas: '#5c5c5c',
+    pageGapPx: 22,
+    pageHeightMm: 297,
     contentStyle: function (margins) {
       margins = margins || this.pageMargins();
       var pad = [margins.top, margins.right, margins.bottom, margins.left].map(function (v) {
         return v + 'mm';
       }).join(' ');
+      var canvas = this.pageCanvas;
       return [
-        'html{background:#e8e8e8;height:100%;}',
-        'body{font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;line-height:1.5;color:#1e293b;',
+        'html{background:' + canvas + ';height:100%;}',
+        'body{--word-margin-top:' + margins.top + 'mm;--word-margin-right:' + margins.right + 'mm;',
+        '--word-margin-bottom:' + margins.bottom + 'mm;--word-margin-left:' + margins.left + 'mm;',
+        'font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;line-height:1.5;color:#1e293b;',
         'background:#ffffff;width:210mm;max-width:calc(100% - 24px);min-height:297mm;',
-        'margin:16px auto 40px auto !important;padding:' + pad + ';box-sizing:border-box;',
-        'box-shadow:0 1px 3px rgba(0,0,0,.16),0 0 0 1px #d0d0d0;}',
+        'margin:20px auto 48px auto !important;padding:' + pad + ';box-sizing:border-box;',
+        'box-shadow:0 1px 4px rgba(0,0,0,.28),0 0 0 1px #cfcfcf;}',
+        '.word-page-gap,[data-word-page-gap]{display:block!important;box-sizing:border-box!important;',
+        'height:calc(var(--word-margin-bottom) + 22px + var(--word-margin-top))!important;',
+        'min-height:calc(var(--word-margin-bottom) + 22px + var(--word-margin-top))!important;',
+        'line-height:0!important;font-size:1px!important;overflow:hidden!important;',
+        'padding:0!important;border:0!important;',
+        'margin:0 calc(-1 * var(--word-margin-right)) 0 calc(-1 * var(--word-margin-left)) !important;',
+        'width:auto!important;max-width:none!important;background:#ffffff!important;',
+        'background-image:linear-gradient(' + canvas + ',' + canvas + ')!important;',
+        'background-repeat:no-repeat!important;background-size:100% 22px!important;',
+        'background-position:0 var(--word-margin-bottom)!important;',
+        'box-shadow:none!important;user-select:none!important;pointer-events:none!important;clear:both!important;}',
+        'img.mce-pagebreak{display:block!important;border:0!important;outline:0!important;',
+        'height:calc(var(--word-margin-bottom) + 22px + var(--word-margin-top))!important;',
+        'width:210mm!important;max-width:none!important;background:#ffffff!important;',
+        'background-image:linear-gradient(' + canvas + ',' + canvas + ')!important;',
+        'background-repeat:no-repeat!important;background-size:100% 22px!important;',
+        'background-position:0 var(--word-margin-bottom)!important;',
+        'margin:0 0 0 calc(-1 * var(--word-margin-left)) !important;}',
         'table{border-collapse:collapse;width:100%;}',
         'table td,table th{border:1px solid #94a3b8;padding:4px 8px;}',
         'p{margin:0 0 .5em;}',
         'h1,h2,h3,h4{margin:0 0 .55em;line-height:1.25;}',
-        'img{max-width:100%;height:auto;}'
+        'img:not(.mce-pagebreak){max-width:100%;height:auto;}'
       ].join('');
     },
     pageMargins: function () {
       var wrap = document.querySelector('.agreement-word-editor');
-      var defaults = { top: 18, right: 12, bottom: 15, left: 12 };
+      var defaults = { top: 18, right: 12, bottom: 0, left: 12 };
       if (!wrap) {
         return defaults;
       }
@@ -401,7 +427,12 @@
       if (!editor || !editor.getBody()) {
         return;
       }
-      editor.getBody().style.padding = margins.top + 'mm ' + margins.right + 'mm ' + margins.bottom + 'mm ' + margins.left + 'mm';
+      var body = editor.getBody();
+      body.style.padding = margins.top + 'mm ' + margins.right + 'mm ' + margins.bottom + 'mm ' + margins.left + 'mm';
+      body.style.setProperty('--word-margin-top', margins.top + 'mm');
+      body.style.setProperty('--word-margin-right', margins.right + 'mm');
+      body.style.setProperty('--word-margin-bottom', margins.bottom + 'mm');
+      body.style.setProperty('--word-margin-left', margins.left + 'mm');
       var wrap = document.querySelector('.agreement-word-editor');
       if (wrap) {
         wrap.setAttribute('data-margin-left', String(margins.left));
@@ -411,8 +442,226 @@
       }
       var leftField = document.querySelector('input[name="letterhead_margins[left]"]');
       var rightField = document.querySelector('input[name="letterhead_margins[right]"]');
+      var bottomField = document.querySelector('input[name="letterhead_margins[bottom]"]');
       if (leftField) leftField.value = margins.left;
       if (rightField) rightField.value = margins.right;
+      if (bottomField) bottomField.value = margins.bottom;
+      this.paginate(editor);
+    },
+    debounce: function (fn, wait) {
+      var timer;
+      return function () {
+        var ctx = this;
+        var args = arguments;
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          fn.apply(ctx, args);
+        }, wait);
+      };
+    },
+    pageHeightPx: function (doc) {
+      if (!doc || !doc.body) {
+        return 1123;
+      }
+      var probe = doc.createElement('div');
+      probe.style.cssText = 'position:absolute;left:-9999px;top:0;height:' + this.pageHeightMm + 'mm;width:1px;visibility:hidden;';
+      doc.body.appendChild(probe);
+      var px = probe.offsetHeight;
+      probe.parentNode.removeChild(probe);
+      return px > 50 ? px : 1123;
+    },
+    _createPageGap: function (doc) {
+      var gap = doc.createElement('div');
+      gap.className = 'word-page-gap';
+      gap.setAttribute('data-word-page-gap', '1');
+      gap.setAttribute('data-mce-bogus', 'all');
+      gap.setAttribute('contenteditable', 'false');
+      gap.appendChild(doc.createTextNode('\u00a0'));
+      return gap;
+    },
+    _removePageGaps: function (body) {
+      Array.prototype.slice.call(body.querySelectorAll('[data-word-page-gap], .word-page-gap')).forEach(function (el) {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+    },
+    _gapNearY: function (body, yFromBodyTop, threshold) {
+      var bodyRect = body.getBoundingClientRect();
+      var gaps = body.querySelectorAll('[data-word-page-gap], img.mce-pagebreak');
+      var i;
+      for (i = 0; i < gaps.length; i++) {
+        var top = gaps[i].getBoundingClientRect().top - bodyRect.top;
+        if (Math.abs(top - yFromBodyTop) < threshold) {
+          return true;
+        }
+      }
+      return false;
+    },
+    _insertPageGap: function (editor, yFromBodyTop) {
+      var doc = editor.getDoc();
+      var win = editor.getWin();
+      var body = editor.getBody();
+      var html = doc.documentElement;
+      var prevScroll = html.scrollTop || (win && win.scrollY) || 0;
+      var iframeH = (win && win.innerHeight) || 800;
+      var bodyRect = body.getBoundingClientRect();
+      var clientY = bodyRect.top + yFromBodyTop;
+      var scrolled = false;
+
+      if (clientY < 12 || clientY > iframeH - 12) {
+        html.scrollTop = Math.max(0, prevScroll + clientY - Math.round(iframeH / 2));
+        scrolled = true;
+        bodyRect = body.getBoundingClientRect();
+      }
+
+      try {
+        if (this._gapNearY(body, yFromBodyTop, 28)) {
+          return;
+        }
+
+        var gap = this._createPageGap(doc);
+        var x = bodyRect.left + Math.max(24, Math.min(bodyRect.width / 2, 120));
+        var y = bodyRect.top + yFromBodyTop - 1;
+        var range = null;
+
+        try {
+          if (typeof doc.caretRangeFromPoint === 'function') {
+            range = doc.caretRangeFromPoint(x, y);
+          } else if (typeof doc.caretPositionFromPoint === 'function') {
+            var pos = doc.caretPositionFromPoint(x, y);
+            if (pos && pos.offsetNode) {
+              range = doc.createRange();
+              range.setStart(pos.offsetNode, pos.offset);
+              range.collapse(true);
+            }
+          }
+        } catch (err) {
+          range = null;
+        }
+
+        if (range && range.startContainer && body.contains(range.startContainer)) {
+          var node = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentNode;
+          if (node && node.closest && node.closest('[data-word-page-gap], .word-page-gap')) {
+            return;
+          }
+          if (node && node.closest) {
+            var table = node.closest('table');
+            if (table && body.contains(table)) {
+              table.parentNode.insertBefore(gap, table);
+              return;
+            }
+          }
+          try {
+            range.insertNode(gap);
+            return;
+          } catch (err2) {}
+        }
+
+        var child = body.firstChild;
+        while (child) {
+          var next = child.nextSibling;
+          if (child.nodeType === 1 && !child.hasAttribute('data-word-page-gap') && !(child.classList && child.classList.contains('word-page-gap'))) {
+            var top = child.getBoundingClientRect().top - bodyRect.top;
+            var bottom = top + child.offsetHeight;
+            if (top >= yFromBodyTop - 1 || (top < yFromBodyTop && bottom > yFromBodyTop)) {
+              body.insertBefore(gap, child);
+              return;
+            }
+          }
+          child = next;
+        }
+      } finally {
+        if (scrolled) {
+          html.scrollTop = prevScroll;
+        }
+      }
+    },
+    paginate: function (editor) {
+      if (!editor || this._paging || typeof editor.getBody !== 'function') {
+        return;
+      }
+      var body = editor.getBody();
+      if (!body || !body.isConnected) {
+        return;
+      }
+      this._paging = true;
+      var self = this;
+      var run = function () {
+        self._removePageGaps(body);
+        var pagePx = self.pageHeightPx(editor.getDoc());
+        var gapPx = self.pageGapPx;
+        var computed = editor.getWin().getComputedStyle(body);
+        var padBottom = parseFloat(computed.paddingBottom) || 0;
+        body.style.minHeight = pagePx + 'px';
+
+        if (body.scrollHeight <= pagePx + 2) {
+          return;
+        }
+
+        var bookmark = null;
+        try {
+          bookmark = editor.selection.getBookmark(2, true);
+        } catch (err) {}
+
+        var pageIndex = 1;
+        var maxPages = 40;
+        while (pageIndex < maxPages) {
+          var boundary = pageIndex * pagePx + (pageIndex - 1) * gapPx - padBottom;
+          if (boundary < pagePx * 0.4) {
+            break;
+          }
+          if (body.scrollHeight <= boundary + 6) {
+            break;
+          }
+          self._insertPageGap(editor, boundary);
+          pageIndex += 1;
+        }
+
+        var gaps = body.querySelectorAll('[data-word-page-gap], .word-page-gap').length;
+        var pages = Math.max(1, gaps + 1);
+        body.style.minHeight = (pages * pagePx + gaps * gapPx) + 'px';
+
+        if (bookmark) {
+          try {
+            editor.selection.moveToBookmark(bookmark);
+          } catch (err2) {}
+        }
+      };
+
+      try {
+        if (editor.undoManager && typeof editor.undoManager.ignore === 'function') {
+          editor.undoManager.ignore(run);
+        } else {
+          run();
+        }
+      } finally {
+        this._paging = false;
+      }
+    },
+    attachPagination: function (editor) {
+      var self = this;
+      var soon = this.debounce(function () {
+        self.paginate(editor);
+      }, 200);
+      editor.on('init', function () {
+        self.applyPageMargins(editor, self.pageMargins());
+        setTimeout(function () {
+          self.paginate(editor);
+        }, 30);
+      });
+      editor.on('input SetContent change Undo Redo KeyUp', soon);
+      editor.on('ResizeEditor', function () {
+        self.paginate(editor);
+      });
+      editor.on('GetContent', function (e) {
+        if (typeof e.content !== 'string' || e.content === '') {
+          return;
+        }
+        e.content = e.content
+          .replace(/<div[^>]*data-word-page-gap[^>]*>[\s\S]*?<\/div>/gi, '')
+          .replace(/<div[^>]*class="[^"]*word-page-gap[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+      });
     },
     icon: function (name) {
       var paths = {
@@ -555,6 +804,11 @@
         '        <span class="word-ribbon-field-label">Right</span>',
         '        <input type="number" class="word-ribbon-select is-size" data-page-margin="right" min="5" max="40" step="0.5" title="Right margin (mm)">',
         '        <span class="word-ribbon-field-label">mm</span>',
+        '      </div>',
+        '      <div class="word-ribbon-row">',
+        '        <span class="word-ribbon-field-label">Bottom</span>',
+        '        <input type="number" class="word-ribbon-select is-size" data-page-margin="bottom" min="0" max="40" step="0.5" title="Bottom margin (mm)">',
+        '        <span class="word-ribbon-field-label">mm</span>',
         '      </div></div></div><div class="word-ribbon-group-label">Margins</div></div>',
         '    <div class="word-ribbon-group"><div class="word-ribbon-group-body">',
         '      <button type="button" class="word-ribbon-btn is-large" data-cmd="mcePageBreak" title="Page break">' + i('page') + 'Breaks</button>',
@@ -689,14 +943,15 @@
           if (isNaN(value)) {
             return;
           }
-          value = Math.max(5, Math.min(40, value));
+          var min = side === 'bottom' ? 0 : 5;
+          value = Math.max(min, Math.min(40, value));
           input.value = value;
           next[side] = value;
           self.applyPageMargins(editor, next);
         });
       });
 
-      ['left', 'right'].forEach(function (side) {
+      ['left', 'right', 'bottom'].forEach(function (side) {
         var field = document.querySelector('input[name="letterhead_margins[' + side + ']"]');
         if (!field) {
           return;
@@ -785,15 +1040,19 @@
         height: this.height(),
         menubar: false,
         toolbar: false,
-        plugins: 'lists link table code fullscreen preview pagebreak searchreplace wordcount hr',
+        plugins: 'lists link table code fullscreen preview pagebreak searchreplace wordcount',
+        base_url: @json(asset('vendor/tinymce')),
+        suffix: '.min',
         branding: false,
         promotion: false,
         resize: true,
         statusbar: true,
         font_size_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 20pt 24pt 28pt 36pt 48pt',
         font_family_formats: 'Calibri=Calibri,sans-serif;Cambria=Cambria,serif;Arial=arial,helvetica,sans-serif;Times New Roman=times new roman,times,serif;Georgia=georgia,serif;Verdana=verdana,sans-serif;Courier New=courier new,courier,monospace',
+        pagebreak_split_block: true,
         content_style: this.contentStyle(),
         setup: function (editor) {
+          self.attachPagination(editor);
           editor.on('init', function () {
             self.attachRibbon(editor);
           });

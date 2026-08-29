@@ -103,12 +103,6 @@
 
 @include('agreements.partials.tinymce-word-document')
 
-@once
-@push('third_party_scripts')
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
-@endpush
-@endonce
-
 @push('third_party_scripts')
 <script>
 (function() {

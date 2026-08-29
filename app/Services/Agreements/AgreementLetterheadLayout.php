@@ -25,7 +25,7 @@ class AgreementLetterheadLayout
             ),
             'bottom' => $this->clamp(
                 (float) (is_array($saved) ? ($saved['bottom'] ?? $defaults['bottom']) : $defaults['bottom']),
-                5,
+                0,
                 50
             ),
             'left' => $this->clamp(

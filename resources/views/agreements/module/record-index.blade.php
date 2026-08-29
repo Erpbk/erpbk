@@ -1,27 +1,28 @@
 @extends($layout ?? 'layouts.app', ['hideModuleTopBarSlider' => true])
 
-@section('title', $moduleLabel . ' — Agreements')
+@section('title', $pageTitle)
 
 @section('content')
 @include('flash::message')
 
 @php
   $companySlug = request()->route('company_slug');
+  $indexParams = ['company_slug' => $companySlug, 'module' => $module, 'record' => $record];
 @endphp
 
 <div class="row">
   <div class="col-12">
     <div class="card mb-4">
       <div class="card-header">
-        <h4 class="card-title mb-0">{{ $moduleLabel }} — Agreements</h4>
+        <h4 class="card-title mb-0">{{ $pageTitle }}</h4>
         <p class="text-muted small mb-0 mt-1">
-          Agreements assigned to this module. Management is available in the Agreements module.
+          Agreements assigned to this record. Management is available in the Agreements module.
         </p>
       </div>
 
       <div class="card-body">
         @if($assignedCount > 0)
-        <form method="GET" action="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $module]) }}" class="row g-2 align-items-end mb-3">
+        <form method="GET" action="{{ route('module-record-agreements.index', $indexParams) }}" class="row g-2 align-items-end mb-3">
           <div class="col-md-4">
             <label for="agreement-search" class="form-label mb-1">Search</label>
             <input type="text" id="agreement-search" name="search" class="form-control" value="{{ request('search') }}" placeholder="Agreement name or code">
@@ -39,7 +40,7 @@
               <i class="fa fa-search me-1"></i> Filter
             </button>
             @if($hasFilters)
-            <a href="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $module]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('module-record-agreements.index', $indexParams) }}" class="btn btn-outline-secondary">
               Clear
             </a>
             @endif
@@ -59,9 +60,8 @@
               <tr>
                 <th>Agreement Name</th>
                 <th>Version</th>
+                <th>Assigned Date</th>
                 <th>Status</th>
-                <th>Created Date</th>
-                <th>Updated Date</th>
                 <th class="text-end">Actions</th>
               </tr>
             </thead>
@@ -70,6 +70,7 @@
               @php
                 $contractTpl = $category->defaultTemplate;
                 $templateId = $contractTpl?->id;
+                $showParams = ['company_slug' => $companySlug, 'module' => $module, 'record' => $record, 'category' => $category->id];
               @endphp
               <tr>
                 <td class="text-start">
@@ -88,6 +89,7 @@
                   <span class="text-muted small">—</span>
                   @endif
                 </td>
+                <td>{{ optional($category->created_at)->format('d M Y') ?: '—' }}</td>
                 <td>
                   @if($category->status)
                   <span class="badge bg-label-success">Active</span>
@@ -95,15 +97,13 @@
                   <span class="badge bg-label-secondary">Inactive</span>
                   @endif
                 </td>
-                <td>{{ optional($category->created_at)->format('d M Y') ?: '—' }}</td>
-                <td>{{ optional($category->updated_at)->format('d M Y') ?: '—' }}</td>
                 <td class="text-end">
                   <div class="btn-group btn-group-sm">
-                    <a href="{{ route('module-agreements.show', ['company_slug' => $companySlug, 'module' => $module, 'category' => $category->id]) }}" class="btn btn-outline-info">
+                    @if($templateId)
+                    <a href="{{ route('module-record-agreements.show', $showParams) }}" class="btn btn-outline-info">
                       View
                     </a>
-                    @if($templateId)
-                    <a href="{{ route('module-agreements.templates.preview-pdf', ['company_slug' => $companySlug, 'module' => $module, 'template' => $templateId]) }}" class="btn btn-outline-secondary">
+                    <a href="{{ route('module-record-agreements.download', $showParams) }}" class="btn btn-outline-secondary">
                       Download
                     </a>
                     @endif
@@ -112,7 +112,7 @@
               </tr>
               @empty
               <tr>
-                <td colspan="6" class="text-muted text-center py-4">
+                <td colspan="5" class="text-muted text-center py-4">
                   @if($hasFilters)
                     No matching agreements.
                   @else

@@ -1,5 +1,5 @@
 
-            {!! Form::model($visaExpenses, ['route' => ['VisaExpense.update'], 'method' => 'patch']) !!}
+            {!! Form::model($visaExpenses, ['route' => ['VisaExpense.update'], 'method' => 'post']) !!}
             <input type="hidden" name="id" value="{{ $visaExpenses->id }}">
             <input type="hidden"  id="reload_page" value="1">
                 <div class="row">

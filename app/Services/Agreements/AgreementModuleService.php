@@ -12,7 +12,7 @@ class AgreementModuleService
     /** @var array<string, bool>|null */
     private static ?array $modulesWithContractsCache = null;
 
-    /** @var array<string, list<array{id:int,name:string,template_id:?int,show_url:?string,preview_url:?string,record_preview_pattern:?string}>> */
+    /** @var array<string, list<array{id:int,name:string,index_url:string,show_url:string,preview_url:string,template_id:?int,record_preview_pattern:?string}>> */
     private static array $actionMenuItemsCache = [];
 
     public function isConfiguredModule(string $module): bool
@@ -33,9 +33,18 @@ class AgreementModuleService
      */
     public function routePattern(): string
     {
-        $keys = $this->configuredModuleKeys();
+        $keys = array_values(array_unique(array_merge(
+            $this->configuredModuleKeys(),
+            $this->assignableModuleKeys()
+        )));
 
         return $keys !== [] ? implode('|', $keys) : 'riders|employees';
+    }
+
+    public function supportsAgreementListing(string $module): bool
+    {
+        return $this->isConfiguredModule($module)
+            || in_array($module, $this->assignableModuleKeys(), true);
     }
 
     /**
@@ -96,12 +105,32 @@ class AgreementModuleService
      */
     public function permissionsFor(string $module): array
     {
-        return config("agreement_modules.modules.{$module}.permissions", ['agreements_view']);
+        $configured = config("agreement_modules.modules.{$module}.permissions");
+        if (is_array($configured) && $configured !== []) {
+            return $configured;
+        }
+
+        $permissions = ['agreements_view', $module . '_view'];
+
+        $aliases = [
+            'attendance' => ['employees_attendance_view', 'riders_attendance_view'],
+            'inventory' => ['items_inventory_view'],
+            'license_expense' => ['licenseexpense_view'],
+            'installments' => ['installments_view'],
+            'expenses' => ['expenses_view'],
+            'loans' => ['loans_view'],
+        ];
+
+        if (isset($aliases[$module])) {
+            $permissions = array_merge($permissions, $aliases[$module]);
+        }
+
+        return array_values(array_unique($permissions));
     }
 
     public function authorize(string $module): void
     {
-        if (! $this->isConfiguredModule($module)) {
+        if (! $this->supportsAgreementListing($module)) {
             abort(404);
         }
 
@@ -112,6 +141,25 @@ class AgreementModuleService
         }
 
         abort(403, 'Unauthorized');
+    }
+
+    public function userCanAccessModule(string $module): bool
+    {
+        if (! $this->supportsAgreementListing($module)) {
+            return false;
+        }
+
+        if (Gate::allows('gn_settings')) {
+            return true;
+        }
+
+        foreach ($this->permissionsFor($module) as $permission) {
+            if (Gate::allows($permission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function resolveRecord(string $module, int $recordId): Model
@@ -164,6 +212,41 @@ class AgreementModuleService
             ->orderBy('name')
             ->with('defaultTemplate')
             ->get();
+    }
+
+    /**
+     * Load a module record and an agreement assigned to that module.
+     *
+     * @return array{0: Model, 1: AgreementCategory, 2: AgreementTemplate}
+     */
+    public function resolveAssignedAgreementForRecord(string $module, int $recordId, int $categoryId): array
+    {
+        $record = $this->resolveRecord($module, $recordId);
+        $category = AgreementCategory::query()->findOrFail($categoryId);
+
+        if (! $category->assignedToModule($module)) {
+            abort(403, 'This agreement is not assigned to this record.');
+        }
+
+        $template = $category->contractTemplate()
+            ?? $category->defaultTemplate
+            ?? $category->templates()->where('status', true)->orderByDesc('is_default')->first();
+
+        if (! $template) {
+            abort(404, 'No template is available for this agreement.');
+        }
+
+        return [$record, $category, $template];
+    }
+
+    public function recordAgreementsTitle(string $module, Model $record): string
+    {
+        $label = trim((string) $this->moduleLabel($module));
+        $singular = $label !== '' ? \Illuminate\Support\Str::singular($label) : ucfirst(str_replace('_', ' ', $module));
+        $meta = $this->recordMeta($module, $record);
+        $name = $meta['name'] !== '' ? $meta['name'] : $meta['code'];
+
+        return $singular . ' Agreements - ' . $name;
     }
 
     public function resolveContractTemplate(int $templateId, string $module): AgreementTemplate
@@ -298,9 +381,9 @@ class AgreementModuleService
     }
 
     /**
-     * Action-menu payload for agreements assigned to a module.
+     * Single Action-menu item that opens the module's assigned-agreements page.
      *
-     * @return list<array{id:int,name:string,template_id:?int,show_url:?string,preview_url:?string,record_preview_pattern:?string}>
+     * @return list<array{id:int,name:string,index_url:string,show_url:string,preview_url:string,template_id:?int,record_preview_pattern:?string}>
      */
     public function actionMenuItemsForModule(?string $module = null): array
     {
@@ -313,65 +396,38 @@ class AgreementModuleService
             return self::$actionMenuItemsCache[$module];
         }
 
+        if (! $this->userCanAccessModule($module)) {
+            return self::$actionMenuItemsCache[$module] = [];
+        }
+
+        if (! $this->isConfiguredModule($module)) {
+            return self::$actionMenuItemsCache[$module] = [];
+        }
+
         $companySlug = $this->companySlug();
         if ($companySlug === null) {
             return self::$actionMenuItemsCache[$module] = [];
         }
 
         try {
-            $agreements = $this->agreementsForModule($module);
+            $pattern = route('module-record-agreements.index', [
+                'company_slug' => $companySlug,
+                'module' => $module,
+                'record' => '__RECORD__',
+            ]);
         } catch (\Throwable) {
             return self::$actionMenuItemsCache[$module] = [];
         }
 
-        $configured = $this->isConfiguredModule($module);
-        $items = [];
-
-        foreach ($agreements as $agreement) {
-            try {
-                $template = $agreement->contractTemplate() ?? $agreement->defaultTemplate;
-                $templateId = $template?->id;
-                $showUrl = null;
-                $previewUrl = null;
-                $recordPreviewPattern = null;
-
-                if ($configured) {
-                    $showUrl = route('module-agreements.show', [
-                        'company_slug' => $companySlug,
-                        'module' => $module,
-                        'category' => $agreement->id,
-                    ]);
-                }
-
-                if ($templateId) {
-                    $previewUrl = route('agreements.preview', [
-                        'company_slug' => $companySlug,
-                        'id' => $templateId,
-                    ]);
-                }
-
-                if ($configured && $templateId) {
-                    $recordPreviewPattern = route('module-contracts.preview', [
-                        'company_slug' => $companySlug,
-                        'module' => $module,
-                        'record' => '__RECORD__',
-                    ]) . '?template_id=' . $templateId;
-                }
-
-                $items[] = [
-                    'id' => (int) $agreement->id,
-                    'name' => (string) $agreement->name,
-                    'template_id' => $templateId ? (int) $templateId : null,
-                    'show_url' => $showUrl,
-                    'preview_url' => $previewUrl,
-                    'record_preview_pattern' => $recordPreviewPattern,
-                ];
-            } catch (\Throwable) {
-                continue;
-            }
-        }
-
-        return self::$actionMenuItemsCache[$module] = $items;
+        return self::$actionMenuItemsCache[$module] = [[
+            'id' => 0,
+            'name' => 'Agreements',
+            'index_url' => $pattern,
+            'show_url' => $pattern,
+            'preview_url' => $pattern,
+            'template_id' => null,
+            'record_preview_pattern' => $pattern,
+        ]];
     }
 
     private function companySlug(?\Illuminate\Http\Request $request = null): ?string

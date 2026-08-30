@@ -1,4 +1,4 @@
-{!! Form::model($bikeRegistration, ['route' => ['BikeRegistration.update'], 'method' => 'patch']) !!}
+{!! Form::model($bikeRegistration, ['route' => ['BikeRegistration.update'], 'method' => 'post']) !!}
 <input type="hidden" name="id" value="{{ $bikeRegistration->id }}">
 <div class="modal-body">
     <div class="row">

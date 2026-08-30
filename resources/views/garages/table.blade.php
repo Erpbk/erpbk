@@ -25,6 +25,11 @@
          @if($vf('contact_number'))<td>{{$r->contact_number}}</td>@endif
          <td>
             <div class='btn-group'>
+               @include('layouts.partials.module_contract_action', [
+                  'module' => 'garages',
+                  'recordId' => $r->id,
+                  'variant' => 'btn-group',
+               ])
                <!-- <a href="javascript:void(0);" data-size="md" data-title="New Item" data-action=="{{ route('garages.show', $r->id) }}" class='btn btn-default btn-xs'>
                     <i class="fa fa-eye"></i>
                 </a> -->

@@ -62,6 +62,11 @@
                @endif
             </td>@endif
             <td id="step_action_cell_{{ $r->id }}">
+               @include('layouts.partials.module_contract_action', [
+                  'module' => 'legal_case',
+                  'recordId' => $r->id,
+                  'variant' => 'btn-group',
+               ])
                @if($r->step_status === 'pending')
                @canany(['legal_case_create', 'legal_case_edit'])
                <button type="button"

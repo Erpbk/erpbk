@@ -4,14 +4,14 @@
     @if(($expiredCount ?? 0) > 0)
       <span class="rider-doc-status-bubble expired-bubble"
         title="{{ $expiredCount }} expired document{{ $expiredCount === 1 ? '' : 's' }}">
-        {{ $expiredCount }} Document{{ $expiredCount === 1 ? '' : 's' }} Expired
+        {{ $expiredCount }}<span class="rider-tab-count-label"> Document{{ $expiredCount === 1 ? '' : 's' }} Expired</span>
       </span>
     @endif
 
     @if(($expiringCount ?? 0) > 0)
       <span class="rider-doc-status-bubble expiring-bubble"
         title="{{ $expiringCount }} document{{ $expiringCount === 1 ? '' : 's' }} expiring within 30 days">
-        {{ $expiringCount }} Expiring Soon
+        {{ $expiringCount }}<span class="rider-tab-count-label"> Expiring Soon</span>
       </span>
     @endif
   </span>

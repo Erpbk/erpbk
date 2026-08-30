@@ -1,69 +1,136 @@
-@extends($layout ?? 'layouts.app')
+@extends($layout ?? 'layouts.app', ['hideModuleTopBarSlider' => true])
 
-@section('title', $moduleLabel . ' — Agreement Categories')
+@section('title', $moduleLabel . ' — Agreements')
 
 @section('content')
 @include('flash::message')
 
-@php $companySlug = request()->route('company_slug'); @endphp
+@php
+  $companySlug = request()->route('company_slug');
+@endphp
 
 <div class="row">
   <div class="col-12">
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-header">
-        <h4 class="card-title mb-0">{{ $moduleLabel }} — Agreement Categories</h4>
+        <h4 class="card-title mb-0">{{ $moduleLabel }} — Agreements</h4>
         <p class="text-muted small mb-0 mt-1">
-          Select a category to view, edit, and manage its templates. Assign categories to this module in Documents → Agreements.
+          Agreements assigned to this module. Management is available in the Agreements module.
         </p>
       </div>
+
       <div class="card-body">
-        <div class="row g-3">
-          @forelse($categories as $category)
-          <div class="col-md-6 col-lg-4">
-            <a href="{{ route('module-agreements.show', ['company_slug' => $companySlug, 'module' => $module, 'category' => $category->id]) }}"
-              class="card border h-100 text-body text-decoration-none agreement-category-card">
-              <div class="card-body d-flex flex-column">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                  <h5 class="mb-0">{{ $category->name }}</h5>
-                  <i class="ti ti-folder text-primary fs-4"></i>
-                </div>
-                <p class="text-muted small mb-2">
-                  <code>{{ $category->agreement_code ?? $category->slug }}</code>
-                </p>
-                @if($category->description)
-                <p class="small text-muted flex-grow-1 mb-2">{{ \Illuminate\Support\Str::limit(strip_tags($category->description), 100) }}</p>
-                @else
-                <div class="flex-grow-1"></div>
-                @endif
-                <div class="d-flex flex-wrap gap-2 align-items-center mt-auto pt-2">
-                  <span class="badge bg-label-primary">{{ $category->templates_count }} template(s)</span>
-                  @if($category->defaultTemplate)
-                  <span class="badge bg-label-success" title="Assigned contract template">
-                    <i class="ti ti-check me-1"></i>{{ \Illuminate\Support\Str::limit($category->defaultTemplate->template_name, 28) }}
-                  </span>
-                  @endif
-                </div>
-              </div>
+        @if($assignedCount > 0)
+        <form method="GET" action="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $module]) }}" class="row g-2 align-items-end mb-3">
+          <div class="col-md-4">
+            <label for="agreement-search" class="form-label mb-1">Search</label>
+            <input type="text" id="agreement-search" name="search" class="form-control" value="{{ request('search') }}" placeholder="Agreement name or code">
+          </div>
+          <div class="col-md-3">
+            <label for="agreement-status" class="form-label mb-1">Status</label>
+            <select id="agreement-status" name="status" class="form-control">
+              <option value="">All</option>
+              <option value="active" {{ request('status') === 'active' ? 'selected' : '' }}>Active</option>
+              <option value="inactive" {{ request('status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+            </select>
+          </div>
+          <div class="col-md-5 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa fa-search me-1"></i> Filter
+            </button>
+            @if($hasFilters)
+            <a href="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $module]) }}" class="btn btn-outline-secondary">
+              Clear
             </a>
+            @endif
           </div>
-          @empty
-          <div class="col-12">
-            <p class="text-muted text-center py-4 mb-0">
-              No agreement categories are assigned to {{ $moduleLabel }}.
-              Configure them in Documents → Agreements.
-            </p>
-          </div>
-          @endforelse
+        </form>
+        @endif
+
+        @if($assignedCount === 0)
+        <div class="text-center py-5">
+          <i class="ti ti-file-certificate display-5 text-muted d-block mb-3"></i>
+          <p class="mb-0">No agreements assigned to this module</p>
         </div>
+        @else
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Agreement Name</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Created Date</th>
+                <th>Updated Date</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @forelse($categories as $category)
+              @php
+                $contractTpl = $category->defaultTemplate;
+                $templateId = $contractTpl?->id;
+              @endphp
+              <tr>
+                <td class="text-start">
+                  <div class="fw-semibold">{{ $category->name }}</div>
+                  <div class="text-muted small">
+                    <code>{{ $category->agreement_code ?? $category->slug }}</code>
+                  </div>
+                </td>
+                <td>
+                  @if($contractTpl)
+                  <span class="small">{{ $contractTpl->template_name }}</span>
+                  <span class="badge bg-label-primary ms-1">
+                    {{ \App\Models\AgreementTemplate::TYPES[$contractTpl->template_type] ?? $contractTpl->template_type }}
+                  </span>
+                  @else
+                  <span class="text-muted small">—</span>
+                  @endif
+                </td>
+                <td>
+                  @if($category->status)
+                  <span class="badge bg-label-success">Active</span>
+                  @else
+                  <span class="badge bg-label-secondary">Inactive</span>
+                  @endif
+                </td>
+                <td>{{ optional($category->created_at)->format('d M Y') ?: '—' }}</td>
+                <td>{{ optional($category->updated_at)->format('d M Y') ?: '—' }}</td>
+                <td class="text-end">
+                  <div class="btn-group btn-group-sm">
+                    <a href="{{ route('module-agreements.show', ['company_slug' => $companySlug, 'module' => $module, 'category' => $category->id]) }}" class="btn btn-outline-info">
+                      View
+                    </a>
+                    @if($templateId)
+                    <a href="{{ route('module-agreements.templates.preview-pdf', ['company_slug' => $companySlug, 'module' => $module, 'template' => $templateId]) }}" class="btn btn-outline-secondary">
+                      Download
+                    </a>
+                    @endif
+                  </div>
+                </td>
+              </tr>
+              @empty
+              <tr>
+                <td colspan="6" class="text-muted text-center py-4">
+                  @if($hasFilters)
+                    No matching agreements.
+                  @else
+                    No agreements assigned to this module
+                  @endif
+                </td>
+              </tr>
+              @endforelse
+            </tbody>
+          </table>
+        </div>
+
+        @if(method_exists($categories, 'links'))
+          {!! $categories->links('components.global-pagination') !!}
+        @endif
+        @endif
       </div>
     </div>
   </div>
 </div>
-
-@push('third_party_stylesheets')
-<style>
-  .agreement-category-card { transition: box-shadow .15s ease, border-color .15s ease; }
-  .agreement-category-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); border-color: var(--bs-primary) !important; }
-</style>
-@endpush
 @endsection

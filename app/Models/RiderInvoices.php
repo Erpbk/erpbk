@@ -96,7 +96,7 @@ class RiderInvoices extends BaseModel
 
     public function getInvoiceNumberAttribute()
     {
-        return 'RINV-'.str_pad($this->id, 4, '0', STR_PAD_LEFT);
+        return 'RINV-' . str_pad($this->id, 4, '0', STR_PAD_LEFT);
     }
 
     public static array $rules = [
@@ -123,16 +123,12 @@ class RiderInvoices extends BaseModel
     ];
 
     /**
-     * Any recorded payment settles the invoice (status 1). Status 3 is a legacy
-     * "partially paid" value and is also treated as settled.
+     * True when this invoice is marked paid (1) or legacy partial (3).
+     * Ignore paid_amount — that figure is all rider payments for the month, not this invoice.
      */
     public function isPaid(): bool
     {
-        if (in_array((int) $this->status, [1, 3], true)) {
-            return true;
-        }
-
-        return (float) ($this->paid_amount ?? 0) > 0;
+        return in_array((int) $this->status, [1, 3], true);
     }
 
     /**

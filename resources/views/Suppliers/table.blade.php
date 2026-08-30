@@ -29,6 +29,11 @@
                <span class="text-muted small">Locked</span>
             @else
             <div class='btn-group'>
+               @include('layouts.partials.module_contract_action', [
+                  'module' => 'supplier',
+                  'recordId' => $r->id,
+                  'variant' => 'btn-group',
+               ])
                <a href="{{ route('suppliers.show', $r->id) }}" class='btn btn-default btn-sm'>
                     <i class="fa fa-eye"></i>
                 </a> 

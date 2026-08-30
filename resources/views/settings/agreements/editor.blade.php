@@ -3,7 +3,6 @@
 @section('title', ($template->exists ? 'Edit' : 'New') . ' Template – ' . $category->name)
 
 @push('third_party_stylesheets')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tinymce@6/skins/ui/oxide/skin.min.css">
 <style>
   .agreement-style-card {
     border: 2px solid #e4e6ef;
@@ -261,7 +260,6 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
 @include('agreements.partials.tinymce-word-document')
 
 @push('third_party_scripts')
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     tinymce.init(window.erpbkAgreementWordEditor.config({

@@ -74,10 +74,14 @@
          </td>@endif
          <td>
             <div class="dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
-               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="">
+                  @include('layouts.partials.module_contract_action', [
+                     'module' => 'rta_fines',
+                     'recordId' => $r->id,
+                  ])
                   @can('rtafine_edit')
                   <a href="javascript:void(0);" data-size="md" data-title="Upload Document" data-action="{{route('rtaFines.fileupload', $r->id) }}" class='dropdown-item waves-effect show-modal'>
                      Update Fine File

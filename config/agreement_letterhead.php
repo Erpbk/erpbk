@@ -25,7 +25,7 @@ return [
     'content_top_gap_pct' => 0.02,
 
     /** Space reserved above the footer decoration (mm). */
-    'footer_reserve_mm' => 10,
+    'footer_reserve_mm' => 8,
 
     /** @deprecated Use footer_reserve_mm. Kept for display labels only. */
     'content_bottom_pct' => 0.034,
@@ -43,10 +43,4 @@ return [
         'left' => 12,
         'right' => 12,
     ],
-
-    /**
-     * Extra space below the header rule for DomPDF only (mm).
-     * DomPDF renders absolute content slightly higher than browser preview.
-     */
-    'pdf_content_top_extra_mm' => 5,
 ];

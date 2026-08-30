@@ -12,6 +12,9 @@ class AgreementModuleService
     /** @var array<string, bool>|null */
     private static ?array $modulesWithContractsCache = null;
 
+    /** @var array<string, list<array{id:int,name:string,index_url:string,show_url:string,preview_url:string,template_id:?int,record_preview_pattern:?string}>> */
+    private static array $actionMenuItemsCache = [];
+
     public function isConfiguredModule(string $module): bool
     {
         return array_key_exists($module, config('agreement_modules.modules', []));
@@ -30,9 +33,18 @@ class AgreementModuleService
      */
     public function routePattern(): string
     {
-        $keys = $this->configuredModuleKeys();
+        $keys = array_values(array_unique(array_merge(
+            $this->configuredModuleKeys(),
+            $this->assignableModuleKeys()
+        )));
 
         return $keys !== [] ? implode('|', $keys) : 'riders|employees';
+    }
+
+    public function supportsAgreementListing(string $module): bool
+    {
+        return $this->isConfiguredModule($module)
+            || in_array($module, $this->assignableModuleKeys(), true);
     }
 
     /**
@@ -93,12 +105,32 @@ class AgreementModuleService
      */
     public function permissionsFor(string $module): array
     {
-        return config("agreement_modules.modules.{$module}.permissions", ['agreements_view']);
+        $configured = config("agreement_modules.modules.{$module}.permissions");
+        if (is_array($configured) && $configured !== []) {
+            return $configured;
+        }
+
+        $permissions = ['agreements_view', $module . '_view'];
+
+        $aliases = [
+            'attendance' => ['employees_attendance_view', 'riders_attendance_view'],
+            'inventory' => ['items_inventory_view'],
+            'license_expense' => ['licenseexpense_view'],
+            'installments' => ['installments_view'],
+            'expenses' => ['expenses_view'],
+            'loans' => ['loans_view'],
+        ];
+
+        if (isset($aliases[$module])) {
+            $permissions = array_merge($permissions, $aliases[$module]);
+        }
+
+        return array_values(array_unique($permissions));
     }
 
     public function authorize(string $module): void
     {
-        if (! $this->isConfiguredModule($module)) {
+        if (! $this->supportsAgreementListing($module)) {
             abort(404);
         }
 
@@ -109,6 +141,25 @@ class AgreementModuleService
         }
 
         abort(403, 'Unauthorized');
+    }
+
+    public function userCanAccessModule(string $module): bool
+    {
+        if (! $this->supportsAgreementListing($module)) {
+            return false;
+        }
+
+        if (Gate::allows('gn_settings')) {
+            return true;
+        }
+
+        foreach ($this->permissionsFor($module) as $permission) {
+            if (Gate::allows($permission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function resolveRecord(string $module, int $recordId): Model
@@ -163,6 +214,41 @@ class AgreementModuleService
             ->get();
     }
 
+    /**
+     * Load a module record and an agreement assigned to that module.
+     *
+     * @return array{0: Model, 1: AgreementCategory, 2: AgreementTemplate}
+     */
+    public function resolveAssignedAgreementForRecord(string $module, int $recordId, int $categoryId): array
+    {
+        $record = $this->resolveRecord($module, $recordId);
+        $category = AgreementCategory::query()->findOrFail($categoryId);
+
+        if (! $category->assignedToModule($module)) {
+            abort(403, 'This agreement is not assigned to this record.');
+        }
+
+        $template = $category->contractTemplate()
+            ?? $category->defaultTemplate
+            ?? $category->templates()->where('status', true)->orderByDesc('is_default')->first();
+
+        if (! $template) {
+            abort(404, 'No template is available for this agreement.');
+        }
+
+        return [$record, $category, $template];
+    }
+
+    public function recordAgreementsTitle(string $module, Model $record): string
+    {
+        $label = trim((string) $this->moduleLabel($module));
+        $singular = $label !== '' ? \Illuminate\Support\Str::singular($label) : ucfirst(str_replace('_', ' ', $module));
+        $meta = $this->recordMeta($module, $record);
+        $name = $meta['name'] !== '' ? $meta['name'] : $meta['code'];
+
+        return $singular . ' Agreements - ' . $name;
+    }
+
     public function resolveContractTemplate(int $templateId, string $module): AgreementTemplate
     {
         $template = AgreementTemplate::query()->with('category')->findOrFail($templateId);
@@ -197,5 +283,173 @@ class AgreementModuleService
     public function moduleLabel(string $module): string
     {
         return \App\Models\Settings::getMenuLabel($module);
+    }
+
+    /**
+     * ERP assignment key for the current page (matches agreement_categories.assigned_modules).
+     */
+    public function assignmentKeyFromRequest(?\Illuminate\Http\Request $request = null): ?string
+    {
+        $request = $request ?? request();
+        $route = $request->route();
+        $assignable = $this->assignableModuleKeys();
+
+        if ($route) {
+            $param = $route->parameter('module');
+            if (is_string($param) && in_array($param, $assignable, true)) {
+                return $param;
+            }
+        }
+
+        $name = (string) ($route?->getName() ?? '');
+        $prefix = strtolower((string) explode('.', $name)[0]);
+
+        $aliases = [
+            'bikes' => 'bikes',
+            'bike' => 'bikes',
+            'riders' => 'riders',
+            'rider' => 'riders',
+            'employees' => 'employees',
+            'employee' => 'employees',
+            'customers' => 'customers',
+            'customer' => 'customers',
+            'vendors' => 'vendors',
+            'vendor' => 'vendors',
+            'garages' => 'garages',
+            'garage' => 'garages',
+            'sims' => 'sims',
+            'sim' => 'sims',
+            'simcompanies' => 'sims',
+            'siminvoices' => 'sims',
+            'cheques' => 'cheques',
+            'cheque' => 'cheques',
+            'rtafines' => 'rta_fines',
+            'salik' => 'rta_saliks',
+            'fuelcards' => 'fuel_cards',
+            'fueldata' => 'fuel_cards',
+            'visaexpenses' => 'visa_expense',
+            'legalcases' => 'legal_case',
+            'fixedassets' => 'assets',
+            'banks' => 'cash_banks',
+            'leasingcompanies' => 'leasing_companies',
+            'suppliers' => 'supplier',
+            'recruiters' => 'recruiters',
+            'items' => 'items',
+            'attendance' => 'attendance',
+            'expenses' => 'expenses',
+            'inventory' => 'inventory',
+            'riderinventory' => 'rider_inventory',
+            'installments' => 'installments',
+            'licenseexpenses' => 'license_expense',
+            'leads' => 'leads',
+            'loans' => 'loans',
+            'assets' => 'assets',
+        ];
+
+        $compact = str_replace(['-', '_'], '', $prefix);
+        if (isset($aliases[$compact])) {
+            return $aliases[$compact];
+        }
+
+        $snake = \Illuminate\Support\Str::snake(str_replace('-', '_', $prefix));
+        if (in_array($snake, $assignable, true)) {
+            return $snake;
+        }
+
+        $topBar = \App\Support\ModuleRouteResolver::fromRequest($request);
+        $topBarMap = [
+            'bike_list' => 'bikes',
+            'rta_fines_unpaid' => 'rta_fines',
+            'rta_fines_paid' => 'rta_fines',
+        ];
+        if ($topBar && isset($topBarMap[$topBar])) {
+            return $topBarMap[$topBar];
+        }
+        if ($topBar && in_array($topBar, $assignable, true)) {
+            return $topBar;
+        }
+
+        $segments = explode('/', trim((string) $request->path(), '/'));
+        if (count($segments) >= 3 && strtolower($segments[0]) === 'app') {
+            $pathCompact = str_replace(['-', '_'], '', strtolower($segments[2]));
+            if (isset($aliases[$pathCompact])) {
+                return $aliases[$pathCompact];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Single Action-menu item that opens the module's assigned-agreements page.
+     *
+     * @return list<array{id:int,name:string,index_url:string,show_url:string,preview_url:string,template_id:?int,record_preview_pattern:?string}>
+     */
+    public function actionMenuItemsForModule(?string $module = null): array
+    {
+        $module = $module ?? $this->assignmentKeyFromRequest();
+        if ($module === null) {
+            return [];
+        }
+
+        if (array_key_exists($module, self::$actionMenuItemsCache)) {
+            return self::$actionMenuItemsCache[$module];
+        }
+
+        if (! $this->userCanAccessModule($module)) {
+            return self::$actionMenuItemsCache[$module] = [];
+        }
+
+        if (! $this->isConfiguredModule($module)) {
+            return self::$actionMenuItemsCache[$module] = [];
+        }
+
+        $companySlug = $this->companySlug();
+        if ($companySlug === null) {
+            return self::$actionMenuItemsCache[$module] = [];
+        }
+
+        try {
+            $pattern = route('module-record-agreements.index', [
+                'company_slug' => $companySlug,
+                'module' => $module,
+                'record' => '__RECORD__',
+            ]);
+        } catch (\Throwable) {
+            return self::$actionMenuItemsCache[$module] = [];
+        }
+
+        return self::$actionMenuItemsCache[$module] = [[
+            'id' => 0,
+            'name' => 'Agreements',
+            'index_url' => $pattern,
+            'show_url' => $pattern,
+            'preview_url' => $pattern,
+            'template_id' => null,
+            'record_preview_pattern' => $pattern,
+        ]];
+    }
+
+    private function companySlug(?\Illuminate\Http\Request $request = null): ?string
+    {
+        $request = $request ?? request();
+        $slug = $request->route('company_slug');
+        if (is_string($slug) && $slug !== '') {
+            return $slug;
+        }
+
+        if ($request->hasSession()) {
+            $sessionSlug = $request->session()->get('company_slug');
+            if (is_string($sessionSlug) && $sessionSlug !== '') {
+                return $sessionSlug;
+            }
+        }
+
+        $company = $request->attributes->get('company');
+        if (is_object($company) && ! empty($company->slug)) {
+            return (string) $company->slug;
+        }
+
+        return null;
     }
 }

@@ -154,7 +154,10 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $attendance->id }}" style="z-index: 1050;">
-
+                        @include('layouts.partials.module_contract_action', [
+                            'module' => 'attendance',
+                            'recordId' => $attendance->id,
+                        ])
                         @canany(['employees_attendance_edit', 'riders_attendance_edit'])
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="md" data-title="Edit Attendance" data-action="{{ route('attendance.create', $attendance->ref_type, $attendance->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit

@@ -28,10 +28,14 @@
             @if($vf('status'))<td>{!! $loan->status_badge !!}</td>@endif
             <td>
                 <div class="dropdown">
-                    <button class="btn btn-text-secondary rounded-pill border-0 p-2" data-bs-toggle="dropdown">
+                    <button class="btn btn-text-secondary rounded-pill border-0 p-2" type="button" id="actiondropdown_{{ $loan->id }}" data-bs-toggle="dropdown">
                         <i class="ti ti-dots"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end">
+                        @include('layouts.partials.module_contract_action', [
+                            'module' => 'loans',
+                            'recordId' => $loan->id,
+                        ])
                         @can('loans_view')
                         <a href="{{ route('loans.show', $loan->id) }}" class="dropdown-item"><i class="fa fa-eye"></i> View</a>
                         @endcan

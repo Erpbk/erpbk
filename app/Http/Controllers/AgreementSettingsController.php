@@ -52,8 +52,12 @@ class AgreementSettingsController extends Controller
         $groupKey = (string) $request->get('group', 'rider_agreements');
         $groups = config('agreement_categories.groups', []);
         $modules = $this->moduleOptions();
+        $assignModule = (string) $request->query('assign_module', '');
+        if ($assignModule !== '' && ! in_array($assignModule, $this->assignableModuleKeys(), true)) {
+            $assignModule = '';
+        }
 
-        return view('settings.agreements.create', compact('groupKey', 'groups', 'modules'));
+        return view('settings.agreements.create', compact('groupKey', 'groups', 'modules', 'assignModule'));
     }
 
     public function storeAgreement(Request $request, $company_slug)
@@ -106,6 +110,14 @@ class AgreementSettingsController extends Controller
         $this->seedAgreementTemplates($category, $category->status);
 
         Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
+
+        $returnModule = (string) $request->input('return_module', '');
+        if ($returnModule !== '' && in_array($returnModule, $this->assignableModuleKeys(), true)) {
+            return redirect()->route('module-agreements.index', [
+                'company_slug' => $company_slug,
+                'module' => $returnModule,
+            ]);
+        }
 
         return redirect()->route('agreements.edit-agreement', [
             'company_slug' => $company_slug,
@@ -183,9 +195,9 @@ class AgreementSettingsController extends Controller
             'remove_letterhead' => 'sometimes|boolean',
             'letterhead_margins' => 'nullable|array',
             'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
-            'letterhead_margins.bottom' => 'nullable|numeric|min:5|max:50',
-            'letterhead_margins.left' => 'nullable|numeric|min:8|max:50',
-            'letterhead_margins.right' => 'nullable|numeric|min:8|max:50',
+            'letterhead_margins.bottom' => 'nullable|numeric|min:0|max:50',
+            'letterhead_margins.left' => 'nullable|numeric|min:5|max:50',
+            'letterhead_margins.right' => 'nullable|numeric|min:5|max:50',
         ], [
             'assigned_modules.required' => 'Select at least one module for this agreement.',
             'assigned_modules.min' => 'Select at least one module for this agreement.',
@@ -665,9 +677,7 @@ class AgreementSettingsController extends Controller
                 continue;
             }
 
-            $min = in_array($side, ['top', 'bottom'], true)
-                ? ($side === 'top' ? 30 : 5)
-                : 8;
+            $min = $side === 'top' ? 30 : ($side === 'bottom' ? 0 : 8);
             $max = in_array($side, ['top', 'bottom'], true)
                 ? ($side === 'top' ? 100 : 50)
                 : 55;

@@ -59,7 +59,6 @@
 @include('agreements.partials.tinymce-word-document')
 
 @push('third_party_scripts')
-<script src="https://cdn.jsdelivr.net/npm/tinymce@6/tinymce.min.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     if (!window.tinymce || !window.erpbkAgreementWordEditor) return;

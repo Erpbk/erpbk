@@ -47,6 +47,10 @@
                      <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}" style="z-index: 1050;">
+                     @include('layouts.partials.module_contract_action', [
+                        'module' => 'cash_banks',
+                        'recordId' => $r->id,
+                     ])
                      @can('cash_&_banks_banks_view')
                         <a href="{{ route('bank.ledger' , $r->id)}}" target="_blank" class='dropdown-item waves-effect'>
                            <i class="fa fa-eye my-1"></i>view

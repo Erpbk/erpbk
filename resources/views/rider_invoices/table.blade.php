@@ -57,7 +57,7 @@
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
-                  @if(! $r->isPaid())
+                  @if(!$r->isPaid())
                   @can('riders_payments_create')
                   <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=rider&invoice_id={{ $r->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Record Rider Payment">
                      <i class="fa fa-money-bill mx-1 text-success"></i> Record Payment

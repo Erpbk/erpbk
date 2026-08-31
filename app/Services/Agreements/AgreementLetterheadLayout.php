@@ -222,7 +222,7 @@ class AgreementLetterheadLayout
     {
         $m = $this->resolvedMarginsMm($category);
 
-        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom']);
+        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom'] - 8.0);
     }
 
     public function pageWidthMm(): float

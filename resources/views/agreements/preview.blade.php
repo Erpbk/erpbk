@@ -148,6 +148,12 @@
       var cancelBtn = document.getElementById('letterhead-print-cancel');
       var pendingPrint = new URLSearchParams(window.location.search).get('autoprint') === '1';
 
+      var previewUrl = null;
+
+      function blobUrl(markup) {
+        return URL.createObjectURL(new Blob([markup], { type: 'text/html;charset=utf-8' }));
+      }
+
       function resizeFrame() {
         try {
           var doc = frame.contentDocument || frame.contentWindow.document;
@@ -156,7 +162,8 @@
         } catch (e) {}
       }
 
-      frame.srcdoc = html;
+      previewUrl = blobUrl(html);
+      frame.src = previewUrl;
       frame.onload = function() {
         resizeFrame();
         if (pendingPrint) {
@@ -165,6 +172,12 @@
         }
       };
 
+      window.addEventListener('beforeunload', function() {
+        if (previewUrl) {
+          URL.revokeObjectURL(previewUrl);
+        }
+      });
+
       function runPrint(useLetterhead) {
         try {
           var win = frame.contentWindow;
@@ -172,7 +185,9 @@
             win.__agreementRepaginate();
           }
           win.focus();
-          win.print();
+          setTimeout(function() {
+            win.print();
+          }, 150);
         } catch (e) {
           try {
             frame.contentWindow.print();

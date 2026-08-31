@@ -3,18 +3,31 @@
 
 @push('third_party_stylesheets')
 <style>
+    .fc-page .fc-visual-wrap {
+        display: flex;
+        justify-content: center;
+    }
+
     .fc-page .fc-visual {
+        /* ISO/IEC 7810 ID-1 (credit / fuel card): 85.60 × 53.98 mm */
+        width: 100%;
+        max-width: 340px;
+        aspect-ratio: 85.6 / 53.98;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
         background: linear-gradient(135deg, #16264a 0%, #1e3a6b 55%, #16264a 100%);
         border-radius: 14px;
         color: #fff;
-        padding: 18px 20px;
+        padding: 16px 18px;
     }
 
     .fc-page .fc-visual-top {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 26px;
+        flex-shrink: 0;
     }
 
     .fc-page .fc-visual-brand {
@@ -51,17 +64,22 @@
         margin-bottom: 2px;
     }
 
+    .fc-page .fc-visual-mid {
+        margin-top: auto;
+        margin-bottom: 12px;
+    }
+
     .fc-page .fc-visual-number {
         font-size: 17px;
         font-weight: 600;
         letter-spacing: 1.5px;
-        margin-bottom: 18px;
         word-break: break-all;
     }
 
     .fc-page .fc-visual-stats {
         display: flex;
         gap: 28px;
+        flex-shrink: 0;
     }
 
     .fc-page .fc-visual-stats .value {
@@ -226,7 +244,8 @@
         <div class="col-lg-4 col-md-5">
             <div class="card shadow-sm mb-3">
                 <div class="card-body">
-                    <div class="fc-visual mb-3">
+                    <div class="fc-visual-wrap mb-3">
+                    <div class="fc-visual">
                         <div class="fc-visual-top">
                             <div class="fc-visual-brand">
                                 <i class="ti ti-gas-station"></i>
@@ -234,8 +253,10 @@
                             </div>
                             <span class="fc-visual-tag">Fuel Card</span>
                         </div>
-                        <div class="fc-visual-label">Card Number</div>
-                        <div class="fc-visual-number">{{ $card->card_number ?? 'N/A' }}</div>
+                        <div class="fc-visual-mid">
+                            <div class="fc-visual-label">Card Number</div>
+                            <div class="fc-visual-number">{{ $card->card_number ?? 'N/A' }}</div>
+                        </div>
                         <div class="fc-visual-stats">
                             <div>
                                 <div class="fc-visual-label">Service Charges</div>
@@ -250,6 +271,7 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
                     </div>
 
                     <div class="fc-info-list">

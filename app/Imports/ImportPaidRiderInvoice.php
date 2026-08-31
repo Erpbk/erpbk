@@ -10,6 +10,7 @@ use App\Models\RiderInvoices;
 use App\Models\Riders;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Support\CompanyContext;
 use App\Support\ExcelSlashDateFormat;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -209,6 +210,10 @@ class ImportPaidRiderInvoice implements ToCollection
         string $description
     ): void {
         $payeeAccount = Accounts::find($rider->account_id);
+        $companyId = $invoice->company_id ?? $rider->company_id ?? CompanyContext::id();
+        if (empty($companyId)) {
+            throw new \RuntimeException('Cannot create payment without company_id.');
+        }
         $branchId = $payeeAccount->branch_id ?? $payingAccount->branch_id ?? $invoice->branch_id;
         $billingMonth = Carbon::parse($invoice->billing_month)->format('Y-m-01');
         $invoiceDate = $invoice->inv_date
@@ -216,6 +221,7 @@ class ImportPaidRiderInvoice implements ToCollection
             : $paymentDate->format('Y-m-d');
 
         $payment = Payment::create([
+            'company_id' => $companyId,
             'branch_id' => $branchId,
             'reference' => $invoice->invoice_number,
             'bank_charges' => 0,
@@ -234,6 +240,7 @@ class ImportPaidRiderInvoice implements ToCollection
         $date = $paymentDate->format('Y-m-d');
 
         Transactions::create([
+            'company_id' => $companyId,
             'trans_code' => $transCode,
             'trans_date' => $date,
             'reference_id' => $payment->id,
@@ -247,6 +254,7 @@ class ImportPaidRiderInvoice implements ToCollection
         ]);
 
         Transactions::create([
+            'company_id' => $companyId,
             'trans_code' => $transCode,
             'trans_date' => $date,
             'reference_id' => $payment->id,
@@ -260,6 +268,7 @@ class ImportPaidRiderInvoice implements ToCollection
         ]);
 
         $voucher = Vouchers::create([
+            'company_id' => $companyId,
             'trans_date' => $date,
             'trans_code' => $transCode,
             'reference_number' => $payment->reference,

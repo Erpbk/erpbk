@@ -38,12 +38,15 @@ trait BelongsToCompany
 
         static::saving(function (Model $model): void {
             /** @var Model&self $model */
-            if (!$model->shouldApplyCompanyScope() || !$model->hasCompanyColumn()) {
+            if (!$model->hasCompanyColumn()) {
                 return;
             }
 
             $companyId = $model->getAttribute('company_id');
             if ($companyId === null || $companyId === '') {
+                // Stamp even when query scoping is off (console/jobs), as long as
+                // a company context is available. Otherwise rows stay orphaned
+                // and the web scope hides them.
                 $scopedCompanyId = $model->resolveScopedCompanyId();
                 if ($scopedCompanyId !== null) {
                     $model->setAttribute('company_id', $scopedCompanyId);

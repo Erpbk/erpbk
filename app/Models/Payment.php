@@ -13,6 +13,7 @@ class Payment extends BaseModel
     public $table = 'payments';
 
     public $fillable = [
+        'company_id',
         'branch_id',
         'reference',
         'bank_charges',

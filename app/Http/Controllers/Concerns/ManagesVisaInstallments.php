@@ -1498,6 +1498,9 @@ trait ManagesVisaInstallments
             $installmentAmount = round((float) $installmentAmounts[$i], 2);
             $installmentNumber = $i + 1 + $existingInstallmentCount;
 
+            $installmentNarration = $rider->rider_id . ' - ' . $rider->name
+                . '<b> - installment ' . $installmentNumber . '</b>';
+
             $installment = $this->installmentModelClass()::create([
                 'rider_id' => $expenseAccount->id,
                 'branch_id' => $branchId,
@@ -1505,8 +1508,7 @@ trait ManagesVisaInstallments
                 'amount' => $installmentAmount,
                 'total_amount' => $totalAmount,
                 'reference_number' => $referenceNumber,
-                'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
-                    . '<b> - installment ' . $installmentNumber . '</b>',
+                'narration' => $installmentNarration,
                 'status' => $this->installmentModelClass()::STATUS_PENDING,
                 'date' => $installmentDate,
                 'created_by' => auth()->user()->id ?? null,
@@ -1538,8 +1540,7 @@ trait ManagesVisaInstallments
                 'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
                 'trans_date' => $trans_date,
-                'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
-                    . '<b> - installment ' . $installmentNumber . '</b>',
+                'narration' => $installmentNarration,
                 'debit' => $installmentAmount,
                 'branch_id' => $branchId,
                 'billing_month' => $billingMonth,
@@ -1552,8 +1553,7 @@ trait ManagesVisaInstallments
                 'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
                 'trans_date' => $trans_date,
-                'narration' => $rider->rider_id . ' - ' . $rider->name . $categorySuffix
-                    . '<b> - installment ' . $installmentNumber . '</b>',
+                'narration' => $installmentNarration,
                 'credit' => $installmentAmount,
                 'branch_id' => $branchId,
                 'billing_month' => $billingMonth,

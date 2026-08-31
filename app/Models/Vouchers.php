@@ -43,6 +43,7 @@ class Vouchers extends BaseModel
 
 
   public $fillable = [
+    'company_id',
     'branch_id',
     'trans_date',
     'trans_code',

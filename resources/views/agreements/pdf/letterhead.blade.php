@@ -57,7 +57,8 @@
     .agreement-page {
       position: relative;
       width: {{ $pageW }}mm;
-      min-height: {{ $pageH }}mm;
+      min-height: 0;
+      height: auto;
       overflow: hidden;
       background: #fff;
       page-break-before: auto;

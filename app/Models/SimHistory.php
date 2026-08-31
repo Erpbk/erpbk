@@ -54,4 +54,14 @@ class SimHistory extends BaseModel
     {
         return $this->belongsTo(Sims::class, 'sim_id', 'id');
     }
+
+    public function assignedBy()
+    {
+        return $this->belongsTo(User::class, 'assigned_by', 'id');
+    }
+
+    public function returnedBy()
+    {
+        return $this->belongsTo(User::class, 'returned_by', 'id');
+    }
 }

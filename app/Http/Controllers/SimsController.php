@@ -7,7 +7,7 @@ use App\Http\Requests\CreateSimsRequest;
 use App\Http\Requests\UpdateSimsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
-use App\Models\SimHistory;
+use App\Models\SimInvoiceItem;
 use App\Repositories\SimsRepository;
 use App\Models\Sims;
 use App\Models\Riders;
@@ -289,7 +289,15 @@ class SimsController extends AppBaseController
      */
     public function show($company_slug, $id)
     {
-        $sims = Sims::with('branch')->find($id);
+        $sims = Sims::with([
+            'branch',
+            'telecomCompany',
+            'vendors',
+            'riders',
+            'employee',
+            'createdBy',
+            'updatedBy',
+        ])->find($id);
 
         if (empty($sims)) {
             Flash::error('Sims not found');
@@ -297,9 +305,30 @@ class SimsController extends AppBaseController
             return redirect(route('sims.index'));
         }
 
-        $simHistories = SimHistory::with(['rider', 'employee'])->where('sim_id', $sims->id)->orderBy('created_at', 'desc')->get();
+        $histories = $sims->histories()
+            ->with(['rider', 'employee', 'assignedBy.roles', 'returnedBy.roles'])
+            ->orderByDesc('note_date')
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'history_page')
+            ->withQueryString()
+            ->appends(['tab' => 'assignments']);
 
-        return view('sims.show')->with('sims', $sims)->with('simHistories', $simHistories);
+        $invoiceItems = SimInvoiceItem::query()
+            ->with(['invoice.company'])
+            ->where('sim_id', $sims->id)
+            ->whereHas('invoice')
+            ->orderByDesc('id')
+            ->paginate(10, ['*'], 'invoice_page')
+            ->withQueryString()
+            ->appends(['tab' => 'invoices']);
+
+        $invoiceTotals = SimInvoiceItem::query()
+            ->where('sim_id', $sims->id)
+            ->whereHas('invoice')
+            ->selectRaw('COUNT(*) as bills, COALESCE(SUM(rental_amount), 0) as rental, COALESCE(SUM(total_amount), 0) as total')
+            ->first();
+
+        return view('sims.show', compact('sims', 'histories', 'invoiceItems', 'invoiceTotals'));
     }
 
     /**

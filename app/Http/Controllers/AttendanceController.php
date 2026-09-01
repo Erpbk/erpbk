@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
-use App\Models\Customers;
 use App\Models\Employee;
 use App\Models\RiderActivities;
 use App\Models\Riders;
@@ -33,37 +32,7 @@ class AttendanceController extends Controller
         }
 
         $query = Attendance::with('user');
-
-        // Filter by date
-        if ($request->has('date') && $request->date) {
-            $query->whereDate('date', $request->date);
-        }
-
-        // Filter by reference type
-        if ($request->has('ref_type') && $request->ref_type != '') {
-            $query->where('ref_type', $request->ref_type);
-        }
-
-        if ($request->has('ref_id') && $request->ref_id != '') {
-            $query->where('ref_id', $request->ref_id);
-        }
-
-        // Filter by status
-        if ($request->has('status') && $request->status != '') {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->has('from_date') && $request->from_date) {
-            $query->whereDate('date', '>=', $request->from_date);
-        }
-
-        if ($request->has('to_date') && $request->to_date) {
-            $query->whereDate('date', '<=', $request->to_date);
-        }
-
-        if (!$request->has('date') && !$request->has('from_date') && !$request->has('to_date')) {
-            $query->currentMonth();
-        }
+        $this->applyAttendanceListFilters($query, $request);
 
         $query->orderBy('date', 'desc');
 
@@ -73,7 +42,9 @@ class AttendanceController extends Controller
             $attendances->where('ref_type', 'rider')->map->user
         );
 
-        return view('attendance.index', compact('attendances'));
+        ['projects' => $projects, 'fleetSupervisors' => $fleetSupervisors] = $this->riderFilterOptions();
+
+        return view('attendance.index', compact('attendances', 'projects', 'fleetSupervisors'));
     }
 
     /**
@@ -437,26 +408,7 @@ class AttendanceController extends Controller
      */ public function export(Request $request)
     {
         $query = Attendance::with('user');
-        if ($request->date) {
-            $query->where('date', $request->date);
-        } else {
-            if ($request->from_date) {
-                $query->whereDate('date', '>=', $request->from_date);
-            }
-
-            if ($request->to_date) {
-                $query->whereDate('date', '<=', $request->to_date);
-            }
-        }
-        if ($request->ref_type) {
-            $query->where('ref_type', $request->ref_type);
-        }
-        if ($request->ref_id) {
-            $query->where('ref_id', $request->ref_id);
-        }
-        if ($request->status) {
-            $query->where('status', $request->status);
-        }
+        $this->applyAttendanceListFilters($query, $request, false);
 
         $attendances = $query->orderBy('date', 'desc')->get();
 
@@ -507,48 +459,58 @@ class AttendanceController extends Controller
 
     public function summary(Request $request)
     {
-        $selectedDate = $request->get('date', now()->format('Y-m-d'));
-        $userType = $request->get('user_type', 'employee');
-        $usersId = $request->get('user_id', 'all');
+        $userType = $request->get('user_type', $request->get('ref_type', 'employee')) ?: 'employee';
+        $usersId = $request->get('user_id', $request->get('ref_id', 'all')) ?: 'all';
         $projectId = $request->get('project_id');
         $fleetSupervisor = $request->get('fleet_supervisor');
         $viewMode = $request->get('view_mode', 'ten_days');
         $viewStart = max(1, (int) $request->get('view_start', 1));
+        $statusFilter = $this->normalizeAttendanceStatus($request->get('status'));
+        $fromDate = $request->filled('from_date') ? $request->get('from_date') : null;
+        $toDate = $request->filled('to_date') ? $request->get('to_date') : null;
+        $filterDate = $request->filled('filter_date') ? $request->get('filter_date') : null;
 
-        $date = Carbon::parse($selectedDate);
+        $rawDate = trim((string) $request->get('date', ''));
+        if ($rawDate === '') {
+            $rawDate = $filterDate ?: now()->format('Y-m-d');
+        } elseif (preg_match('/^\d{4}-\d{2}$/', $rawDate)) {
+            $rawDate .= '-01';
+        }
+
+        $date = Carbon::parse($rawDate);
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
         $daysInMonth = $date->daysInMonth;
 
-        // Get all users based on type
-        $users = $this->getUsersForSummary($userType, $usersId, $projectId, $fleetSupervisor);
-        $projects = collect();
-        $fleetSupervisors = collect();
-
-        if ($userType === 'rider') {
-            $projectIds = Riders::query()
-                ->whereNotNull('customer_id')
-                ->where('customer_id', '!=', '')
-                ->distinct()
-                ->pluck('customer_id')
-                ->filter()
-                ->values();
-
-            $projects = Customers::query()
-                ->whereIn('id', $projectIds)
-                ->orderBy('name')
-                ->get(['id', 'name']);
-
-            $fleetSupervisors = Riders::query()
-                ->whereNotNull('fleet_supervisor')
-                ->where('fleet_supervisor', '!=', '')
-                ->distinct()
-                ->orderBy('fleet_supervisor')
-                ->pluck('fleet_supervisor');
+        if (!$fromDate && !$toDate && $filterDate && preg_match('/^\d{4}-\d{2}-\d{2}$/', $filterDate)) {
+            $fromDate = $filterDate;
+            $toDate = $filterDate;
+            $date = Carbon::parse($filterDate);
+            $startOfMonth = $date->copy()->startOfMonth();
+            $endOfMonth = $date->copy()->endOfMonth();
+            $daysInMonth = $date->daysInMonth;
         }
 
-        // Get attendance for the month
-        $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
+        $isCustomRange = filled($fromDate) || filled($toDate);
+        $rangeStart = $isCustomRange
+            ? Carbon::parse($fromDate ?: $startOfMonth)
+            : $startOfMonth;
+        $rangeEnd = $isCustomRange
+            ? Carbon::parse($toDate ?: $endOfMonth)
+            : $endOfMonth;
+        if ($rangeStart->gt($rangeEnd)) {
+            [$rangeStart, $rangeEnd] = [$rangeEnd->copy(), $rangeStart->copy()];
+        }
+        if ($rangeStart->diffInDays($rangeEnd) > 62) {
+            $rangeEnd = $rangeStart->copy()->addDays(62);
+        }
+
+        // Get all users based on type
+        $users = $this->getUsersForSummary($userType, $usersId, $projectId, $fleetSupervisor);
+        ['projects' => $projects, 'fleetSupervisors' => $fleetSupervisors] = $this->riderFilterOptions();
+
+        // Get attendance for the visible range
+        $attendances = Attendance::whereBetween('date', [$rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d')])
             ->get();
 
         // Group attendances by ref_id for easier access
@@ -570,7 +532,7 @@ class AttendanceController extends Controller
         if ($userType === 'rider' && $users->isNotEmpty()) {
             $activities = RiderActivities::query()
                 ->whereIn('rider_id', $users->pluck('id'))
-                ->whereBetween('date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+                ->whereBetween('date', [$rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d')])
                 ->get(['rider_id', 'date', 'ontime_orders_percentage']);
 
             foreach ($activities as $activity) {
@@ -582,33 +544,59 @@ class AttendanceController extends Controller
             }
         }
 
-        // Build date window based on selected view mode
-        $windowSize = 10;
-        if ($viewMode === 'week') {
-            $windowSize = 7;
-        } elseif ($viewMode === 'month') {
-            $windowSize = $daysInMonth;
-            $viewStart = 1;
-        } else {
-            $viewMode = 'ten_days';
-        }
-        $viewStart = min($viewStart, $daysInMonth);
-        $windowEnd = min($viewStart + $windowSize - 1, $daysInMonth);
-
-        // Prepare days array
         $days = [];
         $dates = [];
-        for ($day = $viewStart; $day <= $windowEnd; $day++) {
-            $currentDate = $startOfMonth->copy()->addDays($day - 1);
-            $dateString = $currentDate->format('Y-m-d');
-            $dates[] = $dateString;
-            $days[] = [
-                'number' => $day,
-                'date' => $dateString,
-                'day_name' => $currentDate->format('D'),
-                'is_weekend' => $currentDate->isWeekend(),
-                'is_today' => $currentDate->isToday(),
-            ];
+        $windowSize = 10;
+        $windowEnd = $daysInMonth;
+
+        if ($isCustomRange) {
+            $viewMode = 'range';
+            $viewStart = 1;
+            for ($currentDate = $rangeStart->copy(); $currentDate->lte($rangeEnd); $currentDate->addDay()) {
+                $dateString = $currentDate->format('Y-m-d');
+                $dates[] = $dateString;
+                $days[] = [
+                    'number' => $currentDate->format('j'),
+                    'date' => $dateString,
+                    'day_name' => $currentDate->format('D'),
+                    'is_weekend' => $currentDate->isWeekend(),
+                    'is_today' => $currentDate->isToday(),
+                ];
+            }
+            $windowSize = max(1, count($dates));
+            $windowEnd = $windowSize;
+            $hasPrevWindow = false;
+            $hasNextWindow = false;
+            $prevStart = 1;
+            $nextStart = 1;
+        } else {
+            if ($viewMode === 'week') {
+                $windowSize = 7;
+            } elseif ($viewMode === 'month') {
+                $windowSize = $daysInMonth;
+                $viewStart = 1;
+            } else {
+                $viewMode = 'ten_days';
+            }
+            $viewStart = min($viewStart, $daysInMonth);
+            $windowEnd = min($viewStart + $windowSize - 1, $daysInMonth);
+
+            for ($day = $viewStart; $day <= $windowEnd; $day++) {
+                $currentDate = $startOfMonth->copy()->addDays($day - 1);
+                $dateString = $currentDate->format('Y-m-d');
+                $dates[] = $dateString;
+                $days[] = [
+                    'number' => $day,
+                    'date' => $dateString,
+                    'day_name' => $currentDate->format('D'),
+                    'is_weekend' => $currentDate->isWeekend(),
+                    'is_today' => $currentDate->isToday(),
+                ];
+            }
+            $prevStart = max(1, $viewStart - $windowSize);
+            $nextStart = min(max(1, $daysInMonth - $windowSize + 1), $viewStart + $windowSize);
+            $hasPrevWindow = $viewStart > 1;
+            $hasNextWindow = $windowEnd < $daysInMonth;
         }
 
         // Prepare user attendance data
@@ -675,6 +663,17 @@ class AttendanceController extends Controller
             $user->attendance_data = $attendance_data;
         }
 
+        if ($statusFilter) {
+            $users = $users->filter(function ($user) use ($statusFilter) {
+                foreach ($user->attendance_data ?? [] as $row) {
+                    if (($row['status'] ?? null) === $statusFilter) {
+                        return true;
+                    }
+                }
+                return false;
+            })->values();
+        }
+
         // Calculate summary statistics
         $summary = [
             'total_present' => $users->sum('total_present'),
@@ -701,10 +700,6 @@ class AttendanceController extends Controller
         }
         $prevMonth = $date->copy()->subMonth()->format('Y-m-d');
         $nextMonth = $date->copy()->addMonth()->format('Y-m-d');
-        $prevStart = max(1, $viewStart - $windowSize);
-        $nextStart = min(max(1, $daysInMonth - $windowSize + 1), $viewStart + $windowSize);
-        $hasPrevWindow = $viewStart > 1;
-        $hasNextWindow = $windowEnd < $daysInMonth;
 
         return view('attendance.summary', compact(
             'users',
@@ -731,7 +726,12 @@ class AttendanceController extends Controller
             'prevStart',
             'nextStart',
             'hasPrevWindow',
-            'hasNextWindow'
+            'hasNextWindow',
+            'statusFilter',
+            'fromDate',
+            'toDate',
+            'isCustomRange',
+            'filterDate'
         ));
     }
 
@@ -798,7 +798,7 @@ class AttendanceController extends Controller
         }
 
         // Sort by name and reset keys
-        $users = $users->sortBy('name')->values();
+        $users = collect($users)->sortBy('name')->values();
 
         if ($userType === 'rider') {
             Riders::hydrateEmploymentStatusDays($users);
@@ -813,24 +813,43 @@ class AttendanceController extends Controller
     public function exportSummary(Request $request)
     {
         $selectedDate = $request->get('date', now()->format('Y-m-d'));
-        $userType = $request->get('user_type', 'all');
-        $usersId = $request->get('user_id', 'all');
+        if (is_string($selectedDate) && preg_match('/^\d{4}-\d{2}$/', $selectedDate)) {
+            $selectedDate .= '-01';
+        }
+        $userType = $request->get('user_type', $request->get('ref_type', 'employee')) ?: 'employee';
+        $usersId = $request->get('user_id', $request->get('ref_id', 'all')) ?: 'all';
         $projectId = $request->get('project_id');
         $fleetSupervisor = $request->get('fleet_supervisor');
+        $statusFilter = $this->normalizeAttendanceStatus($request->get('status'));
+        $fromDate = $request->filled('from_date') ? $request->get('from_date') : null;
+        $toDate = $request->filled('to_date') ? $request->get('to_date') : null;
+        $filterDate = $request->filled('filter_date') ? $request->get('filter_date') : null;
 
-        $date = Carbon::parse($selectedDate);
+        if (!$fromDate && !$toDate && $filterDate) {
+            $fromDate = $filterDate;
+            $toDate = $filterDate;
+            $selectedDate = $filterDate;
+        }
+
+        $date = Carbon::parse($selectedDate ?: now()->format('Y-m-d'));
         $startOfMonth = $date->copy()->startOfMonth();
         $endOfMonth = $date->copy()->endOfMonth();
         $daysInMonth = $date->daysInMonth;
+        $rangeStart = $fromDate ? Carbon::parse($fromDate) : $startOfMonth;
+        $rangeEnd = $toDate ? Carbon::parse($toDate) : $endOfMonth;
+        if ($rangeStart->gt($rangeEnd)) {
+            [$rangeStart, $rangeEnd] = [$rangeEnd->copy(), $rangeStart->copy()];
+        }
 
         $users = $this->getUsersForSummary($userType, $usersId, $projectId, $fleetSupervisor);
 
         $userIds = $users->pluck('id');
 
         // Only fetch relevant attendance records
-        $attendances = Attendance::whereBetween('date', [$startOfMonth, $endOfMonth])
+        $attendances = Attendance::whereBetween('date', [$rangeStart->format('Y-m-d'), $rangeEnd->format('Y-m-d')])
             ->where('ref_type', $userType)
             ->whereIn('ref_id', $userIds)
+            ->when($statusFilter, fn ($query) => $query->where('status', $statusFilter))
             ->get();
 
         // Build fast lookup array
@@ -842,11 +861,11 @@ class AttendanceController extends Controller
 
         // Build days list once
         $days = [];
-        for ($day = 1; $day <= $daysInMonth; $day++) {
-            $days[] = $startOfMonth->copy()->addDays($day - 1)->format('Y-m-d');
+        for ($current = $rangeStart->copy(); $current->lte($rangeEnd); $current->addDay()) {
+            $days[] = $current->format('Y-m-d');
         }
 
-        $filename = 'attendance_summary_' . $date->format('Y_m') . '.csv';
+        $filename = 'attendance_summary_' . $rangeStart->format('Y_m_d') . '_' . $rangeEnd->format('Y_m_d') . '.csv';
 
         return response()->streamDownload(function () use ($users, $days, $attendanceMap) {
 
@@ -933,6 +952,117 @@ class AttendanceController extends Controller
 
             fclose($handle);
         }, $filename);
+    }
+
+    /**
+     * Shared list/export filters for the attendance report.
+     */
+    private function applyAttendanceListFilters($query, Request $request, bool $defaultToCurrentMonth = true): void
+    {
+        $exactDate = $request->get('date');
+        if (is_string($exactDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $exactDate)) {
+            $query->whereDate('date', $exactDate);
+        } else {
+            if ($request->filled('from_date')) {
+                $query->whereDate('date', '>=', $request->from_date);
+            }
+            if ($request->filled('to_date')) {
+                $query->whereDate('date', '<=', $request->to_date);
+            }
+            if ($defaultToCurrentMonth && !$request->filled('from_date') && !$request->filled('to_date')) {
+                $query->currentMonth();
+            }
+        }
+
+        $refType = $request->get('ref_type', $request->get('user_type'));
+        if (filled($refType)) {
+            $query->where('ref_type', $refType);
+        }
+
+        $refId = $request->get('ref_id', $request->get('user_id'));
+        if (filled($refId) && $refId !== 'all') {
+            $query->where('ref_id', $refId);
+        }
+
+        $status = $this->normalizeAttendanceStatus($request->get('status'));
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if (strtolower((string) $refType) === 'rider' && ($request->filled('project_id') || $request->filled('fleet_supervisor'))) {
+            $riderQuery = Riders::query();
+            if ($request->filled('project_id')) {
+                $riderQuery->where('customer_id', $request->project_id);
+            }
+            if ($request->filled('fleet_supervisor')) {
+                $riderQuery->where('fleet_supervisor', $request->fleet_supervisor);
+            }
+            $query->where('ref_type', 'rider')->whereIn('ref_id', $riderQuery->pluck('id'));
+        }
+    }
+
+    private function normalizeAttendanceStatus(?string $status): ?string
+    {
+        $status = trim((string) $status);
+        if ($status === '') {
+            return null;
+        }
+        if ($status === 'half-day') {
+            return 'half day';
+        }
+
+        return $status;
+    }
+
+    /**
+     * @return array{projects: \Illuminate\Support\Collection, fleetSupervisors: \Illuminate\Support\Collection}
+     */
+    private function riderFilterOptions(): array
+    {
+        $projectIds = company_table('riders')
+            ->whereNotNull('customer_id')
+            ->where('customer_id', '!=', '')
+            ->pluck('customer_id')
+            ->unique()
+            ->filter()
+            ->values();
+
+        $fromRiders = company_table('riders')
+            ->whereNotNull('fleet_supervisor')
+            ->where('fleet_supervisor', '!=', '')
+            ->distinct()
+            ->orderBy('fleet_supervisor')
+            ->pluck('fleet_supervisor');
+
+        $fromDropdown = collect();
+        $dropdownRow = company_table('dropdowns')
+            ->where(function ($query) {
+                $query->where('label', 'Fleet Supervisor')
+                    ->orWhere('name', 'Fleet Supervisor')
+                    ->orWhere('key', 'fleet_supervisor');
+            })
+            ->whereNotNull('values')
+            ->first();
+        if ($dropdownRow && $dropdownRow->values) {
+            $decoded = json_decode($dropdownRow->values, true);
+            if (is_array($decoded)) {
+                $fromDropdown = collect($decoded);
+            }
+        }
+
+        return [
+            'projects' => company_table('customers')
+                ->whereIn('id', $projectIds)
+                ->orderBy('name')
+                ->get(['id', 'name']),
+            'fleetSupervisors' => $fromRiders
+                ->merge($fromDropdown)
+                ->map(fn ($value) => trim((string) $value))
+                ->filter()
+                ->unique()
+                ->sort()
+                ->values(),
+        ];
     }
 
     private function resolveBranchIdForAttendance(string $refType, int $refId): ?int

@@ -7,7 +7,7 @@
 <style>
     .attendance-summary-card {
         border-radius: 16px;
-        overflow: hidden;
+        overflow: visible;
     }
 
     .summary-toolbar {
@@ -53,77 +53,42 @@
     <div class="card shadow-sm border-0 attendance-summary-card">
 
         <div class="card-body summary-toolbar">
-            <form method="GET" action="{{ route('attendance.summary') }}" class="row g-3" id="summaryFilter">
-                <input type="hidden" name="view_mode" id="view_mode" value="{{ $viewMode }}">
-                <input type="hidden" name="view_start" id="view_start" value="{{ $viewStart }}">
-                <input type="hidden" name="user_type" value="{{ $userType }}">
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">
-                        <i class="fas fa-calendar me-1"></i>Month
-                    </label>
-                    <input type="month" name="date" class="form-control"
-                        value="{{ $date->format('Y-m') }}"
-                        onchange="this.form.submit()">
-                </div>
-
-                <!-- User Selection -->
-                <div class="col-md-3">
-                    <label for="ref_id" class="form-label fw-semibold required">
-                        <i class="fas fa-user me-1"></i>Select {{ $userType === 'rider' ? 'Rider' : 'Employee' }}
-                    </label>
-                    <select class="form-select summarySelect" onchange="this.form.submit()"
-                        id="user_id" name="user_id" required>
-                    </select>
-                </div>
-
-                <div class="col-md-2">
-                    <label for="project_id" class="form-label fw-semibold">
-                        <i class="fas fa-building me-1"></i>Project
-                    </label>
-                    <select class="form-select summarySelect" onchange="this.form.submit()"
-                        id="project_id" name="project_id" {{ $userType !== 'rider' ? 'disabled' : '' }}>
-                        @if($userType !== 'rider')
-                        <option value="">Only for riders</option>
-                        @else
-                        <option value="">All Projects</option>
-                        @foreach($projects as $project)
-                        <option value="{{ $project->id }}" {{ (string) $projectId === (string) $project->id ? 'selected' : '' }}>
-                            {{ $project->name }}
-                        </option>
-                        @endforeach
-                        @endif
-                    </select>
-                </div>
-
-                <div class="col-md-3">
-                    <label for="fleet_supervisor" class="form-label fw-semibold">
-                        <i class="fas fa-user-tie me-1"></i>Fleet Supervisor
-                    </label>
-                    <select class="form-select summarySelect" onchange="this.form.submit()"
-                        id="fleet_supervisor" name="fleet_supervisor" {{ $userType !== 'rider' ? 'disabled' : '' }}>
-                        @if($userType !== 'rider')
-                        <option value="">Only for riders</option>
-                        @else
-                        <option value="">All Supervisors</option>
-                        @foreach($fleetSupervisors as $supervisor)
-                        <option value="{{ $supervisor }}" {{ (string) $fleetSupervisor === (string) $supervisor ? 'selected' : '' }}>
-                            {{ $supervisor }}
-                        </option>
-                        @endforeach
-                        @endif
-                    </select>
-                </div>
-
-                <div class="col-md-2 text-end">
-                    <label class="form-label fw-semibold">&nbsp;</label>
-                    <div>
-                        <a href="{{ route('attendance.summary.export') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}&project_id={{ $projectId }}&fleet_supervisor={{ urlencode((string) $fleetSupervisor) }}"
-                            class="btn btn-success" target="_blank">
-                            <i class="fas fa-file-excel me-2"></i>Export to Excel
-                        </a>
-                    </div>
-                </div>
-            </form>
+            @include('attendance.partials.filter_sidebar', [
+                'filterAction' => route('attendance.summary'),
+                'resetUrl' => route('attendance.summary', ['user_type' => $userType]),
+                'typeName' => 'user_type',
+                'userName' => 'user_id',
+                'selectedType' => $userType,
+                'selectedUser' => $usersId,
+                'selectedStatus' => $statusFilter ?? request('status'),
+                'selectedDate' => $filterDate ?? request('filter_date'),
+                'fromDate' => $fromDate ?? request('from_date'),
+                'toDate' => $toDate ?? request('to_date'),
+                'dateFieldName' => 'filter_date',
+                'allowAllTypes' => false,
+                'showMonth' => true,
+                'monthValue' => $date->format('Y-m'),
+                'projects' => $projects,
+                'projectId' => $projectId,
+                'fleetSupervisors' => $fleetSupervisors,
+                'fleetSupervisor' => $fleetSupervisor,
+                'hiddenFields' => [
+                    'view_mode' => $isCustomRange ? 'month' : $viewMode,
+                    'view_start' => $isCustomRange ? 1 : $viewStart,
+                ],
+                'exportUrl' => route('attendance.summary.export', array_filter([
+                    'date' => $date->format('Y-m-d'),
+                    'user_type' => $userType,
+                    'user_id' => $usersId,
+                    'project_id' => $projectId,
+                    'fleet_supervisor' => $fleetSupervisor,
+                    'status' => $statusFilter,
+                    'from_date' => $fromDate,
+                    'to_date' => $toDate,
+                    'filter_date' => $filterDate ?? null,
+                ])),
+                'exportLabel' => 'Export',
+            ])
         </div>
         {{-- <div class="totals-cards mt-3">
             <div class="total-card total-green">
@@ -165,36 +130,52 @@
 </div> --}}
 
 @php
-$projectQuery = $projectId ? '&project_id=' . urlencode((string) $projectId) : '';
-$fleetSupervisorQuery = $fleetSupervisor ? '&fleet_supervisor=' . urlencode((string) $fleetSupervisor) : '';
+$summaryQueryBase = array_filter([
+    'date' => $date->format('Y-m-d'),
+    'user_type' => $userType,
+    'user_id' => $usersId,
+    'project_id' => $projectId ?: null,
+    'fleet_supervisor' => $fleetSupervisor ?: null,
+    'status' => $statusFilter ?: null,
+], fn ($value) => $value !== null && $value !== '');
+$summaryQuery = http_build_query($summaryQueryBase);
+$summaryRangeQuery = http_build_query(array_filter($summaryQueryBase + [
+    'from_date' => $fromDate ?: null,
+    'to_date' => $toDate ?: null,
+    'filter_date' => ($filterDate ?? null) ?: null,
+], fn ($value) => $value !== null && $value !== ''));
 @endphp
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 m-3 p-2">
     <div class="btn-group mode-toggle" role="group" aria-label="Summary view modes">
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode=week&view_start=1"
+        <a href="{{ route('attendance.summary') }}?{{ $summaryQuery }}&view_mode=week&view_start=1"
             class="btn {{ $viewMode === 'week' ? 'btn-primary' : 'btn-outline-primary' }}">
             <i class="fas fa-calendar-week me-1"></i>1 Week
         </a>
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode=ten_days&view_start=1"
+        <a href="{{ route('attendance.summary') }}?{{ $summaryQuery }}&view_mode=ten_days&view_start=1"
             class="btn {{ $viewMode === 'ten_days' ? 'btn-primary' : 'btn-outline-primary' }}">
             <i class="fas fa-calendar-day me-1"></i>10 Days
         </a>
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode=month&view_start=1"
+        <a href="{{ route('attendance.summary') }}?{{ $summaryQuery }}&view_mode=month&view_start=1"
             class="btn {{ $viewMode === 'month' ? 'btn-primary' : 'btn-outline-primary' }}">
             <i class="fas fa-calendar-alt me-1"></i>Full Month
         </a>
     </div>
 
     <div class="d-flex align-items-center gap-2">
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode={{ $viewMode }}&view_start={{ $prevStart }}"
+        <a href="{{ route('attendance.summary') }}?{{ $summaryRangeQuery }}&view_mode={{ $viewMode }}&view_start={{ $prevStart }}"
             class="btn btn-outline-secondary {{ !$hasPrevWindow ? 'disabled' : '' }}"
             aria-disabled="{{ !$hasPrevWindow ? 'true' : 'false' }}">
             <i class="fas fa-chevron-left"></i>
         </a>
         <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
+            @if($isCustomRange && count($days) > 0)
+            {{ \Carbon\Carbon::parse($days[0]['date'])->format('d M') }} - {{ \Carbon\Carbon::parse($days[count($days) - 1]['date'])->format('d M') }}
+            @else
             {{ $days[0]['number'] ?? 0 }} - {{ end($days)['number'] ?? 0 }} of {{ $monthTotalDays }} Days
+            @endif
         </span>
-        <a href="{{ route('attendance.summary') }}?date={{ $date->format('Y-m-d') }}&user_type={{ $userType }}&user_id={{ $usersId }}{{ $projectQuery }}{{ $fleetSupervisorQuery }}&view_mode={{ $viewMode }}&view_start={{ $nextStart }}"
+        <a href="{{ route('attendance.summary') }}?{{ $summaryRangeQuery }}&view_mode={{ $viewMode }}&view_start={{ $nextStart }}"
             class="btn btn-outline-secondary {{ !$hasNextWindow ? 'disabled' : '' }}"
             aria-disabled="{{ !$hasNextWindow ? 'true' : 'false' }}">
             <i class="fas fa-chevron-right"></i>
@@ -380,91 +361,16 @@ $fleetSupervisorQuery = $fleetSupervisor ? '&fleet_supervisor=' . urlencode((str
 
 @section('page-script')
 <script>
-    const prevWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . $projectQuery . $fleetSupervisorQuery . '&view_mode=' . $viewMode . '&view_start=' . $prevStart }}";
-    const nextWindowUrl = "{{ route('attendance.summary') . '?date=' . $date->format('Y-m-d') . '&user_type=' . $userType . '&user_id=' . $usersId . $projectQuery . $fleetSupervisorQuery . '&view_mode=' . $viewMode . '&view_start=' . $nextStart }}";
+    const prevWindowUrl = "{{ route('attendance.summary') . '?' . $summaryRangeQuery . '&view_mode=' . $viewMode . '&view_start=' . $prevStart }}";
+    const nextWindowUrl = "{{ route('attendance.summary') . '?' . $summaryRangeQuery . '&view_mode=' . $viewMode . '&view_start=' . $nextStart }}";
 
     $(document).ready(function() {
-        loadUsers('{{ $userType }}');
         // Initialize Bootstrap tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
-
-        initSelect2();
-        $(document).on('hidden.bs.modal', '.modal', function() {
-
-            initSelect2();
-        });
     });
-
-    function initSelect2() {
-        destroyAllSelect2();
-        $('.summarySelect').select2({
-            dropDownParen: $('#summaryFilter'),
-            allowClear: true
-        });
-    }
-
-    function destroyAllSelect2() {
-        // Method 1: By data attribute
-        $('[data-select2-id]').each(function() {
-            if ($(this).data('select2')) {
-                try {
-                    $(this).select2('destroy');
-                } catch (e) {}
-            }
-        });
-
-        // Method 2: By class
-        $('.select2-hidden-accessible').each(function() {
-            if ($(this).data('select2')) {
-                try {
-                    $(this).select2('destroy');
-                } catch (e) {}
-            }
-        });
-
-        // Method 3: Remove Select2 generated elements
-        $('.select2-container').remove();
-        $('.select2-dropdown').remove();
-
-        // Method 4: Show all hidden selects
-        $('select').each(function() {
-            if ($(this).css('display') === 'none' && !$(this).data('select2')) {
-                $(this).show();
-            }
-        });
-    }
-
-    function loadUsers(refType) {
-        var select = $('#user_id');
-        select.html('<option value="">Loading users...</option>').prop('disabled', true);
-
-        if (refType) {
-            $.ajax({
-                url: '{{ route("attendance.users", "refType") }}'.replace("refType", refType),
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    var userId = '{{ $usersId }}';
-                    console.log('userId from PHP:', userId, 'Type:', typeof userId);
-                    select.html('<option value="">-- Select User --</option><option value="all"' + (userId == 'all' ? 'selected' : '') + '>All</option>');
-                    $.each(data, function(index, user) {
-                        var selected = (userId == user.id) ? 'selected' : '';
-                        select.append('<option value="' + user.id + '"' + selected + '>' + user.name + '</option>');
-                    });
-                    select.prop('disabled', false);
-                },
-                error: function() {
-                    select.html('<option value="">Error loading users</option>');
-                    alert('Failed to load users. Please try again.');
-                }
-            });
-        } else {
-            select.html('<option value="">-- Select user type first --</option>').prop('disabled', true);
-        }
-    }
 
     // Keyboard navigation
     $(document).keydown(function(e) {

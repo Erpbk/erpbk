@@ -52,68 +52,28 @@
         </div>
     </div>
 
-    <!-- Filter Sidebar -->
-    <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
-        <div class="filter-header">
-            <h5>Filter Attendance</h5>
-            <button type="button" class="btn-close" id="closeSidebar"></button>
-        </div>
-        <div class="filter-body" id="searchTopbody">
-            <form id="filterForm" action="{{ route('attendance.index') }}" method="GET">
-                <div class="row">
-                    <div class="form-group col-md-12">
-                        <label for="date">Date</label>
-                        <input type="date" name="date" class="form-control" value="{{ request('date') }}">
-                    </div>
-                    <div class="form-group col-md-12">
-                        <label for="ref_type" class="form-label">User Type</label>
-                        <select class="form-select" id="ref_type" name="ref_type">
-                            <option value="">All Types</option>
-                            <option value="employee" {{ request('ref_type') == 'employee' ? 'selected' : '' }}>Employee</option>
-                            <option value="rider" {{ request('ref_type') == 'rider' ? 'selected' : '' }}>Rider</option>
-                        </select>
-                    </div>
-                    <div class="form-group col-md-12">
-                        <label for="ref_id" class="form-label">User</label>
-                        <select class="form-select" id="ref_id" name="ref_id">
-                            <option value="">All Users</option>
-                        </select>
-                    </div>
-                    <div class="form-group col-md-12">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-select" id="status" name="status">
-                            <option value="">All Status</option>
-                            <option value="present" {{ request('status') == 'present' ? 'selected' : '' }}>Present</option>
-                            <option value="absent" {{ request('status') == 'absent' ? 'selected' : '' }}>Absent</option>
-                            <option value="late" {{ request('status') == 'late' ? 'selected' : '' }}>Late</option>
-                            <option value="half-day" {{ request('status') == 'half-day' ? 'selected' : '' }}>Half Day</option>
-                            <option value="weekend" {{ request('status') == 'weekend' ? 'selected' : '' }}>Weekend</option>
-                        </select>
-                    </div>
-                    <div class="form-group col-md-12">
-                        <label for="date_from">From Date</label>
-                        <input type="date" name="from_date" class="form-control" placeholder="Filter By Date From" value="{{ request('from_date') }}">
-                    </div>
-                    <div class="form-group col-md-12">
-                        <label for="date_to">To Date</label>
-                        <input type="date" name="to_date" class="form-control" placeholder="Filter By Date To" value="{{ request('to_date') }}">
-                    </div>
-                    <div class="col-md-12 form-group text-center">
-                        <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-
     <!-- Attendance Table -->
     <div class="card shadow mb-4">
         <div class="card-header d-flex justify-content-between">
             <h4>Attendance Report</h4>
             <div>
                 <a href="{{ route('attendance.export', request()->all()) }}" class="btn btn-success btn-sm"><i class="fa fa-file-csv"></i> Export</a>
-                <button class="btn btn-primary btn-sm openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
             </div>
+        </div>
+        <div class="card-body pb-2">
+            @include('attendance.partials.filter_sidebar', [
+                'filterAction' => route('attendance.index'),
+                'resetUrl' => route('attendance.index', array_filter(['ref_type' => request('ref_type')])),
+                'typeName' => 'ref_type',
+                'userName' => 'ref_id',
+                'selectedType' => request('ref_type', request('user_type')),
+                'selectedUser' => request('ref_id'),
+                'showProjectFilters' => true,
+                'projects' => $projects ?? collect(),
+                'projectId' => request('project_id'),
+                'fleetSupervisors' => $fleetSupervisors ?? collect(),
+                'fleetSupervisor' => request('fleet_supervisor'),
+            ])
         </div>
         <div class="totals-cards">
             <div class="total-card total-blue">

@@ -27,7 +27,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
       </div>
 
       <div class="card-body">
-        <form method="POST" action="{{ route('agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}" id="agreement-edit-form" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('agreements.update-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}" id="agreement-edit-form">
           @csrf
           @method('PUT')
 
@@ -60,7 +60,62 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
             <div class="form-check form-switch mb-3">
               <input class="form-check-input" type="checkbox" id="printWithLetterhead" checked>
               <label class="form-check-label" for="printWithLetterhead">Print with Letterhead</label>
-              <div class="form-text">When enabled, preview, print, and PDF download include the digital letterhead. When disabled, the same header and footer margins are still reserved on every page for pre-printed letterhead paper.</div>
+              <div class="form-text">When enabled, preview, print, and PDF download include the letterhead (uploaded design, or the company header if none is uploaded). When disabled, the content safe area is still reserved for pre-printed paper.</div>
+            </div>
+
+            <div class="mt-3 mb-3">
+              <label class="form-label small fw-semibold">Letterhead</label>
+              <p class="text-muted small mb-2">
+                Choose the page background for preview, print, and PDF. Default uses the company logo and contact details.
+              </p>
+              @php
+                $selectedLetterheadId = (int) old('letterhead_id', $category->letterhead_id ?? 0);
+                $libraryLetterheads = $letterheads ?? collect();
+              @endphp
+              <div class="row g-2">
+                <div class="col-md-4">
+                  <label class="border rounded p-2 h-100 d-block {{ $selectedLetterheadId === 0 ? 'border-primary' : '' }}" style="cursor:pointer;">
+                    <input type="radio" name="letterhead_id" value="" class="form-check-input me-1" {{ $selectedLetterheadId === 0 ? 'checked' : '' }}>
+                    <strong>Default</strong>
+                    <div class="small text-muted mt-1">Company logo and info</div>
+                  </label>
+                </div>
+                @foreach($libraryLetterheads as $letterhead)
+                @php $thumb = $letterhead->publicUrl(); @endphp
+                <div class="col-md-4">
+                  <label class="border rounded p-2 h-100 d-block {{ $selectedLetterheadId === (int) $letterhead->id ? 'border-primary' : '' }}" style="cursor:pointer;">
+                    <input type="radio" name="letterhead_id" value="{{ $letterhead->id }}" class="form-check-input me-1" {{ $selectedLetterheadId === (int) $letterhead->id ? 'checked' : '' }}>
+                    <strong>{{ $letterhead->name }}</strong>
+                    @if($thumb)
+                    <img src="{{ $thumb }}" alt="" class="d-block mt-2 border rounded" style="max-height:90px;max-width:100%;object-fit:contain;background:#f8fafc;">
+                    @endif
+                  </label>
+                </div>
+                @endforeach
+              </div>
+              <p class="small mb-0 mt-2">
+                <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $companySlug, 'module' => 'agreements']) }}#tab-letterhead">Manage letterheads in Settings</a>
+              </p>
+              @error('letterhead_id')
+              <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            <div class="mt-2">
+              <label class="form-label small fw-semibold">Page size</label>
+              @php
+                $letterheadLayout = $letterheadLayout ?? app(\App\Services\Agreements\AgreementLetterheadLayout::class);
+                $pageSizeCatalog = $letterheadLayout->pageSizeCatalog();
+                $pageSizeKey = old('letterhead_margins.page_size', $letterheadLayout->resolvedPageSize($category)['key']);
+              @endphp
+              <select name="letterhead_margins[page_size]" class="form-select form-select-sm" style="max-width: 220px;">
+                @foreach($pageSizeCatalog as $sizeKey => $size)
+                <option value="{{ $sizeKey }}" @selected($pageSizeKey === $sizeKey)>
+                  {{ $size['label'] }} ({{ rtrim(rtrim(number_format($size['width_mm'], 1, '.', ''), '0'), '.') }} × {{ rtrim(rtrim(number_format($size['height_mm'], 1, '.', ''), '0'), '.') }} mm)
+                </option>
+                @endforeach
+              </select>
+              <div class="form-text">Editor, preview, print, and PDF download all use this paper size. Default is A4.</div>
             </div>
 
             <div class="mt-2">
@@ -88,38 +143,32 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
                 </div>
               </div>
             </div>
-
-            @if($category->hasLetterhead())
-            <div class="mt-3 p-3 border rounded bg-light">
-              <p class="small text-muted mb-2">A legacy full-page letterhead image is stored but no longer used. Remove it to clear storage.</p>
-              <div class="form-check">
-                <input class="form-check-input" type="checkbox" name="remove_letterhead" value="1" id="removeLetterhead">
-                <label class="form-check-label text-danger" for="removeLetterhead">Remove legacy letterhead file</label>
-              </div>
-            </div>
-            @endif
           </div>
 
           <div class="mb-3">
             <label class="form-label">Contract template <span class="text-danger">*</span></label>
             <p class="text-muted small mb-2">
-              Select the sample template style used when generating this contract. Edit its content below before saving.
+              Select the template used when generating this contract. Edit its content below before saving.
             </p>
             <select name="contract_template_id" id="contract_template_id" class="form-select" required>
               @forelse($category->templates as $tpl)
               <option value="{{ $tpl->id }}"
-                data-type="{{ $tpl->template_type }}"
                 {{ (int) old('contract_template_id', $contractTemplateId) === (int) $tpl->id ? 'selected' : '' }}>
                 {{ $tpl->template_name }}
-                — {{ \App\Models\AgreementTemplate::TYPES[$tpl->template_type] ?? $tpl->template_type }}
               </option>
               @empty
-              <option value="" disabled>No sample templates available</option>
+              <option value="" disabled>No templates available</option>
               @endforelse
             </select>
             @error('contract_template_id')
             <div class="text-danger small mt-1">{{ $message }}</div>
             @enderror
+            @canany(['agreements_view', 'gn_settings'])
+            <p class="small mb-0 mt-2">
+              <a href="{{ route('agreements.templates', ['company_slug' => $companySlug, 'category' => $category->id]) }}">Manage templates</a>
+              to create, duplicate, or edit named templates for this agreement.
+            </p>
+            @endcanany
           </div>
 
           @include('settings.agreements.partials.inline-template-editor')
@@ -252,7 +301,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
     }
 
     function updatePreviewLink(id) {
-      var link = document.getElementById('btn-template-full-preview');
+      var link = document.getElementById('btn-template-preview');
       var pdfLink = document.getElementById('btn-template-download-pdf');
       var printBtn = document.getElementById('btn-template-print');
       if (!id) {
@@ -364,23 +413,6 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
       var printBtn = document.getElementById('btn-template-print');
       if (printBtn) {
         printBtn.addEventListener('click', showPrintDialog);
-      }
-
-      var quickPreview = document.getElementById('btn-template-quick-preview');
-      if (quickPreview) {
-        quickPreview.addEventListener('click', function() {
-          syncEditorToStore();
-          var content = tinymce.get('agreement-template-editor') ?
-            tinymce.get('agreement-template-editor').getContent() :
-            '';
-          var w = window.open('', '_blank');
-          var primary = getComputedStyle(document.getElementById('template-content-panel')).getPropertyValue('--agreement-primary').trim() || '#2563eb';
-          w.document.write('<html><head><style>body{font-family:Calibri,sans-serif;padding:24px;} .hdr{background:' + primary + ';color:#fff;padding:16px;margin:-24px -24px 20px;}</style></head><body>');
-          w.document.write('<div class="hdr"><strong>Content preview</strong></div>');
-          w.document.write(content);
-          w.document.write('</body></html>');
-          w.document.close();
-        });
       }
     }
   });

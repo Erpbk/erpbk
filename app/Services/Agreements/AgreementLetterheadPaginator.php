@@ -8,7 +8,7 @@ use DOMNode;
 
 class AgreementLetterheadPaginator
 {
-    private const ESTIMATE_SAFETY = 1.14;
+    private const ESTIMATE_SAFETY = 1.22;
 
     private const CONTENT_FONT_PT = 11.0;
 
@@ -32,11 +32,22 @@ class AgreementLetterheadPaginator
     public function paginate(string $bodyHtml, float $contentZoneHeightMm): array
     {
         $this->appendDepth = 0;
-        // Dompdf lays out a little taller than the browser; keep a reserve so
-        // a full page cannot overflow A4 and split the first sheet.
-        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4) - 16.0;
+        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4) - 12.0;
         $bodyHtml = $this->normalizeBodyHtml($bodyHtml);
 
+        $markedPages = $this->splitOnEditorPageBreaks($bodyHtml);
+        if ($markedPages !== null) {
+            return $markedPages;
+        }
+
+        return $this->paginateUnmarked($bodyHtml);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function paginateUnmarked(string $bodyHtml): array
+    {
         $dom = new DOMDocument('1.0', 'UTF-8');
         $dom->preserveWhiteSpace = true;
         @$dom->loadHTML(
@@ -124,7 +135,7 @@ class AgreementLetterheadPaginator
 
             $prev = array_pop($filled);
             $combined = $prev . $page;
-            if ($this->estimateHtmlHeightPt($combined) <= $this->budgetPt) {
+            if ($this->estimateHtmlHeightPt($combined) <= $this->packBudgetPt()) {
                 $filled[] = $combined;
 
                 continue;
@@ -188,11 +199,11 @@ class AgreementLetterheadPaginator
         }
 
         $combined = $current . $first;
-        if ($this->estimateHtmlHeightPt($combined) <= $this->budgetPt) {
+        if ($this->estimateHtmlHeightPt($combined) <= $this->packBudgetPt()) {
             return [$combined, implode('', $parts)];
         }
 
-        $leftover = $this->budgetPt - $this->estimateHtmlHeightPt($current);
+        $leftover = $this->packBudgetPt() - $this->estimateHtmlHeightPt($current);
         if ($leftover < self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
             return null;
         }
@@ -1230,28 +1241,46 @@ class AgreementLetterheadPaginator
     }
 
     /**
-     * Word templates and TinyMCE page gaps use print-break CSS and spacer boxes
-     * that Dompdf honors as hard page breaks. Pagination must use remaining
-     * content-zone height instead of those authoring artifacts.
+     * Split on page breaks saved from the Word editor so preview/print/PDF
+     * keep the same page positions the author saw.
+     *
+     * @return list<string>|null
+     */
+    private function splitOnEditorPageBreaks(string $html): ?array
+    {
+        if (! preg_match('/data-agreement-page-break|mce-pagebreak|<!--\s*pagebreak\s*-->/i', $html)) {
+            return null;
+        }
+
+        $parts = preg_split(
+            '/<div[^>]*data-agreement-page-break[^>]*>\s*(?:&nbsp;|\x{00A0}|<br\s*\/?>|\s)*<\/div>|<img[^>]*(?:mce-pagebreak|data-mce-pagebreak)[^>]*>|<!--\s*pagebreak\s*-->/iu',
+            $html
+        ) ?: [];
+
+        $pages = [];
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            $part = preg_replace('/<!--\s*pagebreak\s*-->/i', '', $part) ?? $part;
+            if ($part === '' || $this->isBlankHtml($part)) {
+                continue;
+            }
+            $pages[] = $part;
+        }
+
+        return $pages !== [] ? $pages : null;
+    }
+
+    /**
+     * Authoring spacers and TinyMCE page chrome must not become Dompdf page breaks.
+     * Empty paragraphs are kept so vertical position matches the editor.
      */
     private function normalizeBodyHtml(string $html): string
     {
-        $html = preg_replace('/<div[^>]*(?:data-word-page-gap|word-page-gap)[^>]*>.*?<\/div>/is', '', $html) ?? $html;
-        $html = preg_replace('/<img[^>]*class="[^"]*mce-pagebreak[^"]*"[^>]*>/i', '', $html) ?? $html;
-        $html = preg_replace('/<img[^>]*data-mce-pagebreak[^>]*>/i', '', $html) ?? $html;
+        $html = preg_replace('/<div[^>]*(?:data-word-page-gap|word-page-gap)[^>]*>.*?<\/div>/is', '<div data-agreement-page-break="1"></div>', $html) ?? $html;
+        $html = preg_replace('/<div[^>]*class="[^"]*word-letterhead-[^"]*"[^>]*>.*?<\/div>/is', '', $html) ?? $html;
         $html = preg_replace('/page-break-(?:before|after|inside)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
         $html = preg_replace('/(?<!-)break-(?:before|after|inside)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
         $html = preg_replace('/mso-(?:break-type|page-break(?:-before|-after)?)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
-        $html = preg_replace(
-            '/<div[^>]*style="[^"]*(?:min-)?height\s*:\s*\d+(?:\.\d+)?(?:px|pt|mm|em|rem)[^"]*"[^>]*>\s*(?:&nbsp;|\xC2\xA0|<br\s*\/?>|\s)*<\/div>/iu',
-            '',
-            $html
-        ) ?? $html;
-        $html = preg_replace(
-            '/<p[^>]*>\s*(?:&nbsp;|\xC2\xA0|<br\s*\/?>|\s)*<\/p>/iu',
-            '',
-            $html
-        ) ?? $html;
 
         return $html;
     }
@@ -1263,6 +1292,16 @@ class AgreementLetterheadPaginator
         }
 
         if ($node->getAttribute('data-agreement-page-break') === '1') {
+            return true;
+        }
+
+        $class = strtolower($node->getAttribute('class'));
+        if (str_contains($class, 'mce-pagebreak')) {
+            return true;
+        }
+
+        $style = strtolower($node->getAttribute('style'));
+        if (str_contains($style, 'page-break-before: always') || str_contains($style, 'break-before: page')) {
             return true;
         }
 
@@ -1280,6 +1319,9 @@ class AgreementLetterheadPaginator
             $class = strtolower($node->getAttribute('class'));
             if (str_contains($class, 'mce-pagebreak') || str_contains($class, 'word-page-gap')) {
                 return true;
+            }
+            if (in_array($tag, ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'], true)) {
+                return false;
             }
             if ($tag === 'img' && trim($node->getAttribute('src')) !== '') {
                 return false;
@@ -2038,6 +2080,11 @@ class AgreementLetterheadPaginator
         return true;
     }
 
+    private function packBudgetPt(): float
+    {
+        return $this->budgetPt * 0.92;
+    }
+
     private function safeEstimate(float $estimate): float
     {
         return max(0.0, $estimate * self::ESTIMATE_SAFETY);
@@ -2220,10 +2267,18 @@ class AgreementLetterheadPaginator
         $html = strtolower($node->ownerDocument?->saveHTML($node) ?? '');
         $brLines = max(0, substr_count($html, '<br'));
         $text = trim(preg_replace('/\s+/u', ' ', $node->textContent ?? '') ?? '');
-        $textHeight = $this->estimateTextHeightPt($text, self::CONTENT_FONT_PT);
+        $fontPt = $this->styleFontSizePt($node);
+        $lineHeightRatio = $this->styleLineHeightRatio($node);
+        $textHeight = $this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio);
+
+        if ($text === '' && $brLines === 0) {
+            $margin = strtolower($node->tagName) === 'p' ? $fontPt * 0.5 : 0.0;
+
+            return ($fontPt * $lineHeightRatio) + $margin;
+        }
 
         if ($brLines > 0) {
-            $lineHeight = self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO;
+            $lineHeight = $fontPt * $lineHeightRatio;
             $wrapLines = max(1, (int) ceil(mb_strlen($text) / max(1, self::CHARS_PER_LINE)));
             $brLines = min($brLines, $wrapLines + 2);
             $textHeight = max($textHeight, ($brLines + 1) * $lineHeight);
@@ -2248,15 +2303,35 @@ class AgreementLetterheadPaginator
         return $textHeight + 6;
     }
 
-    private function estimateTextHeightPt(string $text, float $fontSizePt): float
+    private function estimateTextHeightPt(string $text, float $fontSizePt, ?float $lineHeightRatio = null): float
     {
         if ($text === '') {
             return 0.0;
         }
 
-        $lineHeight = $fontSizePt * self::LINE_HEIGHT_RATIO;
+        $lineHeight = $fontSizePt * ($lineHeightRatio ?? self::LINE_HEIGHT_RATIO);
         $lines = max(1, (int) ceil(mb_strlen($text) / self::CHARS_PER_LINE));
 
         return ($lines * $lineHeight) + 2;
+    }
+
+    private function styleFontSizePt(DOMElement $node): float
+    {
+        $pt = $this->cssLengthToPt($node->getAttribute('style'), 'font-size');
+
+        return $pt !== null && $pt > 0 ? $pt : self::CONTENT_FONT_PT;
+    }
+
+    private function styleLineHeightRatio(DOMElement $node): float
+    {
+        $style = $node->getAttribute('style');
+        if ($style !== '' && preg_match('/(?:^|;)\s*line-height\s*:\s*([\d.]+)\s*;?/i', $style, $match)) {
+            $value = (float) $match[1];
+            if ($value > 0 && $value <= 4) {
+                return $value;
+            }
+        }
+
+        return self::LINE_HEIGHT_RATIO;
     }
 }

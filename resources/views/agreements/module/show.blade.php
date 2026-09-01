@@ -39,7 +39,6 @@
       @forelse($category->templates as $template)
       @php
         $isContract = $contractTemplateId && (int) $contractTemplateId === (int) $template->id;
-        $styleLabel = \App\Models\AgreementTemplate::TYPES[$template->template_type] ?? $template->template_type;
       @endphp
       <div class="col-md-6 col-lg-4">
         <div class="card h-100 {{ $isContract ? 'border-primary shadow-sm' : 'border' }}">
@@ -50,9 +49,6 @@
               <span class="badge bg-label-success">Contract</span>
               @endif
             </div>
-            <p class="text-muted small mb-3">
-              <span class="badge bg-label-primary">{{ $styleLabel }}</span>
-            </p>
             <div class="d-flex flex-wrap gap-2 mt-auto">
               <a href="{{ route('module-agreements.templates.preview', ['company_slug' => $companySlug, 'module' => $module, 'template' => $template->id]) }}"
                 class="btn btn-sm btn-outline-info" target="_blank">View</a>

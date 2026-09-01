@@ -31,4 +31,25 @@ class AgreementLetterheadPaginatorTest extends TestCase
         $this->assertNotSame('', trim(strip_tags($pages[0])));
         $this->assertNotSame('', trim(strip_tags($pages[array_key_last($pages)])));
     }
+
+    public function test_editor_page_breaks_are_honored(): void
+    {
+        $html = '<p>First page clause.</p><div data-agreement-page-break="1"></div><p>Second page clause.</p>';
+        $pages = (new AgreementLetterheadPaginator())->paginate($html, 238.0);
+
+        $this->assertCount(2, $pages);
+        $this->assertStringContainsString('First page clause', $pages[0]);
+        $this->assertStringContainsString('Second page clause', $pages[1]);
+        $this->assertStringNotContainsString('Second page clause', $pages[0]);
+    }
+
+    public function test_empty_paragraphs_are_kept_for_spacing(): void
+    {
+        $html = '<p>Title</p><p>&nbsp;</p><p>After a blank line.</p>';
+        $pages = (new AgreementLetterheadPaginator())->paginate($html, 238.0);
+
+        $this->assertCount(1, $pages);
+        $this->assertStringContainsString('&nbsp;', $pages[0]);
+        $this->assertStringContainsString('After a blank line', $pages[0]);
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Agreements\AgreementLetterheadLayout;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Builder;
@@ -20,6 +21,7 @@ class AgreementCategory extends BaseModel
         'name',
         'description',
         'letterhead_path',
+        'letterhead_id',
         'letterhead_margins',
         'sort_order',
         'status',
@@ -32,6 +34,11 @@ class AgreementCategory extends BaseModel
         'assigned_modules' => 'array',
         'letterhead_margins' => 'array',
     ];
+
+    public function letterhead(): BelongsTo
+    {
+        return $this->belongsTo(AgreementLetterhead::class, 'letterhead_id');
+    }
 
     public function templates(): HasMany
     {
@@ -63,16 +70,34 @@ class AgreementCategory extends BaseModel
 
     public function hasLetterhead(): bool
     {
-        return $this->letterhead_path !== null && $this->letterhead_path !== '';
+        return $this->letterheadRelativePath() !== null;
+    }
+
+    public function letterheadRelativePath(): ?string
+    {
+        if ($this->letterhead_id) {
+            $path = $this->letterhead?->relativePath();
+            if ($path) {
+                return $path;
+            }
+        }
+
+        $legacy = ltrim(preg_replace('#^storage/#', '', (string) $this->letterhead_path) ?? '', '/');
+
+        return $legacy !== '' ? $legacy : null;
     }
 
     public function letterheadFilesystemPath(): ?string
     {
-        if (! $this->hasLetterhead()) {
+        if ($this->letterhead_id && $this->letterhead) {
+            return $this->letterhead->filesystemPath();
+        }
+
+        $relative = $this->letterheadRelativePath();
+        if ($relative === null) {
             return null;
         }
 
-        $relative = ltrim(preg_replace('#^storage/#', '', (string) $this->letterhead_path) ?? '', '/');
         $fullPath = storage_path('app/public/' . $relative);
 
         return is_readable($fullPath) ? $fullPath : null;
@@ -226,65 +251,24 @@ class AgreementCategory extends BaseModel
                     $defaultContent = (string) view($view)->render();
                 }
 
-                // Seed BOTH professional styles so each agreement has 2 templates.
                 $baseName = (string) ($cat['default_template_name'] ?? 'Default Template');
 
                 $templatesBaseQuery = AgreementTemplate::withoutGlobalScopes()
                     ->where('company_id', $companyId)
                     ->where('category_id', $category->id);
 
-                $hasAnyDefault = $templatesBaseQuery->clone()->where('is_default', true)->exists();
-
-                $corporateExists = $templatesBaseQuery->clone()
-                    ->where('template_type', AgreementTemplate::TYPE_CORPORATE)
-                    ->exists();
-
-                if (! $corporateExists) {
+                if (! $templatesBaseQuery->clone()->exists()) {
                     AgreementTemplate::withoutGlobalScopes()->create([
                         'company_id' => $companyId,
                         'category_id' => $category->id,
-                        'template_name' => $baseName . ' (Corporate Professional)',
-                        'template_type' => AgreementTemplate::TYPE_CORPORATE,
+                        'template_name' => $baseName,
+                        'template_type' => AgreementTemplate::TYPE_STANDARD,
                         'description' => $defaultContent,
-                        'is_default' => ! $hasAnyDefault,
+                        'is_default' => true,
                         'status' => true,
                     ]);
-
-                    if (! $hasAnyDefault) {
-                        // Ensure only one default template exists.
-                        AgreementTemplate::withoutGlobalScopes()
-                            ->where('company_id', $companyId)
-                            ->where('category_id', $category->id)
-                            ->where('template_type', '!=', AgreementTemplate::TYPE_CORPORATE)
-                            ->update(['is_default' => false]);
-                    }
-                }
-
-                $premiumExists = $templatesBaseQuery->clone()
-                    ->where('template_type', AgreementTemplate::TYPE_PREMIUM)
-                    ->exists();
-
-                if (! $premiumExists) {
-                    AgreementTemplate::withoutGlobalScopes()->create([
-                        'company_id' => $companyId,
-                        'category_id' => $category->id,
-                        'template_name' => $baseName . ' (Modern Premium)',
-                        'template_type' => AgreementTemplate::TYPE_PREMIUM,
-                        'description' => $defaultContent,
-                        'is_default' => false,
-                        'status' => true,
-                    ]);
-                }
-
-                // If the category exists but no default template is set,
-                // pick the corporate style as default (or the first template).
-                if (! $templatesBaseQuery->clone()->where('is_default', true)->exists()) {
-                    $fallback = $templatesBaseQuery
-                        ->clone()
-                        ->where('template_type', AgreementTemplate::TYPE_CORPORATE)
-                        ->first();
-
-                    $fallback = $fallback ?: $templatesBaseQuery->clone()->first();
+                } elseif (! $templatesBaseQuery->clone()->where('is_default', true)->exists()) {
+                    $fallback = $templatesBaseQuery->clone()->orderBy('id')->first();
                     if ($fallback) {
                         $fallback->setAsDefault();
                     }

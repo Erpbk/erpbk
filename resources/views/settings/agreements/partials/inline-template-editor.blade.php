@@ -5,7 +5,7 @@ $secondary = $pb['secondary_color'] ?? '#1e3a8a';
 $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
 $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
 $selectedTemplateId = (int) old('contract_template_id', $contractTemplateId ?? 0);
-$editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLetterheadMarginsMm() : ['top' => 18, 'bottom' => 0, 'left' => 12, 'right' => 12]);
+$editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLetterheadMarginsMm() : app(\App\Services\Agreements\AgreementLetterheadLayout::class)->defaultMarginsMm());
 @endphp
 
 <div class="mb-3" id="template-content-panel" style="--agreement-primary: {{ $primary }}; --agreement-secondary: {{ $secondary }}; --agreement-on-primary: {{ $onPrimary }};">
@@ -59,12 +59,9 @@ $editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLe
     data-margin-left="{{ $editorMargins['left'] }}">
     <textarea id="agreement-template-editor" rows="40" class="form-control"></textarea>
     <div class="mt-2 d-flex flex-wrap gap-2 align-items-center">
-      <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-template-quick-preview">
-        <i class="ti ti-eye me-1"></i> Quick preview
-      </button>
       <a href="{{ $selectedTemplateId ? route('agreements.preview', ['company_slug' => request()->route('company_slug'), 'id' => $selectedTemplateId]) : '#' }}"
-        class="btn btn-outline-info btn-sm {{ $selectedTemplateId ? '' : 'd-none' }}" id="btn-template-full-preview" target="_blank">
-        <i class="ti ti-file-text me-1"></i> Full preview
+        class="btn btn-outline-info btn-sm {{ $selectedTemplateId ? '' : 'd-none' }}" id="btn-template-preview" target="_blank">
+        <i class="ti ti-eye me-1"></i> Preview
       </a>
       <a href="{{ $selectedTemplateId ? route('agreements.preview-pdf', ['company_slug' => request()->route('company_slug'), 'id' => $selectedTemplateId]) : '#' }}"
         class="btn btn-outline-primary btn-sm {{ $selectedTemplateId ? '' : 'd-none' }}" id="btn-template-download-pdf">

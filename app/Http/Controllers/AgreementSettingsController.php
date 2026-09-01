@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgreementCategory;
+use App\Models\AgreementLetterhead;
 use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
 use App\Services\Agreements\AgreementModuleService;
@@ -13,7 +14,6 @@ use App\Support\CompanyContext;
 use App\Models\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Laracasts\Flash\Flash;
 use Illuminate\Validation\Rule;
@@ -109,7 +109,7 @@ class AgreementSettingsController extends Controller
 
         $this->seedAgreementTemplates($category, $category->status);
 
-        Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '. Corporate template is the default contract template — change it under Edit if needed.');
+        Flash::success('Agreement created and assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
         $returnModule = (string) $request->input('return_module', '');
         if ($returnModule !== '' && in_array($returnModule, $this->assignableModuleKeys(), true)) {
@@ -129,11 +129,15 @@ class AgreementSettingsController extends Controller
     {
         $this->authorizeAgreement('agreements_edit');
 
-        $category = AgreementCategory::with(['templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderBy('template_name')])->findOrFail($category);
+        $category = AgreementCategory::with([
+            'letterhead',
+            'templates' => fn($q) => $q->where('status', true)->orderBy('template_name'),
+        ])->findOrFail($category);
         $modules = $this->moduleOptions();
         $groups = config('agreement_categories.groups', []);
         $placeholders = AgreementPlaceholder::grouped();
         $pdfBranding = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
+        $letterheads = AgreementLetterhead::query()->orderBy('name')->get();
 
         $contractTemplateId = optional($category->contractTemplate())->id;
         $letterheadMargins = app(AgreementLetterheadLayout::class)->resolvedMarginsMm($category);
@@ -145,7 +149,8 @@ class AgreementSettingsController extends Controller
             'contractTemplateId',
             'placeholders',
             'pdfBranding',
-            'letterheadMargins'
+            'letterheadMargins',
+            'letterheads'
         ));
     }
 
@@ -153,7 +158,7 @@ class AgreementSettingsController extends Controller
     {
         $this->authorizeAgreement('agreements_view');
 
-        $category = AgreementCategory::with(['defaultTemplate', 'templates' => fn($q) => $q->sampleStyles()])->findOrFail($category);
+        $category = AgreementCategory::with(['defaultTemplate', 'templates', 'letterhead'])->findOrFail($category);
         $modules = $this->moduleOptions();
         $groups = config('agreement_categories.groups', []);
 
@@ -191,13 +196,16 @@ class AgreementSettingsController extends Controller
             ],
             'template_contents' => 'nullable|array',
             'template_contents.*' => 'nullable|string',
-            'letterhead' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:6144',
-            'remove_letterhead' => 'sometimes|boolean',
+            'letterhead_id' => [
+                'nullable',
+                Rule::exists('agreement_letterheads', 'id')->where(fn($q) => $q->where('company_id', $companyId)),
+            ],
             'letterhead_margins' => 'nullable|array',
             'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
             'letterhead_margins.bottom' => 'nullable|numeric|min:0|max:50',
             'letterhead_margins.left' => 'nullable|numeric|min:5|max:50',
             'letterhead_margins.right' => 'nullable|numeric|min:5|max:50',
+            'letterhead_margins.page_size' => ['nullable', 'string', Rule::in(app(AgreementLetterheadLayout::class)->allowedPageSizeKeys())],
         ], [
             'assigned_modules.required' => 'Select at least one module for this agreement.',
             'assigned_modules.min' => 'Select at least one module for this agreement.',
@@ -232,10 +240,12 @@ class AgreementSettingsController extends Controller
 
         $layout = app(AgreementLetterheadLayout::class);
         $marginBaseline = $layout->resolvedMarginsMm($category);
-        $newLetterheadUpload = $request->hasFile('letterhead');
 
-        $this->handleLetterheadUpload($request, $category);
-        $this->saveLetterheadMargins($request, $category, $marginBaseline, $newLetterheadUpload);
+        $letterheadId = $request->input('letterhead_id');
+        $category->letterhead_id = ($letterheadId === '' || $letterheadId === null) ? null : (int) $letterheadId;
+        $category->save();
+
+        $this->saveLetterheadMargins($request, $category, $marginBaseline, false);
 
         Flash::success('Agreement saved. Assigned to: ' . $this->moduleAssignmentLabel($category->assigned_modules) . '.');
 
@@ -245,13 +255,40 @@ class AgreementSettingsController extends Controller
         ]);
     }
 
+    public function updateLetterheadLayout(Request $request, $company_slug, $category)
+    {
+        $this->authorizeAgreement('agreements_edit');
+
+        $category = AgreementCategory::findOrFail($category);
+        $layout = app(AgreementLetterheadLayout::class);
+
+        $request->validate([
+            'letterhead_margins' => 'required|array',
+            'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
+            'letterhead_margins.bottom' => 'nullable|numeric|min:0|max:50',
+            'letterhead_margins.left' => 'nullable|numeric|min:5|max:50',
+            'letterhead_margins.right' => 'nullable|numeric|min:5|max:50',
+            'letterhead_margins.page_size' => ['nullable', 'string', Rule::in($layout->allowedPageSizeKeys())],
+        ]);
+
+        $this->saveLetterheadMargins($request, $category, $layout->resolvedMarginsMm($category), false);
+        $category->refresh();
+        $size = $layout->resolvedPageSize($category);
+
+        return response()->json([
+            'ok' => true,
+            'page_size' => $size['key'],
+            'width_mm' => $size['width_mm'],
+            'height_mm' => $size['height_mm'],
+        ]);
+    }
+
     public function destroyAgreement(Request $request, $company_slug, $category)
     {
         $this->authorizeAgreement('agreements_delete');
 
         $category = AgreementCategory::findOrFail($category);
         $groupKey = (string) $category->group_key;
-        $this->deleteLetterheadFile($category);
         $category->delete();
 
         Flash::success('Agreement deleted.');
@@ -306,7 +343,7 @@ class AgreementSettingsController extends Controller
 
         return view('settings.agreements.editor', array_merge(
             $this->editorViewData($category, new AgreementTemplate([
-                'template_type' => AgreementTemplate::TYPE_CORPORATE,
+                'template_type' => AgreementTemplate::TYPE_STANDARD,
                 'status' => true,
             ])),
             ['placeholders' => $placeholders]
@@ -445,9 +482,15 @@ class AgreementSettingsController extends Controller
 
         $template = AgreementTemplate::findOrFail($id);
         $withLetterhead = $request->boolean('letterhead', true);
-        $html = $pdfService->renderHtml($template, new \App\Models\Riders(), null, true, $withLetterhead);
+        $params = [
+            'company_slug' => $company_slug,
+            'id' => $template->id,
+            'letterhead' => $withLetterhead ? 1 : 0,
+        ];
+        $pdfDownloadUrl = route('agreements.preview-pdf', $params);
+        $pdfStreamUrl = route('agreements.preview-pdf', $params + ['inline' => 1]);
 
-        return view('agreements.preview', compact('html', 'template', 'withLetterhead'));
+        return view('agreements.preview', compact('template', 'withLetterhead', 'pdfDownloadUrl', 'pdfStreamUrl'));
     }
 
     public function previewPdf(Request $request, $company_slug, $id, AgreementPdfService $pdfService)
@@ -459,19 +502,19 @@ class AgreementSettingsController extends Controller
         $pdf = $pdfService->previewPdf($template, null, null, $withLetterhead);
         $filename = Str::slug($template->template_name) . '-preview.pdf';
 
-        return $pdf->download($filename);
+        return $pdfService->httpResponse($pdf, $filename, $request);
     }
 
     private function validatedTemplate(Request $request): array
     {
         return $request->validate([
             'template_name' => 'required|string|max:191',
-            'template_type' => 'required|in:corporate,premium',
             'description' => 'nullable|string',
             'status' => 'sometimes|boolean',
             'is_default' => 'sometimes|boolean',
         ]) + [
             'status' => $request->boolean('status', true),
+            'template_type' => AgreementTemplate::TYPE_STANDARD,
         ];
     }
 
@@ -553,7 +596,6 @@ class AgreementSettingsController extends Controller
     {
         $template = AgreementTemplate::query()
             ->where('category_id', $category->id)
-            ->sampleStyles()
             ->where('status', true)
             ->findOrFail($templateId);
 
@@ -571,7 +613,6 @@ class AgreementSettingsController extends Controller
 
         $validIds = AgreementTemplate::query()
             ->where('category_id', $category->id)
-            ->sampleStyles()
             ->pluck('id')
             ->map(fn($id) => (int) $id)
             ->all();
@@ -589,63 +630,12 @@ class AgreementSettingsController extends Controller
         }
     }
 
-    private function handleLetterheadUpload(Request $request, AgreementCategory $category): void
-    {
-        if ($request->boolean('remove_letterhead')) {
-            $this->deleteLetterheadFile($category);
-            $category->letterhead_path = null;
-            $category->letterhead_margins = null;
-            $category->save();
-
-            return;
-        }
-
-        if (! $request->hasFile('letterhead')) {
-            return;
-        }
-
-        $this->deleteLetterheadFile($category);
-
-        $path = $request->file('letterhead')->store(
-            'agreement-letterheads/' . (int) $category->company_id,
-            'public'
-        );
-
-        $fullPath = storage_path('app/public/' . ltrim($path, '/'));
-        $layout = app(AgreementLetterheadLayout::class);
-
-        $category->letterhead_path = $path;
-        $detected = $layout->suggestMarginsFromFilesystem(
-            is_readable($fullPath) ? $fullPath : null
-        );
-        $category->letterhead_margins = [
-            'top' => $detected['top'],
-            'bottom' => $detected['bottom'],
-            'left' => $detected['left'],
-            'right' => $detected['right'],
-        ];
-        $category->save();
-    }
-
-    private function deleteLetterheadFile(AgreementCategory $category): void
-    {
-        if (! $category->hasLetterhead()) {
-            return;
-        }
-
-        Storage::disk('public')->delete((string) $category->letterhead_path);
-    }
-
     private function saveLetterheadMargins(
         Request $request,
         AgreementCategory $category,
         array $baseline,
         bool $newLetterheadUpload
     ): void {
-        if ($request->boolean('remove_letterhead')) {
-            return;
-        }
-
         $input = $request->input('letterhead_margins');
         if (! is_array($input)) {
             return;
@@ -661,11 +651,15 @@ class AgreementSettingsController extends Controller
             $margins[$side] = (float) $input[$side];
         }
 
-        if ($margins === []) {
+        $layout = app(AgreementLetterheadLayout::class);
+        $pageSizeKey = strtolower(trim((string) ($input['page_size'] ?? '')));
+        $hasPageSize = $pageSizeKey !== '' && in_array($pageSizeKey, $layout->allowedPageSizeKeys(), true);
+
+        if ($margins === [] && ! $hasPageSize) {
             return;
         }
 
-        if ($newLetterheadUpload && ! $this->letterheadMarginsChanged($margins, $baseline)) {
+        if ($newLetterheadUpload && $margins !== [] && ! $this->letterheadMarginsChanged($margins, $baseline) && ! $hasPageSize) {
             return;
         }
 
@@ -683,6 +677,10 @@ class AgreementSettingsController extends Controller
                 : 55;
 
             $stored[$side] = max($min, min($max, round($margins[$side], 1)));
+        }
+
+        if ($hasPageSize) {
+            $stored['page_size'] = $pageSizeKey;
         }
 
         $category->letterhead_margins = $stored;
@@ -735,20 +733,10 @@ HTML;
         AgreementTemplate::create([
             'company_id' => $companyId,
             'category_id' => $category->id,
-            'template_name' => $category->name . ' (Corporate Professional)',
-            'template_type' => AgreementTemplate::TYPE_CORPORATE,
+            'template_name' => $category->name,
+            'template_type' => AgreementTemplate::TYPE_STANDARD,
             'description' => $seedContent,
             'is_default' => true,
-            'status' => $status,
-        ]);
-
-        AgreementTemplate::create([
-            'company_id' => $companyId,
-            'category_id' => $category->id,
-            'template_name' => $category->name . ' (Modern Premium)',
-            'template_type' => AgreementTemplate::TYPE_PREMIUM,
-            'description' => $seedContent,
-            'is_default' => false,
             'status' => $status,
         ]);
     }

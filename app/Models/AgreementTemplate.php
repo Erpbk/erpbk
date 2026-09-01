@@ -7,14 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgreementTemplate extends BaseModel
 {
+    public const TYPE_STANDARD = 'standard';
+
     public const TYPE_CORPORATE = 'corporate';
 
     public const TYPE_PREMIUM = 'premium';
-
-    public const TYPES = [
-        self::TYPE_CORPORATE => 'Style 1 – Corporate',
-        self::TYPE_PREMIUM => 'Style 2 – Premium Modern',
-    ];
 
     protected $table = 'agreement_templates';
 
@@ -38,12 +35,9 @@ class AgreementTemplate extends BaseModel
         return $this->belongsTo(AgreementCategory::class, 'category_id');
     }
 
-    /**
-     * System sample styles (Corporate + Premium) used for module customization.
-     */
     public function scopeSampleStyles(Builder $query): Builder
     {
-        return $query->whereIn('template_type', [self::TYPE_CORPORATE, self::TYPE_PREMIUM]);
+        return $query;
     }
 
     public function setAsDefault(): void

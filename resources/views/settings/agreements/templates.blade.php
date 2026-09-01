@@ -26,7 +26,6 @@
           <thead>
             <tr>
               <th>Template</th>
-              <th>PDF Style</th>
               <th>Default</th>
               <th>Status</th>
               <th class="text-end">Actions</th>
@@ -36,13 +35,6 @@
             @forelse($templates as $template)
             <tr>
               <td>{{ $template->template_name }}</td>
-              <td>
-                @if($template->template_type === 'premium')
-                <span class="badge" style="background:{{ $pdfBranding['secondary_color'] ?? '#1e3a8a' }};color:#fff;">Premium</span>
-                @else
-                <span class="badge" style="background:{{ $pdfBranding['primary_color'] ?? '#2563eb' }};color:{{ $pdfBranding['text_on_primary'] ?? '#fff' }};">Corporate</span>
-                @endif
-              </td>
               <td>
                 @if($template->is_default)
                 <span class="badge bg-label-primary">Default</span>
@@ -98,7 +90,7 @@
             </tr>
             @empty
             <tr>
-              <td colspan="5" class="text-muted text-center py-4">No templates yet.</td>
+                <td colspan="4" class="text-muted text-center py-4">No templates yet.</td>
             </tr>
             @endforelse
           </tbody>

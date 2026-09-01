@@ -1,19 +1,15 @@
 @php
 $bike = $bike ?? \App\Models\Bikes::find($id);
 $assignBranchScopedOptions = $assignBranchScopedOptions ?? [];
-$vehicleTypeName = $bike->vehicle_type ?? '';
+$vehicleTypeName = $bike?->vehicle_type ?? '';
 if ($bike && $bike->vehicle_type) {
     $vehicleModel = \App\Models\VehicleModels::find($bike->vehicle_type);
+    if ($vehicleModel && ! empty($vehicleModel->name)) {
+        $vehicleTypeName = $vehicleModel->name;
+    }
 }
 
-$selectedDesignation = '';
-if (strpos($vehicleTypeName, 'bike') !== false) {
-    $selectedDesignation = 'Rider';
-} elseif (strpos($vehicleTypeName, 'car') !== false || strpos($vehicleTypeName, 'van') !== false) {
-    $selectedDesignation = 'Driver';
-} elseif (strpos($vehicleTypeName, 'cyclist') !== false) {
-    $selectedDesignation = 'Cyclist';
-}
+$selectedDesignation = \App\Models\Riders::designationFromVehicleType($bike->vehicle_type ?? null) ?? '';
 
 $assignFields = $assignFields ?? \App\Models\BikeCustomField::assignModalFields('active');
 $assignTargets = $assignTargets ?? \App\Support\CompanyModuleVisibility::bikeAssignTargets();
@@ -47,7 +43,7 @@ $wideFields = $assignFields->filter(function ($f) {
     <i class="ti ti-lock me-1"></i> No assignable resources found in the system.
 </div>
 @else
-<form action="{{ route('bikes.assign_rider', $id) }}" method="post" id="formajax">
+<form action="{{ route('bikes.assign_rider', $id) }}" method="post" id="formajax" novalidate data-bike-assign-modal="1">
     @csrf
     <input type="hidden" name="bike_id" value="{{ $id }}" />
     <div class="row">
@@ -94,27 +90,20 @@ $wideFields = $assignFields->filter(function ($f) {
 </style>
 
 <script>
-    var vehicleTypeName = @json($vehicleTypeName);
+    var vehicleTypeName = String(@json($vehicleTypeName) || '');
+    var selectedDesignation = @json($selectedDesignation);
 
     function updateDesignationBasedOnVehicleType() {
-        var designation = '';
-        if (vehicleTypeName && vehicleTypeName.includes('bike')) {
-            designation = 'Rider';
-        } else if (vehicleTypeName && (vehicleTypeName.includes('car') || vehicleTypeName.includes('van'))) {
-            designation = 'Driver';
-        } else if (vehicleTypeName && vehicleTypeName.includes('cyclist')) {
-            designation = 'Cyclist';
-        }
-        if (designation) {
-            $('input[name="designation"]').val(designation);
+        if (selectedDesignation) {
+            $('input[name="designation"]').val(selectedDesignation);
         }
     }
 
     function initAssignModalSelect2($scope) {
-        var $root = $scope && $scope.length ? $scope : $('#modalTopbody');
+        var $root = $scope && $scope.length ? $scope : $('#formajax');
         $root.find('select.select2').each(function() {
             var $el = $(this);
-            if ($el.closest('.hidden-field').length && !$el.is(':visible')) {
+            if ($el.prop('disabled') || ($el.closest('.hidden-field').length && !$el.is(':visible'))) {
                 return;
             }
             if ($el.hasClass('select2-hidden-accessible')) {
@@ -122,10 +111,46 @@ $wideFields = $assignFields->filter(function ($f) {
             }
             $el.select2({
                 allowClear: true,
-                dropdownParent: $('#modalTopbody'),
+                dropdownParent: $('#modalTopbody').length ? $('#modalTopbody') : $el.closest('.modal'),
                 width: '100%'
             });
         });
+    }
+
+    function setAssignGroupEnabled(selector, enabled) {
+        var $group = $(selector);
+        $group.toggleClass('hidden-field', !enabled);
+        if (enabled) {
+            $group.show();
+        } else {
+            $group.hide();
+        }
+        $group.find('input, select, textarea').each(function() {
+            var $el = $(this);
+            if ($el.attr('type') === 'hidden' && !$el.is('select')) {
+                return;
+            }
+            if (enabled) {
+                $el.prop('disabled', false);
+                if ($el.data('assignRequired')) {
+                    $el.attr('required', 'required');
+                }
+            } else {
+                if ($el.prop('required')) {
+                    $el.data('assignRequired', true);
+                }
+                $el.removeAttr('required');
+                $el.prop('disabled', true);
+                if ($el.is('select') || $el.is('input:not([readonly]):not([type="checkbox"])') || $el.is('textarea')) {
+                    if ($el.is('select')) {
+                        $el.val(null);
+                    }
+                }
+            }
+        });
+        if (enabled) {
+            initAssignModalSelect2($group);
+        }
     }
 
     function toggleAssignmentFields() {
@@ -133,35 +158,45 @@ $wideFields = $assignFields->filter(function ($f) {
         if (assignType === 'company') {
             assignType = 'rental';
         }
-        var $rentalSelect = $('#rental_company_id');
-        var $garageSelect = $('#garage_company_id');
-        $rentalSelect.prop('disabled', true);
-        $garageSelect.prop('disabled', true);
+
+        setAssignGroupEnabled('.assign-group-rider', assignType === 'rider');
+        setAssignGroupEnabled('.assign-group-rental', assignType === 'rental');
+        setAssignGroupEnabled('.assign-group-garage', assignType === 'garage');
 
         if (assignType === 'rider') {
-            $('#rider_select, #designation_field, #project_field').removeClass('hidden-field').show();
-            $('#rental_customer_select, #garage_customer_select, #company_select').addClass('hidden-field').hide();
-            $rentalSelect.add($garageSelect).val('').trigger('change');
-            initAssignModalSelect2($('#rider_select, #designation_field, #project_field'));
+            $('#rider_id, #customer_id').attr('required', 'required').data('assignRequired', true);
+            $('#rental_company_id, #garage_company_id').val(null);
         } else if (assignType === 'rental') {
-            $('#rental_customer_select').removeClass('hidden-field').show();
-            $('#rider_select, #designation_field, #project_field, #garage_customer_select, #company_select').addClass('hidden-field').hide();
-            $('#rider_id').val('').trigger('change');
-            $garageSelect.val('').trigger('change');
-            $rentalSelect.prop('disabled', false);
-            initAssignModalSelect2($('#rental_customer_select'));
+            $('#rental_company_id').attr('required', 'required').data('assignRequired', true);
+            $('#rider_id, #customer_id, #garage_company_id').val(null);
         } else if (assignType === 'garage') {
-            $('#garage_customer_select').removeClass('hidden-field').show();
-            $('#rider_select, #designation_field, #project_field, #rental_customer_select, #company_select').addClass('hidden-field').hide();
-            $('#rider_id').val('').trigger('change');
-            $rentalSelect.val('').trigger('change');
-            $garageSelect.prop('disabled', false);
-            initAssignModalSelect2($('#garage_customer_select'));
+            $('#garage_company_id').attr('required', 'required').data('assignRequired', true);
+            $('#rider_id, #customer_id, #rental_company_id').val(null);
         } else {
-            $('#rider_select, #rental_customer_select, #garage_customer_select, #company_select, #designation_field, #project_field').addClass('hidden-field').hide();
-            $('#rider_id').val('').trigger('change');
-            $rentalSelect.add($garageSelect).val('').trigger('change');
+            $('#rider_id, #customer_id, #rental_company_id, #garage_company_id').val(null);
         }
+    }
+
+    function firstMissingAssignField($form) {
+        var missing = null;
+        $form.find('input, select, textarea').filter(':enabled').each(function() {
+            var $el = $(this);
+            if ($el.closest('.hidden-field').length) {
+                return;
+            }
+            if ($el.attr('type') === 'hidden') {
+                return;
+            }
+            if (!$el.prop('required') && $el.attr('data-assign-required') !== '1') {
+                return;
+            }
+            var val = $el.val();
+            if (val === null || val === undefined || String(val).trim() === '') {
+                missing = $el;
+                return false;
+            }
+        });
+        return missing;
     }
 
     $(document).ready(function() {
@@ -171,6 +206,30 @@ $wideFields = $assignFields->filter(function ($f) {
             $('#assign_type').on('change', toggleAssignmentFields);
             toggleAssignmentFields();
         }
+
+        $('#formajax').on('click', 'button[type="submit"]', function(e) {
+            var $form = $('#formajax');
+            var $missing = firstMissingAssignField($form);
+            if (!$missing || !$missing.length) {
+                return;
+            }
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            var label = $missing.closest('.form-group').find('label').first().text().replace(/\*/g, '').trim() || 'This field';
+            if (typeof toastr !== 'undefined') {
+                toastr.error(label + ' is required.');
+            } else {
+                alert(label + ' is required.');
+            }
+            try {
+                if ($missing.hasClass('select2-hidden-accessible')) {
+                    $missing.select2('open');
+                } else {
+                    $missing.trigger('focus');
+                }
+            } catch (err) {}
+            return false;
+        });
     });
 </script>
 @endunless

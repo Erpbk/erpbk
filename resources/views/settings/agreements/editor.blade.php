@@ -4,53 +4,6 @@
 
 @push('third_party_stylesheets')
 <style>
-  .agreement-style-card {
-    border: 2px solid #e4e6ef;
-    border-radius: 10px;
-    padding: 12px;
-    cursor: pointer;
-    transition: border-color .15s, box-shadow .15s;
-    height: 100%;
-  }
-
-  .agreement-style-card:hover {
-    border-color: #b4b9ca;
-  }
-
-  .agreement-style-card.active {
-    border-color: var(--agreement-primary, #2563eb);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  }
-
-  .style-preview-corporate {
-    height: 56px;
-    border-radius: 6px;
-    background: linear-gradient(180deg, var(--agreement-primary) 0%, var(--agreement-primary) 38%, #fff 38%);
-    border: 1px solid #e2e8f0;
-    margin-bottom: 8px;
-  }
-
-  .style-preview-premium {
-    height: 56px;
-    border-radius: 6px;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-left: 5px solid var(--agreement-primary);
-    margin-bottom: 8px;
-    position: relative;
-  }
-
-  .style-preview-premium::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--agreement-secondary);
-    margin-left: 5px;
-  }
-
   .branding-panel {
     border-radius: 10px;
     overflow: hidden;
@@ -109,7 +62,6 @@ $primary = $pb['primary_color'] ?? '#2563eb';
 $secondary = $pb['secondary_color'] ?? '#1e3a8a';
 $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
 $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
-$selectedType = old('template_type', $template->template_type ?? 'corporate');
 @endphp
 
 <div class="row" style="--agreement-primary: {{ $primary }}; --agreement-secondary: {{ $secondary }}; --agreement-on-primary: {{ $onPrimary }};">
@@ -147,33 +99,13 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
               placeholder="e.g. Standard Rider Contract 2026">
           </div>
 
-          <div class="mb-4">
-            <label class="form-label d-block mb-2">PDF design style</label>
-            <input type="hidden" name="template_type" id="template_type_input" value="{{ $selectedType }}">
-            <div class="row g-3">
-              <div class="col-md-6">
-                <div class="agreement-style-card {{ $selectedType === 'corporate' ? 'active' : '' }}" data-style="corporate">
-                  <div class="style-preview-corporate"></div>
-                  <strong>Style 1 — Corporate</strong>
-                  <p class="text-muted small mb-0 mt-1">Colored header band, official ref badge, structured tables, classic signatures.</p>
-                </div>
-              </div>
-              <div class="col-md-6">
-                <div class="agreement-style-card {{ $selectedType === 'premium' ? 'active' : '' }}" data-style="premium">
-                  <div class="style-preview-premium"></div>
-                  <strong>Style 2 — Premium Modern</strong>
-                  <p class="text-muted small mb-0 mt-1">Side accent stripe, card header with logo frame, highlighted clause panel.</p>
-                </div>
-              </div>
-            </div>
-            <p class="text-muted small mt-2 mb-0">
-              <i class="ti ti-palette"></i> Colors and logo are taken from your <a href="{{ route('settings-panel.company', ['company_slug' => request()->route('company_slug')]) }}">Company Details</a>.
-            </p>
-          </div>
-
           <div class="mb-3">
             <label class="form-label">Agreement content</label>
-            <div class="agreement-word-editor">
+            <div class="agreement-word-editor"
+              data-margin-top="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['top'] ?? '' }}"
+              data-margin-right="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['right'] ?? '' }}"
+              data-margin-bottom="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['bottom'] ?? '' }}"
+              data-margin-left="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['left'] ?? '' }}">
               <textarea name="description" id="agreement-editor" rows="40" class="form-control">{{ old('description', $template->description) }}</textarea>
             </div>
           </div>
@@ -197,7 +129,6 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
 
           <div class="d-flex flex-wrap gap-2">
             <button type="submit" class="btn btn-primary"><i class="ti ti-device-floppy me-1"></i> Save template</button>
-            <button type="button" class="btn btn-outline-secondary" id="btn-preview-before-save"><i class="ti ti-eye me-1"></i> Quick preview</button>
             <a href="{{ route('agreements.templates', ['company_slug' => request()->route('company_slug'), 'category' => $category->id]) }}"
               class="btn btn-label-secondary">Cancel</a>
           </div>
@@ -266,16 +197,6 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
       selector: '#agreement-editor'
     }));
 
-    document.querySelectorAll('.agreement-style-card').forEach(function(card) {
-      card.addEventListener('click', function() {
-        document.querySelectorAll('.agreement-style-card').forEach(function(c) {
-          c.classList.remove('active');
-        });
-        card.classList.add('active');
-        document.getElementById('template_type_input').value = card.getAttribute('data-style');
-      });
-    });
-
     document.querySelectorAll('.placeholder-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var ph = btn.getAttribute('data-placeholder');
@@ -289,19 +210,6 @@ $selectedType = old('template_type', $template->template_type ?? 'corporate');
       if (tinymce.get('agreement-editor')) {
         tinymce.get('agreement-editor').save();
       }
-    });
-
-    document.getElementById('btn-preview-before-save').addEventListener('click', function() {
-      if (tinymce.get('agreement-editor')) {
-        tinymce.get('agreement-editor').save();
-      }
-      var w = window.open('', '_blank');
-      var primary = getComputedStyle(document.querySelector('.row')).getPropertyValue('--agreement-primary').trim() || '#2563eb';
-      w.document.write('<html><head><style>body{font-family:Calibri,sans-serif;padding:24px;} .hdr{background:' + primary + ';color:#fff;padding:16px;margin:-24px -24px 20px;}</style></head><body>');
-      w.document.write('<div class="hdr"><strong>Content preview</strong> (full PDF layout uses Style 1 or 2 after save)</div>');
-      w.document.write(document.getElementById('agreement-editor').value);
-      w.document.write('</body></html>');
-      w.document.close();
     });
   });
 </script>

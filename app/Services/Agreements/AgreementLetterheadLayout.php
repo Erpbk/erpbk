@@ -179,16 +179,17 @@ class AgreementLetterheadLayout
 
     /**
      * CSS padding for the content flow area (mm).
+     * Letterhead chrome is an overlay, so top padding stays the full page margin
+     * whether or not the digital header is drawn (pre-printed paper aligns).
      *
      * @return array{top: float, bottom: float}
      */
     public function contentPaddingMm(?AgreementCategory $category, bool $withLetterhead): array
     {
         $m = $this->resolvedMarginsMm($category);
-        $headerChrome = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
 
         return [
-            'top' => $withLetterhead ? max(0.0, $m['top'] - $headerChrome) : $m['top'],
+            'top' => $m['top'],
             'bottom' => $m['bottom'],
         ];
     }
@@ -210,7 +211,7 @@ class AgreementLetterheadLayout
     {
         $m = $this->resolvedMarginsMm($category);
 
-        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom']);
+        return max(40, $this->pageHeightMm($category) - $m['top'] - $m['bottom']);
     }
 
     /**
@@ -222,17 +223,72 @@ class AgreementLetterheadLayout
     {
         $m = $this->resolvedMarginsMm($category);
 
-        return max(40, $this->pageHeightMm() - $m['top'] - $m['bottom'] - 8.0);
+        return max(40, $this->pageHeightMm($category) - $m['top'] - $m['bottom']);
     }
 
-    public function pageWidthMm(): float
+    /**
+     * @return array{key: string, label: string, width_mm: float, height_mm: float, dompdf: string}
+     */
+    public function resolvedPageSize(?AgreementCategory $category = null): array
     {
-        return (float) config('agreement_letterhead.page_width_mm', 210);
+        $saved = $category?->letterhead_margins;
+        $key = is_array($saved) ? (string) ($saved['page_size'] ?? '') : '';
+
+        return $this->pageSizeByKey($key);
     }
 
-    public function pageHeightMm(): float
+    /**
+     * @return array{key: string, label: string, width_mm: float, height_mm: float, dompdf: string}
+     */
+    public function pageSizeByKey(?string $key): array
     {
-        return (float) config('agreement_letterhead.page_height_mm', 297);
+        $sizes = $this->pageSizeCatalog();
+        $default = (string) config('agreement_letterhead.default_page_size', 'a4');
+        $key = strtolower(trim((string) $key));
+
+        if ($key === '' || ! isset($sizes[$key])) {
+            $key = isset($sizes[$default]) ? $default : 'a4';
+        }
+
+        $size = $sizes[$key];
+
+        return [
+            'key' => $key,
+            'label' => (string) $size['label'],
+            'width_mm' => (float) $size['width_mm'],
+            'height_mm' => (float) $size['height_mm'],
+            'dompdf' => (string) ($size['dompdf'] ?? $key),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function allowedPageSizeKeys(): array
+    {
+        return array_keys($this->pageSizeCatalog());
+    }
+
+    /**
+     * @return array<string, array{label: string, width_mm: float, height_mm: float, dompdf: string}>
+     */
+    public function pageSizeCatalog(): array
+    {
+        $sizes = config('agreement_letterhead.page_sizes', []);
+
+        return is_array($sizes) && $sizes !== [] ? $sizes : [
+            'a4' => ['label' => 'A4', 'width_mm' => 210.0, 'height_mm' => 297.0, 'dompdf' => 'a4'],
+        ];
+    }
+
+    public function pageWidthMm(?AgreementCategory $category = null): float
+    {
+        return $this->resolvedPageSize($category)['width_mm'];
+    }
+
+    public function pageHeightMm(?AgreementCategory $category = null): float
+    {
+        return $this->resolvedPageSize($category)['height_mm'];
     }
 
     private function fallbackFractionMargins(): array

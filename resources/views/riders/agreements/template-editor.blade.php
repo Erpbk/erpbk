@@ -27,7 +27,11 @@
 
           <div class="mb-3">
             <label class="form-label">Template Content</label>
-            <div class="agreement-word-editor">
+            <div class="agreement-word-editor"
+              data-margin-top="{{ ($letterheadMargins ?? $category?->resolvedLetterheadMarginsMm() ?? [])['top'] ?? '' }}"
+              data-margin-right="{{ ($letterheadMargins ?? $category?->resolvedLetterheadMarginsMm() ?? [])['right'] ?? '' }}"
+              data-margin-bottom="{{ ($letterheadMargins ?? $category?->resolvedLetterheadMarginsMm() ?? [])['bottom'] ?? '' }}"
+              data-margin-left="{{ ($letterheadMargins ?? $category?->resolvedLetterheadMarginsMm() ?? [])['left'] ?? '' }}">
               <textarea name="description" id="agreement_template_editor" class="form-control" rows="40">{{ old('description', $template->description) }}</textarea>
             </div>
           </div>

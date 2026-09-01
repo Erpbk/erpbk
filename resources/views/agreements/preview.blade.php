@@ -5,8 +5,9 @@
   <meta charset="utf-8">
   <title>Agreement Preview — {{ $template->template_name ?? 'Preview' }}</title>
   <style>
-    body {
+    html, body {
       margin: 0;
+      height: 100%;
       font-family: system-ui, sans-serif;
       background: #f1f5f9;
     }
@@ -58,42 +59,27 @@
     }
 
     .preview-shell {
-      max-width: calc(210mm + 40px);
-      margin: 20px auto;
-      padding: 0 12px 24px;
+      height: calc(100vh - 57px);
+      background: #525659;
     }
 
     #agreement-preview-frame {
       display: block;
-      width: 210mm;
-      max-width: 100%;
-      min-height: 80vh;
-      margin: 0 auto;
+      width: 100%;
+      height: 100%;
       border: 0;
-      background: transparent;
+      background: #525659;
     }
 
     @media print {
-      body {
-        background: #fff;
-      }
-
       .toolbar {
         display: none !important;
       }
 
-      .preview-shell {
-        margin: 0;
-        padding: 0;
-        max-width: none;
-      }
-
+      .preview-shell,
       #agreement-preview-frame {
-        width: 100%;
-        max-width: none;
-        min-height: 0;
-        height: auto;
-        margin: 0;
+        height: 100%;
+        background: #fff;
       }
     }
   </style>
@@ -103,99 +89,72 @@
   @php
   $withLetterhead = $withLetterhead ?? request()->boolean('letterhead', true);
   $letterheadParam = $withLetterhead ? 1 : 0;
+  $pdfDownloadUrl = $pdfDownloadUrl ?? null;
+  if (! $pdfDownloadUrl && isset($rider) && $rider instanceof \Illuminate\Database\Eloquent\Model && $rider->exists) {
+      $pdfDownloadUrl = route('rider-agreements.pdf', [
+          'company_slug' => request()->route('company_slug'),
+          'riderId' => $rider->id,
+          'template_id' => $template->id,
+          'agreement_date' => request('agreement_date', now()->format('Y-m-d')),
+          'download' => 1,
+          'letterhead' => $letterheadParam,
+      ]);
+  }
+  if (! $pdfDownloadUrl && ! empty($template->id)) {
+      $pdfDownloadUrl = route('agreements.preview-pdf', [
+          'company_slug' => request()->route('company_slug'),
+          'id' => $template->id,
+          'letterhead' => $letterheadParam,
+      ]);
+  }
+  $pdfStreamUrl = $pdfStreamUrl ?? null;
+  if (! $pdfStreamUrl && $pdfDownloadUrl) {
+      $pdfStreamUrl = $pdfDownloadUrl . (str_contains($pdfDownloadUrl, '?') ? '&' : '?') . 'inline=1';
+  }
   @endphp
   <div class="toolbar">
     <strong>{{ $template->template_name ?? 'Agreement Preview' }}</strong>
     <span class="letterhead-badge">{{ $withLetterhead ? 'With letterhead' : 'Without letterhead' }}</span>
     <button type="button" id="btn-print-agreement" class="btn-primary">Print</button>
-    @php
-    $pdfDownloadUrl = $pdfDownloadUrl ?? null;
-    if (! $pdfDownloadUrl && isset($rider) && $rider instanceof \Illuminate\Database\Eloquent\Model && $rider->exists) {
-    $pdfDownloadUrl = route('rider-agreements.pdf', [
-    'company_slug' => request()->route('company_slug'),
-    'riderId' => $rider->id,
-    'template_id' => $template->id,
-    'agreement_date' => request('agreement_date', now()->format('Y-m-d')),
-    'download' => 1,
-    'letterhead' => $letterheadParam,
-    ]);
-    }
-    if (! $pdfDownloadUrl && ! empty($template->id)) {
-    $pdfDownloadUrl = route('agreements.preview-pdf', [
-    'company_slug' => request()->route('company_slug'),
-    'id' => $template->id,
-    'letterhead' => $letterheadParam,
-    ]);
-    }
-    @endphp
     @if($pdfDownloadUrl)
     <a href="{{ $pdfDownloadUrl }}" id="btn-download-pdf">Download PDF</a>
     @endif
     <button type="button" onclick="window.close()">Close</button>
   </div>
   <div class="preview-shell">
-    <iframe id="agreement-preview-frame" title="Agreement preview"></iframe>
+    <iframe id="agreement-preview-frame" title="Agreement preview" src="{{ $pdfStreamUrl }}"></iframe>
   </div>
 
   @include('agreements.partials.print-letterhead-dialog')
 
   <script>
     (function() {
-      var html = @json($html);
       var withLetterhead = @json($withLetterhead);
+      var streamUrl = @json($pdfStreamUrl);
       var frame = document.getElementById('agreement-preview-frame');
       var dialog = document.getElementById('letterhead-print-dialog');
       var cancelBtn = document.getElementById('letterhead-print-cancel');
       var pendingPrint = new URLSearchParams(window.location.search).get('autoprint') === '1';
 
-      var previewUrl = null;
-
-      function blobUrl(markup) {
-        return URL.createObjectURL(new Blob([markup], { type: 'text/html;charset=utf-8' }));
-      }
-
-      function resizeFrame() {
-        try {
-          var doc = frame.contentDocument || frame.contentWindow.document;
-          var height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-          frame.style.height = (height + 24) + 'px';
-        } catch (e) {}
-      }
-
-      previewUrl = blobUrl(html);
-      frame.src = previewUrl;
-      frame.onload = function() {
-        resizeFrame();
-        if (pendingPrint) {
-          pendingPrint = false;
-          runPrint(withLetterhead);
-        }
-      };
-
-      window.addEventListener('beforeunload', function() {
-        if (previewUrl) {
-          URL.revokeObjectURL(previewUrl);
-        }
-      });
-
-      function runPrint(useLetterhead) {
+      function runPrint() {
         try {
           var win = frame.contentWindow;
-          if (typeof win.__agreementRepaginate === 'function') {
-            win.__agreementRepaginate();
-          }
           win.focus();
-          setTimeout(function() {
-            win.print();
-          }, 150);
+          win.print();
         } catch (e) {
-          try {
-            frame.contentWindow.print();
-          } catch (err) {
-            window.print();
+          if (streamUrl) {
+            window.open(streamUrl, '_blank');
           }
         }
       }
+
+      frame.addEventListener('load', function() {
+        if (!pendingPrint) {
+          return;
+        }
+        pendingPrint = false;
+        setTimeout(runPrint, 400);
+      });
 
       function reloadWithLetterhead(useLetterhead, autoprint) {
         var url = new URL(window.location.href);
@@ -212,7 +171,7 @@
         if (!dialog || typeof dialog.showModal !== 'function') {
           var useLetterhead = window.confirm('Print with letterhead?\n\nOK = with letterhead\nCancel = without letterhead');
           if (useLetterhead === withLetterhead) {
-            runPrint(useLetterhead);
+            runPrint();
           } else {
             reloadWithLetterhead(useLetterhead, true);
           }
@@ -231,7 +190,7 @@
 
           var useLetterhead = choice === 'with';
           if (useLetterhead === withLetterhead) {
-            runPrint(useLetterhead);
+            runPrint();
           } else {
             reloadWithLetterhead(useLetterhead, true);
           }

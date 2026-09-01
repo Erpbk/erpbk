@@ -59,9 +59,6 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
             @php $contractTpl = $category->contractTemplate(); @endphp
             @if($contractTpl)
             <div>{{ $contractTpl->template_name }}</div>
-            <span class="badge bg-label-primary">
-              {{ \App\Models\AgreementTemplate::TYPES[$contractTpl->template_type] ?? $contractTpl->template_type }}
-            </span>
             @else
             <span class="text-muted">Not assigned — edit agreement to select a template.</span>
             @endif

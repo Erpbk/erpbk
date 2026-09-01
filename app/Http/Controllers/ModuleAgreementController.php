@@ -132,16 +132,6 @@ class ModuleAgreementController extends Controller
 
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
         $withLetterhead = $request->boolean('letterhead', true);
-        $html = $pdfService->renderHtmlForModule(
-            $template,
-            $module,
-            $recordModel,
-            $agreementDate,
-            false,
-            false,
-            $withLetterhead
-        );
-
         $pdfDownloadUrl = route('module-record-agreements.download', [
             'company_slug' => $company_slug,
             'module' => $module,
@@ -150,8 +140,17 @@ class ModuleAgreementController extends Controller
             'agreement_date' => $agreementDate,
             'letterhead' => $withLetterhead ? 1 : 0,
         ]);
+        $pdfStreamUrl = route('module-record-agreements.download', [
+            'company_slug' => $company_slug,
+            'module' => $module,
+            'record' => $record,
+            'category' => $agreement->id,
+            'agreement_date' => $agreementDate,
+            'letterhead' => $withLetterhead ? 1 : 0,
+            'inline' => 1,
+        ]);
 
-        return view('agreements.preview', compact('html', 'template', 'pdfDownloadUrl', 'withLetterhead'));
+        return view('agreements.preview', compact('template', 'pdfDownloadUrl', 'pdfStreamUrl', 'withLetterhead'));
     }
 
     public function downloadForRecord(Request $request, $company_slug, string $module, int $record, int $category, AgreementPdfService $pdfService)
@@ -170,7 +169,7 @@ class ModuleAgreementController extends Controller
         $pdf = $pdfService->generatePdfForModule($template, $module, $recordModel, $agreementDate, $withLetterhead);
         $filename = Str::slug($meta['code'] . '-' . $agreement->name) . '.pdf';
 
-        return $pdf->download($filename);
+        return $pdfService->httpResponse($pdf, $filename, $request);
     }
 
     public function show(Request $request, $company_slug, string $module, AgreementCategory $category)
@@ -179,7 +178,7 @@ class ModuleAgreementController extends Controller
         $this->assertCategoryAssigned($category, $module);
 
         $category->load([
-            'templates' => fn($q) => $q->sampleStyles()->where('status', true)->orderByDesc('is_default')->orderBy('template_name'),
+            'templates' => fn($q) => $q->where('status', true)->orderByDesc('is_default')->orderBy('template_name'),
             'defaultTemplate',
         ]);
 
@@ -212,12 +211,17 @@ class ModuleAgreementController extends Controller
         $this->authorizeModule($module);
 
         $template = $this->resolveModuleTemplate($template, $module);
-        $sampleEntity = $this->sampleEntityForModule($module);
-        $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
         $withLetterhead = $request->boolean('letterhead', true);
-        $html = $pdfService->renderHtml($template, $sampleEntity, $agreementDate, true, $withLetterhead);
+        $params = [
+            'company_slug' => $company_slug,
+            'module' => $module,
+            'template' => $template->id,
+            'letterhead' => $withLetterhead ? 1 : 0,
+        ];
+        $pdfDownloadUrl = route('module-agreements.templates.preview-pdf', $params);
+        $pdfStreamUrl = route('module-agreements.templates.preview-pdf', $params + ['inline' => 1]);
 
-        return view('agreements.preview', compact('html', 'template', 'withLetterhead'));
+        return view('agreements.preview', compact('template', 'withLetterhead', 'pdfDownloadUrl', 'pdfStreamUrl'));
     }
 
     public function previewTemplatePdf(Request $request, $company_slug, string $module, int $template, AgreementPdfService $pdfService)
@@ -230,7 +234,7 @@ class ModuleAgreementController extends Controller
         $pdf = $pdfService->previewPdf($template, $sampleEntity, null, $withLetterhead);
         $filename = Str::slug($template->template_name) . '-preview.pdf';
 
-        return $pdf->download($filename);
+        return $pdfService->httpResponse($pdf, $filename, $request);
     }
 
     public function destroy(Request $request, $company_slug, string $module, AgreementCategory $category)
@@ -241,7 +245,6 @@ class ModuleAgreementController extends Controller
     private function resolveModuleTemplate(int $templateId, string $module): AgreementTemplate
     {
         $template = AgreementTemplate::query()
-            ->sampleStyles()
             ->with('category')
             ->findOrFail($templateId);
         $this->assertCategoryAssigned($template->category, $module);

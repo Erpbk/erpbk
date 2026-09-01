@@ -325,6 +325,10 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
     });
 
+    Route::post('agreement-letterheads', [App\Http\Controllers\AgreementLetterheadSettingsController::class, 'store'])->name('settings-panel.agreement-letterheads.store');
+    Route::put('agreement-letterheads/{letterhead}', [App\Http\Controllers\AgreementLetterheadSettingsController::class, 'update'])->name('settings-panel.agreement-letterheads.update')->whereNumber('letterhead');
+    Route::delete('agreement-letterheads/{letterhead}', [App\Http\Controllers\AgreementLetterheadSettingsController::class, 'destroy'])->name('settings-panel.agreement-letterheads.destroy')->whereNumber('letterhead');
+
     // Agreements moved to main app sidebar — redirect legacy settings-panel URLs
     Route::any('agreements/{path?}', function (Request $request, string $company_slug, ?string $path = null) {
         $suffix = $path !== null && $path !== '' ? '/' . ltrim($path, '/') : '';

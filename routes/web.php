@@ -218,6 +218,10 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 // pages
 Route::get('/pages/misc-error', [MiscError::class, 'index'])->name('pages-misc-error');
 
+Route::get('/agreement-fonts/{file}', [App\Http\Controllers\AgreementFontController::class, 'show'])
+    ->where('file', '[A-Za-z0-9\-]+\.ttf')
+    ->name('agreement-fonts.show');
+
 Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
 
     Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -232,6 +236,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
         Route::get('/categories/{category}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'editAgreement'])->name('edit-agreement')->whereNumber('category');
         Route::put('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'updateAgreement'])->name('update-agreement')->whereNumber('category');
+        Route::post('/categories/{category}/letterhead-layout', [App\Http\Controllers\AgreementSettingsController::class, 'updateLetterheadLayout'])->name('letterhead-layout')->whereNumber('category');
         Route::delete('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'destroyAgreement'])->name('destroy-agreement')->whereNumber('category');
         Route::post('/categories/{category}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleAgreementStatus'])->name('toggle-agreement-status')->whereNumber('category');
         Route::get('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'templates'])->name('templates')->whereNumber('category');

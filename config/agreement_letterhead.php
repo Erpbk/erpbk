@@ -4,6 +4,22 @@
  * Branded agreement PDF layout — A4 with header chrome and content safe zone.
  */
 return [
+    'default_page_size' => 'a4',
+
+    /**
+     * Named paper sizes (portrait). Keys are stored on the agreement category.
+     *
+     * @var array<string, array{label: string, width_mm: float, height_mm: float, dompdf: string}>
+     */
+    'page_sizes' => [
+        'a3' => ['label' => 'A3', 'width_mm' => 297.0, 'height_mm' => 420.0, 'dompdf' => 'a3'],
+        'a4' => ['label' => 'A4', 'width_mm' => 210.0, 'height_mm' => 297.0, 'dompdf' => 'a4'],
+        'a5' => ['label' => 'A5', 'width_mm' => 148.0, 'height_mm' => 210.0, 'dompdf' => 'a5'],
+        'letter' => ['label' => 'Letter', 'width_mm' => 215.9, 'height_mm' => 279.4, 'dompdf' => 'letter'],
+        'legal' => ['label' => 'Legal', 'width_mm' => 215.9, 'height_mm' => 355.6, 'dompdf' => 'legal'],
+        'tabloid' => ['label' => 'Tabloid', 'width_mm' => 279.4, 'height_mm' => 431.8, 'dompdf' => 'tabloid'],
+    ],
+
     'page_width_mm' => 210,
     'page_height_mm' => 297,
 

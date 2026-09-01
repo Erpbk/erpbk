@@ -240,7 +240,7 @@ return [
             'visibility' => 'agreements',
             'permission' => ['agreements_view', 'agreements_edit', 'gn_settings'],
             'icon' => 'ti-file-certificate',
-            'settings' => null,
+            'settings' => 'agreements',
         ],
         [
             'key' => 'documents',

@@ -52,6 +52,51 @@ class AgreementPdfBranding
     }
 
     /**
+     * @param  array<string, mixed>  $branding
+     * @return array<string, mixed>
+     */
+    public function withUploadedLetterhead(array $branding, ?AgreementCategory $category, bool $preferPublicUrl = false): array
+    {
+        $src = $preferPublicUrl
+            ? ($this->letterheadPublicUrl($category) ?: $this->letterheadDataUri($category))
+            : $this->letterheadDataUri($category);
+
+        $branding['letterhead_src'] = $src;
+        $branding['has_uploaded_letterhead'] = $src !== null;
+
+        return $branding;
+    }
+
+    public function letterheadPublicUrl(?AgreementCategory $category): ?string
+    {
+        if (! $category || ! $category->hasLetterhead()) {
+            return null;
+        }
+
+        $path = $category->letterheadFilesystemPath();
+        if ($path === null) {
+            return null;
+        }
+
+        $mime = @mime_content_type($path) ?: '';
+        if (str_contains($mime, 'pdf')) {
+            return null;
+        }
+
+        $relative = $category->letterheadRelativePath();
+        if ($relative === null || $relative === '') {
+            return null;
+        }
+
+        $publicPath = public_path('storage/' . $relative);
+        if (! is_readable($publicPath)) {
+            return null;
+        }
+
+        return asset('storage/' . $relative);
+    }
+
+    /**
      * Data URI for an agreement category letterhead image (Dompdf-safe).
      */
     public function letterheadDataUri(?AgreementCategory $category): ?string
@@ -60,7 +105,17 @@ class AgreementPdfBranding
             return null;
         }
 
-        return $this->logoToDataUri($category->letterheadFilesystemPath());
+        $path = $category->letterheadFilesystemPath();
+        if ($path === null) {
+            return null;
+        }
+
+        $mime = @mime_content_type($path) ?: '';
+        if (str_contains($mime, 'pdf')) {
+            return null;
+        }
+
+        return $this->logoToDataUri($path);
     }
 
     public function logoToDataUri(?string $filesystemPath): ?string

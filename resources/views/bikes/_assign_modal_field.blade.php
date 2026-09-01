@@ -11,9 +11,19 @@ $colClass = in_array($inputType, ['textarea'], true) ? 'col-md-12' : 'col-md-3';
 if ($fieldKey === 'notes' && $inputType === 'textarea') {
 $colClass = ($assignContext ?? 'active') === 'active' ? 'col-md-8' : 'col-md-8';
 }
-$groupClass = $assignGroup ? ' hidden-field assign-group-' . $assignGroup : '';
+$defaultAssignType = $defaultAssignType ?? '';
+$groupHidden = $assignGroup && $assignGroup !== $defaultAssignType;
+$groupClass = $assignGroup ? ('assign-group-' . $assignGroup . ($groupHidden ? ' hidden-field' : '')) : '';
 $wrapperId = $fieldKey ? 'assign-field-' . $fieldKey : 'assign-custom-' . ($field->custom_field_id ?? $field->id);
 $name = $fieldKey ?: 'custom_field_values[' . ($field->custom_field_id ?? $field->id) . ']';
+$controlRequired = $required && ! $groupHidden;
+$selectAttrs = ['class' => 'form-select select2'];
+if ($controlRequired) {
+    $selectAttrs['required'] = true;
+}
+if ($groupHidden) {
+    $selectAttrs['disabled'] = true;
+}
 @endphp
 
 @if($field->kind === 'custom' && $field->customField)
@@ -28,23 +38,23 @@ $value = old('custom_field_values.' . $cf->id, $cf->default_value);
     <small class="text-muted d-block mb-1">{{ $cf->help_text }}</small>
     @endif
     @if($inputType === 'textarea')
-    <textarea name="{{ $name }}" class="form-control" rows="{{ $cf->config['rows'] ?? 4 }}" @if($required) required @endif placeholder="{{ $cf->help_text }}">{{ $value }}</textarea>
+    <textarea name="{{ $name }}" class="form-control" rows="{{ $cf->config['rows'] ?? 4 }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif placeholder="{{ $cf->help_text }}">{{ $value }}</textarea>
     @elseif($inputType === 'select')
     @php $opts = $field->resolvedSelectOptions(); @endphp
-    {!! Form::select($name, $opts, $value, ['class' => 'form-select select2', 'required' => $required]) !!}
+    {!! Form::select($name, $opts, $value, $selectAttrs) !!}
     @elseif($inputType === 'date')
-    <input type="date" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($required) required @endif>
+    <input type="date" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     @elseif($inputType === 'datetime')
-    <input type="datetime-local" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($required) required @endif>
+    <input type="datetime-local" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     @elseif($inputType === 'number' || $inputType === 'decimal')
-    <input type="number" name="{{ $name }}" class="form-control" value="{{ $value }}" step="{{ $inputType === 'decimal' ? '0.01' : '1' }}" @if($required) required @endif placeholder="{{ $cf->help_text }}">
+    <input type="number" name="{{ $name }}" class="form-control" value="{{ $value }}" step="{{ $inputType === 'decimal' ? '0.01' : '1' }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif placeholder="{{ $cf->help_text }}">
     @elseif($inputType === 'checkbox')
     <div class="form-check mt-2">
         <input type="hidden" name="{{ $name }}" value="0">
-        <input type="checkbox" name="{{ $name }}" value="1" class="form-check-input" @if(filter_var($value, FILTER_VALIDATE_BOOLEAN)) checked @endif @if($required) required @endif>
+        <input type="checkbox" name="{{ $name }}" value="1" class="form-check-input" @if(filter_var($value, FILTER_VALIDATE_BOOLEAN)) checked @endif @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     </div>
     @else
-    <input type="text" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($required) required @endif @if($isReadonly) readonly @endif placeholder="{{ $cf->help_text }}">
+    <input type="text" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif @if($isReadonly) readonly @endif placeholder="{{ $cf->help_text }}">
     @endif
 </div>
 @elseif($fieldKey === 'notes')
@@ -53,20 +63,20 @@ $value = old('custom_field_values.' . $cf->id, $cf->default_value);
     <label for="assign_note">{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>
     @if($inputType === 'select')
     @php $opts = $field->resolvedSelectOptions(); @endphp
-    {!! Form::select('note', $opts, old('note'), ['class' => 'form-select select2', 'id' => 'assign_note', 'required' => $required]) !!}
+    {!! Form::select('note', $opts, old('note'), array_merge($selectAttrs, ['id' => 'assign_note'])) !!}
     @elseif($inputType === 'textarea')
-    <textarea class="form-control" name="note" id="assign_note" rows="3" placeholder="{{ $label }}" @if($required) required @endif>{{ old('note') }}</textarea>
+    <textarea class="form-control" name="note" id="assign_note" rows="3" placeholder="{{ $label }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif>{{ old('note') }}</textarea>
     @elseif($inputType === 'date')
-    <input type="date" name="note" id="assign_note" class="form-control" value="{{ old('note') }}" @if($required) required @endif>
+    <input type="date" name="note" id="assign_note" class="form-control" value="{{ old('note') }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     @elseif($inputType === 'datetime')
-    <input type="datetime-local" name="note" id="assign_note" class="form-control" value="{{ old('note') }}" @if($required) required @endif>
+    <input type="datetime-local" name="note" id="assign_note" class="form-control" value="{{ old('note') }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     @elseif($inputType === 'checkbox')
     <div class="form-check mt-2">
         <input type="hidden" name="note" value="0">
-        <input type="checkbox" name="note" value="1" class="form-check-input" id="assign_note" @if(old('note')) checked @endif @if($required) required @endif>
+        <input type="checkbox" name="note" value="1" class="form-check-input" id="assign_note" @if(old('note')) checked @endif @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     </div>
     @else
-    <input type="{{ in_array($inputType, ['number', 'decimal', 'email', 'url'], true) ? $inputType : 'text' }}" name="note" id="assign_note" class="form-control" value="{{ old('note') }}" @if($required) required @endif placeholder="{{ $label }}">
+    <input type="{{ in_array($inputType, ['number', 'decimal', 'email', 'url'], true) ? $inputType : 'text' }}" name="note" id="assign_note" class="form-control" value="{{ old('note') }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif placeholder="{{ $label }}">
     @endif
 </div>
 @elseif($field->usesAssignSpecialRenderer())
@@ -76,20 +86,21 @@ $value = old('custom_field_values.' . $cf->id, $cf->default_value);
     <label for="assign_{{ $fieldKey }}">{{ $label }}@if($required)<span class="text-danger">*</span>@endif</label>
     @if($inputType === 'select')
     @php $opts = $field->resolvedSelectOptions(); @endphp
-    {!! Form::select($fieldKey, $opts, '', ['class' => 'form-select select2', 'id' => 'assign_' . $fieldKey, 'required' => $required]) !!}
+    {!! Form::select($fieldKey, $opts, old($fieldKey), array_merge($selectAttrs, ['id' => 'assign_' . $fieldKey])) !!}
     @elseif($inputType === 'textarea')
-    <textarea class="form-control" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" rows="3" placeholder="{{ $label }}" @if($required) required @endif @if($isReadonly) readonly @endif></textarea>
+    <textarea class="form-control" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" rows="3" placeholder="{{ $label }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif @if($isReadonly) readonly @endif></textarea>
     @elseif($inputType === 'date')
-    <input type="date" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" @if($required) required @endif @if($isReadonly) readonly @endif>
+    @php $dateValue = old($fieldKey, $fieldKey === 'note_date' ? date('Y-m-d') : ''); @endphp
+    <input type="date" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" value="{{ $dateValue }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif @if($isReadonly) readonly @endif>
     @elseif($inputType === 'datetime')
-    <input type="datetime-local" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" @if($required) required @endif @if($isReadonly) readonly @endif>
+    <input type="datetime-local" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" @if($controlRequired) required @endif @if($groupHidden) disabled @endif @if($isReadonly) readonly @endif>
     @elseif($inputType === 'checkbox')
     <div class="form-check mt-2">
         <input type="hidden" name="{{ $fieldKey }}" value="0">
-        <input type="checkbox" name="{{ $fieldKey }}" value="1" class="form-check-input" id="assign_{{ $fieldKey }}" @if($required) required @endif>
+        <input type="checkbox" name="{{ $fieldKey }}" value="1" class="form-check-input" id="assign_{{ $fieldKey }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif>
     </div>
     @else
-    <input type="{{ in_array($inputType, ['number', 'decimal', 'email', 'url'], true) ? $inputType : 'text' }}" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" @if($required) required @endif @if($isReadonly) readonly @endif>
+    <input type="{{ in_array($inputType, ['number', 'decimal', 'email', 'url'], true) ? $inputType : 'text' }}" name="{{ $fieldKey }}" id="assign_{{ $fieldKey }}" class="form-control" @if($controlRequired) required @endif @if($groupHidden) disabled @endif @if($isReadonly) readonly @endif>
     @endif
 </div>
 @endif

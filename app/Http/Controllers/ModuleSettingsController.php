@@ -314,6 +314,10 @@ class ModuleSettingsController extends Controller
             return app(DashboardSettingsController::class)->index($company_slug);
         }
 
+        if ($routeModule === 'agreements') {
+            return app(AgreementLetterheadSettingsController::class)->index($company_slug);
+        }
+
         if (in_array($routeModule, ['rta_fines_unpaid', 'rta_fines_paid'], true)) {
             return redirect()->route('settings-panel.module-settings.index', [
                 'company_slug' => $company_slug,

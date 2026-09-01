@@ -45,7 +45,6 @@
       @php
         $isActive = $activeTemplate && (int) $activeTemplate->id === (int) $template->id;
         $isContract = $contractTemplateId && (int) $contractTemplateId === (int) $template->id;
-        $styleLabel = \App\Models\AgreementTemplate::TYPES[$template->template_type] ?? $template->template_type;
       @endphp
       <div class="col-md-6 col-lg-4">
         <div class="card h-100 {{ $isActive ? 'border-primary shadow-sm' : 'border' }}">
@@ -56,9 +55,6 @@
               <span class="badge bg-label-success">Contract</span>
               @endif
             </div>
-            <p class="text-muted small mb-3">
-              <span class="badge bg-label-primary">{{ $styleLabel }}</span>
-            </p>
             <div class="d-flex flex-wrap gap-2 mt-auto">
               <a href="{{ route('documents.agreements.manage-category', ['company_slug' => $companySlug, 'category' => $category->id, 'template' => $template->id]) }}#template-editor-panel"
                 class="btn btn-sm {{ $isActive ? 'btn-primary' : 'btn-outline-primary' }}">

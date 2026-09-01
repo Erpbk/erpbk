@@ -15,9 +15,6 @@
   $contentPadTopMm = $pad['top'];
   $contentPadBottomMm = $pad['bottom'];
   $headerTopMarginMm = (float) config('agreement_letterhead.header_top_margin_mm', 8);
-  $headerChromeMm = (float) config('agreement_letterhead.header_chrome_height_mm', 33);
-  $p = $branding['primary_color'] ?? '#1e3a8a';
-  $s = $branding['secondary_color'] ?? '#2563eb';
   $renderPages = $pages ?? [$body];
   $pdfFontFaces = $pdfFontFaces ?? [];
   $fonts = app(\App\Services\Agreements\AgreementFontSettings::class);
@@ -26,12 +23,12 @@
   $agreementLineHeight = $agreementLineHeight ?? $fonts->lineHeight();
   $agreementFontColor = $agreementFontColor ?? $fonts->color();
   $agreementHeadingSizesPt = $agreementHeadingSizesPt ?? $fonts->headingSizesPt();
-  // Dompdf/A4 rounding: a 297mm box on a 297mm page overflows by ~1pt and splits page 1.
-  $pageBoxH = $forPdf ? round($pageH - 1.8, 1) : $pageH;
+  // Dompdf/A4 rounding: a full-height box on the paper overflows by ~1–2pt and splits an extra blank page.
+  $pageBoxH = $forPdf ? round($pageH - 2.6, 1) : $pageH;
   @endphp
   <style>
     @page {
-      size: A4 portrait;
+      size: {{ $pageW }}mm {{ $pageH }}mm;
       margin: 0;
     }
 
@@ -40,10 +37,11 @@
       font-family: '{{ $face['family'] }}';
       font-weight: {{ $face['weight'] }};
       font-style: {{ $face['style'] }};
+      font-display: swap;
       @if ($forPdf)
       src: url('{{ str_replace('\\', '/', $face['path']) }}');
       @else
-      src: local('{{ $face['family'] }}');
+      src: url('{{ $face['url'] }}') format('truetype');
       @endif
     }
     @endforeach
@@ -55,6 +53,8 @@
       padding: 0;
       width: {{ $pageW }}mm;
       background: #fff;
+      --word-page-width: {{ $pageW }}mm;
+      --word-page-height: {{ $pageBoxH }}mm;
     }
 
     body {
@@ -64,13 +64,17 @@
       line-height: {{ $agreementLineHeight }};
     }
 
+    @if ($forPdf)
+    {{-- Dompdf line boxes run taller than the browser; 9pt keeps saved editor breaks on one sheet. --}}
+    body {
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    @endif
+
     .agreement-page {
       position: relative;
       width: {{ $pageW }}mm;
-      min-height: {{ $pageBoxH }}mm;
-      height: {{ $pageBoxH }}mm;
-      max-height: {{ $pageBoxH }}mm;
-      overflow: hidden;
       background: #fff;
       page-break-before: auto;
       break-before: auto;
@@ -80,6 +84,18 @@
       break-inside: auto;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      @if ($forPdf)
+      overflow: {{ ! empty($branding['letterhead_src']) ? 'hidden' : 'visible' }};
+      @if (! empty($branding['letterhead_src']))
+      height: {{ $pageBoxH }}mm;
+      max-height: {{ $pageBoxH }}mm;
+      @endif
+      @else
+      min-height: {{ $pageBoxH }}mm;
+      height: {{ $pageBoxH }}mm;
+      max-height: {{ $pageBoxH }}mm;
+      overflow: hidden;
+      @endif
     }
 
     .agreement-page:first-child {
@@ -92,219 +108,54 @@
       break-after: auto;
     }
 
+    .letterhead-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: {{ $pageW }}mm;
+      height: 0;
+      overflow: visible;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .letterhead-overlay--design {
+      z-index: 0;
+    }
+
     @if ($forPdf)
-    .pdf-sheet {
+    .letterhead-overlay--fixed {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: {{ $pageW }}mm;
-      height: {{ $pageBoxH }}mm;
-      border-collapse: collapse;
-      border-spacing: 0;
-      margin: 0;
-      padding: 0;
-      page-break-after: always;
-      page-break-inside: auto;
-    }
-
-    .pdf-sheet:last-child {
-      page-break-after: auto;
-    }
-
-    .pdf-sheet > tbody > tr > td.agreement-page,
-    .pdf-sheet td.agreement-page {
-      width: {{ $pageW }}mm;
-      height: {{ $pageBoxH }}mm;
-      max-height: {{ $pageBoxH }}mm;
-      overflow: hidden;
-      vertical-align: top;
-      padding: 0;
-      border: none;
-      page-break-after: auto;
-      break-after: auto;
+      height: 0;
+      overflow: visible;
+      pointer-events: none;
+      z-index: 10;
     }
     @endif
 
     .agreement-page-header {
       position: relative;
       z-index: 2;
+      pointer-events: none;
     }
 
     .agreement-page-body {
       position: relative;
       z-index: 3;
       padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
-      max-height: {{ max(40, $pageBoxH - $headerChromeMm) }}mm;
-      overflow: hidden;
+      overflow: visible;
       box-sizing: border-box;
     }
 
-    .page-decor {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: {{ $pageW }}mm;
-      height: {{ $pageBoxH }}mm;
-      z-index: 0;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .corner-shapes {
-      position: absolute;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .corner-shapes--tr {
-      top: 0;
-      right: 0;
-      width: 58mm;
-      height: 48mm;
-    }
-
-    .corner-shapes--bl {
-      top: {{ $pageBoxH - 32 }}mm;
-      left: 0;
-      width: 50mm;
-      height: 32mm;
-    }
-
-    .corner-blob {
-      position: absolute;
-      border-radius: 50%;
-      font-size: 0;
-      line-height: 0;
-      overflow: hidden;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    .corner-shapes--tr .corner-blob--1 {
-      top: -16mm;
-      right: -14mm;
-      width: 52mm;
-      height: 52mm;
-      opacity: 0.16;
-    }
-
-    .corner-shapes--tr .corner-blob--2 {
-      top: 4mm;
-      right: -6mm;
-      width: 34mm;
-      height: 34mm;
-      opacity: 0.22;
-    }
-
-    .corner-shapes--tr .corner-blob--3 {
-      top: 18mm;
-      right: 12mm;
-      width: 20mm;
-      height: 20mm;
-      opacity: 0.35;
-    }
-
-    .corner-shapes--bl .corner-blob--1 {
-      top: 4mm;
-      left: -10mm;
-      width: 40mm;
-      height: 40mm;
-      opacity: 0.14;
-    }
-
-    .corner-shapes--bl .corner-blob--2 {
-      top: 4mm;
-      left: -4mm;
-      width: 26mm;
-      height: 26mm;
-      opacity: 0.2;
-    }
-
-    .corner-shapes--bl .corner-blob--3 {
-      top: 4mm;
-      left: 8mm;
-      width: 16mm;
-      height: 16mm;
-      opacity: 0.3;
-    }
-
-    .page-watermark {
-      position: absolute;
-      width: 90mm;
-      height: 90mm;
-      z-index: 0;
-      opacity: 0.07;
-      text-align: center;
-    }
-
-    .page-watermark img {
-      display: block;
-      width: 90mm;
-      max-width: 90mm;
-      height: auto;
-      margin: 0 auto;
-    }
-
-    .page-header {
-      position: relative;
-      z-index: 2;
-      padding-top: {{ $headerTopMarginMm }}mm;
-      pointer-events: none;
-    }
-
-    .page-header-inner {
-      padding: 0 12mm;
-    }
-
-    .page-header-table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    .page-header-table td {
-      border: none;
-      padding: 0;
-      vertical-align: top;
-    }
-
-    .page-header-logo {
-      width: 55%;
-      padding-right: 6mm;
-    }
-
-    .page-header-logo .company-logo-img {
-      max-height: 22mm;
-      max-width: 58mm;
-      display: block;
-    }
-
-    .page-header-logo .company-logo-fallback {
-      width: 18mm;
-      height: 18mm;
-      line-height: 18mm;
-      text-align: center;
-      font-size: 12pt;
-      font-weight: bold;
-      border-radius: 3mm;
-    }
-
-    .page-header-info {
-      width: 45%;
-      text-align: right;
-      padding-top: 1mm;
-    }
-
-    .page-header-meta {
-      margin: 0 0 1pt;
-      font-size: 9.5pt;
-      color: #1e293b;
-      line-height: 1.35;
-      text-align: left;
-      font-weight: bolder;
-    }
-
-    .page-header-rule {
-      height: 0.5mm;
-      margin-top: 2mm;
-      width: 100%;
-    }
+    @include('agreements.pdf.partials.letterhead-chrome-styles', [
+      'pageWidthMm' => $pageW,
+      'pageHeightMm' => $pageBoxH,
+      'branding' => $branding,
+      'headerTopMarginMm' => $headerTopMarginMm,
+    ])
 
     .content {
       position: relative;
@@ -318,21 +169,10 @@
       color: {{ $agreementFontColor }};
     }
 
-    .content p,
-    .content li,
-    .content td,
-    .content th,
-    .content div {
-      font-family: inherit;
-      font-size: inherit;
-      line-height: inherit;
-    }
-
     .content p { margin: 0 0 0.5em; }
     .content h1, .content h2, .content h3, .content h4 {
       margin: 0 0 0.55em;
       line-height: 1.25;
-      color: {{ $p }};
       page-break-before: auto;
       break-before: auto;
       page-break-after: auto;
@@ -356,9 +196,26 @@
       word-break: normal;
       overflow-wrap: break-word;
     }
+    @if ($forPdf)
+    .content {
+      font-size: 9pt;
+      line-height: 1.25;
+    }
+    .content p { margin: 0 0 0.25em; }
+    .content table th, .content table td { padding: 2px 5px; }
+    @endif
     .content thead { display: table-row-group; }
     .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; }
+    .content li { margin: 0 0 2pt; }
+    .content strong, .content b { font-weight: 700; }
+    .content em, .content i { font-style: italic; }
+    .content u { text-decoration: underline; }
+    .content s, .content strike, .content del { text-decoration: line-through; }
+    .content sub { vertical-align: sub; font-size: smaller; }
+    .content sup { vertical-align: super; font-size: smaller; }
+    .content hr { border: 0; border-top: 1px solid #94a3b8; margin: 8pt 0; }
     .content img { max-width: 100%; height: auto; page-break-inside: auto; break-inside: auto; }
+    .content [data-agreement-page-break] { display: none; height: 0; margin: 0; padding: 0; overflow: hidden; }
 
     .preview-pages {
       width: {{ $pageW }}mm;
@@ -413,22 +270,25 @@
   </style>
 </head>
 <body>
+  @if ($forPdf && $withLetterhead && empty($branding['letterhead_src']))
+  <div class="letterhead-overlay letterhead-overlay--fixed">
+      @include('agreements.pdf.partials.page-chrome', [
+        'pageWidthMm' => $pageW,
+        'pageHeightMm' => $pageH,
+        'branding' => $branding,
+      ])
+  </div>
+  @endif
   <div class="preview-pages" id="agreement-preview-pages" @if(! $forPdf) aria-live="polite" @endif>
     @foreach ($renderPages as $pageBody)
-    @if ($forPdf)
-    <table class="pdf-sheet" cellpadding="0" cellspacing="0">
-      <tr>
-        <td class="agreement-page preview-page">
-    @else
     <div class="agreement-page preview-page">
-    @endif
-      @if($withLetterhead)
-      @include('agreements.pdf.partials.page-decor', [
-        'pageWidthMm' => $pageW,
-        'pageHeightMm' => $pageBoxH,
-      ])
-      <div class="agreement-page-header">
-        @include('agreements.pdf.partials.page-header')
+      @if($withLetterhead && (! $forPdf || ! empty($branding['letterhead_src'])))
+      <div class="letterhead-overlay{{ ! empty($branding['letterhead_src']) ? ' letterhead-overlay--design' : '' }}">
+        @include('agreements.pdf.partials.page-chrome', [
+          'pageWidthMm' => $pageW,
+          'pageHeightMm' => $forPdf ? $pageH : $pageBoxH,
+          'branding' => $branding,
+        ])
       </div>
       @endif
       <div class="agreement-page-body">
@@ -436,13 +296,7 @@
           {!! $pageBody !!}
         </div>
       </div>
-    @if ($forPdf)
-        </td>
-      </tr>
-    </table>
-    @else
     </div>
-    @endif
     @endforeach
   </div>
   @if (! $forPdf)

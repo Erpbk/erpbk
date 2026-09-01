@@ -279,6 +279,92 @@ class AgreementFontSettings
     }
 
     /**
+     * Copy system TTFs into storage/fonts and return faces for PDF + browser.
+     *
+     * @return list<array{family: string, weight: string, style: string, path: string, file: string, url: string}>
+     */
+    public function cachedFaces(): array
+    {
+        $dir = storage_path('fonts');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $faces = [];
+        foreach ($this->systemFontCandidates() as $candidate) {
+            foreach ($candidate['paths'] as $path) {
+                if (! is_readable($path) || ! str_ends_with(strtolower($path), '.ttf')) {
+                    continue;
+                }
+
+                $file = $this->cachedFileName($candidate['family'], $candidate['weight'], $candidate['style']);
+                $dest = $dir . DIRECTORY_SEPARATOR . $file;
+                if (! is_file($dest) || filesize($dest) !== filesize($path)) {
+                    copy($path, $dest);
+                }
+
+                $faces[] = [
+                    'family' => $candidate['family'],
+                    'weight' => $candidate['weight'],
+                    'style' => $candidate['style'],
+                    'path' => $dest,
+                    'file' => $file,
+                    'url' => url('/agreement-fonts/' . $file),
+                ];
+
+                break;
+            }
+        }
+
+        return $faces;
+    }
+
+    public function cachedFileName(string $family, string $weight, string $style): string
+    {
+        $safeFamily = strtolower(preg_replace('/[^a-z0-9]+/i', '', $family) ?: 'font');
+
+        return $safeFamily . '-' . $weight . '-' . $style . '.ttf';
+    }
+
+    public function isCachedFontFile(string $file): bool
+    {
+        $file = basename($file);
+
+        return (bool) preg_match('/^[a-z0-9]+-(normal|bold)-(normal|italic)\.ttf$/', $file);
+    }
+
+    public function cachedFontPath(string $file): ?string
+    {
+        $file = basename($file);
+        if (! $this->isCachedFontFile($file)) {
+            return null;
+        }
+
+        $path = storage_path('fonts/' . $file);
+
+        return is_file($path) ? $path : null;
+    }
+
+    /**
+     * @font-face CSS that loads the same TTF files the PDF uses.
+     */
+    public function browserFontFaceCss(): string
+    {
+        $css = '';
+        foreach ($this->cachedFaces() as $face) {
+            $css .= sprintf(
+                "@font-face{font-family:'%s';font-weight:%s;font-style:%s;font-display:swap;src:url('%s') format('truetype');}",
+                str_replace("'", '', $face['family']),
+                $face['weight'],
+                $face['style'],
+                str_replace("'", '%27', $face['url'])
+            );
+        }
+
+        return $css;
+    }
+
+    /**
      * System font files for every agreement family so print and PDF share the same faces.
      *
      * @return list<array{family: string, weight: string, style: string, paths: list<string>}>

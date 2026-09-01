@@ -8,7 +8,7 @@ use DOMNode;
 
 class AgreementLetterheadPaginator
 {
-    private const ESTIMATE_SAFETY = 1.0;
+    private const ESTIMATE_SAFETY = 1.14;
 
     private const CONTENT_FONT_PT = 11.0;
 
@@ -16,7 +16,7 @@ class AgreementLetterheadPaginator
 
     private const LINE_HEIGHT_RATIO = 1.5;
 
-    private const CHARS_PER_LINE = 100;
+    private const CHARS_PER_LINE = 92;
 
     private const MAX_APPEND_DEPTH = 512;
 
@@ -32,7 +32,9 @@ class AgreementLetterheadPaginator
     public function paginate(string $bodyHtml, float $contentZoneHeightMm): array
     {
         $this->appendDepth = 0;
-        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4);
+        // Dompdf lays out a little taller than the browser; keep a reserve so
+        // a full page cannot overflow A4 and split the first sheet.
+        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4) - 16.0;
         $bodyHtml = $this->normalizeBodyHtml($bodyHtml);
 
         $dom = new DOMDocument('1.0', 'UTF-8');
@@ -2054,13 +2056,23 @@ class AgreementLetterheadPaginator
         return match ($tag) {
             'table' => $this->estimateTableHeightPt($node),
             'ul', 'ol' => $this->estimateListHeightPt($node),
-            'h1', 'h2', 'h3', 'h4' => $this->hasBlockChildren($node)
+            'h1', 'h2', 'h3', 'h4', 'h5', 'h6' => $this->hasBlockChildren($node)
                 ? $this->estimateBlockHeightPt($node)
-                : 8 + $this->estimateTextHeightPt($node->textContent ?? '', self::HEADING_FONT_PT),
+                : 8 + $this->estimateTextHeightPt($node->textContent ?? '', $this->headingFontPt($tag)),
             'hr' => $this->isForcedPageBreak($node) ? 0.0 : 10,
             'img' => $this->estimateImageHeightPt($node),
             'li' => $this->estimateTextHeightPt($node->textContent ?? '', self::CONTENT_FONT_PT) + 4,
             default => $this->estimateBlockHeightPt($node),
+        };
+    }
+
+    private function headingFontPt(string $tag): float
+    {
+        return match (strtolower($tag)) {
+            'h1' => 16.0,
+            'h2' => self::HEADING_FONT_PT,
+            'h3' => 12.0,
+            default => self::CONTENT_FONT_PT,
         };
     }
 
@@ -2110,7 +2122,7 @@ class AgreementLetterheadPaginator
 
             $cellCss = $this->cssLengthToPt($cell->getAttribute('style'), 'height');
             $lines = $this->estimateCellLines($cell, $this->cellCharsForWidth($cell, $columnCount));
-            $contentPt = ($lines * $lineHeight) + 4;
+            $contentPt = ($lines * $lineHeight) + 8;
             $maxPt = max($maxPt, $cellCss ?? 0.0, $contentPt);
         }
 
@@ -2233,7 +2245,7 @@ class AgreementLetterheadPaginator
             return $total + ($text === '' ? 0.0 : 4.0);
         }
 
-        return $textHeight + 4;
+        return $textHeight + 6;
     }
 
     private function estimateTextHeightPt(string $text, float $fontSizePt): float

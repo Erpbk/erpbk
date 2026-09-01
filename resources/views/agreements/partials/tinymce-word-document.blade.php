@@ -357,8 +357,22 @@
 
 @push('third_party_scripts')
 <script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
+@php
+  $agreementFonts = app(\App\Services\Agreements\AgreementFontSettings::class);
+@endphp
 <script>
   window.erpbkAgreementWordEditor = {
+    fonts: {
+      family: @json($agreementFonts->familyStackCss()),
+      sizePt: {{ $agreementFonts->sizePt() }},
+      lineHeight: {{ $agreementFonts->lineHeight() }},
+      color: @json($agreementFonts->color()),
+      headings: @json($agreementFonts->headingSizesPt()),
+      familyFormats: @json($agreementFonts->tinymceFamilyFormats()),
+      sizeFormats: @json($agreementFonts->tinymceSizeFormats()),
+      ribbonFamilies: @json($agreementFonts->ribbonFamilyOptions()),
+      ribbonSizes: @json($agreementFonts->allowedSizesPt()),
+    },
     height: function () {
       var viewport = window.innerHeight || 900;
       return Math.max(viewport - 56, 920);
@@ -376,7 +390,7 @@
         'html{background:' + canvas + ';height:100%;}',
         'body{--word-margin-top:' + margins.top + 'mm;--word-margin-right:' + margins.right + 'mm;',
         '--word-margin-bottom:' + margins.bottom + 'mm;--word-margin-left:' + margins.left + 'mm;',
-        'font-family:Calibri,\'Segoe UI\',Arial,sans-serif;font-size:11pt;line-height:1.5;color:#1e293b;',
+        'font-family:' + this.fonts.family + ';font-size:' + this.fonts.sizePt + 'pt;line-height:' + this.fonts.lineHeight + ';color:' + this.fonts.color + ';',
         'background:#ffffff;width:210mm;max-width:calc(100% - 24px);min-height:297mm;',
         'margin:20px auto 48px auto !important;padding:' + pad + ';box-sizing:border-box;',
         'box-shadow:0 1px 4px rgba(0,0,0,.28),0 0 0 1px #cfcfcf;}',
@@ -402,6 +416,10 @@
         'table td,table th{border:1px solid #94a3b8;padding:4px 8px;}',
         'p{margin:0 0 .5em;}',
         'h1,h2,h3,h4{margin:0 0 .55em;line-height:1.25;}',
+        'h1{font-size:' + this.fonts.headings.h1 + 'pt;}',
+        'h2{font-size:' + this.fonts.headings.h2 + 'pt;}',
+        'h3{font-size:' + this.fonts.headings.h3 + 'pt;}',
+        'h4{font-size:' + this.fonts.headings.h4 + 'pt;}',
         'img:not(.mce-pagebreak){max-width:100%;height:auto;}'
       ].join('');
     },
@@ -700,6 +718,16 @@
     },
     ribbonHtml: function () {
       var i = this.icon.bind(this);
+      var defaultSize = String(this.fonts.sizePt) + 'pt';
+      var familyOptions = this.fonts.ribbonFamilies.map(function (item) {
+        var selected = item.label === 'Calibri' ? ' selected' : '';
+        return '<option value="' + item.value + '"' + selected + '>' + item.label + '</option>';
+      }).join('');
+      var sizeOptions = this.fonts.ribbonSizes.map(function (size) {
+        var label = String(size).replace(/\.0$/, '') + 'pt';
+        var selected = label === defaultSize ? ' selected' : '';
+        return '<option' + selected + '>' + label + '</option>';
+      }).join('');
       return [
         '<div class="word-ribbon-tabs">',
         '  <button type="button" class="word-ribbon-tab is-active" data-word-tab="home">Home</button>',
@@ -718,18 +746,10 @@
         '    <div class="word-ribbon-group"><div class="word-ribbon-group-body"><div class="word-ribbon-col">',
         '      <div class="word-ribbon-row">',
         '        <select class="word-ribbon-select" data-font-family title="Font">',
-        '          <option value="Calibri,sans-serif">Calibri</option>',
-        '          <option value="Cambria,serif">Cambria</option>',
-        '          <option value="Arial,Helvetica,sans-serif">Arial</option>',
-        '          <option value="Times New Roman,Times,serif">Times New Roman</option>',
-        '          <option value="Georgia,serif">Georgia</option>',
-        '          <option value="Verdana,sans-serif">Verdana</option>',
-        '          <option value="Courier New,Courier,monospace">Courier New</option>',
+        familyOptions,
         '        </select>',
         '        <select class="word-ribbon-select is-size" data-font-size title="Font size">',
-        '          <option>8pt</option><option>9pt</option><option>10pt</option><option selected>11pt</option>',
-        '          <option>12pt</option><option>14pt</option><option>16pt</option><option>18pt</option>',
-        '          <option>20pt</option><option>24pt</option><option>28pt</option><option>36pt</option><option>48pt</option>',
+        sizeOptions,
         '        </select>',
         '        <button type="button" class="word-ribbon-btn" data-font-step="1" title="Increase font size">' + i('fontUp') + '</button>',
         '        <button type="button" class="word-ribbon-btn" data-font-step="-1" title="Decrease font size">' + i('fontDn') + '</button>',
@@ -1047,8 +1067,8 @@
         promotion: false,
         resize: true,
         statusbar: true,
-        font_size_formats: '8pt 9pt 10pt 11pt 12pt 14pt 16pt 18pt 20pt 24pt 28pt 36pt 48pt',
-        font_family_formats: 'Calibri=Calibri,sans-serif;Cambria=Cambria,serif;Arial=arial,helvetica,sans-serif;Times New Roman=times new roman,times,serif;Georgia=georgia,serif;Verdana=verdana,sans-serif;Courier New=courier new,courier,monospace',
+        font_size_formats: this.fonts.sizeFormats,
+        font_family_formats: this.fonts.familyFormats,
         pagebreak_split_block: true,
         content_style: this.contentStyle(),
         setup: function (editor) {

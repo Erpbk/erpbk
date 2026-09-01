@@ -8,14 +8,14 @@ $wmLeft = round((($pageWidthMm ?? 210) - 90) / 2, 1);
 @endphp
 <div class="page-decor" aria-hidden="true">
   <div class="corner-shapes corner-shapes--tr">
-    <div class="corner-blob corner-blob--1" style="background-color: {{ $s }};"></div>
-    <div class="corner-blob corner-blob--2" style="background-color: {{ $p }};"></div>
-    <div class="corner-blob corner-blob--3" style="background-color: {{ $pSoft }};"></div>
+    <div class="corner-blob corner-blob--1" style="background-color: {{ $s }};">&nbsp;</div>
+    <div class="corner-blob corner-blob--2" style="background-color: {{ $p }};">&nbsp;</div>
+    <div class="corner-blob corner-blob--3" style="background-color: {{ $pSoft }};">&nbsp;</div>
   </div>
   <div class="corner-shapes corner-shapes--bl">
-    <div class="corner-blob corner-blob--1" style="background-color: {{ $p }};"></div>
-    <div class="corner-blob corner-blob--2" style="background-color: {{ $s }};"></div>
-    <div class="corner-blob corner-blob--3" style="background-color: {{ $pSoft }};"></div>
+    <div class="corner-blob corner-blob--1" style="background-color: {{ $p }};">&nbsp;</div>
+    <div class="corner-blob corner-blob--2" style="background-color: {{ $s }};">&nbsp;</div>
+    <div class="corner-blob corner-blob--3" style="background-color: {{ $pSoft }};">&nbsp;</div>
   </div>
 
   @if(!empty($logoSrc))

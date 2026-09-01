@@ -20,6 +20,14 @@
   $s = $branding['secondary_color'] ?? '#2563eb';
   $renderPages = $pages ?? [$body];
   $pdfFontFaces = $pdfFontFaces ?? [];
+  $fonts = app(\App\Services\Agreements\AgreementFontSettings::class);
+  $agreementFontFamily = $agreementFontFamily ?? $fonts->familyStackCss();
+  $agreementFontSizePt = $agreementFontSizePt ?? $fonts->sizePt();
+  $agreementLineHeight = $agreementLineHeight ?? $fonts->lineHeight();
+  $agreementFontColor = $agreementFontColor ?? $fonts->color();
+  $agreementHeadingSizesPt = $agreementHeadingSizesPt ?? $fonts->headingSizesPt();
+  // Dompdf/A4 rounding: a 297mm box on a 297mm page overflows by ~1pt and splits page 1.
+  $pageBoxH = $forPdf ? round($pageH - 1.8, 1) : $pageH;
   @endphp
   <style>
     @page {
@@ -27,16 +35,18 @@
       margin: 0;
     }
 
-    @if ($forPdf)
     @foreach ($pdfFontFaces as $face)
     @font-face {
       font-family: '{{ $face['family'] }}';
       font-weight: {{ $face['weight'] }};
       font-style: {{ $face['style'] }};
-      src: url('{{ $face['uri'] }}') format('truetype');
+      @if ($forPdf)
+      src: url('{{ str_replace('\\', '/', $face['path']) }}');
+      @else
+      src: local('{{ $face['family'] }}');
+      @endif
     }
     @endforeach
-    @endif
 
     * { box-sizing: border-box; }
 
@@ -48,23 +58,28 @@
     }
 
     body {
-      font-family: Calibri, 'Segoe UI', 'DejaVu Sans', Arial, sans-serif;
-      font-size: 11pt;
-      color: #1e293b;
-      line-height: 1.5;
+      font-family: {{ $agreementFontFamily }};
+      font-size: {{ $agreementFontSizePt }}pt;
+      color: {{ $agreementFontColor }};
+      line-height: {{ $agreementLineHeight }};
     }
 
     .agreement-page {
       position: relative;
       width: {{ $pageW }}mm;
-      min-height: 0;
-      height: auto;
+      min-height: {{ $pageBoxH }}mm;
+      height: {{ $pageBoxH }}mm;
+      max-height: {{ $pageBoxH }}mm;
       overflow: hidden;
       background: #fff;
       page-break-before: auto;
       break-before: auto;
       page-break-after: always;
       break-after: page;
+      page-break-inside: auto;
+      break-inside: auto;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     .agreement-page:first-child {
@@ -77,6 +92,36 @@
       break-after: auto;
     }
 
+    @if ($forPdf)
+    .pdf-sheet {
+      width: {{ $pageW }}mm;
+      height: {{ $pageBoxH }}mm;
+      border-collapse: collapse;
+      border-spacing: 0;
+      margin: 0;
+      padding: 0;
+      page-break-after: always;
+      page-break-inside: auto;
+    }
+
+    .pdf-sheet:last-child {
+      page-break-after: auto;
+    }
+
+    .pdf-sheet > tbody > tr > td.agreement-page,
+    .pdf-sheet td.agreement-page {
+      width: {{ $pageW }}mm;
+      height: {{ $pageBoxH }}mm;
+      max-height: {{ $pageBoxH }}mm;
+      overflow: hidden;
+      vertical-align: top;
+      padding: 0;
+      border: none;
+      page-break-after: auto;
+      break-after: auto;
+    }
+    @endif
+
     .agreement-page-header {
       position: relative;
       z-index: 2;
@@ -86,6 +131,9 @@
       position: relative;
       z-index: 3;
       padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
+      max-height: {{ max(40, $pageBoxH - $headerChromeMm) }}mm;
+      overflow: hidden;
+      box-sizing: border-box;
     }
 
     .page-decor {
@@ -93,7 +141,7 @@
       top: 0;
       left: 0;
       width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
+      height: {{ $pageBoxH }}mm;
       z-index: 0;
       pointer-events: none;
       overflow: hidden;
@@ -113,7 +161,7 @@
     }
 
     .corner-shapes--bl {
-      bottom: 0;
+      top: {{ $pageBoxH - 32 }}mm;
       left: 0;
       width: 50mm;
       height: 32mm;
@@ -122,6 +170,11 @@
     .corner-blob {
       position: absolute;
       border-radius: 50%;
+      font-size: 0;
+      line-height: 0;
+      overflow: hidden;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     .corner-shapes--tr .corner-blob--1 {
@@ -149,7 +202,7 @@
     }
 
     .corner-shapes--bl .corner-blob--1 {
-      bottom: -12mm;
+      top: 4mm;
       left: -10mm;
       width: 40mm;
       height: 40mm;
@@ -157,7 +210,7 @@
     }
 
     .corner-shapes--bl .corner-blob--2 {
-      bottom: 2mm;
+      top: 4mm;
       left: -4mm;
       width: 26mm;
       height: 26mm;
@@ -165,7 +218,7 @@
     }
 
     .corner-shapes--bl .corner-blob--3 {
-      bottom: 12mm;
+      top: 4mm;
       left: 8mm;
       width: 16mm;
       height: 16mm;
@@ -259,9 +312,20 @@
       width: 100%;
       margin: 0;
       padding: 0;
-      font-family: Calibri, 'Segoe UI', 'DejaVu Sans', Arial, sans-serif;
-      font-size: 11pt;
-      line-height: 1.5;
+      font-family: {{ $agreementFontFamily }};
+      font-size: {{ $agreementFontSizePt }}pt;
+      line-height: {{ $agreementLineHeight }};
+      color: {{ $agreementFontColor }};
+    }
+
+    .content p,
+    .content li,
+    .content td,
+    .content th,
+    .content div {
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
     }
 
     .content p { margin: 0 0 0.5em; }
@@ -273,9 +337,13 @@
       break-before: auto;
       page-break-after: auto;
       break-after: auto;
-      page-break-inside: avoid;
-      break-inside: avoid;
+      page-break-inside: auto;
+      break-inside: auto;
     }
+    .content h1 { font-size: {{ $agreementHeadingSizesPt['h1'] ?? 16 }}pt; }
+    .content h2 { font-size: {{ $agreementHeadingSizesPt['h2'] ?? 14 }}pt; }
+    .content h3 { font-size: {{ $agreementHeadingSizesPt['h3'] ?? 12 }}pt; }
+    .content h4 { font-size: {{ $agreementHeadingSizesPt['h4'] ?? 11 }}pt; }
     .content table {
       width: 100%;
       border-collapse: collapse;
@@ -288,13 +356,14 @@
       word-break: normal;
       overflow-wrap: break-word;
     }
-    .content thead { display: table-header-group; }
+    .content thead { display: table-row-group; }
     .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; }
-    .content img { max-width: 100%; height: auto; page-break-inside: avoid; break-inside: avoid; }
+    .content img { max-width: 100%; height: auto; page-break-inside: auto; break-inside: auto; }
 
     .preview-pages {
       width: {{ $pageW }}mm;
-      margin: 0 auto;
+      margin: 0;
+      padding: 0;
     }
 
     @if (! $forPdf)
@@ -313,12 +382,31 @@
         width: {{ $pageW }}mm;
         margin: 0;
         padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
       }
 
-      .preview-pages,
-      .preview-pages .agreement-page {
+      .preview-pages {
         margin: 0;
-        box-shadow: none;
+        padding: 0;
+      }
+
+      .preview-pages .agreement-page {
+        margin: 0 !important;
+        box-shadow: none !important;
+        height: {{ $pageH - 1.8 }}mm !important;
+        min-height: {{ $pageH - 1.8 }}mm !important;
+        max-height: {{ $pageH - 1.8 }}mm !important;
+        overflow: hidden !important;
+        page-break-after: always !important;
+        page-break-inside: auto !important;
+        break-after: page !important;
+        break-inside: auto !important;
+      }
+
+      .preview-pages .agreement-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
       }
     }
     @endif
@@ -327,11 +415,17 @@
 <body>
   <div class="preview-pages" id="agreement-preview-pages" @if(! $forPdf) aria-live="polite" @endif>
     @foreach ($renderPages as $pageBody)
+    @if ($forPdf)
+    <table class="pdf-sheet" cellpadding="0" cellspacing="0">
+      <tr>
+        <td class="agreement-page preview-page">
+    @else
     <div class="agreement-page preview-page">
+    @endif
       @if($withLetterhead)
       @include('agreements.pdf.partials.page-decor', [
         'pageWidthMm' => $pageW,
-        'pageHeightMm' => $pageH,
+        'pageHeightMm' => $pageBoxH,
       ])
       <div class="agreement-page-header">
         @include('agreements.pdf.partials.page-header')
@@ -342,7 +436,13 @@
           {!! $pageBody !!}
         </div>
       </div>
+    @if ($forPdf)
+        </td>
+      </tr>
+    </table>
+    @else
     </div>
+    @endif
     @endforeach
   </div>
   @if (! $forPdf)

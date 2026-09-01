@@ -16,7 +16,8 @@ class AgreementPdfService
         protected CompanyEmailBrandingService $branding,
         protected AgreementPdfBranding $pdfBranding,
         protected AgreementLetterheadLayout $letterheadLayout,
-        protected AgreementLetterheadPaginator $letterheadPaginator
+        protected AgreementLetterheadPaginator $letterheadPaginator,
+        protected AgreementFontSettings $fonts
     ) {}
 
     public function renderHtml(
@@ -43,7 +44,7 @@ class AgreementPdfService
             ? $this->sampleMap()
             : $this->resolver->resolveForModule($module, $record, $agreementDate);
 
-        $body = $this->resolver->replace($content, $map);
+        $body = $this->fonts->normalizeHtml($this->resolver->replace($content, $map));
         $branding = $this->pdfBranding->forCompany($template->company_id);
         $template->loadMissing('category');
         $category = $template->category;
@@ -73,6 +74,11 @@ class AgreementPdfService
             'category' => $category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
             'pdfFontFaces' => $pdfFontFaces,
+            'agreementFontFamily' => $this->fonts->familyStackCss(),
+            'agreementFontSizePt' => $this->fonts->sizePt(),
+            'agreementLineHeight' => $this->fonts->lineHeight(),
+            'agreementFontColor' => $this->fonts->color(),
+            'agreementHeadingSizesPt' => $this->fonts->headingSizesPt(),
         ])->render();
     }
 
@@ -122,7 +128,8 @@ class AgreementPdfService
     private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null)
     {
         $fontFaces = $this->pdfFontFaces();
-        $defaultFont = $fontFaces !== [] ? 'Calibri' : 'DejaVu Sans';
+        $defaultFont = $this->fonts->defaultFamily();
+        $defaultFont = $fontFaces !== [] ? $defaultFont : 'DejaVu Sans';
 
         $pdf = app('dompdf.wrapper');
         $pdf->setPaper('a4', 'portrait');
@@ -134,12 +141,16 @@ class AgreementPdfService
         $options->setIsFontSubsettingEnabled(false);
         $options->setIsJavascriptEnabled(false);
         $options->setDefaultMediaType('screen');
-        $options->setFontHeightRatio(1.0);
+        // 1.1 matches browser line boxes; 1.0 made downloaded text look smaller than print.
+        $options->setFontHeightRatio(1.1);
         $options->setDpi(96);
+        $options->setFontDir(storage_path('fonts'));
+        $options->setFontCache(storage_path('fonts'));
         $options->setDefaultFont($defaultFont);
         $options->setChroot($this->fontChrootDirectories($fontFaces));
         $dompdf->setOptions($options);
         $dompdf->setBasePath(public_path());
+        $this->registerPdfFonts($dompdf, $fontFaces);
 
         $pdf->loadHTML($html);
 
@@ -147,49 +158,28 @@ class AgreementPdfService
     }
 
     /**
-     * Load the same body font the browser preview uses (Calibri / Carlito).
-     * Preview resolves Calibri as a system font; Dompdf must be given the file.
+     * Load the same body font the browser print uses (Calibri / Segoe UI).
+     * Dompdf cannot see system fonts unless they are copied and registered.
      *
      * @return list<array{family: string, weight: string, style: string, path: string, uri: string}>
      */
     private function pdfFontFaces(): array
     {
-        $candidates = [
-            ['family' => 'Calibri', 'weight' => 'normal', 'style' => 'normal', 'paths' => [
-                'C:\\Windows\\Fonts\\calibri.ttf',
-                '/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
-            ]],
-            ['family' => 'Calibri', 'weight' => 'bold', 'style' => 'normal', 'paths' => [
-                'C:\\Windows\\Fonts\\calibrib.ttf',
-                '/usr/share/fonts/truetype/crosextra/Carlito-Bold.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
-            ]],
-            ['family' => 'Calibri', 'weight' => 'normal', 'style' => 'italic', 'paths' => [
-                'C:\\Windows\\Fonts\\calibrii.ttf',
-                '/usr/share/fonts/truetype/crosextra/Carlito-Italic.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf',
-            ]],
-            ['family' => 'Calibri', 'weight' => 'bold', 'style' => 'italic', 'paths' => [
-                'C:\\Windows\\Fonts\\calibriz.ttf',
-                '/usr/share/fonts/truetype/crosextra/Carlito-BoldItalic.ttf',
-                '/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf',
-            ]],
-        ];
-
         $faces = [];
-        foreach ($candidates as $candidate) {
+        foreach ($this->fonts->systemFontCandidates() as $candidate) {
             foreach ($candidate['paths'] as $path) {
-                if (! is_readable($path)) {
+                if (! is_readable($path) || ! str_ends_with(strtolower($path), '.ttf')) {
                     continue;
                 }
+
+                $cached = $this->cacheFontFile($path, $candidate['family'], $candidate['weight'], $candidate['style']);
 
                 $faces[] = [
                     'family' => $candidate['family'],
                     'weight' => $candidate['weight'],
                     'style' => $candidate['style'],
-                    'path' => $path,
-                    'uri' => $this->fileUri($path),
+                    'path' => $cached,
+                    'uri' => $this->fileUri($cached),
                 ];
 
                 break;
@@ -200,14 +190,55 @@ class AgreementPdfService
     }
 
     /**
+     * Copy a system font into storage/fonts so Dompdf chroot and @font-face can read it.
+     */
+    private function cacheFontFile(string $sourcePath, string $family, string $weight, string $style): string
+    {
+        $dir = storage_path('fonts');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $safeFamily = strtolower(preg_replace('/[^a-z0-9]+/i', '', $family) ?: 'font');
+        $dest = $dir . DIRECTORY_SEPARATOR . $safeFamily . '-' . $weight . '-' . $style . '.ttf';
+
+        if (! is_file($dest) || filesize($dest) !== filesize($sourcePath)) {
+            copy($sourcePath, $dest);
+        }
+
+        return $dest;
+    }
+
+    /**
+     * @param  list<array{family: string, weight: string, style: string, uri: string}>  $faces
+     */
+    private function registerPdfFonts(\Dompdf\Dompdf $dompdf, array $faces): void
+    {
+        $metrics = $dompdf->getFontMetrics();
+
+        foreach ($faces as $face) {
+            $metrics->registerFont(
+                [
+                    'family' => $face['family'],
+                    'weight' => $face['weight'],
+                    'style' => $face['style'],
+                ],
+                $face['path']
+            );
+        }
+    }
+
+    /**
      * @param  list<array{path: string}>  $faces
      * @return list<string>
      */
     private function fontChrootDirectories(array $faces): array
     {
         $dirs = [
+            storage_path('fonts'),
             storage_path('app/public'),
             public_path(),
+            base_path(),
         ];
 
         foreach ($faces as $face) {

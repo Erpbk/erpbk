@@ -164,4 +164,27 @@ class Sims extends BaseModel
   {
     return (int) $this->status === self::STATUS_DEACTIVATED;
   }
+
+  /**
+   * A SIM can only go to a rider or employee when it is sitting in the office.
+   */
+  public function isAssignable(): bool
+  {
+    return !$this->assign_to && !$this->isDeactivated();
+  }
+
+  public function createdBy()
+  {
+    return $this->belongsTo(User::class, 'created_by', 'id');
+  }
+
+  public function updatedBy()
+  {
+    return $this->belongsTo(User::class, 'updated_by', 'id');
+  }
+
+  public function invoiceItems()
+  {
+    return $this->hasMany(SimInvoiceItem::class, 'sim_id', 'id');
+  }
 }

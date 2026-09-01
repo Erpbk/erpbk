@@ -954,8 +954,6 @@ class BikesController extends AppBaseController
                     Riders::where('id', $bike->rider_id)
                         ->update([
                             'status' => 4,
-                            'designation' => null,
-                            'customer_id' => null,
                         ]);
                     $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Vacation');
                     $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
@@ -965,7 +963,7 @@ class BikesController extends AppBaseController
                             'Bike return: Vacation',
                             $riderHistoryNote,
                             $riderBefore,
-                            array_merge($riderBefore, ['status' => 4, 'designation' => null, 'customer_id' => null]),
+                            array_merge($riderBefore, ['status' => 4]),
                             $request->return_date,
                             'bike_assign_return',
                             $historyBranchId,
@@ -979,8 +977,6 @@ class BikesController extends AppBaseController
                     if ($rider) {
                         $rider->update([
                             'status' => 3,
-                            'designation' => null,
-                            'customer_id' => null,
                         ]);
                         $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Return');
                         if ($riderBefore) {
@@ -989,7 +985,7 @@ class BikesController extends AppBaseController
                                 'Bike return: Return',
                                 $riderHistoryNote,
                                 $riderBefore,
-                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                array_merge($riderBefore, ['status' => 3]),
                                 $request->return_date,
                                 'bike_assign_return',
                                 $historyBranchId,
@@ -1012,8 +1008,6 @@ class BikesController extends AppBaseController
                     if ($rider) {
                         $rider->update([
                             'status' => 3,
-                            'designation' => null,
-                            'customer_id' => null,
                         ]);
                         $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Theft');
                         if ($riderBefore) {
@@ -1022,7 +1016,7 @@ class BikesController extends AppBaseController
                                 'Bike return: Theft',
                                 $riderHistoryNote,
                                 $riderBefore,
-                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                array_merge($riderBefore, ['status' => 3]),
                                 $request->return_date,
                                 'bike_assign_return',
                                 $historyBranchId,
@@ -1045,8 +1039,6 @@ class BikesController extends AppBaseController
                     if ($rider) {
                         $rider->update([
                             'status' => 3,
-                            'designation' => null,
-                            'customer_id' => null,
                         ]);
                         $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Total Loss');
                         if ($riderBefore) {
@@ -1055,7 +1047,7 @@ class BikesController extends AppBaseController
                                 'Bike return: Total Loss',
                                 $riderHistoryNote,
                                 $riderBefore,
-                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                array_merge($riderBefore, ['status' => 3]),
                                 $request->return_date,
                                 'bike_assign_return',
                                 $historyBranchId,
@@ -1078,8 +1070,6 @@ class BikesController extends AppBaseController
                     if ($rider) {
                         $rider->update([
                             'status' => 3,
-                            'designation' => null,
-                            'customer_id' => null,
                         ]);
                         $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Impound');
                         if ($riderBefore) {
@@ -1088,7 +1078,7 @@ class BikesController extends AppBaseController
                                 'Bike return: Impound',
                                 $riderHistoryNote,
                                 $riderBefore,
-                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                array_merge($riderBefore, ['status' => 3]),
                                 $request->return_date,
                                 'bike_assign_return',
                                 $historyBranchId,
@@ -1111,8 +1101,6 @@ class BikesController extends AppBaseController
                     if ($rider) {
                         $rider->update([
                             'status' => 3,
-                            'designation' => null,
-                            'customer_id' => null,
                         ]);
                         $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Accident');
                         if ($riderBefore) {
@@ -1121,7 +1109,7 @@ class BikesController extends AppBaseController
                                 'Bike return: Accident',
                                 $riderHistoryNote,
                                 $riderBefore,
-                                array_merge($riderBefore, ['status' => 3, 'designation' => null, 'customer_id' => null]),
+                                array_merge($riderBefore, ['status' => 3]),
                                 $request->return_date,
                                 'bike_assign_return',
                                 $historyBranchId,

@@ -131,6 +131,9 @@ class PaymentController extends Controller
             $employeeId = request()->input('employee_id') ?? null;
             if (request()->input('invoice_id')) {
                 $selectedInvoice = EmployeeInvoices::with(['employee.account', 'items'])->find(request()->input('invoice_id'));
+                if ($selectedInvoice && ! $employeeId) {
+                    $employeeId = $selectedInvoice->employee_id;
+                }
             }
             $invoiceQuery = EmployeeInvoices::with(['employee.account', 'items'])
                 ->payable()
@@ -161,6 +164,9 @@ class PaymentController extends Controller
             $selectedInvoice = null;
             if (request()->input('invoice_id')) {
                 $selectedInvoice = RiderInvoices::with(['rider.account', 'items'])->find(request()->input('invoice_id'));
+                if ($selectedInvoice && ! $riderId) {
+                    $riderId = $selectedInvoice->rider_id;
+                }
             }
             $invoiceQuery = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()

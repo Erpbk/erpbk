@@ -82,10 +82,6 @@
       return customerName;
     }
 
-    function getSelectedBillingMonth() {
-      return ($ctx.find('#billing_month, [name="billing_month"]').val() || '').toString().trim();
-    }
-
     function updateSelectAllState() {
       var totalVisible = $ctx.find('#invoices-table tbody tr:visible').length;
       var checkedVisible = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').length;
@@ -175,7 +171,6 @@
     function filterInvoiceRows() {
       var selectedCustomerId = getSelectedCustomerId();
       var selectedCustomerName = getSelectedCustomerName();
-      var selectedBillingMonth = isRiderPayment ? getSelectedBillingMonth() : '';
       var visibleCount = 0;
       var hasPayeeFilter = !!(selectedCustomerId || selectedCustomerName);
 
@@ -183,7 +178,6 @@
         var $row = $(this);
         var invoiceCustomerId = $row.data('customer-id');
         var invoiceCustomerName = $row.data('customer-name');
-        var invoiceBillingMonth = ($row.data('billing-month') || '').toString();
         var matches = true;
 
         if (hasPayeeFilter) {
@@ -194,10 +188,6 @@
           if (!matches && selectedCustomerName && invoiceCustomerName) {
             matches = (invoiceCustomerName.toLowerCase() === selectedCustomerName.toLowerCase());
           }
-        }
-
-        if (matches && selectedBillingMonth && invoiceBillingMonth) {
-          matches = invoiceBillingMonth === selectedBillingMonth;
         }
 
         if (matches) {
@@ -214,7 +204,7 @@
 
       if (visibleCount === 0 && hasPayeeFilter && typeof toastr !== 'undefined') {
         toastr.info(isRiderPayment
-          ? 'No pending invoices found for this payee and billing month'
+          ? 'No pending invoices found for this payee'
           : 'No invoices found for this customer');
       }
 
@@ -236,12 +226,6 @@
 
     $ctx.on('change.paymentFields', '#payee_account_id, [name="payee_account_id"]', function () {
       filterInvoiceRows();
-    });
-
-    $ctx.on('change.paymentFields', '#billing_month, [name="billing_month"]', function () {
-      if (isRiderPayment) {
-        filterInvoiceRows();
-      }
     });
 
     $ctx.on('change.paymentFields', '.invoice-checkbox', function () {
@@ -408,6 +392,16 @@
       var $payeeSelect = $ctx.find('#payee_account_id, [name="payee_account_id"]');
       if ($payeeSelect.val() || isRiderPayment) {
         filterInvoiceRows();
+      }
+      var openedInvoiceId = $ctx.find('[data-opened-invoice-id]').attr('data-opened-invoice-id');
+      if (openedInvoiceId) {
+        var $openedCb = $ctx.find('#invoices-table tbody tr[data-invoice-id="' + openedInvoiceId + '"] .invoice-checkbox');
+        if ($openedCb.length && $openedCb.closest('tr').is(':visible')) {
+          if (!$openedCb.prop('checked')) {
+            $openedCb.prop('checked', true);
+          }
+          $openedCb.trigger('change');
+        }
       }
       if (!isRiderPayment) {
         $ctx.find('#payment_amount').trigger('change');

@@ -323,7 +323,7 @@ class PaymentController extends Controller
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
-            'payment_amounts.*' => 'numeric|min:0.01',
+            'payment_amounts.*' => $this->invoicePaymentAmountRules(),
         ];
 
         $messages = [
@@ -336,7 +336,6 @@ class PaymentController extends Controller
             'billing_month.required' => 'Billing month is required',
             'description.required' => 'Main narration is required',
             'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
-            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -411,7 +410,7 @@ class PaymentController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             // Update the invoice status based on the payment
                             if ($invoicePaymentAmount >= $invoice->total_amount - ($invoice->paid_amount ?? 0)) {
                                 $invoice->update([
@@ -434,7 +433,7 @@ class PaymentController extends Controller
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             // Payment already saved; balance is remaining due after deductions/payments.
                             $invoice->update([
                                 'status' => ((float) $invoice->balance) <= 0.01 ? 1 : 3,
@@ -448,7 +447,7 @@ class PaymentController extends Controller
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             $invoice->update([
                                 'status' => 1,
                                 'updated_by' => auth()->id(),
@@ -463,7 +462,7 @@ class PaymentController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
                                 $invoice->status = 1;
                             } else {
@@ -481,7 +480,7 @@ class PaymentController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             // Update the invoice status based on the payment
                             if ($invoicePaymentAmount >= $invoice->total_amount - ($invoice->paid_amount ?? 0)) {
                                 $invoice->update([
@@ -845,7 +844,7 @@ class PaymentController extends Controller
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
-            'payment_amounts.*' => 'numeric|min:0.01',
+            'payment_amounts.*' => $this->invoicePaymentAmountRules(),
         ];
 
         $messages = [
@@ -859,7 +858,6 @@ class PaymentController extends Controller
             'description.required' => 'Narration for Transaction is Required',
             'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
             'invoice_ids.*.exists' => 'One or more selected invoices are invalid.',
-            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -1049,7 +1047,7 @@ class PaymentController extends Controller
                 foreach ($invoices as $invoice) {
                     $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
-                    if ($invoicePaymentAmount <= 0) {
+                    if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                         continue;
                     }
 
@@ -1286,6 +1284,27 @@ class PaymentController extends Controller
         Flash::success('Payment deleted successfully.');
 
         return redirect()->back();
+    }
+
+    /**
+     * Per-invoice allocations may be negative (credit / overpaid invoices).
+     * The net payment amount must still be greater than zero.
+     */
+    private function invoicePaymentAmountRules(): array
+    {
+        return [
+            'numeric',
+            function (string $attribute, $value, \Closure $fail): void {
+                if (abs((float) $value) < 0.01) {
+                    $fail('Each selected invoice must have a non-zero payment amount.');
+                }
+            },
+        ];
+    }
+
+    private function isNonZeroInvoiceAllocation($amount): bool
+    {
+        return abs((float) $amount) >= 0.01;
     }
 
     /**

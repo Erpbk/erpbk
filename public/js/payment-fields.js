@@ -151,10 +151,17 @@
       }
 
       var total = updateTotalPayment();
-      $ctx.find('#payment_amount').val(total > 0 ? total.toFixed(2) : '');
-      $ctx.find('#display_amount').text(total.toFixed(2));
+      var $amount = $ctx.find('#payment_amount');
+      if (total > 0) {
+        $amount.val(total.toFixed(2));
+        $ctx.find('#display_amount').text(total.toFixed(2));
+      } else {
+        var existing = parseFloat($amount.val()) || 0;
+        $ctx.find('#display_amount').text(existing.toFixed(2));
+      }
+      var paymentAmount = parseFloat($amount.val()) || 0;
       var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
-      $ctx.find('#total_debit').text((total + bankCharges).toFixed(2));
+      $ctx.find('#total_debit').text((paymentAmount + bankCharges).toFixed(2));
       validatePaymentDistribution();
     }
 
@@ -359,16 +366,20 @@
       if (isRiderPayment) {
         var $activeAmounts = $ctx.find('.payment-amount:not(:disabled)');
         if ($activeAmounts.length === 1) {
-          var maxAllowed = parseFloat($activeAmounts.first().data('max')) || 0;
-          var capped = amount;
-          if (maxAllowed > 0 && capped > maxAllowed) {
-            capped = maxAllowed;
-            $(this).val(capped.toFixed(2));
-            if (typeof toastr !== 'undefined') {
-              toastr.warning('Payment amount cannot exceed invoice amount');
+          var $line = $activeAmounts.first();
+          var rowBalance = parseFloat($line.closest('tr').data('balance')) || 0;
+          var maxAllowed = parseFloat($line.data('max')) || 0;
+          if (rowBalance > 0) {
+            var capped = amount;
+            if (maxAllowed > 0 && capped > maxAllowed) {
+              capped = maxAllowed;
+              $(this).val(capped.toFixed(2));
+              if (typeof toastr !== 'undefined') {
+                toastr.warning('Payment amount cannot exceed invoice amount');
+              }
             }
+            $line.val(capped.toFixed(2));
           }
-          $activeAmounts.first().val(capped.toFixed(2));
         }
         updateTotalPayment();
         validatePaymentDistribution();
@@ -433,8 +444,10 @@
     }
 
     if ($('#invoices-table').length && Math.abs(totalCredit - totalInvoicePayment) > 0.01) {
-      alert('Payment amount must equal total selected invoice payments');
-      return false;
+      if (!(isRiderPayment && totalInvoicePayment <= 0 && totalCredit > 0)) {
+        alert('Payment amount must equal total selected invoice payments');
+        return false;
+      }
     }
 
     if (isRiderPayment && !$('.invoice-checkbox:checked').length) {

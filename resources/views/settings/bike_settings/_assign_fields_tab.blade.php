@@ -97,6 +97,7 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
           <th style="width: 48px;" class="text-center" title="{{ __('Drag to reorder') }}"></th>
           <th>Field</th>
           <th>Modals</th>
+          <th>Required</th>
           <th>Type</th>
           <th class="text-end">Actions</th>
         </tr>
@@ -143,6 +144,12 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
                 <input type="checkbox" class="form-check-input bike-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="show_on_change" {{ $row->show_on_change ? 'checked' : '' }}>
                 <label class="form-check-label small">Return</label>
               </div>
+            </div>
+          </td>
+          <td class="align-middle">
+            <div class="form-check form-switch mb-0">
+              <input type="checkbox" class="form-check-input bike-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="is_required" {{ $row->is_required ? 'checked' : '' }}>
+              <label class="form-check-label small">Required</label>
             </div>
           </td>
           <td class="align-middle">
@@ -210,6 +217,12 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
                 <input type="checkbox" class="form-check-input bike-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="show_on_change" {{ $row->show_on_change ? 'checked' : '' }}>
                 <label class="form-check-label small">Return</label>
               </div>
+            </div>
+          </td>
+          <td class="align-middle">
+            <div class="form-check form-switch mb-0">
+              <input type="checkbox" class="form-check-input bike-assign-modal-toggle" data-id="{{ $row->id }}" data-prop="is_required" {{ $isReq ? 'checked' : '' }}>
+              <label class="form-check-label small">Required</label>
             </div>
           </td>
           <td class="align-middle">

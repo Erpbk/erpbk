@@ -615,12 +615,23 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   (function sanitizeUploadFilenames(fd) {
     var allowedExt = {
       pdf: 1, jpg: 1, jpeg: 1, png: 1, gif: 1, webp: 1, bmp: 1,
+      heic: 1, heif: 1,
       doc: 1, docx: 1, xls: 1, xlsx: 1, csv: 1, txt: 1, rar: 1, zip: 1
     };
     var pending = [];
     fd.forEach(function (value, key) {
       if (typeof File !== 'undefined' && value instanceof File) {
         pending.push({ key: key, file: value });
+      }
+    });
+    if (!pending.length) {
+      return;
+    }
+    var cleared = {};
+    pending.forEach(function (item) {
+      if (!cleared[item.key]) {
+        fd.delete(item.key);
+        cleared[item.key] = true;
       }
     });
     pending.forEach(function (item, index) {
@@ -630,7 +641,6 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
         ext = 'bin';
       }
       var safeName = 'upload_' + Date.now() + '_' + index + '.' + ext;
-      fd.delete(item.key);
       fd.append(item.key, item.file, safeName);
       if (!fd.has('original_filename')) {
         fd.append('original_filename', original);

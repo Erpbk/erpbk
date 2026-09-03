@@ -7,9 +7,12 @@ $assignGroup = $spec['assign_group'] ?? ($config['assign_group'] ?? null);
 $isReadonly = !empty($spec['readonly']);
 $label = $field->resolvedLabel();
 $required = (bool) ($spec['required'] ?? false);
-$colClass = in_array($inputType, ['textarea'], true) ? 'col-md-12' : 'col-md-3';
+$colClass = in_array($inputType, ['textarea', 'file'], true) ? 'col-md-12' : 'col-md-3';
 if ($fieldKey === 'notes' && $inputType === 'textarea') {
 $colClass = ($assignContext ?? 'active') === 'active' ? 'col-md-8' : 'col-md-8';
+}
+if ($fieldKey === 'condition_images') {
+$colClass = 'col-md-6';
 }
 $defaultAssignType = $defaultAssignType ?? '';
 $groupHidden = $assignGroup && $assignGroup !== $defaultAssignType;
@@ -19,10 +22,10 @@ $name = $fieldKey ?: 'custom_field_values[' . ($field->custom_field_id ?? $field
 $controlRequired = $required && ! $groupHidden;
 $selectAttrs = ['class' => 'form-select select2'];
 if ($controlRequired) {
-    $selectAttrs['required'] = true;
+$selectAttrs['required'] = true;
 }
 if ($groupHidden) {
-    $selectAttrs['disabled'] = true;
+$selectAttrs['disabled'] = true;
 }
 @endphp
 
@@ -57,6 +60,16 @@ $value = old('custom_field_values.' . $cf->id, $cf->default_value);
     <input type="text" name="{{ $name }}" class="form-control" value="{{ $value }}" @if($controlRequired) required @endif @if($groupHidden) disabled @endif @if($isReadonly) readonly @endif placeholder="{{ $cf->help_text }}">
     @endif
 </div>
+@elseif($fieldKey === 'condition_images')
+@include('bikes._condition_images_field', [
+'field' => $field,
+'label' => $label,
+'required' => $required,
+'controlRequired' => $controlRequired,
+'colClass' => $colClass,
+'groupClass' => $groupClass,
+'wrapperId' => $wrapperId,
+])
 @elseif($fieldKey === 'notes')
 {{-- Assign/return modal note → POST as `note`, saved to rider_histories.details only --}}
 <div class="{{ $colClass }} form-group {{ $groupClass }}" id="{{ $wrapperId }}" data-assign-field="notes">

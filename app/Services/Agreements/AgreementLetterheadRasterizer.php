@@ -13,9 +13,9 @@ use Symfony\Component\Process\Process;
  */
 class AgreementLetterheadRasterizer
 {
-    public function store(UploadedFile $file, int $companyId): string
+    public function store(UploadedFile $file, int $companyId, string $kind = 'letterhead'): string
     {
-        $dir = 'agreement-letterheads/' . $companyId;
+        $dir = ($kind === 'watermark' ? 'agreement-watermarks/' : 'agreement-letterheads/') . $companyId;
         $mime = (string) ($file->getMimeType() ?: '');
         $ext = strtolower((string) $file->getClientOriginalExtension());
         $sourcePath = $file->getRealPath();

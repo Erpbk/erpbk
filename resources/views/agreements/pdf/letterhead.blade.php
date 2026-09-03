@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -23,8 +23,8 @@
   $agreementLineHeight = $agreementLineHeight ?? $fonts->lineHeight();
   $agreementFontColor = $agreementFontColor ?? $fonts->color();
   $agreementHeadingSizesPt = $agreementHeadingSizesPt ?? $fonts->headingSizesPt();
-  // Dompdf/A4 rounding: a full-height box on the paper overflows by ~1–2pt and splits an extra blank page.
-  $pageBoxH = $forPdf ? round($pageH - 2.6, 1) : $pageH;
+  // Dompdf/A4 rounding: a full-height box can overflow by a fraction of a mm and split a blank page.
+  $pageBoxH = $forPdf ? round($pageH - 0.4, 1) : $pageH;
   @endphp
   <style>
     @page {
@@ -32,19 +32,17 @@
       margin: 0;
     }
 
+    @if (! $forPdf)
     @foreach ($pdfFontFaces as $face)
     @font-face {
       font-family: '{{ $face['family'] }}';
       font-weight: {{ $face['weight'] }};
       font-style: {{ $face['style'] }};
       font-display: swap;
-      @if ($forPdf)
-      src: url('{{ str_replace('\\', '/', $face['path']) }}');
-      @else
       src: url('{{ $face['url'] }}') format('truetype');
-      @endif
     }
     @endforeach
+    @endif
 
     * { box-sizing: border-box; }
 
@@ -153,6 +151,7 @@
     @include('agreements.pdf.partials.letterhead-chrome-styles', [
       'pageWidthMm' => $pageW,
       'pageHeightMm' => $pageBoxH,
+      'paperHeightMm' => $pageH,
       'branding' => $branding,
       'headerTopMarginMm' => $headerTopMarginMm,
     ])
@@ -270,7 +269,15 @@
   </style>
 </head>
 <body>
-  @if ($forPdf && $withLetterhead && empty($branding['letterhead_src']))
+  @php
+    $letterheadMode = $branding['letterhead_mode'] ?? 'default';
+    $hasDesign = ! empty($branding['letterhead_src']);
+    $hasWatermark = ! empty($branding['watermark_src']);
+    $showCompanyHeader = $withLetterhead && $letterheadMode !== 'none' && ! $hasDesign;
+    $showPerPageChrome = $withLetterhead && (! $forPdf || $hasDesign);
+    $showFixedChrome = $forPdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
+  @endphp
+  @if ($showFixedChrome)
   <div class="letterhead-overlay letterhead-overlay--fixed">
       @include('agreements.pdf.partials.page-chrome', [
         'pageWidthMm' => $pageW,
@@ -282,8 +289,8 @@
   <div class="preview-pages" id="agreement-preview-pages" @if(! $forPdf) aria-live="polite" @endif>
     @foreach ($renderPages as $pageBody)
     <div class="agreement-page preview-page">
-      @if($withLetterhead && (! $forPdf || ! empty($branding['letterhead_src'])))
-      <div class="letterhead-overlay{{ ! empty($branding['letterhead_src']) ? ' letterhead-overlay--design' : '' }}">
+      @if($showPerPageChrome)
+      <div class="letterhead-overlay{{ $hasDesign ? ' letterhead-overlay--design' : '' }}">
         @include('agreements.pdf.partials.page-chrome', [
           'pageWidthMm' => $pageW,
           'pageHeightMm' => $forPdf ? $pageH : $pageBoxH,

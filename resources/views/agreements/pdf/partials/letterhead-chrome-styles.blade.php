@@ -20,9 +20,10 @@
   position: absolute;
   width: 90mm;
   height: 90mm;
-  z-index: 0;
-  opacity: 0.07;
+  z-index: 1;
+  opacity: 0.12;
   text-align: center;
+  pointer-events: none;
 }
 
 .page-watermark img {
@@ -117,5 +118,6 @@
   height: {{ $chromeH }}mm;
   border: 0;
   max-width: none;
+  object-fit: fill;
 }
 

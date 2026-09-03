@@ -78,6 +78,58 @@ class AgreementLetterheadRasterizerTest extends TestCase
         $this->assertStringNotContainsString('page-letterhead-design', $generated);
     }
 
+    public function test_page_chrome_none_skips_header_and_design(): void
+    {
+        $html = view('agreements.pdf.partials.page-chrome', [
+            'branding' => [
+                'letterhead_src' => null,
+                'letterhead_mode' => 'none',
+                'name' => 'Fast Delivery',
+            ],
+            'pageWidthMm' => 210,
+            'pageHeightMm' => 297,
+        ])->render();
+
+        $this->assertStringNotContainsString('page-letterhead-design', $html);
+        $this->assertStringNotContainsString('page-header', $html);
+        $this->assertStringNotContainsString('page-watermark', $html);
+    }
+
+    public function test_page_chrome_renders_selected_watermark(): void
+    {
+        $html = view('agreements.pdf.partials.page-chrome', [
+            'branding' => [
+                'letterhead_src' => null,
+                'letterhead_mode' => 'none',
+                'watermark_src' => 'data:image/png;base64,AAA',
+                'name' => 'Fast Delivery',
+            ],
+            'pageWidthMm' => 210,
+            'pageHeightMm' => 297,
+        ])->render();
+
+        $this->assertStringContainsString('page-watermark', $html);
+        $this->assertStringNotContainsString('page-header', $html);
+    }
+
+    public function test_stores_watermark_in_watermark_directory(): void
+    {
+        Storage::fake('public');
+
+        $tmp = tempnam(sys_get_temp_dir(), 'wm');
+        $image = imagecreatetruecolor(40, 40);
+        imagefilledrectangle($image, 0, 0, 39, 39, imagecolorallocate($image, 20, 20, 180));
+        imagepng($image, $tmp);
+        imagedestroy($image);
+
+        $file = new UploadedFile($tmp, 'mark.png', 'image/png', null, true);
+        $path = $this->app->make(AgreementLetterheadRasterizer::class)->store($file, 9, 'watermark');
+
+        $this->assertTrue(Storage::disk('public')->exists($path));
+        $this->assertStringStartsWith('agreement-watermarks/9/', $path);
+        @unlink($tmp);
+    }
+
     public function test_branding_skips_uploaded_src_when_category_has_no_file(): void
     {
         $branding = $this->app->make(AgreementPdfBranding::class)->withUploadedLetterhead(
@@ -87,5 +139,35 @@ class AgreementLetterheadRasterizerTest extends TestCase
 
         $this->assertNull($branding['letterhead_src']);
         $this->assertFalse($branding['has_uploaded_letterhead']);
+        $this->assertNull($branding['watermark_src']);
+    }
+
+    public function test_default_watermark_uses_company_logo(): void
+    {
+        $category = new \App\Models\AgreementCategory(['watermark_mode' => 'default']);
+        $src = $this->app->make(AgreementPdfBranding::class)->resolvedWatermarkSrc(
+            ['logo_src' => 'data:image/png;base64,LOGO'],
+            $category
+        );
+
+        $this->assertSame('data:image/png;base64,LOGO', $src);
+    }
+
+    public function test_letterhead_public_url_does_not_require_storage_symlink(): void
+    {
+        Storage::fake('public');
+
+        $path = 'agreement-letterheads/1/demo.jpg';
+        Storage::disk('public')->put($path, 'fake-image');
+
+        $letterhead = new \App\Models\AgreementLetterhead([
+            'name' => 'Demo',
+            'path' => $path,
+        ]);
+
+        $url = $letterhead->publicUrl();
+
+        $this->assertNotNull($url);
+        $this->assertStringContainsString('storage/' . $path, $url);
     }
 }

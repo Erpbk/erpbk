@@ -58,7 +58,7 @@ class AgreementPdfService
             : $this->resolver->resolveForModule($module, $record, $agreementDate);
 
         $body = $this->fonts->normalizeHtml($this->resolver->replace($content, $map));
-        $template->loadMissing('category.letterhead');
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $category = $template->category;
         $branding = $this->pdfBranding->withUploadedLetterhead(
             $this->pdfBranding->forCompany($template->company_id),
@@ -114,7 +114,7 @@ class AgreementPdfService
         ?string $agreementDate = null,
         bool $withLetterhead = true
     ) {
-        $template->loadMissing('category.letterhead');
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead);
 
         return $this->buildPdf($html, $template->category);
@@ -127,7 +127,7 @@ class AgreementPdfService
         bool $withLetterhead = true
     ) {
         $rider = $rider ?? new Riders(['name' => 'Sample Rider', 'rider_id' => 'R-0001']);
-        $template->loadMissing('category.letterhead');
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $html = $this->renderHtmlForModule(
             $template,
             'riders',
@@ -169,6 +169,7 @@ class AgreementPdfService
         $options->setChroot($this->fontChrootDirectories($fontFaces));
         $dompdf->setOptions($options);
         $dompdf->setBasePath(public_path());
+        $this->fonts->refreshDompdfFontRegistry($fontFaces);
         $this->registerPdfFonts($dompdf, $fontFaces);
 
         $pdf->loadHTML($html);

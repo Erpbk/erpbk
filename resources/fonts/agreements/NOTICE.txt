@@ -1,0 +1,7 @@
+Agreement PDF/editor fonts (metric-compatible substitutes).
+
+Carlito (Calibri) — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/carlito
+Tinos (Times New Roman) — Apache License 2.0 — https://github.com/google/fonts/tree/main/ofl/tinos
+Cousine (Courier New) — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/cousine
+Caladea (Cambria) — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/caladea
+DejaVu (Arial / Georgia / Verdana / Segoe UI fallbacks) — Bitstream Vera / DejaVu licenses — vendor/dompdf/dompdf/lib/fonts

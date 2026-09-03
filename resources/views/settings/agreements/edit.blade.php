@@ -66,37 +66,93 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
             <div class="mt-3 mb-3">
               <label class="form-label small fw-semibold">Letterhead</label>
               <p class="text-muted small mb-2">
-                Choose the page background for preview, print, and PDF. Default uses the company logo and contact details.
+                Choose the page background for preview, print, and PDF. Default uses the company logo and contact details. None leaves the page blank behind the text.
               </p>
               @php
-                $selectedLetterheadId = (int) old('letterhead_id', $category->letterhead_id ?? 0);
+                $selectedLetterhead = (string) old('letterhead_id', $category->letterheadChoiceValue());
                 $libraryLetterheads = $letterheads ?? collect();
               @endphp
-              <div class="row g-2">
-                <div class="col-md-4">
-                  <label class="border rounded p-2 h-100 d-block {{ $selectedLetterheadId === 0 ? 'border-primary' : '' }}" style="cursor:pointer;">
-                    <input type="radio" name="letterhead_id" value="" class="form-check-input me-1" {{ $selectedLetterheadId === 0 ? 'checked' : '' }}>
+              <div class="d-flex flex-wrap gap-2 align-items-stretch">
+                <label class="border rounded p-2 d-flex flex-column {{ $selectedLetterhead === 'none' ? 'border-primary' : '' }}" style="cursor:pointer;width:max-content;max-width:11rem;">
+                  <span>
+                    <input type="radio" name="letterhead_id" value="none" class="form-check-input me-1" {{ $selectedLetterhead === 'none' ? 'checked' : '' }}>
+                    <strong>None</strong>
+                  </span>
+                  <div class="small text-muted mt-1">No header or design</div>
+                </label>
+                <label class="border rounded p-2 d-flex flex-column {{ $selectedLetterhead === 'default' ? 'border-primary' : '' }}" style="cursor:pointer;width:max-content;max-width:11rem;">
+                  <span>
+                    <input type="radio" name="letterhead_id" value="default" class="form-check-input me-1" {{ $selectedLetterhead === 'default' ? 'checked' : '' }}>
                     <strong>Default</strong>
-                    <div class="small text-muted mt-1">Company logo and info</div>
-                  </label>
-                </div>
+                  </span>
+                  <div class="small text-muted mt-1">Company logo and info</div>
+                </label>
                 @foreach($libraryLetterheads as $letterhead)
                 @php $thumb = $letterhead->publicUrl(); @endphp
-                <div class="col-md-4">
-                  <label class="border rounded p-2 h-100 d-block {{ $selectedLetterheadId === (int) $letterhead->id ? 'border-primary' : '' }}" style="cursor:pointer;">
-                    <input type="radio" name="letterhead_id" value="{{ $letterhead->id }}" class="form-check-input me-1" {{ $selectedLetterheadId === (int) $letterhead->id ? 'checked' : '' }}>
+                <label class="border rounded p-2 d-flex flex-column {{ $selectedLetterhead === (string) $letterhead->id ? 'border-primary' : '' }}" style="cursor:pointer;width:max-content;max-width:11rem;">
+                  <span>
+                    <input type="radio" name="letterhead_id" value="{{ $letterhead->id }}" class="form-check-input me-1" {{ $selectedLetterhead === (string) $letterhead->id ? 'checked' : '' }}>
                     <strong>{{ $letterhead->name }}</strong>
-                    @if($thumb)
-                    <img src="{{ $thumb }}" alt="" class="d-block mt-2 border rounded" style="max-height:90px;max-width:100%;object-fit:contain;background:#f8fafc;">
-                    @endif
-                  </label>
-                </div>
+                  </span>
+                  @if($thumb)
+                  <img src="{{ $thumb }}" alt="" class="d-block mt-2 border rounded" style="height:90px;width:auto;max-width:100%;object-fit:contain;background:#f8fafc;">
+                  @endif
+                </label>
                 @endforeach
               </div>
               <p class="small mb-0 mt-2">
                 <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $companySlug, 'module' => 'agreements']) }}#tab-letterhead">Manage letterheads in Settings</a>
               </p>
               @error('letterhead_id')
+              <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+            </div>
+
+            <div class="mt-3 mb-3">
+              <label class="form-label small fw-semibold">Watermark</label>
+              <p class="text-muted small mb-2">
+                Optional mark centred on every page, behind the contract text. Default uses the company logo.
+              </p>
+              @php
+                $selectedWatermark = (string) old('watermark_id', $category->watermarkChoiceValue());
+                $libraryWatermarks = $watermarks ?? collect();
+                $companyLogoSrc = $pdfBranding['logo_src'] ?? ($pdfBranding['logo_url'] ?? null);
+              @endphp
+              <div class="d-flex flex-wrap gap-2 align-items-stretch">
+                <label class="border rounded p-2 d-flex flex-column {{ $selectedWatermark === 'none' ? 'border-primary' : '' }}" style="cursor:pointer;width:max-content;max-width:11rem;">
+                  <span>
+                    <input type="radio" name="watermark_id" value="none" class="form-check-input me-1" {{ $selectedWatermark === 'none' ? 'checked' : '' }}>
+                    <strong>None</strong>
+                  </span>
+                  <div class="small text-muted mt-1">No watermark</div>
+                </label>
+                <label class="border rounded p-2 d-flex flex-column {{ $selectedWatermark === 'default' ? 'border-primary' : '' }}" style="cursor:pointer;width:max-content;max-width:11rem;">
+                  <span>
+                    <input type="radio" name="watermark_id" value="default" class="form-check-input me-1" {{ $selectedWatermark === 'default' ? 'checked' : '' }}>
+                    <strong>Default</strong>
+                  </span>
+                  <div class="small text-muted mt-1">Company logo</div>
+                  @if($companyLogoSrc)
+                  <img src="{{ $companyLogoSrc }}" alt="" class="d-block mt-2 border rounded" style="height:90px;width:auto;max-width:100%;object-fit:contain;background:#f8fafc;">
+                  @endif
+                </label>
+                @foreach($libraryWatermarks as $watermark)
+                @php $thumb = $watermark->publicUrl(); @endphp
+                <label class="border rounded p-2 d-flex flex-column {{ $selectedWatermark === (string) $watermark->id ? 'border-primary' : '' }}" style="cursor:pointer;width:max-content;max-width:11rem;">
+                  <span>
+                    <input type="radio" name="watermark_id" value="{{ $watermark->id }}" class="form-check-input me-1" {{ $selectedWatermark === (string) $watermark->id ? 'checked' : '' }}>
+                    <strong>{{ $watermark->name }}</strong>
+                  </span>
+                  @if($thumb)
+                  <img src="{{ $thumb }}" alt="" class="d-block mt-2 border rounded" style="height:90px;width:auto;max-width:100%;object-fit:contain;background:#f8fafc;">
+                  @endif
+                </label>
+                @endforeach
+              </div>
+              <p class="small mb-0 mt-2">
+                <a href="{{ route('settings-panel.module-settings.index', ['company_slug' => $companySlug, 'module' => 'agreements']) }}#watermarks">Manage watermarks in Settings</a>
+              </p>
+              @error('watermark_id')
               <div class="text-danger small mt-1">{{ $message }}</div>
               @enderror
             </div>

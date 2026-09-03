@@ -4,6 +4,7 @@ namespace App\Services\Agreements;
 
 use App\Models\AgreementCategory;
 use App\Services\Email\CompanyEmailBrandingService;
+use App\Support\PublicStorageDisk;
 
 /**
  * Enriches company branding for agreement PDFs (Dompdf-safe logo + derived palette).
@@ -57,14 +58,41 @@ class AgreementPdfBranding
      */
     public function withUploadedLetterhead(array $branding, ?AgreementCategory $category, bool $preferPublicUrl = false): array
     {
-        $src = $preferPublicUrl
-            ? ($this->letterheadPublicUrl($category) ?: $this->letterheadDataUri($category))
-            : $this->letterheadDataUri($category);
+        if ($category) {
+            $category->loadMissing(['letterhead', 'watermark']);
+        }
 
+        $mode = $category?->letterheadMode() ?? 'default';
+        $src = null;
+        if ($mode === 'library') {
+            $src = $preferPublicUrl
+                ? ($this->letterheadPublicUrl($category) ?: $this->letterheadDataUri($category))
+                : $this->letterheadDataUri($category);
+        }
+
+        $branding['letterhead_mode'] = $mode;
         $branding['letterhead_src'] = $src;
         $branding['has_uploaded_letterhead'] = $src !== null;
+        $branding['watermark_mode'] = $category?->watermarkMode() ?? 'none';
+        $branding['watermark_src'] = $this->resolvedWatermarkSrc($branding, $category);
 
         return $branding;
+    }
+
+    /**
+     * @param  array<string, mixed>  $branding
+     */
+    public function resolvedWatermarkSrc(array $branding, ?AgreementCategory $category): ?string
+    {
+        $mode = $category?->watermarkMode() ?? 'none';
+        if ($mode === 'library') {
+            return $this->watermarkDataUri($category);
+        }
+        if ($mode === 'default') {
+            return $branding['logo_src'] ?? null;
+        }
+
+        return null;
     }
 
     public function letterheadPublicUrl(?AgreementCategory $category): ?string
@@ -88,12 +116,7 @@ class AgreementPdfBranding
             return null;
         }
 
-        $publicPath = public_path('storage/' . $relative);
-        if (! is_readable($publicPath)) {
-            return null;
-        }
-
-        return asset('storage/' . $relative);
+        return PublicStorageDisk::url($relative);
     }
 
     /**
@@ -106,6 +129,26 @@ class AgreementPdfBranding
         }
 
         $path = $category->letterheadFilesystemPath();
+        if ($path === null) {
+            return null;
+        }
+
+        $mime = @mime_content_type($path) ?: '';
+        if (str_contains($mime, 'pdf')) {
+            return null;
+        }
+
+        return $this->logoToDataUri($path);
+    }
+
+    public function watermarkDataUri(?AgreementCategory $category): ?string
+    {
+        if (! $category) {
+            return null;
+        }
+
+        $watermark = $category->watermark;
+        $path = $watermark?->filesystemPath();
         if ($path === null) {
             return null;
         }

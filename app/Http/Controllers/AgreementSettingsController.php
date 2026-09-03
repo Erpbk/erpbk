@@ -131,13 +131,15 @@ class AgreementSettingsController extends Controller
 
         $category = AgreementCategory::with([
             'letterhead',
+            'watermark',
             'templates' => fn($q) => $q->where('status', true)->orderBy('template_name'),
         ])->findOrFail($category);
         $modules = $this->moduleOptions();
         $groups = config('agreement_categories.groups', []);
         $placeholders = AgreementPlaceholder::grouped();
         $pdfBranding = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
-        $letterheads = AgreementLetterhead::query()->orderBy('name')->get();
+        $letterheads = AgreementLetterhead::query()->ofKind(AgreementLetterhead::KIND_LETTERHEAD)->orderBy('name')->get();
+        $watermarks = AgreementLetterhead::query()->ofKind(AgreementLetterhead::KIND_WATERMARK)->orderBy('name')->get();
 
         $contractTemplateId = optional($category->contractTemplate())->id;
         $letterheadMargins = app(AgreementLetterheadLayout::class)->resolvedMarginsMm($category);
@@ -150,7 +152,8 @@ class AgreementSettingsController extends Controller
             'placeholders',
             'pdfBranding',
             'letterheadMargins',
-            'letterheads'
+            'letterheads',
+            'watermarks'
         ));
     }
 
@@ -196,10 +199,32 @@ class AgreementSettingsController extends Controller
             ],
             'template_contents' => 'nullable|array',
             'template_contents.*' => 'nullable|string',
-            'letterhead_id' => [
-                'nullable',
-                Rule::exists('agreement_letterheads', 'id')->where(fn($q) => $q->where('company_id', $companyId)),
-            ],
+            'letterhead_id' => ['required', 'string', function (string $attribute, mixed $value, \Closure $fail) use ($companyId) {
+                if (in_array($value, ['none', 'default'], true)) {
+                    return;
+                }
+                $exists = AgreementLetterhead::query()
+                    ->ofKind(AgreementLetterhead::KIND_LETTERHEAD)
+                    ->where('company_id', $companyId)
+                    ->whereKey($value)
+                    ->exists();
+                if (! $exists) {
+                    $fail('Select a valid letterhead.');
+                }
+            }],
+            'watermark_id' => ['required', 'string', function (string $attribute, mixed $value, \Closure $fail) use ($companyId) {
+                if (in_array($value, ['none', 'default'], true)) {
+                    return;
+                }
+                $exists = AgreementLetterhead::query()
+                    ->ofKind(AgreementLetterhead::KIND_WATERMARK)
+                    ->where('company_id', $companyId)
+                    ->whereKey($value)
+                    ->exists();
+                if (! $exists) {
+                    $fail('Select a valid watermark.');
+                }
+            }],
             'letterhead_margins' => 'nullable|array',
             'letterhead_margins.top' => 'nullable|numeric|min:30|max:100',
             'letterhead_margins.bottom' => 'nullable|numeric|min:0|max:50',
@@ -241,8 +266,29 @@ class AgreementSettingsController extends Controller
         $layout = app(AgreementLetterheadLayout::class);
         $marginBaseline = $layout->resolvedMarginsMm($category);
 
-        $letterheadId = $request->input('letterhead_id');
-        $category->letterhead_id = ($letterheadId === '' || $letterheadId === null) ? null : (int) $letterheadId;
+        $letterheadId = (string) $request->input('letterhead_id', 'default');
+        if ($letterheadId === 'none') {
+            $category->letterhead_mode = 'none';
+            $category->letterhead_id = null;
+        } elseif ($letterheadId === 'default' || $letterheadId === '') {
+            $category->letterhead_mode = 'default';
+            $category->letterhead_id = null;
+        } else {
+            $category->letterhead_mode = 'library';
+            $category->letterhead_id = (int) $letterheadId;
+        }
+
+        $watermarkId = (string) $request->input('watermark_id', 'none');
+        if ($watermarkId === 'default') {
+            $category->watermark_mode = 'default';
+            $category->watermark_id = null;
+        } elseif ($watermarkId === 'none' || $watermarkId === '') {
+            $category->watermark_mode = 'none';
+            $category->watermark_id = null;
+        } else {
+            $category->watermark_mode = 'library';
+            $category->watermark_id = (int) $watermarkId;
+        }
         $category->save();
 
         $this->saveLetterheadMargins($request, $category, $marginBaseline, false);

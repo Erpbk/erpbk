@@ -22,6 +22,9 @@ class AgreementCategory extends BaseModel
         'description',
         'letterhead_path',
         'letterhead_id',
+        'letterhead_mode',
+        'watermark_id',
+        'watermark_mode',
         'letterhead_margins',
         'sort_order',
         'status',
@@ -38,6 +41,63 @@ class AgreementCategory extends BaseModel
     public function letterhead(): BelongsTo
     {
         return $this->belongsTo(AgreementLetterhead::class, 'letterhead_id');
+    }
+
+    public function watermark(): BelongsTo
+    {
+        return $this->belongsTo(AgreementLetterhead::class, 'watermark_id');
+    }
+
+    public function letterheadMode(): string
+    {
+        $mode = strtolower(trim((string) ($this->letterhead_mode ?? '')));
+        if ($mode === 'library' && ! $this->letterhead_id) {
+            return 'default';
+        }
+        if (in_array($mode, ['none', 'default', 'library'], true)) {
+            return $mode;
+        }
+
+        return $this->letterhead_id ? 'library' : 'default';
+    }
+
+    public function letterheadChoiceValue(): string
+    {
+        $mode = $this->letterheadMode();
+        if ($mode === 'none') {
+            return 'none';
+        }
+        if ($mode === 'library' && $this->letterhead_id) {
+            return (string) $this->letterhead_id;
+        }
+
+        return 'default';
+    }
+
+    public function watermarkMode(): string
+    {
+        $mode = strtolower(trim((string) ($this->watermark_mode ?? '')));
+        if ($mode === 'library' && ! $this->watermark_id) {
+            return 'none';
+        }
+        if (in_array($mode, ['none', 'default', 'library'], true)) {
+            return $mode;
+        }
+
+        return $this->watermark_id ? 'library' : 'none';
+    }
+
+    public function watermarkChoiceValue(): string
+    {
+        $mode = $this->watermarkMode();
+        if ($mode === 'library' && $this->watermark_id) {
+            return (string) $this->watermark_id;
+        }
+        if ($mode === 'default') {
+            return 'default';
+        }
+
+        return 'none';
     }
 
     public function templates(): HasMany
@@ -70,7 +130,7 @@ class AgreementCategory extends BaseModel
 
     public function hasLetterhead(): bool
     {
-        return $this->letterheadRelativePath() !== null;
+        return $this->letterheadMode() === 'library' && $this->letterheadRelativePath() !== null;
     }
 
     public function letterheadRelativePath(): ?string

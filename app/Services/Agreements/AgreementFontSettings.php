@@ -292,28 +292,30 @@ class AgreementFontSettings
 
         $faces = [];
         foreach ($this->systemFontCandidates() as $candidate) {
-            foreach ($candidate['paths'] as $path) {
-                if (! is_readable($path) || ! str_ends_with(strtolower($path), '.ttf')) {
-                    continue;
-                }
-
-                $file = $this->cachedFileName($candidate['family'], $candidate['weight'], $candidate['style']);
-                $dest = $dir . DIRECTORY_SEPARATOR . $file;
-                if (! is_file($dest) || filesize($dest) !== filesize($path)) {
-                    copy($path, $dest);
-                }
-
-                $faces[] = [
-                    'family' => $candidate['family'],
-                    'weight' => $candidate['weight'],
-                    'style' => $candidate['style'],
-                    'path' => $dest,
-                    'file' => $file,
-                    'url' => url('/agreement-fonts/' . $file),
-                ];
-
-                break;
+            $file = $this->cachedFileName($candidate['family'], $candidate['weight'], $candidate['style']);
+            $dest = $dir . DIRECTORY_SEPARATOR . $file;
+            $source = $this->firstReadableTtf($candidate['paths']);
+            if ($source === null && ! is_readable($dest)) {
+                continue;
             }
+
+            if ($source !== null && (! is_file($dest) || filesize($dest) !== filesize($source))) {
+                @copy($source, $dest);
+            }
+
+            $path = is_readable($dest) ? $dest : $source;
+            if ($path === null || ! is_readable($path)) {
+                continue;
+            }
+
+            $faces[] = [
+                'family' => $candidate['family'],
+                'weight' => $candidate['weight'],
+                'style' => $candidate['style'],
+                'path' => $path,
+                'file' => $file,
+                'url' => url('/agreement-fonts/' . $file),
+            ];
         }
 
         return $faces;
@@ -341,8 +343,17 @@ class AgreementFontSettings
         }
 
         $path = storage_path('fonts/' . $file);
+        if (is_file($path)) {
+            return $path;
+        }
 
-        return is_file($path) ? $path : null;
+        foreach ($this->cachedFaces() as $face) {
+            if ($face['file'] === $file && is_file($face['path'])) {
+                return $face['path'];
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -372,56 +383,58 @@ class AgreementFontSettings
     public function systemFontCandidates(): array
     {
         $win = 'C:\\Windows\\Fonts\\';
+        $bundle = $this->bundledFontDirectory();
+        $dejavu = $this->dompdfFontDirectory();
         $faces = [];
 
         foreach ([
             'Calibri' => [
-                'normal' => [$win . 'calibri.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf'],
-                'bold' => [$win . 'calibrib.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-Bold.ttf'],
-                'italic' => [$win . 'calibrii.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-Italic.ttf'],
-                'bold_italic' => [$win . 'calibriz.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-BoldItalic.ttf'],
+                'normal' => [$bundle . 'Carlito-Regular.ttf', $win . 'calibri.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf', $dejavu . 'DejaVuSans.ttf'],
+                'bold' => [$bundle . 'Carlito-Bold.ttf', $win . 'calibrib.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-Bold.ttf', $dejavu . 'DejaVuSans-Bold.ttf'],
+                'italic' => [$bundle . 'Carlito-Italic.ttf', $win . 'calibrii.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-Italic.ttf', $dejavu . 'DejaVuSans-Oblique.ttf'],
+                'bold_italic' => [$bundle . 'Carlito-BoldItalic.ttf', $win . 'calibriz.ttf', '/usr/share/fonts/truetype/crosextra/Carlito-BoldItalic.ttf', $dejavu . 'DejaVuSans-BoldOblique.ttf'],
             ],
             'Segoe UI' => [
-                'normal' => [$win . 'segoeui.ttf'],
-                'bold' => [$win . 'segoeuib.ttf'],
-                'italic' => [$win . 'segoeuii.ttf'],
-                'bold_italic' => [$win . 'segoeuiz.ttf'],
+                'normal' => [$bundle . 'Carlito-Regular.ttf', $bundle . 'DejaVuSans.ttf', $win . 'segoeui.ttf', $dejavu . 'DejaVuSans.ttf'],
+                'bold' => [$bundle . 'Carlito-Bold.ttf', $bundle . 'DejaVuSans-Bold.ttf', $win . 'segoeuib.ttf', $dejavu . 'DejaVuSans-Bold.ttf'],
+                'italic' => [$bundle . 'Carlito-Italic.ttf', $bundle . 'DejaVuSans-Oblique.ttf', $win . 'segoeuii.ttf', $dejavu . 'DejaVuSans-Oblique.ttf'],
+                'bold_italic' => [$bundle . 'Carlito-BoldItalic.ttf', $bundle . 'DejaVuSans-BoldOblique.ttf', $win . 'segoeuiz.ttf', $dejavu . 'DejaVuSans-BoldOblique.ttf'],
             ],
             'Arial' => [
-                'normal' => [$win . 'arial.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'],
-                'bold' => [$win . 'arialbd.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'],
-                'italic' => [$win . 'ariali.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf'],
-                'bold_italic' => [$win . 'arialbi.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf'],
+                'normal' => [$bundle . 'DejaVuSans.ttf', $win . 'arial.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf', $dejavu . 'DejaVuSans.ttf'],
+                'bold' => [$bundle . 'DejaVuSans-Bold.ttf', $win . 'arialbd.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf', $dejavu . 'DejaVuSans-Bold.ttf'],
+                'italic' => [$bundle . 'DejaVuSans-Oblique.ttf', $win . 'ariali.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf', $dejavu . 'DejaVuSans-Oblique.ttf'],
+                'bold_italic' => [$bundle . 'DejaVuSans-BoldOblique.ttf', $win . 'arialbi.ttf', '/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf', $dejavu . 'DejaVuSans-BoldOblique.ttf'],
             ],
             'Times New Roman' => [
-                'normal' => [$win . 'times.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf'],
-                'bold' => [$win . 'timesbd.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf'],
-                'italic' => [$win . 'timesi.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf'],
-                'bold_italic' => [$win . 'timesbi.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf'],
+                'normal' => [$bundle . 'Tinos-Regular.ttf', $win . 'times.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf', $dejavu . 'DejaVuSerif.ttf'],
+                'bold' => [$bundle . 'Tinos-Bold.ttf', $win . 'timesbd.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf', $dejavu . 'DejaVuSerif-Bold.ttf'],
+                'italic' => [$bundle . 'Tinos-Italic.ttf', $win . 'timesi.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf', $dejavu . 'DejaVuSerif-Italic.ttf'],
+                'bold_italic' => [$bundle . 'Tinos-BoldItalic.ttf', $win . 'timesbi.ttf', '/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf', $dejavu . 'DejaVuSerif-BoldItalic.ttf'],
             ],
             'Georgia' => [
-                'normal' => [$win . 'georgia.ttf'],
-                'bold' => [$win . 'georgiab.ttf'],
-                'italic' => [$win . 'georgiai.ttf'],
-                'bold_italic' => [$win . 'georgiaz.ttf'],
+                'normal' => [$bundle . 'Tinos-Regular.ttf', $bundle . 'DejaVuSerif.ttf', $win . 'georgia.ttf', $dejavu . 'DejaVuSerif.ttf'],
+                'bold' => [$bundle . 'Tinos-Bold.ttf', $bundle . 'DejaVuSerif-Bold.ttf', $win . 'georgiab.ttf', $dejavu . 'DejaVuSerif-Bold.ttf'],
+                'italic' => [$bundle . 'Tinos-Italic.ttf', $bundle . 'DejaVuSerif-Italic.ttf', $win . 'georgiai.ttf', $dejavu . 'DejaVuSerif-Italic.ttf'],
+                'bold_italic' => [$bundle . 'Tinos-BoldItalic.ttf', $bundle . 'DejaVuSerif-BoldItalic.ttf', $win . 'georgiaz.ttf', $dejavu . 'DejaVuSerif-BoldItalic.ttf'],
             ],
             'Verdana' => [
-                'normal' => [$win . 'verdana.ttf'],
-                'bold' => [$win . 'verdanab.ttf'],
-                'italic' => [$win . 'verdanai.ttf'],
-                'bold_italic' => [$win . 'verdanaz.ttf'],
+                'normal' => [$bundle . 'DejaVuSans.ttf', $win . 'verdana.ttf', $dejavu . 'DejaVuSans.ttf'],
+                'bold' => [$bundle . 'DejaVuSans-Bold.ttf', $win . 'verdanab.ttf', $dejavu . 'DejaVuSans-Bold.ttf'],
+                'italic' => [$bundle . 'DejaVuSans-Oblique.ttf', $win . 'verdanai.ttf', $dejavu . 'DejaVuSans-Oblique.ttf'],
+                'bold_italic' => [$bundle . 'DejaVuSans-BoldOblique.ttf', $win . 'verdanaz.ttf', $dejavu . 'DejaVuSans-BoldOblique.ttf'],
             ],
             'Courier New' => [
-                'normal' => [$win . 'cour.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf'],
-                'bold' => [$win . 'courbd.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf'],
-                'italic' => [$win . 'couri.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Italic.ttf'],
-                'bold_italic' => [$win . 'courbi.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-BoldItalic.ttf'],
+                'normal' => [$bundle . 'Cousine-Regular.ttf', $win . 'cour.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf', $dejavu . 'DejaVuSansMono.ttf'],
+                'bold' => [$bundle . 'Cousine-Bold.ttf', $win . 'courbd.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Bold.ttf', $dejavu . 'DejaVuSansMono-Bold.ttf'],
+                'italic' => [$bundle . 'Cousine-Italic.ttf', $win . 'couri.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-Italic.ttf', $dejavu . 'DejaVuSansMono-Oblique.ttf'],
+                'bold_italic' => [$bundle . 'Cousine-BoldItalic.ttf', $win . 'courbi.ttf', '/usr/share/fonts/truetype/liberation/LiberationMono-BoldItalic.ttf', $dejavu . 'DejaVuSansMono-BoldOblique.ttf'],
             ],
             'Cambria' => [
-                'normal' => [$win . 'cambria.ttf', $win . 'cambria.ttc'],
-                'bold' => [$win . 'cambriab.ttf'],
-                'italic' => [$win . 'cambriai.ttf'],
-                'bold_italic' => [$win . 'cambriaz.ttf'],
+                'normal' => [$bundle . 'Caladea-Regular.ttf', $win . 'cambria.ttf', $dejavu . 'DejaVuSerif.ttf'],
+                'bold' => [$bundle . 'Caladea-Bold.ttf', $win . 'cambriab.ttf', $dejavu . 'DejaVuSerif-Bold.ttf'],
+                'italic' => [$bundle . 'Caladea-Italic.ttf', $win . 'cambriai.ttf', $dejavu . 'DejaVuSerif-Italic.ttf'],
+                'bold_italic' => [$bundle . 'Caladea-BoldItalic.ttf', $win . 'cambriaz.ttf', $dejavu . 'DejaVuSerif-BoldItalic.ttf'],
             ],
         ] as $family => $styles) {
             $variants = [
@@ -441,6 +454,160 @@ class AgreementFontSettings
         }
 
         return $faces;
+    }
+
+    /**
+     * Metric-compatible TTFs shipped with the app (Carlito, Tinos, Cousine, Caladea, DejaVu).
+     */
+    public function bundledFontDirectory(): string
+    {
+        return resource_path('fonts/agreements/');
+    }
+
+    /**
+     * DejaVu TTFs shipped with Dompdf — last-resort fallback if bundled files are missing.
+     */
+    public function dompdfFontDirectory(): string
+    {
+        return base_path('vendor/dompdf/dompdf/lib/fonts/');
+    }
+
+    /**
+     * @param  list<string>  $paths
+     */
+    private function firstReadableTtf(array $paths): ?string
+    {
+        foreach ($paths as $path) {
+            if (is_readable($path) && str_ends_with(strtolower($path), '.ttf')) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Dompdf caches font metrics keyed by md5($ttfPath). When our cached TTF moves
+     * or is replaced (e.g. Windows Calibri → bundled Carlito), stale .ufm files make
+     * PDF text render as gibberish while HTML/print still look fine.
+     *
+     * @param  list<array{family: string, weight: string, style: string, path: string}>  $faces
+     */
+    public function refreshDompdfFontRegistry(array $faces): void
+    {
+        $dir = storage_path('fonts');
+        $installedFile = $dir . DIRECTORY_SEPARATOR . 'installed-fonts.json';
+        $installed = is_readable($installedFile)
+            ? json_decode((string) file_get_contents($installedFile), true)
+            : [];
+        if (! is_array($installed)) {
+            $installed = [];
+        }
+
+        $changed = false;
+
+        foreach ($faces as $face) {
+            $sourcePath = $face['path'];
+            if (! is_readable($sourcePath)) {
+                continue;
+            }
+
+            $familyKey = mb_strtolower($face['family']);
+            $styleKey = $this->dompdfStyleKey($face['weight'], $face['style']);
+            $expectedToken = $this->dompdfFontToken(
+                $face['family'],
+                $face['weight'],
+                $face['style'],
+                $sourcePath
+            );
+
+            $entry = $installed[$familyKey][$styleKey] ?? null;
+            if ($entry === null) {
+                continue;
+            }
+
+            $entryBase = $this->dompdfEntryBasename((string) $entry);
+            if ($entryBase === $expectedToken && $this->dompdfFontMatchesSource($entryBase, $sourcePath)) {
+                continue;
+            }
+
+            $this->deleteDompdfFontArtifacts($dir, $entryBase);
+            unset($installed[$familyKey][$styleKey]);
+            if (isset($installed[$familyKey]) && $installed[$familyKey] === []) {
+                unset($installed[$familyKey]);
+            }
+            $changed = true;
+        }
+
+        if ($changed) {
+            file_put_contents(
+                $installedFile,
+                json_encode($installed, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
+            );
+        }
+    }
+
+    private function dompdfStyleKey(string $weight, string $style): string
+    {
+        $type = trim($weight . ' ' . $style);
+
+        if (preg_match('/bold/i', $type)) {
+            $weightKey = 'bold';
+        } else {
+            $weightKey = 'normal';
+        }
+
+        $italic = preg_match('/italic|oblique/i', $type) === 1;
+
+        if ($weightKey === 'normal' && $italic) {
+            return 'italic';
+        }
+
+        return $italic ? $weightKey . '_italic' : $weightKey;
+    }
+
+    private function dompdfFontToken(string $family, string $weight, string $style, string $sourcePath): string
+    {
+        $fontname = mb_strtolower($family);
+        $styleString = $this->dompdfStyleKey($weight, $style);
+        $prefix = $fontname . '_' . $styleString;
+        $prefix = trim($prefix, '-');
+        if (function_exists('iconv')) {
+            $prefix = @iconv('utf-8', 'us-ascii//TRANSLIT', $prefix) ?: $prefix;
+        }
+        $prefixEncoding = mb_detect_encoding($prefix, mb_detect_order(), true);
+        $substchar = mb_substitute_character();
+        mb_substitute_character(0x005F);
+        $prefix = mb_convert_encoding($prefix, 'ISO-8859-1', $prefixEncoding ?: 'UTF-8');
+        mb_substitute_character($substchar);
+        $prefix = preg_replace('[\W]', '_', $prefix) ?? $prefix;
+        $prefix = preg_replace('/[^-_\w]+/', '', $prefix) ?? $prefix;
+
+        return $prefix . '_' . md5($sourcePath);
+    }
+
+    private function dompdfEntryBasename(string $entry): string
+    {
+        return basename(str_replace('\\', '/', $entry));
+    }
+
+    private function dompdfFontMatchesSource(string $entryBase, string $sourcePath): bool
+    {
+        $cachedTtf = storage_path('fonts/' . $entryBase . '.ttf');
+
+        return is_file($cachedTtf)
+            && is_file($sourcePath)
+            && md5_file($cachedTtf) === md5_file($sourcePath);
+    }
+
+    private function deleteDompdfFontArtifacts(string $dir, string $base): void
+    {
+        foreach (['.ttf', '.ufm', '.ufm.json'] as $ext) {
+            $path = $dir . DIRECTORY_SEPARATOR . $base . $ext;
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
     }
 
     private function formatPt(float $pt): string

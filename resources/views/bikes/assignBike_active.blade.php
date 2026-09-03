@@ -18,7 +18,7 @@ $allowTypeSelection = (bool) ($allowTypeSelection ?? (count($assignTargets) >= 2
 $defaultAssignType = $defaultAssignType ?? (count($assignTargets) === 1 ? $assignTargets[0] : '');
 $assignTypeLabels = $assignTypeLabels ?? \App\Support\CompanyModuleVisibility::bikeAssignTypeLabels();
 $inlineFields = $assignFields->filter(function ($f) {
-    if (($f->field_key ?? '') === 'notes') {
+    if (in_array($f->field_key ?? '', ['notes', 'condition_images'], true)) {
         return false;
     }
     if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
@@ -28,7 +28,7 @@ $inlineFields = $assignFields->filter(function ($f) {
     return true;
 });
 $wideFields = $assignFields->filter(function ($f) {
-    if (($f->field_key ?? '') === 'notes') {
+    if (in_array($f->field_key ?? '', ['notes', 'condition_images'], true)) {
         return true;
     }
     if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
@@ -43,7 +43,7 @@ $wideFields = $assignFields->filter(function ($f) {
     <i class="ti ti-lock me-1"></i> No assignable resources found in the system.
 </div>
 @else
-<form action="{{ route('bikes.assign_rider', $id) }}" method="post" id="formajax" novalidate data-bike-assign-modal="1">
+<form action="{{ route('bikes.assign_rider', $id) }}" method="post" id="formajax" novalidate data-bike-assign-modal="1" enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="bike_id" value="{{ $id }}" />
     <div class="row">

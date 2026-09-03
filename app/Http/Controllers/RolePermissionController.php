@@ -412,6 +412,12 @@ class RolePermissionController extends AppBaseController
                     $module,
                     $assigned
                 );
+            } elseif ($module->name === DynamicPermissionModules::RIDER_STATUSES) {
+                [$submodules, $modLeafTotal, $modLeafEnabled] = $this->buildRiderStatusPermissionSubmodules(
+                    $byParent,
+                    $module,
+                    $assigned
+                );
             } else {
                 $subNodes = $this->submodulesFor($byParent, $module);
 
@@ -570,6 +576,10 @@ class RolePermissionController extends AppBaseController
         $submodules = [];
         $modLeafTotal = 0;
         $modLeafEnabled = 0;
+        $companyCategoryKeys = TopBarPermissionSync::currentCompanyCategoryKeySet();
+        $categoryLabels = TopBarPermissionSync::currentCompanyCategoryLabels();
+        [$companyOptionKeys, $optionLabels] = TopBarOptionPermissionSync::currentCompanyOptionKeysAndLabels();
+        [$companyStatusIds, $statusLabels] = RiderStatusPermissionSync::currentCompanyOptionIdsAndLabels();
 
         $categoryGroups = $byParent->get((int) $root->id, collect())
             ->filter(fn (Permission $p) => str_starts_with((string) $p->name, DynamicPermissionModules::TOP_BAR_GROUP_PREFIX))
@@ -577,10 +587,28 @@ class RolePermissionController extends AppBaseController
             ->values();
 
         foreach ($categoryGroups as $categoryGroup) {
+            $children = $byParent->get((int) $categoryGroup->id, collect());
+            $parsedCategory = null;
+            foreach ($children as $child) {
+                $parsedCategory = TopBarPermissionSync::parseCategoryLeafName((string) $child->name);
+                if ($parsedCategory !== null) {
+                    break;
+                }
+            }
+
+            if ($parsedCategory === null) {
+                continue;
+            }
+
+            $categoryKey = $parsedCategory['storage'] . ':' . $parsedCategory['id'];
+            if (! isset($companyCategoryKeys[$categoryKey])) {
+                continue;
+            }
+
             $actions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
             $values = [];
 
-            foreach ($byParent->get((int) $categoryGroup->id, collect()) as $child) {
+            foreach ($children as $child) {
                 if (Str::endsWith((string) $child->name, '_view')
                     || Str::endsWith((string) $child->name, '_create')
                     || Str::endsWith((string) $child->name, '_edit')
@@ -601,7 +629,16 @@ class RolePermissionController extends AppBaseController
 
                 $valueActions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
                 $hasValueLeaf = false;
+                $valueLabel = (string) $child->name;
                 foreach ($byParent->get((int) $child->id, collect()) as $valueLeaf) {
+                    $parsedValue = TopBarOptionPermissionSync::parseValueLeafName((string) $valueLeaf->name);
+                    if ($parsedValue !== null) {
+                        $valueKey = $parsedValue['storage'] . ':' . $parsedValue['id'];
+                        if (! isset($companyOptionKeys[$valueKey])) {
+                            continue;
+                        }
+                        $valueLabel = $optionLabels[$valueKey] ?? $valueLabel;
+                    }
                     foreach (self::ACTIONS as $action) {
                         if (! Str::endsWith((string) $valueLeaf->name, '_' . $action)) {
                             continue;
@@ -619,7 +656,7 @@ class RolePermissionController extends AppBaseController
                 if ($hasValueLeaf) {
                     $values[] = [
                         'id' => (int) $child->id,
-                        'name' => (string) $child->name,
+                        'name' => $valueLabel,
                         'actions' => $valueActions,
                     ];
                 }
@@ -634,26 +671,106 @@ class RolePermissionController extends AppBaseController
                 $viewName = (string) ($viewLeaf->name ?? '');
                 if (preg_match('/^' . preg_quote(TopBarPermissionSync::SLUG, '/') . '_rider_(\d+)_view$/', $viewName, $m)) {
                     $categoryId = (int) $m[1];
-                    $category = RiderTopCategory::query()
-                        ->withoutGlobalScope('company')
-                        ->find($categoryId);
+                    $category = RiderTopCategory::query()->find($categoryId);
                     if ($category && trim((string) ($category->rider_column ?? '')) === 'rider_status') {
-                        [$statusValues] = $this->riderStatusValuesForTopBar($assigned);
+                        [$statusValues] = $this->riderStatusValuesForTopBar($assigned, $companyStatusIds, $statusLabels);
                         $values = $statusValues;
-                        // Same leaves as Rider Statuses — show for UX, do not re-count.
                     }
                 }
             }
 
             $submodules[] = [
                 'id' => (int) $categoryGroup->id,
-                'name' => DynamicPermissionModules::displayGroupLabel($root->name, (string) $categoryGroup->name),
+                'name' => $categoryLabels[$categoryKey]
+                    ?? DynamicPermissionModules::displayGroupLabel($root->name, (string) $categoryGroup->name),
                 'is_root' => false,
                 'actions' => $actions,
                 'has_fields' => false,
                 'field_count' => 0,
                 'view_only' => true,
                 'values' => $values,
+            ];
+        }
+
+        usort($submodules, static fn (array $a, array $b): int => strcasecmp((string) $a['name'], (string) $b['name']));
+
+        return [$submodules, $modLeafTotal, $modLeafEnabled];
+    }
+
+    /**
+     * Rider Statuses module: Change capability + this company's status values only.
+     *
+     * @param  Collection<int, Collection<int, Permission>>  $byParent
+     * @param  array<int, int>  $assigned
+     * @return array{0: list<array>, 1: int, 2: int}
+     */
+    private function buildRiderStatusPermissionSubmodules(Collection $byParent, Permission $root, array $assigned): array
+    {
+        $submodules = [];
+        $modLeafTotal = 0;
+        $modLeafEnabled = 0;
+        [$companyStatusIds, $statusLabels] = RiderStatusPermissionSync::currentCompanyOptionIdsAndLabels();
+
+        $groups = $byParent->get((int) $root->id, collect())
+            ->sortBy(fn (Permission $p) => Str::lower((string) $p->name))
+            ->values();
+
+        foreach ($groups as $group) {
+            $groupName = (string) $group->name;
+            $isChange = $groupName === RiderStatusPermissionSync::CHANGE_GROUP
+                || str_starts_with($groupName, RiderStatusPermissionSync::CHANGE_GROUP);
+
+            $actions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
+            $statusOptionId = null;
+            $hasLeaf = false;
+
+            foreach ($byParent->get((int) $group->id, collect()) as $child) {
+                $parsed = RiderStatusPermissionSync::parseStatusLeafName((string) $child->name);
+                if ($parsed !== null) {
+                    $statusOptionId = $parsed;
+                }
+                foreach (self::ACTIONS as $action) {
+                    if (! Str::endsWith((string) $child->name, '_' . $action)) {
+                        continue;
+                    }
+                    $hasLeaf = true;
+                    $enabled = isset($assigned[(int) $child->id]);
+                    $actions[$action] = ['id' => (int) $child->id, 'enabled' => $enabled];
+                }
+            }
+
+            if (! $hasLeaf || $actions['view'] === null) {
+                continue;
+            }
+
+            if (! $isChange && ($statusOptionId === null || ! isset($companyStatusIds[$statusOptionId]))) {
+                continue;
+            }
+
+            foreach ($actions as $action) {
+                if ($action === null) {
+                    continue;
+                }
+                $modLeafTotal++;
+                if (! empty($action['enabled'])) {
+                    $modLeafEnabled++;
+                }
+            }
+
+            $submodules[] = [
+                'id' => (int) $group->id,
+                'name' => $isChange
+                    ? RiderStatusPermissionSync::CHANGE_GROUP
+                    : ($statusLabels[$statusOptionId] ?? DynamicPermissionModules::displayGroupLabel(
+                        DynamicPermissionModules::RIDER_STATUSES,
+                        $groupName
+                    )),
+                'is_root' => false,
+                'actions' => $actions,
+                'has_fields' => false,
+                'field_count' => 0,
+                'view_only' => true,
+                'values' => [],
             ];
         }
 
@@ -664,13 +781,22 @@ class RolePermissionController extends AppBaseController
      * Rider status option leaves (same IDs as Rider Statuses → Visible statuses).
      *
      * @param  array<int, int>  $assigned
+     * @param  array<int, true>|null  $companyStatusIds
+     * @param  array<int, string>|null  $statusLabels
      * @return array{0: list<array>, 1: int, 2: int}
      */
-    private function riderStatusValuesForTopBar(array $assigned): array
-    {
+    private function riderStatusValuesForTopBar(
+        array $assigned,
+        ?array $companyStatusIds = null,
+        ?array $statusLabels = null
+    ): array {
         $values = [];
         $total = 0;
         $enabled = 0;
+
+        if ($companyStatusIds === null || $statusLabels === null) {
+            [$companyStatusIds, $statusLabels] = RiderStatusPermissionSync::currentCompanyOptionIdsAndLabels();
+        }
 
         $root = Permission::query()
             ->where('name', DynamicPermissionModules::RIDER_STATUSES)
@@ -701,7 +827,12 @@ class RolePermissionController extends AppBaseController
                 ->where('name', '!=', RiderStatusPermissionSync::CHANGE_LEAF)
                 ->first();
 
-            if (! $leaf || ! preg_match('/^' . preg_quote(RiderStatusPermissionSync::SLUG, '/') . '_\d+_view$/', (string) $leaf->name)) {
+            if (! $leaf) {
+                continue;
+            }
+
+            $optionId = RiderStatusPermissionSync::parseStatusLeafName((string) $leaf->name);
+            if ($optionId === null || ! isset($companyStatusIds[$optionId])) {
                 continue;
             }
 
@@ -713,7 +844,7 @@ class RolePermissionController extends AppBaseController
 
             $values[] = [
                 'id' => (int) $group->id,
-                'name' => DynamicPermissionModules::displayGroupLabel(
+                'name' => $statusLabels[$optionId] ?? DynamicPermissionModules::displayGroupLabel(
                     DynamicPermissionModules::RIDER_STATUSES,
                     (string) $group->name
                 ),

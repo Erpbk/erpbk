@@ -23,6 +23,7 @@ class BikeHistory extends BaseModel
     'updated_by',
     'warehouse',
     'contract',
+    'condition_attachments',
     'customer_id',
     'fleet_supervisor',
     'bike_number',
@@ -36,8 +37,22 @@ class BikeHistory extends BaseModel
     'warehouse' => 'string',
     'created_by' => 'string',
     'updated_by' => 'string',
-    'contract' => 'string'
+    'contract' => 'string',
+    'condition_attachments' => 'array',
   ];
+
+  public function conditionAttachment(string $kind): ?string
+  {
+    $attachments = is_array($this->condition_attachments) ? $this->condition_attachments : [];
+    $path = $attachments[$kind] ?? null;
+
+    return is_string($path) && $path !== '' ? $path : null;
+  }
+
+  public function conditionAttachmentUrl(string $kind): ?string
+  {
+    return storage_url($this->conditionAttachment($kind));
+  }
 
   public static array $rules = [
     'bike_id' => 'required',

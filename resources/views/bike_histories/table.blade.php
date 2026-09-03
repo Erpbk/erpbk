@@ -45,11 +45,19 @@
             @if($contract->contract)
             <a href="{{storage_url('app/contract/'.$contract->contract)}}" data-toggle="tooltip" class="file btn btn-success  btn-sm mr-1" data-modalID="modal-new" target="_blank">{{ \Carbon\Carbon::parse($r->note_date)->format('d M Y') ?? '-' }}</a>
             @endif
+            @if($r->conditionAttachmentUrl('assign'))
+            <a href="{{ $r->conditionAttachmentUrl('assign') }}" data-toggle="tooltip" title="Vehicle condition on assign" class="btn btn-outline-primary btn-sm mr-1" target="_blank">Condition</a>
+            @endif
             @endisset
          </td>
          <td>{{ $r->created_by ? \App\Models\User::find($r->created_by)->name : '-' }}</td>
          <td>
             {{ $r->return_date ? $r->return_date->format('d M Y') : '-' }}
+            @if($r->conditionAttachmentUrl('return'))
+            <div class="mt-1">
+                <a href="{{ $r->conditionAttachmentUrl('return') }}" data-toggle="tooltip" title="Vehicle condition on return" class="btn btn-outline-primary btn-sm" target="_blank">Condition</a>
+            </div>
+            @endif
          </td>
          <td>{{ $r->updated_by ? \App\Models\User::find($r->updated_by)->name : '-' }}</td>
          <td>

@@ -165,6 +165,18 @@
                             </a>
                         </div>
                         @endif
+                        @php $assignConditionUrl = $r->conditionAttachmentUrl('assign'); @endphp
+                        @if($assignConditionUrl)
+                        <div class="mt-1">
+                            <a href="{{ $assignConditionUrl }}"
+                                class="btn btn-outline-primary btn-sm"
+                                data-toggle="tooltip"
+                                title="Vehicle condition on assign"
+                                target="_blank">
+                                Condition
+                            </a>
+                        </div>
+                        @endif
                     </div>
                 </td>
                 <td>
@@ -181,6 +193,18 @@
                         target="_blank">
                         {{ $r->return_date ? \Carbon\Carbon::parse($r->return_date)->format('d M Y') : '-' }}
                     </a>
+                    @php $returnConditionUrl = $r->conditionAttachmentUrl('return'); @endphp
+                    @if($returnConditionUrl)
+                    <div class="mt-1">
+                        <a href="{{ $returnConditionUrl }}"
+                            class="btn btn-outline-primary btn-sm"
+                            data-toggle="tooltip"
+                            title="Vehicle condition on return"
+                            target="_blank">
+                            Condition
+                        </a>
+                    </div>
+                    @endif
 </div>
 @else
 <span class="text-muted">-</span>

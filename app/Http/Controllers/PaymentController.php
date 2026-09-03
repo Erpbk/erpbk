@@ -21,6 +21,8 @@ use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Repositories\PaymentsRepository;
+use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
+use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
 use Carbon\Carbon;
@@ -131,6 +133,9 @@ class PaymentController extends Controller
             $employeeId = request()->input('employee_id') ?? null;
             if (request()->input('invoice_id')) {
                 $selectedInvoice = EmployeeInvoices::with(['employee.account', 'items'])->find(request()->input('invoice_id'));
+                if ($selectedInvoice && ! $employeeId) {
+                    $employeeId = $selectedInvoice->employee_id;
+                }
             }
             $invoiceQuery = EmployeeInvoices::with(['employee.account', 'items'])
                 ->payable()
@@ -161,6 +166,9 @@ class PaymentController extends Controller
             $selectedInvoice = null;
             if (request()->input('invoice_id')) {
                 $selectedInvoice = RiderInvoices::with(['rider.account', 'items'])->find(request()->input('invoice_id'));
+                if ($selectedInvoice && ! $riderId) {
+                    $riderId = $selectedInvoice->rider_id;
+                }
             }
             $invoiceQuery = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()
@@ -276,6 +284,8 @@ class PaymentController extends Controller
         }
 
         if ($employeePayment || $riderPayment || $simPayment) {
+            $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+
             return view('payments.create', compact(
                 'banks',
                 'payment',
@@ -317,7 +327,7 @@ class PaymentController extends Controller
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
-            'payment_amounts.*' => 'numeric|min:0.01',
+            'payment_amounts.*' => 'nullable|numeric',
         ];
 
         $messages = [
@@ -330,7 +340,6 @@ class PaymentController extends Controller
             'billing_month.required' => 'Billing month is required',
             'description.required' => 'Main narration is required',
             'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
-            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -405,7 +414,7 @@ class PaymentController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             // Update the invoice status based on the payment
                             if ($invoicePaymentAmount >= $invoice->total_amount - ($invoice->paid_amount ?? 0)) {
                                 $invoice->update([
@@ -428,7 +437,7 @@ class PaymentController extends Controller
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             // Payment already saved; balance is remaining due after deductions/payments.
                             $invoice->update([
                                 'status' => ((float) $invoice->balance) <= 0.01 ? 1 : 3,
@@ -440,14 +449,10 @@ class PaymentController extends Controller
                     $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
 
                     foreach ($invoices as $invoice) {
-                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
-
-                        if ($invoicePaymentAmount > 0) {
-                            $invoice->update([
-                                'status' => 1,
-                                'updated_by' => auth()->id(),
-                            ]);
-                        }
+                        $invoice->update([
+                            'status' => 1,
+                            'updated_by' => auth()->id(),
+                        ]);
                     }
                 } elseif ($invoiceType == 'sim') {
                     $invoices = SimInvoice::whereIn('id', $invoiceIds)->get();
@@ -457,7 +462,7 @@ class PaymentController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
                                 $invoice->status = 1;
                             } else {
@@ -475,7 +480,7 @@ class PaymentController extends Controller
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
 
-                        if ($invoicePaymentAmount > 0) {
+                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             // Update the invoice status based on the payment
                             if ($invoicePaymentAmount >= $invoice->total_amount - ($invoice->paid_amount ?? 0)) {
                                 $invoice->update([
@@ -792,6 +797,8 @@ class PaymentController extends Controller
             $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
         }
 
+        $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+
         $banks = Banks::active()->get();
         $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
 
@@ -839,7 +846,7 @@ class PaymentController extends Controller
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
-            'payment_amounts.*' => 'numeric|min:0.01',
+            'payment_amounts.*' => 'nullable|numeric',
         ];
 
         $messages = [
@@ -853,7 +860,6 @@ class PaymentController extends Controller
             'description.required' => 'Narration for Transaction is Required',
             'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
             'invoice_ids.*.exists' => 'One or more selected invoices are invalid.',
-            'payment_amounts.*.min' => 'Payment amounts must be greater than zero.',
         ];
 
         $this->validate($request, $rules, $messages);
@@ -1043,14 +1049,14 @@ class PaymentController extends Controller
                 foreach ($invoices as $invoice) {
                     $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
-                    if ($invoicePaymentAmount <= 0) {
-                        continue;
-                    }
-
                     if (($input['invoice_type'] ?? null) === 'rider') {
                         $invoice->status = $paid;
                         $invoice->updated_by = auth()->id();
                         $invoice->save();
+                        continue;
+                    }
+
+                    if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                         continue;
                     }
 
@@ -1280,6 +1286,39 @@ class PaymentController extends Controller
         Flash::success('Payment deleted successfully.');
 
         return redirect()->back();
+    }
+
+    private function isNonZeroInvoiceAllocation($amount): bool
+    {
+        return abs((float) $amount) >= 0.01;
+    }
+
+    /**
+     * Give each rider/employee invoice a unique period slice so payment-form
+     * balances do not re-include earlier unpaid months.
+     */
+    private function applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, ?string $invoiceType): void
+    {
+        if (! in_array($invoiceType, ['rider', 'employee'], true)) {
+            return;
+        }
+
+        $all = collect($invoices ?? []);
+        if ($existingInvoices) {
+            $all = $all->concat(collect($existingInvoices));
+        }
+        $all = $all->unique('id')->values();
+        if ($all->isEmpty()) {
+            return;
+        }
+
+        if ($invoiceType === 'rider') {
+            app(RiderInvoiceViewDataBuilder::class)->applySequentialOutstanding($all);
+
+            return;
+        }
+
+        app(EmployeeInvoiceViewDataBuilder::class)->applySequentialOutstanding($all);
     }
 
     /**

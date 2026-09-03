@@ -94,13 +94,14 @@ class RiderSettingsController extends Controller
             ->orderBy('id')
             ->get();
         $documentTypes = RiderDocumentType::orderedForAdmin()->get();
-        $riderTopCategories = RiderTopCategory::with('options')
+        $riderTopCategories = RiderTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
         $riderTopSelectableColumns = $this->riderTopSelectableColumns();
         $riderStatusCategory = $this->riderStatusTopCategory();
-        $riderStatusOptions = RiderTopOption::where('category_id', $riderStatusCategory->id)
+        $riderStatusOptions = RiderTopOption::withoutGlobalScope('company')
+            ->where('category_id', $riderStatusCategory->id)
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -933,7 +934,7 @@ class RiderSettingsController extends Controller
 
     public function riderTopAccordionBody()
     {
-        $riderTopCategories = RiderTopCategory::with('options')
+        $riderTopCategories = RiderTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();

@@ -390,7 +390,16 @@ class TopBarFilterService
             $optionClass = \App\Models\ErpModuleTopOption::class;
         }
 
-        return $optionClass::query()->with('category')->find($optionId);
+        $option = $optionClass::query()
+            ->withoutGlobalScope('company')
+            ->with('category')
+            ->find($optionId);
+
+        if (! $option || ! $option->category) {
+            return null;
+        }
+
+        return $option;
     }
 
     /**

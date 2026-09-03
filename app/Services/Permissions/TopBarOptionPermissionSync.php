@@ -39,6 +39,74 @@ class TopBarOptionPermissionSync
         return self::SLUG . '_' . $storageKey . '_' . $optionId . '_view';
     }
 
+    /**
+     * @return array<string, class-string<Model>>
+     */
+    public static function storageOptionModels(): array
+    {
+        return [
+            'rider' => RiderTopOption::class,
+            'bike' => BikeTopOption::class,
+            'employee' => EmployeeTopOption::class,
+            'cheque' => ChequeTopOption::class,
+            'erp' => ErpModuleTopOption::class,
+        ];
+    }
+
+    /**
+     * @return array{storage: string, id: int}|null
+     */
+    public static function parseValueLeafName(?string $name): ?array
+    {
+        if (! preg_match(
+            '/^' . preg_quote(self::SLUG, '/') . '_(rider|bike|employee|cheque|erp)_(\d+)_view$/',
+            (string) $name,
+            $m
+        )) {
+            return null;
+        }
+
+        return ['storage' => $m[1], 'id' => (int) $m[2]];
+    }
+
+    /**
+     * Options that belong to the active company's Top Bar categories.
+     *
+     * @return array{0: array<string, true>, 1: array<string, string>}
+     */
+    public static function currentCompanyOptionKeysAndLabels(): array
+    {
+        $set = [];
+        $labels = [];
+        $categoryIds = TopBarPermissionSync::currentCompanyCategoryIdsByStorage();
+
+        foreach (self::storageOptionModels() as $storage => $class) {
+            if (! class_exists($class)) {
+                continue;
+            }
+            $ids = $categoryIds[$storage] ?? [];
+            if ($ids === []) {
+                continue;
+            }
+            try {
+                $rows = $class::query()
+                    ->withoutGlobalScope('company')
+                    ->whereIn('category_id', $ids)
+                    ->get(['id', 'name']);
+            } catch (\Throwable $e) {
+                continue;
+            }
+            foreach ($rows as $row) {
+                $key = $storage . ':' . (int) $row->id;
+                $set[$key] = true;
+                $name = trim((string) ($row->name ?? ''));
+                $labels[$key] = $name !== '' ? $name : ('Value #' . (int) $row->id);
+            }
+        }
+
+        return [$set, $labels];
+    }
+
     public static function isRiderStatusOption(Model $option): bool
     {
         if (! $option instanceof RiderTopOption) {
@@ -260,7 +328,7 @@ class TopBarOptionPermissionSync
     {
         if (($config['storage'] ?? '') === 'generic') {
             return ErpModuleTopCategory::query()
-                ->with('options')
+                ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
                 ->where('module_key', $moduleKey)
                 ->orderBy('id')
                 ->get();
@@ -271,7 +339,10 @@ class TopBarOptionPermissionSync
             return collect();
         }
 
-        return $modelClass::query()->with('options')->orderBy('id')->get();
+        return $modelClass::query()
+            ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
+            ->orderBy('id')
+            ->get();
     }
 
     protected static function categoryColumn(array $config, Model $category): ?string

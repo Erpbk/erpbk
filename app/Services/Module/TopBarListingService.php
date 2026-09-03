@@ -409,6 +409,9 @@ class TopBarListingService
      */
     protected function applyListingOptionsConstraint($query, ?string $optionClass): void
     {
+        // Parent categories are already company-scoped; keep every option on those
+        // categories even when option.company_id is null or stale from a clone.
+        $query->withoutGlobalScope('company');
         $query->where('is_active', true);
 
         if ($optionClass && class_exists($optionClass)) {

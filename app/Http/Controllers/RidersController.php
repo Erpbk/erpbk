@@ -101,7 +101,8 @@ class RidersController extends AppBaseController
       return [];
     }
 
-    $options = RiderTopOption::where('category_id', $category->id)
+    $options = RiderTopOption::withoutGlobalScope('company')
+      ->where('category_id', $category->id)
       ->where('is_active', true)
       ->orderBy('display_order')
       ->orderBy('id')

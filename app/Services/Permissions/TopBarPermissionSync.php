@@ -81,6 +81,119 @@ class TopBarPermissionSync
         return $moduleLabel . ': ' . $categoryName;
     }
 
+    /**
+     * @return array<string, class-string<Model>>
+     */
+    public static function storageCategoryModels(): array
+    {
+        return [
+            'rider' => RiderTopCategory::class,
+            'bike' => BikeTopCategory::class,
+            'employee' => EmployeeTopCategory::class,
+            'cheque' => ChequeTopCategory::class,
+            'erp' => ErpModuleTopCategory::class,
+        ];
+    }
+
+    /**
+     * @return array{storage: string, id: int}|null
+     */
+    public static function parseCategoryLeafName(?string $name): ?array
+    {
+        if (! preg_match(
+            '/^' . preg_quote(self::SLUG, '/') . '_(rider|bike|employee|cheque|erp)_(\d+)_view$/',
+            (string) $name,
+            $m
+        )) {
+            return null;
+        }
+
+        return ['storage' => $m[1], 'id' => (int) $m[2]];
+    }
+
+    /**
+     * Category keys for the active company ("rider:12"). Company scope applies.
+     *
+     * @return array<string, true>
+     */
+    public static function currentCompanyCategoryKeySet(): array
+    {
+        $set = [];
+        foreach (self::storageCategoryModels() as $storage => $class) {
+            if (! class_exists($class)) {
+                continue;
+            }
+            try {
+                foreach ($class::query()->pluck('id') as $id) {
+                    $set[$storage . ':' . (int) $id] = true;
+                }
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+
+        return $set;
+    }
+
+    /**
+     * Display labels keyed by "storage:id" using the live category name (no uniqueness suffix).
+     *
+     * @return array<string, string>
+     */
+    public static function currentCompanyCategoryLabels(): array
+    {
+        $labels = [];
+        foreach (self::storageCategoryModels() as $storage => $class) {
+            if (! class_exists($class)) {
+                continue;
+            }
+            try {
+                $columns = ['id', 'name'];
+                if ($storage === 'erp') {
+                    $columns[] = 'module_key';
+                }
+                foreach ($class::query()->get($columns) as $category) {
+                    $labels[$storage . ':' . (int) $category->id] = self::groupLabel(
+                        $storage,
+                        (string) ($category->name ?? ''),
+                        $storage === 'erp' ? (string) ($category->module_key ?? 'module') : null
+                    );
+                }
+            } catch (\Throwable $e) {
+                continue;
+            }
+        }
+
+        return $labels;
+    }
+
+    /**
+     * Category ids for the active company, grouped by storage key.
+     *
+     * @return array<string, list<int>>
+     */
+    public static function currentCompanyCategoryIdsByStorage(): array
+    {
+        $byStorage = [];
+        foreach (self::storageCategoryModels() as $storage => $class) {
+            if (! class_exists($class)) {
+                $byStorage[$storage] = [];
+                continue;
+            }
+            try {
+                $byStorage[$storage] = $class::query()
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->values()
+                    ->all();
+            } catch (\Throwable $e) {
+                $byStorage[$storage] = [];
+            }
+        }
+
+        return $byStorage;
+    }
+
     public static function syncForCategory(string $moduleKey, Model $category, bool $assignToAdminRoles = true): void
     {
         if (! self::permissionsReady()) {

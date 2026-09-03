@@ -35,6 +35,49 @@ class RiderStatusPermissionSync
         return self::SLUG . '_' . $optionId . '_view';
     }
 
+    public static function parseStatusLeafName(?string $name): ?int
+    {
+        if (! preg_match('/^' . preg_quote(self::SLUG, '/') . '_(\d+)_view$/', (string) $name, $m)) {
+            return null;
+        }
+
+        return (int) $m[1];
+    }
+
+    /**
+     * @return array{0: array<int, true>, 1: array<int, string>}
+     */
+    public static function currentCompanyOptionIdsAndLabels(): array
+    {
+        $set = [];
+        $labels = [];
+        $statusCategoryIds = RiderTopCategory::query()
+            ->where('rider_column', 'rider_status')
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($statusCategoryIds === []) {
+            return [$set, $labels];
+        }
+
+        $options = RiderTopOption::query()
+            ->withoutGlobalScope('company')
+            ->whereIn('category_id', $statusCategoryIds)
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get(['id', 'name']);
+
+        foreach ($options as $option) {
+            $id = (int) $option->id;
+            $set[$id] = true;
+            $name = trim((string) $option->name);
+            $labels[$id] = $name !== '' ? $name : ('Status #' . $id);
+        }
+
+        return [$set, $labels];
+    }
+
     public static function isStatusOption(RiderTopOption $option): bool
     {
         $category = $option->relationLoaded('category')
@@ -339,6 +382,7 @@ class RiderStatusPermissionSync
         }
 
         $option = RiderTopOption::query()
+            ->withoutGlobalScope('company')
             ->where('category_id', $categoryId)
             ->whereRaw('LOWER(name) = ?', [mb_strtolower($statusName)])
             ->first();
@@ -367,6 +411,7 @@ class RiderStatusPermissionSync
         $names = [];
         foreach (
             RiderTopOption::query()
+                ->withoutGlobalScope('company')
                 ->where('category_id', $categoryId)
                 ->orderBy('display_order')
                 ->orderBy('id')
@@ -400,6 +445,7 @@ class RiderStatusPermissionSync
                 return false;
             }
             $options = RiderTopOption::query()
+                ->withoutGlobalScope('company')
                 ->where('category_id', $categoryId)
                 ->get(['id']);
         }

@@ -96,7 +96,7 @@ class ChequesSettingsController extends Controller
             ->orderBy('id')
             ->get();
         $documentTypes = ChequeDocumentType::orderedForAdmin()->get();
-        $chequeTopCategories = ChequeTopCategory::with('options')
+        $chequeTopCategories = ChequeTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -945,7 +945,7 @@ class ChequesSettingsController extends Controller
 
     public function chequeTopAccordionBody()
     {
-        $chequeTopCategories = ChequeTopCategory::with('options')
+        $chequeTopCategories = ChequeTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();

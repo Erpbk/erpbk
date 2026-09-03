@@ -4,6 +4,7 @@ namespace App\Services\Module;
 
 use App\Models\ErpModuleTopCategory;
 use App\Models\ErpModuleTopOption;
+use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleFieldSource;
@@ -38,14 +39,14 @@ class ModuleTopBarSettingsService
         if (($config['storage'] ?? '') === 'dedicated') {
             $modelClass = $config['category_model'];
 
-            return $modelClass::with('options')
+            return $modelClass::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
                 ->orderBy('display_order')
                 ->orderBy('id')
                 ->get();
         }
 
         $categories = ErpModuleTopCategory::query()
-            ->with('options')
+            ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->where('module_key', $moduleKey)
             ->orderBy('display_order')
             ->orderBy('id')
@@ -54,7 +55,7 @@ class ModuleTopBarSettingsService
         if ($categories->isEmpty()) {
             $this->migrateLegacyRtaFinesCategories($moduleKey);
             $categories = ErpModuleTopCategory::query()
-                ->with('options')
+                ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
                 ->where('module_key', $moduleKey)
                 ->orderBy('display_order')
                 ->orderBy('id')
@@ -64,7 +65,7 @@ class ModuleTopBarSettingsService
         if ($categories->isEmpty()) {
             $this->seedPresetCategories($moduleKey);
             $categories = ErpModuleTopCategory::query()
-                ->with('options')
+                ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
                 ->where('module_key', $moduleKey)
                 ->orderBy('display_order')
                 ->orderBy('id')
@@ -84,7 +85,7 @@ class ModuleTopBarSettingsService
         $companyId = auth()->user()->company_id ?? null;
 
         $legacyCategories = ErpModuleTopCategory::query()
-            ->with('options')
+            ->with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->where('module_key', 'rta_fines')
             ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
             ->orderBy('display_order')
@@ -139,6 +140,7 @@ class ModuleTopBarSettingsService
             foreach ($matchingOptions as $option) {
                 ErpModuleTopOption::create([
                     'category_id' => $category->id,
+                    'company_id' => $companyId,
                     'name' => $option->name,
                     'display_order' => $order++,
                     'is_active' => $option->is_active,
@@ -199,6 +201,7 @@ class ModuleTopBarSettingsService
 
                 ErpModuleTopOption::create([
                     'category_id' => $category->id,
+                    'company_id' => $companyId,
                     'name' => $optionName,
                     'display_order' => $order++,
                     'is_active' => true,
@@ -408,6 +411,12 @@ class ModuleTopBarSettingsService
 
         $optionTable = (new $optionClass)->getTable();
         $optionPayloadBase = ['is_active' => true];
+        if (Schema::hasColumn($optionTable, 'company_id')) {
+            $companyId = (int) (CompanyContext::id() ?? auth()->user()->company_id ?? 0);
+            if ($companyId > 0) {
+                $optionPayloadBase['company_id'] = $companyId;
+            }
+        }
         if (Schema::hasColumn($optionTable, 'show_in_top_bar')) {
             $optionPayloadBase['show_in_top_bar'] = true;
         }

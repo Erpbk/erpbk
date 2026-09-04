@@ -62,18 +62,14 @@
       line-height: {{ $agreementLineHeight }};
     }
 
-    @if ($forPdf)
-    {{-- Dompdf line boxes run taller than the browser; 9pt keeps saved editor breaks on one sheet. --}}
-    body {
-      font-size: 9pt;
-      line-height: 1.25;
-    }
-    @endif
-
     .agreement-page {
       position: relative;
       width: {{ $pageW }}mm;
+      height: {{ $pageBoxH }}mm;
+      min-height: {{ $pageBoxH }}mm;
+      max-height: {{ $pageBoxH }}mm;
       background: #fff;
+      overflow: hidden;
       page-break-before: auto;
       break-before: auto;
       page-break-after: always;
@@ -82,18 +78,6 @@
       break-inside: auto;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      @if ($forPdf)
-      overflow: {{ ! empty($branding['letterhead_src']) ? 'hidden' : 'visible' }};
-      @if (! empty($branding['letterhead_src']))
-      height: {{ $pageBoxH }}mm;
-      max-height: {{ $pageBoxH }}mm;
-      @endif
-      @else
-      min-height: {{ $pageBoxH }}mm;
-      height: {{ $pageBoxH }}mm;
-      max-height: {{ $pageBoxH }}mm;
-      overflow: hidden;
-      @endif
     }
 
     .agreement-page:first-child {
@@ -195,14 +179,6 @@
       word-break: normal;
       overflow-wrap: break-word;
     }
-    @if ($forPdf)
-    .content {
-      font-size: 9pt;
-      line-height: 1.25;
-    }
-    .content p { margin: 0 0 0.25em; }
-    .content table th, .content table td { padding: 2px 5px; }
-    @endif
     .content thead { display: table-row-group; }
     .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; }
     .content li { margin: 0 0 2pt; }
@@ -213,7 +189,7 @@
     .content sub { vertical-align: sub; font-size: smaller; }
     .content sup { vertical-align: super; font-size: smaller; }
     .content hr { border: 0; border-top: 1px solid #94a3b8; margin: 8pt 0; }
-    .content img { max-width: 100%; height: auto; page-break-inside: auto; break-inside: auto; }
+    .content img { max-width: 100%; page-break-inside: auto; break-inside: auto; }
     .content [data-agreement-page-break] { display: none; height: 0; margin: 0; padding: 0; overflow: hidden; }
 
     .preview-pages {
@@ -250,9 +226,9 @@
       .preview-pages .agreement-page {
         margin: 0 !important;
         box-shadow: none !important;
-        height: {{ $pageH - 1.8 }}mm !important;
-        min-height: {{ $pageH - 1.8 }}mm !important;
-        max-height: {{ $pageH - 1.8 }}mm !important;
+        height: {{ $pageBoxH }}mm !important;
+        min-height: {{ $pageBoxH }}mm !important;
+        max-height: {{ $pageBoxH }}mm !important;
         overflow: hidden !important;
         page-break-after: always !important;
         page-break-inside: auto !important;

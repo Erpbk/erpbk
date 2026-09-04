@@ -170,4 +170,13 @@ class AgreementLetterheadRasterizerTest extends TestCase
         $this->assertNotNull($url);
         $this->assertStringContainsString('storage/' . $path, $url);
     }
+
+    public function test_inline_html_images_keeps_data_uris(): void
+    {
+        $html = '<p>Scan</p><p><img src="data:image/png;base64,AAA" alt="x"></p>';
+        $out = $this->app->make(AgreementPdfBranding::class)->inlineHtmlImages($html);
+
+        $this->assertStringContainsString('data:image/png;base64,AAA', $out);
+        $this->assertStringContainsString('max-width:100%', $out);
+    }
 }

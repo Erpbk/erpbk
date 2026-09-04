@@ -57,7 +57,9 @@ class AgreementPdfService
             ? $this->sampleMap()
             : $this->resolver->resolveForModule($module, $record, $agreementDate);
 
-        $body = $this->fonts->normalizeHtml($this->resolver->replace($content, $map));
+        $body = $this->pdfBranding->inlineHtmlImages(
+            $this->fonts->normalizeHtml($this->resolver->replace($content, $map))
+        );
         $template->loadMissing(['category.letterhead', 'category.watermark']);
         $category = $template->category;
         $branding = $this->pdfBranding->withUploadedLetterhead(

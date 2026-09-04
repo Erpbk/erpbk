@@ -7,7 +7,9 @@ use App\Models\AgreementLetterhead;
 use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
 use App\Services\Agreements\AgreementModuleService;
+use App\Services\Agreements\AgreementFontSettings;
 use App\Services\Agreements\AgreementLetterheadLayout;
+use App\Services\Agreements\AgreementLetterheadPaginator;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Agreements\AgreementPdfService;
 use App\Support\CompanyContext;
@@ -549,6 +551,33 @@ class AgreementSettingsController extends Controller
         $filename = Str::slug($template->template_name) . '-preview.pdf';
 
         return $pdfService->httpResponse($pdf, $filename, $request);
+    }
+
+    public function paginateHtml(
+        Request $request,
+        $company_slug,
+        AgreementLetterheadPaginator $paginator,
+        AgreementLetterheadLayout $layout,
+        AgreementFontSettings $fonts,
+        AgreementPdfBranding $branding
+    ) {
+        $this->authorizeAgreement('agreements_view');
+
+        $data = $request->validate([
+            'html' => 'nullable|string',
+            'category_id' => 'nullable|integer',
+        ]);
+
+        $category = isset($data['category_id'])
+            ? AgreementCategory::query()->find($data['category_id'])
+            : null;
+
+        $html = $branding->inlineHtmlImages($fonts->normalizeHtml((string) ($data['html'] ?? '')));
+        $pages = $paginator->paginate($html, $layout->contentZoneHeightMm($category, true));
+
+        return response()->json([
+            'pages' => $pages !== [] ? $pages : ['<p></p>'],
+        ]);
     }
 
     private function validatedTemplate(Request $request): array

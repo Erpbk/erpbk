@@ -161,6 +161,248 @@ class AgreementPdfBranding
         return $this->logoToDataUri($path);
     }
 
+    /**
+     * Rewrite img src attributes in agreement HTML to Dompdf-safe data URIs.
+     */
+    public function inlineHtmlImages(string $html): string
+    {
+        if ($html === '' || ! str_contains(strtolower($html), '<img')) {
+            return $html;
+        }
+
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="agreement-image-root">' . $html . '</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('agreement-image-root');
+        if (! $root instanceof \DOMElement) {
+            return $html;
+        }
+
+        foreach ($root->getElementsByTagName('img') as $img) {
+            if (! $img instanceof \DOMElement) {
+                continue;
+            }
+
+            $this->prepareContentImage($img);
+        }
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child);
+        }
+
+        return $out !== '' ? $out : $html;
+    }
+
+    public function imageSrcToDataUri(string $src): ?string
+    {
+        $src = html_entity_decode(trim($src), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if ($src === '' || str_starts_with($src, 'data:') || str_starts_with($src, 'blob:')) {
+            return str_starts_with($src, 'data:') ? $src : null;
+        }
+
+        $storagePath = $this->publicStorageRelativePath($src);
+        if ($storagePath !== null) {
+            $path = PublicStorageDisk::readablePath($storagePath);
+
+            return $this->logoToDataUri($path);
+        }
+
+        return $this->logoUrlToDataUri($src);
+    }
+
+    /**
+     * TinyMCE convert_urls turns /storage/foo into ../../../../../storage/foo
+     * relative to the editor URL. Dompdf cannot resolve that.
+     */
+    private function publicStorageRelativePath(string $src): ?string
+    {
+        $path = parse_url($src, PHP_URL_PATH);
+        if (! is_string($path) || $path === '') {
+            $path = $src;
+        }
+
+        $path = str_replace('\\', '/', $path);
+        if (! preg_match('~(?:^|/)storage/([^?#]+)~i', $path, $match)) {
+            return null;
+        }
+
+        return ltrim($match[1], '/');
+    }
+
+    /**
+     * Dompdf cannot size height:auto and cannot paint WebP. Give each img a
+     * PNG/JPEG data URI plus explicit pixel width/height that fit the page.
+     */
+    private function prepareContentImage(\DOMElement $img): void
+    {
+        $src = trim($img->getAttribute('src'));
+        $dataUri = $this->imageSrcToDataUri($src);
+        if ($dataUri === null) {
+            return;
+        }
+
+        $dataUri = $this->ensureDompdfSafeDataUri($dataUri);
+        [$widthPx, $heightPx] = $this->contentImageDisplaySizePx($img, $dataUri);
+        $dataUri = $this->resizeDataUriTo($dataUri, $widthPx, $heightPx);
+        $img->setAttribute('src', $dataUri);
+        $img->setAttribute('width', (string) $widthPx);
+        $img->setAttribute('height', (string) $heightPx);
+
+        $style = preg_replace(
+            '/(?:^|;)\s*(?:width|height|max-width)\s*:\s*[^;]+/i',
+            '',
+            $img->getAttribute('style')
+        ) ?? '';
+        $style = trim($style, "; \t\n\r");
+        $img->setAttribute(
+            'style',
+            trim($style.';width:'.$widthPx.'px;height:'.$heightPx.'px;', '; ')
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int}
+     */
+    private function contentImageDisplaySizePx(\DOMElement $img, string $dataUri): array
+    {
+        $maxWidth = 700;
+        $maxHeight = 880;
+        $width = 400;
+        $height = 300;
+
+        $bytes = $this->dataUriBytes($dataUri);
+        if ($bytes !== null) {
+            $info = @getimagesizefromstring($bytes);
+            if (is_array($info) && ($info[0] ?? 0) > 0 && ($info[1] ?? 0) > 0) {
+                $width = (int) $info[0];
+                $height = (int) $info[1];
+            }
+        }
+
+        $attrW = (int) $img->getAttribute('width');
+        $attrH = (int) $img->getAttribute('height');
+        if ($attrW > 0 && $attrH > 0) {
+            $width = $attrW;
+            $height = $attrH;
+        }
+
+        $scale = min(1.0, $maxWidth / max(1, $width), $maxHeight / max(1, $height));
+
+        return [
+            max(1, (int) round($width * $scale)),
+            max(1, (int) round($height * $scale)),
+        ];
+    }
+
+    private function resizeDataUriTo(string $dataUri, int $widthPx, int $heightPx): string
+    {
+        $widthPx = max(1, $widthPx);
+        $heightPx = max(1, $heightPx);
+        $bytes = $this->dataUriBytes($dataUri);
+        if ($bytes === null || ! function_exists('imagecreatefromstring')) {
+            return $dataUri;
+        }
+
+        $source = @imagecreatefromstring($bytes);
+        if ($source === false) {
+            return $dataUri;
+        }
+
+        if (imagesx($source) === $widthPx && imagesy($source) === $heightPx) {
+            imagedestroy($source);
+
+            return $dataUri;
+        }
+
+        $dest = imagecreatetruecolor($widthPx, $heightPx);
+        imagealphablending($dest, false);
+        imagesavealpha($dest, true);
+        $clear = imagecolorallocatealpha($dest, 0, 0, 0, 127);
+        imagefilledrectangle($dest, 0, 0, $widthPx, $heightPx, $clear);
+        imagecopyresampled(
+            $dest,
+            $source,
+            0,
+            0,
+            0,
+            0,
+            $widthPx,
+            $heightPx,
+            imagesx($source),
+            imagesy($source)
+        );
+        imagedestroy($source);
+
+        ob_start();
+        imagepng($dest);
+        imagedestroy($dest);
+        $png = ob_get_clean();
+        if (! is_string($png) || $png === '') {
+            return $dataUri;
+        }
+
+        return 'data:image/png;base64,'.base64_encode($png);
+    }
+
+    private function ensureDompdfSafeDataUri(string $dataUri): string
+    {
+        $bytes = $this->dataUriBytes($dataUri);
+        if ($bytes === null) {
+            return $dataUri;
+        }
+
+        $mime = 'image/png';
+        if (preg_match('#^data:(image/[a-zA-Z0-9.+-]+)#', $dataUri, $match)) {
+            $mime = strtolower($match[1]);
+        }
+
+        return $this->bytesToDompdfDataUri($bytes, $mime) ?? $dataUri;
+    }
+
+    private function dataUriBytes(string $dataUri): ?string
+    {
+        if (! preg_match('#^data:image/[a-zA-Z0-9.+-]+;base64,(.+)$#s', $dataUri, $match)) {
+            return null;
+        }
+
+        $bytes = base64_decode($match[1], true);
+
+        return $bytes === false || $bytes === '' ? null : $bytes;
+    }
+
+    private function bytesToDompdfDataUri(string $contents, string $mime): ?string
+    {
+        $mime = strtolower($mime);
+        if (in_array($mime, ['image/webp', 'image/x-webp'], true) && function_exists('imagecreatefromstring')) {
+            $gd = @imagecreatefromstring($contents);
+            if ($gd !== false) {
+                ob_start();
+                imagepng($gd);
+                imagedestroy($gd);
+                $png = ob_get_clean();
+                if (is_string($png) && $png !== '') {
+                    $contents = $png;
+                    $mime = 'image/png';
+                }
+            }
+        }
+
+        if (! in_array($mime, ['image/png', 'image/jpeg', 'image/jpg', 'image/gif'], true)) {
+            $mime = 'image/png';
+        }
+
+        if ($contents === '') {
+            return null;
+        }
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
+    }
+
     public function logoToDataUri(?string $filesystemPath): ?string
     {
         if ($filesystemPath === null || !is_readable($filesystemPath)) {
@@ -177,7 +419,7 @@ class AgreementPdfBranding
             return null;
         }
 
-        return 'data:' . $mime . ';base64,' . base64_encode($contents);
+        return $this->bytesToDompdfDataUri($contents, $mime);
     }
 
     private function logoUrlToDataUri(string $url): ?string

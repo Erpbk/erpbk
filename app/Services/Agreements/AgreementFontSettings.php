@@ -138,7 +138,7 @@ class AgreementFontSettings
         $dom->preserveWhiteSpace = true;
         @$dom->loadHTML(
             '<?xml encoding="UTF-8"><html><body><div id="agreement-font-root">' . $html . '</div></body></html>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
         );
 
         $root = $dom->getElementById('agreement-font-root');

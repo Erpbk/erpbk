@@ -250,6 +250,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::post('/templates/{id}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleStatus'])->name('toggle-status')->whereNumber('id');
         Route::get('/templates/{id}/preview', [App\Http\Controllers\AgreementSettingsController::class, 'preview'])->name('preview')->whereNumber('id');
         Route::get('/templates/{id}/preview-pdf', [App\Http\Controllers\AgreementSettingsController::class, 'previewPdf'])->name('preview-pdf')->whereNumber('id');
+        Route::post('/paginate-html', [App\Http\Controllers\AgreementSettingsController::class, 'paginateHtml'])->name('paginate-html');
     });
 
     // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})

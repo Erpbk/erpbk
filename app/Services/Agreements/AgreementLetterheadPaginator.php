@@ -8,9 +8,15 @@ use DOMNode;
 
 class AgreementLetterheadPaginator
 {
-    private const ESTIMATE_SAFETY = 1.22;
-
     private const CONTENT_FONT_PT = 11.0;
+
+    /**
+     * Scale PHP height estimates so a packed page still fits Dompdf.
+     * This is not letterhead-footer padding: the category's bottom margin
+     * is the only reserved gap. If artwork sits inside that zone, raise
+     * the bottom margin.
+     */
+    private const ESTIMATE_TO_DOMPDF = 1.2;
 
     private const HEADING_FONT_PT = 14.0;
 
@@ -25,22 +31,29 @@ class AgreementLetterheadPaginator
     private int $appendDepth = 0;
 
     /**
-     * Split agreement HTML into page chunks that fit the content zone.
+     * Split agreement HTML into page chunks that fit the content zone
+     * (page height minus the category's top and bottom margins).
+     * Insert → Page break markers are hard splits. Visual editor gutters
+     * (.word-page-gap) are stripped and never become PDF pages.
      *
      * @return list<string>
      */
     public function paginate(string $bodyHtml, float $contentZoneHeightMm): array
     {
         $this->appendDepth = 0;
-        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4) - 12.0;
+        $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4);
         $bodyHtml = $this->normalizeBodyHtml($bodyHtml);
 
-        $markedPages = $this->splitOnEditorPageBreaks($bodyHtml);
-        if ($markedPages !== null) {
-            return $markedPages;
+        $pages = [];
+        foreach ($this->splitForcedBreakSegments($bodyHtml) as $segment) {
+            if ($this->isBlankHtml($segment)) {
+                continue;
+            }
+
+            $pages = array_merge($pages, $this->paginateUnmarked($segment));
         }
 
-        return $this->paginateUnmarked($bodyHtml);
+        return $pages !== [] ? $pages : [$bodyHtml];
     }
 
     /**
@@ -52,7 +65,7 @@ class AgreementLetterheadPaginator
         $dom->preserveWhiteSpace = true;
         @$dom->loadHTML(
             '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $bodyHtml . '</div></body></html>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
         );
 
         $root = $dom->getElementById('agreement-root');
@@ -107,6 +120,7 @@ class AgreementLetterheadPaginator
         if ($pages !== []) {
             $pages = $this->rebalancePages($pages);
             $pages = $this->pullLeadingBlocks($pages);
+            $pages = $this->attachOrphanImagePages($pages);
         }
 
         return $pages !== [] ? $pages : [$bodyHtml];
@@ -146,6 +160,104 @@ class AgreementLetterheadPaginator
         }
 
         return $filled;
+    }
+
+    /**
+     * A trailing photo should sit on the last content sheet. Empty editor
+     * paragraphs packed ahead of it must not force a blank extra page.
+     *
+     * @param  list<string>  $pages
+     * @return list<string>
+     */
+    private function attachOrphanImagePages(array $pages): array
+    {
+        while (count($pages) >= 2) {
+            $last = $pages[array_key_last($pages)];
+            if (! $this->isImageOnlyHtml($last)) {
+                break;
+            }
+
+            $prevIndex = count($pages) - 2;
+            $prev = $this->stripTrailingEmptyBlocks($pages[$prevIndex]);
+            if ($this->estimateHtmlHeightPt($prev.$last) > $this->packBudgetPt()) {
+                $pages[$prevIndex] = $prev;
+
+                break;
+            }
+
+            $pages[$prevIndex] = $prev.$last;
+            array_pop($pages);
+        }
+
+        return array_values($pages);
+    }
+
+    private function isImageOnlyHtml(string $html): bool
+    {
+        if (preg_match('/<img\b/i', $html) !== 1) {
+            return false;
+        }
+
+        $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\x{00A0}/u', ' ', $text) ?? $text;
+
+        return trim($text) === '';
+    }
+
+    private function stripTrailingEmptyBlocks(string $html): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="agreement-root">'.$html.'</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('agreement-root');
+        if (! $root instanceof DOMElement) {
+            return $html;
+        }
+
+        while ($root->lastChild) {
+            $last = $root->lastChild;
+            if ($last->nodeType === XML_TEXT_NODE && trim((string) $last->textContent) === '') {
+                $root->removeChild($last);
+
+                continue;
+            }
+
+            if ($last instanceof DOMElement && $this->isEmptyFlowBlock($last)) {
+                $root->removeChild($last);
+
+                continue;
+            }
+
+            break;
+        }
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child);
+        }
+
+        return $out;
+    }
+
+    private function isEmptyFlowBlock(DOMElement $node): bool
+    {
+        if ($node->getElementsByTagName('img')->length > 0) {
+            return false;
+        }
+
+        $tag = strtolower($node->tagName);
+        if (! in_array($tag, ['p', 'div', 'blockquote', 'center', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'], true)) {
+            return false;
+        }
+
+        $text = html_entity_decode(strip_tags($node->ownerDocument?->saveHTML($node) ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/\x{00A0}/u', ' ', $text) ?? $text;
+
+        return trim($text) === '';
     }
 
     /**
@@ -195,7 +307,12 @@ class AgreementLetterheadPaginator
 
         $first = array_shift($parts);
         if ($this->isBlankHtml($first)) {
-            return [$current, implode('', $parts)];
+            $combinedBlank = $current . $first;
+            if ($this->estimateHtmlHeightPt($combinedBlank) <= $this->packBudgetPt()) {
+                return [$combinedBlank, implode('', $parts)];
+            }
+
+            return null;
         }
 
         $combined = $current . $first;
@@ -225,7 +342,7 @@ class AgreementLetterheadPaginator
         $dom->preserveWhiteSpace = true;
         @$dom->loadHTML(
             '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $html . '</div></body></html>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
         );
 
         $root = $dom->getElementById('agreement-root');
@@ -291,7 +408,7 @@ class AgreementLetterheadPaginator
         $dom->preserveWhiteSpace = true;
         @$dom->loadHTML(
             '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $html . '</div></body></html>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
         );
 
         $root = $dom->getElementById('agreement-root');
@@ -316,7 +433,7 @@ class AgreementLetterheadPaginator
         $dom = new DOMDocument('1.0', 'UTF-8');
         @$dom->loadHTML(
             '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $html . '</div></body></html>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
         );
 
         $root = $dom->getElementById('agreement-root');
@@ -441,6 +558,11 @@ class AgreementLetterheadPaginator
 
         $tag = strtolower($node->tagName);
         if (in_array($tag, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'], true)) {
+            return true;
+        }
+
+        $class = strtolower($node->getAttribute('class'));
+        if (str_contains($class, 'clause-title')) {
             return true;
         }
 
@@ -1241,43 +1363,54 @@ class AgreementLetterheadPaginator
     }
 
     /**
-     * Split on page breaks saved from the Word editor so preview/print/PDF
-     * keep the same page positions the author saw.
-     *
-     * @return list<string>|null
+     * @return list<string>
      */
-    private function splitOnEditorPageBreaks(string $html): ?array
+    private function splitForcedBreakSegments(string $bodyHtml): array
     {
-        if (! preg_match('/data-agreement-page-break|mce-pagebreak|<!--\s*pagebreak\s*-->/i', $html)) {
-            return null;
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="agreement-root">' . $bodyHtml . '</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('agreement-root');
+        if (! $root instanceof DOMElement) {
+            return [$bodyHtml];
         }
 
-        $parts = preg_split(
-            '/<div[^>]*data-agreement-page-break[^>]*>\s*(?:&nbsp;|\x{00A0}|<br\s*\/?>|\s)*<\/div>|<img[^>]*(?:mce-pagebreak|data-mce-pagebreak)[^>]*>|<!--\s*pagebreak\s*-->/iu',
-            $html
-        ) ?: [];
+        $segments = [];
+        $current = [];
 
-        $pages = [];
-        foreach ($parts as $part) {
-            $part = trim((string) $part);
-            $part = preg_replace('/<!--\s*pagebreak\s*-->/i', '', $part) ?? $part;
-            if ($part === '' || $this->isBlankHtml($part)) {
+        foreach ($this->expandNodes($dom, $root) as $child) {
+            if ($this->isForcedPageBreak($child)) {
+                if ($current !== []) {
+                    $segments[] = $this->joinHtml($dom, $current);
+                    $current = [];
+                }
+
                 continue;
             }
-            $pages[] = $part;
+
+            $current[] = $child;
         }
 
-        return $pages !== [] ? $pages : null;
+        if ($current !== []) {
+            $segments[] = $this->joinHtml($dom, $current);
+        }
+
+        return $segments !== [] ? $segments : [$bodyHtml];
     }
 
     /**
-     * Authoring spacers and TinyMCE page chrome must not become Dompdf page breaks.
-     * Empty paragraphs are kept so vertical position matches the editor.
+     * Strip TinyMCE sheet gutters. Keep Insert → Page break markers so authors
+     * can start the next PDF sheet. Word paste CSS breaks are ignored.
      */
     private function normalizeBodyHtml(string $html): string
     {
-        $html = preg_replace('/<div[^>]*(?:data-word-page-gap|word-page-gap)[^>]*>.*?<\/div>/is', '<div data-agreement-page-break="1"></div>', $html) ?? $html;
+        $html = preg_replace('/<div[^>]*(?:data-word-page-gap|word-page-gap)[^>]*>.*?<\/div>/is', '', $html) ?? $html;
         $html = preg_replace('/<div[^>]*class="[^"]*word-letterhead-[^"]*"[^>]*>.*?<\/div>/is', '', $html) ?? $html;
+        $html = preg_replace('/<!--\s*pagebreak\s*-->/i', '<p data-agreement-page-break="1" class="agreement-page-break">&nbsp;</p>', $html) ?? $html;
         $html = preg_replace('/page-break-(?:before|after|inside)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
         $html = preg_replace('/(?<!-)break-(?:before|after|inside)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
         $html = preg_replace('/mso-(?:break-type|page-break(?:-before|-after)?)\s*:\s*[^;\'"]+;?/i', '', $html) ?? $html;
@@ -1320,7 +1453,7 @@ class AgreementLetterheadPaginator
             if (str_contains($class, 'mce-pagebreak') || str_contains($class, 'word-page-gap')) {
                 return true;
             }
-            if (in_array($tag, ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'], true)) {
+            if (in_array($tag, ['p', 'div', 'blockquote', 'center', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'], true)) {
                 return false;
             }
             if ($tag === 'img' && trim($node->getAttribute('src')) !== '') {
@@ -1340,6 +1473,10 @@ class AgreementLetterheadPaginator
 
     private function isBlankHtml(string $html): bool
     {
+        if (preg_match('/<img\b/i', $html) === 1) {
+            return false;
+        }
+
         $text = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
         $text = preg_replace('/\x{00A0}/u', ' ', $text) ?? $text;
 
@@ -1381,6 +1518,10 @@ class AgreementLetterheadPaginator
 
             $tag = strtolower($child->tagName);
 
+            if ($this->isInlineTag($tag)) {
+                continue;
+            }
+
             if (in_array($tag, ['p', 'blockquote'], true) && ! $this->hasBlockChildren($child)) {
                 foreach ($this->splitTextBlock($dom, $child) as $part) {
                     $items[] = $part;
@@ -1417,6 +1558,10 @@ class AgreementLetterheadPaginator
         }
 
         if (in_array($tag, ['div', 'section', 'article', 'main', 'figure', 'center', 'li'], true)) {
+            if (! $this->hasBlockChildren($element)) {
+                return [$element];
+            }
+
             $expanded = $this->expandNodes($dom, $element);
 
             return $expanded !== [] ? $expanded : [$element];
@@ -1486,6 +1631,14 @@ class AgreementLetterheadPaginator
             'p', 'div', 'table', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
             'blockquote', 'section', 'article', 'main', 'header', 'footer', 'figure',
             'center', 'pre', 'hr',
+        ], true);
+    }
+
+    private function isInlineTag(string $tag): bool
+    {
+        return in_array(strtolower($tag), [
+            'span', 'strong', 'b', 'em', 'i', 'u', 'a', 'br', 'sub', 'sup',
+            'font', 'small', 'label', 'strike', 's', 'code',
         ], true);
     }
 
@@ -1669,6 +1822,10 @@ class AgreementLetterheadPaginator
      */
     private function splitTextBlock(DOMDocument $dom, DOMElement $block): array
     {
+        if ($block->getElementsByTagName('img')->length > 0) {
+            return [$block];
+        }
+
         $text = trim(preg_replace('/\s+/u', ' ', $block->textContent ?? '') ?? '');
         if ($text === '') {
             return [$block];
@@ -1698,6 +1855,10 @@ class AgreementLetterheadPaginator
      */
     private function splitTextBlockForBudget(DOMDocument $dom, DOMElement $block, float $budgetPt): array
     {
+        if ($block->getElementsByTagName('img')->length > 0) {
+            return [$block];
+        }
+
         $text = trim(preg_replace('/\s+/u', ' ', $block->textContent ?? '') ?? '');
         if ($text === '') {
             return [$block];
@@ -1753,6 +1914,10 @@ class AgreementLetterheadPaginator
      */
     private function splitTextBlockForced(DOMDocument $dom, DOMElement $block): array
     {
+        if ($block->getElementsByTagName('img')->length > 0) {
+            return [$block];
+        }
+
         $text = trim(preg_replace('/\s+/u', ' ', $block->textContent ?? '') ?? '');
         if ($text === '') {
             return [$block];
@@ -1785,6 +1950,10 @@ class AgreementLetterheadPaginator
      */
     private function splitListItem(DOMDocument $dom, DOMElement $li): array
     {
+        if ($li->getElementsByTagName('img')->length > 0) {
+            return [$li];
+        }
+
         $text = trim(preg_replace('/\s+/u', ' ', $li->textContent ?? '') ?? '');
         if ($text === '') {
             return [$li];
@@ -2080,14 +2249,19 @@ class AgreementLetterheadPaginator
         return true;
     }
 
+    /**
+     * Pack to the full content zone (page height minus user margins).
+     * Extra footer slack is never added: if letterhead artwork has a footer,
+     * the category's bottom margin is the only reserved gap.
+     */
     private function packBudgetPt(): float
     {
-        return $this->budgetPt * 0.92;
+        return $this->budgetPt;
     }
 
     private function safeEstimate(float $estimate): float
     {
-        return max(0.0, $estimate * self::ESTIMATE_SAFETY);
+        return max(0.0, $estimate * self::ESTIMATE_TO_DOMPDF);
     }
 
     private function estimateNodeHeightPt(DOMNode $node): float
@@ -2271,7 +2445,18 @@ class AgreementLetterheadPaginator
         $lineHeightRatio = $this->styleLineHeightRatio($node);
         $textHeight = $this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio);
 
+        $imageHeight = 0.0;
+        foreach ($node->getElementsByTagName('img') as $img) {
+            if ($img instanceof DOMElement) {
+                $imageHeight += $this->estimateImageHeightPt($img);
+            }
+        }
+
         if ($text === '' && $brLines === 0) {
+            if ($imageHeight > 0) {
+                return $imageHeight + 8.0;
+            }
+
             $margin = strtolower($node->tagName) === 'p' ? $fontPt * 0.5 : 0.0;
 
             return ($fontPt * $lineHeightRatio) + $margin;
@@ -2300,7 +2485,7 @@ class AgreementLetterheadPaginator
             return $total + ($text === '' ? 0.0 : 4.0);
         }
 
-        return $textHeight + 6;
+        return $textHeight + $imageHeight + 6;
     }
 
     private function estimateTextHeightPt(string $text, float $fontSizePt, ?float $lineHeightRatio = null): float

@@ -1,3 +1,33 @@
+@php
+$visaRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses';
+$categories = $categories ?? collect();
+$selectedCategoryId = (int) old('visa_renewal_category_id', $selectedCategoryId ?? ($visaStatus->visa_renewal_category_id ?? 0));
+$cancelUrl = route($visaRoute . '.index') . ($selectedCategoryId ? ('?category_id=' . $selectedCategoryId) : '');
+@endphp
+@if($selectedCategoryId)
+<input type="hidden" name="return_to" value="{{ $cancelUrl }}">
+@endif
+
+<div class="form-group col-sm-12">
+    <label for="visa_renewal_category_id" class="required">Visa Category:</label>
+    <select name="visa_renewal_category_id" id="visa_renewal_category_id" class="form-control @error('visa_renewal_category_id') is-invalid @enderror" required>
+        <option value="">Select visa category</option>
+        @forelse($categories as $category)
+        <option value="{{ $category->id }}" {{ (int) $selectedCategoryId === (int) $category->id ? 'selected' : '' }}>
+            {{ $category->name }}{{ $category->is_default ? ' (Default)' : '' }}
+        </option>
+        @empty
+        <option value="" disabled>Create a visa category first</option>
+        @endforelse
+    </select>
+    <small class="text-muted">Statuses belong to one visa category. The same status name may be used in a different category.</small>
+    @error('visa_renewal_category_id')
+    <span class="invalid-feedback" role="alert">
+        <strong>{{ $message }}</strong>
+    </span>
+    @enderror
+</div>
+
 <div class="form-group col-sm-6">
     <label for="name" class="required">Name:</label>
     <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $visaStatus->name ?? '') }}" required>
@@ -19,7 +49,7 @@
 </div>
 
 <div class="form-group col-sm-6">
-    <label for="category">Category:</label>
+    <label for="category">Type:</label>
     <select name="category" id="category" class="form-control @error('category') is-invalid @enderror">
         <option value="Document" {{ old('category', $visaStatus->category ?? '') == 'Document' ? 'selected' : '' }}>Document</option>
         <option value="Permit" {{ old('category', $visaStatus->category ?? '') == 'Permit' ? 'selected' : '' }}>Permit</option>
@@ -84,5 +114,5 @@
 @php $visaRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses'; @endphp
 <div class="form-group col-sm-12">
     <button type="submit" class="btn btn-primary">Save</button>
-    <a href="{{ route($visaRoute . '.index') }}" class="btn btn-default">Cancel</a>
+    <a href="{{ $cancelUrl }}" class="btn btn-default">Cancel</a>
 </div>

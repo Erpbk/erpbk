@@ -7,6 +7,7 @@
         <div class="row mb-2">
             <div class="col-sm-12">
                 <h1>Edit Visa Status</h1>
+                <p class="text-muted mb-0">Moving a status to another category is allowed as long as the name is unique in that category.</p>
             </div>
         </div>
     </div>

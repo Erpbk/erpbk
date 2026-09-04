@@ -121,6 +121,7 @@ class VisaexpenseController extends AppBaseController
         $visaStatuses = collect();
         if ($visaTopEnabled && !empty($selectedVisaTopIds)) {
             $visaStatusesQuery = VisaStatus::query()
+                ->with('renewalCategory')
                 ->where('is_active', 1)
                 ->whereIn('id', $selectedVisaTopIds)
                 ->orderBy('display_order')
@@ -137,12 +138,16 @@ class VisaexpenseController extends AppBaseController
             $visaStatusSliderCounts[$vsRow->id] = [
                 'paid' => (clone $sliderBaseQuery)->tap(function ($q) use ($vsRow) {
                     $this->applyExpenseAccountMatchesVisaExpense($q, function ($sub) use ($vsRow) {
-                        $sub->where('ve.visa_status', $vsRow->name)->where('ve.payment_status', 'paid');
+                        $sub->where('ve.visa_status', $vsRow->name)
+                            ->when($vsRow->visa_renewal_category_id, fn ($q2) => $q2->where('ve.renewal_category_id', $vsRow->visa_renewal_category_id))
+                            ->where('ve.payment_status', 'paid');
                     });
                 })->count(),
                 'unpaid' => (clone $sliderBaseQuery)->tap(function ($q) use ($vsRow) {
                     $this->applyExpenseAccountMatchesVisaExpense($q, function ($sub) use ($vsRow) {
-                        $sub->where('ve.visa_status', $vsRow->name)->where('ve.payment_status', 'unpaid');
+                        $sub->where('ve.visa_status', $vsRow->name)
+                            ->when($vsRow->visa_renewal_category_id, fn ($q2) => $q2->where('ve.renewal_category_id', $vsRow->visa_renewal_category_id))
+                            ->where('ve.payment_status', 'unpaid');
                     });
                 })->count(),
             ];
@@ -153,6 +158,7 @@ class VisaexpenseController extends AppBaseController
             if ($visaStatusFilterModel && in_array($status, ['paid', 'unpaid'], true)) {
                 $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) use ($visaStatusFilterModel, $status) {
                     $sub->where('ve.visa_status', $visaStatusFilterModel->name)
+                        ->when($visaStatusFilterModel->visa_renewal_category_id, fn ($q2) => $q2->where('ve.renewal_category_id', $visaStatusFilterModel->visa_renewal_category_id))
                         ->where('ve.payment_status', $status);
                 });
             } elseif (!$visaStatusFilterModel) {
@@ -186,7 +192,8 @@ class VisaexpenseController extends AppBaseController
             }
         } elseif ($visaStatusFilterModel) {
             $this->applyExpenseAccountMatchesVisaExpense($query, function ($sub) use ($visaStatusFilterModel) {
-                $sub->where('ve.visa_status', $visaStatusFilterModel->name);
+                $sub->where('ve.visa_status', $visaStatusFilterModel->name)
+                    ->when($visaStatusFilterModel->visa_renewal_category_id, fn ($q2) => $q2->where('ve.renewal_category_id', $visaStatusFilterModel->visa_renewal_category_id));
             });
         }
 
@@ -466,6 +473,8 @@ class VisaexpenseController extends AppBaseController
             return redirect()->back()->withInput();
         }
 
+        $generatedExpenseTotal = 0.0;
+        $activeStatuses = collect();
         DB::beginTransaction();
         try {
             $ledgerAccountId = $rider->account_id;
@@ -483,12 +492,8 @@ class VisaexpenseController extends AppBaseController
                 'company_id' => auth()->user()->company_id ?? null,
             ]);
 
-            $activeStatuses = VisaStatus::query()
-                ->where('is_active', 1)
-                ->orderBy('display_order')
-                ->get();
+            $activeStatuses = VisaRenewalCategoryService::activeStatusesForCategory($categoryId);
 
-            $generatedExpenseTotal = 0.0;
             foreach ($activeStatuses as $status) {
                 $amount = (float) ($status->default_fee ?? 0);
                 $generatedExpenseTotal += $amount;
@@ -531,7 +536,10 @@ class VisaexpenseController extends AppBaseController
             ];
         }
 
-        $successMessage = 'Visa expense account created for ' . $category->name . ' and active status entries generated.';
+        $successMessage = 'Visa expense account created for ' . $category->name . ' and tickets generated for that category only.';
+        if ($activeStatuses->isEmpty()) {
+            $successMessage = 'Visa expense account created for ' . $category->name . '. No tickets were generated because this category has no visa statuses yet.';
+        }
         if (!empty($installmentResult['message'])) {
             $successMessage .= ' ' . $installmentResult['message'];
         }
@@ -651,7 +659,7 @@ class VisaexpenseController extends AppBaseController
                 'paginationLinks' => $paginationLinks,
             ]);
         }
-        $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        $visaStatuses = VisaRenewalCategoryService::activeStatusesForCategory($activeCategoryId);
         $riders = Riders::findOrFail($riderId);
         \Log::info('visa expense entries', ['rider_id' => $id, 'rider' => $riders]);
         return view('visa_expenses.index', [
@@ -674,7 +682,7 @@ class VisaexpenseController extends AppBaseController
     {
         $data = ExpenseAccount::query()->visa()->with('renewalCategory')->where('id', $id)->firstOrFail();
         $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($data);
-        $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        $visaStatuses = VisaRenewalCategoryService::activeStatusesForCategory((int) $activeRenewalCategory->id);
 
         return view('visa_expenses.create', compact('data', 'visaStatuses', 'activeRenewalCategory'));
     }
@@ -693,6 +701,15 @@ class VisaexpenseController extends AppBaseController
                 'required',
                 'string',
                 'max:255',
+                Rule::exists('visa_statuses', 'name')->where(function ($query) use ($renewalCategoryId) {
+                    $query->where('visa_renewal_category_id', $renewalCategoryId)
+                        ->where('is_active', 1)
+                        ->whereNull('deleted_at');
+                    $companyId = CompanyContext::id();
+                    if ($companyId !== null && Schema::hasColumn('visa_statuses', 'company_id')) {
+                        $query->where('company_id', $companyId);
+                    }
+                }),
                 Rule::unique('visa_expenses')->where(function ($query) use ($request, $renewalCategoryId) {
                     return $query->where('expense_account_id', $request->rider_id)
                         ->where('renewal_category_id', $renewalCategoryId)
@@ -704,6 +721,9 @@ class VisaexpenseController extends AppBaseController
             'reference_number' => 'required|string|max:255',
             'amount'         => 'required|numeric|min:0',
             'attach_file'    => 'nullable|string|max:255',
+        ], [
+            'visa_status.exists' => 'The selected visa status does not belong to this visa category.',
+            'visa_status.unique' => 'This visa status already has a ticket in this category.',
         ]);
 
         try {
@@ -990,7 +1010,10 @@ class VisaexpenseController extends AppBaseController
 
             return redirect(route('visaExpenses.index'));
         }
-        $visaStatuses = VisaStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        $categoryId = (int) ($visaExpenses->renewal_category_id
+            ?? $data->renewal_category_id
+            ?? VisaRenewalCategoryService::defaultCategory()->id);
+        $visaStatuses = VisaRenewalCategoryService::activeStatusesForCategory($categoryId);
         return view('visa_expenses.edit', compact('data', 'visaExpenses', 'visaStatuses'));
     }
 

@@ -467,6 +467,7 @@ class ModuleSettingsController extends Controller
         if ($module === 'visa_expense') {
             VisaRenewalCategoryService::ensureDefaultExists();
             $visaStatuses = VisaStatus::query()
+                ->with('renewalCategory')
                 ->orderBy('display_order')
                 ->orderBy('name')
                 ->get();

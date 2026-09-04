@@ -4,10 +4,12 @@ $returnTo = $returnTo ?? '';
 $companySlug = $companySlug ?? (request()->route('company_slug') ?? session('company_slug'));
 $routePrefix = $routePrefix ?? 'settings-panel.visa-renewal-categories';
 $embeddedManager = $embeddedManager ?? true;
+$hideTable = $hideTable ?? false;
 @endphp
 
+@if(! $hideTable)
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-    <p class="text-muted small mb-0">Default category is <strong>New Visa</strong>. Add renewal stages (e.g. 1st Renewal, 2nd Renewal) in sequence order.</p>
+    <p class="text-muted small mb-0">Create a <strong>Visa Category</strong> first, then add statuses under that category. Duplicate status names are allowed only across different categories.</p>
     @can('visa_expense_create')
     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
         <i class="ti ti-plus me-1"></i> Add Category
@@ -21,6 +23,7 @@ $embeddedManager = $embeddedManager ?? true;
     'embeddedManager' => $embeddedManager,
     'returnTo' => $returnTo,
 ])
+@endif
 
 <div class="modal fade" id="createVisaRenewalCategoryModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
@@ -31,13 +34,14 @@ $embeddedManager = $embeddedManager ?? true;
                 <input type="hidden" name="return_to" value="{{ $returnTo }}">
                 @endif
                 <div class="modal-header">
-                    <h5 class="modal-title">Create Renewal Category</h5>
+                    <h5 class="modal-title">Create Visa Category</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <p class="text-muted small mb-3">Visa statuses from the default category (or the standard ticket list) are copied onto this category so expenses can generate tickets immediately. You can edit or remove them afterward.</p>
                     <div class="mb-3">
                         <label class="form-label required">Name</label>
-                        <input type="text" name="name" class="form-control" required maxlength="255" placeholder="e.g. 1st Renewal">
+                        <input type="text" name="name" class="form-control" required maxlength="255" placeholder="e.g. New Visa, 1st Renewal">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Display Order</label>
@@ -67,7 +71,7 @@ $embeddedManager = $embeddedManager ?? true;
                 <input type="hidden" name="return_to" value="{{ $returnTo }}">
                 @endif
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Renewal Category</h5>
+                    <h5 class="modal-title">Edit Visa Category</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">

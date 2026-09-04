@@ -67,8 +67,8 @@ $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' 
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
 $moduleSchemaFieldKeys = $moduleSchemaFieldKeys ?? [];
 $showVisaStatusManagementTab = ($moduleKey ?? '') === 'visa_expense';
-$visaStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'visa_expense']) . '#tab-visa-status-management';
-$visaRenewalCategorySettingsReturnUrl = route('settings-panel.visa-statuses.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) . '#tab-visa-renewal-categories';
+$visaStatusSettingsReturnUrl = route('settings-panel.visa-statuses.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]);
+$visaRenewalCategorySettingsReturnUrl = $visaStatusSettingsReturnUrl;
 $showLicenseStatusManagementTab = ($moduleKey ?? '') === 'license_expense';
 $licenseExpenseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'license_expense']) . '#tab-license-status-management';
 $showLegalCaseStatusManagementTab = ($moduleKey ?? '') === 'legal_case';
@@ -139,7 +139,7 @@ $attendanceRefType = $attendanceRefType ?? null;
           @if($showVisaStatusManagementTab)
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-status-management" type="button" role="tab">
-              Visa Status Management
+              Visa Categories
             </button>
           </li>
           <li class="nav-item" role="presentation">
@@ -147,9 +147,9 @@ $attendanceRefType = $attendanceRefType ?? null;
               Visa Expense Top
             </button>
           </li>
-          <li class="nav-item" role="presentation">
+          <li class="nav-item" role="presentation" hidden>
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-visa-renewal-categories" type="button" role="tab">
-              Visa Renewal Categories
+              Visa Categories
             </button>
           </li>
           @endif
@@ -250,10 +250,27 @@ $attendanceRefType = $attendanceRefType ?? null;
 
           @if($showVisaStatusManagementTab)
           <div class="tab-pane fade" id="tab-visa-status-management" role="tabpanel">
-            <div class="d-flex justify-content-end mb-3">
+            <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <div>
+                <strong>Visa categories first.</strong>
+                <div class="small text-muted mb-0">Create a visa category, then add statuses under it. Duplicate names are not allowed in the same category. Expense tickets are generated only from the selected category.</div>
+              </div>
+              <a class="btn btn-primary btn-sm" href="{{ $visaStatusSettingsReturnUrl }}">Open Visa Categories</a>
+            </div>
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+              <div class="flex-grow-1" style="min-width: 220px; max-width: 360px;">
+                <label class="form-label mb-1">Visa Category</label>
+                <select id="visaStatusCategoryFilter" class="form-select">
+                  @forelse(($visaRenewalCategories ?? collect()) as $visaCategoryOption)
+                  <option value="{{ $visaCategoryOption->id }}">{{ $visaCategoryOption->name }}</option>
+                  @empty
+                  <option value="">Create a visa category first</option>
+                  @endforelse
+                </select>
+              </div>
               @can('visa_expense_create')
-              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaStatusModal">
-                <i class="ti ti-plus me-1"></i> Add New Status
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaStatusModal" id="btnAddVisaStatusForCategory">
+                <i class="ti ti-plus me-1"></i> Add Status
               </button>
               @endcan
             </div>
@@ -320,7 +337,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                                   <i class="ti ti-grip-vertical"></i>
                                 </span>
                                 <i class="ti ti-point-filled me-1 text-muted"></i>
-                                <span>{{ $status->name }}</span>
+                                <span>{{ $status->name }}@if(optional($status->renewalCategory)->name) <span class="text-muted small">({{ $status->renewalCategory->name }})</span>@endif</span>
                                 <input type="hidden" name="status_ids[]" value="{{ (int)$status->id }}">
                               </div>
                               <div class="d-flex align-items-center gap-1">
@@ -355,7 +372,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                     <select id="visaExpenseTopStatusSelect" class="form-select select2">
                       <option value="">Select</option>
                       @foreach(($visaStatuses ?? collect()) as $status)
-                      <option value="{{ (int)$status->id }}" data-name="{{ $status->name }}">{{ $status->name }}</option>
+                      <option value="{{ (int)$status->id }}" data-name="{{ $status->name }}" data-category-name="{{ optional($status->renewalCategory)->name }}">{{ $status->name }}@if(optional($status->renewalCategory)->name) ({{ $status->renewalCategory->name }})@endif</option>
                       @endforeach
                     </select>
                   </div>
@@ -380,6 +397,15 @@ $attendanceRefType = $attendanceRefType ?? null;
                   </div>
                   <div class="modal-body">
                     <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label required">Visa Category</label>
+                        <select name="visa_renewal_category_id" id="createVisaStatusCategoryId" class="form-select" required>
+                          <option value="">Select visa category</option>
+                          @foreach(($visaRenewalCategories ?? collect()) as $visaCategoryOption)
+                          <option value="{{ $visaCategoryOption->id }}">{{ $visaCategoryOption->name }}</option>
+                          @endforeach
+                        </select>
+                      </div>
                       <div class="col-md-6">
                         <label class="form-label required">Name</label>
                         <input type="text" name="name" class="form-control" required maxlength="255">
@@ -389,7 +415,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                         <input type="text" name="code" class="form-control" maxlength="20">
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label">Category</label>
+                        <label class="form-label">Type</label>
                         <select name="category" class="form-select">
                           <option value="Document">Document</option>
                           <option value="Permit">Permit</option>
@@ -444,6 +470,14 @@ $attendanceRefType = $attendanceRefType ?? null;
                   </div>
                   <div class="modal-body">
                     <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label required">Visa Category</label>
+                        <select name="visa_renewal_category_id" id="editVisaStatusRenewalCategoryId" class="form-select" required>
+                          @foreach(($visaRenewalCategories ?? collect()) as $visaCategoryOption)
+                          <option value="{{ $visaCategoryOption->id }}">{{ $visaCategoryOption->name }}</option>
+                          @endforeach
+                        </select>
+                      </div>
                       <div class="col-md-6">
                         <label class="form-label required">Name</label>
                         <input type="text" name="name" id="editVisaStatusName" class="form-control" required maxlength="255">
@@ -453,7 +487,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                         <input type="text" name="code" id="editVisaStatusCode" class="form-control" maxlength="20">
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label">Category</label>
+                        <label class="form-label">Type</label>
                         <select name="category" id="editVisaStatusCategory" class="form-select">
                           <option value="Document">Document</option>
                           <option value="Permit">Permit</option>
@@ -2852,6 +2886,10 @@ $attendanceRefType = $attendanceRefType ?? null;
       document.getElementById('editVisaStatusName').value = editBtn.dataset.name || '';
       document.getElementById('editVisaStatusCode').value = editBtn.dataset.code || '';
       document.getElementById('editVisaStatusCategory').value = editBtn.dataset.category || 'Other';
+      var renewalCat = document.getElementById('editVisaStatusRenewalCategoryId');
+      if (renewalCat) {
+        renewalCat.value = editBtn.dataset.visaRenewalCategoryId || '';
+      }
       document.getElementById('editVisaStatusDefaultFee').value = editBtn.dataset.defaultFee || 0;
       document.getElementById('editVisaStatusDisplayOrder').value = editBtn.dataset.displayOrder || '';
       document.getElementById('editVisaStatusDescription').value = editBtn.dataset.description || '';
@@ -2861,6 +2899,26 @@ $attendanceRefType = $attendanceRefType ?? null;
 
     document.addEventListener('DOMContentLoaded', function() {
       initVisaStatusSortable();
+
+      function filterVisaStatusesByCategory() {
+        var filter = document.getElementById('visaStatusCategoryFilter');
+        var selected = filter ? String(filter.value || '') : '';
+        var createSelect = document.getElementById('createVisaStatusCategoryId');
+        if (createSelect && selected) {
+          createSelect.value = selected;
+        }
+        document.querySelectorAll('#visa-statuses-tbody tr[data-id]').forEach(function(row) {
+          var rowCat = String(row.getAttribute('data-category-id') || '');
+          row.style.display = (!selected || rowCat === selected) ? '' : 'none';
+        });
+      }
+
+      var categoryFilter = document.getElementById('visaStatusCategoryFilter');
+      if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterVisaStatusesByCategory);
+        filterVisaStatusesByCategory();
+      }
+
       var targetHash = window.location.hash;
       if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-visa-renewal-categories' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top' || targetHash === '#tab-module-top-bar') {
         var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
@@ -3032,6 +3090,10 @@ $attendanceRefType = $attendanceRefType ?? null;
           }
           var selectedOption = topModalSelect.options[topModalSelect.selectedIndex];
           var name = selectedOption ? (selectedOption.getAttribute('data-name') || selectedOption.text || 'Status') : 'Status';
+          var categoryName = selectedOption ? (selectedOption.getAttribute('data-category-name') || '') : '';
+          if (categoryName) {
+            name = name + ' (' + categoryName + ')';
+          }
           var li = document.createElement('li');
           li.className = 'list-group-item px-0 py-2 d-flex align-items-center justify-content-between';
           li.setAttribute('data-selected-id', String(selectedId));

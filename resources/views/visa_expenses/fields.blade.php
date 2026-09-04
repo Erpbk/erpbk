@@ -12,14 +12,19 @@
     <label class="">Visa Status:</label>
     <select class="form-control select2" id="visa_status" name="visa_status" required>
         <option value="">Select Status</option>
-        @foreach($visaStatuses as $status)
+        @forelse($visaStatuses as $status)
         <option value="{{ $status->name }}"
             data-fee="{{ $status->default_fee }}"
             {{ (isset($visaExpenses) && $visaExpenses->visa_status == $status->name) ? 'selected' : '' }}>
             {{ $status->name }}
         </option>
-        @endforeach
+        @empty
+        <option value="" disabled>No statuses in this visa category</option>
+        @endforelse
     </select>
+    @if(isset($visaStatuses) && $visaStatuses->isEmpty())
+    <small class="text-danger">Add visa statuses under this category in Settings before creating tickets.</small>
+    @endif
 </div>
 <div class="form-group col-sm-6">
     {!! Form::label('amount', 'Amount:', ['class' => 'required']) !!}

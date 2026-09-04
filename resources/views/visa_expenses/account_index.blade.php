@@ -49,6 +49,9 @@
                         data-slide="{{ $visaSlideIndex++ }}"
                         onclick="filterByVisaStatus('{{ $vs->id }}')">
                         <h3 class="fleet-supervisor-name">{{ $vs->name }}</h3>
+                        @if(optional($vs->renewalCategory)->name)
+                        <div class="small text-muted mb-1 text-truncate" title="{{ $vs->renewalCategory->name }}">{{ $vs->renewalCategory->name }}</div>
+                        @endif
                         @if(isset($vs->description) && trim((string) $vs->description) !== '')
                         <div class="small text-muted mb-1 text-truncate" title="{{ $vs->description }}">{{ \Illuminate\Support\Str::limit($vs->description, 42) }}</div>
                         @endif
@@ -160,7 +163,7 @@
                             </select>
                         </div>
                         <div class="col-12">
-                            <label for="renewal_category_id" class="form-label">Renewal Category</label>
+                            <label for="renewal_category_id" class="form-label">Visa Category</label>
                             <select class="form-select" id="renewal_category_id" name="renewal_category_id" required>
                                 <option value="">Select rider first</option>
                                 @foreach($renewalCategories ?? [] as $cat)
@@ -168,7 +171,7 @@
                                 @endforeach
                             </select>
                             <div class="form-text" id="renewal_category_help">
-                                Accounts must be created in order (New Visa, then 1st Renewal, etc.). The next allowed category is shown after you select a rider.
+                                Tickets are generated only from statuses in the selected visa category. Accounts must be created in category order.
                             </div>
                         </div>
                         <div class="col-12 text-end">
@@ -315,7 +318,7 @@
             }
             $categorySelect.select2({
                 dropdownParent: $createModal,
-                placeholder: "Renewal category",
+                placeholder: "Visa category",
                 allowClear: true
             });
         }
@@ -331,7 +334,7 @@
             });
             $categorySelect.val('').trigger('change');
             initCategorySelect2();
-            $categoryHelp.text('Accounts must be created in order (New Visa, then 1st Renewal, etc.). The next allowed category is shown after you select a rider.');
+            $categoryHelp.text('Accounts must be created in category order. Tickets are generated only for statuses in the selected visa category.');
         }
 
         function applyEligibleCategories(categories) {

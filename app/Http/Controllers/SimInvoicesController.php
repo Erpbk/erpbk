@@ -62,7 +62,7 @@ class SimInvoicesController extends AppBaseController
         $totalAmount = (float) (clone $statsQuery)->sum('total_amount');
         $paidAmount = (float) (clone $statsQuery)->where('status', 1)->sum('total_amount');
         $partialPaid = (clone $statsQuery)->where('status', 3)->get(['total_amount', 'partial_paid_amount'])
-            ->sum(fn (SimInvoice $invoice) => array_sum($invoice->partial_paid_amount ?? []));
+            ->sum(fn(SimInvoice $invoice) => array_sum($invoice->partial_paid_amount ?? []));
         $stats = [
             'total' => (clone $statsQuery)->count(),
             'unpaid' => (clone $statsQuery)->where(function ($q) {
@@ -246,7 +246,7 @@ class SimInvoicesController extends AppBaseController
             'vat' => $request->filled('col_vat') ? (int) $request->col_vat : null,
         ];
 
-        $provided = array_filter($columnMap, fn ($v) => $v !== null);
+        $provided = array_filter($columnMap, fn($v) => $v !== null);
         if (count($provided) !== count(array_unique($provided))) {
             $message = 'Column numbers must be unique.';
             if ($request->ajax()) {

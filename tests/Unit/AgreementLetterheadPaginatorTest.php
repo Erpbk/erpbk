@@ -157,6 +157,66 @@ class AgreementLetterheadPaginatorTest extends TestCase
         $this->assertStringContainsString('Clause title 9', $all);
     }
 
+    public function test_underlined_heading_with_br_stays_with_following_block(): void
+    {
+        $filler = '';
+        for ($i = 1; $i <= 35; $i++) {
+            $filler .= '<p>Filler clause '.$i.'. The rider agrees to follow company policies during delivery assignments in the United Arab Emirates.</p>';
+        }
+
+        $pages = (new AgreementLetterheadPaginator())->paginate(
+            $filler.'<p><strong style="font-size: 10pt;"><span style="text-decoration: underline;">Contract Highlights</span></strong><br><span style="font-size: 10pt;"></span></p>'
+            .'<p>Supply cities and contract period details follow the heading on the same sheet.</p>',
+            238.0
+        );
+
+        foreach ($pages as $page) {
+            if (str_contains($page, 'Contract Highlights')) {
+                $this->assertStringContainsString('Supply cities', $page);
+            }
+        }
+    }
+
+    public function test_plain_title_line_stays_with_following_table(): void
+    {
+        $filler = '';
+        for ($i = 1; $i <= 35; $i++) {
+            $filler .= '<p>Filler clause '.$i.'. The rider agrees to follow company policies during delivery assignments in the United Arab Emirates.</p>';
+        }
+
+        $pages = (new AgreementLetterheadPaginator())->paginate(
+            $filler.'<p>Contract Highlights</p>'
+            .'<table border="1"><tr><td>Supply Cities</td><td>Dubai</td></tr><tr><td>Period</td><td>12 Months</td></tr></table>',
+            238.0
+        );
+
+        foreach ($pages as $page) {
+            if (str_contains($page, 'Contract Highlights')) {
+                $this->assertStringContainsString('Supply Cities', $page);
+            }
+        }
+    }
+
+    public function test_pull_leading_blocks_does_not_orphan_title_from_table(): void
+    {
+        $page1 = '';
+        for ($i = 1; $i <= 20; $i++) {
+            $page1 .= '<p>Page one clause '.$i.'. The rider agrees to follow company policies during delivery assignments in the United Arab Emirates.</p>';
+        }
+        $page2 = '<p><strong><span style="text-decoration: underline;">Contract Highlights</span></strong><br></p>'
+            .'<table border="1"><tr><td>Supply Cities</td><td>Dubai</td></tr></table>';
+
+        // Mimic a packed result where the title+table already share page 2, then
+        // ensure rebalance/pull cannot yank only the title back to page 1.
+        $pages = (new AgreementLetterheadPaginator())->paginate($page1.$page2, 246.0);
+
+        foreach ($pages as $page) {
+            if (str_contains($page, 'Contract Highlights')) {
+                $this->assertStringContainsString('Supply Cities', $page);
+            }
+        }
+    }
+
     public function test_empty_paragraphs_are_kept_for_spacing(): void
     {
         $html = '<p>Title</p><p>&nbsp;</p><p>After a blank line.</p>';

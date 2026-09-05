@@ -18,7 +18,8 @@ class AgreementPdfService
         protected AgreementPdfBranding $pdfBranding,
         protected AgreementLetterheadLayout $letterheadLayout,
         protected AgreementLetterheadPaginator $letterheadPaginator,
-        protected AgreementFontSettings $fonts
+        protected AgreementFontSettings $fonts,
+        protected AgreementLetterheadPdfPainter $letterheadPainter
     ) {}
 
     /**
@@ -119,7 +120,7 @@ class AgreementPdfService
         $template->loadMissing(['category.letterhead', 'category.watermark']);
         $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead);
 
-        return $this->buildPdf($html, $template->category);
+        return $this->buildPdf($html, $template->category, $withLetterhead);
     }
 
     public function previewPdf(
@@ -140,10 +141,10 @@ class AgreementPdfService
             $withLetterhead
         );
 
-        return $this->buildPdf($html, $template->category);
+        return $this->buildPdf($html, $template->category, $withLetterhead);
     }
 
-    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null)
+    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true)
     {
         $fontFaces = $this->pdfFontFaces();
         $defaultFont = $this->fonts->defaultFamily();
@@ -173,6 +174,11 @@ class AgreementPdfService
         $dompdf->setBasePath(public_path());
         $this->fonts->refreshDompdfFontRegistry($fontFaces);
         $this->registerPdfFonts($dompdf, $fontFaces);
+        if ($withLetterhead) {
+            $this->letterheadPainter->registerDompdfCallbacks($dompdf, $category);
+        } else {
+            $dompdf->setCallbacks([]);
+        }
 
         $pdf->loadHTML($html);
 

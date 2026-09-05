@@ -500,9 +500,9 @@
     editorPadMm: function (margins) {
       margins = margins || this.pageMargins();
       return {
-        top: 12,
+        top: margins.top,
         right: margins.right,
-        bottom: 12,
+        bottom: margins.bottom,
         left: margins.left
       };
     },

@@ -50,7 +50,8 @@
       margin: 0;
       padding: 0;
       width: {{ $pageW }}mm;
-      background: #fff;
+      /* Transparent in PDF so canvas-painted letterhead shows through; white for on-screen HTML preview. */
+      background: {{ $forPdf ? 'transparent' : '#fff' }};
       --word-page-width: {{ $pageW }}mm;
       --word-page-height: {{ $pageBoxH }}mm;
     }
@@ -68,7 +69,7 @@
       height: {{ $pageBoxH }}mm;
       min-height: {{ $pageBoxH }}mm;
       max-height: {{ $pageBoxH }}mm;
-      background: #fff;
+      background: {{ $forPdf ? 'transparent' : '#fff' }};
       overflow: hidden;
       page-break-before: auto;
       break-before: auto;
@@ -250,7 +251,10 @@
     $hasDesign = ! empty($branding['letterhead_src']);
     $hasWatermark = ! empty($branding['watermark_src']);
     $showCompanyHeader = $withLetterhead && $letterheadMode !== 'none' && ! $hasDesign;
-    $showPerPageChrome = $withLetterhead && (! $forPdf || $hasDesign);
+    // Dompdf treats full-page letterhead <img> as layout height and splits every
+    // sheet. PDF mode paints the design via AgreementLetterheadPdfPainter instead.
+    $showPerPageChrome = $withLetterhead && ! $forPdf;
+    $showPdfDesignWatermark = $forPdf && $withLetterhead && $hasDesign && $hasWatermark;
     $showFixedChrome = $forPdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
   @endphp
   @if ($showFixedChrome)
@@ -271,6 +275,14 @@
           'pageWidthMm' => $pageW,
           'pageHeightMm' => $forPdf ? $pageH : $pageBoxH,
           'branding' => $branding,
+        ])
+      </div>
+      @elseif($showPdfDesignWatermark)
+      <div class="letterhead-overlay letterhead-overlay--design">
+        @include('agreements.pdf.partials.page-chrome', [
+          'pageWidthMm' => $pageW,
+          'pageHeightMm' => $pageH,
+          'branding' => array_merge($branding, ['letterhead_src' => null, 'letterhead_mode' => 'none']),
         ])
       </div>
       @endif

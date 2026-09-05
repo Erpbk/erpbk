@@ -426,7 +426,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
-    Route::get('VisaExpense/eligible-categories/{riderId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])->name('VisaExpense.eligibleRenewalCategories');
+    Route::get('VisaExpense/eligible-categories/{personType}/{personId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])
+        ->where(['personType' => 'rider|employee', 'personId' => '[0-9]+'])
+        ->name('VisaExpense.eligibleRenewalCategories');
     Route::post('editaccount', [VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');
     Route::get('VisaExpense/deleteaccount/{id}', [VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');

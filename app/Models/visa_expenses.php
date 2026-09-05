@@ -21,6 +21,7 @@ class visa_expenses extends BaseModel
         'trans_code',
         'date',
         'rider_id',
+        'employee_id',
         'visa_status',
         'detail',
         'branch_id',
@@ -54,9 +55,15 @@ class visa_expenses extends BaseModel
     ];
     public function rider()
     {
-        // In current schema rider_id maps to accounts.id for visa ledgers.
-        return $this->belongsTo(Accounts::class, 'rider_id', 'id');
+        // Person link: riders.id (legacy rows may differ).
+        return $this->belongsTo(Riders::class, 'rider_id', 'id');
     }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
     public function expenseAccount()
     {
         return $this->belongsTo(ExpenseAccount::class, 'expense_account_id');

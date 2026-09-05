@@ -154,18 +154,29 @@
                     @csrf
                     <div class="row g-3">
                         <div class="col-12">
-                            <label for="rider_id" class="form-label">Select Rider</label>
-                            <select class="form-select" id="rider_id" name="rider_id" required>
+                            <label for="person_key" class="form-label">Select Rider or Employee</label>
+                            <select class="form-select" id="person_key" name="person_key" required>
                                 <option value="">Select</option>
-                                @foreach($riders as $r)
-                                <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
-                                @endforeach
+                                @if(($riders ?? collect())->isNotEmpty())
+                                <optgroup label="Riders">
+                                    @foreach($riders as $r)
+                                    <option value="rider:{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
+                                    @endforeach
+                                </optgroup>
+                                @endif
+                                @if(($employees ?? collect())->isNotEmpty())
+                                <optgroup label="Employees">
+                                    @foreach($employees as $e)
+                                    <option value="employee:{{ $e->id }}">{{ $e->employee_id }} - {{ $e->name }}</option>
+                                    @endforeach
+                                </optgroup>
+                                @endif
                             </select>
                         </div>
                         <div class="col-12">
                             <label for="renewal_category_id" class="form-label">Visa Category</label>
                             <select class="form-select" id="renewal_category_id" name="renewal_category_id" required>
-                                <option value="">Select rider first</option>
+                                <option value="">Select person first</option>
                                 @foreach($renewalCategories ?? [] as $cat)
                                 <option value="{{ $cat->id }}" disabled>{{ $cat->name }}</option>
                                 @endforeach
@@ -301,14 +312,14 @@
     }
     $(document).ready(function() {
         var $createModal = $('#createaccount');
-        var $riderSelect = $('#rider_id');
+        var $personSelect = $('#person_key');
         var $categorySelect = $('#renewal_category_id');
         var $categoryHelp = $('#renewal_category_help');
-        var eligibleCategoriesUrlTemplate = @json(route('VisaExpense.eligibleRenewalCategories', ['riderId' => '___RIDER_ID___']));
+        var eligibleCategoriesUrlTemplate = @json(route('VisaExpense.eligibleRenewalCategories', ['personType' => '__TYPE__', 'personId' => '__ID__']));
 
-        $riderSelect.select2({
+        $personSelect.select2({
             dropdownParent: $createModal,
-            placeholder: "Rider",
+            placeholder: "Rider or employee",
             allowClear: true
         });
 
@@ -327,7 +338,7 @@
             $categorySelect.find('option').each(function() {
                 var $opt = $(this);
                 if ($opt.val() === '') {
-                    $opt.prop('disabled', false).text('Select rider first');
+                    $opt.prop('disabled', false).text('Select person first');
                 } else {
                     $opt.prop('disabled', true);
                 }
@@ -354,7 +365,7 @@
             if (categories.length === 0) {
                 $categorySelect.val('').trigger('change');
                 initCategorySelect2();
-                $categoryHelp.text('This rider cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
+                $categoryHelp.text('This person cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
                 return;
             }
 
@@ -370,16 +381,21 @@
             $categorySelect.trigger('change');
         }
 
-        function loadEligibleCategories(riderId) {
-            if (!riderId) {
+        function loadEligibleCategories(personKey) {
+            if (!personKey || personKey.indexOf(':') === -1) {
                 resetCategorySelect();
                 return;
             }
 
+            var parts = personKey.split(':');
+            var personType = parts[0];
+            var personId = parts[1];
             $categoryHelp.text('Loading allowed categories…');
 
             $.ajax({
-                url: eligibleCategoriesUrlTemplate.replace('___RIDER_ID___', encodeURIComponent(riderId)),
+                url: eligibleCategoriesUrlTemplate
+                    .replace('__TYPE__', encodeURIComponent(personType))
+                    .replace('__ID__', encodeURIComponent(personId)),
                 method: 'GET',
                 dataType: 'json',
                 headers: {
@@ -394,16 +410,16 @@
             });
         }
 
-        $riderSelect.on('change select2:select select2:clear', function() {
+        $personSelect.on('change select2:select select2:clear', function() {
             loadEligibleCategories($(this).val());
         });
 
         $createModal.on('shown.bs.modal', function() {
-            loadEligibleCategories($riderSelect.val());
+            loadEligibleCategories($personSelect.val());
         });
 
         $createModal.on('hidden.bs.modal', function() {
-            $riderSelect.val('').trigger('change');
+            $personSelect.val('').trigger('change');
             resetCategorySelect();
         });
 

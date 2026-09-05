@@ -84,10 +84,10 @@
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
-         <th>Rider ID</th>
+         <th>Person ID</th>
          <th style="width: 220px;">Account Name</th>
          <th>Renewal Category</th>
-         <th>Rider Status</th>
+         <th>Status</th>
          <th>Next Unpaid Document</th>
          <th>Expiry Document</th>
          <th>Person Code</th>
@@ -100,13 +100,23 @@
    <tbody>
       @foreach($data as $r)
       @php
-      $hasActiveBike = company_table('bikes')
+      $isEmployeeAccount = !empty($r->employee_id);
+      $hasActiveBike = !$isEmployeeAccount && company_table('bikes')
       ->where('rider_id', $r->rider_id)
       ->where('warehouse', 'Active')
       ->exists();
-      $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
+      $badgeClass = $isEmployeeAccount ? 'bg-label-info' : ($hasActiveBike ? 'bg-label-success' : 'bg-label-danger');
+      $badgeLabel = $isEmployeeAccount ? 'Employee' : ($hasActiveBike ? 'Active' : 'Inactive');
+      $personRef = $isEmployeeAccount ? ($r->employee->employee_id ?? '-') : ($r->rider->rider_id ?? '-');
+      $personCode = $isEmployeeAccount ? ($r->employee->person_code ?? '-') : ($r->rider->person_code ?? '-');
+      $laborCard = $isEmployeeAccount ? ($r->employee->labor_card_number ?? '-') : ($r->rider->labor_card_number ?? '-');
+      $policyNo = $isEmployeeAccount ? '-' : ($r->rider->policy_no ?? '-');
       $categoryId = (int) ($r->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
-      $balance = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery((int) $r->id, (int) $r->rider_id, $categoryId)->sum('amount');
+      $balance = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+         (int) $r->id,
+         $r->rider_id ? (int) $r->rider_id : null,
+         $categoryId
+      )->sum('amount');
       $nextUnpaid = ($nextUnpaidVisaByAccountId ?? [])[$r->id] ?? null;
       $nextWhen = '';
       if ($nextUnpaid) {
@@ -129,12 +139,13 @@
       $urgentExpiryWhen = '';
       }
       }
+      $selectedPersonKey = $isEmployeeAccount ? ('employee:' . $r->employee_id) : ('rider:' . $r->rider_id);
       @endphp
       <tr class="text-center">
-         <td>{{ $r->rider->rider_id ?? '-' }}</td>
+         <td>{{ $personRef }}</td>
          <td class="text-start"><a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}">{{ $r->name }}</a></td>
          <td>{{ $r->renewalCategory->name ?? '—' }}</td>
-         <td><span class="badge {{ $badgeClass }}">{{ $hasActiveBike ? 'Active' : 'Inactive' }}</span></td>
+         <td><span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span></td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)
             <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
@@ -157,9 +168,9 @@
             <span class="text-muted">—</span>
             @endif
          </td>
-         <td>{{ $r->rider->person_code ?? '-' }}</td>
-         <td>{{ $r->rider->labor_card_number ?? '-' }}</td>
-         <td>{{ $r->rider->policy_no ?? '-' }}</td>
+         <td>{{ $personCode }}</td>
+         <td>{{ $laborCard }}</td>
+         <td>{{ $policyNo }}</td>
          <td>{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $balance, 2) }}</td>
          <td>
             <div class="dropdown">
@@ -200,12 +211,19 @@
                      <input type="hidden" name="id" value="{{ $r->id }}">
                      <div class="row">
                         <div class="form-group col-md-12">
-                           <label for="rider-{{ $r->id }}">Select Rider</label>
-                           <select class="form-control rider-select" id="rider-{{ $r->id }}" name="rider_id">
-                              <option value="" selected>Select</option>
-                              @foreach(company_table('riders')->where('status' , 1)->get() as $ri)
-                              <option value="{{ $ri->id }}" @if($ri->id == $r->rider_id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
-                              @endforeach
+                           <label for="person-{{ $r->id }}">Select Rider or Employee</label>
+                           <select class="form-control rider-select" id="person-{{ $r->id }}" name="person_key">
+                              <option value="">Select</option>
+                              <optgroup label="Riders">
+                                 @foreach(company_table('riders')->where('status' , 1)->get() as $ri)
+                                 <option value="rider:{{ $ri->id }}" @if($selectedPersonKey === 'rider:'.$ri->id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
+                                 @endforeach
+                              </optgroup>
+                              <optgroup label="Employees">
+                                 @foreach(\App\Models\Employee::query()->where(function ($q) { $q->where('status', 'active')->orWhere('status', 1)->orWhere('status', '1'); })->orderBy('name')->get() as $em)
+                                 <option value="employee:{{ $em->id }}" @if($selectedPersonKey === 'employee:'.$em->id) selected @endif>{{ $em->employee_id }} - {{ $em->name }}</option>
+                                 @endforeach
+                              </optgroup>
                            </select>
                         </div>
                         <div class="col-md-12 form-group text-center">

@@ -113,9 +113,9 @@
       $policyNo = $isEmployeeAccount ? '-' : ($r->rider->policy_no ?? '-');
       $categoryId = (int) ($r->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
       $balance = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
-         (int) $r->id,
-         $r->rider_id ? (int) $r->rider_id : null,
-         $categoryId
+      (int) $r->id,
+      $r->rider_id ? (int) $r->rider_id : null,
+      $categoryId
       )->sum('amount');
       $nextUnpaid = ($nextUnpaidVisaByAccountId ?? [])[$r->id] ?? null;
       $nextWhen = '';
@@ -206,28 +206,76 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                </div>
                <div class="modal-body">
-                  <form action="{{ route('VisaExpense.editaccount') }}" method="POST">
+                  @php
+                  $editPersonTargets = $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
+                  $editAllowType = $allowPersonTypeSelection ?? (count($editPersonTargets) >= 2);
+                  $editDefaultType = $isEmployeeAccount
+                     ? (in_array('employee', $editPersonTargets, true) ? 'employee' : ($editPersonTargets[0] ?? 'rider'))
+                     : (in_array('rider', $editPersonTargets, true) ? 'rider' : ($editPersonTargets[0] ?? 'employee'));
+                  $editRiderLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? 'Rider';
+                  $editEmployeeLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('employees') ?? 'Employee';
+                  $editRiders = $riders ?? company_table('riders')->where('status', 1)->orderBy('name')->get();
+                  $editEmployees = $employees ?? \App\Models\Employee::query()->where(function ($q) {
+                     $q->where('status', 'active')->orWhere('status', 1)->orWhere('status', '1');
+                  })->orderBy('name')->get();
+                  @endphp
+                  <form action="{{ route('VisaExpense.editaccount') }}" method="POST" class="visa-edit-account-form">
                      @csrf
                      <input type="hidden" name="id" value="{{ $r->id }}">
-                     <div class="row">
-                        <div class="form-group col-md-12">
-                           <label for="person-{{ $r->id }}">Select Rider or Employee</label>
-                           <select class="form-control rider-select" id="person-{{ $r->id }}" name="person_key">
+                     <input type="hidden" name="person_key" class="visa-edit-person-key" value="{{ $selectedPersonKey }}">
+                     <div class="row g-3">
+                        @if(empty($editPersonTargets))
+                        <div class="col-12">
+                           <div class="alert alert-warning mb-0">No person modules are enabled for this company.</div>
+                        </div>
+                        @else
+                        @if($editAllowType)
+                        <div class="col-12">
+                           <label class="form-label d-block mb-2">Type</label>
+                           <div class="btn-group w-100" role="group" aria-label="Person type">
+                              @if(in_array('rider', $editPersonTargets, true))
+                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $r->id }}" id="edit_type_rider_{{ $r->id }}" value="rider"
+                                 {{ $editDefaultType === 'rider' ? 'checked' : '' }} autocomplete="off">
+                              <label class="btn btn-outline-primary" for="edit_type_rider_{{ $r->id }}">{{ $editRiderLabel }}</label>
+                              @endif
+                              @if(in_array('employee', $editPersonTargets, true))
+                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $r->id }}" id="edit_type_employee_{{ $r->id }}" value="employee"
+                                 {{ $editDefaultType === 'employee' ? 'checked' : '' }} autocomplete="off">
+                              <label class="btn btn-outline-primary" for="edit_type_employee_{{ $r->id }}">{{ $editEmployeeLabel }}</label>
+                              @endif
+                           </div>
+                        </div>
+                        @endif
+
+                        @if(in_array('rider', $editPersonTargets, true))
+                        <div class="col-12 visa-edit-person-field visa-edit-person-field-rider{{ $editDefaultType === 'employee' ? ' d-none' : '' }}">
+                           <label for="edit-rider-{{ $r->id }}" class="form-label">Select {{ $editRiderLabel }}</label>
+                           <select class="form-control rider-select visa-edit-person-select" id="edit-rider-{{ $r->id }}" data-person-type="rider"
+                              {{ $editDefaultType === 'rider' ? 'required' : 'disabled' }}>
                               <option value="">Select</option>
-                              <optgroup label="Riders">
-                                 @foreach(company_table('riders')->where('status' , 1)->get() as $ri)
-                                 <option value="rider:{{ $ri->id }}" @if($selectedPersonKey === 'rider:'.$ri->id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
-                                 @endforeach
-                              </optgroup>
-                              <optgroup label="Employees">
-                                 @foreach(\App\Models\Employee::query()->where(function ($q) { $q->where('status', 'active')->orWhere('status', 1)->orWhere('status', '1'); })->orderBy('name')->get() as $em)
-                                 <option value="employee:{{ $em->id }}" @if($selectedPersonKey === 'employee:'.$em->id) selected @endif>{{ $em->employee_id }} - {{ $em->name }}</option>
-                                 @endforeach
-                              </optgroup>
+                              @foreach($editRiders as $ri)
+                              <option value="rider:{{ $ri->id }}" @if($selectedPersonKey === 'rider:'.$ri->id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
+                              @endforeach
                            </select>
                         </div>
-                        <div class="col-md-12 form-group text-center">
-                           <button type="submit" class="btn btn-primary mt-3">Submit</button>
+                        @endif
+
+                        @if(in_array('employee', $editPersonTargets, true))
+                        <div class="col-12 visa-edit-person-field visa-edit-person-field-employee{{ $editDefaultType === 'rider' ? ' d-none' : '' }}">
+                           <label for="edit-employee-{{ $r->id }}" class="form-label">Select {{ $editEmployeeLabel }}</label>
+                           <select class="form-control rider-select visa-edit-person-select" id="edit-employee-{{ $r->id }}" data-person-type="employee"
+                              {{ $editDefaultType === 'employee' ? 'required' : 'disabled' }}>
+                              <option value="">Select</option>
+                              @foreach($editEmployees as $em)
+                              <option value="employee:{{ $em->id }}" @if($selectedPersonKey === 'employee:'.$em->id) selected @endif>{{ $em->employee_id }} - {{ $em->name }}</option>
+                              @endforeach
+                           </select>
+                        </div>
+                        @endif
+                        @endif
+
+                        <div class="col-12 text-center">
+                           <button type="submit" class="btn btn-primary mt-2" @if(empty($editPersonTargets)) disabled @endif>Submit</button>
                         </div>
                      </div>
                   </form>

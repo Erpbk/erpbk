@@ -48,5 +48,12 @@
       padding: 0.16rem 0.4rem;
     }
   }
+
+  @media (max-width: 480px) {
+    .rider-doc-status-bubble {
+      font-size: 0.55rem;
+      padding: 0.12rem 0.32rem;
+    }
+  }
 </style>
 @endonce

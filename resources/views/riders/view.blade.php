@@ -273,10 +273,9 @@
   .rider-inventory-count-badge {
     min-width: 1.1rem;
     padding: 0.15rem 0.4rem;
-    margin-left: 0;
+    margin: 0;
     font-size: 0.8rem;
     line-height: 1.2;
-    vertical-align: middle;
     white-space: nowrap;
   }
 
@@ -289,6 +288,11 @@
     overflow: visible;
   }
 
+  /* Reserve vertical room so floating badges sit above tabs without clipping. */
+  .rider-profile-tabs .card-body {
+    padding-top: 1.55rem !important;
+  }
+
   .rider-profile-tabs #mainNavigation .nav-link {
     position: relative;
   }
@@ -296,6 +300,23 @@
   .rider-profile-tabs #mainNavigation .nav-item:hover,
   .rider-profile-tabs #mainNavigation .nav-item:has(> .nav-link.active) {
     z-index: 8;
+  }
+
+  /* All Rider View tab badges: float above the tab, never inside/overlapping the label. */
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 0.12rem);
+    top: auto;
+    right: auto;
+    transform: translateX(-50%);
+    margin: 0 !important;
+    z-index: 6;
+    pointer-events: auto;
   }
 
   .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges {
@@ -306,10 +327,9 @@
     gap: 0.12rem;
     overflow: visible;
     white-space: nowrap;
-    vertical-align: middle;
   }
 
-  /* Compact count on the tab; full label on hover, focus, or active tab. */
+  /* Compact count above the tab; full label on hover, focus, or active tab. */
   .rider-profile-tabs #mainNavigation .rider-tab-count-label {
     display: inline-block;
     max-width: 0;
@@ -330,12 +350,26 @@
     opacity: 1;
   }
 
+  /* Overflow dropdown: keep badges inline next to the menu label. */
+  #overflowItems .rider-tab-badges,
+  #overflowItems .rider-tab-count-badge,
+  #overflowItems .rider-inventory-count-badge,
+  #overflowItems .rider-expired-count-dot,
+  #overflowItems .rider-expired-docs-bubble {
+    position: static;
+    transform: none;
+    left: auto;
+    bottom: auto;
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 0.35rem !important;
+  }
+
   .nav-link.rider-expired-count-link {
     position: relative;
   }
 
   .rider-expired-count-dot {
-    position: absolute;
     min-width: 1.15rem;
     height: 1.15rem;
     padding: 0 0.28rem;
@@ -353,7 +387,6 @@
   }
 
   .rider-expired-docs-bubble {
-    position: absolute;
     background: #e53935;
     color: #fff;
     font-size: 0.75rem;
@@ -367,6 +400,33 @@
     box-shadow: 0 4px 12px rgba(229, 57, 53, 0.28);
   }
 
+  @media (max-width: 768px) {
+    .rider-profile-tabs .card-body {
+      padding-top: 1.35rem !important;
+    }
+
+    .rider-tab-count-badge,
+    .rider-inventory-count-badge {
+      font-size: 0.7rem;
+      padding: 0.12rem 0.32rem;
+      min-width: 1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .rider-profile-tabs .card-body {
+      padding-top: 1.2rem !important;
+    }
+
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+      bottom: calc(100% + 0.06rem);
+    }
+  }
+
   .rider-view-card {
     border-radius: 1rem;
     overflow: hidden;
@@ -376,11 +436,11 @@
   .rider-view-card-hero {
     position: relative;
     background: linear-gradient(180deg, #1e4b8e 0%, #163a6e 100%);
-    min-height: 210px;
+    min-height: 260px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2.25rem 1rem 1.5rem;
+    padding: 2.5rem 1rem 1.75rem;
     overflow: hidden;
   }
 
@@ -448,27 +508,27 @@
 
   .rider-view-card-photo-wrap {
     position: relative;
-    width: 148px;
-    height: 148px;
+    width: 200px;
+    height: 200px;
   }
 
   .rider-view-card-photo {
-    width: 148px;
-    height: 148px;
+    width: 200px;
+    height: 200px;
     object-fit: cover;
     border-radius: 50%;
-    border: 4px solid #fff;
+    border: 5px solid #fff;
     background: #fff;
     display: block;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
   }
 
   .rider-view-card-camera {
     position: absolute;
-    right: 4px;
-    bottom: 4px;
-    width: 34px;
-    height: 34px;
+    right: 6px;
+    bottom: 6px;
+    width: 40px;
+    height: 40px;
     border: 0;
     border-radius: 50%;
     background: #fff;
@@ -482,7 +542,27 @@
   }
 
   .rider-view-card-camera i {
-    font-size: 1rem;
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 576px) {
+    .rider-view-card-hero {
+      min-height: 230px;
+      padding: 2.1rem 0.85rem 1.4rem;
+    }
+
+    .rider-view-card-photo-wrap,
+    .rider-view-card-photo {
+      width: 168px;
+      height: 168px;
+    }
+
+    .rider-view-card-camera {
+      width: 36px;
+      height: 36px;
+      right: 4px;
+      bottom: 4px;
+    }
   }
 
   .rider-view-card .user-info h6 {
@@ -1059,7 +1139,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                     <i class="ti ti-package ti-sm me-1_5"></i>
                     Inventory
                     @if($riderAssignedItemCount > 0)
-                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge ms-1"
+                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge"
                       title="Rider Inventory {{ $riderAssignedItemCount }}">
                       <span class="rider-tab-count-label">Rider Inventory </span>{{ $riderAssignedItemCount }}
                     </span>
@@ -1841,6 +1921,10 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         padding: 0.75rem 1rem !important;
         overflow: visible;
       }
+
+      .nav-align-top.rider-profile-tabs .card-body {
+        padding-top: 1.55rem !important;
+      }
       
       #mainNavigation {
         display: flex;
@@ -1975,6 +2059,10 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         .nav-align-top .card-body {
           padding: 0.5rem !important;
         }
+
+        .nav-align-top.rider-profile-tabs .card-body {
+          padding-top: 1.35rem !important;
+        }
         
         #mainNavigation .nav-link {
           padding: 0.25rem 0.5rem !important;
@@ -2000,6 +2088,10 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       @media (max-width: 480px) {
         .nav-align-top .card-body {
           padding: 0.25rem 0.5rem !important;
+        }
+
+        .nav-align-top.rider-profile-tabs .card-body {
+          padding-top: 1.2rem !important;
         }
         
         #mainNavigation .nav-link {

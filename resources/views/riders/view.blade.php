@@ -329,26 +329,7 @@
     white-space: nowrap;
   }
 
-  /* Compact count above the tab; full label on hover, focus, or active tab. */
-  .rider-profile-tabs #mainNavigation .rider-tab-count-label {
-    display: inline-block;
-    max-width: 0;
-    margin: 0;
-    opacity: 0;
-    overflow: hidden;
-    white-space: nowrap;
-    vertical-align: bottom;
-    transition: max-width 0.18s ease, opacity 0.18s ease;
-  }
-
-  .rider-profile-tabs #mainNavigation .nav-item:hover .rider-tab-count-label,
-  .rider-profile-tabs #mainNavigation .nav-link.active .rider-tab-count-label,
-  .rider-profile-tabs #mainNavigation .nav-link:focus-visible .rider-tab-count-label,
-  .rider-profile-tabs #overflowItems .rider-tab-count-label,
-  #overflowItems .rider-tab-count-label {
-    max-width: 16rem;
-    opacity: 1;
-  }
+  /* Compact count labels removed — badges show numbers only. */
 
   /* Overflow dropdown: keep badges inline next to the menu label. */
   #overflowItems .rider-tab-badges,
@@ -436,11 +417,11 @@
   .rider-view-card-hero {
     position: relative;
     background: linear-gradient(180deg, #1e4b8e 0%, #163a6e 100%);
-    min-height: 260px;
+    min-height: 300px;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2.5rem 1rem 1.75rem;
+    padding: 2.75rem 1rem 2rem;
     overflow: hidden;
   }
 
@@ -508,15 +489,15 @@
 
   .rider-view-card-photo-wrap {
     position: relative;
-    width: 200px;
-    height: 200px;
+    width: 240px;
+    height: 240px;
   }
 
   .rider-view-card-photo {
-    width: 200px;
-    height: 200px;
+    width: 240px;
+    height: 240px;
     object-fit: cover;
-    border-radius: 50%;
+    border-radius: 0.75rem;
     border: 5px solid #fff;
     background: #fff;
     display: block;
@@ -525,8 +506,8 @@
 
   .rider-view-card-camera {
     position: absolute;
-    right: 6px;
-    bottom: 6px;
+    right: -4px;
+    bottom: -4px;
     width: 40px;
     height: 40px;
     border: 0;
@@ -547,21 +528,21 @@
 
   @media (max-width: 576px) {
     .rider-view-card-hero {
-      min-height: 230px;
-      padding: 2.1rem 0.85rem 1.4rem;
+      min-height: 260px;
+      padding: 2.25rem 0.85rem 1.5rem;
     }
 
     .rider-view-card-photo-wrap,
     .rider-view-card-photo {
-      width: 168px;
-      height: 168px;
+      width: 200px;
+      height: 200px;
     }
 
     .rider-view-card-camera {
       width: 36px;
       height: 36px;
-      right: 4px;
-      bottom: 4px;
+      right: -2px;
+      bottom: -2px;
     }
   }
 
@@ -1141,7 +1122,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                     @if($riderAssignedItemCount > 0)
                     <span class="badge rounded-pill bg-danger rider-inventory-count-badge"
                       title="Rider Inventory {{ $riderAssignedItemCount }}">
-                      <span class="rider-tab-count-label">Rider Inventory </span>{{ $riderAssignedItemCount }}
+                      {{ $riderAssignedItemCount }}
                     </span>
                     @endif
                   </a>

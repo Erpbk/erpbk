@@ -766,6 +766,15 @@ $homeLink = $isAdminLogin
 </li>
 @endif
 
+@if($isAdminLogin && $canAccessSuperAdminPanel && ($adminUser->hasPermission('agreement_settings_view') || $adminUser->hasPermission('agreement_settings_edit')))
+<li class="menu-item {{ Route::is('admin.agreement-settings*') ? 'active' : '' }}">
+  <a href="{{ route('admin.agreement-settings.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-file-text"></i>
+    <div>{{ __('Agreement Settings') }}</div>
+  </a>
+</li>
+@endif
+
 @if($isAdminLogin && $canAccessSuperAdminPanel && $adminUser->hasPermission('blogs_view'))
 <li class="menu-item {{ Route::is('admin.blogs*') ? 'active' : '' }}">
   <a href="{{ route('admin.blogs.index') }}" class="menu-link">

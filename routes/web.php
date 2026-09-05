@@ -3,6 +3,7 @@
 use App\Helpers\General;
 use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\Admin\AdminGlobalAccountsController;
+use App\Http\Controllers\Admin\AdminAgreementSettingsController;
 use App\Http\Controllers\Admin\AdminBlogsController;
 use App\Http\Controllers\Admin\AdminCompaniesController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -145,6 +146,13 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::post('companies/{company}/reject', [AdminCompaniesController::class, 'reject'])->middleware('admin.permission:companies_reject')->name('companies.reject');
     Route::get('companies/{company}/modules', [AdminCompaniesController::class, 'editModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.edit');
     Route::put('companies/{company}/modules', [AdminCompaniesController::class, 'updateModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.update');
+
+    // Agreement Settings (assignable modules + per-module placeholders)
+    Route::get('agreement-settings', [AdminAgreementSettingsController::class, 'index'])->middleware('admin.permission:agreement_settings_view')->name('agreement-settings.index');
+    Route::put('agreement-settings/modules', [AdminAgreementSettingsController::class, 'updateModules'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.modules.update');
+    Route::post('agreement-settings/placeholders', [AdminAgreementSettingsController::class, 'storePlaceholder'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.placeholders.store');
+    Route::put('agreement-settings/placeholders/{placeholder}', [AdminAgreementSettingsController::class, 'updatePlaceholder'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.placeholders.update');
+    Route::delete('agreement-settings/placeholders/{placeholder}', [AdminAgreementSettingsController::class, 'destroyPlaceholder'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.placeholders.destroy');
 
     // Site Settings Modules (admin DB)
     Route::get('blogs', [AdminBlogsController::class, 'index'])->middleware('admin.permission:blogs_view')->name('blogs.index');

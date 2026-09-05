@@ -20,7 +20,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
           <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
         <div class="d-flex gap-2 flex-wrap">
-          <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ route('agreements.index', ['company_slug' => $companySlug]) }}" class="btn btn-outline-secondary btn-sm">
             Back
           </a>
         </div>
@@ -230,16 +230,17 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
           @include('settings.agreements.partials.inline-template-editor')
 
           <div class="mb-3">
-            <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
-            <p class="text-muted small mb-2">Selected modules will show this agreement by name in their Action menu. Clicking the option opens the agreement.</p>
+            <label class="form-label">Module <span class="text-danger">*</span></label>
+            <p class="text-muted small mb-2">This agreement appears in the Action menu of the selected module.</p>
             <div class="row g-2">
-              @php $savedModules = $category->normalizedAssignedModules(); @endphp
+              @php $savedModule = old('assigned_modules', $category->normalizedAssignedModules()[0] ?? ''); @endphp
               @foreach($modules as $moduleKey => $label)
               <div class="col-md-4 col-lg-3">
                 <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="assigned_modules[]" value="{{ $moduleKey }}"
+                  <input class="form-check-input" type="radio" name="assigned_modules" value="{{ $moduleKey }}"
                     id="mod_{{ $moduleKey }}"
-                    {{ in_array($moduleKey, old('assigned_modules', $savedModules), true) ? 'checked' : '' }}>
+                    {{ $savedModule === $moduleKey ? 'checked' : '' }}
+                    required>
                   <label class="form-check-label" for="mod_{{ $moduleKey }}">
                     {{ $label }}
                   </label>
@@ -248,9 +249,6 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
               @endforeach
             </div>
             @error('assigned_modules')
-            <div class="text-danger small mt-1">{{ $message }}</div>
-            @enderror
-            @error('assigned_modules.*')
             <div class="text-danger small mt-1">{{ $message }}</div>
             @enderror
           </div>
@@ -269,7 +267,7 @@ $letterheadMargins = $letterheadMargins ?? $category->resolvedLetterheadMarginsM
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i> Save Agreement
             </button>
-            <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('agreements.index', ['company_slug' => $companySlug]) }}" class="btn btn-outline-secondary">
               Cancel
             </a>
           </div>

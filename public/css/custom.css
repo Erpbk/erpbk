@@ -394,6 +394,11 @@ th {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Action menus use Popper strategy:fixed (see custom.js) — keep them above cards/modals */
+.dropdown-menu {
+  z-index: 1080;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .table-responsive::-webkit-scrollbar {
   display: none;

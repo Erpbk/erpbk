@@ -273,12 +273,8 @@ class AgreementPdfService
             '{joining_date}' => '01-Jan-2024',
             '{designation}' => 'Delivery Rider',
             '{salary}' => '—',
-            '{branch_name}' => 'Main Branch',
             '{company_name}' => 'Sample Company',
-            '{bike_number}' => 'DXB-12345',
-            '{bike_model}' => 'Honda Click',
             '{current_date}' => now()->format('d-M-Y'),
-            '{agreement_date}' => now()->format('d-M-Y'),
         ];
     }
 }

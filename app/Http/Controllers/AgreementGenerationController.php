@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgreementCategory;
-use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
 use App\Models\Riders;
 use App\Services\Agreements\AgreementPdfService;
+use App\Services\Agreements\AgreementPlaceholderCatalog;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Email\UserEmailService;
 use App\Support\CompanyContext;
@@ -167,7 +167,8 @@ class AgreementGenerationController extends Controller
         $rider = Riders::findOrFail($riderId);
         $template = $this->resolveRiderTemplate($template);
         $category = $template->category()->first();
-        $placeholders = AgreementPlaceholder::grouped();
+        $moduleKey = $category?->normalizedAssignedModules()[0] ?? 'riders';
+        $placeholders = app(AgreementPlaceholderCatalog::class)->groupedForModule($moduleKey);
 
         return view('riders.agreements.template-editor', compact(
             'rider',

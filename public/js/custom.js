@@ -1,5 +1,44 @@
 // Right Side Modal Handler - Slide in from right
 $(document).ready(function () {
+  // Keep action menus above cards/tables: .table-responsive uses overflow which
+  // otherwise clips Bootstrap dropdowns (e.g. one-row Agreements list).
+  (function enableFixedDropdownMenus() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Dropdown) {
+      return;
+    }
+
+    const withFixedStrategy = function (defaultConfig) {
+      const base = typeof defaultConfig === 'object' && defaultConfig !== null ? defaultConfig : {};
+      return Object.assign({}, base, { strategy: 'fixed' });
+    };
+
+    const previous = bootstrap.Dropdown.Default.popperConfig;
+    bootstrap.Dropdown.Default.popperConfig = function (defaultBsPopperConfig) {
+      const resolved = typeof previous === 'function'
+        ? previous(defaultBsPopperConfig)
+        : Object.assign({}, defaultBsPopperConfig || {}, previous || {});
+      return withFixedStrategy(resolved);
+    };
+
+    document.addEventListener('show.bs.dropdown', function (event) {
+      const toggle = event.target.closest('[data-bs-toggle="dropdown"]');
+      if (!toggle || typeof bootstrap.Dropdown.getInstance !== 'function') {
+        return;
+      }
+      const instance = bootstrap.Dropdown.getInstance(toggle);
+      if (!instance || !instance._config) {
+        return;
+      }
+      const existing = instance._config.popperConfig;
+      instance._config.popperConfig = function (defaultBsPopperConfig) {
+        const resolved = typeof existing === 'function'
+          ? existing(defaultBsPopperConfig)
+          : Object.assign({}, defaultBsPopperConfig || {}, existing || {});
+        return withFixedStrategy(resolved);
+      };
+    });
+  })();
+
   // Create modal HTML if not exists
   if ($('#rightSideModal').length === 0) {
     $('body').append(`

@@ -26,7 +26,7 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
           <a href="{{ route('agreements.edit-agreement', ['company_slug' => $companySlug, 'category' => $category->id]) }}" class="btn btn-outline-primary btn-sm">
             Edit
           </a>
-          <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $category->group_key]) }}" class="btn btn-outline-secondary btn-sm">
+          <a href="{{ route('agreements.index', ['company_slug' => $companySlug]) }}" class="btn btn-outline-secondary btn-sm">
             Back
           </a>
         </div>
@@ -35,13 +35,11 @@ $groupLabel = $groups[$category->group_key]['label'] ?? $category->group_key;
       <div class="card-body">
         <div class="row g-3">
           <div class="col-md-6">
-            <div class="mb-2 text-muted small">Assigned Modules</div>
+            <div class="mb-2 text-muted small">Module</div>
             @if(!empty($assignedModules))
-            @foreach($assignedModules as $moduleKey)
             <span class="badge bg-label-secondary me-1 mb-1">
-              {{ $modules[$moduleKey] ?? $moduleKey }}
+              {{ $modules[$assignedModules[0]] ?? $assignedModules[0] }}
             </span>
-            @endforeach
             @else
             <div class="text-muted">—</div>
             @endif

@@ -7,9 +7,8 @@
 
 @php
 $companySlug = request()->route('company_slug');
-$groupLabel = $groups[$groupKey]['label'] ?? $groupKey;
 $assignModule = $assignModule ?? '';
-$preselectedModules = old('assigned_modules', $assignModule !== '' ? [$assignModule] : []);
+$preselectedModule = old('assigned_modules', $assignModule !== '' ? $assignModule : '');
 @endphp
 
 <div class="row">
@@ -18,14 +17,13 @@ $preselectedModules = old('assigned_modules', $assignModule !== '' ? [$assignMod
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
           <h4 class="card-title mb-0">Create Agreement</h4>
-          <div class="text-muted small mt-1">Group: {{ $groupLabel }}</div>
         </div>
         @if($assignModule !== '')
         <a href="{{ route('module-agreements.index', ['company_slug' => $companySlug, 'module' => $assignModule]) }}" class="btn btn-outline-secondary btn-sm">
           Back
         </a>
         @else
-        <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary btn-sm">
+        <a href="{{ route('agreements.index', ['company_slug' => $companySlug]) }}" class="btn btn-outline-secondary btn-sm">
           Back
         </a>
         @endif
@@ -59,15 +57,16 @@ $preselectedModules = old('assigned_modules', $assignModule !== '' ? [$assignMod
           </p>
 
           <div class="mb-3">
-            <label class="form-label">Assigned Modules <span class="text-danger">*</span></label>
-            <p class="text-muted small mb-2">Choose which modules can use this agreement (Riders, Employees, Vehicles, Customers, Suppliers, Visa Expense, and all other ERP modules).</p>
+            <label class="form-label">Module <span class="text-danger">*</span></label>
+            <p class="text-muted small mb-2">Each agreement is assigned to exactly one module.</p>
             <div class="row g-2">
               @foreach($modules as $moduleKey => $label)
               <div class="col-md-4 col-lg-3">
                 <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="assigned_modules[]" value="{{ $moduleKey }}"
+                  <input class="form-check-input" type="radio" name="assigned_modules" value="{{ $moduleKey }}"
                     id="mod_{{ $moduleKey }}"
-                    {{ in_array($moduleKey, $preselectedModules, true) ? 'checked' : '' }}>
+                    {{ $preselectedModule === $moduleKey ? 'checked' : '' }}
+                    required>
                   <label class="form-check-label" for="mod_{{ $moduleKey }}">
                     {{ $label }}
                   </label>
@@ -76,9 +75,6 @@ $preselectedModules = old('assigned_modules', $assignModule !== '' ? [$assignMod
               @endforeach
             </div>
             @error('assigned_modules')
-            <div class="text-danger small mt-1">{{ $message }}</div>
-            @enderror
-            @error('assigned_modules.*')
             <div class="text-danger small mt-1">{{ $message }}</div>
             @enderror
           </div>
@@ -97,7 +93,7 @@ $preselectedModules = old('assigned_modules', $assignModule !== '' ? [$assignMod
             <button type="submit" class="btn btn-primary">
               <i class="ti ti-device-floppy me-1"></i> Create Agreement
             </button>
-            <a href="{{ route('agreements.index', ['company_slug' => $companySlug, 'group' => $groupKey]) }}" class="btn btn-outline-secondary">
+            <a href="{{ route('agreements.index', ['company_slug' => $companySlug]) }}" class="btn btn-outline-secondary">
               Cancel
             </a>
           </div>

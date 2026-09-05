@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\Schema;
 
 class DeleteRequest extends BaseModel
 {
@@ -113,6 +115,39 @@ class DeleteRequest extends BaseModel
     public function scopePending($query)
     {
         return $query->where('status', self::STATUS_PENDING);
+    }
+
+    /**
+     * Admin queue list: always include pending rows (badge must match),
+     * plus historical rows for known delete-approval modules.
+     */
+    public function scopeForAdminQueue(Builder $query): Builder
+    {
+        $moduleKeys = array_keys(config('delete_approval.modules', []));
+
+        return $query->where(function (Builder $q) use ($moduleKeys) {
+            $q->where('status', self::STATUS_PENDING);
+            if ($moduleKeys !== []) {
+                $q->orWhereIn('module_key', $moduleKeys);
+            }
+        });
+    }
+
+    /**
+     * Live pending count for the settings menu badge and page subtitle.
+     * Not cached — must stay in sync with scopeForAdminQueue pending rows.
+     */
+    public static function pendingApprovalCount(): int
+    {
+        try {
+            if (! Schema::hasTable((new static)->getTable())) {
+                return 0;
+            }
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        return (int) static::query()->pending()->count();
     }
 
     public function scopeForRequester($query, int $userId)

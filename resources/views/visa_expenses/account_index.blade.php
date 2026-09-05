@@ -134,9 +134,14 @@
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">
             @include('visa_expenses.account_table', [
-                'data' => $data,
-                'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId ?? [],
-                'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId ?? [],
+            'data' => $data,
+            'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId ?? [],
+            'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId ?? [],
+            'riders' => $riders ?? collect(),
+            'employees' => $employees ?? collect(),
+            'personTargets' => $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets(),
+            'allowPersonTypeSelection' => $allowPersonTypeSelection ?? false,
+            'defaultPersonType' => $defaultPersonType ?? 'rider',
             ])
         </div>
     </div>
@@ -150,22 +155,73 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form action="{{ route('VisaExpense.accountcreate') }}" method="POST">
+                @php
+                    $personTargets = $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
+                    $allowPersonTypeSelection = $allowPersonTypeSelection ?? (count($personTargets) >= 2);
+                    $defaultPersonType = $defaultPersonType ?? (count($personTargets) === 1 ? $personTargets[0] : 'rider');
+                    $riderLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? 'Rider';
+                    $employeeLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('employees') ?? 'Employee';
+                @endphp
+                <form action="{{ route('VisaExpense.accountcreate') }}" method="POST" id="visaCreateAccountForm">
                     @csrf
                     <div class="row g-3">
+                        @if(empty($personTargets))
                         <div class="col-12">
-                            <label for="rider_id" class="form-label">Select Rider</label>
-                            <select class="form-select" id="rider_id" name="rider_id" required>
+                            <div class="alert alert-warning mb-0">No person modules are enabled for this company. Enable Riders and/or Employees in company settings.</div>
+                        </div>
+                        @else
+                        @if($allowPersonTypeSelection)
+                        <div class="col-12">
+                            <label class="form-label d-block mb-2">Type</label>
+                            <div class="btn-group w-100" role="group" aria-label="Person type">
+                                @if(in_array('rider', $personTargets, true))
+                                <input type="radio" class="btn-check" name="person_type" id="visa_person_type_rider" value="rider"
+                                    {{ $defaultPersonType === 'rider' ? 'checked' : '' }} autocomplete="off">
+                                <label class="btn btn-outline-primary" for="visa_person_type_rider">{{ $riderLabel }}</label>
+                                @endif
+                                @if(in_array('employee', $personTargets, true))
+                                <input type="radio" class="btn-check" name="person_type" id="visa_person_type_employee" value="employee"
+                                    {{ $defaultPersonType === 'employee' ? 'checked' : '' }} autocomplete="off">
+                                <label class="btn btn-outline-primary" for="visa_person_type_employee">{{ $employeeLabel }}</label>
+                                @endif
+                            </div>
+                        </div>
+                        @elseif($defaultPersonType !== '')
+                        <input type="hidden" name="person_type" id="visa_person_type_hidden" value="{{ $defaultPersonType }}">
+                        @endif
+
+                        @if(in_array('rider', $personTargets, true))
+                        <div class="col-12 visa-person-field visa-person-field-rider{{ $defaultPersonType === 'employee' ? ' d-none' : '' }}">
+                            <label for="visa_rider_id" class="form-label">Select {{ $riderLabel }}</label>
+                            <select class="form-select visa-person-select" id="visa_rider_id" data-person-type="rider"
+                                {{ $defaultPersonType === 'rider' ? 'required' : 'disabled' }}>
                                 <option value="">Select</option>
-                                @foreach($riders as $r)
-                                <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
+                                @foreach($riders ?? [] as $r)
+                                <option value="rider:{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
                                 @endforeach
                             </select>
                         </div>
+                        @endif
+
+                        @if(in_array('employee', $personTargets, true))
+                        <div class="col-12 visa-person-field visa-person-field-employee{{ $defaultPersonType === 'rider' ? ' d-none' : '' }}">
+                            <label for="visa_employee_id" class="form-label">Select {{ $employeeLabel }}</label>
+                            <select class="form-select visa-person-select" id="visa_employee_id" data-person-type="employee"
+                                {{ $defaultPersonType === 'employee' ? 'required' : 'disabled' }}>
+                                <option value="">Select</option>
+                                @foreach($employees ?? [] as $e)
+                                <option value="employee:{{ $e->id }}">{{ $e->employee_id }} - {{ $e->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @endif
+
+                        <input type="hidden" name="person_key" id="person_key" value="">
+
                         <div class="col-12">
                             <label for="renewal_category_id" class="form-label">Visa Category</label>
                             <select class="form-select" id="renewal_category_id" name="renewal_category_id" required>
-                                <option value="">Select rider first</option>
+                                <option value="">Select person first</option>
                                 @foreach($renewalCategories ?? [] as $cat)
                                 <option value="{{ $cat->id }}" disabled>{{ $cat->name }}</option>
                                 @endforeach
@@ -174,8 +230,9 @@
                                 Tickets are generated only from statuses in the selected visa category. Accounts must be created in category order.
                             </div>
                         </div>
+                        @endif
                         <div class="col-12 text-end">
-                            <button type="submit" class="btn btn-primary">Create</button>
+                            <button type="submit" class="btn btn-primary" @if(empty($personTargets)) disabled @endif>Create</button>
                         </div>
                     </div>
                 </form>
@@ -190,18 +247,22 @@
     .visa-account-slider.fleet-supervisor-slider-container:not(.ticker-mode) {
         overflow: visible;
     }
+
     .visa-account-slider .fleet-stat-value {
         font-weight: 700;
         font-variant-numeric: tabular-nums;
     }
+
     .fleet-stat.active-selected {
         transform: scale(1.05);
         box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
         border-width: 2px;
     }
+
     .fleet-stat.inactive.active-selected {
         box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
     }
+
     .fleet-supervisor-card.filtered .fleet-stat {
         background: rgba(255, 255, 255, 0.85);
         border-radius: 6px;
@@ -301,16 +362,62 @@
     }
     $(document).ready(function() {
         var $createModal = $('#createaccount');
-        var $riderSelect = $('#rider_id');
         var $categorySelect = $('#renewal_category_id');
         var $categoryHelp = $('#renewal_category_help');
-        var eligibleCategoriesUrlTemplate = @json(route('VisaExpense.eligibleRenewalCategories', ['riderId' => '___RIDER_ID___']));
+        var $personKey = $('#person_key');
+        var $form = $('#visaCreateAccountForm');
+        var eligibleCategoriesUrlTemplate = @json(route('VisaExpense.eligibleRenewalCategories', ['personType' => '__TYPE__', 'personId' => '__ID__']));
+        var defaultPersonType = @json($defaultPersonType ?? 'rider');
 
-        $riderSelect.select2({
-            dropdownParent: $createModal,
-            placeholder: "Rider",
-            allowClear: true
-        });
+        function currentPersonType() {
+            var checked = $createModal.find('input[name="person_type"]:checked').val();
+            if (checked) {
+                return checked;
+            }
+            return $createModal.find('input[name="person_type"]').filter(':hidden').val() || defaultPersonType;
+        }
+
+        function activePersonSelect() {
+            return $createModal.find('.visa-person-select[data-person-type="' + currentPersonType() + '"]');
+        }
+
+        function syncPersonKey() {
+            var $select = activePersonSelect();
+            var value = $select.length && !$select.prop('disabled') ? ($select.val() || '') : '';
+            $personKey.val(value);
+            return value;
+        }
+
+        function initPersonSelect2($select) {
+            if (!$select.length) {
+                return;
+            }
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
+            $select.select2({
+                dropdownParent: $createModal,
+                placeholder: "Select",
+                allowClear: true
+            });
+        }
+
+        function applyPersonType(type) {
+            $createModal.find('.visa-person-field').addClass('d-none');
+            $createModal.find('.visa-person-select').each(function() {
+                var $sel = $(this);
+                var isActive = $sel.data('person-type') === type;
+                $sel.prop('disabled', !isActive);
+                $sel.prop('required', isActive);
+                if (!isActive) {
+                    $sel.val('').trigger('change');
+                }
+            });
+            $createModal.find('.visa-person-field-' + type).removeClass('d-none');
+            initPersonSelect2(activePersonSelect());
+            syncPersonKey();
+            loadEligibleCategories(syncPersonKey());
+        }
 
         function initCategorySelect2() {
             if ($categorySelect.hasClass('select2-hidden-accessible')) {
@@ -327,7 +434,7 @@
             $categorySelect.find('option').each(function() {
                 var $opt = $(this);
                 if ($opt.val() === '') {
-                    $opt.prop('disabled', false).text('Select rider first');
+                    $opt.prop('disabled', false).text('Select person first');
                 } else {
                     $opt.prop('disabled', true);
                 }
@@ -354,7 +461,7 @@
             if (categories.length === 0) {
                 $categorySelect.val('').trigger('change');
                 initCategorySelect2();
-                $categoryHelp.text('This rider cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
+                $categoryHelp.text('This person cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
                 return;
             }
 
@@ -370,16 +477,21 @@
             $categorySelect.trigger('change');
         }
 
-        function loadEligibleCategories(riderId) {
-            if (!riderId) {
+        function loadEligibleCategories(personKey) {
+            if (!personKey || personKey.indexOf(':') === -1) {
                 resetCategorySelect();
                 return;
             }
 
+            var parts = personKey.split(':');
+            var personType = parts[0];
+            var personId = parts[1];
             $categoryHelp.text('Loading allowed categories…');
 
             $.ajax({
-                url: eligibleCategoriesUrlTemplate.replace('___RIDER_ID___', encodeURIComponent(riderId)),
+                url: eligibleCategoriesUrlTemplate
+                    .replace('__TYPE__', encodeURIComponent(personType))
+                    .replace('__ID__', encodeURIComponent(personId)),
                 method: 'GET',
                 dataType: 'json',
                 headers: {
@@ -394,19 +506,39 @@
             });
         }
 
-        $riderSelect.on('change select2:select select2:clear', function() {
-            loadEligibleCategories($(this).val());
+        $createModal.on('change', 'input[name="person_type"]', function() {
+            applyPersonType($(this).val());
+        });
+
+        $createModal.on('change select2:select select2:clear', '.visa-person-select', function() {
+            loadEligibleCategories(syncPersonKey());
+        });
+
+        $form.on('submit', function(e) {
+            var personKey = syncPersonKey();
+            if (!personKey) {
+                e.preventDefault();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'warning', title: 'Select a person', text: 'Please select a rider or employee first.' });
+                }
+                return false;
+            }
         });
 
         $createModal.on('shown.bs.modal', function() {
-            loadEligibleCategories($riderSelect.val());
+            applyPersonType(currentPersonType());
         });
 
         $createModal.on('hidden.bs.modal', function() {
-            $riderSelect.val('').trigger('change');
+            $createModal.find('.visa-person-select').val('').trigger('change');
+            $personKey.val('');
             resetCategorySelect();
+            if ($createModal.find('input[name="person_type"][type="radio"]').length) {
+                $createModal.find('input[name="person_type"][value="' + defaultPersonType + '"]').prop('checked', true);
+            }
         });
 
+        applyPersonType(currentPersonType());
         resetCategorySelect();
 
         $('#payment_status').select2({
@@ -415,6 +547,46 @@
             allowClear: true
         });
         setTimeout(initVisaAccountFleetSlider, 150);
+    });
+
+    $(document).on('change', '.visa-edit-person-type', function() {
+        var $modal = $(this).closest('.modal');
+        var type = $(this).val();
+        $modal.find('.visa-edit-person-field').addClass('d-none');
+        $modal.find('.visa-edit-person-select').each(function() {
+            var $sel = $(this);
+            var isActive = $sel.data('person-type') === type;
+            $sel.prop('disabled', !isActive);
+            $sel.prop('required', isActive);
+            if (!isActive) {
+                $sel.val('');
+            }
+        });
+        $modal.find('.visa-edit-person-field-' + type).removeClass('d-none');
+        var $active = $modal.find('.visa-edit-person-select[data-person-type="' + type + '"]');
+        $modal.find('.visa-edit-person-key').val($active.val() || '');
+    });
+
+    $(document).on('change', '.visa-edit-person-select', function() {
+        var $modal = $(this).closest('.modal');
+        if ($(this).prop('disabled')) {
+            return;
+        }
+        $modal.find('.visa-edit-person-key').val($(this).val() || '');
+    });
+
+    $(document).on('submit', '.visa-edit-account-form', function(e) {
+        var $form = $(this);
+        var $active = $form.find('.visa-edit-person-select:not(:disabled)');
+        var value = $active.val() || '';
+        $form.find('.visa-edit-person-key').val(value);
+        if (!value) {
+            e.preventDefault();
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({ icon: 'warning', title: 'Select a person', text: 'Please select a rider or employee first.' });
+            }
+            return false;
+        }
     });
 
     $(document).on('click', '.js-delete-expense-account', function() {

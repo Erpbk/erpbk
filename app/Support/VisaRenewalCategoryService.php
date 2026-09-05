@@ -199,7 +199,23 @@ class VisaRenewalCategoryService
 
     public static function accountForRiderCategory(int $riderId, int $categoryId): ?ExpenseAccount
     {
-        $query = ExpenseAccount::query()->visa()->where('rider_id', $riderId);
+        return self::accountForPersonCategory('rider', $riderId, $categoryId);
+    }
+
+    public static function accountForEmployeeCategory(int $employeeId, int $categoryId): ?ExpenseAccount
+    {
+        return self::accountForPersonCategory('employee', $employeeId, $categoryId);
+    }
+
+    public static function accountForPersonCategory(string $personType, int $personId, int $categoryId): ?ExpenseAccount
+    {
+        $query = ExpenseAccount::query()->visa();
+        if ($personType === 'employee') {
+            $query->where('employee_id', $personId)->whereNull('rider_id');
+        } else {
+            $query->where('rider_id', $personId);
+        }
+
         $defaultId = (int) self::defaultCategory()->id;
 
         if ((int) $categoryId === $defaultId) {
@@ -213,16 +229,16 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Base query for visa expenses belonging to an expense account (incl. legacy head-account rows).
+     * Base query for visa expenses belonging to an expense account (incl. legacy head-account rows for riders).
      */
-    public static function expensesForAccountQuery(int $expenseAccountId, int $riderId, ?int $renewalCategoryId = null): Builder
+    public static function expensesForAccountQuery(int $expenseAccountId, ?int $riderId = null, ?int $renewalCategoryId = null): Builder
     {
         $query = visa_expenses::query()
             ->whereNull('deleted_at')
             ->where(function ($q) use ($expenseAccountId, $riderId) {
                 $q->where('expense_account_id', $expenseAccountId);
                 $headId = self::visaExpenseHeadAccountId();
-                if ($headId !== null) {
+                if ($headId !== null && $riderId) {
                     $q->orWhere(function ($q2) use ($riderId, $headId) {
                         $q2->where('expense_account_id', $headId)
                             ->where('rider_id', $riderId);
@@ -243,12 +259,16 @@ class VisaRenewalCategoryService
             ? (int) $account->renewal_category_id
             : (int) self::defaultCategory()->id;
 
-        return (int) self::expensesForAccountQuery((int) $account->id, (int) $account->rider_id, $categoryId)
+        return (int) self::expensesForAccountQuery(
+            (int) $account->id,
+            $account->rider_id ? (int) $account->rider_id : null,
+            $categoryId
+        )
             ->where('payment_status', 'unpaid')
             ->count();
     }
 
-    public static function unpaidCountForCategory(int $expenseAccountId, int $riderId, int $categoryId): int
+    public static function unpaidCountForCategory(int $expenseAccountId, ?int $riderId, int $categoryId): int
     {
         return (int) self::expensesForAccountQuery($expenseAccountId, $riderId, $categoryId)
             ->where('payment_status', 'unpaid')
@@ -256,12 +276,12 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Next renewal category that may receive a new expense account for this rider, or null if blocked / complete.
+     * Next renewal category that may receive a new expense account for this person, or null if blocked / complete.
      */
-    public static function nextCreatableCategoryForRider(int $riderId): ?VisaRenewalCategory
+    public static function nextCreatableCategoryForPerson(string $personType, int $personId): ?VisaRenewalCategory
     {
         foreach (self::activeOrdered() as $category) {
-            $account = self::accountForRiderCategory($riderId, (int) $category->id);
+            $account = self::accountForPersonCategory($personType, $personId, (int) $category->id);
             if (!$account) {
                 return $category;
             }
@@ -273,27 +293,52 @@ class VisaRenewalCategoryService
         return null;
     }
 
-    /**
-     * Categories the user may select when creating a new expense account for this rider (at most one).
-     */
-    public static function creatableCategoriesForRider(int $riderId): Collection
+    public static function nextCreatableCategoryForRider(int $riderId): ?VisaRenewalCategory
     {
-        $next = self::nextCreatableCategoryForRider($riderId);
+        return self::nextCreatableCategoryForPerson('rider', $riderId);
+    }
+
+    public static function nextCreatableCategoryForEmployee(int $employeeId): ?VisaRenewalCategory
+    {
+        return self::nextCreatableCategoryForPerson('employee', $employeeId);
+    }
+
+    /**
+     * Categories the user may select when creating a new expense account for this person (at most one).
+     */
+    public static function creatableCategoriesForPerson(string $personType, int $personId): Collection
+    {
+        $next = self::nextCreatableCategoryForPerson($personType, $personId);
 
         return $next ? collect([$next]) : collect();
     }
 
+    public static function creatableCategoriesForRider(int $riderId): Collection
+    {
+        return self::creatableCategoriesForPerson('rider', $riderId);
+    }
+
+    public static function creatableCategoriesForEmployee(int $employeeId): Collection
+    {
+        return self::creatableCategoriesForPerson('employee', $employeeId);
+    }
+
     public static function canCreateAccountForCategory(int $riderId, int $categoryId): bool
+    {
+        return self::canCreateAccountForPersonCategory('rider', $riderId, $categoryId);
+    }
+
+    public static function canCreateAccountForPersonCategory(string $personType, int $personId, int $categoryId): bool
     {
         if (!self::findActive($categoryId)) {
             return false;
         }
 
-        if (self::accountForRiderCategory($riderId, $categoryId)) {
+        if (self::accountForPersonCategory($personType, $personId, $categoryId)) {
             return false;
         }
 
-        $next = self::nextCreatableCategoryForRider($riderId);
+        $next = self::nextCreatableCategoryForPerson($personType, $personId);
 
         return $next && (int) $next->id === (int) $categoryId;
     }
@@ -308,8 +353,28 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Other expense accounts for the same rider (for cross-account navigation).
+     * Other expense accounts for the same person (for cross-account navigation).
      */
+    public static function siblingAccountsForPerson(ExpenseAccount $account, ?int $excludeAccountId = null): Collection
+    {
+        $query = ExpenseAccount::query()
+            ->visa()
+            ->with('renewalCategory')
+            ->orderBy('id');
+
+        if ($account->employee_id) {
+            $query->where('employee_id', $account->employee_id);
+        } else {
+            $query->where('rider_id', $account->rider_id);
+        }
+
+        if ($excludeAccountId) {
+            $query->where('id', '!=', $excludeAccountId);
+        }
+
+        return $query->get();
+    }
+
     public static function siblingAccountsForRider(int $riderId, ?int $excludeAccountId = null): Collection
     {
         $query = ExpenseAccount::query()

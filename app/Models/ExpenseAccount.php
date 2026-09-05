@@ -18,6 +18,7 @@ class ExpenseAccount extends BaseModel
         'account_id',
         'name',
         'rider_id',
+        'employee_id',
         'module',
         'renewal_category_id',
         'company_id',
@@ -35,6 +36,16 @@ class ExpenseAccount extends BaseModel
     public function rider(): BelongsTo
     {
         return $this->belongsTo(Riders::class, 'rider_id');
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function isEmployeeAccount(): bool
+    {
+        return $this->employee_id !== null;
     }
 
     public function renewalCategory(): BelongsTo

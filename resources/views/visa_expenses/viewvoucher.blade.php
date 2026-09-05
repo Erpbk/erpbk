@@ -3,7 +3,11 @@
 @section('title','Traffic Fine Details')
 @section('content')
 @php
-$rider = company_table('riders')->where('id', $accounts->rider_id)->first();
+$isEmployee = !empty($accounts->employee_id);
+$rider = $isEmployee
+    ? company_table('employees')->where('id', $accounts->employee_id)->first()
+    : company_table('riders')->where('id', $accounts->rider_id)->first();
+$personCode = $isEmployee ? ($rider->employee_id ?? '-') : ($rider->rider_id ?? '-');
 $riderVisaBalance = company_table('visa_expenses')
 ->where('expense_account_id', $accounts->id)
 ->sum('amount');
@@ -62,7 +66,7 @@ $riderUnpaidTotal = company_table('visa_expenses')
                     <div class="user-avatar-section">
                         <div class=" d-flex align-items-center flex-column">
                             <div class="user-info text-center">
-                                <h6>{{ $rider->rider_id . ' - ' . $rider->name }}</h6>
+                                <h6>{{ $personCode . ' - ' . ($rider->name ?? '') }}</h6>
                             </div>
                         </div>
                     </div>
@@ -81,7 +85,7 @@ $riderUnpaidTotal = company_table('visa_expenses')
                             </li>
                             <li class="list-group-item pb-1 d-flex justify-content-between">
                                 <b>Rider ID:</b>
-                                <span>{{ $rider->rider_id ?? '-' }}</span>
+                                <span>{{ $personCode }}</span>
                             </li>
                             <li class="list-group-item pb-1 d-flex justify-content-between">
                                 <b>Person Code:</b>

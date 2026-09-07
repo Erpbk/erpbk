@@ -303,13 +303,13 @@
   }
 
   /* All Rider View tab badges: float above the tab, never inside/overlapping the label. */
-  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+  .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link>.rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-docs-bubble {
     position: absolute;
-    left: 50%;
+    left: 90%;
     bottom: calc(100% + 0.12rem);
     top: auto;
     right: auto;
@@ -399,11 +399,11 @@
       padding-top: 1.2rem !important;
     }
 
-    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
-    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
-    .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
-    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
-    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+    .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-badges,
+    .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link>.rider-inventory-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-count-dot,
+    .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-docs-bubble {
       bottom: calc(100% + 0.06rem);
     }
   }
@@ -830,13 +830,13 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       <div class="user-avatar-section">
         <div class="rider-view-card-hero">
           <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
-             id="rider-favorite-star"
-             data-rider-id="{{ $result['id'] ?? '' }}"
-             title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
+            id="rider-favorite-star"
+            data-rider-id="{{ $result['id'] ?? '' }}"
+            title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
           @isset($result)
           <div class="rider-view-card-status">
             <span class="rider-view-card-active {{ strtolower($employmentBadge['label'] ?? '') === 'active' ? '' : (strtolower($employmentBadge['label'] ?? '') === 'vacation' ? 'is-vacation' : 'is-inactive') }}" id="rider-hero-status-badge">{{ $employmentBadge['label'] ?? 'Inactive' }}</span>
-            <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null) === null) style="display:none" @endif>
+            <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null)===null) style="display:none" @endif>
               @if(($statusDaysInfo['days'] ?? null) !== null)
               {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
               @endif
@@ -1153,15 +1153,19 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                 @isset($result)
                 @can('visa_expense_view')
                 @php
-                // Prefer a dedicated visa expense account (renewal category), then any linked expense account.
-                $visaExpenseAccount = $account
+                // Prefer a dedicated visa expense account (module=visa / renewal category).
+                $visaExpenseAccount = ($account ?? null) && (($account->module ?? 'visa') === 'visa')
+                ? $account
+                : null;
+                $visaExpenseAccount = $visaExpenseAccount
                 ?? company_table('expense_accounts')
                 ->where('rider_id', $result['id'])
-                ->whereNotNull('renewal_category_id')
+                ->where('module', 'visa')
                 ->orderByDesc('id')
                 ->first()
                 ?? company_table('expense_accounts')
                 ->where('rider_id', $result['id'])
+                ->whereNotNull('renewal_category_id')
                 ->orderByDesc('id')
                 ->first();
                 @endphp
@@ -1183,7 +1187,11 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                 @can('license_expense_view')
                 @if(!empty($riders))
                 @php
-                $licenseExpenseAccount = company_table('expense_accounts')->where('rider_id', $result['id'])->first();
+                $licenseExpenseAccount = company_table('expense_accounts')
+                ->where('rider_id', $result['id'])
+                ->where('module', 'license')
+                ->orderByDesc('id')
+                ->first();
                 @endphp
                 @if($licenseExpenseAccount)
                 <li class="nav-item nav-priority-5">
@@ -1792,32 +1800,32 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         const toggleFavoriteUrl = toggleFavoriteUrlTemplate.replace('__RID__', riderId);
 
         fetch(toggleFavoriteUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-          }
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            if (data.favorited) {
-              this.classList.add('is-favorited');
-              this.setAttribute('title', 'Remove from favorites');
-            } else {
-              this.classList.remove('is-favorited');
-              this.setAttribute('title', 'Add to favorites');
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
             }
-            showNotification(data.message, 'success');
-          } else {
-            showNotification(data.message || 'Failed to update favorite', 'error');
-          }
-        })
-        .catch(error => {
-          console.error('Favorite toggle error:', error);
-          showNotification('An error occurred while updating favorite', 'error');
-        });
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              if (data.favorited) {
+                this.classList.add('is-favorited');
+                this.setAttribute('title', 'Remove from favorites');
+              } else {
+                this.classList.remove('is-favorited');
+                this.setAttribute('title', 'Add to favorites');
+              }
+              showNotification(data.message, 'success');
+            } else {
+              showNotification(data.message || 'Failed to update favorite', 'error');
+            }
+          })
+          .catch(error => {
+            console.error('Favorite toggle error:', error);
+            showNotification('An error occurred while updating favorite', 'error');
+          });
       });
     }
 

@@ -86,6 +86,7 @@
       <tr role="row">
          <th>Rider ID</th>
          <th style="width: 220px;">Account Name</th>
+         <th>License Category</th>
          <th>Rider Status</th>
          <th>Next Unpaid Document</th>
          <th>Expiry Document</th>
@@ -104,7 +105,12 @@
       ->where('warehouse', 'Active')
       ->exists();
       $badgeClass = $hasActiveBike ? 'bg-label-success' : 'bg-label-danger';
-      $balance = \App\Models\license_expenses::where('expense_account_id', $r->id)->sum('amount');
+      $categoryId = (int) ($r->license_category_id ?? \App\Support\LicenseCategoryService::defaultCategory()->id);
+      $balance = \App\Support\LicenseCategoryService::expensesForAccountQuery(
+      (int) $r->id,
+      $r->rider_id ? (int) $r->rider_id : null,
+      $categoryId
+      )->sum('amount');
       $nextUnpaid = ($nextUnpaidVisaByAccountId ?? [])[$r->id] ?? null;
       $nextWhen = '';
       if ($nextUnpaid) {
@@ -131,6 +137,7 @@
       <tr class="text-center">
          <td>{{ $r->rider->rider_id ?? '-' }}</td>
          <td class="text-start"><a href="{{ route('LicenseExpense.generatentries' , $r->id) }}">{{ $r->name }}</a></td>
+         <td>{{ $r->licenseCategory->name ?? '—' }}</td>
          <td><span class="badge {{ $badgeClass }}">{{ $hasActiveBike ? 'Active' : 'Inactive' }}</span></td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)

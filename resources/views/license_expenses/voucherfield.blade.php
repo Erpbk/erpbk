@@ -1,5 +1,10 @@
 @php
-$licenseStatuses = company_table('license_statuses')->where('is_active', 1)->orderBy('display_order', 'asc')->get();
+$categoryId = (int) ($data->license_category_id ?? $activeLicenseCategory->id ?? 0);
+$licenseStatusesQuery = company_table('license_statuses')->where('is_active', 1)->orderBy('display_order', 'asc');
+if ($categoryId > 0) {
+    $licenseStatusesQuery->where('license_category_id', $categoryId);
+}
+$licenseStatuses = $licenseStatusesQuery->get();
 @endphp
 <script src="{{ asset('js/modal_custom.js') }}"></script>
 <!-- Trip Date Field -->

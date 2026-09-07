@@ -141,7 +141,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <form action="{{ route('LicenseExpense.accountcreate') }}" method="POST">
+                <form action="{{ route('LicenseExpense.accountcreate') }}" method="POST" id="licenseCreateAccountForm">
                     @csrf
                     <div class="row g-3">
                         <div class="col-12">
@@ -152,6 +152,18 @@
                                 <option value="{{ $r->id }}">{{ $r->rider_id }} - {{ $r->name }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="license_category_id" class="form-label">License Category</label>
+                            <select class="form-select" id="license_category_id" name="license_category_id" required>
+                                <option value="">Select rider first</option>
+                                @foreach($licenseCategories ?? [] as $cat)
+                                <option value="{{ $cat->id }}" disabled>{{ $cat->name }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text" id="license_category_help">
+                                Tickets are generated only from statuses in the selected license category. Accounts must be created in category order.
+                            </div>
                         </div>
                         <div class="col-12 text-end">
                             <button type="submit" class="btn btn-primary">Create</button>
@@ -268,8 +280,15 @@
     }
 
     $(document).ready(function() {
-        $('#rider_id').select2({
-            dropdownParent: $('#createaccount'),
+        var $createModal = $('#createaccount');
+        var $riderSelect = $('#rider_id');
+        var $categorySelect = $('#license_category_id');
+        var $categoryHelp = $('#license_category_help');
+        var eligibleCategoriesUrlTemplate = @json(route('LicenseExpense.eligibleLicenseCategories', ['riderId' => '__ID__']));
+        var allCategories = @json(($licenseCategories ?? collect())->map(fn($c) => ['id' => (int) $c->id, 'name' => $c->name])->values());
+
+        $riderSelect.select2({
+            dropdownParent: $createModal,
             placeholder: "Rider",
             allowClear: true
         });
@@ -278,6 +297,49 @@
             placeholder: "Filter By Payment Status",
             allowClear: true
         });
+
+        function resetCategoryOptions(message) {
+            $categorySelect.empty().append($('<option>', { value: '', text: message || 'Select rider first' }));
+            allCategories.forEach(function(cat) {
+                $categorySelect.append($('<option>', { value: cat.id, text: cat.name, disabled: true }));
+            });
+            $categoryHelp.text('Tickets are generated only from statuses in the selected license category. Accounts must be created in category order.');
+        }
+
+        function loadEligibleCategories(riderId) {
+            if (!riderId) {
+                resetCategoryOptions('Select rider first');
+                return;
+            }
+            var url = eligibleCategoriesUrlTemplate.replace('__ID__', String(riderId));
+            $categorySelect.prop('disabled', true);
+            $.getJSON(url).done(function(resp) {
+                var categories = (resp && resp.categories) ? resp.categories : [];
+                $categorySelect.empty();
+                if (!categories.length) {
+                    $categorySelect.append($('<option>', { value: '', text: 'No category available' }));
+                    $categoryHelp.text('All active categories already have accounts, or a previous category still has unpaid entries.');
+                } else {
+                    $categorySelect.append($('<option>', { value: '', text: 'Select category' }));
+                    categories.forEach(function(cat) {
+                        $categorySelect.append($('<option>', { value: cat.id, text: cat.name }));
+                    });
+                    if (categories.length === 1) {
+                        $categorySelect.val(String(categories[0].id));
+                    }
+                    $categoryHelp.text('Only the next allowed category is shown. Tickets come from that category\'s statuses.');
+                }
+            }).fail(function() {
+                resetCategoryOptions('Unable to load categories');
+            }).always(function() {
+                $categorySelect.prop('disabled', false);
+            });
+        }
+
+        $riderSelect.on('change', function() {
+            loadEligibleCategories($(this).val());
+        });
+
         setTimeout(initVisaAccountFleetSlider, 150);
     });
 

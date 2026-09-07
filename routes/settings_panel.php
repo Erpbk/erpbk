@@ -51,6 +51,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('license-statuses', App\Http\Controllers\LicenseStatusController::class)->names('settings-panel.license-statuses');
     Route::post('license-statuses/reorder', [App\Http\Controllers\LicenseStatusController::class, 'reorder'])->name('settings-panel.license-statuses.reorder');
     Route::get('license-statuses/{id}/toggle-active', [App\Http\Controllers\LicenseStatusController::class, 'toggleActive'])->name('settings-panel.license-statuses.toggle-active');
+    Route::resource('license-categories', App\Http\Controllers\LicenseCategoryController::class)->only(['index', 'store', 'update', 'destroy'])->names('settings-panel.license-categories');
+    Route::post('license-categories/reorder', [App\Http\Controllers\LicenseCategoryController::class, 'reorder'])->name('settings-panel.license-categories.reorder');
     Route::post('bike-registration-statuses/reorder', [App\Http\Controllers\BikeRegistrationStatusController::class, 'reorder'])->name('settings-panel.bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [App\Http\Controllers\BikeRegistrationStatusController::class, 'toggleActive'])->name('settings-panel.bike-registration-statuses.toggle-active');
     Route::resource('bike-registration-statuses', App\Http\Controllers\BikeRegistrationStatusController::class)->names('settings-panel.bike-registration-statuses');

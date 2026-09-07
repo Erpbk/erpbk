@@ -14,6 +14,7 @@ use App\Models\BikeRegistrationStatus;
 use App\Models\SimAssignFieldAssignment;
 use App\Models\VisaRenewalCategory;
 use App\Models\VisaStatus;
+use App\Models\LicenseCategory;
 use App\Models\LicenseStatus;
 use App\Models\LegalCaseStatus;
 use App\Services\Module\ModuleDefaultCategoryService;
@@ -28,6 +29,7 @@ use App\Support\SimAssignFields;
 use App\Support\AttendanceFieldScope;
 use App\Support\ModuleFieldSource;
 use App\Support\VisaRenewalCategoryService;
+use App\Support\LicenseCategoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -480,12 +482,19 @@ class ModuleSettingsController extends Controller
         }
 
         $licenseStatuses = collect();
+        $licenseCategories = collect();
         $selectedLicenseExpenseTopStatusIds = [];
         $licenseExpenseTopEnabled = true;
         if ($module === 'license_expense') {
+            LicenseCategoryService::ensureDefaultExists();
             $licenseStatuses = LicenseStatus::query()
+                ->with('licenseCategory')
                 ->orderBy('display_order')
                 ->orderBy('name')
+                ->get();
+            $licenseCategories = LicenseCategory::query()
+                ->orderBy('display_order')
+                ->orderBy('id')
                 ->get();
             $selectedLicenseExpenseTopStatusIds = $this->selectedLicenseExpenseTopStatusIds();
             $licenseExpenseTopEnabled = $this->licenseExpenseTopEnabled();
@@ -579,6 +588,7 @@ class ModuleSettingsController extends Controller
             'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
             'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
             'licenseStatuses' => $licenseStatuses,
+            'licenseCategories' => $licenseCategories,
             'selectedLicenseExpenseTopStatusIds' => $selectedLicenseExpenseTopStatusIds,
             'licenseExpenseTopEnabled' => $licenseExpenseTopEnabled,
             'legalCaseStatuses' => $legalCaseStatuses,

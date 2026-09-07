@@ -7,6 +7,7 @@
         <div class="row mb-2">
             <div class="col-sm-12">
                 <h1>Create License Status</h1>
+                <p class="text-muted mb-0">This status will belong to the selected license category. Duplicate names are not allowed in the same category.</p>
             </div>
         </div>
     </div>

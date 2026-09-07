@@ -478,6 +478,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('LicenseExpense/getLicenseStatusFee', [LicenseexpenseController::class, 'getLicenseStatusFee'])->name('LicenseExpense.getLicenseStatusFee');
     Route::post('license-accountcreate', [LicenseexpenseController::class, 'accountcreate'])->name('LicenseExpense.accountcreate');
     Route::post('license-editaccount', [LicenseexpenseController::class, 'editaccount'])->name('LicenseExpense.editaccount');
+    Route::get('LicenseExpense/eligible-categories/{riderId}', [LicenseexpenseController::class, 'eligibleLicenseCategories'])
+        ->whereNumber('riderId')
+        ->name('LicenseExpense.eligibleLicenseCategories');
     Route::get('LicenseExpense/deleteaccount/{id}', [LicenseexpenseController::class, 'deleteaccount'])->name('LicenseExpense.deleteaccount');
     Route::post('LicenseExpense/payfine', [LicenseexpenseController::class, 'payfine'])->name('LicenseExpense.payfine');
     Route::get('LicenseExpense/pay-form/{id}', [LicenseexpenseController::class, 'payForm'])->name('LicenseExpense.payForm');

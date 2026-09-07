@@ -116,4 +116,6 @@ $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->cou
       @include('visa_expenses.installmentPlanTable', ['data' => $installmentData ?? collect(), 'account' => $account])
     </div>
   </div>
+
+  @include('license_expenses._embedded_section')
 </div>

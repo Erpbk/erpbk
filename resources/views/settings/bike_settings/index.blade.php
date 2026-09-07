@@ -71,6 +71,7 @@ $visaStatusSettingsReturnUrl = route('settings-panel.visa-statuses.index', ['com
 $visaRenewalCategorySettingsReturnUrl = $visaStatusSettingsReturnUrl;
 $showLicenseStatusManagementTab = ($moduleKey ?? '') === 'license_expense';
 $licenseExpenseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'license_expense']) . '#tab-license-status-management';
+$licenseCategoryReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'license_expense']) . '#tab-license-categories';
 $showLegalCaseStatusManagementTab = ($moduleKey ?? '') === 'legal_case';
 $legalCaseStatusSettingsReturnUrl = route('settings-panel.module-settings.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'legal_case']) . '#tab-legal-case-status-management';
 $showBikeRegistrationExtras = !empty($showBikeRegistrationExtras);
@@ -162,6 +163,11 @@ $attendanceRefType = $attendanceRefType ?? null;
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-license-top" type="button" role="tab">
               License Expense Top
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-license-categories" type="button" role="tab">
+              License Categories
             </button>
           </li>
           @endif
@@ -536,7 +542,6 @@ $attendanceRefType = $attendanceRefType ?? null;
 
           @if($showLicenseStatusManagementTab)
           @include('settings.partials.license_expense_module_settings')
-          @include('settings.partials.license_expense_module_settings_script')
           @endif
 
           @if($showLegalCaseStatusManagementTab)
@@ -2920,7 +2925,7 @@ $attendanceRefType = $attendanceRefType ?? null;
       }
 
       var targetHash = window.location.hash;
-      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-visa-renewal-categories' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top' || targetHash === '#tab-module-top-bar') {
+      if (targetHash === '#tab-visa-status-management' || targetHash === '#tab-visa-expense-top' || targetHash === '#tab-visa-renewal-categories' || targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-license-categories' || targetHash === '#tab-legal-case-status-management' || targetHash === '#tab-legal-case-top' || targetHash === '#tab-module-top-bar') {
         var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
         if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
           bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
@@ -3146,6 +3151,10 @@ $attendanceRefType = $attendanceRefType ?? null;
   @include('visa_renewal_categories.settings_script')
   @endif
 
+  @if($showLicenseStatusManagementTab)
+  @include('settings.partials.license_expense_module_settings_script')
+  @endif
+
   @if($showBikeRegistrationExtras)
   @include('settings.partials.bike_registration_top_bar_script')
   @endif
@@ -3261,4 +3270,7 @@ $attendanceRefType = $attendanceRefType ?? null;
     });
   }
 </script>
+@if($showLicenseStatusManagementTab)
+@include('license_categories.settings_script')
+@endif
 @endsection

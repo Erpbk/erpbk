@@ -1,8 +1,25 @@
           <div class="tab-pane fade" id="tab-license-status-management" role="tabpanel">
-            <div class="d-flex justify-content-end mb-3">
+            <div class="alert alert-light border d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+              <div>
+                <strong>License categories first.</strong>
+                <div class="small text-muted mb-0">Create a license category, then add statuses under it. Duplicate names are not allowed in the same category. Expense tickets are generated only from the selected category.</div>
+              </div>
+              <a class="btn btn-primary btn-sm" href="{{ $licenseExpenseStatusSettingsReturnUrl ?? '#' }}">Open License Statuses</a>
+            </div>
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-3">
+              <div class="flex-grow-1" style="min-width: 220px; max-width: 360px;">
+                <label class="form-label mb-1">License Category</label>
+                <select id="licenseStatusCategoryFilter" class="form-select">
+                  @forelse(($licenseCategories ?? collect()) as $licenseCategoryOption)
+                  <option value="{{ $licenseCategoryOption->id }}">{{ $licenseCategoryOption->name }}</option>
+                  @empty
+                  <option value="">Create a license category first</option>
+                  @endforelse
+                </select>
+              </div>
               @can('license_expense_create')
-              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createLicenseExpenseStatusModal">
-                <i class="ti ti-plus me-1"></i> Add New Status
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createLicenseExpenseStatusModal" id="btnAddLicenseStatusForCategory">
+                <i class="ti ti-plus me-1"></i> Add Status
               </button>
               @endcan
             </div>
@@ -14,6 +31,13 @@
               'licenseStatusReturnTo' => $licenseExpenseStatusSettingsReturnUrl
               ])
             </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-license-categories" role="tabpanel">
+            @include('license_categories.settings_panel', [
+              'categories' => $licenseCategories ?? collect(),
+              'returnTo' => $licenseCategoryReturnUrl ?? ($licenseExpenseStatusSettingsReturnUrl ?? ''),
+            ])
           </div>
 
           <div class="tab-pane fade" id="tab-license-top" role="tabpanel">
@@ -97,7 +121,7 @@
                     <select id="licenseExpenseTopStatusSelect" class="form-select select2">
                       <option value="">Select</option>
                       @foreach(($licenseStatuses ?? collect()) as $status)
-                      <option value="{{ (int)$status->id }}" data-name="{{ $status->name }}">{{ $status->name }}</option>
+                      <option value="{{ (int)$status->id }}" data-name="{{ $status->name }}" data-category-name="{{ optional($status->licenseCategory)->name }}">{{ $status->name }}@if(optional($status->licenseCategory)->name) ({{ $status->licenseCategory->name }})@endif</option>
                       @endforeach
                     </select>
                   </div>
@@ -122,6 +146,15 @@
                   </div>
                   <div class="modal-body">
                     <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label required">License Category</label>
+                        <select name="license_category_id" id="createLicenseStatusCategoryId" class="form-select" required>
+                          <option value="">Select license category</option>
+                          @foreach(($licenseCategories ?? collect()) as $licenseCategoryOption)
+                          <option value="{{ $licenseCategoryOption->id }}">{{ $licenseCategoryOption->name }}</option>
+                          @endforeach
+                        </select>
+                      </div>
                       <div class="col-md-6">
                         <label class="form-label required">Name</label>
                         <input type="text" name="name" class="form-control" required maxlength="255">
@@ -131,7 +164,7 @@
                         <input type="text" name="code" class="form-control" maxlength="20">
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label">Category</label>
+                        <label class="form-label">Type</label>
                         <select name="category" class="form-select">
                           <option value="Document">Document</option>
                           <option value="Permit">Permit</option>
@@ -186,6 +219,14 @@
                   </div>
                   <div class="modal-body">
                     <div class="row g-3">
+                      <div class="col-12">
+                        <label class="form-label required">License Category</label>
+                        <select name="license_category_id" id="editLicenseExpenseStatusLicenseCategoryId" class="form-select" required>
+                          @foreach(($licenseCategories ?? collect()) as $licenseCategoryOption)
+                          <option value="{{ $licenseCategoryOption->id }}">{{ $licenseCategoryOption->name }}</option>
+                          @endforeach
+                        </select>
+                      </div>
                       <div class="col-md-6">
                         <label class="form-label required">Name</label>
                         <input type="text" name="name" id="editLicenseExpenseStatusName" class="form-control" required maxlength="255">
@@ -195,7 +236,7 @@
                         <input type="text" name="code" id="editLicenseExpenseStatusCode" class="form-control" maxlength="20">
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label">Category</label>
+                        <label class="form-label">Type</label>
                         <select name="category" id="editLicenseExpenseStatusCategory" class="form-select">
                           <option value="Document">Document</option>
                           <option value="Permit">Permit</option>

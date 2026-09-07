@@ -154,6 +154,11 @@ var licenseStatusConfig = document.getElementById('license-status-manager-config
       document.getElementById('editLicenseExpenseStatusName').value = editBtn.dataset.name || '';
       document.getElementById('editLicenseExpenseStatusCode').value = editBtn.dataset.code || '';
       document.getElementById('editLicenseExpenseStatusCategory').value = editBtn.dataset.category || 'Other';
+      var licenseCat = document.getElementById('editLicenseExpenseStatusLicenseCategoryId');
+      if (licenseCat) {
+        licenseCat.value = editBtn.dataset.licenseCategoryId || '';
+      }
+      document.getElementById('editLicenseExpenseStatusDefaultFee').value = editBtn.dataset.defaultFee || 0;
       document.getElementById('editLicenseExpenseStatusDisplayOrder').value = editBtn.dataset.displayOrder || '';
       document.getElementById('editLicenseExpenseStatusDescription').value = editBtn.dataset.description || '';
       document.getElementById('editLicenseExpenseStatusIsRequired').checked = String(editBtn.dataset.isRequired || '0') === '1';
@@ -162,13 +167,33 @@ var licenseStatusConfig = document.getElementById('license-status-manager-config
 
     document.addEventListener('DOMContentLoaded', function() {
       initLicenseStatusSortable();
+
+      function filterLicenseStatusesByCategory() {
+        var filter = document.getElementById('licenseStatusCategoryFilter');
+        var selected = filter ? String(filter.value || '') : '';
+        var createSelect = document.getElementById('createLicenseStatusCategoryId');
+        if (createSelect && selected) {
+          createSelect.value = selected;
+        }
+        document.querySelectorAll('#license-statuses-tbody tr[data-id]').forEach(function(row) {
+          var rowCat = String(row.getAttribute('data-category-id') || '');
+          row.style.display = (!selected || rowCat === selected) ? '' : 'none';
+        });
+      }
+
+      var categoryFilter = document.getElementById('licenseStatusCategoryFilter');
+      if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterLicenseStatusesByCategory);
+        filterLicenseStatusesByCategory();
+      }
+
       var targetHash = window.location.hash;
-      if (targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top') {
-        var visaTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
-        if (visaTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
-          bootstrap.Tab.getOrCreateInstance(visaTabBtn).show();
-        } else if (visaTabBtn) {
-          visaTabBtn.click();
+      if (targetHash === '#tab-license-status-management' || targetHash === '#tab-license-top' || targetHash === '#tab-license-categories') {
+        var licenseTabBtn = document.querySelector('[data-bs-target="' + targetHash + '"]');
+        if (licenseTabBtn && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+          bootstrap.Tab.getOrCreateInstance(licenseTabBtn).show();
+        } else if (licenseTabBtn) {
+          licenseTabBtn.click();
         }
       }
 
@@ -371,5 +396,4 @@ var licenseStatusConfig = document.getElementById('license-status-manager-config
       });
     }
   }
-
-  
+ 

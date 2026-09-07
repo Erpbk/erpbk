@@ -23,6 +23,10 @@ use App\Repositories\LicenseExpensesRepository;
 use App\Services\TransactionService;
 use App\Support\CompanyAuthRedirect;
 use App\Support\CompanyContext;
+use App\Support\CompanyModuleVisibility;
+use App\Support\LicenseCategoryService;
+use App\Support\VisaRenewalCategoryService;
+use App\Models\visa_installment_plan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Concerns\ManagesExpenseEntryDeletion;
@@ -148,7 +152,7 @@ class LicenseexpenseController extends AppBaseController
         $userBranches = app('user_branches');
         $query = ExpenseAccount::query()
             ->license()
-            ->with('rider')
+            ->with(['rider', 'licenseCategory'])
             ->orderByDesc('id');
 
         if (!auth()->user()->isAdmin()) {
@@ -310,6 +314,7 @@ class LicenseexpenseController extends AppBaseController
             'LicenseStatusSliderCounts' => $LicenseStatusSliderCounts,
             'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
             'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
+            'licenseCategories' => LicenseCategoryService::activeOrdered(),
         ]);
     }
 
@@ -495,48 +500,49 @@ class LicenseexpenseController extends AppBaseController
     {
         $request->validate([
             'rider_id' => 'required|exists:riders,id',
+            'license_category_id' => 'required|exists:license_categories,id',
         ]);
-        $rider = Riders::findOrFail($request->rider_id);
-        $exists = ExpenseAccount::query()
-            ->license()
-            ->where('rider_id', $rider->id)
-            ->first();
 
+        $rider = Riders::findOrFail($request->rider_id);
+        $categoryId = (int) $request->license_category_id;
+        $category = LicenseCategoryService::findActive($categoryId);
+
+        if (! $category) {
+            Flash::error('The selected license category is not active.');
+            return redirect()->back()->withInput();
+        }
+
+        if (LicenseCategoryService::accountForRiderCategory((int) $rider->id, $categoryId)) {
+            Flash::error('A license expense account already exists for this rider in the "' . $category->name . '" category.');
+            return redirect()->back()->withInput();
+        }
+
+        if (! LicenseCategoryService::canCreateAccountForCategory((int) $rider->id, $categoryId)) {
+            $next = LicenseCategoryService::nextCreatableCategoryForRider((int) $rider->id);
+            if ($next) {
+                Flash::error('You must fully pay all entries in the previous license category before creating an account for "' . $category->name . '". The next allowed category is "' . $next->name . '".');
+            } else {
+                Flash::error('Cannot create a new license expense account for "' . $category->name . '". Complete all unpaid entries in the previous category first, or this category is not yet available in sequence.');
+            }
+            return redirect()->back()->withInput();
+        }
+
+        $activeStatuses = collect();
         DB::beginTransaction();
         try {
-            if ($exists) {
-                $expenseAccount = $exists;
-            } else {
-                $expenseAccount = ExpenseAccount::create([
-                    'name' => $rider->name,
-                    'rider_id' => $rider->id,
-                    'module' => ExpenseAccount::MODULE_LICENSE,
-                    'renewal_category_id' => null,
-                    'branch_id' => $rider->branch_id,
-                    'account_id' => null,
-                    'company_id' => auth()->user()->company_id ?? null,
-                ]);
-            }
+            $expenseAccount = ExpenseAccount::create([
+                'name' => $rider->name . ' - ' . $category->name,
+                'rider_id' => $rider->id,
+                'module' => ExpenseAccount::MODULE_LICENSE,
+                'renewal_category_id' => null,
+                'license_category_id' => $categoryId,
+                'branch_id' => $rider->branch_id,
+                'account_id' => null,
+                'company_id' => auth()->user()->company_id ?? null,
+            ]);
 
-            $activeStatuses = LicenseStatus::query()
-                ->where('is_active', 1)
-                ->orderBy('display_order')
-                ->get();
-            $created = 0;
+            $activeStatuses = LicenseCategoryService::activeStatusesForCategory($categoryId);
             foreach ($activeStatuses as $status) {
-                $alreadyExists = license_expenses::query()
-                    ->where('license_status', $status->name)
-                    ->where(function ($q) use ($expenseAccount, $rider) {
-                        $q->where('expense_account_id', $expenseAccount->id)
-                            ->orWhere(function ($q2) use ($rider) {
-                                $q2->where('expense_account_id', GlobalAccounts::id('LICENSE_EXPENSE_ACCOUNT'))
-                                    ->where('rider_id', $rider->id);
-                            });
-                    })
-                    ->exists();
-                if ($alreadyExists) {
-                    continue;
-                }
                 license_expenses::create([
                     'branch_id' => $rider->branch_id,
                     'trans_date' => Carbon::today()->format('Y-m-d'),
@@ -544,27 +550,43 @@ class LicenseexpenseController extends AppBaseController
                     'date' => Carbon::today()->format('Y-m-d'),
                     'rider_id' => $expenseAccount->rider_id,
                     'expense_account_id' => $expenseAccount->id,
+                    'license_category_id' => $categoryId,
                     'license_status' => $status->name,
                     'detail' => $status->description ?? ('Auto-generated from active License Status: ' . $status->name),
-                    'reference_number' => 'DL-' . $expenseAccount->rider_id . '-' . $status->id,
+                    'reference_number' => 'DL-' . $expenseAccount->rider_id . '-' . $status->id . '-' . $categoryId,
                     'billing_month' => Carbon::today()->startOfMonth()->format('Y-m-d'),
                     'amount' => (float) ($status->default_fee ?? 0),
                     'payment_status' => 'unpaid',
                 ]);
-                $created++;
             }
             DB::commit();
-            if ($created > 0) {
-                Flash::success('License Expense account ready. ' . $created . ' status entries generated.');
-            } else {
-                Flash::info('License Expense account already has all active status entries.');
-            }
         } catch (\Throwable $e) {
             DB::rollBack();
             Flash::error('Error creating License Expense account: ' . $e->getMessage());
+            return redirect()->back();
         }
+
+        if ($activeStatuses->isEmpty()) {
+            Flash::success('License expense account created for ' . $category->name . '. No tickets were generated because this category has no license statuses yet.');
+        } else {
+            Flash::success('License expense account created for ' . $category->name . ' and tickets generated for that category only.');
+        }
+
         return redirect()->back();
     }
+
+    public function eligibleLicenseCategories(Request $request, $company_slug, $riderId)
+    {
+        $categories = LicenseCategoryService::creatableCategoriesForRider((int) $riderId);
+
+        return response()->json([
+            'categories' => $categories->map(static fn ($c) => [
+                'id' => (int) $c->id,
+                'name' => $c->name,
+            ])->values(),
+        ]);
+    }
+
     public function editaccount(Request $request)
     {
         $request->validate([
@@ -572,9 +594,10 @@ class LicenseexpenseController extends AppBaseController
             'rider_id' => 'required|exists:riders,id',
         ]);
         $rider = Riders::findOrFail($request->rider_id);
-        $account = ExpenseAccount::query()->license()->findOrFail($request->id);
+        $account = ExpenseAccount::query()->license()->with('licenseCategory')->findOrFail($request->id);
         $account->rider_id = $rider->id;
-        $account->name = $rider->name;
+        $suffix = $account->licenseCategory?->name;
+        $account->name = $rider->name . ($suffix ? ' - ' . $suffix : '');
         $account->module = ExpenseAccount::MODULE_LICENSE;
         $account->renewal_category_id = null;
         $account->save();
@@ -609,24 +632,18 @@ class LicenseexpenseController extends AppBaseController
         if (!user_can('licenseexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
-        $account = ExpenseAccount::query()->license()->with('rider')->where('id', $id)->firstOrFail();
-        $riderId = $account->rider_id;
-        $this->checkAndAutoMarkInstallments($account);
+        $account = ExpenseAccount::query()->license()->with(['rider', 'licenseCategory'])->where('id', $id)->firstOrFail();
+        $riderId = $account->rider_id ? (int) $account->rider_id : null;
+        $activeLicenseCategory = LicenseCategoryService::resolveCategoryForAccount($account);
+        $activeCategoryId = (int) $activeLicenseCategory->id;
+
+        $siblingAccounts = LicenseCategoryService::siblingAccountsForPerson($account, (int) $account->id);
+
         // Use global pagination traits
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $headId = $this->licenseExpenseHeadAccountId();
-        $query = license_expenses::query()
+        $query = LicenseCategoryService::expensesForAccountQuery((int) $account->id, $riderId, $activeCategoryId)
             ->with('vouchers')
-            ->orderBy('id', 'asc')
-            ->where(function ($q) use ($id, $riderId, $headId) {
-                $q->where('expense_account_id', $id);
-                if ($headId !== null) {
-                    $q->orWhere(function ($q2) use ($riderId, $headId) {
-                        $q2->where('expense_account_id', $headId)
-                            ->where('rider_id', $riderId);
-                    });
-                }
-            });
+            ->orderBy('id', 'asc');
         if ($request->has('trans_date') && !empty($request->trans_date)) {
             $fromDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->trans_date);
             $query->where('trans_date', $fromDate);
@@ -647,13 +664,6 @@ class LicenseexpenseController extends AppBaseController
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
 
-        $installmentQuery = $this->installmentQuery()
-            ->with(['vouchers', 'installmentTransactions'])
-            ->orderBy('date', 'asc');
-        $this->applyInstallmentRiderScope($installmentQuery, $account);
-        $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
-        $installmentStats = $this->installmentPlanSummary($account);
-
         if ($request->ajax()) {
             $tableData = view('license_expenses.table', [
                 'data' => $data,
@@ -665,17 +675,150 @@ class LicenseexpenseController extends AppBaseController
                 'paginationLinks' => $paginationLinks,
             ]);
         }
-        $LicenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
-        $riders = Riders::findOrFail($riderId);
-        \Log::info('License Expense entries', ['rider_id' => $id, 'rider' => $riders]);
-        return view('license_expenses.index', array_merge([
+        $LicenseStatuses = LicenseCategoryService::activeStatusesForCategory($activeCategoryId);
+        $riders = $riderId ? Riders::findOrFail($riderId) : null;
+
+        $viewData = [
             'data' => $data,
-            'installmentData' => $installmentData,
-            'installmentStats' => $installmentStats,
             'account' => $account,
             'LicenseStatuses' => $LicenseStatuses,
             'riders' => $riders,
-        ], $this->installmentTableViewData()));
+            'activeLicenseCategory' => $activeLicenseCategory,
+            'siblingAccounts' => $siblingAccounts,
+        ];
+
+        $viewData = array_merge($viewData, $this->visaExpenseSectionDataForRider($request, $riderId));
+
+        return view('license_expenses.index', $viewData);
+    }
+
+    /**
+     * Visa Expense (+ installments) panel shown above License Expense when the rider has visa accounts.
+     *
+     * @return array<string, mixed>
+     */
+    protected function visaExpenseSectionDataForRider(Request $request, ?int $riderId): array
+    {
+        $emptyStats = [
+            'unpaid_amount' => 0.0,
+            'paid_amount' => 0.0,
+            'unpaid_count' => 0,
+            'paid_count' => 0,
+        ];
+        $empty = [
+            'showVisaExpenseSection' => false,
+            'visaAccount' => null,
+            'visaExpenseData' => collect(),
+            'visaExpenseTotals' => $emptyStats,
+            'activeRenewalCategory' => null,
+            'visaSiblingAccounts' => collect(),
+            'visaInstallmentData' => collect(),
+            'visaInstallmentStats' => [
+                'unpaid_amount' => 0.0,
+                'paid_amount' => 0.0,
+                'paid_count' => 0,
+                'unpaid_count' => 0,
+            ],
+        ];
+
+        if (! $riderId
+            || ! CompanyModuleVisibility::enabled('visa_expense')
+            || ! user_can('visaexpense_view')
+        ) {
+            return $empty;
+        }
+
+        $visaAccounts = ExpenseAccount::query()
+            ->visa()
+            ->with('renewalCategory')
+            ->where('rider_id', $riderId)
+            ->orderBy('id')
+            ->get();
+
+        if ($visaAccounts->isEmpty()) {
+            return $empty;
+        }
+
+        $selectedId = (int) $request->input('visa_account_id');
+        $visaAccount = $selectedId > 0
+            ? $visaAccounts->firstWhere('id', $selectedId)
+            : null;
+        if (! $visaAccount) {
+            $visaAccount = $visaAccounts->first();
+        }
+
+        $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($visaAccount);
+        $categoryId = (int) $activeRenewalCategory->id;
+        $expenseQuery = VisaRenewalCategoryService::expensesForAccountQuery(
+            (int) $visaAccount->id,
+            $riderId,
+            $categoryId
+        )->with('vouchers')->orderBy('id', 'asc');
+
+        $visaExpenseData = (clone $expenseQuery)->get();
+        $totalsQuery = VisaRenewalCategoryService::expensesForAccountQuery(
+            (int) $visaAccount->id,
+            $riderId,
+            $categoryId
+        );
+
+        $installmentKeys = $this->visaInstallmentRiderIdKeys($visaAccount);
+        $installmentBase = visa_installment_plan::query()->whereIn('rider_id', $installmentKeys);
+        $visaInstallmentData = (clone $installmentBase)
+            ->with(['vouchers', 'installmentTransactions'])
+            ->orderBy('date', 'asc')
+            ->get();
+
+        return [
+            'showVisaExpenseSection' => true,
+            'visaAccount' => $visaAccount,
+            'visaExpenseData' => $visaExpenseData,
+            'visaExpenseTotals' => [
+                'unpaid_amount' => (float) (clone $totalsQuery)->where('payment_status', 'unpaid')->sum('amount'),
+                'paid_amount' => (float) (clone $totalsQuery)->where('payment_status', 'paid')->sum('amount'),
+                'unpaid_count' => (int) (clone $totalsQuery)->where('payment_status', 'unpaid')->count(),
+                'paid_count' => (int) (clone $totalsQuery)->where('payment_status', 'paid')->count(),
+            ],
+            'activeRenewalCategory' => $activeRenewalCategory,
+            'visaSiblingAccounts' => $visaAccounts->where('id', '!=', $visaAccount->id)->values(),
+            'visaInstallmentData' => $visaInstallmentData,
+            'visaInstallmentStats' => [
+                'unpaid_amount' => (float) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PENDING)->sum('amount'),
+                'paid_amount' => (float) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PAID)->sum('amount'),
+                'paid_count' => (int) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PAID)->count(),
+                'unpaid_count' => (int) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PENDING)->count(),
+            ],
+        ];
+    }
+
+    /**
+     * Keys used on visa_installment_plans.rider_id for a visa expense account
+     * (mirrors ManagesVisaInstallments without using the license installment model).
+     *
+     * @return list<int>
+     */
+    protected function visaInstallmentRiderIdKeys(ExpenseAccount $account): array
+    {
+        $keys = [(int) $account->id];
+
+        if (! $account->rider_id) {
+            return $keys;
+        }
+
+        $oldestAccountId = ExpenseAccount::query()
+            ->visa()
+            ->where('rider_id', $account->rider_id)
+            ->orderBy('id')
+            ->value('id');
+
+        if ($oldestAccountId && (int) $oldestAccountId === (int) $account->id) {
+            $keys[] = (int) $account->rider_id;
+            if ($account->account_id) {
+                $keys[] = (int) $account->account_id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($keys)));
     }
 
     /**
@@ -683,9 +826,10 @@ class LicenseexpenseController extends AppBaseController
      */
     public function create($company_slug, $id)
     {
-        $data = ExpenseAccount::query()->license()->where('id', $id)->firstOrFail();
-        $licenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
-        return view('license_expenses.create', compact('data', 'licenseStatuses'));
+        $data = ExpenseAccount::query()->license()->with('licenseCategory')->where('id', $id)->firstOrFail();
+        $activeLicenseCategory = LicenseCategoryService::resolveCategoryForAccount($data);
+        $licenseStatuses = LicenseCategoryService::activeStatusesForCategory((int) $activeLicenseCategory->id);
+        return view('license_expenses.create', compact('data', 'licenseStatuses', 'activeLicenseCategory'));
     }
 
     /**
@@ -712,12 +856,21 @@ class LicenseexpenseController extends AppBaseController
 
         try {
             $expenseAccount = ExpenseAccount::query()->license()->findOrFail($validated['rider_id']);
+            $category = LicenseCategoryService::resolveCategoryForAccount($expenseAccount);
+            $statusAllowed = LicenseCategoryService::activeStatusesForCategory((int) $category->id)
+                ->contains(fn ($s) => (string) $s->name === (string) $validated['license_status']);
+            if (! $statusAllowed) {
+                Flash::error('The selected license status does not belong to this account\'s license category.');
+                return redirect()->back()->withInput();
+            }
+
             $trans_code = Account::trans_code();
             $billingMonth = $validated['billing_month'] . "-01";
             $trans_date = Carbon::today();
-            $LicenseExpenses = license_expenses::create([
+            license_expenses::create([
                 'rider_id'       => $expenseAccount->rider_id,
                 'expense_account_id' => $expenseAccount->id,
+                'license_category_id' => (int) $category->id,
                 'license_status'    => $validated['license_status'],
                 'billing_month'  => $billingMonth,
                 'date'           => $request->date,
@@ -1016,7 +1169,9 @@ class LicenseexpenseController extends AppBaseController
 
             return redirect(route('LicenseExpense.index'));
         }
-        $licenseStatuses = LicenseStatus::orderBy('display_order', 'asc')->where('is_active', 1)->get();
+        $licenseStatuses = LicenseCategoryService::activeStatusesForCategory(
+            (int) LicenseCategoryService::resolveCategoryForAccount($data)->id
+        );
         return view('license_expenses.edit', compact('data', 'LicenseExpenses', 'licenseStatuses'));
     }
 
@@ -1394,10 +1549,17 @@ class LicenseexpenseController extends AppBaseController
     public function getLicenseStatusFee(Request $request)
     {
         $request->validate([
-            'license_status' => 'required|string'
+            'license_status' => 'required|string',
+            'license_category_id' => 'nullable|integer',
         ]);
         try {
-            $LicenseStatus = LicenseStatus::where('name', $request->license_status)->where('is_active', 1)->first();
+            $query = LicenseStatus::query()
+                ->where('name', $request->license_status)
+                ->where('is_active', 1);
+            if ($request->filled('license_category_id')) {
+                $query->where('license_category_id', (int) $request->license_category_id);
+            }
+            $LicenseStatus = $query->first();
 
             if ($LicenseStatus) {
                 return response()->json([

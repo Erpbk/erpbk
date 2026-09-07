@@ -187,7 +187,9 @@
         </tfoot>
         @endif
     </table>
+    @if(method_exists($data, 'links'))
     {!! $data->links('pagination') !!}
+    @endif
 </div>
 
 <script>

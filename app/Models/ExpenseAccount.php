@@ -21,6 +21,7 @@ class ExpenseAccount extends BaseModel
         'employee_id',
         'module',
         'renewal_category_id',
+        'license_category_id',
         'company_id',
     ];
 
@@ -51,6 +52,11 @@ class ExpenseAccount extends BaseModel
     public function renewalCategory(): BelongsTo
     {
         return $this->belongsTo(VisaRenewalCategory::class, 'renewal_category_id');
+    }
+
+    public function licenseCategory(): BelongsTo
+    {
+        return $this->belongsTo(LicenseCategory::class, 'license_category_id');
     }
 
     public function visaExpenses(): HasMany

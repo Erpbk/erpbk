@@ -28,6 +28,7 @@ use App\Models\Settings;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
 use App\Support\VisaRenewalCategoryService;
+use App\Support\LicenseCategoryService;
 use App\Support\CompanyContext;
 use App\Support\CompanyModuleVisibility;
 use Carbon\Carbon;
@@ -780,6 +781,8 @@ class VisaexpenseController extends AppBaseController
             'canAddExpense' => $canAddExpense,
         ];
 
+        $viewData = array_merge($viewData, $this->licenseExpenseSectionDataForRider($request, $riderId));
+
         if ($account->isEmployeeAccount()) {
             $viewData['riders'] = $account->employee;
             return view('visa_expenses.index_employee', $viewData);
@@ -787,6 +790,83 @@ class VisaexpenseController extends AppBaseController
 
         $viewData['riders'] = $account->rider ?? Riders::findOrFail($riderId);
         return view('visa_expenses.index', $viewData);
+    }
+
+    /**
+     * License Expense panel shown under Visa Installments on the visa entries page.
+     *
+     * @return array<string, mixed>
+     */
+    protected function licenseExpenseSectionDataForRider(Request $request, ?int $riderId): array
+    {
+        $empty = [
+            'showLicenseExpenseSection' => false,
+            'licenseAccount' => null,
+            'licenseExpenseData' => collect(),
+            'licenseExpenseTotals' => [
+                'unpaid_amount' => 0,
+                'paid_amount' => 0,
+                'unpaid_count' => 0,
+                'paid_count' => 0,
+            ],
+            'activeLicenseCategory' => null,
+            'licenseSiblingAccounts' => collect(),
+        ];
+
+        if (! $riderId
+            || ! CompanyModuleVisibility::enabled('license_expense')
+            || ! user_can('licenseexpense_view')
+        ) {
+            return $empty;
+        }
+
+        $licenseAccounts = ExpenseAccount::query()
+            ->license()
+            ->with('licenseCategory')
+            ->where('rider_id', $riderId)
+            ->orderBy('id')
+            ->get();
+
+        $selectedId = (int) $request->input('license_account_id');
+        $licenseAccount = $selectedId > 0
+            ? $licenseAccounts->firstWhere('id', $selectedId)
+            : null;
+        if (! $licenseAccount) {
+            $licenseAccount = $licenseAccounts->first();
+        }
+
+        if (! $licenseAccount) {
+            return array_merge($empty, ['showLicenseExpenseSection' => true]);
+        }
+
+        $activeLicenseCategory = LicenseCategoryService::resolveCategoryForAccount($licenseAccount);
+        $categoryId = (int) $activeLicenseCategory->id;
+        $expenseQuery = LicenseCategoryService::expensesForAccountQuery(
+            (int) $licenseAccount->id,
+            $riderId,
+            $categoryId
+        )->with('vouchers')->orderBy('id', 'asc');
+
+        $licenseExpenseData = (clone $expenseQuery)->get();
+        $totalsQuery = LicenseCategoryService::expensesForAccountQuery(
+            (int) $licenseAccount->id,
+            $riderId,
+            $categoryId
+        );
+
+        return [
+            'showLicenseExpenseSection' => true,
+            'licenseAccount' => $licenseAccount,
+            'licenseExpenseData' => $licenseExpenseData,
+            'licenseExpenseTotals' => [
+                'unpaid_amount' => (float) (clone $totalsQuery)->where('payment_status', 'unpaid')->sum('amount'),
+                'paid_amount' => (float) (clone $totalsQuery)->where('payment_status', 'paid')->sum('amount'),
+                'unpaid_count' => (int) (clone $totalsQuery)->where('payment_status', 'unpaid')->count(),
+                'paid_count' => (int) (clone $totalsQuery)->where('payment_status', 'paid')->count(),
+            ],
+            'activeLicenseCategory' => $activeLicenseCategory,
+            'licenseSiblingAccounts' => $licenseAccounts->where('id', '!=', $licenseAccount->id)->values(),
+        ];
     }
 
     /**

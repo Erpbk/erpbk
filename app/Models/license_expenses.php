@@ -31,6 +31,7 @@ class license_expenses extends BaseModel
         'expiry_date',
         'deleted_by',
         'expense_account_id',
+        'license_category_id',
     ];
 
     protected $casts = [
@@ -59,6 +60,11 @@ class license_expenses extends BaseModel
     public function expenseAccount()
     {
         return $this->belongsTo(ExpenseAccount::class, 'expense_account_id');
+    }
+
+    public function licenseCategory()
+    {
+        return $this->belongsTo(LicenseCategory::class, 'license_category_id');
     }
     public function account()
     {

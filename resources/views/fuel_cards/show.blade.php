@@ -315,6 +315,20 @@
                         </span>
                     </div>
                     <div class="fc-info-row">
+                        <i class="ti ti-calendar-stats"></i>
+                        <span class="fc-info-label">Monthly Limit</span>
+                        <span class="fc-info-value">
+                            {{ $card->monthly_limit !== null ? number_format((float) $card->monthly_limit, 2) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fc-info-row">
+                        <i class="ti ti-clock-hour-4"></i>
+                        <span class="fc-info-label">Daily Limit</span>
+                        <span class="fc-info-value">
+                            {{ $card->daily_limit !== null ? number_format((float) $card->daily_limit, 2) : '—' }}
+                        </span>
+                    </div>
+                    <div class="fc-info-row">
                         <i class="ti ti-git-branch"></i>
                         <span class="fc-info-label">Branch</span>
                         <span class="fc-info-value">{{ $card->branch?->name ?? '—' }}</span>

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\GlobalPagination;
 use App\Imports\FuelDataImport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Services\DeleteRequestService;
 use App\Services\FuelMonthlyLedgerService;
 
 
@@ -41,6 +42,11 @@ class FuelDataController extends Controller
         }
         if ($request->has('date') && !empty($request->date)) {
             $query->whereDate('trans_date', '=', $request->date);
+        }
+
+        $dailyLimitFilter = strtolower(trim((string) $request->input('card_limit_daily', '')));
+        if (in_array($dailyLimitFilter, ['over_limit', 'under_limit'], true)) {
+            $query->whereDailyLimitStatus($dailyLimitFilter);
         }
 
         // Apply pagination using the trait
@@ -335,15 +341,15 @@ class FuelDataController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Soft-delete a fuel transaction (recycle bin). Ledger sync runs only when the
+     * row was actually soft-deleted; pending delete-approval syncs on approve.
      */
     public function destroy($company_slug, string $id)
     {
-        // Check permission
-        if (!user_can('fuel_delete')) {
+        if (!user_can('fuel_cards_transactions_delete') && !user_can('fuel_delete')) {
             return response()->json([
                 'success' => false,
-                'message' => 'You do not have permission to delete fuel transactions.'
+                'message' => 'You do not have permission to delete fuel transactions.',
             ], 403);
         }
 
@@ -355,22 +361,32 @@ class FuelDataController extends Controller
             if (!$fuelData) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Fuel transaction not found.'
+                    'message' => 'Fuel transaction not found.',
                 ], 404);
             }
+
             $riderId = (int) $fuelData->rider_id;
             $billingMonth = Carbon::parse($fuelData->billing_month)->startOfMonth()->toDateString();
 
-            // Delete the fuel line item, then rebuild monthly ledger totals
-            $fuelData->delete();
-            app(FuelMonthlyLedgerService::class)->sync($riderId, $billingMonth);
+            $fuelData->delete(); // Soft delete — may only queue a delete request
+            $queued = (bool) request()->attributes->get('delete_approval_created');
+
+            // Pending approval leaves the row active; sync then runs in
+            // DeleteRequestService::finalizeApprovedFuelDataDeletion.
+            if (!$queued) {
+                app(FuelMonthlyLedgerService::class)->sync($riderId, $billingMonth);
+            }
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Fuel transaction deleted successfully.',
-                'reload' => true
+                'queued' => $queued,
+                'message' => delete_outcome_message(
+                    'Fuel transaction',
+                    route('settings-panel.trash.index') . '?module=fuel_data'
+                ),
+                'reload' => true,
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -378,7 +394,7 @@ class FuelDataController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete fuel transaction: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -406,9 +422,9 @@ class FuelDataController extends Controller
     }
 
     /**
-     * Delete fuel data for a billing month, optionally limited to one rider
-     * and/or one fuel company. Rebuilds monthly ledger totals for each
-     * affected rider.
+     * Soft-delete fuel data for a billing month (optional rider / fuel company).
+     * Bulk soft-delete goes straight to the recycle bin (no per-row approval queue)
+     * and rebuilds monthly ledger totals for each affected rider.
      */
     public function deleteMonthly(Request $request)
     {
@@ -444,8 +460,6 @@ class FuelDataController extends Controller
                 $query->where('rider_id', $riderId);
             }
             if ($fuelCompanyId) {
-                // fuel_data has no company column; it resolves through the card
-                // it was charged to (card_no -> fuel_cards.card_number).
                 $query->whereHas('card', function ($cardQuery) use ($fuelCompanyId) {
                     $cardQuery->where('fuel_company_id', $fuelCompanyId);
                 });
@@ -464,7 +478,14 @@ class FuelDataController extends Controller
                 ], 404);
             }
 
-            $query->delete();
+            // Mass soft-delete skips model events (and the per-row approval queue).
+            // Bypass is set explicitly so intent is clear if events are ever fired.
+            DeleteRequestService::bypass(true);
+            try {
+                $query->delete();
+            } finally {
+                DeleteRequestService::bypass(false);
+            }
 
             $ledger = app(FuelMonthlyLedgerService::class);
             foreach ($affectedRiderIds as $affectedRiderId) {
@@ -480,7 +501,7 @@ class FuelDataController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Deleted {$deletedCount} fuel transaction(s) {$scope}.",
+                'message' => "Moved {$deletedCount} fuel transaction(s) {$scope} to the Recycle Bin.",
                 'reload' => true,
             ], 200);
         } catch (\Exception $e) {

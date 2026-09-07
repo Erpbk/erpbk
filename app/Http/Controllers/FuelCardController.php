@@ -12,6 +12,7 @@ use App\Support\RoleFieldAccess;
 use Flash;
 use App\Traits\GlobalPagination;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
 class FuelCardController extends Controller
@@ -76,6 +77,11 @@ class FuelCardController extends Controller
             $query->whereVehicleChanged();
         }
 
+        $monthlyLimitFilter = strtolower(trim((string) $request->input('card_limit_monthly', '')));
+        if (in_array($monthlyLimitFilter, ['over_limit', 'under_limit'], true)) {
+            $query->whereMonthlyLimitStatus($monthlyLimitFilter);
+        }
+
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
         if ($request->ajax()) {
@@ -115,9 +121,18 @@ class FuelCardController extends Controller
     private function cardDetailRules(?string $ignoreId = null): array
     {
         $definitions = [
-            'card_number' => ['required', 'string', 'min:16', 'unique:fuel_cards,card_number' . ($ignoreId ? ',' . $ignoreId : '')],
+            'card_number' => [
+                'required',
+                'string',
+                'min:16',
+                Rule::unique('fuel_cards', 'card_number')
+                    ->ignore($ignoreId)
+                    ->whereNull('deleted_at'),
+            ],
             'fuel_company_id' => ['required', 'exists:fuel_companies,id'],
             'service_charges' => ['nullable', 'numeric', 'min:0'],
+            'monthly_limit' => ['nullable', 'numeric', 'min:0'],
+            'daily_limit' => ['nullable', 'numeric', 'min:0'],
             'card_issue_date' => ['required', 'date'],
             'remarks' => ['nullable', 'string', 'max:1000'],
         ];
@@ -351,19 +366,43 @@ class FuelCardController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Soft-delete a fuel card (recycle bin). Blocked when the card has assignment
+     * history or is currently assigned to a rider.
      */
     public function destroy($company_slug, string $id)
     {
+        if (!user_can('fuel_cards_card_delete') && !user_can('fuel_delete')) {
+            return response()->json(['message' => 'You do not have permission to delete fuel cards.'], 403);
+        }
+
         $fuelCard = FuelCards::find($id);
-        if(!$fuelCard){
-            return response()->json(['message'=> 'Fuel Card Not Found'],404);
+        if (!$fuelCard) {
+            return response()->json(['message' => 'Fuel Card Not Found'], 404);
         }
-        if($fuelCard->histories()->count() > 0){
-            return response()->json(['message'=> 'Cannot delete Fuel Card with assignment history.'],400);
+        if ($fuelCard->assigned_to) {
+            return response()->json(['message' => 'Cannot delete a fuel card that is currently assigned. Return it first.'], 400);
         }
-        $fuelCard->delete();
-        return response()->json(['message'=> 'Fuel Card Deleted successfully'],200);
+        if ($fuelCard->histories()->count() > 0) {
+            return response()->json(['message' => 'Cannot delete Fuel Card with assignment history.'], 400);
+        }
+        if ($fuelCard->fuelData()->withTrashed()->count() > 0) {
+            return response()->json(['message' => 'Cannot delete Fuel Card with fuel transactions. Delete or reassign those transactions first.'], 400);
+        }
+
+        $fuelCard->delete(); // Soft delete — may only queue a delete request
+        $queued = (bool) request()->attributes->get('delete_approval_created');
+
+        $message = delete_outcome_message(
+            'Fuel Card',
+            route('settings-panel.trash.index') . '?module=fuel_cards'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => $message,
+            'queued' => $queued,
+            'reload' => true,
+        ], 200);
     }
 
     /**

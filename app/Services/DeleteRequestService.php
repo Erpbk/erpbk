@@ -855,6 +855,10 @@ class DeleteRequestService
             static::finalizeApprovedSalikDeletion($deleteRequest, $model, $admin);
         }
 
+        if ($deleteRequest->module_key === 'fuel_data' && $model instanceof \App\Models\FuelData) {
+            static::finalizeApprovedFuelDataDeletion($deleteRequest, $model, $admin);
+        }
+
         if ($deleteRequest->module_key === 'sim_invoices' && $model instanceof \App\Models\SimInvoice) {
             static::finalizeApprovedSimInvoiceDeletion($deleteRequest, $model, $admin);
         }
@@ -912,6 +916,33 @@ class DeleteRequestService
         ?User $admin
     ): void {
         $invoice->finalizeSoftDeletion($admin?->id);
+    }
+
+    /**
+     * After fuel transaction soft-delete approval: rebuild monthly fuel ledger
+     * so rider charges exclude the trashed line.
+     */
+    protected static function finalizeApprovedFuelDataDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\FuelData $fuelData,
+        ?User $admin
+    ): void {
+        if (! $fuelData->rider_id || ! $fuelData->billing_month) {
+            return;
+        }
+
+        try {
+            app(\App\Services\FuelMonthlyLedgerService::class)->sync(
+                (int) $fuelData->rider_id,
+                $fuelData->billing_month
+            );
+        } catch (\Throwable $e) {
+            Log::error('Failed to sync fuel ledger after approved soft-delete', [
+                'delete_request_id' => $deleteRequest->id,
+                'fuel_data_id' => $fuelData->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

@@ -18,8 +18,8 @@
    </thead>
    <tbody>
       @foreach($data as $r)
-      <tr class="text-center">
-         @if($vf('trans_no'))<td>{{ $r->trans_no }}</td>@endif
+      <tr class="text-center{{ record_is_pending_deletion($r) ? ' table-warning' : '' }}" data-id="{{ $r->id }}">
+         @if($vf('trans_no'))<td>{{ $r->trans_no }} @include('delete_requests._pending_badge', ['model' => $r])</td>@endif
          @if($vf('trans_date'))<td>{{ $r->trans_date->format('d M Y') }}</td>@endif
          @if($vf('trans_date'))<td>{{ $r->trans_date->format('h:i:s') }}</td>@endif
          @if($vf('billing_month'))<td>{{$r->billing_month->format('M Y') ?? ''}}</td>@endif
@@ -31,6 +31,9 @@
          @if($vf('bike_no'))<td><a @if($r->bike) href="{{ route('bikeHistories.index') }}?bike_id={{ $r->bike->id }}" target="_blank" @else href="javascript:void(0);" @endif" >{{ $r->bike_no }}</a></td>@endif
          @if($vf('total'))<td>{{$r->total ?? 'N/A' }}</td>@endif
          <td style="position: relative;">
+            @if(record_is_pending_deletion($r))
+               <span class="text-muted small pending-deletion-lock"><i class="ti ti-lock me-1"></i>Locked</span>
+            @else
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -49,6 +52,7 @@
                   @endcan
                </div>
             </div>
+            @endif
         </td>
       </tr>
       @endforeach
@@ -62,3 +66,4 @@
 @if(method_exists($data, 'links'))
     {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

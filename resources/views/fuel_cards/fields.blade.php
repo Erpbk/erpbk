@@ -46,6 +46,22 @@
     </div>
     @endfieldVisible
 
+    <!-- Monthly Limit Field -->
+    @fieldVisible('fuel', 'monthly_limit')
+    <div class="form-group col-md-6 mb-3">
+        <label for="monthly_limit" class="form-label">Monthly Limit @if($fuelRequired('monthly_limit'))<span class="text-danger">*</span>@endif</label>
+        {!! Form::number('monthly_limit', null, $fuelAttrs('monthly_limit', ['class' => 'form-control', 'id' => 'monthly_limit', 'step' => '0.01', 'min' => '0', 'placeholder' => 'Enter monthly limit'])) !!}
+    </div>
+    @endfieldVisible
+
+    <!-- Daily Limit Field -->
+    @fieldVisible('fuel', 'daily_limit')
+    <div class="form-group col-md-6 mb-3">
+        <label for="daily_limit" class="form-label">Daily Limit @if($fuelRequired('daily_limit'))<span class="text-danger">*</span>@endif</label>
+        {!! Form::number('daily_limit', null, $fuelAttrs('daily_limit', ['class' => 'form-control', 'id' => 'daily_limit', 'step' => '0.01', 'min' => '0', 'placeholder' => 'Enter daily limit'])) !!}
+    </div>
+    @endfieldVisible
+
     <!-- Card Issue Date Field -->
     @fieldVisible('fuel', 'card_issue_date')
     <div class="form-group col-md-6 mb-3">

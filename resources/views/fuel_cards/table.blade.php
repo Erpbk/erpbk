@@ -39,11 +39,12 @@
       @php
          $r->rider?->loadMissing('bikes');
       @endphp
-      <tr class="text-center">
+      <tr class="text-center{{ record_is_pending_deletion($r) ? ' table-warning' : '' }}" data-id="{{ $r->id }}">
          @if($vf('card_number'))<td>
             <a href="{{ route('fuelCards.show' , $r->id)}}" >
                {{$r->card_number}}
             </a>
+            @include('delete_requests._pending_badge', ['model' => $r])
          </td>@endif
          @if($vf('fuel_company_id'))<td>{{ $r->fuelCompany?->name ?? '—' }}</td>@endif
          <td style="text-align: left;">
@@ -77,6 +78,10 @@
             <span class="badge {{ $cardStatus['badge'] }}">{{ $cardStatus['label'] }}</span>
          </td>@endif
          <td style="position: relative;">
+            @php $cardPendingDeletion = record_is_pending_deletion($r); @endphp
+            @if($cardPendingDeletion)
+               <span class="text-muted small pending-deletion-lock"><i class="ti ti-lock me-1"></i>Locked</span>
+            @else
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -125,6 +130,7 @@
                   @endcan
                </div>
             </div>
+            @endif
          </td>
       </tr>
       @endforeach
@@ -138,3 +144,4 @@
 @if(method_exists($data, 'links'))
     {!! $data->links('components.global-pagination') !!}
 @endif
+@include('delete_requests._pending_table_script', ['items' => $data])

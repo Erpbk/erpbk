@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
 class FuelCards extends BaseModel
 {
-    use LogsActivity, BranchScope;
+    use LogsActivity, BranchScope, SoftDeletes;
 
     public $table = "fuel_cards";
 
@@ -34,6 +35,8 @@ class FuelCards extends BaseModel
         'card_number',
         'fuel_company_id',
         'service_charges',
+        'monthly_limit',
+        'daily_limit',
         'card_issue_date',
         'remarks',
         'status',
@@ -53,6 +56,8 @@ class FuelCards extends BaseModel
         'card_number' => 'string',
         'fuel_company_id' => 'integer',
         'service_charges' => 'decimal:2',
+        'monthly_limit' => 'decimal:2',
+        'daily_limit' => 'decimal:2',
         'card_issue_date' => 'date',
         'remarks' => 'string',
         'status' => 'string',
@@ -74,6 +79,8 @@ class FuelCards extends BaseModel
         'card_number' => 'required|string|min:16',
         'fuel_company_id' => 'required|exists:fuel_companies,id',
         'service_charges' => 'nullable|numeric|min:0',
+        'monthly_limit' => 'nullable|numeric|min:0',
+        'daily_limit' => 'nullable|numeric|min:0',
         'card_issue_date' => 'required|date',
         'remarks' => 'nullable|string|max:1000',
         'status' => 'required|string|max:255',
@@ -265,6 +272,46 @@ class FuelCards extends BaseModel
                             ->whereRaw("TRIM(BOTH '-' FROM CONCAT(COALESCE(bikes.emirates, ''), '-', bikes.plate)) <> fuel_cards.bike_no");
                     });
             });
+    }
+
+    /**
+     * Cards whose current-calendar-month fuel spend is over or under monthly_limit.
+     * Usage is SUM(fuel_data.total) for the card in the current month.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $status  over_limit|under_limit
+     */
+    public function scopeWhereMonthlyLimitStatus($query, string $status)
+    {
+        $status = strtolower(trim($status));
+        if (!in_array($status, ['over_limit', 'under_limit'], true)) {
+            return $query;
+        }
+
+        $start = now()->startOfMonth()->toDateTimeString();
+        $end = now()->endOfMonth()->toDateTimeString();
+        $operator = $status === 'over_limit' ? '>' : '<=';
+        $companyId = \App\Support\CompanyContext::id();
+
+        $companyClause = '';
+        $bindings = [$start, $end];
+        if ($companyId !== null) {
+            $companyClause = ' AND fd.company_id = ?';
+            $bindings[] = $companyId;
+        }
+
+        return $query->whereNotNull('fuel_cards.monthly_limit')
+            ->whereRaw(
+                "(SELECT COALESCE(SUM(fd.total), 0)
+                    FROM fuel_data fd
+                    WHERE fd.card_no = fuel_cards.card_number
+                      AND fd.deleted_at IS NULL
+                      AND fd.trans_date >= ?
+                      AND fd.trans_date <= ?
+                      {$companyClause}
+                 ) {$operator} fuel_cards.monthly_limit",
+                $bindings
+            );
     }
 
     /**

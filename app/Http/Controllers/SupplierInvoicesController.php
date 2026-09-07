@@ -256,13 +256,16 @@ class SupplierInvoicesController extends AppBaseController
             $supplierInvoice->delete();
 
             if (request()->attributes->get('delete_approval_created')) {
-                $message = \App\Services\DeleteRequestService::pendingMessage(
-                    \App\Services\DeleteRequestService::lastCreatedFor($supplierInvoice)
-                );
                 if ($request->ajax()) {
-                    return response()->json(['message' => $message], 200);
+                    return delete_json_response(
+                        'Supplier invoice',
+                        route('settings-panel.trash.index') . '?module=supplier_invoices'
+                    );
                 }
-                Flash::success($message);
+                Flash::success(delete_outcome_message(
+                    'Supplier invoice',
+                    route('settings-panel.trash.index') . '?module=supplier_invoices'
+                ));
 
                 return redirect()->back();
             }
@@ -272,11 +275,15 @@ class SupplierInvoicesController extends AppBaseController
             DB::commit();
 
             if ($request->ajax()) {
-                return response()->json([
-                    'message' => 'Supplier invoice moved to Recycle Bin. <a href="'.route('settings-panel.trash.index').'?module=supplier_invoices" class="alert-link">View Recycle Bin</a> to restore if needed.',
-                ], 200);
+                return delete_json_response(
+                    'Supplier invoice',
+                    route('settings-panel.trash.index') . '?module=supplier_invoices'
+                );
             }
-            Flash::success('Supplier invoice moved to Recycle Bin.');
+            Flash::success(delete_outcome_message(
+                'Supplier invoice',
+                route('settings-panel.trash.index') . '?module=supplier_invoices'
+            ));
 
             return redirect()->back();
         } catch (\Exception $e) {

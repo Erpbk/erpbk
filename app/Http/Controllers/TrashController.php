@@ -21,6 +21,7 @@ use App\Models\Sims;
 use App\Models\SimCompany;
 use App\Models\BikeRentCompany;
 use App\Models\FuelCompany;
+use App\Models\FuelCards;
 use App\Models\FuelData;
 use App\Models\Items;
 use App\Models\salik;
@@ -192,6 +193,12 @@ class TrashController extends Controller
             'name' => 'Fuel Companies',
             'icon' => 'fa-gas-pump',
             'display_columns' => ['name', 'email', 'company_contact'],
+        ],
+        'fuel_cards' => [
+            'model' => FuelCards::class,
+            'name' => 'Fuel Cards',
+            'icon' => 'fa-credit-card',
+            'display_columns' => ['card_number', 'status', 'bike_no'],
         ],
         'fuel_data' => [
             'model' => FuelData::class,
@@ -682,7 +689,7 @@ class TrashController extends Controller
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
             // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
-            if (! in_array($module, ['fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
+            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],

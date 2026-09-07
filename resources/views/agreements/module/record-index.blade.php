@@ -82,9 +82,6 @@
                 <td>
                   @if($contractTpl)
                   <span class="small">{{ $contractTpl->template_name }}</span>
-                  <span class="badge bg-label-primary ms-1">
-                    {{ \App\Models\AgreementTemplate::TYPES[$contractTpl->template_type] ?? $contractTpl->template_type }}
-                  </span>
                   @else
                   <span class="text-muted small">—</span>
                   @endif

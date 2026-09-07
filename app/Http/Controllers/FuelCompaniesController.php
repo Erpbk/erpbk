@@ -254,15 +254,14 @@ class FuelCompaniesController extends AppBaseController
 
         $fuelCompany = $this->fuelCompaniesRepository->find((int) $id);
         if (empty($fuelCompany)) {
-            return response()->json(['errors' => ['error' => 'Fuel company not found!']], 422);
+            return delete_error_response('Fuel company not found!', route('fuelCompanies.index'), 404);
         }
 
         if ($fuelCompany->transactions()->count() > 0) {
-            return response()->json([
-                'errors' => [
-                    'error' => 'Cannot delete fuel company. It has ' . $fuelCompany->transactions()->count() . ' transaction(s). Please deactivate instead.',
-                ],
-            ], 422);
+            return delete_error_response(
+                'Cannot delete fuel company. It has ' . $fuelCompany->transactions()->count() . ' transaction(s). Please deactivate instead.',
+                route('fuelCompanies.index')
+            );
         }
 
         if ($fuelCompany->account) {
@@ -270,11 +269,10 @@ class FuelCompaniesController extends AppBaseController
                 ->where('account_id', $fuelCompany->account->id)
                 ->count();
             if ($ledgerEntriesCount > 0) {
-                return response()->json([
-                    'errors' => [
-                        'error' => "Cannot delete fuel company. The linked account has {$ledgerEntriesCount} ledger entry(ies).",
-                    ],
-                ], 422);
+                return delete_error_response(
+                    "Cannot delete fuel company. The linked account has {$ledgerEntriesCount} ledger entry(ies).",
+                    route('fuelCompanies.index')
+                );
             }
         }
 
@@ -310,9 +308,21 @@ class FuelCompaniesController extends AppBaseController
             $cascadeMessage = ' (Also deleted: ' . implode(', ', $parts) . ')';
         }
 
-        return response()->json([
-            'message' => 'Fuel company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=fuel_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
-        ]);
+        $trashUrl = route('settings-panel.trash.index') . '?module=fuel_companies';
+        if (wants_delete_json()) {
+            $response = delete_json_response('Fuel company', $trashUrl);
+            if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+                $data = $response->getData(true);
+                $data['message'] = 'Fuel company moved to Recycle Bin' . $cascadeMessage
+                    . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+                $response->setData($data);
+            }
+
+            return $response;
+        }
+
+        Flash::success('Fuel company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+        return redirect(route('fuelCompanies.index'));
     }
 
     protected function canTopUp(): bool

@@ -52,6 +52,14 @@ class EmployeeInvoices extends BaseModel
      */
     protected $outstandingSummaryCache = null;
 
+    /**
+     * @param  array{final_amount: float, paid_amount: float, balance: float}  $summary
+     */
+    public function setOutstandingSummary(array $summary): void
+    {
+        $this->outstandingSummaryCache = $summary;
+    }
+
     public static array $rules = [
         'inv_date' => 'required',
         'employee_id' => 'required|exists:employees,id',

@@ -4,6 +4,9 @@ namespace App\Services\Agreements;
 
 use App\Models\AgreementCategory;
 use App\Models\AgreementTemplate;
+use App\Models\Company;
+use App\Models\Settings;
+use App\Support\ErpModuleRegistry;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 
@@ -54,6 +57,26 @@ class AgreementModuleService
      */
     public function assignableModuleKeys(): array
     {
+        return app(AgreementPlaceholderCatalog::class)->companyAssignableModuleKeys();
+    }
+
+    /**
+     * Admin-enabled modules without company visibility filtering.
+     *
+     * @return list<string>
+     */
+    public function adminAssignableModuleKeys(): array
+    {
+        return app(AgreementPlaceholderCatalog::class)->adminEnabledModuleKeys();
+    }
+
+    /**
+     * Legacy config fallback keys (erp modules minus excluded).
+     *
+     * @return list<string>
+     */
+    public function configAssignableModuleKeys(): array
+    {
         $excluded = config('agreement_modules.excluded_from_assignment', [
             'dashboard',
             'recycle_bin',
@@ -62,6 +85,24 @@ class AgreementModuleService
             'accounts',
             'vouchers',
             'vat',
+            'cash_banks',
+            'loans',
+            'attendance',
+            'items',
+            'leads',
+            'customer_invoices',
+            'rta_fines',
+            'rta_saliks',
+            'inventory',
+            'visa_expense',
+            'installments',
+            'license_expense',
+            'legal_case',
+            'expenses',
+            'assets',
+            'cheques',
+            'passport_handover',
+            'rider_inventory',
         ]);
 
         return array_values(array_diff(
@@ -280,9 +321,92 @@ class AgreementModuleService
         ];
     }
 
+    /**
+     * Display name for a module: company custom title when set, otherwise the default label.
+     */
     public function moduleLabel(string $module): string
     {
-        return \App\Models\Settings::getMenuLabel($module);
+        $module = ErpModuleRegistry::normalizeKey($module);
+        $labelKeys = $this->labelKeysForModule($module);
+
+        foreach ($labelKeys as $key) {
+            $custom = trim((string) ($this->companyLabelOverrides()[$key] ?? ''));
+            if ($custom !== '') {
+                return $custom;
+            }
+        }
+
+        $menuLabels = Settings::getMenuLabels();
+        foreach ($labelKeys as $key) {
+            $label = trim((string) ($menuLabels[$key] ?? ''));
+            if ($label !== '' && $label !== $key) {
+                return $label;
+            }
+        }
+
+        return (string) (
+            config("company_modules.modules.{$module}.label")
+            ?? config("erp_modules.modules.{$module}")
+            ?? config("menu_labels.defaults.{$module}")
+            ?? ucwords(str_replace('_', ' ', $module))
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function labelKeysForModule(string $module): array
+    {
+        $keys = [$module];
+
+        $primary = config("company_modules.modules.{$module}.primary_label_key");
+        if (is_string($primary) && $primary !== '') {
+            $keys[] = ErpModuleRegistry::normalizeKey($primary);
+        }
+
+        // erp_modules key ↔ sidebar menu_labels key mismatches
+        $synonyms = [
+            'garages_customers' => 'garage_customers',
+            'garage_customers' => 'garages_customers',
+        ];
+        if (isset($synonyms[$module])) {
+            $keys[] = $synonyms[$module];
+        }
+
+        foreach (ErpModuleRegistry::menuLabelAliases($module) as $alias) {
+            $keys[] = $alias;
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function companyLabelOverrides(): array
+    {
+        $company = view()->shared('currentCompany');
+        if (! $company instanceof Company || ! is_array($company->modules_settings)) {
+            return [];
+        }
+
+        $overrides = $company->modules_settings['label_overrides'] ?? [];
+        if (! is_array($overrides)) {
+            return [];
+        }
+
+        $filtered = [];
+        foreach ($overrides as $key => $value) {
+            if (! is_string($key) || ! is_string($value)) {
+                continue;
+            }
+            $value = trim($value);
+            if ($value !== '') {
+                $filtered[ErpModuleRegistry::normalizeKey($key)] = $value;
+            }
+        }
+
+        return $filtered;
     }
 
     /**

@@ -16,6 +16,7 @@ use App\Models\Customers;
 use App\Models\Riders;
 use App\Models\UserTableSettings;
 use App\Repositories\BikesRepository;
+use App\Services\BikeConditionAttachmentService;
 use App\Services\BikeHistoryLogger;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyModuleVisibility;
@@ -26,7 +27,6 @@ use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Carbon\Carbon;
 use Flash;
-use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -881,17 +881,23 @@ class BikesController extends AppBaseController
                     },
                 ],
             ];
+            $rules = array_merge($rules, BikeConditionAttachmentService::validationRulesForContext('change'));
             $messages = [
                 'bike_id.required' => 'Bike ID Required',
                 'bike_id.exists' => 'Invalid Bike ID',
-            ];
+            ] + BikeConditionAttachmentService::validationMessagesForContext('change');
 
             $this->validate($request, $rules, $messages);
 
             DB::beginTransaction();
+            $conditionPath = null;
             try {
 
                 $bike = Bikes::findOrFail($request->bike_id);
+                if (BikeConditionAttachmentService::assignmentForContext('change')) {
+                    $conditionPath = app(BikeConditionAttachmentService::class)
+                        ->storeFromRequest($request, (int) $bike->id, 'return');
+                }
                 $rider = $bike->rider;
                 $riderBefore = $rider ? RiderHistoryLogger::riderSnapshot($rider) : null;
                 $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
@@ -933,7 +939,7 @@ class BikesController extends AppBaseController
                     Riders::where('id', $bike->rider_id)
                         ->update(['status' => 5]);
                     $bike->update(['warehouse' => 'Absconded']);
-                    $this->updateBikeHistory($bike, 'Absconded', $bike->rider_id, $message, null, 'Absconded');
+                    $this->updateBikeHistory($bike, 'Absconded', $bike->rider_id, $message, null, 'Absconded', $conditionPath);
                     if ($rider && $riderBefore) {
                         RiderHistoryLogger::bikeAssignStatusChange(
                             (int) $rider->id,
@@ -955,7 +961,7 @@ class BikesController extends AppBaseController
                         ->update([
                             'status' => 4,
                         ]);
-                    $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Vacation');
+                    $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Vacation', $conditionPath);
                     $bike->update(['rider_id' => null, 'warehouse' => 'Return', 'customer_id' => null]);
                     if ($rider && $riderBefore) {
                         RiderHistoryLogger::bikeAssignStatusChange(
@@ -978,7 +984,7 @@ class BikesController extends AppBaseController
                         $rider->update([
                             'status' => 3,
                         ]);
-                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Return');
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Return', $conditionPath);
                         if ($riderBefore) {
                             RiderHistoryLogger::bikeAssignStatusChange(
                                 (int) $rider->id,
@@ -996,7 +1002,7 @@ class BikesController extends AppBaseController
                             );
                         }
                     } else {
-                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Return');
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Return', $conditionPath);
                     }
                     $bike->update([
                         'rider_id' => null,
@@ -1009,7 +1015,7 @@ class BikesController extends AppBaseController
                         $rider->update([
                             'status' => 3,
                         ]);
-                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Theft');
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Theft', $conditionPath);
                         if ($riderBefore) {
                             RiderHistoryLogger::bikeAssignStatusChange(
                                 (int) $rider->id,
@@ -1027,7 +1033,7 @@ class BikesController extends AppBaseController
                             );
                         }
                     } else {
-                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Theft');
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Theft', $conditionPath);
                     }
                     $bike->update([
                         'rider_id' => null,
@@ -1040,7 +1046,7 @@ class BikesController extends AppBaseController
                         $rider->update([
                             'status' => 3,
                         ]);
-                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Total Loss');
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Total Loss', $conditionPath);
                         if ($riderBefore) {
                             RiderHistoryLogger::bikeAssignStatusChange(
                                 (int) $rider->id,
@@ -1058,7 +1064,7 @@ class BikesController extends AppBaseController
                             );
                         }
                     } else {
-                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Total Loss');
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Total Loss', $conditionPath);
                     }
                     $bike->update([
                         'rider_id' => null,
@@ -1071,7 +1077,7 @@ class BikesController extends AppBaseController
                         $rider->update([
                             'status' => 3,
                         ]);
-                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Impound');
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Impound', $conditionPath);
                         if ($riderBefore) {
                             RiderHistoryLogger::bikeAssignStatusChange(
                                 (int) $rider->id,
@@ -1089,7 +1095,7 @@ class BikesController extends AppBaseController
                             );
                         }
                     } else {
-                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Impound');
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Impound', $conditionPath);
                     }
                     $bike->update([
                         'rider_id' => null,
@@ -1102,7 +1108,7 @@ class BikesController extends AppBaseController
                         $rider->update([
                             'status' => 3,
                         ]);
-                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Accident');
+                        $this->updateBikeHistory($bike, 'Return', $bike->rider_id, $message, $request->return_date, 'Accident', $conditionPath);
                         if ($riderBefore) {
                             RiderHistoryLogger::bikeAssignStatusChange(
                                 (int) $rider->id,
@@ -1120,7 +1126,7 @@ class BikesController extends AppBaseController
                             );
                         }
                     } else {
-                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Accident');
+                        $this->updateBikeHistoryforCompany($bike, 'Return', $bike->rental_company_id, $message, $request->return_date, 'Accident', $conditionPath);
                     }
                     $bike->update([
                         'rider_id' => null,
@@ -1140,8 +1146,17 @@ class BikesController extends AppBaseController
                 DB::commit();
 
                 return response()->json(['message' => 'Rider assignment updated successfully.']);
+            } catch (\Illuminate\Validation\ValidationException $e) {
+                DB::rollBack();
+                if ($conditionPath) {
+                    PublicStorageDisk::delete($conditionPath);
+                }
+                throw $e;
             } catch (\Exception $e) {
                 DB::rollBack();
+                if ($conditionPath) {
+                    PublicStorageDisk::delete($conditionPath);
+                }
 
                 return response()->json([
                     'success' => false,
@@ -1155,7 +1170,7 @@ class BikesController extends AppBaseController
         return view('bikes.assignBike_change', compact('id', 'assignFields'));
     }
 
-    private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date, ?string $historyStatus = null)
+    private function updateBikeHistory($bike, $status, $rider_id, $notes, $return_date, ?string $historyStatus = null, ?string $conditionPath = null)
     {
         $userid = Auth::user()->id;
         $rider = Riders::find($rider_id);
@@ -1178,10 +1193,11 @@ class BikesController extends AppBaseController
             'updated_by' => $userid,
         ];
         $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, $rider, $resolvedStatus);
+        $update = $this->withConditionAttachment($update, $lastHistory, 'return', $conditionPath);
         $lastHistory->update($update);
     }
 
-    private function updateBikeHistoryforCompany($bike, $status, $company_id, $notes, $return_date, ?string $historyStatus = null)
+    private function updateBikeHistoryforCompany($bike, $status, $company_id, $notes, $return_date, ?string $historyStatus = null, ?string $conditionPath = null)
     {
         $userid = Auth::user()->id;
 
@@ -1203,7 +1219,23 @@ class BikesController extends AppBaseController
             'updated_by' => $userid,
         ];
         $update = BikeHistoryLogger::mergeStructuredUpdate($update, $bike, null, $resolvedStatus);
+        $update = $this->withConditionAttachment($update, $lastHistory, 'return', $conditionPath);
         $lastHistory->update($update);
+    }
+
+    private function withConditionAttachment(array $data, ?BikeHistory $history, string $kind, ?string $path): array
+    {
+        if ($path === null || $path === '' || ! Schema::hasColumn('bike_histories', 'condition_attachments')) {
+            return $data;
+        }
+
+        $existing = ($history && is_array($history->condition_attachments))
+            ? $history->condition_attachments
+            : [];
+        $data['condition_attachments'] = app(BikeConditionAttachmentService::class)
+            ->mergeOnto($existing, $kind, $path);
+
+        return $data;
     }
 
     // assign bike to rider or company
@@ -1340,12 +1372,24 @@ class BikesController extends AppBaseController
                 'rider_id.exists' => 'Selected ' . strtolower($assignTypeLabels['rider'] ?? 'rider') . ' is invalid.',
             ];
 
+            $rules = array_merge($rules, BikeConditionAttachmentService::validationRulesForContext('active'));
+            $message = $message + BikeConditionAttachmentService::validationMessagesForContext('active');
             $this->validate($request, $rules, $message);
 
-            $data = $request->except(['note']);
+            $data = $request->except([
+                'note',
+                BikeConditionAttachmentService::INPUT,
+                'condition_attachments',
+                'original_filename',
+            ]);
             DB::beginTransaction();
+            $conditionPath = null;
             try {
                 $bike = Bikes::findOrFail($request->bike_id);
+                if (BikeConditionAttachmentService::assignmentForContext('active')) {
+                    $conditionPath = app(BikeConditionAttachmentService::class)
+                        ->storeFromRequest($request, (int) $bike->id, 'assign');
+                }
                 $rider = null;
                 $customer_id = $request->customer_id;
                 $assignType = $request->input('assign_type');
@@ -1456,13 +1500,23 @@ class BikesController extends AppBaseController
                         $customer_id
                     )
                 );
+                $data = $this->withConditionAttachment($data, null, 'assign', $conditionPath);
                 $bikeHistory = BikeHistory::create($data);
                 $this->mergeBikeAssignCustomFields($bike->fresh(), $request);
                 DB::commit();
 
                 return response()->json(['message' => 'Bike assignment updated successfully.']);
-            } catch (QueryException $e) {
+            } catch (\Illuminate\Validation\ValidationException $e) {
                 DB::rollBack();
+                if ($conditionPath) {
+                    PublicStorageDisk::delete($conditionPath);
+                }
+                throw $e;
+            } catch (\Exception $e) {
+                DB::rollBack();
+                if ($conditionPath) {
+                    PublicStorageDisk::delete($conditionPath);
+                }
 
                 return response()->json([
                     'success' => 'false',

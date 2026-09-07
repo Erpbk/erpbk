@@ -2,7 +2,6 @@
 $panelId = $panelId ?? ($category->id ?? 0);
 $companySlug = request()->route('company_slug');
 $templateId = $template->id;
-$styleLabel = \App\Models\AgreementTemplate::TYPES[$template->template_type] ?? $template->template_type;
 @endphp
 
 <div class="contract-document-panel"
@@ -16,7 +15,6 @@ $styleLabel = \App\Models\AgreementTemplate::TYPES[$template->template_type] ?? 
     <div>
       <div class="text-muted small">Assigned template</div>
       <div class="fw-semibold">{{ $template->template_name }}</div>
-      <span class="badge bg-label-primary">{{ $styleLabel }}</span>
     </div>
     @canany(['agreements_edit', 'agreements_manage_templates', 'gn_settings'])
     <a href="{{ route('documents.agreements.manage-category', ['company_slug' => $companySlug, 'category' => $category->id, 'template' => $template->id]) }}#template-editor-panel"

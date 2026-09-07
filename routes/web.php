@@ -3,6 +3,7 @@
 use App\Helpers\General;
 use App\Http\Controllers\AccountsController;
 use App\Http\Controllers\Admin\AdminGlobalAccountsController;
+use App\Http\Controllers\Admin\AdminAgreementSettingsController;
 use App\Http\Controllers\Admin\AdminBlogsController;
 use App\Http\Controllers\Admin\AdminCompaniesController;
 use App\Http\Controllers\Admin\AdminDashboardController;
@@ -146,6 +147,13 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::get('companies/{company}/modules', [AdminCompaniesController::class, 'editModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.edit');
     Route::put('companies/{company}/modules', [AdminCompaniesController::class, 'updateModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.update');
 
+    // Agreement Settings (assignable modules + per-module placeholders)
+    Route::get('agreement-settings', [AdminAgreementSettingsController::class, 'index'])->middleware('admin.permission:agreement_settings_view')->name('agreement-settings.index');
+    Route::put('agreement-settings/modules', [AdminAgreementSettingsController::class, 'updateModules'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.modules.update');
+    Route::post('agreement-settings/placeholders', [AdminAgreementSettingsController::class, 'storePlaceholder'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.placeholders.store');
+    Route::put('agreement-settings/placeholders/{placeholder}', [AdminAgreementSettingsController::class, 'updatePlaceholder'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.placeholders.update');
+    Route::delete('agreement-settings/placeholders/{placeholder}', [AdminAgreementSettingsController::class, 'destroyPlaceholder'])->middleware('admin.permission:agreement_settings_edit')->name('agreement-settings.placeholders.destroy');
+
     // Site Settings Modules (admin DB)
     Route::get('blogs', [AdminBlogsController::class, 'index'])->middleware('admin.permission:blogs_view')->name('blogs.index');
     Route::get('blogs/create', [AdminBlogsController::class, 'create'])->middleware('admin.permission:blogs_create')->name('blogs.create');
@@ -218,6 +226,10 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
 // pages
 Route::get('/pages/misc-error', [MiscError::class, 'index'])->name('pages-misc-error');
 
+Route::get('/agreement-fonts/{file}', [App\Http\Controllers\AgreementFontController::class, 'show'])
+    ->where('file', '[A-Za-z0-9\-]+\.ttf')
+    ->name('agreement-fonts.show');
+
 Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.routes', 'auth'])->group(function () {
 
     Route::get('/', [HomeController::class, 'index'])->name('home');
@@ -232,6 +244,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'showAgreement'])->name('show-agreement')->whereNumber('category');
         Route::get('/categories/{category}/edit', [App\Http\Controllers\AgreementSettingsController::class, 'editAgreement'])->name('edit-agreement')->whereNumber('category');
         Route::put('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'updateAgreement'])->name('update-agreement')->whereNumber('category');
+        Route::post('/categories/{category}/letterhead-layout', [App\Http\Controllers\AgreementSettingsController::class, 'updateLetterheadLayout'])->name('letterhead-layout')->whereNumber('category');
         Route::delete('/categories/{category}', [App\Http\Controllers\AgreementSettingsController::class, 'destroyAgreement'])->name('destroy-agreement')->whereNumber('category');
         Route::post('/categories/{category}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleAgreementStatus'])->name('toggle-agreement-status')->whereNumber('category');
         Route::get('/categories/{category}/templates', [App\Http\Controllers\AgreementSettingsController::class, 'templates'])->name('templates')->whereNumber('category');
@@ -245,6 +258,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::post('/templates/{id}/toggle-status', [App\Http\Controllers\AgreementSettingsController::class, 'toggleStatus'])->name('toggle-status')->whereNumber('id');
         Route::get('/templates/{id}/preview', [App\Http\Controllers\AgreementSettingsController::class, 'preview'])->name('preview')->whereNumber('id');
         Route::get('/templates/{id}/preview-pdf', [App\Http\Controllers\AgreementSettingsController::class, 'previewPdf'])->name('preview-pdf')->whereNumber('id');
+        Route::post('/paginate-html', [App\Http\Controllers\AgreementSettingsController::class, 'paginateHtml'])->name('paginate-html');
     });
 
     // Module Agreements — register before employees/riders resource routes ({module}/agreements must not match {employee} or {rider})
@@ -420,7 +434,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
-    Route::get('VisaExpense/eligible-categories/{riderId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])->name('VisaExpense.eligibleRenewalCategories');
+    Route::get('VisaExpense/eligible-categories/{personType}/{personId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])
+        ->where(['personType' => 'rider|employee', 'personId' => '[0-9]+'])
+        ->name('VisaExpense.eligibleRenewalCategories');
     Route::post('editaccount', [VisaexpenseController::class, 'editaccount'])->name('VisaExpense.editaccount');
     Route::get('VisaExpense/deleteaccount/{id}', [VisaexpenseController::class, 'deleteaccount'])->name('VisaExpense.deleteaccount');
     Route::post('VisaExpense/payfine', [VisaexpenseController::class, 'payfine'])->name('VisaExpense.payfine');
@@ -462,6 +478,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('LicenseExpense/getLicenseStatusFee', [LicenseexpenseController::class, 'getLicenseStatusFee'])->name('LicenseExpense.getLicenseStatusFee');
     Route::post('license-accountcreate', [LicenseexpenseController::class, 'accountcreate'])->name('LicenseExpense.accountcreate');
     Route::post('license-editaccount', [LicenseexpenseController::class, 'editaccount'])->name('LicenseExpense.editaccount');
+    Route::get('LicenseExpense/eligible-categories/{riderId}', [LicenseexpenseController::class, 'eligibleLicenseCategories'])
+        ->whereNumber('riderId')
+        ->name('LicenseExpense.eligibleLicenseCategories');
     Route::get('LicenseExpense/deleteaccount/{id}', [LicenseexpenseController::class, 'deleteaccount'])->name('LicenseExpense.deleteaccount');
     Route::post('LicenseExpense/payfine', [LicenseexpenseController::class, 'payfine'])->name('LicenseExpense.payfine');
     Route::get('LicenseExpense/pay-form/{id}', [LicenseexpenseController::class, 'payForm'])->name('LicenseExpense.payForm');

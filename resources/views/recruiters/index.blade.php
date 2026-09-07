@@ -96,64 +96,11 @@
 @endcan
 @endsection
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Recruiter',
+    'confirmText' => 'This will submit a delete request or move the recruiter to the Recycle Bin.',
+])
 <script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "This will move the recruiter to the Recycle Bin!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                $('#loading-overlay').show();
-
-                // Send DELETE request via AJAX
-                $.ajax({
-                    url: url,
-                    type: 'DELETE',
-                    data: {
-                        _token: '{{ csrf_token() }}'
-                    },
-                    success: function(response) {
-                        $('#loading-overlay').hide();
-
-                        // Show success message with HTML content
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Deleted!',
-                            html: response.message,
-                            showConfirmButton: true,
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            // Reload the page to refresh the table
-                            location.reload();
-                        });
-                    },
-                    error: function(xhr) {
-                        $('#loading-overlay').hide();
-
-                        let errorMessage = 'An error occurred while deleting.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            errorMessage = Object.values(xhr.responseJSON.errors).join('<br>');
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            html: errorMessage
-                        });
-                    }
-                });
-            }
-        })
-    }
     $(document).ready(function() {
         $('#account_id').select2({
             dropdownParent: $('#searchTopbody'),

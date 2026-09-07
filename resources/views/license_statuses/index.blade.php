@@ -52,11 +52,156 @@
     .filter-sidebar .btn-close {
         box-shadow: none;
     }
+
+    .visa-workspace {
+        display: grid;
+        grid-template-columns: minmax(280px, 340px) 1fr;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    @media (max-width: 991.98px) {
+        .visa-workspace {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .visa-panel {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0.85rem;
+        box-shadow: 0 1px 6px rgba(15, 23, 42, .05);
+        overflow: hidden;
+    }
+
+    .visa-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid #eef1f4;
+        background: linear-gradient(180deg, #fbfcfe 0%, #fff 100%);
+    }
+
+    .visa-panel-header h4 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 650;
+    }
+
+    .visa-panel-subtitle {
+        margin: .2rem 0 0;
+        color: #6c757d;
+        font-size: .8rem;
+    }
+
+    .visa-cat-list {
+        padding: .65rem;
+        max-height: calc(100vh - 260px);
+        overflow-y: auto;
+    }
+
+    .visa-cat-item {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        width: 100%;
+        padding: .8rem .85rem;
+        margin-bottom: .4rem;
+        border: 1px solid transparent;
+        border-radius: .65rem;
+        background: #f8f9fb;
+        color: inherit;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .visa-cat-item:hover {
+        background: #eef3fb;
+        color: inherit;
+    }
+
+    .visa-cat-item.active {
+        background: rgba(13, 110, 253, .08);
+        border-color: rgba(13, 110, 253, .28);
+        box-shadow: inset 3px 0 0 var(--bs-primary);
+    }
+
+    .visa-cat-item .visa-cat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: .5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        color: var(--bs-primary);
+        flex-shrink: 0;
+    }
+
+    .visa-cat-item.active .visa-cat-icon {
+        background: var(--bs-primary);
+        color: #fff;
+    }
+
+    .visa-cat-meta {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .visa-cat-name {
+        display: block;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .visa-cat-count {
+        font-size: .75rem;
+        color: #6c757d;
+    }
+
+    .visa-empty {
+        padding: 2.75rem 1.5rem;
+        text-align: center;
+    }
+
+    .visa-empty-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f4f8;
+        color: #6c757d;
+        font-size: 1.75rem;
+    }
+
+    .visa-cat-item .visa-icon-btn {
+        width: 30px;
+        height: 30px;
+        background: #fff;
+        flex-shrink: 0;
+    }
 </style>
 @endpush
 
 @section('content')
-@php $licenseRoute = $licenseRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.license-statuses' : 'license-statuses'); @endphp
+@php
+$licenseRoute = $licenseRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.license-statuses' : 'license-statuses');
+$licenseCategories = $licenseCategories ?? collect();
+$selectedCategoryId = (int) ($selectedCategoryId ?? 0);
+$selectedCategory = $selectedCategory ?? $licenseCategories->firstWhere('id', $selectedCategoryId);
+$licenseCategoryReturnUrl = $licenseCategoryReturnUrl
+    ?? route($licenseRoute . '.index') . ($selectedCategoryId ? ('?category_id=' . $selectedCategoryId) : '');
+$addStatusUrl = $selectedCategoryId
+    ? route($licenseRoute . '.create') . '?category_id=' . $selectedCategoryId
+    : route($licenseRoute . '.create');
+@endphp
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
@@ -64,21 +209,14 @@
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1>License Status Management</h1>
-            </div>
-            <div class="col-sm-6">
-                @can('license_expense_create')
-                <a class="btn btn-primary float-end" href="{{ route($licenseRoute . '.create') }}">
-                    Add New Status
-                </a>
-                @endcan
+            <div class="col-sm-8">
+                <h1 class="mb-1">License Categories</h1>
+                <p class="text-muted mb-0">Create a license category first, then add statuses under that category. Expense tickets are generated only from the selected category’s statuses.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
         <h5>Filter License Statuses</h5>
@@ -86,6 +224,7 @@
     </div>
     <div class="filter-body" id="searchTopbody">
         <form id="filterForm" action="{{ request()->url() }}" method="GET">
+            <input type="hidden" name="category_id" id="filter_category_id" value="{{ $selectedCategoryId }}">
             <div class="row">
                 <div class="form-group col-md-12">
                     <label for="code">Code</label>
@@ -96,7 +235,7 @@
                     <input type="text" name="name" class="form-control" placeholder="Filter by Name" value="{{ request('name') }}">
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="category">Category</label>
+                    <label for="category">Type</label>
                     <select class="form-control" id="category" name="category">
                         <option value="">All</option>
                         <option value="Document" {{ request('category') == 'Document' ? 'selected' : '' }}>Document</option>
@@ -134,24 +273,149 @@
 <div class="content px-3">
     @include('flash::message')
     <div class="clearfix"></div>
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h4 class="mb-0"><i class="ti ti-list me-2"></i>License Statuses</h4>
-            <button type="button" class="btn btn-primary openFilterSidebar">
-                <i class="fa fa-search me-1"></i> Filter License Statuses
-            </button>
-        </div>
-        <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('license_statuses.table', ['licenseStatuses' => $licenseStatuses, 'licenseRoute' => $licenseRoute])
-        </div>
+
+    <div class="visa-workspace">
+        <aside class="visa-panel">
+            <div class="visa-panel-header">
+                <div>
+                    <h4><i class="ti ti-category me-1"></i> License Categories</h4>
+                    <p class="visa-panel-subtitle mb-0">Select a category to manage its statuses</p>
+                </div>
+                @can('license_expense_create')
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createLicenseCategoryModal">
+                    <i class="ti ti-plus"></i>
+                </button>
+                @endcan
+            </div>
+            <div class="visa-cat-list" id="license-category-nav">
+                @forelse($licenseCategories as $category)
+                <div
+                    class="visa-cat-item {{ (int) $category->id === $selectedCategoryId ? 'active' : '' }}"
+                    data-category-id="{{ $category->id }}"
+                    data-id="{{ $category->id }}"
+                    data-name="{{ $category->name }}"
+                    data-display-order="{{ $category->display_order }}"
+                    data-is-default="{{ $category->is_default ? 1 : 0 }}"
+                    data-is-active="{{ $category->is_active ? 1 : 0 }}"
+                    role="button"
+                    tabindex="0">
+                    <span class="visa-cat-icon"><i class="ti ti-folder"></i></span>
+                    <span class="visa-cat-meta">
+                        <span class="visa-cat-name">
+                            {{ $category->name }}
+                            @if($category->is_default)
+                            <span class="badge bg-label-primary ms-1">Default</span>
+                            @endif
+                            @if(! $category->is_active)
+                            <span class="badge bg-label-secondary ms-1">Inactive</span>
+                            @endif
+                        </span>
+                        <span class="visa-cat-count">{{ (int) ($category->license_statuses_count ?? 0) }} status{{ (int) ($category->license_statuses_count ?? 0) === 1 ? '' : 'es' }}</span>
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        @can('license_expense_edit')
+                        <button type="button" class="visa-icon-btn visa-icon-btn-edit js-license-category-edit-btn"
+                            title="Edit category"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editLicenseCategoryModal"
+                            data-id="{{ $category->id }}"
+                            data-name="{{ $category->name }}"
+                            data-display-order="{{ $category->display_order }}"
+                            data-is-default="{{ $category->is_default ? 1 : 0 }}"
+                            data-is-active="{{ $category->is_active ? 1 : 0 }}"
+                            onclick="event.preventDefault(); event.stopPropagation();">
+                            <i class="ti ti-pencil"></i>
+                        </button>
+                        @endcan
+                        @can('license_expense_delete')
+                        @if(! $category->is_default)
+                        <button type="button"
+                            class="visa-icon-btn visa-icon-btn-delete js-license-category-delete-btn"
+                            title="Delete category"
+                            data-delete-url="{{ route('settings-panel.license-categories.destroy', $category->id) . '?return_to=' . urlencode($licenseCategoryReturnUrl) }}"
+                            onclick="event.preventDefault(); event.stopPropagation();">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                        @endif
+                        @endcan
+                    </span>
+                </div>
+                @empty
+                <div class="visa-empty">
+                    <div class="visa-empty-icon"><i class="ti ti-folder-plus"></i></div>
+                    <h5 class="mb-1">No license categories yet</h5>
+                    <p class="text-muted small mb-3">Create a license category first. Statuses can only be added after a category exists.</p>
+                    @can('license_expense_create')
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createLicenseCategoryModal">
+                        Create License Category
+                    </button>
+                    @endcan
+                </div>
+                @endforelse
+            </div>
+        </aside>
+
+        <section class="visa-panel">
+            <div class="visa-panel-header">
+                <div>
+                    <h4 id="license-status-heading">
+                        <i class="ti ti-list-check me-1"></i>
+                        {{ $selectedCategory ? $selectedCategory->name . ' statuses' : 'License Statuses' }}
+                    </h4>
+                    <p class="visa-panel-subtitle mb-0" id="license-status-subtitle">
+                        @if($selectedCategory)
+                        Tickets for this category will be generated from these statuses only.
+                        @else
+                        Select a license category to view and manage its statuses.
+                        @endif
+                    </p>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm openFilterSidebar" @disabled(! $selectedCategoryId)>
+                        <i class="fa fa-search me-1"></i> Filter
+                    </button>
+                    @can('license_expense_create')
+                    <a class="btn btn-primary btn-sm js-license-status-add-btn {{ $selectedCategoryId ? '' : 'disabled' }}" href="{{ $addStatusUrl }}" id="license-add-status-btn">
+                        Add Status
+                    </a>
+                    @endcan
+                </div>
+            </div>
+            <div class="card-body table-responsive px-2 py-0" id="table-data">
+                @if($selectedCategoryId)
+                @include('license_statuses.table', [
+                    'licenseStatuses' => $licenseStatuses,
+                    'licenseRoute' => $licenseRoute,
+                    'licenseStatusReturnTo' => $licenseCategoryReturnUrl,
+                    'selectedCategoryId' => $selectedCategoryId,
+                ])
+                @else
+                <div class="visa-empty">
+                    <div class="visa-empty-icon"><i class="ti ti-list"></i></div>
+                    <h5 class="mb-1">Select a license category</h5>
+                    <p class="text-muted small mb-0">Statuses are created against a specific category and cannot be duplicated within that category.</p>
+                </div>
+                @endif
+            </div>
+        </section>
     </div>
 </div>
+
+@include('license_categories.settings_panel', [
+    'categories' => collect(),
+    'returnTo' => $licenseCategoryReturnUrl,
+    'embeddedManager' => true,
+    'hideTable' => true,
+])
 @endsection
 
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="text/javascript">
+    var licenseIndexUrl = "{{ request()->url() }}";
+    var selectedCategoryId = "{{ $selectedCategoryId }}";
+
     function confirmDelete(url) {
         Swal.fire({
             title: 'Are you sure?',
@@ -223,17 +487,13 @@
                 Swal.fire({
                     icon: 'success',
                     title: 'Deleted',
-                    text: result.data.message || 'License Status deleted successfully.',
+                    text: result.data.message || 'License status deleted successfully.',
                     timer: 1600,
                     showConfirmButton: false
                 });
                 return result.data;
             });
     }
-
-
-
-
 
     function initSortable() {
         var tbody = document.getElementById('license-statuses-tbody');
@@ -284,7 +544,6 @@
                                 if (orderCell) orderCell.textContent = idx++;
                             });
                         } else {
-
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
@@ -303,8 +562,53 @@
         });
     }
 
+    function loadCategoryStatuses(categoryId, pushState) {
+        $('#loading-overlay').show();
+        selectedCategoryId = String(categoryId || '');
+        $('#filter_category_id').val(selectedCategoryId);
+        var url = licenseIndexUrl + (selectedCategoryId ? ('?category_id=' + encodeURIComponent(selectedCategoryId)) : '');
+        $.ajax({
+            url: url,
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(data) {
+                $('#table-data').html(data.tableData);
+                if (data.addStatusUrl) {
+                    $('#license-add-status-btn').attr('href', data.addStatusUrl).removeClass('disabled');
+                }
+                $('.visa-cat-item').removeClass('active');
+                $('.visa-cat-item[data-category-id="' + selectedCategoryId + '"]').addClass('active');
+                var nameEl = $('.visa-cat-item.active .visa-cat-name').clone();
+                nameEl.find('.badge').remove();
+                var catName = $.trim(nameEl.text()) || 'License';
+                $('#license-status-heading').html('<i class="ti ti-list-check me-1"></i> ' + catName + ' statuses');
+                $('#license-status-subtitle').text('Tickets for this category will be generated from these statuses only.');
+                if (pushState !== false) {
+                    history.pushState(null, '', url);
+                }
+                initSortable();
+                $('#loading-overlay').hide();
+            },
+            error: function() {
+                $('#loading-overlay').hide();
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         initSortable();
+
+        $(document).on('click', '.visa-cat-item', function(e) {
+            if ($(e.target).closest('button').length) {
+                return;
+            }
+            e.preventDefault();
+            var categoryId = this.getAttribute('data-category-id');
+            if (!categoryId) return;
+            loadCategoryStatuses(categoryId, true);
+        });
 
         $(document).on('click', '.js-visa-status-delete-btn', function(e) {
             e.preventDefault();
@@ -324,7 +628,7 @@
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: (err && err.message) ? err.message : 'Could not delete License Status.'
+                        text: (err && err.message) ? err.message : 'Could not delete license status.'
                     });
                 });
             });
@@ -347,8 +651,7 @@
             $('#filterOverlay').removeClass('show');
 
             var formData = $(this).serialize();
-            var baseUrl = "{{ request()->url() }}";
-            var url = formData ? baseUrl + '?' + formData : baseUrl;
+            var url = formData ? licenseIndexUrl + '?' + formData : licenseIndexUrl;
 
             $.ajax({
                 url: url,
@@ -375,4 +678,5 @@
         });
     });
 </script>
+@include('license_categories.settings_script')
 @endsection

@@ -30,8 +30,8 @@ class DeleteRequestsController extends Controller
         );
 
         $query = DeleteRequest::with(['requester', 'reviewer'])
-            // Only primary delete requests (never cascade/child leftovers).
-            ->whereIn('module_key', array_keys(config('delete_approval.modules', [])))
+            // Pending always included so the menu badge matches visible rows.
+            ->forAdminQueue()
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->orderByDesc('created_at');
 
@@ -61,12 +61,13 @@ class DeleteRequestsController extends Controller
         $deleteRequests = $this->applyPagination($query, $paginationParams);
 
         $modules = DeleteRequest::query()
+            ->forAdminQueue()
             ->select('module_key', 'module_name')
             ->distinct()
             ->orderBy('module_name')
             ->get();
 
-        $pendingCount = DeleteRequest::pending()->count();
+        $pendingCount = DeleteRequest::pendingApprovalCount();
 
         return view('delete_requests.index', compact(
             'deleteRequests',

@@ -235,6 +235,11 @@
     padding: 0 6px !important;
   }
 
+  .agreement-word-editor .tox-tinymce .word-ribbon-select.is-page {
+    min-width: 118px !important;
+    max-width: 140px;
+  }
+
   .agreement-word-editor .tox-tinymce .word-ribbon-select.is-size {
     min-width: 58px !important;
     max-width: 64px !important;
@@ -359,6 +364,37 @@
 <script src="{{ asset('vendor/tinymce/tinymce.min.js') }}"></script>
 @php
   $agreementFonts = app(\App\Services\Agreements\AgreementFontSettings::class);
+  $letterheadLayout = app(\App\Services\Agreements\AgreementLetterheadLayout::class);
+  $editorCategory = $category ?? (isset($template) ? $template->category : null);
+  if ($editorCategory && ! $editorCategory instanceof \App\Models\AgreementCategory && isset($template) && method_exists($template, 'loadMissing')) {
+      $template->loadMissing('category');
+      $editorCategory = $template->category;
+  }
+  $editorMargins = $letterheadMargins
+      ?? ($editorCategory instanceof \App\Models\AgreementCategory
+          ? $editorCategory->resolvedLetterheadMarginsMm()
+          : $letterheadLayout->defaultMarginsMm());
+  $editorPageSize = $letterheadLayout->resolvedPageSize($editorCategory instanceof \App\Models\AgreementCategory ? $editorCategory : null);
+  $editorPageW = $editorPageSize['width_mm'];
+  $editorPageH = $editorPageSize['height_mm'];
+  $editorPageSizeKey = $editorPageSize['key'];
+  $editorPageSizes = [];
+  foreach ($letterheadLayout->pageSizeCatalog() as $sizeKey => $size) {
+      $editorPageSizes[$sizeKey] = [
+          'label' => $size['label'],
+          'width' => (float) $size['width_mm'],
+          'height' => (float) $size['height_mm'],
+          'paper' => $size['dompdf'] ?? $sizeKey,
+      ];
+  }
+  $editorFontFaceCss = $agreementFonts->browserFontFaceCss();
+  $editorLayoutSaveUrl = '';
+  if ($editorCategory instanceof \App\Models\AgreementCategory && request()->route('company_slug')) {
+      $editorLayoutSaveUrl = route('agreements.letterhead-layout', [
+          'company_slug' => request()->route('company_slug'),
+          'category' => $editorCategory->id,
+      ]);
+  }
 @endphp
 <script>
   window.erpbkAgreementWordEditor = {
@@ -373,59 +409,155 @@
       ribbonFamilies: @json($agreementFonts->ribbonFamilyOptions()),
       ribbonSizes: @json($agreementFonts->allowedSizesPt()),
     },
+    letterhead: {
+      fontFacesCss: @json($editorFontFaceCss),
+      margins: {
+        top: {{ (float) $editorMargins['top'] }},
+        right: {{ (float) $editorMargins['right'] }},
+        bottom: {{ (float) $editorMargins['bottom'] }},
+        left: {{ (float) $editorMargins['left'] }}
+      },
+      pageWidthMm: {{ $editorPageW }},
+      pageHeightMm: {{ $editorPageH }}
+    },
+    pageSizes: @json($editorPageSizes),
+    pageSizeKey: @json($editorPageSizeKey),
+    categoryId: {{ $editorCategory instanceof \App\Models\AgreementCategory ? (int) $editorCategory->id : 'null' }},
+    layoutSaveUrl: @json($editorLayoutSaveUrl),
+    _ready: false,
     height: function () {
       var viewport = window.innerHeight || 900;
       return Math.max(viewport - 56, 920);
     },
+    currentPageSize: function () {
+      var sizes = this.pageSizes || {};
+      var key = this.pageSizeKey || 'a4';
+      return sizes[key] || sizes.a4 || { label: 'A4', width: 210, height: 297, paper: 'a4' };
+    },
+    applyPageSize: function (key, editor) {
+      var sizes = this.pageSizes || {};
+      if (!sizes[key]) {
+        return;
+      }
+      this.pageSizeKey = key;
+      this.applyPageMetrics(editor);
+      document.querySelectorAll('.agreement-word-editor').forEach(function (el) {
+        el.setAttribute('data-page-size', key);
+      });
+      if (editor) {
+        this.applyPageMargins(editor, this.pageMargins());
+      }
+      this.persistPageSize(key);
+    },
+    persistPageSize: function (key) {
+      var field = document.querySelector('[name="letterhead_margins[page_size]"]');
+      if (field) {
+        field.value = key;
+      }
+      var csrf = document.querySelector('meta[name="csrf-token"]');
+      if (!this.layoutSaveUrl || !csrf) {
+        return;
+      }
+      fetch(this.layoutSaveUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-CSRF-TOKEN': csrf.getAttribute('content'),
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ letterhead_margins: { page_size: key } })
+      }).catch(function () {});
+    },
+    applyPageMetrics: function (editor) {
+      var size = this.currentPageSize();
+      this.pageHeightMm = size.height;
+      this.letterhead.pageWidthMm = size.width;
+      this.letterhead.pageHeightMm = size.height;
+      if (!editor || !editor.getBody()) {
+        return;
+      }
+      var doc = editor.getDoc();
+      var body = editor.getBody();
+      var html = doc ? doc.documentElement : null;
+      var width = size.width + 'mm';
+      var height = size.height + 'mm';
+      if (html) {
+        html.style.setProperty('--word-page-width', width);
+        html.style.setProperty('--word-page-height', height);
+        html.style.background = this.pageCanvas;
+      }
+      body.style.setProperty('--word-page-width', width);
+      body.style.setProperty('--word-page-height', height);
+      body.style.width = width;
+      body.style.maxWidth = 'none';
+      body.style.minWidth = width;
+      body.style.minHeight = height;
+      body.style.height = 'auto';
+    },
     pageCanvas: '#5c5c5c',
-    pageGapPx: 22,
-    pageHeightMm: 297,
+    pageHeightMm: {{ $editorPageH }},
+    editorPadMm: function (margins) {
+      margins = margins || this.pageMargins();
+      return {
+        top: margins.top,
+        right: margins.right,
+        bottom: margins.bottom,
+        left: margins.left
+      };
+    },
     contentStyle: function (margins) {
       margins = margins || this.pageMargins();
-      var pad = [margins.top, margins.right, margins.bottom, margins.left].map(function (v) {
+      var size = this.currentPageSize();
+      var pad = this.editorPadMm(margins);
+      var padCss = [pad.top, pad.right, pad.bottom, pad.left].map(function (v) {
         return v + 'mm';
       }).join(' ');
       var canvas = this.pageCanvas;
       return [
-        'html{background:' + canvas + ';height:100%;}',
-        'body{--word-margin-top:' + margins.top + 'mm;--word-margin-right:' + margins.right + 'mm;',
-        '--word-margin-bottom:' + margins.bottom + 'mm;--word-margin-left:' + margins.left + 'mm;',
+        this.letterhead.fontFacesCss,
+        'html{background:' + canvas + ';min-height:100%;overflow-x:auto;',
+        '--word-page-width:' + size.width + 'mm;--word-page-height:' + size.height + 'mm;}',
+        'body{position:relative;--word-margin-right:' + pad.right + 'mm;--word-margin-left:' + pad.left + 'mm;',
+        '--word-page-width:' + size.width + 'mm;--word-page-height:' + size.height + 'mm;',
         'font-family:' + this.fonts.family + ';font-size:' + this.fonts.sizePt + 'pt;line-height:' + this.fonts.lineHeight + ';color:' + this.fonts.color + ';',
-        'background:#ffffff;width:210mm;max-width:calc(100% - 24px);min-height:297mm;',
-        'margin:20px auto 48px auto !important;padding:' + pad + ';box-sizing:border-box;',
+        'background:#ffffff;width:var(--word-page-width);min-width:var(--word-page-width);max-width:none;min-height:var(--word-page-height);height:auto;',
+        'margin:20px auto 48px auto !important;padding:' + padCss + ';box-sizing:border-box;overflow-x:hidden;',
         'box-shadow:0 1px 4px rgba(0,0,0,.28),0 0 0 1px #cfcfcf;}',
-        '.word-page-gap,[data-word-page-gap]{display:block!important;box-sizing:border-box!important;',
-        'height:calc(var(--word-margin-bottom) + 22px + var(--word-margin-top))!important;',
-        'min-height:calc(var(--word-margin-bottom) + 22px + var(--word-margin-top))!important;',
-        'line-height:0!important;font-size:1px!important;overflow:hidden!important;',
-        'padding:0!important;border:0!important;',
-        'margin:0 calc(-1 * var(--word-margin-right)) 0 calc(-1 * var(--word-margin-left)) !important;',
-        'width:auto!important;max-width:none!important;background:#ffffff!important;',
-        'background-image:linear-gradient(' + canvas + ',' + canvas + ')!important;',
-        'background-repeat:no-repeat!important;background-size:100% 22px!important;',
-        'background-position:0 var(--word-margin-bottom)!important;',
-        'box-shadow:none!important;user-select:none!important;pointer-events:none!important;clear:both!important;}',
-        'img.mce-pagebreak{display:block!important;border:0!important;outline:0!important;',
-        'height:calc(var(--word-margin-bottom) + 22px + var(--word-margin-top))!important;',
-        'width:210mm!important;max-width:none!important;background:#ffffff!important;',
-        'background-image:linear-gradient(' + canvas + ',' + canvas + ')!important;',
-        'background-repeat:no-repeat!important;background-size:100% 22px!important;',
-        'background-position:0 var(--word-margin-bottom)!important;',
-        'margin:0 0 0 calc(-1 * var(--word-margin-left)) !important;}',
-        'table{border-collapse:collapse;width:100%;}',
-        'table td,table th{border:1px solid #94a3b8;padding:4px 8px;}',
+        'img.mce-pagebreak{max-width:none;}',
+        'table{border-collapse:collapse;width:100%;max-width:100%;margin:4pt 0;}',
+        'table td,table th{border:1px solid #94a3b8;padding:4px 8px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;}',
+        'p,h1,h2,h3,h4,li,div{max-width:100%;box-sizing:border-box;}',
         'p{margin:0 0 .5em;}',
         'h1,h2,h3,h4{margin:0 0 .55em;line-height:1.25;}',
         'h1{font-size:' + this.fonts.headings.h1 + 'pt;}',
         'h2{font-size:' + this.fonts.headings.h2 + 'pt;}',
         'h3{font-size:' + this.fonts.headings.h3 + 'pt;}',
         'h4{font-size:' + this.fonts.headings.h4 + 'pt;}',
+        'ul,ol{margin:2pt 0 4pt 16pt;padding:0;max-width:100%;}',
+        'li{margin:0 0 2pt;}',
+        'hr{border:0;border-top:1px solid #94a3b8;margin:8pt 0;}',
+        '.agreement-page-break,[data-agreement-page-break],img.mce-pagebreak{display:block!important;box-sizing:border-box!important;',
+        'width:calc(100% + var(--word-margin-left,12mm) + var(--word-margin-right,12mm))!important;',
+        'margin:12pt calc(-1 * var(--word-margin-right,12mm)) 12pt calc(-1 * var(--word-margin-left,12mm))!important;',
+        'height:22px!important;padding:0!important;overflow:hidden!important;cursor:default!important;',
+        'border:0!important;border-top:2px dashed #185abd!important;background:transparent!important;',
+        'font-size:0!important;line-height:0!important;color:transparent!important;user-select:none!important;}',
+        '.word-page-gap,[data-word-page-gap]{display:none!important;height:0!important;width:0!important;',
+        'margin:0!important;padding:0!important;overflow:hidden!important;border:0!important;}',
+        'strong,b{font-weight:700;}',
+        'em,i{font-style:italic;}',
         'img:not(.mce-pagebreak){max-width:100%;height:auto;}'
       ].join('');
     },
     pageMargins: function () {
       var wrap = document.querySelector('.agreement-word-editor');
-      var defaults = { top: 18, right: 12, bottom: 0, left: 12 };
+      var defaults = {
+        top: this.letterhead.margins.top,
+        right: this.letterhead.margins.right,
+        bottom: this.letterhead.margins.bottom,
+        left: this.letterhead.margins.left
+      };
       if (!wrap) {
         return defaults;
       }
@@ -445,12 +577,11 @@
       if (!editor || !editor.getBody()) {
         return;
       }
+      var pad = this.editorPadMm(margins);
       var body = editor.getBody();
-      body.style.padding = margins.top + 'mm ' + margins.right + 'mm ' + margins.bottom + 'mm ' + margins.left + 'mm';
-      body.style.setProperty('--word-margin-top', margins.top + 'mm');
-      body.style.setProperty('--word-margin-right', margins.right + 'mm');
-      body.style.setProperty('--word-margin-bottom', margins.bottom + 'mm');
-      body.style.setProperty('--word-margin-left', margins.left + 'mm');
+      body.style.padding = pad.top + 'mm ' + pad.right + 'mm ' + pad.bottom + 'mm ' + pad.left + 'mm';
+      body.style.setProperty('--word-margin-right', pad.right + 'mm');
+      body.style.setProperty('--word-margin-left', pad.left + 'mm');
       var wrap = document.querySelector('.agreement-word-editor');
       if (wrap) {
         wrap.setAttribute('data-margin-left', String(margins.left));
@@ -461,224 +592,71 @@
       var leftField = document.querySelector('input[name="letterhead_margins[left]"]');
       var rightField = document.querySelector('input[name="letterhead_margins[right]"]');
       var bottomField = document.querySelector('input[name="letterhead_margins[bottom]"]');
+      var topField = document.querySelector('input[name="letterhead_margins[top]"]');
       if (leftField) leftField.value = margins.left;
       if (rightField) rightField.value = margins.right;
       if (bottomField) bottomField.value = margins.bottom;
-      this.paginate(editor);
+      if (topField) topField.value = margins.top;
+      this.applyPageMetrics(editor);
     },
-    debounce: function (fn, wait) {
-      var timer;
-      return function () {
-        var ctx = this;
-        var args = arguments;
-        clearTimeout(timer);
-        timer = setTimeout(function () {
-          fn.apply(ctx, args);
-        }, wait);
-      };
-    },
-    pageHeightPx: function (doc) {
-      if (!doc || !doc.body) {
-        return 1123;
+    insertPageBreak: function (editor) {
+      if (!editor) {
+        return;
       }
-      var probe = doc.createElement('div');
-      probe.style.cssText = 'position:absolute;left:-9999px;top:0;height:' + this.pageHeightMm + 'mm;width:1px;visibility:hidden;';
-      doc.body.appendChild(probe);
-      var px = probe.offsetHeight;
-      probe.parentNode.removeChild(probe);
-      return px > 50 ? px : 1123;
-    },
-    _createPageGap: function (doc) {
-      var gap = doc.createElement('div');
-      gap.className = 'word-page-gap';
-      gap.setAttribute('data-word-page-gap', '1');
-      gap.setAttribute('data-mce-bogus', 'all');
-      gap.setAttribute('contenteditable', 'false');
-      gap.appendChild(doc.createTextNode('\u00a0'));
-      return gap;
+      editor.focus();
+      editor.insertContent('<p class="agreement-page-break" data-agreement-page-break="1" contenteditable="false">&nbsp;</p>');
     },
     _removePageGaps: function (body) {
-      Array.prototype.slice.call(body.querySelectorAll('[data-word-page-gap], .word-page-gap')).forEach(function (el) {
+      if (!body) {
+        return;
+      }
+      Array.prototype.slice.call(body.querySelectorAll(
+        '[data-word-page-gap], .word-page-gap, .word-letterhead-stack, .word-letterhead-page'
+      )).forEach(function (el) {
         if (el.parentNode) {
           el.parentNode.removeChild(el);
         }
       });
     },
-    _gapNearY: function (body, yFromBodyTop, threshold) {
-      var bodyRect = body.getBoundingClientRect();
-      var gaps = body.querySelectorAll('[data-word-page-gap], img.mce-pagebreak');
-      var i;
-      for (i = 0; i < gaps.length; i++) {
-        var top = gaps[i].getBoundingClientRect().top - bodyRect.top;
-        if (Math.abs(top - yFromBodyTop) < threshold) {
-          return true;
-        }
+    stripPaginationChrome: function (html) {
+      if (typeof html !== 'string' || html === '') {
+        return html;
       }
-      return false;
+      return html
+        .replace(/<div[^>]*class="[^"]*word-letterhead-(?:stack|page|chrome)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+        .replace(/<div[^>]*data-word-page-gap[^>]*>[\s\S]*?<\/div>/gi, '')
+        .replace(/<div[^>]*class="[^"]*word-page-gap[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
     },
-    _insertPageGap: function (editor, yFromBodyTop) {
-      var doc = editor.getDoc();
-      var win = editor.getWin();
-      var body = editor.getBody();
-      var html = doc.documentElement;
-      var prevScroll = html.scrollTop || (win && win.scrollY) || 0;
-      var iframeH = (win && win.innerHeight) || 800;
-      var bodyRect = body.getBoundingClientRect();
-      var clientY = bodyRect.top + yFromBodyTop;
-      var scrolled = false;
-
-      if (clientY < 12 || clientY > iframeH - 12) {
-        html.scrollTop = Math.max(0, prevScroll + clientY - Math.round(iframeH / 2));
-        scrolled = true;
-        bodyRect = body.getBoundingClientRect();
-      }
-
-      try {
-        if (this._gapNearY(body, yFromBodyTop, 28)) {
-          return;
-        }
-
-        var gap = this._createPageGap(doc);
-        var x = bodyRect.left + Math.max(24, Math.min(bodyRect.width / 2, 120));
-        var y = bodyRect.top + yFromBodyTop - 1;
-        var range = null;
-
-        try {
-          if (typeof doc.caretRangeFromPoint === 'function') {
-            range = doc.caretRangeFromPoint(x, y);
-          } else if (typeof doc.caretPositionFromPoint === 'function') {
-            var pos = doc.caretPositionFromPoint(x, y);
-            if (pos && pos.offsetNode) {
-              range = doc.createRange();
-              range.setStart(pos.offsetNode, pos.offset);
-              range.collapse(true);
-            }
-          }
-        } catch (err) {
-          range = null;
-        }
-
-        if (range && range.startContainer && body.contains(range.startContainer)) {
-          var node = range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentNode;
-          if (node && node.closest && node.closest('[data-word-page-gap], .word-page-gap')) {
-            return;
-          }
-          if (node && node.closest) {
-            var table = node.closest('table');
-            if (table && body.contains(table)) {
-              table.parentNode.insertBefore(gap, table);
-              return;
-            }
-          }
-          try {
-            range.insertNode(gap);
-            return;
-          } catch (err2) {}
-        }
-
-        var child = body.firstChild;
-        while (child) {
-          var next = child.nextSibling;
-          if (child.nodeType === 1 && !child.hasAttribute('data-word-page-gap') && !(child.classList && child.classList.contains('word-page-gap'))) {
-            var top = child.getBoundingClientRect().top - bodyRect.top;
-            var bottom = top + child.offsetHeight;
-            if (top >= yFromBodyTop - 1 || (top < yFromBodyTop && bottom > yFromBodyTop)) {
-              body.insertBefore(gap, child);
-              return;
-            }
-          }
-          child = next;
-        }
-      } finally {
-        if (scrolled) {
-          html.scrollTop = prevScroll;
-        }
-      }
-    },
-    paginate: function (editor) {
-      if (!editor || this._paging || typeof editor.getBody !== 'function') {
-        return;
-      }
-      var body = editor.getBody();
-      if (!body || !body.isConnected) {
-        return;
-      }
-      this._paging = true;
+    attachPageLayout: function (editor) {
       var self = this;
-      var run = function () {
-        self._removePageGaps(body);
-        var pagePx = self.pageHeightPx(editor.getDoc());
-        var gapPx = self.pageGapPx;
-        var computed = editor.getWin().getComputedStyle(body);
-        var padBottom = parseFloat(computed.paddingBottom) || 0;
-        body.style.minHeight = pagePx + 'px';
-
-        if (body.scrollHeight <= pagePx + 2) {
-          return;
-        }
-
-        var bookmark = null;
-        try {
-          bookmark = editor.selection.getBookmark(2, true);
-        } catch (err) {}
-
-        var pageIndex = 1;
-        var maxPages = 40;
-        while (pageIndex < maxPages) {
-          var boundary = pageIndex * pagePx + (pageIndex - 1) * gapPx - padBottom;
-          if (boundary < pagePx * 0.4) {
-            break;
-          }
-          if (body.scrollHeight <= boundary + 6) {
-            break;
-          }
-          self._insertPageGap(editor, boundary);
-          pageIndex += 1;
-        }
-
-        var gaps = body.querySelectorAll('[data-word-page-gap], .word-page-gap').length;
-        var pages = Math.max(1, gaps + 1);
-        body.style.minHeight = (pages * pagePx + gaps * gapPx) + 'px';
-
-        if (bookmark) {
-          try {
-            editor.selection.moveToBookmark(bookmark);
-          } catch (err2) {}
+      var clean = function () {
+        if (editor && typeof editor.getBody === 'function') {
+          self._removePageGaps(editor.getBody());
         }
       };
-
-      try {
-        if (editor.undoManager && typeof editor.undoManager.ignore === 'function') {
-          editor.undoManager.ignore(run);
-        } else {
-          run();
-        }
-      } finally {
-        this._paging = false;
-      }
-    },
-    attachPagination: function (editor) {
-      var self = this;
-      var soon = this.debounce(function () {
-        self.paginate(editor);
-      }, 200);
       editor.on('init', function () {
+        var wrap = document.querySelector('.agreement-word-editor');
+        var margins = self.pageMargins();
+        if (wrap) {
+          wrap.setAttribute('data-page-size', self.pageSizeKey || 'a4');
+          ['top', 'right', 'bottom', 'left'].forEach(function (side) {
+            if (wrap.getAttribute('data-margin-' + side) === null || wrap.getAttribute('data-margin-' + side) === '') {
+              wrap.setAttribute('data-margin-' + side, String(margins[side]));
+            }
+          });
+        }
         self.applyPageMargins(editor, self.pageMargins());
-        setTimeout(function () {
-          self.paginate(editor);
-        }, 30);
+        clean();
+        self._ready = true;
       });
-      editor.on('input SetContent change Undo Redo KeyUp', soon);
-      editor.on('ResizeEditor', function () {
-        self.paginate(editor);
+      editor.on('SetContent', function () {
+        clean();
       });
       editor.on('GetContent', function (e) {
-        if (typeof e.content !== 'string' || e.content === '') {
+        if (e.selection || e.format === 'tree' || typeof e.content !== 'string' || e.content === '') {
           return;
         }
-        e.content = e.content
-          .replace(/<div[^>]*data-word-page-gap[^>]*>[\s\S]*?<\/div>/gi, '')
-          .replace(/<div[^>]*class="[^"]*word-page-gap[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+        e.content = self.stripPaginationChrome(e.content);
       });
     },
     icon: function (name) {
@@ -703,8 +681,10 @@
         outdent: '<path d="M9 6h12M13 12h8M9 18h12M4 9l3 3-3 3"/>',
         indent: '<path d="M3 6h12M3 12h8M3 18h12M21 9l-3 3 3 3"/>',
         table: '<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M3 10h18M3 16h18M9 4v16M15 4v16"/>',
+        image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5" fill="currentColor"/><path d="m21 15-5-5-9 9"/>',
         link: '<path d="M10 13a5 5 0 0 0 7.5.1l1.4-1.4a5 5 0 0 0-7.1-7.1L10.5 6"/><path d="M14 11a5 5 0 0 0-7.5-.1L5.1 12.3a5 5 0 0 0 7.1 7.1L13.5 18"/>',
         hr: '<path d="M5 12h14"/><path d="M8 8v8M16 8v8"/>',
+        pageBreak: '<path d="M6 4h12v5M6 20h12v-5"/><path stroke-dasharray="2 2" d="M4 12h16"/>',
         page: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M9 8h6M9 12h6M9 16h3"/>',
         find: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/>',
         code: '<path d="m8 8-5 4 5 4M16 8l5 4-5 4"/>',
@@ -726,7 +706,14 @@
       var sizeOptions = this.fonts.ribbonSizes.map(function (size) {
         var label = String(size).replace(/\.0$/, '') + 'pt';
         var selected = label === defaultSize ? ' selected' : '';
-        return '<option' + selected + '>' + label + '</option>';
+        return '<option value="' + label + '"' + selected + '>' + label + '</option>';
+      }).join('');
+      var pageSizeKey = this.pageSizeKey || 'a4';
+      var pageSizes = this.pageSizes || {};
+      var pageSizeOptions = Object.keys(pageSizes).map(function (key) {
+        var size = pageSizes[key];
+        var selected = key === pageSizeKey ? ' selected' : '';
+        return '<option value="' + key + '"' + selected + '>' + size.label + '</option>';
       }).join('');
       return [
         '<div class="word-ribbon-tabs">',
@@ -794,8 +781,9 @@
         '        <div class="word-ribbon-table-picker"><div class="word-ribbon-table-grid"></div><div class="word-ribbon-table-caption">Insert table</div></div>',
         '      </div>',
         '      <button type="button" class="word-ribbon-btn is-large" data-ui="link" title="Link">' + i('link') + 'Link</button>',
+        '      <button type="button" class="word-ribbon-btn is-large" data-insert-image title="Picture">' + i('image') + 'Picture</button>',
+        '      <button type="button" class="word-ribbon-btn is-large" data-insert-page-break title="Page break — start the next PDF page">' + i('pageBreak') + 'Page break</button>',
         '      <button type="button" class="word-ribbon-btn is-large" data-cmd="InsertHorizontalRule" title="Horizontal line">' + i('hr') + 'Line</button>',
-        '      <button type="button" class="word-ribbon-btn is-large" data-cmd="mcePageBreak" title="Page break">' + i('page') + 'Page</button>',
         '    </div><div class="word-ribbon-group-label">Insert</div></div>',
         '  </div>',
         '  <div class="word-ribbon-panel" data-word-panel="layout">',
@@ -816,6 +804,11 @@
         '      </div></div></div><div class="word-ribbon-group-label">Paragraph</div></div>',
         '    <div class="word-ribbon-group"><div class="word-ribbon-group-body"><div class="word-ribbon-col">',
         '      <div class="word-ribbon-row">',
+        '        <span class="word-ribbon-field-label">Top</span>',
+        '        <input type="number" class="word-ribbon-select is-size" data-page-margin="top" min="30" max="100" step="0.5" title="Top margin includes the letterhead header (mm)">',
+        '        <span class="word-ribbon-field-label">mm</span>',
+        '      </div>',
+        '      <div class="word-ribbon-row">',
         '        <span class="word-ribbon-field-label">Left</span>',
         '        <input type="number" class="word-ribbon-select is-size" data-page-margin="left" min="5" max="40" step="0.5" title="Left margin (mm)">',
         '        <span class="word-ribbon-field-label">mm</span>',
@@ -830,9 +823,14 @@
         '        <input type="number" class="word-ribbon-select is-size" data-page-margin="bottom" min="0" max="40" step="0.5" title="Bottom margin (mm)">',
         '        <span class="word-ribbon-field-label">mm</span>',
         '      </div></div></div><div class="word-ribbon-group-label">Margins</div></div>',
-        '    <div class="word-ribbon-group"><div class="word-ribbon-group-body">',
-        '      <button type="button" class="word-ribbon-btn is-large" data-cmd="mcePageBreak" title="Page break">' + i('page') + 'Breaks</button>',
-        '    </div><div class="word-ribbon-group-label">Page Setup</div></div>',
+        '    <div class="word-ribbon-group"><div class="word-ribbon-group-body"><div class="word-ribbon-col">',
+        '      <div class="word-ribbon-row">',
+        '        <span class="word-ribbon-field-label">Size</span>',
+        '        <select class="word-ribbon-select is-page" data-page-size title="Page size">',
+        pageSizeOptions,
+        '        </select>',
+        '      </div>',
+        '    </div></div><div class="word-ribbon-group-label">Page</div></div>',
         '  </div>',
         '  <div class="word-ribbon-panel" data-word-panel="view">',
         '    <div class="word-ribbon-group"><div class="word-ribbon-group-body">',
@@ -963,15 +961,16 @@
           if (isNaN(value)) {
             return;
           }
-          var min = side === 'bottom' ? 0 : 5;
-          value = Math.max(min, Math.min(40, value));
+          var min = side === 'bottom' ? 0 : (side === 'top' ? 30 : 5);
+          var max = side === 'top' ? 100 : 40;
+          value = Math.max(min, Math.min(max, value));
           input.value = value;
           next[side] = value;
           self.applyPageMargins(editor, next);
         });
       });
 
-      ['left', 'right', 'bottom'].forEach(function (side) {
+      ['left', 'right', 'bottom', 'top'].forEach(function (side) {
         var field = document.querySelector('input[name="letterhead_margins[' + side + ']"]');
         if (!field) {
           return;
@@ -990,6 +989,24 @@
           self.applyPageMargins(editor, next);
         });
       });
+
+      var pageSize = ribbon.querySelector('[data-page-size]');
+      if (pageSize) {
+        pageSize.value = self.pageSizeKey || 'a4';
+        pageSize.addEventListener('change', function () {
+          self.applyPageSize(pageSize.value, editor);
+        });
+      }
+
+      var formPageSize = document.querySelector('[name="letterhead_margins[page_size]"]');
+      if (formPageSize) {
+        formPageSize.addEventListener('change', function () {
+          self.applyPageSize(formPageSize.value, editor);
+          if (pageSize) {
+            pageSize.value = formPageSize.value;
+          }
+        });
+      }
 
       var tableWrap = ribbon.querySelector('.word-ribbon-table-wrap');
       var tableGrid = ribbon.querySelector('.word-ribbon-table-grid');
@@ -1042,7 +1059,189 @@
         });
       }
 
-      editor.on('NodeChange', function () {
+      var pageBreakBtn = ribbon.querySelector('[data-insert-page-break]');
+      if (pageBreakBtn) {
+        pageBreakBtn.addEventListener('click', function () {
+          self.insertPageBreak(editor);
+        });
+      }
+
+      var imageBtn = ribbon.querySelector('[data-insert-image]');
+      if (imageBtn) {
+        var imageInput = document.createElement('input');
+        imageInput.type = 'file';
+        imageInput.accept = 'image/jpeg,image/png,image/gif,image/webp';
+        imageInput.hidden = true;
+        ribbon.appendChild(imageInput);
+        imageBtn.addEventListener('click', function () {
+          imageInput.click();
+        });
+        imageInput.addEventListener('change', function () {
+          var file = imageInput.files && imageInput.files[0];
+          imageInput.value = '';
+          if (!file) {
+            return;
+          }
+          var reader = new FileReader();
+          reader.onload = function () {
+            var src = String(reader.result || '');
+            if (src.indexOf('data:image/') !== 0) {
+              return;
+            }
+            var probe = new Image();
+            probe.onload = function () {
+              var w = probe.naturalWidth || 400;
+              var h = probe.naturalHeight || 300;
+              var max = 680;
+              if (w > max) {
+                h = Math.round(h * max / w);
+                w = max;
+              }
+              editor.focus();
+              editor.insertContent(
+                '<p><img src="' + src.replace(/"/g, '') + '" alt="" width="' + w + '" height="' + h +
+                '" style="width:' + w + 'px;height:' + h + 'px;max-width:100%;"></p>'
+              );
+            };
+            probe.src = src;
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function selectionElement() {
+        var node = editor.selection ? editor.selection.getNode() : null;
+        if (!node) {
+          return null;
+        }
+        if (node.nodeType === 3) {
+          return node.parentElement;
+        }
+        return node.nodeType === 1 ? node : null;
+      }
+
+      function rgbToHex(value) {
+        if (!value) {
+          return null;
+        }
+        value = String(value).trim();
+        if (/^#[0-9a-f]{6}$/i.test(value)) {
+          return value.toLowerCase();
+        }
+        var match = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+        if (!match) {
+          return null;
+        }
+        return '#' + [match[1], match[2], match[3]].map(function (part) {
+          return ('0' + parseInt(part, 10).toString(16)).slice(-2);
+        }).join('');
+      }
+
+      function normalizeFamilyToken(value) {
+        return String(value || '')
+          .replace(/^["']+|["']+$/g, '')
+          .split(',')[0]
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, ' ');
+      }
+
+      function matchFontFamily(raw) {
+        if (!fontFamily) {
+          return;
+        }
+        var token = normalizeFamilyToken(raw);
+        if (!token) {
+          return;
+        }
+        var options = Array.prototype.slice.call(fontFamily.options || []);
+        var match = options.find(function (opt) {
+          return normalizeFamilyToken(opt.value) === token || normalizeFamilyToken(opt.text) === token;
+        }) || options.find(function (opt) {
+          var label = normalizeFamilyToken(opt.text);
+          var value = normalizeFamilyToken(opt.value);
+          return token.indexOf(label) === 0 || value.indexOf(token) === 0 || token.indexOf(value) === 0;
+        });
+        if (match) {
+          fontFamily.value = match.value;
+        }
+      }
+
+      function sizeToPt(raw) {
+        var value = String(raw || '').trim().toLowerCase();
+        if (!value) {
+          return null;
+        }
+        var match = value.match(/^([\d.]+)\s*(pt|px|em|rem|%)$/);
+        if (!match) {
+          var bare = parseFloat(value);
+          return isNaN(bare) ? null : bare;
+        }
+        var num = parseFloat(match[1]);
+        if (isNaN(num)) {
+          return null;
+        }
+        if (match[2] === 'px') {
+          return num * 72 / 96;
+        }
+        if (match[2] === 'em' || match[2] === 'rem') {
+          return num * (self.fonts.sizePt || 11);
+        }
+        return num;
+      }
+
+      function matchFontSize(raw) {
+        if (!fontSize) {
+          return;
+        }
+        var pt = sizeToPt(raw);
+        if (pt == null) {
+          return;
+        }
+        var options = Array.prototype.slice.call(fontSize.options || []);
+        var best = null;
+        var bestDelta = Infinity;
+        options.forEach(function (opt) {
+          var optPt = sizeToPt(opt.value || opt.text);
+          if (optPt == null) {
+            return;
+          }
+          var delta = Math.abs(optPt - pt);
+          if (delta < bestDelta) {
+            bestDelta = delta;
+            best = opt;
+          }
+        });
+        if (best && bestDelta <= 0.75) {
+          fontSize.value = best.value || best.text;
+        }
+      }
+
+      function matchBlockFormat() {
+        var block = 'p';
+        try {
+          var value = String(editor.queryCommandValue('FormatBlock') || '').toLowerCase();
+          value = value.replace(/[<>]/g, '');
+          if (value) {
+            block = value;
+          }
+        } catch (err) {}
+        var el = selectionElement();
+        if (el && el.closest) {
+          var heading = el.closest('h1,h2,h3,h4,h5,h6,p');
+          if (heading) {
+            block = heading.tagName.toLowerCase();
+          }
+        }
+        if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].indexOf(block) === -1) {
+          block = 'p';
+        }
+        ribbon.querySelectorAll('[data-format]').forEach(function (btn) {
+          btn.classList.toggle('is-active', btn.getAttribute('data-format') === block);
+        });
+      }
+
+      function syncRibbonFromSelection() {
         ribbon.querySelectorAll('[data-state]').forEach(function (btn) {
           var state = false;
           try {
@@ -1050,6 +1249,73 @@
           } catch (err) {}
           btn.classList.toggle('is-active', state);
         });
+
+        var familyRaw = '';
+        var sizeRaw = '';
+        var foreRaw = '';
+        var backRaw = '';
+        try {
+          familyRaw = editor.queryCommandValue('FontName') || '';
+        } catch (err) {}
+        try {
+          sizeRaw = editor.queryCommandValue('FontSize') || '';
+        } catch (err) {}
+        try {
+          foreRaw = editor.queryCommandValue('ForeColor') || '';
+        } catch (err) {}
+        try {
+          backRaw = editor.queryCommandValue('HiliteColor') || editor.queryCommandValue('BackColor') || '';
+        } catch (err) {}
+
+        var el = selectionElement();
+        if (el && el.ownerDocument && el.ownerDocument.defaultView) {
+          var cs = el.ownerDocument.defaultView.getComputedStyle(el);
+          if (!familyRaw) {
+            familyRaw = cs.fontFamily || '';
+          }
+          if (!sizeRaw) {
+            sizeRaw = cs.fontSize || '';
+          }
+          if (!foreRaw) {
+            foreRaw = cs.color || '';
+          }
+          if (lineHeight && cs.lineHeight && cs.fontSize) {
+            var lhPx = parseFloat(cs.lineHeight);
+            var fsPx = parseFloat(cs.fontSize);
+            if (!isNaN(lhPx) && !isNaN(fsPx) && fsPx > 0) {
+              var ratio = (Math.round((lhPx / fsPx) * 100) / 100).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+              var lhOptions = Array.prototype.slice.call(lineHeight.options || []);
+              var lhMatch = lhOptions.find(function (opt) {
+                return Math.abs(parseFloat(opt.value) - parseFloat(ratio)) < 0.06;
+              });
+              if (lhMatch) {
+                lineHeight.value = lhMatch.value;
+              }
+            }
+          }
+        }
+
+        matchFontFamily(familyRaw);
+        matchFontSize(sizeRaw);
+        matchBlockFormat();
+
+        var fore = rgbToHex(foreRaw);
+        var foreInput = ribbon.querySelector('[data-color-cmd="ForeColor"]');
+        if (fore && foreInput && fore !== '#00000000') {
+          foreInput.value = fore;
+        }
+        var back = rgbToHex(backRaw);
+        var backInput = ribbon.querySelector('[data-color-cmd="HiliteColor"]');
+        if (back && backInput && back !== '#00000000' && back !== '#ffffff') {
+          backInput.value = back;
+        }
+      }
+
+      editor.on('NodeChange', syncRibbonFromSelection);
+      editor.on('keyup', syncRibbonFromSelection);
+      editor.on('mouseup', syncRibbonFromSelection);
+      editor.on('init', function () {
+        setTimeout(syncRibbonFromSelection, 0);
       });
     },
     config: function (overrides) {
@@ -1060,19 +1326,28 @@
         height: this.height(),
         menubar: false,
         toolbar: false,
-        plugins: 'lists link table code fullscreen preview pagebreak searchreplace wordcount',
+        plugins: 'lists link table code fullscreen preview searchreplace wordcount',
         base_url: @json(asset('vendor/tinymce')),
         suffix: '.min',
         branding: false,
         promotion: false,
         resize: true,
         statusbar: true,
+        content_css: false,
+        allow_html_data_urls: true,
+        convert_urls: false,
+        paste_data_images: true,
+        automatic_uploads: false,
+        convert_unsafe_embeds: false,
         font_size_formats: this.fonts.sizeFormats,
         font_family_formats: this.fonts.familyFormats,
+        extended_valid_elements: 'p[data-agreement-page-break|class|style|contenteditable|aria-hidden],div[data-agreement-page-break|class|style|contenteditable|aria-hidden],span[*],h1[*],h2[*],h3[*],h4[*],td[*],th[*],li[*],table[*],img[class|src|alt|title|width|height|style|data-mce-pagebreak]',
+        pagebreak_separator: '<p class="agreement-page-break" data-agreement-page-break="1" contenteditable="false">&nbsp;</p>',
         pagebreak_split_block: true,
+        remove_trailing_brs: false,
         content_style: this.contentStyle(),
         setup: function (editor) {
-          self.attachPagination(editor);
+          self.attachPageLayout(editor);
           editor.on('init', function () {
             self.attachRibbon(editor);
           });

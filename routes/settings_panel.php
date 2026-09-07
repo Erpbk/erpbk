@@ -51,6 +51,8 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('license-statuses', App\Http\Controllers\LicenseStatusController::class)->names('settings-panel.license-statuses');
     Route::post('license-statuses/reorder', [App\Http\Controllers\LicenseStatusController::class, 'reorder'])->name('settings-panel.license-statuses.reorder');
     Route::get('license-statuses/{id}/toggle-active', [App\Http\Controllers\LicenseStatusController::class, 'toggleActive'])->name('settings-panel.license-statuses.toggle-active');
+    Route::resource('license-categories', App\Http\Controllers\LicenseCategoryController::class)->only(['index', 'store', 'update', 'destroy'])->names('settings-panel.license-categories');
+    Route::post('license-categories/reorder', [App\Http\Controllers\LicenseCategoryController::class, 'reorder'])->name('settings-panel.license-categories.reorder');
     Route::post('bike-registration-statuses/reorder', [App\Http\Controllers\BikeRegistrationStatusController::class, 'reorder'])->name('settings-panel.bike-registration-statuses.reorder');
     Route::get('bike-registration-statuses/{id}/toggle-active', [App\Http\Controllers\BikeRegistrationStatusController::class, 'toggleActive'])->name('settings-panel.bike-registration-statuses.toggle-active');
     Route::resource('bike-registration-statuses', App\Http\Controllers\BikeRegistrationStatusController::class)->names('settings-panel.bike-registration-statuses');
@@ -324,6 +326,10 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::delete('options/{id}', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'destroyOption'])->name('destroy-option');
         Route::post('categories/reorder', [App\Http\Controllers\ModuleTopBarSettingsController::class, 'reorderCategories'])->name('reorder-categories');
     });
+
+    Route::post('agreement-letterheads', [App\Http\Controllers\AgreementLetterheadSettingsController::class, 'store'])->name('settings-panel.agreement-letterheads.store');
+    Route::put('agreement-letterheads/{letterhead}', [App\Http\Controllers\AgreementLetterheadSettingsController::class, 'update'])->name('settings-panel.agreement-letterheads.update')->whereNumber('letterhead');
+    Route::delete('agreement-letterheads/{letterhead}', [App\Http\Controllers\AgreementLetterheadSettingsController::class, 'destroy'])->name('settings-panel.agreement-letterheads.destroy')->whereNumber('letterhead');
 
     // Agreements moved to main app sidebar — redirect legacy settings-panel URLs
     Route::any('agreements/{path?}', function (Request $request, string $company_slug, ?string $path = null) {

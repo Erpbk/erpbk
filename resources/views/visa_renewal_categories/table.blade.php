@@ -36,11 +36,12 @@ $returnTo = $returnTo ?? null;
                     </span>
                 </td>
                 <td>
-                    <div class="btn-group">
+                    <div class="visa-row-actions">
                         @can('visa_expense_edit')
                         @if($embeddedManager)
                         <button type="button"
-                            class="btn btn-sm btn-primary js-visa-renewal-edit-btn"
+                            class="visa-icon-btn visa-icon-btn-edit js-visa-renewal-edit-btn"
+                            title="Edit"
                             data-bs-toggle="modal"
                             data-bs-target="#editVisaRenewalCategoryModal"
                             data-id="{{ $category->id }}"
@@ -48,16 +49,17 @@ $returnTo = $returnTo ?? null;
                             data-display-order="{{ $category->display_order }}"
                             data-is-default="{{ $category->is_default ? 1 : 0 }}"
                             data-is-active="{{ $category->is_active ? 1 : 0 }}">
-                            <i class="fas fa-edit"></i>
+                            <i class="ti ti-pencil"></i>
                         </button>
                         @endif
                         @endcan
                         @can('visa_expense_delete')
                         @if(!$category->is_default)
                         <button type="button"
-                            class="btn btn-sm btn-danger js-visa-renewal-delete-btn"
+                            class="visa-icon-btn visa-icon-btn-delete js-visa-renewal-delete-btn"
+                            title="Delete"
                             data-delete-url="{{ route($routePrefix . '.destroy', $category->id) . ($returnTo ? ('?return_to=' . urlencode($returnTo)) : '') }}">
-                            <i class="fas fa-trash"></i>
+                            <i class="ti ti-trash"></i>
                         </button>
                         @endif
                         @endcan

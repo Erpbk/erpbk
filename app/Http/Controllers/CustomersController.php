@@ -213,14 +213,16 @@ class CustomersController extends AppBaseController
     $customers = $this->customersRepository->find($id);
 
     if (empty($customers)) {
-      Flash::error('Customer not found!');
-      return redirect(route('customers.index'));
+      return delete_error_response('Customer not found!', route('customers.index'), 404);
     }
 
     // Check if customer has transactions - protect from deletion
-    if ($customers->transactions()->count() > 0) {
-      Flash::error('Cannot delete customer. Customer has ' . $customers->transactions()->count() . ' transaction(s). Please deactivate instead.');
-      return redirect(route('customers.index'));
+    $transactionCount = $customers->transactions()->count();
+    if ($transactionCount > 0) {
+      return delete_error_response(
+        'Cannot delete customer. Customer has ' . $transactionCount . ' transaction(s). Please deactivate instead.',
+        route('customers.index')
+      );
     }
 
     // Track cascaded deletions
@@ -267,7 +269,20 @@ class CustomersController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    Flash::success('Customer moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=customers" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    $trashUrl = route('settings-panel.trash.index') . '?module=customers';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Customer', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Customer moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
+    }
+
+    Flash::success('Customer moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
     return redirect(route('customers.index'));
   }
 

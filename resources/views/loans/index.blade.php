@@ -91,7 +91,10 @@
 @endsection
 
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Loan',
+    'confirmText' => 'This will move the loan (and its installments) to the Recycle Bin, or submit a delete request if approval is required.',
+])
 <script>
 function confirmDisburse(url) {
     Swal.fire({
@@ -118,37 +121,8 @@ function confirmDisburse(url) {
         });
     });
 }
-
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: 'This will move the loan (and its installments) to the Recycle Bin, or submit a delete request if approval is required.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes, delete it'
-    }).then((result) => {
-        if (!result.isConfirmed) return;
-        $('#loading-overlay').show();
-        $.ajax({
-            url: url,
-            type: 'DELETE',
-            data: { _token: '{{ csrf_token() }}' },
-            success: function(response) {
-                $('#loading-overlay').hide();
-                Swal.fire({
-                    icon: 'success',
-                    title: response.pending_approval ? 'Request Submitted' : 'Deleted',
-                    text: response.message
-                }).then(() => location.reload());
-            },
-            error: function(xhr) {
-                $('#loading-overlay').hide();
-                Swal.fire({ icon: 'error', title: 'Error', text: xhr.responseJSON?.message || 'Delete failed.' });
-            }
-        });
-    });
-}
-
+</script>
+<script>
 $(document).ready(function() {
     $('#status, #branch_id').select2({ dropdownParent: $('#searchTopbody'), allowClear: true });
 

@@ -50,19 +50,18 @@ class ModuleContractController extends Controller
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
 
         $withLetterhead = $request->boolean('letterhead', true);
-        $html = $this->pdfService->renderHtmlForModule($template, $module, $recordModel, $agreementDate, false, false, $withLetterhead);
-
-        $pdfDownloadUrl = route('module-contracts.pdf', [
+        $params = [
             'company_slug' => $company_slug,
             'module' => $module,
             'record' => $record,
             'template_id' => $template->id,
             'agreement_date' => $agreementDate,
-            'download' => 1,
             'letterhead' => $withLetterhead ? 1 : 0,
-        ]);
+        ];
+        $pdfDownloadUrl = route('module-contracts.pdf', $params + ['download' => 1]);
+        $pdfStreamUrl = route('module-contracts.pdf', $params + ['inline' => 1, 'download' => 0]);
 
-        return view('agreements.preview', compact('html', 'template', 'pdfDownloadUrl', 'withLetterhead'));
+        return view('agreements.preview', compact('template', 'pdfDownloadUrl', 'pdfStreamUrl', 'withLetterhead'));
     }
 
     public function pdf(Request $request, $company_slug, string $module, int $record)
@@ -78,11 +77,7 @@ class ModuleContractController extends Controller
         $pdf = $this->pdfService->generatePdfForModule($template, $module, $recordModel, $agreementDate, $withLetterhead);
         $filename = Str::slug($meta['code'] . '-' . $template->template_name) . '.pdf';
 
-        if ($request->boolean('download', true)) {
-            return $pdf->download($filename);
-        }
-
-        return $pdf->stream($filename);
+        return $this->pdfService->httpResponse($pdf, $filename, $request);
     }
 
     public function email(Request $request, $company_slug, string $module, int $record)

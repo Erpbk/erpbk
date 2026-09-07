@@ -226,11 +226,17 @@ class GaragesController extends AppBaseController
     $garages = $this->garagesRepository->find($id);
 
     if (empty($garages)) {
-      return response()->json(['errors' => ['error' => 'Garage not found!']], 422);
+      return delete_error_response('Garage not found!', route('garages.index'), 404);
     }
 
     $this->garagesRepository->delete($id);
 
-    return response()->json(['message' => 'Garage deleted successfully.']);
+    $trashUrl = route('settings-panel.trash.index') . '?module=garages';
+    if (wants_delete_json()) {
+      return delete_json_response('Garage', $trashUrl);
+    }
+
+    Flash::success(delete_outcome_message('Garage', $trashUrl));
+    return redirect(route('garages.index'));
   }
 }

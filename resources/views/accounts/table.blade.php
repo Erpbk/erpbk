@@ -93,40 +93,18 @@
     </tbody>
 </table>
 
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Account',
+    'confirmText' => 'This will submit a delete request or move the account to the Recycle Bin.',
+])
 @push('third_party_scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     $(document).on('click', '.delete-account', function(e) {
         e.preventDefault();
         var url = $(this).data('url');
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then(function(result) {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: url,
-                        type: 'POST',
-                        data: { _token: '{{ csrf_token() }}', _method: 'DELETE' },
-                        success: function(res) {
-                            if (res.message) {
-                                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'success', title: 'Done', html: res.message });
-                                setTimeout(function() { location.reload(); }, 1500);
-                            }
-                        },
-                        error: function(xhr) {
-                            var msg = (xhr.responseJSON && xhr.responseJSON.errors && xhr.responseJSON.errors.error) ? xhr.responseJSON.errors.error : 'Could not delete account.';
-                            if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: msg });
-                        }
-                    });
-                }
-            });
+        if (typeof confirmDelete === 'function') {
+            confirmDelete(url);
         } else if (confirm('Are you sure you want to delete this account?')) {
             var form = document.createElement('form');
             form.method = 'POST';

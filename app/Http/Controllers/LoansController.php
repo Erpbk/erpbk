@@ -296,8 +296,6 @@ class LoansController extends AppBaseController
             $loan->save();
             $loan->delete();
 
-            $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
-
             foreach ($installments as $installment) {
                 $installmentLabel = 'Installment #'.$installment->installment_no.' — '.$loanIdentifier;
                 $installment->delete();
@@ -318,14 +316,10 @@ class LoansController extends AppBaseController
 
             DB::commit();
 
-            if ($pendingQueued) {
-                return response()->json([
-                    'message' => 'Delete request submitted for approval.',
-                    'pending_approval' => true,
-                ]);
-            }
-
-            return response()->json(['message' => 'Loan moved to recycle bin.']);
+            return delete_json_response(
+                'Loan',
+                route('settings-panel.trash.index') . '?module=loans'
+            );
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error deleting loan: '.$e->getMessage());

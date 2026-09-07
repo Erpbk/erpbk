@@ -1,5 +1,5 @@
 <h2 style="text-align:center;">AGREEMENT FOR DELIVERY RIDER/DRIVER</h2>
-<p><strong>Date:</strong> {agreement_date}</p>
+<p><strong>Date:</strong> {current_date}</p>
 <p>This agreement is entered into between <strong>{company_name}</strong> and <strong>{rider_name}</strong>, Rider ID <strong>{rider_code}</strong>.</p>
 
 <h3>Rider Data</h3>

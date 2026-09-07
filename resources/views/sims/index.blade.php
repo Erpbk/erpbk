@@ -537,7 +537,6 @@
 @endsection
 
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
 
 $(document).ready(function () {
@@ -629,44 +628,12 @@ $(document).ready(function () {
 
 </script>
 
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'SIM',
+    'confirmText' => 'This will submit a delete request or move the SIM to the Recycle Bin.',
+    'method' => 'GET',
+])
 <script>
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "This will move the SIM to the Recycle Bin!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: url,
-                type: 'GET',
-                success: function(response) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: response.queued ? 'Delete requested' : 'Deleted!',
-                        html: response.message,
-                        showConfirmButton: true,
-                        confirmButtonText: 'OK'
-                    }).then(() => { location.reload(); });
-                },
-                error: function(xhr) {
-                    let errorMessage = 'An error occurred while deleting.';
-                    if (xhr.responseJSON && xhr.responseJSON.errors) {
-                        errorMessage = Object.values(xhr.responseJSON.errors).join('<br>');
-                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
-                    }
-                    Swal.fire({ icon: 'error', title: 'Error!', html: errorMessage });
-                }
-            });
-        }
-    });
-}
-
 document.addEventListener('DOMContentLoaded', function () {
     // Initialize sorting when page loads
     initializeTableSorting();

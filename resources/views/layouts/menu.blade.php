@@ -512,6 +512,16 @@ $homeLink = $isAdminLogin
 </li>
 @endif
 @endif
+@if(\App\Support\CompanyModuleVisibility::enabled('installments'))
+@can('installment_view')
+<li class="menu-item {{ Route::is('Installments*') ? 'active' : '' }}">
+  <a href="{{ route('Installments.index') }}" class="menu-link">
+    @include('layouts.partials.module_menu_icon', ['key' => 'installments'])
+    <div>{{ $menuLabels['installments'] ?? 'Installments' }}</div>
+  </a>
+</li>
+@endcan
+@endif
 @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
 @can('license_expense_view')
 <li class="menu-item {{ Route::is('LicenseExpense*') ? 'active' : '' }}">
@@ -762,6 +772,15 @@ $homeLink = $isAdminLogin
   <a href="{{ route('admin.companies.index') }}" class="menu-link">
     <i class="menu-icon tf-icons ti ti-building-community"></i>
     <div>{{ __('Companies') }}</div>
+  </a>
+</li>
+@endif
+
+@if($isAdminLogin && $canAccessSuperAdminPanel && ($adminUser->hasPermission('agreement_settings_view') || $adminUser->hasPermission('agreement_settings_edit')))
+<li class="menu-item {{ Route::is('admin.agreement-settings*') ? 'active' : '' }}">
+  <a href="{{ route('admin.agreement-settings.index') }}" class="menu-link">
+    <i class="menu-icon tf-icons ti ti-file-text"></i>
+    <div>{{ __('Agreement Settings') }}</div>
   </a>
 </li>
 @endif

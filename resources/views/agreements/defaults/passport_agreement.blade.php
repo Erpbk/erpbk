@@ -1,5 +1,5 @@
 <h2 style="text-align:center;">PASSPORT CUSTODY &amp; HANDOVER AGREEMENT</h2>
-<p><strong>Date:</strong> {agreement_date}</p>
+<p><strong>Date:</strong> {current_date}</p>
 <p>This Passport Agreement is made between <strong>{company_name}</strong> and <strong>{rider_name}</strong> (Rider ID: <strong>{rider_code}</strong>).</p>
 
 <h3>Rider Details</h3>

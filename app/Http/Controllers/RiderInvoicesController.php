@@ -451,7 +451,10 @@ class RiderInvoicesController extends AppBaseController
             $riderInvoices->delete();
 
             DB::commit();
-            Flash::success('Rider Invoices deleted successfully.');
+            Flash::success(delete_outcome_message(
+                'Rider invoice',
+                route('settings-panel.trash.index') . '?module=rider_invoices'
+            ));
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error("Error deleting Rider Invoice ID: {$id} - " . $e->getMessage());

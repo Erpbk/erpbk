@@ -98,6 +98,14 @@
                             <option value="vehicle_changed" {{ in_array(request('other'), ['vehicle_changed', 'vehicle-changed'], true) ? 'selected' : '' }}>Vehicle Changed</option>
                         </select>
                     </div>
+                    <div class="form-group col-md-12">
+                        <label for="card_limit_monthly">Card Limit ( Monthly )</label>
+                        <select class="form-control" id="card_limit_monthly" name="card_limit_monthly">
+                            <option value="" {{ request('card_limit_monthly') ? '' : 'selected' }}>Select</option>
+                            <option value="over_limit" {{ request('card_limit_monthly') === 'over_limit' ? 'selected' : '' }}>Over limit</option>
+                            <option value="under_limit" {{ request('card_limit_monthly') === 'under_limit' ? 'selected' : '' }}>Under limit</option>
+                        </select>
+                    </div>
                     <div class="col-md-12 form-group text-center">
                         <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                     </div>
@@ -174,7 +182,6 @@
 @endsection
 
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script type="text/javascript">
 
 $(document).ready(function () {
@@ -196,6 +203,11 @@ $(document).ready(function () {
     $('#other').select2({
         dropdownParent: $('#searchTopbody'),
         placeholder: "Filter By other",
+        allowClear: true
+    });
+    $('#card_limit_monthly').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: "Filter By monthly limit",
         allowClear: true
     });
 
@@ -231,44 +243,8 @@ $(document).ready(function () {
 
 </script>
 
-<script>
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "Card will be deleted permanently!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            $.ajax({
-                url: url,
-                type: 'DELETE',
-                data: {
-                    _token: '{{ csrf_token() }}'
-                },
-                success: function(response) {
-                    Swal.fire(
-                        'Deleted!',
-                        'Fuel Card has been deleted.',
-                        'success'
-                    ).then(() => {
-                        location.reload();
-                    });
-                },
-                error: function(xhr) {
-                    Swal.fire(
-                        'Error!',
-                        'Failed to delete Fuel Card. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
-                        'error'
-                    );
-                }
-            });
-        }
-    })
-}
-
-</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Fuel Card',
+    'confirmText' => 'This will submit a delete request or move the card to the Recycle Bin.',
+])
 @endsection

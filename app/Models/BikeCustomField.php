@@ -743,6 +743,7 @@ class BikeCustomField extends BaseModel
             ['field_key' => 'return_date', 'kind' => 'virtual', 'display_label' => 'Date', 'input_type' => 'date', 'display_order' => 7, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => true],
             ['field_key' => 'visa_sponsor', 'kind' => 'virtual', 'display_label' => 'Visa Sponsor', 'input_type' => 'text', 'display_order' => 8, 'show_on_active' => false, 'show_on_change' => true, 'is_required' => false, 'input_config' => ['readonly' => true]],
             ['field_key' => 'notes', 'kind' => 'virtual', 'display_label' => 'Notes', 'input_type' => 'textarea', 'display_order' => 9, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => false],
+            ['field_key' => 'condition_images', 'kind' => 'virtual', 'display_label' => 'Vehicle condition photos', 'input_type' => 'file', 'display_order' => 10, 'show_on_active' => true, 'show_on_change' => true, 'is_required' => false],
         ];
     }
 

@@ -25,4 +25,9 @@ class VisaRenewalCategory extends BaseModel
     {
         return $this->hasMany(visa_expenses::class, 'renewal_category_id');
     }
+
+    public function visaStatuses(): HasMany
+    {
+        return $this->hasMany(VisaStatus::class, 'visa_renewal_category_id');
+    }
 }

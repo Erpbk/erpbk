@@ -233,14 +233,16 @@ class BanksController extends AppBaseController
     $banks = $this->banksRepository->find($id);
 
     if (empty($banks)) {
-      Flash::error('Bank not found!');
-      return redirect(route('banks.index'));
+      return delete_error_response('Bank not found!', route('banks.index'), 404);
     }
 
     // Check if bank has transactions
-    if ($banks->transactions()->count() > 0) {
-      Flash::error('Cannot delete bank. Bank has ' . $banks->transactions()->count() . ' transaction(s). Please deactivate instead.');
-      return redirect(route('banks.index'));
+    $transactionCount = $banks->transactions()->count();
+    if ($transactionCount > 0) {
+      return delete_error_response(
+        'Cannot delete bank. Bank has ' . $transactionCount . ' transaction(s). Please deactivate instead.',
+        route('banks.index')
+      );
     }
 
     // Track cascaded deletions
@@ -287,7 +289,20 @@ class BanksController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    Flash::success('Bank moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=banks" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    $trashUrl = route('settings-panel.trash.index') . '?module=banks';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Bank', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Bank moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
+    }
+
+    Flash::success('Bank moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('banks.index'));
   }
 

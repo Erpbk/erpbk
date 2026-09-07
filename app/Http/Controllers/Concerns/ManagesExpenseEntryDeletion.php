@@ -27,9 +27,7 @@ trait ManagesExpenseEntryDeletion
         string $unpaidMessage
     ) {
         if (empty($expense)) {
-            Flash::error($notFoundMessage);
-
-            return redirect()->back();
+            return delete_error_response($notFoundMessage, null, 404);
         }
 
         $isPaid = DeleteRequestService::isPaidExpense($expense);
@@ -47,32 +45,49 @@ trait ManagesExpenseEntryDeletion
 
             $this->softDeleteRelatedFinancials($relatedVouchers, $relatedTransactions);
 
+            $successMessage = null;
             if (! $pendingQueued) {
                 if ($isPaid) {
                     if (method_exists($expense, 'trashed') && $expense->trashed()) {
                         $expense->restore();
                     }
                     DeleteRequestService::unpayExpenseInPlace($expense, $referenceType);
-                    Flash::success($unpaidMessage);
+                    $successMessage = $unpaidMessage;
                 } else {
                     $this->recalculateExpenseLedgers($expense, $referenceType);
                     DeleteRequestService::deleteOrphanExpenseAccount($expense);
-                    Flash::success($deletedMessage);
+                    $successMessage = $deletedMessage;
                 }
             }
 
             DB::commit();
 
             if ($pendingQueued) {
+                if (wants_delete_json()) {
+                    return delete_json_response('Expense');
+                }
+
                 return redirect()->back();
             }
+
+            if (wants_delete_json()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $successMessage,
+                    'queued' => false,
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success($successMessage);
+
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error deleting expense ID: ' . $expense->id . ' - ' . $e->getMessage());
-            Flash::error('Error deleting expense: ' . $e->getMessage());
-        }
 
-        return redirect()->back();
+            return delete_error_response('Error deleting expense: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -90,15 +105,11 @@ trait ManagesExpenseEntryDeletion
             ->exists();
 
         if ($paidExists) {
-            Flash::error($paidBlockMessage);
-
-            return redirect()->back();
+            return delete_error_response($paidBlockMessage);
         }
 
         if ($extraBlockMessage) {
-            Flash::error($extraBlockMessage);
-
-            return redirect()->back();
+            return delete_error_response($extraBlockMessage);
         }
 
         $unpaid = $expenseModelClass::where('expense_account_id', $account->id)
@@ -119,21 +130,36 @@ trait ManagesExpenseEntryDeletion
 
             if (! $pendingQueued) {
                 $account->delete();
-                Flash::success('Account deleted successfully.');
             }
 
             DB::commit();
 
             if ($pendingQueued) {
+                if (wants_delete_json()) {
+                    return delete_json_response('Expense account');
+                }
+
                 return redirect()->back();
             }
+
+            if (wants_delete_json()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Account deleted successfully.',
+                    'queued' => false,
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success('Account deleted successfully.');
+
+            return redirect()->back();
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error deleting expense account ID: ' . $account->id . ' - ' . $e->getMessage());
-            Flash::error('Error deleting account: ' . $e->getMessage());
-        }
 
-        return redirect()->back();
+            return delete_error_response('Error deleting account: ' . $e->getMessage());
+        }
     }
 
     protected function expenseRelatedTransactions(Model $expense, string $referenceType): Collection

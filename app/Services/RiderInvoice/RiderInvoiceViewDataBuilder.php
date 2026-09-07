@@ -316,4 +316,96 @@ class RiderInvoiceViewDataBuilder
             'balance' => (float) $data['rider_balance_final'],
         ];
     }
+
+    /**
+     * Allocate each invoice only its own period so payment-form totals do not
+     * double-count earlier unpaid months.
+     *
+     * Oldest invoice: first ledger transaction through that billing month.
+     * Each later invoice: after the previous selected month through its own month.
+     *
+     * @param  iterable<int, RiderInvoices>  $invoices
+     */
+    public function applySequentialOutstanding($invoices): void
+    {
+        collect($invoices)->filter()->groupBy(function ($invoice) {
+            return (int) ($invoice->rider_id ?? 0);
+        })->each(function ($group) {
+            $ordered = $group->sortBy(function ($invoice) {
+                return date('Y-m-01', strtotime((string) $invoice->billing_month))
+                    . '-' . str_pad((string) $invoice->id, 10, '0', STR_PAD_LEFT);
+            })->values();
+
+            $previousMonth = null;
+            foreach ($ordered as $invoice) {
+                $invoice->setOutstandingSummary(
+                    $this->outstandingAmountsForPeriod($invoice, $previousMonth)
+                );
+                $previousMonth = date('Y-m-01', strtotime((string) $invoice->billing_month));
+            }
+        });
+    }
+
+    /**
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    public function outstandingAmountsForPeriod(RiderInvoices $riderInvoice, ?string $afterBillingMonth = null): array
+    {
+        if ($afterBillingMonth === null) {
+            return $this->outstandingAmounts($riderInvoice);
+        }
+
+        $monthStart = date('Y-m-01', strtotime((string) $riderInvoice->billing_month));
+        $afterMonth = date('Y-m-01', strtotime($afterBillingMonth));
+        $itemsTotal = $this->invoiceItemsTotal($riderInvoice);
+
+        if ($afterMonth === $monthStart) {
+            return [
+                'final_amount' => $itemsTotal,
+                'paid_amount' => 0.0,
+                'balance' => $itemsTotal,
+            ];
+        }
+
+        $accountId = $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null;
+        $ledger = $this->ledgerAdjustmentsForMonth($accountId, $monthStart);
+        $monthDeductions = (float) array_sum(array_column($ledger['deductions'], 'amount'));
+        $monthAdditions = (float) array_sum(array_column($ledger['additions'], 'amount'));
+
+        $carry = 0.0;
+        if ($accountId) {
+            $carry = round((float) Transactions::query()
+                ->where('account_id', $accountId)
+                ->whereDate('billing_month', '>', $afterMonth)
+                ->whereDate('billing_month', '<', $monthStart)
+                ->sum(DB::raw('debit - credit')), 2);
+        }
+
+        $totalDeductions = round($monthDeductions + ($carry > 0 ? $carry : 0), 2);
+        $totalAdditions = round($monthAdditions + ($carry < 0 ? abs($carry) : 0), 2);
+        $finalAmount = round($itemsTotal - $totalDeductions + $totalAdditions, 2);
+
+        $paidAmount = 0.0;
+        if ($accountId) {
+            $paidAmount = round((float) Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart)
+                ->sum('amount'), 2);
+        }
+
+        return [
+            'final_amount' => $finalAmount,
+            'paid_amount' => $paidAmount,
+            'balance' => round($finalAmount - $paidAmount, 2),
+        ];
+    }
+
+    private function invoiceItemsTotal(RiderInvoices $riderInvoice): float
+    {
+        $items = $riderInvoice->items ?? collect();
+        $total = round((float) $items->sum('amount'), 2);
+        $storedVat = round((float) ($riderInvoice->vat ?? 0), 2);
+        $vatAmount = abs($storedVat) > 0.004 ? $storedVat : 0.0;
+
+        return round($total + $vatAmount, 2);
+    }
 }

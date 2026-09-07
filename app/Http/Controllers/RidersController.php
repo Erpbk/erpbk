@@ -101,7 +101,8 @@ class RidersController extends AppBaseController
       return [];
     }
 
-    $options = RiderTopOption::where('category_id', $category->id)
+    $options = RiderTopOption::withoutGlobalScope('company')
+      ->where('category_id', $category->id)
       ->where('is_active', true)
       ->orderBy('display_order')
       ->orderBy('id')
@@ -1010,9 +1011,7 @@ class RidersController extends AppBaseController
     $riders = $this->findAccessibleRider((int) $id);
 
     if (empty($riders)) {
-      Flash::error('Riders not found');
-
-      return redirect(route('riders.index'));
+      return delete_error_response('Riders not found', route('riders.index'), 404);
     }
 
     $isAdministrator = Auth::user()?->isAdmin() === true;
@@ -1024,9 +1023,10 @@ class RidersController extends AppBaseController
       if ($riders->account_id) {
         $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
         if ($accountTransactions > 0) {
-          Flash::error('Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.');
-
-          return redirect(route('riders.index'));
+          return delete_error_response(
+            'Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.',
+            route('riders.index')
+          );
         }
       }
 
@@ -1036,9 +1036,10 @@ class RidersController extends AppBaseController
       })->count();
 
       if ($vouchersCount > 0) {
-        Flash::error('Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.');
-
-        return redirect(route('riders.index'));
+        return delete_error_response(
+          'Cannot delete rider. The rider has ' . $vouchersCount . ' voucher(s). Please remove all vouchers first.',
+          route('riders.index')
+        );
       }
 
       // Check for other related records
@@ -1124,10 +1125,10 @@ class RidersController extends AppBaseController
 
       // If there are any related records, prevent deletion
       if (! empty($relatedRecords)) {
-        $message = 'Cannot delete rider. The rider has the following related records: ' . implode(', ', $relatedRecords) . '. Please remove all related records first.';
-        Flash::error($message);
-
-        return redirect(route('riders.index'));
+        return delete_error_response(
+          'Cannot delete rider. The rider has the following related records: ' . implode(', ', $relatedRecords) . '. Please remove all related records first.',
+          route('riders.index')
+        );
       }
     }
 
@@ -1190,7 +1191,20 @@ class RidersController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    Flash::success('Rider moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=riders" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    $trashUrl = route('settings-panel.trash.index') . '?module=riders';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Rider', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Rider moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
+    }
+
+    Flash::success('Rider moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
 
     return redirect(route('riders.index'));
   }

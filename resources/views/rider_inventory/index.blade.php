@@ -135,6 +135,10 @@
 @endsection
 
 @push('page-scripts')
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Inventory Assignment',
+    'confirmText' => 'Delete this assignment? It will be moved to the Recycle Bin.',
+])
 <script>
 function filterByInventoryStatus(status) {
     const url = new URL(window.location.href);

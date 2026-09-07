@@ -1,17 +1,17 @@
-{{-- Badge bubbles for expired / expiring documents --}}
+{{-- Badge bubbles for expired / expiring documents (count only) --}}
 @if(($expiredCount ?? 0) > 0 || ($expiringCount ?? 0) > 0)
   <span class="rider-tab-badges">
     @if(($expiredCount ?? 0) > 0)
       <span class="rider-doc-status-bubble expired-bubble"
         title="{{ $expiredCount }} expired document{{ $expiredCount === 1 ? '' : 's' }}">
-        {{ $expiredCount }}<span class="rider-tab-count-label"> Document{{ $expiredCount === 1 ? '' : 's' }} Expired</span>
+        {{ $expiredCount }}
       </span>
     @endif
 
     @if(($expiringCount ?? 0) > 0)
       <span class="rider-doc-status-bubble expiring-bubble"
         title="{{ $expiringCount }} document{{ $expiringCount === 1 ? '' : 's' }} expiring within 30 days">
-        {{ $expiringCount }}<span class="rider-tab-count-label"> Expiring Soon</span>
+        {{ $expiringCount }}
       </span>
     @endif
   </span>
@@ -20,11 +20,14 @@
 @once
 <style>
   .rider-doc-status-bubble {
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    border-radius: 1rem;
-    font-size: 0.65rem;
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.15rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 700;
     line-height: 1.2;
     margin: 0;
     white-space: nowrap;
@@ -44,8 +47,9 @@
 
   @media (max-width: 768px) {
     .rider-doc-status-bubble {
-      font-size: 0.6rem;
-      padding: 0.16rem 0.4rem;
+      font-size: 0.65rem;
+      padding: 0.12rem 0.32rem;
+      min-width: 1rem;
     }
   }
 </style>

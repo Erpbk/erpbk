@@ -248,3 +248,58 @@ if (! function_exists('delete_outcome_message')) {
         return $entityName . ' moved to Recycle Bin.' . $link;
     }
 }
+
+if (! function_exists('delete_json_response')) {
+    /**
+     * Standard JSON payload for soft-delete / delete-approval outcomes.
+     */
+    function delete_json_response(string $entityName = 'Record', ?string $recycleBinUrl = null, int $status = 200): \Illuminate\Http\JsonResponse
+    {
+        $queued = (bool) request()->attributes->get('delete_approval_created');
+
+        return response()->json([
+            'success' => true,
+            'message' => delete_outcome_message($entityName, $recycleBinUrl),
+            'queued' => $queued,
+            'reload' => true,
+        ], $status);
+    }
+}
+
+if (! function_exists('wants_delete_json')) {
+    /**
+     * True when the client expects a JSON delete outcome (AJAX / Accept: application/json).
+     */
+    function wants_delete_json(?\Illuminate\Http\Request $request = null): bool
+    {
+        $request = $request ?: request();
+
+        if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
+            return true;
+        }
+
+        return str_contains((string) $request->header('Accept', ''), 'application/json');
+    }
+}
+
+if (! function_exists('delete_error_response')) {
+    /**
+     * JSON or redirect error for soft-delete guards (e.g. linked transactions).
+     */
+    function delete_error_response(string $message, $redirectTo = null, int $status = 422)
+    {
+        if (wants_delete_json()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'queued' => false,
+            ], $status);
+        }
+
+        \Laracasts\Flash\Flash::error($message);
+
+        return $redirectTo
+            ? redirect($redirectTo)
+            : redirect()->back();
+    }
+}

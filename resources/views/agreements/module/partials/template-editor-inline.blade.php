@@ -1,6 +1,5 @@
 @php
   $companySlug = request()->route('company_slug');
-  $styleLabel = \App\Models\AgreementTemplate::TYPES[$activeTemplate->template_type] ?? $activeTemplate->template_type;
   $pb = $pdfBranding ?? [];
   $primary = $pb['primary_color'] ?? '#2563eb';
   $secondary = $pb['secondary_color'] ?? '#1e3a8a';
@@ -14,7 +13,7 @@
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
       <h5 class="mb-0">Manage template</h5>
-      <p class="text-muted small mb-0">{{ $activeTemplate->template_name }} · {{ $styleLabel }}</p>
+      <p class="text-muted small mb-0">{{ $activeTemplate->template_name }}</p>
     </div>
     <div class="d-flex flex-wrap gap-1">
       @canany(['agreements_view', 'agreements_generate', 'gn_settings'])
@@ -49,7 +48,7 @@
           @csrf
           @method('PUT')
           <div class="alert alert-info py-2 small mb-3">
-            Edit the agreement body below. Style (Corporate / Premium) is fixed; assign this template to contracts using the button above.
+            Edit the agreement body below. Assign this template to contracts using the button above.
           </div>
           <label class="form-label">Agreement content</label>
           <div class="agreement-word-editor"

@@ -302,4 +302,99 @@ class EmployeeInvoiceViewDataBuilder
             'balance' => (float) $data['employee_balance_final'],
         ];
     }
+
+    /**
+     * Allocate each invoice only its own period so payment-form totals do not
+     * double-count earlier unpaid months.
+     *
+     * @param  iterable<int, EmployeeInvoices>  $invoices
+     */
+    public function applySequentialOutstanding($invoices): void
+    {
+        collect($invoices)->filter()->groupBy(function ($invoice) {
+            return (int) ($invoice->employee_id ?? 0);
+        })->each(function ($group) {
+            $ordered = $group->sortBy(function ($invoice) {
+                return date('Y-m-01', strtotime((string) $invoice->billing_month))
+                    . '-' . str_pad((string) $invoice->id, 10, '0', STR_PAD_LEFT);
+            })->values();
+
+            $previousMonth = null;
+            foreach ($ordered as $invoice) {
+                $invoice->setOutstandingSummary(
+                    $this->outstandingAmountsForPeriod($invoice, $previousMonth)
+                );
+                $previousMonth = date('Y-m-01', strtotime((string) $invoice->billing_month));
+            }
+        });
+    }
+
+    /**
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    public function outstandingAmountsForPeriod(EmployeeInvoices $employeeInvoice, ?string $afterBillingMonth = null): array
+    {
+        if ($afterBillingMonth === null) {
+            return $this->outstandingAmounts($employeeInvoice);
+        }
+
+        $monthStart = date('Y-m-01', strtotime((string) $employeeInvoice->billing_month));
+        $afterMonth = date('Y-m-01', strtotime($afterBillingMonth));
+        $itemsTotal = $this->invoiceItemsTotal($employeeInvoice);
+
+        if ($afterMonth === $monthStart) {
+            return [
+                'final_amount' => $itemsTotal,
+                'paid_amount' => 0.0,
+                'balance' => $itemsTotal,
+            ];
+        }
+
+        $accountId = $employeeInvoice->employee?->account_id
+            ? (int) $employeeInvoice->employee->account_id
+            : null;
+        $ledger = $this->ledgerAdjustmentsForMonth($accountId, $monthStart);
+        $monthDeductions = (float) array_sum(array_column($ledger['deductions'], 'amount'));
+        $monthAdditions = (float) array_sum(array_column($ledger['additions'], 'amount'));
+
+        $carry = 0.0;
+        if ($accountId) {
+            $carry = round((float) Transactions::query()
+                ->where('account_id', $accountId)
+                ->whereDate('billing_month', '>', $afterMonth)
+                ->whereDate('billing_month', '<', $monthStart)
+                ->sum(DB::raw('debit - credit')), 2);
+        }
+
+        $totalDeductions = round($monthDeductions + ($carry > 0 ? $carry : 0), 2);
+        $totalAdditions = round($monthAdditions + ($carry < 0 ? abs($carry) : 0), 2);
+        $finalAmount = round($itemsTotal - $totalDeductions + $totalAdditions, 2);
+
+        $paidAmount = 0.0;
+        if ($accountId) {
+            $paidAmount = round((float) Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart)
+                ->sum('amount'), 2);
+        }
+
+        return [
+            'final_amount' => $finalAmount,
+            'paid_amount' => $paidAmount,
+            'balance' => round($finalAmount - $paidAmount, 2),
+        ];
+    }
+
+    private function invoiceItemsTotal(EmployeeInvoices $employeeInvoice): float
+    {
+        $items = $employeeInvoice->items ?? collect();
+        $total = round((float) $items->sum('amount'), 2);
+        $storedVat = round((float) ($employeeInvoice->vat ?? 0), 2);
+        $vatAmount = abs($storedVat) > 0.004 ? $storedVat : 0.0;
+
+        if (abs($total) > 0.004) {
+            return round($total + $vatAmount, 2);
+        }
+
+        return round((float) ($employeeInvoice->total_amount ?? 0), 2);
+    }
 }

@@ -242,25 +242,21 @@ class BikeRentCompaniesController extends AppBaseController
     {
         $bikeRentCompany = $this->bikeRentCompaniesRepository->find((int) $id);
         if (empty($bikeRentCompany)) {
-            return response()->json(['errors' => ['error' => 'Record not found!']], 422);
+            return delete_error_response('Record not found!', null, 404);
         }
         $this->authorizeCustomer('delete', $bikeRentCompany);
 
         if ($bikeRentCompany->transactions()->count() > 0) {
-            return response()->json([
-                'errors' => [
-                    'error' => 'Cannot delete this Customer. It has ' . $bikeRentCompany->transactions()->count() . ' transaction(s). Please deactivate instead.',
-                ],
-            ], 422);
+            return delete_error_response(
+                'Cannot delete this Customer. It has ' . $bikeRentCompany->transactions()->count() . ' transaction(s). Please deactivate instead.'
+            );
         }
 
         $assignedBikes = Bikes::query()->where('rental_company_id', $bikeRentCompany->id)->count();
         if ($assignedBikes > 0) {
-            return response()->json([
-                'errors' => [
-                    'error' => 'Cannot delete this Customer. It has ' . $assignedBikes . ' assigned bike(s). Unassign them first.',
-                ],
-            ], 422);
+            return delete_error_response(
+                'Cannot delete this Customer. It has ' . $assignedBikes . ' assigned bike(s). Unassign them first.'
+            );
         }
 
         if ($bikeRentCompany->account) {
@@ -268,11 +264,9 @@ class BikeRentCompaniesController extends AppBaseController
                 ->where('account_id', $bikeRentCompany->account->id)
                 ->count();
             if ($ledgerEntriesCount > 0) {
-                return response()->json([
-                    'errors' => [
-                        'error' => "Cannot delete this record. The linked account has {$ledgerEntriesCount} ledger entry(ies).",
-                    ],
-                ], 422);
+                return delete_error_response(
+                    "Cannot delete this record. The linked account has {$ledgerEntriesCount} ledger entry(ies)."
+                );
             }
         }
 
@@ -328,10 +322,23 @@ class BikeRentCompaniesController extends AppBaseController
             $cascadeMessage = ' (Also deleted: ' . implode(', ', $parts) . ')';
         }
 
-        return response()->json([
-            'queued' => $queued,
-            'message' => 'Moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index', ['module' => $trashModule]) . '" class="alert-link">View Recycle Bin</a> to restore if needed.',
-        ]);
+        $trashUrl = route('settings-panel.trash.index', ['module' => $trashModule]);
+        $entityName = $bikeRentCompany->customer_type === 'garage' ? 'Garage customer' : 'Bike on rent customer';
+
+        if (wants_delete_json()) {
+            $response = delete_json_response($entityName, $trashUrl);
+            if ($cascadeMessage !== '' && ! $queued) {
+                $data = $response->getData(true);
+                $data['message'] = 'Moved to Recycle Bin' . $cascadeMessage
+                    . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+                $response->setData($data);
+            }
+
+            return $response;
+        }
+
+        Flash::success('Moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+        return redirect()->back();
     }
 
     protected function getTrashModelClass()

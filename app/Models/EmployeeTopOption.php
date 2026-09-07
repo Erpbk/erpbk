@@ -10,6 +10,7 @@ class EmployeeTopOption extends BaseModel
 
     protected $fillable = [
         'category_id',
+        'company_id',
         'name',
         'display_order',
         'is_active',

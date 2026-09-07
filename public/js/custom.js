@@ -1,5 +1,44 @@
 // Right Side Modal Handler - Slide in from right
 $(document).ready(function () {
+  // Keep action menus above cards/tables: .table-responsive uses overflow which
+  // otherwise clips Bootstrap dropdowns (e.g. one-row Agreements list).
+  (function enableFixedDropdownMenus() {
+    if (typeof bootstrap === 'undefined' || !bootstrap.Dropdown) {
+      return;
+    }
+
+    const withFixedStrategy = function (defaultConfig) {
+      const base = typeof defaultConfig === 'object' && defaultConfig !== null ? defaultConfig : {};
+      return Object.assign({}, base, { strategy: 'fixed' });
+    };
+
+    const previous = bootstrap.Dropdown.Default.popperConfig;
+    bootstrap.Dropdown.Default.popperConfig = function (defaultBsPopperConfig) {
+      const resolved = typeof previous === 'function'
+        ? previous(defaultBsPopperConfig)
+        : Object.assign({}, defaultBsPopperConfig || {}, previous || {});
+      return withFixedStrategy(resolved);
+    };
+
+    document.addEventListener('show.bs.dropdown', function (event) {
+      const toggle = event.target.closest('[data-bs-toggle="dropdown"]');
+      if (!toggle || typeof bootstrap.Dropdown.getInstance !== 'function') {
+        return;
+      }
+      const instance = bootstrap.Dropdown.getInstance(toggle);
+      if (!instance || !instance._config) {
+        return;
+      }
+      const existing = instance._config.popperConfig;
+      instance._config.popperConfig = function (defaultBsPopperConfig) {
+        const resolved = typeof existing === 'function'
+          ? existing(defaultBsPopperConfig)
+          : Object.assign({}, defaultBsPopperConfig || {}, existing || {});
+        return withFixedStrategy(resolved);
+      };
+    });
+  })();
+
   // Create modal HTML if not exists
   if ($('#rightSideModal').length === 0) {
     $('body').append(`
@@ -615,12 +654,23 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   (function sanitizeUploadFilenames(fd) {
     var allowedExt = {
       pdf: 1, jpg: 1, jpeg: 1, png: 1, gif: 1, webp: 1, bmp: 1,
+      heic: 1, heif: 1,
       doc: 1, docx: 1, xls: 1, xlsx: 1, csv: 1, txt: 1, rar: 1, zip: 1
     };
     var pending = [];
     fd.forEach(function (value, key) {
       if (typeof File !== 'undefined' && value instanceof File) {
         pending.push({ key: key, file: value });
+      }
+    });
+    if (!pending.length) {
+      return;
+    }
+    var cleared = {};
+    pending.forEach(function (item) {
+      if (!cleared[item.key]) {
+        fd.delete(item.key);
+        cleared[item.key] = true;
       }
     });
     pending.forEach(function (item, index) {
@@ -630,7 +680,6 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
         ext = 'bin';
       }
       var safeName = 'upload_' + Date.now() + '_' + index + '.' + ext;
-      fd.delete(item.key);
       fd.append(item.key, item.file, safeName);
       if (!fd.has('original_filename')) {
         fd.append('original_filename', original);

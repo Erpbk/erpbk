@@ -1,5 +1,8 @@
 @php
-$topBarModuleKey = $topBarModuleKey ?? ($moduleKey ?? \App\Support\ModuleRouteResolver::fromRequest() ?? '');
+// Only use an explicit top-bar module key (View::share / controller) or the current route.
+// Do NOT fall back to ambient $moduleKey — Blade @foreach(... as $moduleKey) in @section
+// content leaks into the layout and can show another module's top bar (e.g. Riders on Agreements).
+$topBarModuleKey = $topBarModuleKey ?? (\App\Support\ModuleRouteResolver::fromRequest() ?? '');
 $topBarConfig = $topBarConfig ?? \App\Support\ErpModuleRegistry::topBarConfig($topBarModuleKey);
 $topBarSliderCategories = $topBarSliderCategories ?? collect();
 $topBarOptionStats = $topBarOptionStats ?? [];

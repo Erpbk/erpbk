@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgreementCategory;
-use App\Models\AgreementPlaceholder;
 use App\Models\AgreementTemplate;
 use App\Models\Riders;
 use App\Services\Agreements\AgreementPdfService;
+use App\Services\Agreements\AgreementPlaceholderCatalog;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\Email\UserEmailService;
 use App\Support\CompanyContext;
@@ -61,9 +61,17 @@ class AgreementGenerationController extends Controller
         $agreementDate = $request->input('agreement_date', now()->format('Y-m-d'));
 
         $withLetterhead = $request->boolean('letterhead', true);
-        $html = $pdfService->renderHtml($template, $rider, $agreementDate, false, $withLetterhead);
+        $params = [
+            'company_slug' => $company_slug,
+            'riderId' => $rider->id,
+            'template_id' => $template->id,
+            'agreement_date' => $agreementDate,
+            'letterhead' => $withLetterhead ? 1 : 0,
+        ];
+        $pdfDownloadUrl = route('rider-agreements.pdf', $params + ['download' => 1]);
+        $pdfStreamUrl = route('rider-agreements.pdf', $params + ['inline' => 1, 'download' => 0]);
 
-        return view('agreements.preview', compact('html', 'template', 'rider', 'withLetterhead'));
+        return view('agreements.preview', compact('template', 'rider', 'withLetterhead', 'pdfDownloadUrl', 'pdfStreamUrl'));
     }
 
     public function pdf(Request $request, $company_slug, int $riderId, AgreementPdfService $pdfService)
@@ -76,11 +84,7 @@ class AgreementGenerationController extends Controller
         $pdf = $pdfService->generatePdf($template, $rider, $agreementDate, $withLetterhead);
         $filename = Str::slug($rider->rider_id . '-' . $template->template_name) . '.pdf';
 
-        if ($request->boolean('download', true)) {
-            return $pdf->download($filename);
-        }
-
-        return $pdf->stream($filename);
+        return $pdfService->httpResponse($pdf, $filename, $request);
     }
 
     public function email(Request $request, $company_slug, int $riderId, AgreementPdfService $pdfService)
@@ -163,7 +167,8 @@ class AgreementGenerationController extends Controller
         $rider = Riders::findOrFail($riderId);
         $template = $this->resolveRiderTemplate($template);
         $category = $template->category()->first();
-        $placeholders = AgreementPlaceholder::grouped();
+        $moduleKey = $category?->normalizedAssignedModules()[0] ?? 'riders';
+        $placeholders = app(AgreementPlaceholderCatalog::class)->groupedForModule($moduleKey);
 
         return view('riders.agreements.template-editor', compact(
             'rider',

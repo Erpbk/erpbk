@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ExpenseAccount;
 use App\Models\VisaRenewalCategory;
 use App\Support\CompanyAuthRedirect;
+use App\Support\VisaRenewalCategoryService;
 use Illuminate\Http\Request;
 use Flash;
 use DB;
@@ -63,10 +65,18 @@ class VisaRenewalCategoryController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
-            DB::commit();
-            Flash::success('Visa renewal category created successfully.');
+            $seeded = VisaRenewalCategoryService::seedStatusesForCategory($category);
 
-            return $this->redirectAfterAction($request);
+            DB::commit();
+            if ($seeded['count'] > 0 && $seeded['source']) {
+                Flash::success('Visa category created. ' . $seeded['count'] . ' statuses copied from ' . $seeded['source'] . '.');
+            } elseif ($seeded['count'] > 0) {
+                Flash::success('Visa category created. ' . $seeded['count'] . ' visa statuses were added.');
+            } else {
+                Flash::success('Visa category created successfully.');
+            }
+
+            return $this->redirectAfterAction($request, (int) $category->id);
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error: ' . $e->getMessage());
@@ -92,10 +102,7 @@ class VisaRenewalCategoryController extends Controller
         try {
             DB::beginTransaction();
 
-            if ($category->is_default && $validated['name'] !== $category->name && $validated['name'] !== 'New Visa') {
-                // Allow renaming default only if still meaningful; keep is_default flag
-            }
-
+            $oldName = $category->name;
             $category->name = $validated['name'];
             if (!empty($validated['display_order'])) {
                 $category->display_order = (int) $validated['display_order'];
@@ -106,10 +113,14 @@ class VisaRenewalCategoryController extends Controller
             $category->updated_by = auth()->id();
             $category->save();
 
-            DB::commit();
-            Flash::success('Visa renewal category updated successfully.');
+            if ($oldName !== $category->name) {
+                $this->syncExpenseAccountNames($category, $oldName);
+            }
 
-            return $this->redirectAfterAction($request);
+            DB::commit();
+            Flash::success('Visa category updated successfully.');
+
+            return $this->redirectAfterAction($request, (int) $category->id);
         } catch (\Exception $e) {
             DB::rollBack();
             Flash::error('Error: ' . $e->getMessage());
@@ -127,7 +138,7 @@ class VisaRenewalCategoryController extends Controller
         $category = VisaRenewalCategory::findOrFail($id);
 
         if ($category->is_default) {
-            $message = 'Cannot delete the default renewal category (New Visa).';
+            $message = 'Cannot delete the default visa category (New Visa).';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 422);
             }
@@ -136,8 +147,10 @@ class VisaRenewalCategoryController extends Controller
             return redirect()->back();
         }
 
-        if ($category->visaExpenses()->exists()) {
-            $message = 'Cannot delete this category because visa expenses are linked to it.';
+        if ($category->visaExpenses()->exists()
+            || ExpenseAccount::query()->visa()->where('renewal_category_id', $category->id)->exists()
+        ) {
+            $message = 'Cannot delete this category because visa expenses or accounts are linked to it.';
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 422);
             }
@@ -147,18 +160,22 @@ class VisaRenewalCategoryController extends Controller
         }
 
         try {
+            DB::beginTransaction();
+            $category->visaStatuses()->withTrashed()->forceDelete();
             $category->delete();
+            DB::commit();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Visa renewal category deleted successfully.',
+                    'message' => 'Visa category deleted successfully.',
                     'id' => (int) $id,
                 ]);
             }
-            Flash::success('Visa renewal category deleted successfully.');
+            Flash::success('Visa category deleted successfully.');
 
             return $this->redirectAfterAction($request);
         } catch (\Exception $e) {
+            DB::rollBack();
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
             }
@@ -195,20 +212,47 @@ class VisaRenewalCategoryController extends Controller
         return redirect()->back();
     }
 
-    protected function redirectAfterAction(Request $request)
+    protected function redirectAfterAction(Request $request, ?int $categoryId = null)
     {
         $returnTo = $request->input('return_to');
         if (is_string($returnTo) && $returnTo !== '') {
+            $id = $categoryId ?? (int) $request->input('category_id');
+            if ($id > 0 && ! str_contains($returnTo, 'category_id=')) {
+                $returnTo .= (str_contains($returnTo, '?') ? '&' : '?') . 'category_id=' . $id;
+            }
+
             return redirect()->to($returnTo);
         }
 
         $companySlug = (string) ($request->route('company_slug') ?? session('company_slug') ?? '');
         if ($companySlug !== '' && str_starts_with((string) $request->route()?->getName(), 'settings-panel.')) {
-            return redirect()->to(
-                route('settings-panel.visa-statuses.index', ['company_slug' => $companySlug]) . '#tab-visa-renewal-categories'
-            );
+            $url = route('settings-panel.visa-statuses.index', ['company_slug' => $companySlug]);
+            $id = $categoryId ?? (int) $request->input('category_id');
+            if ($id > 0) {
+                $url .= '?category_id=' . $id;
+            }
+
+            return redirect()->to($url);
         }
 
         return redirect()->back();
+    }
+
+    private function syncExpenseAccountNames(VisaRenewalCategory $category, string $oldName): void
+    {
+        $oldSuffix = ' - ' . $oldName;
+        $newSuffix = ' - ' . $category->name;
+
+        ExpenseAccount::query()
+            ->visa()
+            ->where('renewal_category_id', $category->id)
+            ->get()
+            ->each(function (ExpenseAccount $account) use ($oldSuffix, $newSuffix) {
+                $name = (string) $account->name;
+                if ($oldSuffix !== '' && str_ends_with($name, $oldSuffix)) {
+                    $account->name = substr($name, 0, -strlen($oldSuffix)) . $newSuffix;
+                    $account->save();
+                }
+            });
     }
 }

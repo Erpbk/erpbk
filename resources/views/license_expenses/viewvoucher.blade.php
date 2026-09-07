@@ -176,23 +176,9 @@ $riderUnpaidTotal = company_table('license_expenses')
 </div>
 @endsection
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = url;
-            }
-        })
-    }
-</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'License Expense',
+    'confirmText' => 'This will submit a delete request or move the license expense to the Recycle Bin.',
+    'method' => 'GET',
+])
 @endsection

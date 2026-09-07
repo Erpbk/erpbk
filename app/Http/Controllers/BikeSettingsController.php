@@ -175,7 +175,7 @@ class BikeSettingsController extends Controller
         $bikeTopUserVisibleOptionIds = null;
         $bikeTopAllOptionIds = [];
         if (Schema::hasTable('bike_top_categories')) {
-            $bikeTopCategories = BikeTopCategory::with('options')
+            $bikeTopCategories = BikeTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
                 ->orderBy('display_order')
                 ->orderBy('id')
                 ->get();
@@ -922,7 +922,7 @@ class BikeSettingsController extends Controller
 
     public function bikeTopAccordionBody()
     {
-        $bikeTopCategories = BikeTopCategory::with('options')
+        $bikeTopCategories = BikeTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();

@@ -129,7 +129,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
             @endcan
             @can('voucher_delete')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <a href="javascript:void(0);" onclick="deleteVoucher('{{ $voucher->trans_code }}')" class="dropdown-item waves-effect text-danger">
+            <a href="javascript:void(0);" onclick='confirmDelete(@json(route('vouchers.destroy', $voucherRouteParams($voucher->trans_code))))' class="dropdown-item waves-effect text-danger">
                 <i class="fa fa-trash my-1"></i> Delete
               </a>
             @endif
@@ -161,38 +161,11 @@ $vfColspan = count(array_filter($vfCols)) + 2;
 </div>
 @endif
 
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Voucher',
+    'confirmText' => 'Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.',
+])
 <script>
-  function deleteVoucher(transCode) {
-    if (confirm('Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.')) {
-      $.ajax({
-        url: @json(route('vouchers.destroy', $voucherRouteParams('___TC___'))).replace('___TC___', encodeURIComponent(transCode)),
-        type: 'DELETE',
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest',
-          Accept: 'application/json'
-        },
-        data: {
-          _token: '{{ csrf_token() }}'
-        },
-        success: function(result) {
-          if (typeof toastr !== 'undefined') {
-            toastr.success(result.message || 'Delete request submitted');
-          } else {
-            alert(result.message || 'Delete request submitted');
-          }
-          location.reload();
-        },
-        error: function(xhr) {
-          if (typeof toastr !== 'undefined') {
-            toastr.error((xhr.responseJSON && (xhr.responseJSON.message || (xhr.responseJSON.errors && xhr.responseJSON.errors.error))) || 'Error deleting voucher');
-          } else {
-            alert('Error deleting voucher');
-          }
-        }
-      });
-    }
-  }
-
   // Initialize Bootstrap dropdowns when this content is loaded (run only after jQuery is available)
   (function runWhenJQueryReady() {
     var $ = window.jQuery || window.$;

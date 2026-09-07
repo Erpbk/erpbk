@@ -183,4 +183,48 @@ class FuelData extends BaseModel
             ->where('credit', '>', 0)
             ->value('credit') ?? 0);
     }
+
+    /**
+     * Transactions whose card's fuel spend on that calendar day is over or under daily_limit.
+     * Usage is SUM(fuel_data.total) for the card on that day.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     * @param  string  $status  over_limit|under_limit
+     */
+    public function scopeWhereDailyLimitStatus($query, string $status)
+    {
+        $status = strtolower(trim($status));
+        if (!in_array($status, ['over_limit', 'under_limit'], true)) {
+            return $query;
+        }
+
+        $operator = $status === 'over_limit' ? '>' : '<=';
+        $companyId = \App\Support\CompanyContext::id();
+
+        $companyClause = '';
+        $bindings = [];
+        if ($companyId !== null) {
+            $companyClause = ' AND fd2.company_id = ?';
+            $bindings[] = $companyId;
+        }
+
+        return $query->whereHas('card', function ($cardQuery) {
+                $cardQuery->whereNotNull('daily_limit');
+            })
+            ->whereRaw(
+                "(SELECT COALESCE(SUM(fd2.total), 0)
+                    FROM fuel_data fd2
+                    WHERE fd2.card_no = fuel_data.card_no
+                      AND fd2.deleted_at IS NULL
+                      AND DATE(fd2.trans_date) = DATE(fuel_data.trans_date)
+                      {$companyClause}
+                 ) {$operator} (
+                    SELECT fc.daily_limit
+                    FROM fuel_cards fc
+                    WHERE fc.card_number = fuel_data.card_no
+                    LIMIT 1
+                 )",
+                $bindings
+            );
+    }
 }

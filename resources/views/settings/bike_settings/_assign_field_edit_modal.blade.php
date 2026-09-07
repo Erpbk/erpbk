@@ -23,13 +23,19 @@
             <div class="col-md-4">
               <label class="form-label">Input type</label>
               <select name="input_type" id="editAssignInputType" class="form-select">
-                @foreach(['text','textarea','number','decimal','date','datetime','dropdown','checkbox','select'] as $t)
+                @foreach(['text','textarea','number','decimal','date','datetime','dropdown','checkbox','select','file'] as $t)
                 <option value="{{ $t }}">{{ ucfirst($t) }}</option>
                 @endforeach
               </select>
             </div>
             <input type="hidden" name="is_visible" id="editAssignIsVisibleHidden" value="1">
-            <input type="hidden" name="is_required" id="editAssignIsRequiredHidden" value="0">
+            <div class="col-md-3">
+              <div class="form-check mt-4">
+                <input type="hidden" name="is_required" value="0">
+                <input type="checkbox" name="is_required" value="1" id="editAssignIsRequired" class="form-check-input">
+                <label class="form-check-label" for="editAssignIsRequired">Required</label>
+              </div>
+            </div>
             <div class="col-md-3">
               <div class="form-check mt-4">
                 <input type="hidden" name="show_on_active" value="0">
@@ -92,7 +98,13 @@
               <input type="text" name="input_format" id="editAssignCustomInputFormat" class="form-control" maxlength="100">
             </div>
             <input type="hidden" name="is_visible" id="editAssignCustomIsVisibleHidden" value="1">
-            <input type="hidden" name="is_required" id="editAssignCustomIsRequiredHidden" value="0">
+            <div class="col-md-4">
+              <div class="form-check mt-2">
+                <input type="hidden" name="is_required" value="0">
+                <input type="checkbox" name="is_required" value="1" id="editAssignCustomIsRequired" class="form-check-input">
+                <label class="form-check-label" for="editAssignCustomIsRequired">Required</label>
+              </div>
+            </div>
             <div class="col-md-12" id="editAssignCustomOptionsWrap">
               <label class="form-label">Dropdown options (one per line)</label>
               <input type="hidden" name="config_options" id="editAssignCustomConfigOptionsHidden" value="">
@@ -226,8 +238,8 @@
       document.getElementById('editAssignDisplayLabel').value = payload.display_label || '';
       var visHidden = document.getElementById('editAssignIsVisibleHidden');
       if (visHidden) visHidden.value = payload.is_visible ? '1' : '1';
-      var reqHidden = document.getElementById('editAssignIsRequiredHidden');
-      if (reqHidden) reqHidden.value = payload.is_required ? '1' : '0';
+      var reqEl = document.getElementById('editAssignIsRequired');
+      if (reqEl) reqEl.checked = !!payload.is_required;
       document.getElementById('editAssignShowActive').checked = !!payload.show_on_active;
       document.getElementById('editAssignShowChange').checked = !!payload.show_on_change;
       setSelectValue(document.getElementById('editAssignInputType'), payload.input_type || 'text');
@@ -245,8 +257,8 @@
       document.getElementById('editAssignCustomInputFormat').value = payload.input_format || '';
       var custVisHidden = document.getElementById('editAssignCustomIsVisibleHidden');
       if (custVisHidden) custVisHidden.value = payload.is_visible ? '1' : '1';
-      var custReqHidden = document.getElementById('editAssignCustomIsRequiredHidden');
-      if (custReqHidden) custReqHidden.value = payload.is_required ? '1' : '0';
+      var custReqEl = document.getElementById('editAssignCustomIsRequired');
+      if (custReqEl) custReqEl.checked = !!payload.is_required;
       document.getElementById('editAssignCustomShowActive').checked = !!payload.show_on_active;
       document.getElementById('editAssignCustomShowChange').checked = !!payload.show_on_change;
       toggleAssignCustomOptionsWrap();

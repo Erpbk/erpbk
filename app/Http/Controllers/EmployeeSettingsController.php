@@ -93,13 +93,14 @@ class EmployeeSettingsController extends Controller
             ->orderBy('id')
             ->get();
         $documentTypes = EmployeeDocumentType::orderedForAdmin()->get();
-        $employeeTopCategories = EmployeeTopCategory::with('options')
+        $employeeTopCategories = EmployeeTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
         $employeeTopSelectableColumns = $this->employeeTopSelectableColumns();
         $employeeStatusCategory = $this->employeeStatusTopCategory();
-        $employeeStatusOptions = EmployeeTopOption::where('category_id', $employeeStatusCategory->id)
+        $employeeStatusOptions = EmployeeTopOption::withoutGlobalScope('company')
+            ->where('category_id', $employeeStatusCategory->id)
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
@@ -929,7 +930,7 @@ class EmployeeSettingsController extends Controller
 
     public function employeeTopAccordionBody()
     {
-        $employeeTopCategories = EmployeeTopCategory::with('options')
+        $employeeTopCategories = EmployeeTopCategory::with(['options' => fn ($q) => $q->withoutGlobalScope('company')])
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();

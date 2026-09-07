@@ -1,20 +1,28 @@
 @php
     $isEmployeePayment = ($invoiceType ?? null) === 'employee';
     $isRiderPayment = ($invoiceType ?? null) === 'rider';
-    // Shared salary-invoice UX: billing-month filter, single-invoice amount sync, deduction-aware balance.
+    // Shared salary-invoice UX: payee-scoped unpaid invoices, single-invoice amount sync, deduction-aware balance.
     $isSalaryInvoicePayment = $isRiderPayment || $isEmployeePayment;
+    $openedInvoiceId = request()->input('invoice_id');
+    $openedInvoice = null;
+    if ($openedInvoiceId) {
+        $openedInvoice = collect($invoices ?? [])->firstWhere('id', (int) $openedInvoiceId)
+            ?? collect($existingInvoices ?? [])->firstWhere('id', (int) $openedInvoiceId);
+    }
     $defaultBillingMonth = old(
         'billing_month',
         isset($payment) && $payment->billing_month
             ? \Carbon\Carbon::parse($payment->billing_month)->format('Y-m')
-            : date('Y-m')
+            : ($openedInvoice && $openedInvoice->billing_month
+                ? \Carbon\Carbon::parse($openedInvoice->billing_month)->format('Y-m')
+                : date('Y-m'))
     );
 @endphp
-<div class="card-body px-4" @if($isSalaryInvoicePayment) data-salary-invoice-payment="1" data-rider-payment="1" @endif>
+<div class="card-body px-4" @if($isSalaryInvoicePayment) data-salary-invoice-payment="1" data-rider-payment="1" @endif @if($openedInvoiceId) data-opened-invoice-id="{{ $openedInvoiceId }}" @endif>
     <!-- Basic Payment Information -->
     <div class="row">
         @if($isSalaryInvoicePayment)
-        {{-- Billing month at the top filters which pending invoices are shown --}}
+        {{-- Billing month is stored on the payment voucher; it does not filter the invoice list --}}
         <div class="form-group col-md-3">
             {!! Form::label('billing_month', 'Billing Month:') !!}
             {!! Form::month('billing_month', $defaultBillingMonth, ['class' => 'form-control', 'id' => 'billing_month', 'maxlength' => 255, 'required' => true]) !!}
@@ -264,9 +272,7 @@
                             @else
                                 <th>Leasing Company</th>
                             @endif
-                            @unless($isSalaryInvoicePayment)
-                                <th>Billing Month</th>
-                            @endunless
+                            <th>Billing Month</th>
                             <th>Total Amount</th>
                             @unless($isSalaryInvoicePayment)
                                 <th>Paid Amount</th>
@@ -303,9 +309,7 @@
                                 </td>
                                 <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                                 <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
-                                @unless($isSalaryInvoicePayment)
-                                    <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
-                                @endunless
+                                <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                                 <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                                 @unless($isSalaryInvoicePayment)
                                     <td class="text-right">{{ number_format($existingPaid, 2) }}</td>
@@ -345,13 +349,11 @@
                             data-customer-id="{{ optional($invoice->customer)->id ?? optional($invoice->leasingCompany)->id ?? optional($invoice->supplier)->id ?? optional($invoice->employee)->id ?? optional($invoice->rider)->id ?? optional($invoice->company)->id ?? optional($invoice->vendor)->id }}"
                             data-customer-name="{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name }}">
                             <td class="text-center">
-                                <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox">
+                                <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" {{ (string) $openedInvoiceId === (string) $invoice->id ? 'checked' : '' }}>
                             </td>
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                             <td>{{ optional($invoice->customer)->name ?? optional($invoice->leasingCompany)->name ?? optional($invoice->supplier)->name ?? optional($invoice->employee)->name ?? optional($invoice->rider)->name ?? optional($invoice->company)->name ?? optional($invoice->vendor)->name ?? '-' }}</td>
-                            @unless($isSalaryInvoicePayment)
-                                <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
-                            @endunless
+                            <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-right">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
                             @unless($isSalaryInvoicePayment)
                                 <td class="text-right">{{ number_format($invoice->paid_amount ?? 0, 2) }}</td>
@@ -377,7 +379,7 @@
                     </tbody>
                     <tfoot class="bg-light">
                         <tr>
-                            <th colspan="{{ $isSalaryInvoicePayment ? 4 : 6 }}" class="text-right">Total Selected Payment:</th>
+                            <th colspan="{{ $isSalaryInvoicePayment ? 5 : 6 }}" class="text-right">Total Selected Payment:</th>
                             <th class="text-right" id="total-selected-payment">0.00</th>
                             @unless($isSalaryInvoicePayment)
                                 <th></th>

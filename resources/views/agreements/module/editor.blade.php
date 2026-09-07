@@ -48,7 +48,6 @@ $primary = $pb['primary_color'] ?? '#2563eb';
 $secondary = $pb['secondary_color'] ?? '#1e3a8a';
 $onPrimary = $pb['text_on_primary'] ?? '#ffffff';
 $logoSrc = $pb['logo_src'] ?? ($pb['logo_url'] ?? null);
-$styleLabel = $template->template_type === 'premium' ? 'Modern Premium' : 'Corporate Professional';
 @endphp
 
 <div class="row" style="--agreement-primary: {{ $primary }}; --agreement-secondary: {{ $secondary }}; --agreement-on-primary: {{ $onPrimary }};">
@@ -60,7 +59,7 @@ $styleLabel = $template->template_type === 'premium' ? 'Modern Premium' : 'Corpo
             <i class="ti ti-arrow-left"></i> Sample templates
           </a>
           <h4 class="card-title mb-0 mt-1">Edit agreement content</h4>
-          <p class="text-muted small mb-0">{{ $template->template_name }} · {{ $styleLabel }}</p>
+          <p class="text-muted small mb-0">{{ $template->template_name }}</p>
         </div>
         <div class="d-flex gap-1">
           <a href="{{ route('module-agreements.templates.preview', ['company_slug' => $companySlug, 'module' => $module, 'template' => $template->id]) }}"
@@ -82,7 +81,11 @@ $styleLabel = $template->template_type === 'premium' ? 'Modern Premium' : 'Corpo
 
           <div class="mb-3">
             <label class="form-label">Agreement content</label>
-            <div class="agreement-word-editor">
+            <div class="agreement-word-editor"
+              data-margin-top="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['top'] ?? '' }}"
+              data-margin-right="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['right'] ?? '' }}"
+              data-margin-bottom="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['bottom'] ?? '' }}"
+              data-margin-left="{{ ($letterheadMargins ?? $category->resolvedLetterheadMarginsMm())['left'] ?? '' }}">
               <textarea name="description" id="agreement-editor" rows="40" class="form-control">{{ old('description', $template->description) }}</textarea>
             </div>
           </div>

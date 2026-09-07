@@ -64,6 +64,14 @@ class RiderInvoices extends BaseModel
     protected $outstandingSummaryCache = null;
 
     /**
+     * @param  array{final_amount: float, paid_amount: float, balance: float}  $summary
+     */
+    public function setOutstandingSummary(array $summary): void
+    {
+        $this->outstandingSummaryCache = $summary;
+    }
+
+    /**
      * Balance due after deductions/additions — same figure shown on the Rider Invoice.
      */
     public function getBalanceAttribute()

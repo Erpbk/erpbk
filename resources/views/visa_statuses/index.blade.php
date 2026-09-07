@@ -52,17 +52,156 @@
     .filter-sidebar .btn-close {
         box-shadow: none;
     }
+
+    .visa-workspace {
+        display: grid;
+        grid-template-columns: minmax(280px, 340px) 1fr;
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    @media (max-width: 991.98px) {
+        .visa-workspace {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .visa-panel {
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 0.85rem;
+        box-shadow: 0 1px 6px rgba(15, 23, 42, .05);
+        overflow: hidden;
+    }
+
+    .visa-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        padding: 1rem 1.15rem;
+        border-bottom: 1px solid #eef1f4;
+        background: linear-gradient(180deg, #fbfcfe 0%, #fff 100%);
+    }
+
+    .visa-panel-header h4 {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 650;
+    }
+
+    .visa-panel-subtitle {
+        margin: .2rem 0 0;
+        color: #6c757d;
+        font-size: .8rem;
+    }
+
+    .visa-cat-list {
+        padding: .65rem;
+        max-height: calc(100vh - 260px);
+        overflow-y: auto;
+    }
+
+    .visa-cat-item {
+        display: flex;
+        align-items: center;
+        gap: .75rem;
+        width: 100%;
+        padding: .8rem .85rem;
+        margin-bottom: .4rem;
+        border: 1px solid transparent;
+        border-radius: .65rem;
+        background: #f8f9fb;
+        color: inherit;
+        text-align: left;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+
+    .visa-cat-item:hover {
+        background: #eef3fb;
+        color: inherit;
+    }
+
+    .visa-cat-item.active {
+        background: rgba(13, 110, 253, .08);
+        border-color: rgba(13, 110, 253, .28);
+        box-shadow: inset 3px 0 0 var(--bs-primary);
+    }
+
+    .visa-cat-item .visa-cat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: .5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #fff;
+        color: var(--bs-primary);
+        flex-shrink: 0;
+    }
+
+    .visa-cat-item.active .visa-cat-icon {
+        background: var(--bs-primary);
+        color: #fff;
+    }
+
+    .visa-cat-meta {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .visa-cat-name {
+        display: block;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .visa-cat-count {
+        font-size: .75rem;
+        color: #6c757d;
+    }
+
+    .visa-empty {
+        padding: 2.75rem 1.5rem;
+        text-align: center;
+    }
+
+    .visa-empty-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1rem;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f1f4f8;
+        color: #6c757d;
+        font-size: 1.75rem;
+    }
+
+    .visa-cat-item .visa-icon-btn {
+        width: 30px;
+        height: 30px;
+        background: #fff;
+        flex-shrink: 0;
+    }
 </style>
 @endpush
 
 @section('content')
 @php
 $visaRoute = $visaRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses');
-$showRenewalCategoriesTab = ($visaRoute ?? '') === 'settings-panel.visa-statuses';
+$showCategoryManager = true;
+$visaRenewalCategories = $visaRenewalCategories ?? collect();
+$selectedCategoryId = (int) ($selectedCategoryId ?? 0);
+$selectedCategory = $selectedCategory ?? $visaRenewalCategories->firstWhere('id', $selectedCategoryId);
 $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
-    ?? ($showRenewalCategoriesTab
-        ? route('settings-panel.visa-statuses.index', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) . '#tab-visa-renewal-categories'
-        : '');
+    ?? route($visaRoute . '.index') . ($selectedCategoryId ? ('?category_id=' . $selectedCategoryId) : '');
+$addStatusUrl = $selectedCategoryId
+    ? route($visaRoute . '.create') . '?category_id=' . $selectedCategoryId
+    : route($visaRoute . '.create');
 @endphp
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
@@ -71,21 +210,14 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
 <section class="content-header">
     <div class="container-fluid">
         <div class="row mb-2">
-            <div class="col-sm-6">
-                <h1>{{ $showRenewalCategoriesTab ? 'Visa Expense Settings' : 'Visa Status Management' }}</h1>
-            </div>
-            <div class="col-sm-6">
-                @can('visa_expense_create')
-                <a class="btn btn-primary float-end js-visa-status-add-btn" href="{{ route($visaRoute . '.create') }}">
-                    Add New Status
-                </a>
-                @endcan
+            <div class="col-sm-8">
+                <h1 class="mb-1">Visa Categories</h1>
+                <p class="text-muted mb-0">Create a visa category first, then add statuses under that category. Expense tickets are generated only from the selected category’s statuses.</p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">
         <h5>Filter Visa Statuses</h5>
@@ -93,6 +225,7 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
     </div>
     <div class="filter-body" id="searchTopbody">
         <form id="filterForm" action="{{ request()->url() }}" method="GET">
+            <input type="hidden" name="category_id" id="filter_category_id" value="{{ $selectedCategoryId }}">
             <div class="row">
                 <div class="form-group col-md-12">
                     <label for="code">Code</label>
@@ -103,7 +236,7 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
                     <input type="text" name="name" class="form-control" placeholder="Filter by Name" value="{{ request('name') }}">
                 </div>
                 <div class="form-group col-md-12">
-                    <label for="category">Category</label>
+                    <label for="category">Type</label>
                     <select class="form-control" id="category" name="category">
                         <option value="">All</option>
                         <option value="Document" {{ request('category') == 'Document' ? 'selected' : '' }}>Document</option>
@@ -142,59 +275,148 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
     @include('flash::message')
     <div class="clearfix"></div>
 
-    @if($showRenewalCategoriesTab)
-    <ul class="nav nav-tabs mb-3" id="visaExpenseSettingsTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-visa-statuses-btn" data-bs-toggle="tab" data-bs-target="#tab-visa-statuses" type="button" role="tab">
-                Visa Statuses
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-visa-renewal-categories-btn" data-bs-toggle="tab" data-bs-target="#tab-visa-renewal-categories" type="button" role="tab">
-                Visa Renewal Categories
-            </button>
-        </li>
-    </ul>
-    @endif
-
-    <div class="tab-content">
-        <div class="tab-pane fade show active" id="tab-visa-statuses" role="tabpanel">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0"><i class="ti ti-list me-2"></i>Visa Statuses</h4>
-                    <button type="button" class="btn btn-primary openFilterSidebar">
-                        <i class="fa fa-search me-1"></i> Filter Visa Statuses
+    <div class="visa-workspace">
+        <aside class="visa-panel">
+            <div class="visa-panel-header">
+                <div>
+                    <h4><i class="ti ti-category me-1"></i> Visa Categories</h4>
+                    <p class="visa-panel-subtitle mb-0">Select a category to manage its statuses</p>
+                </div>
+                @can('visa_expense_create')
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
+                    <i class="ti ti-plus"></i>
+                </button>
+                @endcan
+            </div>
+            <div class="visa-cat-list" id="visa-category-nav">
+                @forelse($visaRenewalCategories as $category)
+                <div
+                    class="visa-cat-item {{ (int) $category->id === $selectedCategoryId ? 'active' : '' }}"
+                    data-category-id="{{ $category->id }}"
+                    data-id="{{ $category->id }}"
+                    data-name="{{ $category->name }}"
+                    data-display-order="{{ $category->display_order }}"
+                    data-is-default="{{ $category->is_default ? 1 : 0 }}"
+                    data-is-active="{{ $category->is_active ? 1 : 0 }}"
+                    role="button"
+                    tabindex="0">
+                    <span class="visa-cat-icon"><i class="ti ti-folder"></i></span>
+                    <span class="visa-cat-meta">
+                        <span class="visa-cat-name">
+                            {{ $category->name }}
+                            @if($category->is_default)
+                            <span class="badge bg-label-primary ms-1">Default</span>
+                            @endif
+                            @if(! $category->is_active)
+                            <span class="badge bg-label-secondary ms-1">Inactive</span>
+                            @endif
+                        </span>
+                        <span class="visa-cat-count">{{ (int) ($category->visa_statuses_count ?? 0) }} status{{ (int) ($category->visa_statuses_count ?? 0) === 1 ? '' : 'es' }}</span>
+                    </span>
+                    <span class="d-flex align-items-center gap-1">
+                        @can('visa_expense_edit')
+                        <button type="button" class="visa-icon-btn visa-icon-btn-edit js-visa-renewal-edit-btn"
+                            title="Edit category"
+                            data-bs-toggle="modal"
+                            data-bs-target="#editVisaRenewalCategoryModal"
+                            data-id="{{ $category->id }}"
+                            data-name="{{ $category->name }}"
+                            data-display-order="{{ $category->display_order }}"
+                            data-is-default="{{ $category->is_default ? 1 : 0 }}"
+                            data-is-active="{{ $category->is_active ? 1 : 0 }}"
+                            onclick="event.preventDefault(); event.stopPropagation();">
+                            <i class="ti ti-pencil"></i>
+                        </button>
+                        @endcan
+                        @can('visa_expense_delete')
+                        @if(! $category->is_default)
+                        <button type="button"
+                            class="visa-icon-btn visa-icon-btn-delete js-visa-renewal-delete-btn"
+                            title="Delete category"
+                            data-delete-url="{{ route('settings-panel.visa-renewal-categories.destroy', $category->id) . '?return_to=' . urlencode($visaRenewalCategoryReturnUrl) }}"
+                            onclick="event.preventDefault(); event.stopPropagation();">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                        @endif
+                        @endcan
+                    </span>
+                </div>
+                @empty
+                <div class="visa-empty">
+                    <div class="visa-empty-icon"><i class="ti ti-folder-plus"></i></div>
+                    <h5 class="mb-1">No visa categories yet</h5>
+                    <p class="text-muted small mb-3">Create a visa category first. Statuses can only be added after a category exists.</p>
+                    @can('visa_expense_create')
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
+                        Create Visa Category
                     </button>
+                    @endcan
                 </div>
-                <div class="card-body table-responsive px-2 py-0" id="table-data">
-                    @include('visa_statuses.table', ['visaStatuses' => $visaStatuses, 'visaRoute' => $visaRoute])
-                </div>
+                @endforelse
             </div>
-        </div>
+        </aside>
 
-        @if($showRenewalCategoriesTab)
-        <div class="tab-pane fade" id="tab-visa-renewal-categories" role="tabpanel">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0"><i class="ti ti-category me-2"></i>Visa Renewal Categories</h4>
+        <section class="visa-panel">
+            <div class="visa-panel-header">
+                <div>
+                    <h4 id="visa-status-heading">
+                        <i class="ti ti-list-check me-1"></i>
+                        {{ $selectedCategory ? $selectedCategory->name . ' statuses' : 'Visa Statuses' }}
+                    </h4>
+                    <p class="visa-panel-subtitle mb-0" id="visa-status-subtitle">
+                        @if($selectedCategory)
+                        Tickets for this category will be generated from these statuses only.
+                        @else
+                        Select a visa category to view and manage its statuses.
+                        @endif
+                    </p>
                 </div>
-                <div class="card-body">
-                    @include('visa_renewal_categories.settings_panel', [
-                        'categories' => $visaRenewalCategories ?? collect(),
-                        'returnTo' => $visaRenewalCategoryReturnUrl,
-                    ])
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-secondary btn-sm openFilterSidebar" @disabled(! $selectedCategoryId)>
+                        <i class="fa fa-search me-1"></i> Filter
+                    </button>
+                    @can('visa_expense_create')
+                    <a class="btn btn-primary btn-sm js-visa-status-add-btn {{ $selectedCategoryId ? '' : 'disabled' }}" href="{{ $addStatusUrl }}" id="visa-add-status-btn">
+                        Add Status
+                    </a>
+                    @endcan
                 </div>
             </div>
-        </div>
-        @endif
+            <div class="card-body table-responsive px-2 py-0" id="table-data">
+                @if($selectedCategoryId)
+                @include('visa_statuses.table', [
+                    'visaStatuses' => $visaStatuses,
+                    'visaRoute' => $visaRoute,
+                    'visaStatusReturnTo' => $visaRenewalCategoryReturnUrl,
+                    'selectedCategoryId' => $selectedCategoryId,
+                ])
+                @else
+                <div class="visa-empty">
+                    <div class="visa-empty-icon"><i class="ti ti-list"></i></div>
+                    <h5 class="mb-1">Select a visa category</h5>
+                    <p class="text-muted small mb-0">Statuses are created against a specific category and cannot be duplicated within that category.</p>
+                </div>
+                @endif
+            </div>
+        </section>
     </div>
 </div>
+
+@include('visa_renewal_categories.settings_panel', [
+    'categories' => collect(),
+    'returnTo' => $visaRenewalCategoryReturnUrl,
+    'embeddedManager' => true,
+    'hideTable' => true,
+])
 @endsection
 
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script type="text/javascript">
+    var visaIndexUrl = "{{ request()->url() }}";
+    var selectedCategoryId = "{{ $selectedCategoryId }}";
+
     function confirmDelete(url) {
         Swal.fire({
             title: 'Are you sure?',
@@ -323,7 +545,6 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
                                 if (orderCell) orderCell.textContent = idx++;
                             });
                         } else {
-
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Error',
@@ -342,8 +563,53 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
         });
     }
 
+    function loadCategoryStatuses(categoryId, pushState) {
+        $('#loading-overlay').show();
+        selectedCategoryId = String(categoryId || '');
+        $('#filter_category_id').val(selectedCategoryId);
+        var url = visaIndexUrl + (selectedCategoryId ? ('?category_id=' + encodeURIComponent(selectedCategoryId)) : '');
+        $.ajax({
+            url: url,
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(data) {
+                $('#table-data').html(data.tableData);
+                if (data.addStatusUrl) {
+                    $('#visa-add-status-btn').attr('href', data.addStatusUrl).removeClass('disabled');
+                }
+                $('.visa-cat-item').removeClass('active');
+                $('.visa-cat-item[data-category-id="' + selectedCategoryId + '"]').addClass('active');
+                var nameEl = $('.visa-cat-item.active .visa-cat-name').clone();
+                nameEl.find('.badge').remove();
+                var catName = $.trim(nameEl.text()) || 'Visa';
+                $('#visa-status-heading').html('<i class="ti ti-list-check me-1"></i> ' + catName + ' statuses');
+                $('#visa-status-subtitle').text('Tickets for this category will be generated from these statuses only.');
+                if (pushState !== false) {
+                    history.pushState(null, '', url);
+                }
+                initSortable();
+                $('#loading-overlay').hide();
+            },
+            error: function() {
+                $('#loading-overlay').hide();
+            }
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         initSortable();
+
+        $(document).on('click', '.visa-cat-item', function(e) {
+            if ($(e.target).closest('button').length) {
+                return;
+            }
+            e.preventDefault();
+            var categoryId = this.getAttribute('data-category-id');
+            if (!categoryId) return;
+            loadCategoryStatuses(categoryId, true);
+        });
 
         $(document).on('click', '.js-visa-status-delete-btn', function(e) {
             e.preventDefault();
@@ -386,8 +652,7 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
             $('#filterOverlay').removeClass('show');
 
             var formData = $(this).serialize();
-            var baseUrl = "{{ request()->url() }}";
-            var url = formData ? baseUrl + '?' + formData : baseUrl;
+            var url = formData ? visaIndexUrl + '?' + formData : visaIndexUrl;
 
             $.ajax({
                 url: url,
@@ -412,19 +677,7 @@ $visaRenewalCategoryReturnUrl = $visaRenewalCategoryReturnUrl
             allowClear: true,
             placeholder: 'Select'
         });
-
-        @if($showRenewalCategoriesTab ?? false)
-        document.querySelectorAll('#visaExpenseSettingsTabs [data-bs-toggle="tab"]').forEach(function(tabBtn) {
-            tabBtn.addEventListener('shown.bs.tab', function(event) {
-                var addBtn = document.querySelector('.js-visa-status-add-btn');
-                if (!addBtn) return;
-                addBtn.style.display = event.target.getAttribute('data-bs-target') === '#tab-visa-statuses' ? '' : 'none';
-            });
-        });
-        @endif
     });
 </script>
-@if($showRenewalCategoriesTab ?? false)
 @include('visa_renewal_categories.settings_script')
-@endif
 @endsection

@@ -18,8 +18,10 @@ class ExpenseAccount extends BaseModel
         'account_id',
         'name',
         'rider_id',
+        'employee_id',
         'module',
         'renewal_category_id',
+        'license_category_id',
         'company_id',
     ];
 
@@ -37,9 +39,24 @@ class ExpenseAccount extends BaseModel
         return $this->belongsTo(Riders::class, 'rider_id');
     }
 
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function isEmployeeAccount(): bool
+    {
+        return $this->employee_id !== null;
+    }
+
     public function renewalCategory(): BelongsTo
     {
         return $this->belongsTo(VisaRenewalCategory::class, 'renewal_category_id');
+    }
+
+    public function licenseCategory(): BelongsTo
+    {
+        return $this->belongsTo(LicenseCategory::class, 'license_category_id');
     }
 
     public function visaExpenses(): HasMany

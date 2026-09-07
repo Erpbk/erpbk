@@ -164,42 +164,12 @@
 @endsection
 
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Employee',
+    'confirmText' => 'This will submit a delete request or move the employee to the Recycle Bin.',
+    'functionName' => 'confirmDeleteEmployee',
+])
 <script type="text/javascript">
-    function confirmDeleteEmployee(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this! The employee will be moved to Recycle Bin.",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (!result.isConfirmed) return;
-            fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}',
-                    'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            }).then(function(r) {
-                return r.json();
-            }).then(function(data) {
-                if (data.success) {
-                    Swal.fire({ icon: 'success', title: 'Deleted', text: data.message || 'Employee deleted.' }).then(function() {
-                        window.location.reload();
-                    });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.message || 'Could not delete employee.' });
-                }
-            }).catch(function() {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Could not delete employee.' });
-            });
-        });
-    }
-
     $(document).ready(function() {
         $('#branch_id, #department_id').select2({
             dropdownParent: $('#searchTopbody'),

@@ -109,6 +109,18 @@ return [
             'display_columns' => ['name', 'email', 'company_contact'],
             'show_route' => 'fuelCompanies.show',
         ],
+        'fuel_cards' => [
+            'model' => \App\Models\FuelCards::class,
+            'name' => 'Fuel Cards',
+            'display_columns' => ['card_number', 'status', 'bike_no'],
+            'show_route' => 'fuelCards.show',
+        ],
+        'fuel_data' => [
+            'model' => \App\Models\FuelData::class,
+            'name' => 'Fuel Transactions',
+            'display_columns' => ['trans_no', 'billing_month', 'card_no', 'bike_no', 'total'],
+            'show_route' => 'fuel_data.show',
+        ],
         'items' => [
             'model' => \App\Models\Items::class,
             'name' => 'Items',

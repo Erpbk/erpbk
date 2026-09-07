@@ -8,6 +8,7 @@ use App\Services\Agreements\AgreementLetterheadLayout;
 use App\Services\Agreements\AgreementModuleService;
 use App\Services\Email\CompanyEmailBrandingService;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 
 class AgreementPdfService
 {
@@ -17,8 +18,21 @@ class AgreementPdfService
         protected AgreementPdfBranding $pdfBranding,
         protected AgreementLetterheadLayout $letterheadLayout,
         protected AgreementLetterheadPaginator $letterheadPaginator,
-        protected AgreementFontSettings $fonts
+        protected AgreementFontSettings $fonts,
+        protected AgreementLetterheadPdfPainter $letterheadPainter
     ) {}
+
+    /**
+     * Stream the PDF in the browser (preview/print) or force a download.
+     */
+    public function httpResponse($pdf, string $filename, Request $request)
+    {
+        if ($request->boolean('inline') || ($request->exists('download') && ! $request->boolean('download'))) {
+            return $pdf->stream($filename);
+        }
+
+        return $pdf->download($filename);
+    }
 
     public function renderHtml(
         AgreementTemplate $template,
@@ -44,10 +58,15 @@ class AgreementPdfService
             ? $this->sampleMap()
             : $this->resolver->resolveForModule($module, $record, $agreementDate);
 
-        $body = $this->fonts->normalizeHtml($this->resolver->replace($content, $map));
-        $branding = $this->pdfBranding->forCompany($template->company_id);
-        $template->loadMissing('category');
+        $body = $this->pdfBranding->inlineHtmlImages(
+            $this->fonts->normalizeHtml($this->resolver->replace($content, $map))
+        );
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $category = $template->category;
+        $branding = $this->pdfBranding->withUploadedLetterhead(
+            $this->pdfBranding->forCompany($template->company_id),
+            $category
+        );
 
         $subject = app(AgreementModuleService::class)->pdfSubject($module, $record);
 
@@ -65,8 +84,8 @@ class AgreementPdfService
             'letterheadMargins' => $margins,
             'contentPadding' => $contentPadding,
             'pageMarginCss' => $this->letterheadLayout->pageMarginCss($category),
-            'pageWidthMm' => $this->letterheadLayout->pageWidthMm(),
-            'pageHeightMm' => $this->letterheadLayout->pageHeightMm(),
+            'pageWidthMm' => $this->letterheadLayout->pageWidthMm($category),
+            'pageHeightMm' => $this->letterheadLayout->pageHeightMm($category),
             'forPdf' => $forPdf,
             'withLetterhead' => $withLetterhead,
             'rider' => $subject,
@@ -98,10 +117,10 @@ class AgreementPdfService
         ?string $agreementDate = null,
         bool $withLetterhead = true
     ) {
-        $template->loadMissing('category');
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead);
 
-        return $this->buildPdf($html, $template->category);
+        return $this->buildPdf($html, $template->category, $withLetterhead);
     }
 
     public function previewPdf(
@@ -111,7 +130,7 @@ class AgreementPdfService
         bool $withLetterhead = true
     ) {
         $rider = $rider ?? new Riders(['name' => 'Sample Rider', 'rider_id' => 'R-0001']);
-        $template->loadMissing('category');
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $html = $this->renderHtmlForModule(
             $template,
             'riders',
@@ -122,17 +141,20 @@ class AgreementPdfService
             $withLetterhead
         );
 
-        return $this->buildPdf($html, $template->category);
+        return $this->buildPdf($html, $template->category, $withLetterhead);
     }
 
-    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null)
+    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true)
     {
         $fontFaces = $this->pdfFontFaces();
         $defaultFont = $this->fonts->defaultFamily();
         $defaultFont = $fontFaces !== [] ? $defaultFont : 'DejaVu Sans';
 
         $pdf = app('dompdf.wrapper');
-        $pdf->setPaper('a4', 'portrait');
+        $size = $this->letterheadLayout->resolvedPageSize($category);
+        $widthPt = $size['width_mm'] * 72 / 25.4;
+        $heightPt = $size['height_mm'] * 72 / 25.4;
+        $pdf->setPaper([0, 0, $widthPt, $heightPt], 'portrait');
 
         $dompdf = $pdf->getDomPDF();
         $options = $dompdf->getOptions();
@@ -150,7 +172,13 @@ class AgreementPdfService
         $options->setChroot($this->fontChrootDirectories($fontFaces));
         $dompdf->setOptions($options);
         $dompdf->setBasePath(public_path());
+        $this->fonts->refreshDompdfFontRegistry($fontFaces);
         $this->registerPdfFonts($dompdf, $fontFaces);
+        if ($withLetterhead) {
+            $this->letterheadPainter->registerDompdfCallbacks($dompdf, $category);
+        } else {
+            $dompdf->setCallbacks([]);
+        }
 
         $pdf->loadHTML($html);
 
@@ -158,55 +186,25 @@ class AgreementPdfService
     }
 
     /**
-     * Load the same body font the browser print uses (Calibri / Segoe UI).
-     * Dompdf cannot see system fonts unless they are copied and registered.
+     * Load the same TTF files the editor, HTML preview, and print use.
      *
-     * @return list<array{family: string, weight: string, style: string, path: string, uri: string}>
+     * @return list<array{family: string, weight: string, style: string, path: string, uri: string, url: string}>
      */
     private function pdfFontFaces(): array
     {
         $faces = [];
-        foreach ($this->fonts->systemFontCandidates() as $candidate) {
-            foreach ($candidate['paths'] as $path) {
-                if (! is_readable($path) || ! str_ends_with(strtolower($path), '.ttf')) {
-                    continue;
-                }
-
-                $cached = $this->cacheFontFile($path, $candidate['family'], $candidate['weight'], $candidate['style']);
-
-                $faces[] = [
-                    'family' => $candidate['family'],
-                    'weight' => $candidate['weight'],
-                    'style' => $candidate['style'],
-                    'path' => $cached,
-                    'uri' => $this->fileUri($cached),
-                ];
-
-                break;
-            }
+        foreach ($this->fonts->cachedFaces() as $face) {
+            $faces[] = [
+                'family' => $face['family'],
+                'weight' => $face['weight'],
+                'style' => $face['style'],
+                'path' => $face['path'],
+                'uri' => $this->fileUri($face['path']),
+                'url' => $face['url'],
+            ];
         }
 
         return $faces;
-    }
-
-    /**
-     * Copy a system font into storage/fonts so Dompdf chroot and @font-face can read it.
-     */
-    private function cacheFontFile(string $sourcePath, string $family, string $weight, string $style): string
-    {
-        $dir = storage_path('fonts');
-        if (! is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $safeFamily = strtolower(preg_replace('/[^a-z0-9]+/i', '', $family) ?: 'font');
-        $dest = $dir . DIRECTORY_SEPARATOR . $safeFamily . '-' . $weight . '-' . $style . '.ttf';
-
-        if (! is_file($dest) || filesize($dest) !== filesize($sourcePath)) {
-            copy($sourcePath, $dest);
-        }
-
-        return $dest;
     }
 
     /**
@@ -281,12 +279,8 @@ class AgreementPdfService
             '{joining_date}' => '01-Jan-2024',
             '{designation}' => 'Delivery Rider',
             '{salary}' => '—',
-            '{branch_name}' => 'Main Branch',
             '{company_name}' => 'Sample Company',
-            '{bike_number}' => 'DXB-12345',
-            '{bike_model}' => 'Honda Click',
             '{current_date}' => now()->format('d-M-Y'),
-            '{agreement_date}' => now()->format('d-M-Y'),
         ];
     }
 }

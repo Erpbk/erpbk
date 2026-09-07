@@ -6,6 +6,7 @@ use App\Helpers\Account;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Branch;
+use App\Models\Employee;
 use App\Models\ExpenseAccount;
 use App\Models\Riders;
 use App\Models\Transactions;
@@ -266,7 +267,11 @@ trait ManagesVisaInstallments
             ]);
         }
 
-        $riders = Riders::findOrFail($account->rider_id);
+        $person = $this->resolveExpenseAccountPerson($account);
+        if (!$person) {
+            abort(404, 'Person not found for this expense account.');
+        }
+        $riders = $person;
 
         return view($this->installmentViewPlan(), array_merge(
             compact('data', 'account', 'riders', 'installmentStats'),
@@ -285,14 +290,17 @@ trait ManagesVisaInstallments
         // Auto-mark installments silently in the background
         $this->checkAndAutoMarkInstallments($account);
 
-        $account->loadMissing('rider.branch');
-        $rider = $account->rider ?? Riders::find($account->rider_id);
-        if (!$rider) {
-            abort(404, 'Rider not found for this expense account.');
+        $account->loadMissing(['rider.branch', 'employee.branch']);
+        $person = $this->resolveExpenseAccountPerson($account);
+        if (!$person) {
+            abort(404, 'Person not found for this expense account.');
         }
 
-        $branch = $rider->branch;
-        $branchId = $branch?->id ?? $rider->branch_id;
+        $rider = $person;
+        $branch = !empty($person->is_employee)
+            ? ($account->employee?->branch)
+            : ($account->rider?->branch);
+        $branchId = $branch?->id ?? $person->branch_id;
         $branches = null;
         if (!$branchId) {
             $branches = Branch::query()->orderBy('name')->get(['id', 'name', 'code']);
@@ -332,8 +340,16 @@ trait ManagesVisaInstallments
 
             // Resolve rider account context (expense_accounts.id, riders.id, or legacy accounts.id).
             $expenseAccount = $this->resolveExpenseAccountContext((int) $validated['rider_id']);
-            $expenseAccount->loadMissing('renewalCategory');
-            $riderAccount = (int) $expenseAccount->rider_id;
+            $expenseAccount->loadMissing(['renewalCategory', 'rider', 'employee']);
+            $person = $this->resolveExpenseAccountPerson($expenseAccount);
+            if (!$person) {
+                $message = 'Person not found for this expense account.';
+                if ($request->ajax()) {
+                    return response()->json(['message' => $message], 422);
+                }
+                Flash::error($message);
+                return redirect()->back()->withInput();
+            }
 
             // Validate that installment amounts sum to total amount.
             // Allow tiny rounding drift (e.g. 833.33 x 6 = 4999.98 for 5000.00 total),
@@ -369,31 +385,19 @@ trait ManagesVisaInstallments
                 return redirect()->back()->withInput();
             }
 
-            // Find the liability account using ref_id from rider account
-            $liabilityAccount = Accounts::where('ref_id', $riderAccount)
-                ->where('account_type', 'Liability')
-                ->where('parent_id', 1)
-                ->first();
-
+            $liabilityAccount = $this->resolvePersonLiabilityAccount($expenseAccount, $person);
             if (!$liabilityAccount) {
-                $liabilityAccount = Accounts::where('ref_id', $riderAccount)
-                    ->where('account_type', 'Liability')
-                    ->first();
-            }
-
-            if (!$liabilityAccount) {
-                $message = 'Liability account not found for this rider. Please create the liability account first.';
+                $message = 'Liability account not found for this person. Please create the liability account first.';
                 if ($request->ajax()) {
                     return response()->json(['message' => $message], 422);
                 }
                 Flash::error($message);
                 return redirect()->back();
             }
-            $rider = Riders::findOrFail($riderAccount);
 
             $existingInstallmentCount = $this->persistInstallmentPlanEntries(
                 $expenseAccount,
-                $rider,
+                $person,
                 $liabilityAccount,
                 (int) $validated['branch_id'],
                 $validated['billing_month'],
@@ -1317,10 +1321,14 @@ trait ManagesVisaInstallments
             $rider = null;
             $installments = collect();
 
-            $expenseAccount = ExpenseAccount::with('rider')->find($riderId);
+            $expenseAccount = ExpenseAccount::with(['rider', 'employee'])->find($riderId);
             if ($expenseAccount) {
                 $account = $expenseAccount;
-                $rider = $expenseAccount->rider ?? Riders::findOrFail($expenseAccount->rider_id);
+                $person = $this->resolveExpenseAccountPerson($expenseAccount);
+                if (!$person) {
+                    throw new \RuntimeException('Person not found for expense account.');
+                }
+                $rider = $person;
                 $installments = $this->installmentQuery()
                     ->where(function ($q) use ($expenseAccount) {
                         $this->applyInstallmentRiderScope($q, $expenseAccount);
@@ -1331,21 +1339,61 @@ trait ManagesVisaInstallments
 
             if ($installments->isEmpty() && ($ledgerAccount = Accounts::find($riderId))) {
                 $account = $ledgerAccount;
-                $rider = Riders::findOrFail($ledgerAccount->ref_id);
+                $riderModel = Riders::find($ledgerAccount->ref_id);
+                $employeeModel = $riderModel ? null : Employee::find($ledgerAccount->ref_id);
+                if ($riderModel) {
+                    $rider = (object) [
+                        'id' => (int) $riderModel->id,
+                        'rider_id' => (string) $riderModel->rider_id,
+                        'name' => (string) $riderModel->name,
+                        'branch_id' => $riderModel->branch_id,
+                        'is_employee' => false,
+                    ];
+                } elseif ($employeeModel) {
+                    $rider = (object) [
+                        'id' => (int) $employeeModel->id,
+                        'rider_id' => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
+                        'name' => (string) $employeeModel->name,
+                        'branch_id' => $employeeModel->branch_id,
+                        'is_employee' => true,
+                    ];
+                } else {
+                    throw new \RuntimeException('Person not found for ledger account.');
+                }
                 $installments = $this->installmentModelClass()::where('rider_id', $riderId)
                     ->orderBy('billing_month', 'asc')
                     ->get();
             }
 
             if ($installments->isEmpty()) {
-                $rider = Riders::findOrFail($riderId);
+                $riderModel = Riders::find($riderId);
+                $employeeModel = $riderModel ? null : Employee::find($riderId);
+                if ($riderModel) {
+                    $rider = (object) [
+                        'id' => (int) $riderModel->id,
+                        'rider_id' => (string) $riderModel->rider_id,
+                        'name' => (string) $riderModel->name,
+                        'branch_id' => $riderModel->branch_id,
+                        'is_employee' => false,
+                    ];
+                } elseif ($employeeModel) {
+                    $rider = (object) [
+                        'id' => (int) $employeeModel->id,
+                        'rider_id' => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
+                        'name' => (string) $employeeModel->name,
+                        'branch_id' => $employeeModel->branch_id,
+                        'is_employee' => true,
+                    ];
+                } else {
+                    throw new \RuntimeException('No installment plans found for this person.');
+                }
                 $installments = $this->installmentModelClass()::where('rider_id', $riderId)
                     ->orderBy('billing_month', 'asc')
                     ->get();
             }
 
             if ($installments->isEmpty()) {
-                $msg = 'No installment plans found for this rider.';
+                $msg = 'No installment plans found for this person.';
                 if (request()->ajax()) {
                     return response('<div class="alert alert-warning m-3 mb-0">' . e($msg) . '</div>', 200);
                 }
@@ -1373,24 +1421,33 @@ trait ManagesVisaInstallments
     }
     private function resolveExpenseAccountContext(int $id): ExpenseAccount
     {
-        $expense = $this->expenseAccountBaseQuery()->with('rider')->find($id);
+        $expense = $this->expenseAccountBaseQuery()->with(['rider', 'employee'])->find($id);
         if ($expense) {
             return $expense;
         }
 
-        $expense = $this->expenseAccountBaseQuery()->with('rider')->where('rider_id', $id)->orderBy('id')->first();
+        $expense = $this->expenseAccountBaseQuery()->with(['rider', 'employee'])->where('rider_id', $id)->orderBy('id')->first();
         if ($expense) {
             return $expense;
         }
 
-        $expense = $this->expenseAccountBaseQuery()->with('rider')->where('account_id', $id)->first();
+        $expense = $this->expenseAccountBaseQuery()->with(['rider', 'employee'])->where('employee_id', $id)->orderBy('id')->first();
+        if ($expense) {
+            return $expense;
+        }
+
+        $expense = $this->expenseAccountBaseQuery()->with(['rider', 'employee'])->where('account_id', $id)->first();
         if ($expense) {
             return $expense;
         }
 
         $legacyAccount = Accounts::find($id);
         if ($legacyAccount && $legacyAccount->ref_id) {
-            $expense = $this->expenseAccountBaseQuery()->with('rider')->where('rider_id', $legacyAccount->ref_id)->orderBy('id')->first();
+            $expense = $this->expenseAccountBaseQuery()->with(['rider', 'employee'])->where('rider_id', $legacyAccount->ref_id)->orderBy('id')->first();
+            if ($expense) {
+                return $expense;
+            }
+            $expense = $this->expenseAccountBaseQuery()->with(['rider', 'employee'])->where('employee_id', $legacyAccount->ref_id)->orderBy('id')->first();
             if ($expense) {
                 return $expense;
             }
@@ -1426,6 +1483,26 @@ trait ManagesVisaInstallments
     {
         $keys = [(int) $account->id];
 
+        if ($account->employee_id) {
+            $oldestAccountId = $this->expenseAccountBaseQuery()
+                ->where('employee_id', $account->employee_id)
+                ->orderBy('id')
+                ->value('id');
+
+            if ($oldestAccountId && (int) $oldestAccountId === (int) $account->id) {
+                $keys[] = (int) $account->employee_id;
+                if ($account->account_id) {
+                    $keys[] = (int) $account->account_id;
+                }
+            }
+
+            return array_values(array_unique(array_filter($keys)));
+        }
+
+        if (!$account->rider_id) {
+            return $keys;
+        }
+
         $oldestAccountId = $this->expenseAccountBaseQuery()
             ->where('rider_id', $account->rider_id)
             ->orderBy('id')
@@ -1460,12 +1537,13 @@ trait ManagesVisaInstallments
      * Persist installment rows + VL vouchers/transactions for one renewal expense account.
      * Always stores expense_accounts.id on visa_installment_plans.rider_id.
      *
+     * @param  object{rider_id:string,name:string}  $person
      * @param  list<float|int|string>  $installmentAmounts
      * @return int Existing installment count before this insert (for numbering).
      */
     private function persistInstallmentPlanEntries(
         ExpenseAccount $expenseAccount,
-        Riders $rider,
+        object $person,
         Accounts $liabilityAccount,
         int $branchId,
         string $billingMonthYm,
@@ -1498,7 +1576,7 @@ trait ManagesVisaInstallments
             $installmentAmount = round((float) $installmentAmounts[$i], 2);
             $installmentNumber = $i + 1 + $existingInstallmentCount;
 
-            $installmentNarration = $rider->rider_id . ' - ' . $rider->name
+            $installmentNarration = $person->rider_id . ' - ' . $person->name
                 . '<b> - installment ' . $installmentNumber . '</b>';
 
             $installment = $this->installmentModelClass()::create([
@@ -1598,38 +1676,28 @@ trait ManagesVisaInstallments
             ];
         }
 
-        $expenseAccount->loadMissing(['rider', 'renewalCategory']);
-        $rider = $expenseAccount->rider ?? Riders::find($expenseAccount->rider_id);
-        if (!$rider) {
+        $expenseAccount->loadMissing(['rider', 'employee', 'renewalCategory']);
+        $person = $this->resolveExpenseAccountPerson($expenseAccount);
+        if (!$person) {
             return [
                 'created' => false,
-                'message' => 'Installment plan was not auto-created because the rider could not be resolved.',
+                'message' => 'Installment plan was not auto-created because the person could not be resolved.',
             ];
         }
 
-        $branchId = (int) ($rider->branch_id ?? 0);
+        $branchId = (int) ($person->branch_id ?? 0);
         if ($branchId <= 0) {
             return [
                 'created' => false,
-                'message' => 'Installment plan was not auto-created because the rider has no branch assigned.',
+                'message' => 'Installment plan was not auto-created because the person has no branch assigned.',
             ];
         }
 
-        $liabilityAccount = Accounts::where('ref_id', $rider->id)
-            ->where('account_type', 'Liability')
-            ->where('parent_id', 1)
-            ->first();
-
-        if (!$liabilityAccount) {
-            $liabilityAccount = Accounts::where('ref_id', $rider->id)
-                ->where('account_type', 'Liability')
-                ->first();
-        }
-
+        $liabilityAccount = $this->resolvePersonLiabilityAccount($expenseAccount, $person);
         if (!$liabilityAccount) {
             return [
                 'created' => false,
-                'message' => 'Installment plan was not auto-created because the rider liability account was not found.',
+                'message' => 'Installment plan was not auto-created because the liability account was not found.',
             ];
         }
 
@@ -1641,7 +1709,7 @@ trait ManagesVisaInstallments
 
         $this->persistInstallmentPlanEntries(
             $expenseAccount,
-            $rider,
+            $person,
             $liabilityAccount,
             $branchId,
             $billingMonthYm,
@@ -1658,13 +1726,88 @@ trait ManagesVisaInstallments
         ];
     }
 
+    /**
+     * @return object{id:int,rider_id:string,name:string,branch_id:?int}|null
+     */
+    private function resolveExpenseAccountPerson(ExpenseAccount $expenseAccount): ?object
+    {
+        if ($expenseAccount->employee_id) {
+            $employee = $expenseAccount->employee ?? Employee::find($expenseAccount->employee_id);
+            if (!$employee) {
+                return null;
+            }
+
+            return (object) [
+                'id' => (int) $employee->id,
+                'rider_id' => (string) ($employee->employee_id ?: ('EMP-' . $employee->id)),
+                'name' => (string) $employee->name,
+                'branch_id' => $employee->branch_id,
+                'account_id' => $employee->account_id,
+                'is_employee' => true,
+            ];
+        }
+
+        $rider = $expenseAccount->rider ?? Riders::find($expenseAccount->rider_id);
+        if (!$rider) {
+            return null;
+        }
+
+        return (object) [
+            'id' => (int) $rider->id,
+            'rider_id' => (string) $rider->rider_id,
+            'name' => (string) $rider->name,
+            'branch_id' => $rider->branch_id,
+            'account_id' => $rider->account_id ?? null,
+            'is_employee' => false,
+        ];
+    }
+
+    private function resolvePersonLiabilityAccount(ExpenseAccount $expenseAccount, object $person): ?Accounts
+    {
+        if (!empty($person->is_employee)) {
+            if (!empty($person->account_id)) {
+                $byId = Accounts::find($person->account_id);
+                if ($byId) {
+                    return $byId;
+                }
+            }
+
+            return Accounts::where('ref_id', $person->id)
+                ->where('ref_name', 'employee')
+                ->where('account_type', 'Liability')
+                ->first()
+                ?? Accounts::where('ref_id', $person->id)
+                    ->where('account_type', 'Liability')
+                    ->first();
+        }
+
+        $liabilityAccount = Accounts::where('ref_id', $person->id)
+            ->where('account_type', 'Liability')
+            ->where('parent_id', 1)
+            ->first();
+
+        if (!$liabilityAccount) {
+            $liabilityAccount = Accounts::where('ref_id', $person->id)
+                ->where('account_type', 'Liability')
+                ->first();
+        }
+
+        return $liabilityAccount;
+    }
+
     private function resolveAutoInstallmentCountForRenewal(ExpenseAccount $expenseAccount): int
     {
-        $previousAccount = $this->expenseAccountBaseQuery()
-            ->where('rider_id', $expenseAccount->rider_id)
+        $previousQuery = $this->expenseAccountBaseQuery()
             ->where('id', '<', $expenseAccount->id)
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+
+        if ($expenseAccount->employee_id) {
+            $previousQuery->where('employee_id', $expenseAccount->employee_id);
+        } else {
+            $previousQuery->where('rider_id', $expenseAccount->rider_id);
+        }
+
+        $previousAccount = $previousQuery->first();
 
         if (!$previousAccount) {
             return 1;
@@ -1698,25 +1841,31 @@ trait ManagesVisaInstallments
     /**
      * visa_installment_plans.rider_id is used inconsistently: expense_accounts.id, riders.id, or accounts.id.
      *
-     * @return array{riderAccount: Accounts, rider: Riders}
+     * @return array{riderAccount: Accounts, rider: object}
      */
     private function resolveInstallmentRiderContext($installment): array
     {
         $key = (int) $installment->rider_id;
 
-        if ($expense = ExpenseAccount::find($key)) {
-            $rider = $expense->rider ?? Riders::findOrFail($expense->rider_id);
-            $riderAccount = Accounts::where('ref_id', $rider->id)->first();
+        if ($expense = ExpenseAccount::with(['rider', 'employee'])->find($key)) {
+            $person = $this->resolveExpenseAccountPerson($expense);
+            if (!$person) {
+                throw new \RuntimeException(
+                    'Could not resolve person for expense account #' . $key . '.'
+                );
+            }
+
+            $riderAccount = $this->resolvePersonLiabilityAccount($expense, $person);
             if (!$riderAccount && $expense->account_id) {
                 $riderAccount = Accounts::find($expense->account_id);
             }
             if (!$riderAccount) {
                 throw new \RuntimeException(
-                    'Could not find a ledger account for this rider (expense account #' . $key . ').'
+                    'Could not find a ledger account for this person (expense account #' . $key . ').'
                 );
             }
 
-            return ['riderAccount' => $riderAccount, 'rider' => $rider];
+            return ['riderAccount' => $riderAccount, 'rider' => $person];
         }
 
         if ($rider = Riders::find($key)) {
@@ -1727,7 +1876,37 @@ trait ManagesVisaInstallments
                 );
             }
 
-            return ['riderAccount' => $riderAccount, 'rider' => $rider];
+            return [
+                'riderAccount' => $riderAccount,
+                'rider' => (object) [
+                    'id' => (int) $rider->id,
+                    'rider_id' => (string) $rider->rider_id,
+                    'name' => (string) $rider->name,
+                    'branch_id' => $rider->branch_id,
+                    'is_employee' => false,
+                ],
+            ];
+        }
+
+        if ($employee = Employee::find($key)) {
+            $riderAccount = Accounts::find($employee->account_id)
+                ?? Accounts::where('ref_id', $employee->id)->where('ref_name', 'employee')->first();
+            if (!$riderAccount) {
+                throw new \RuntimeException(
+                    'Could not find accounts row for employee #' . $key . ' for visa installment resolution.'
+                );
+            }
+
+            return [
+                'riderAccount' => $riderAccount,
+                'rider' => (object) [
+                    'id' => (int) $employee->id,
+                    'rider_id' => (string) ($employee->employee_id ?: ('EMP-' . $employee->id)),
+                    'name' => (string) $employee->name,
+                    'branch_id' => $employee->branch_id,
+                    'is_employee' => true,
+                ],
+            ];
         }
 
         $riderAccount = Accounts::find($key);
@@ -1737,10 +1916,37 @@ trait ManagesVisaInstallments
             );
         }
 
-        return [
-            'riderAccount' => $riderAccount,
-            'rider' => Riders::findOrFail($riderAccount->ref_id),
-        ];
+        $rider = Riders::find($riderAccount->ref_id);
+        if ($rider) {
+            return [
+                'riderAccount' => $riderAccount,
+                'rider' => (object) [
+                    'id' => (int) $rider->id,
+                    'rider_id' => (string) $rider->rider_id,
+                    'name' => (string) $rider->name,
+                    'branch_id' => $rider->branch_id,
+                    'is_employee' => false,
+                ],
+            ];
+        }
+
+        $employee = Employee::find($riderAccount->ref_id);
+        if ($employee) {
+            return [
+                'riderAccount' => $riderAccount,
+                'rider' => (object) [
+                    'id' => (int) $employee->id,
+                    'rider_id' => (string) ($employee->employee_id ?: ('EMP-' . $employee->id)),
+                    'name' => (string) $employee->name,
+                    'branch_id' => $employee->branch_id,
+                    'is_employee' => true,
+                ],
+            ];
+        }
+
+        throw new \RuntimeException(
+            'Installment rider_id ' . $key . ' could not be resolved to a person.'
+        );
     }
 
     /**

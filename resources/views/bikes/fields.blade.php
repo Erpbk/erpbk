@@ -101,9 +101,15 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
             if (!$root.length) {
                 return;
             }
+            if ($root.is('[data-bike-assign-modal]')) {
+                return;
+            }
 
             $root.find('select').each(function() {
                 var $el = $(this);
+                if ($el.prop('disabled') || $el.closest('.hidden-field').length) {
+                    return;
+                }
                 $el.addClass('select2');
 
                 var $modalParent = $el.closest('.modal, .offcanvas');

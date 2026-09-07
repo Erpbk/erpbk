@@ -73,13 +73,9 @@
                   </a>
                   @endcan
                   @can('leasing_companies_invoices_delete')
-                  {!! Form::open(['route' => ['leasingCompanyInvoices.destroy', $invoice->id], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
-                  {!! Form::button('<i class="fa fa-trash mx-1"></i> Delete', [
-                  'type' => 'submit',
-                  'class' => 'dropdown-item waves-effect border-0 bg-transparent w-100 text-start',
-                  'onclick' => "return confirm('Are you sure you want to delete this invoice?');"
-                  ]) !!}
-                  {!! Form::close() !!}
+                  <a href="javascript:void(0);" onclick='confirmDelete(@json(route('leasingCompanyInvoices.destroy', $invoice->id)))' class="dropdown-item waves-effect">
+                     <i class="fa fa-trash mx-1"></i> Delete
+                  </a>
                   @endcan
                </div>
             </div>

@@ -1114,21 +1114,21 @@ class SalikController extends AppBaseController
 
             DB::commit();
 
+            $message = delete_outcome_message(
+                'Salik entry',
+                route('settings-panel.trash.index') . '?module=salik'
+            );
+
             if (request()->ajax()) {
                 return response()->json([
                     'success' => true,
-                    'message' => $pendingQueued
-                        ? 'Delete request submitted for approval.'
-                        : 'Salik entry deleted and monthly invoice updated successfully.',
+                    'message' => $message,
+                    'queued' => $pendingQueued,
+                    'reload' => true,
                 ]);
             }
 
-            return redirect()->route('salik.index')->with(
-                'success',
-                $pendingQueued
-                    ? 'Delete request submitted for approval.'
-                    : 'Salik entry deleted and monthly invoice updated successfully.'
-            );
+            return redirect()->route('salik.index')->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
 

@@ -142,9 +142,7 @@ $containerNav = 'container-fluid';
             <i class="menu-icon tf-icons ti ti-trash-x text-danger"></i>
             <div>Delete Requests
               @php
-                $pendingDeleteCount = \Illuminate\Support\Facades\Schema::hasTable('delete_requests')
-                  ? \App\Models\DeleteRequest::pending()->count()
-                  : 0;
+                $pendingDeleteCount = \App\Models\DeleteRequest::pendingApprovalCount();
               @endphp
               @if($pendingDeleteCount > 0)
                 <span class="badge bg-danger rounded-pill ms-1">{{ $pendingDeleteCount }}</span>

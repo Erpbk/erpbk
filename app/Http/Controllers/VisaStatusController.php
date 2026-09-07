@@ -8,6 +8,7 @@ use App\Support\CompanyAuthRedirect;
 use App\Support\VisaRenewalCategoryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\Rule;
 use Flash;
 use DB;
 
@@ -30,7 +31,23 @@ class VisaStatusController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        $query = VisaStatus::query();
+        VisaRenewalCategoryService::ensureDefaultExists();
+        $visaRenewalCategories = VisaRenewalCategory::query()
+            ->withCount('visaStatuses')
+            ->orderBy('display_order')
+            ->orderBy('id')
+            ->get();
+
+        $selectedCategoryId = (int) $request->input('category_id');
+        if ($selectedCategoryId <= 0 || ! $visaRenewalCategories->contains('id', $selectedCategoryId)) {
+            $selectedCategoryId = (int) ($visaRenewalCategories->first()->id ?? 0);
+        }
+        $selectedCategory = $visaRenewalCategories->firstWhere('id', $selectedCategoryId);
+
+        $query = VisaStatus::query()->with('renewalCategory');
+        if ($selectedCategoryId > 0) {
+            $query->where('visa_renewal_category_id', $selectedCategoryId);
+        }
 
         if ($request->filled('code')) {
             $query->where('code', 'like', '%' . $request->code . '%');
@@ -52,24 +69,24 @@ class VisaStatusController extends Controller
 
         $visaRoute = str_replace('.index', '', $request->route()->getName());
 
-        VisaRenewalCategoryService::ensureDefaultExists();
-        $visaRenewalCategories = VisaRenewalCategory::query()
-            ->orderBy('display_order')
-            ->orderBy('id')
-            ->get();
-
         $companySlug = (string) ($request->route('company_slug') ?? session('company_slug') ?? '');
-        $visaRenewalCategoryReturnUrl = $visaRoute === 'settings-panel.visa-statuses' && $companySlug !== ''
-            ? route('settings-panel.visa-statuses.index', ['company_slug' => $companySlug]) . '#tab-visa-renewal-categories'
-            : null;
+        $indexUrl = $this->visaStatusesIndexUrl($selectedCategoryId);
+        $visaRenewalCategoryReturnUrl = $indexUrl;
 
         if ($request->ajax()) {
             $tableData = view('visa_statuses.table', [
                 'visaStatuses' => $visaStatuses,
                 'visaRoute' => $visaRoute,
+                'visaStatusReturnTo' => $indexUrl,
+                'selectedCategoryId' => $selectedCategoryId,
             ])->render();
             return response()->json([
                 'tableData' => $tableData,
+                'selectedCategoryId' => $selectedCategoryId,
+                'statusCount' => $visaStatuses->count(),
+                'addStatusUrl' => $selectedCategoryId > 0
+                    ? route($visaRoute . '.create', array_filter(['company_slug' => $companySlug ?: null])) . '?category_id=' . $selectedCategoryId
+                    : null,
             ]);
         }
 
@@ -77,7 +94,9 @@ class VisaStatusController extends Controller
             'visaStatuses',
             'visaRoute',
             'visaRenewalCategories',
-            'visaRenewalCategoryReturnUrl'
+            'visaRenewalCategoryReturnUrl',
+            'selectedCategoryId',
+            'selectedCategory'
         ));
     }
 
@@ -86,14 +105,26 @@ class VisaStatusController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create()
+    public function create(Request $request)
     {
         // Check permissions
         if (!user_can('visaexpense_create')) {
             abort(403, 'Unauthorized action.');
         }
 
-        return view('visa_statuses.create');
+        VisaRenewalCategoryService::ensureDefaultExists();
+        $categories = VisaRenewalCategoryService::allOrdered();
+        if ($categories->isEmpty()) {
+            Flash::error('Create a Visa Category first before adding visa statuses.');
+            return redirect()->route($this->visaStatusesIndexRoute());
+        }
+
+        $selectedCategoryId = (int) $request->input('category_id', $categories->first()->id);
+        if (! $categories->contains('id', $selectedCategoryId)) {
+            $selectedCategoryId = (int) $categories->first()->id;
+        }
+
+        return view('visa_statuses.create', compact('categories', 'selectedCategoryId'));
     }
 
     /**
@@ -132,8 +163,19 @@ class VisaStatusController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        $categoryId = (int) $request->input('visa_renewal_category_id');
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:visa_statuses',
+            'visa_renewal_category_id' => [
+                'required',
+                'integer',
+                Rule::exists('visa_renewal_categories', 'id')->where(function ($q) {
+                    $companyId = \App\Support\CompanyContext::id();
+                    if ($companyId !== null && \Illuminate\Support\Facades\Schema::hasColumn('visa_renewal_categories', 'company_id')) {
+                        $q->where('company_id', $companyId);
+                    }
+                }),
+            ],
+            'name' => ['required', 'string', 'max:255', VisaStatus::uniqueNameRule($categoryId)],
             'code' => 'nullable|string|max:20',
             'description' => 'nullable|string|max:500',
             'default_fee' => 'nullable|numeric|min:0',
@@ -141,12 +183,16 @@ class VisaStatusController extends Controller
             'is_active' => 'nullable|boolean',
             'is_required' => 'nullable|boolean',
             'display_order' => 'nullable|integer|min:1',
+        ], [
+            'visa_renewal_category_id.required' => 'Select a visa category. Create a category first if none exist.',
+            'name.unique' => 'A visa status with this name already exists in the selected visa category.',
         ]);
 
         try {
             DB::beginTransaction();
 
             $visaStatus = new VisaStatus();
+            $visaStatus->visa_renewal_category_id = (int) $validated['visa_renewal_category_id'];
             $visaStatus->name = $validated['name'];
             $visaStatus->code = $validated['code'] ?? null;
             $visaStatus->description = $validated['description'] ?? null;
@@ -155,9 +201,11 @@ class VisaStatusController extends Controller
             $visaStatus->is_active = $request->has('is_active');
             $visaStatus->is_required = $request->has('is_required');
 
-            // If display_order is not provided, set it to the next available order
+            // If display_order is not provided, set it to the next available order within the category
             if (empty($validated['display_order'])) {
-                $maxOrder = VisaStatus::max('display_order') ?? 0;
+                $maxOrder = VisaStatus::query()
+                    ->where('visa_renewal_category_id', $visaStatus->visa_renewal_category_id)
+                    ->max('display_order') ?? 0;
                 $visaStatus->display_order = $maxOrder + 1;
             } else {
                 $visaStatus->display_order = $validated['display_order'];
@@ -193,7 +241,11 @@ class VisaStatusController extends Controller
         }
 
         $visaStatus = VisaStatus::findOrFail($id);
-        return view('visa_statuses.edit', compact('visaStatus'));
+        VisaRenewalCategoryService::ensureDefaultExists();
+        $categories = VisaRenewalCategoryService::allOrdered();
+        $selectedCategoryId = (int) ($visaStatus->visa_renewal_category_id ?: ($categories->first()->id ?? 0));
+
+        return view('visa_statuses.edit', compact('visaStatus', 'categories', 'selectedCategoryId'));
     }
 
     /**
@@ -212,8 +264,19 @@ class VisaStatusController extends Controller
 
         $visaStatus = VisaStatus::findOrFail($id);
 
+        $categoryId = (int) $request->input('visa_renewal_category_id', $visaStatus->visa_renewal_category_id);
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:visa_statuses,name,' . $id,
+            'visa_renewal_category_id' => [
+                'required',
+                'integer',
+                Rule::exists('visa_renewal_categories', 'id')->where(function ($q) {
+                    $companyId = \App\Support\CompanyContext::id();
+                    if ($companyId !== null && \Illuminate\Support\Facades\Schema::hasColumn('visa_renewal_categories', 'company_id')) {
+                        $q->where('company_id', $companyId);
+                    }
+                }),
+            ],
+            'name' => ['required', 'string', 'max:255', VisaStatus::uniqueNameRule($categoryId, (int) $id)],
             'code' => 'nullable|string|max:20',
             'description' => 'nullable|string|max:500',
             'default_fee' => 'nullable|numeric|min:0',
@@ -221,11 +284,15 @@ class VisaStatusController extends Controller
             'is_active' => 'nullable|boolean',
             'is_required' => 'nullable|boolean',
             'display_order' => 'nullable|integer|min:1',
+        ], [
+            'visa_renewal_category_id.required' => 'Select a visa category. Create a category first if none exist.',
+            'name.unique' => 'A visa status with this name already exists in the selected visa category.',
         ]);
 
         try {
             DB::beginTransaction();
 
+            $visaStatus->visa_renewal_category_id = (int) $validated['visa_renewal_category_id'];
             $visaStatus->name = $validated['name'];
             $visaStatus->code = $validated['code'] ?? $visaStatus->code;
             $visaStatus->description = $validated['description'] ?? null;
@@ -267,6 +334,9 @@ class VisaStatusController extends Controller
             // Active references block permanent deletion, so soft-delete the status instead.
             $hasActiveReferences = \App\Support\CompanyQuery::table('visa_expenses')
                 ->where('visa_status', $visaStatus->name)
+                ->when($visaStatus->visa_renewal_category_id, function ($q) use ($visaStatus) {
+                    $q->where('renewal_category_id', $visaStatus->visa_renewal_category_id);
+                })
                 ->whereNull('deleted_at')
                 ->exists();
 
@@ -366,6 +436,17 @@ class VisaStatusController extends Controller
         return str_starts_with($name, 'settings-panel.') ? 'settings-panel.visa-statuses' : 'visa-statuses';
     }
 
+    private function visaStatusesIndexUrl(?int $categoryId = null): string
+    {
+        $url = route($this->visaStatusesIndexRoute());
+        $id = (int) ($categoryId ?: request()->input('visa_renewal_category_id', request()->input('category_id')));
+        if ($id > 0) {
+            $url .= (str_contains($url, '?') ? '&' : '?') . 'category_id=' . $id;
+        }
+
+        return $url;
+    }
+
     private function redirectAfterAction(Request $request): RedirectResponse
     {
         $returnTo = $request->input('return_to');
@@ -373,6 +454,8 @@ class VisaStatusController extends Controller
             return redirect()->to($returnTo);
         }
 
-        return redirect()->route($this->visaStatusesIndexRoute());
+        $categoryId = (int) $request->input('visa_renewal_category_id', $request->input('category_id'));
+
+        return redirect()->to($this->visaStatusesIndexUrl($categoryId));
     }
 }

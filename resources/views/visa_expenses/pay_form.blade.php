@@ -1,7 +1,15 @@
 {{-- Expense-voucher-style payment form for a single Visa Expense entry. --}}
 @php
     $visaHead = company_table('accounts')->where('id', ga_id('VISA_EXPENSE_ACCOUNT'))->first();
-    $rider = $rider ?? ($accounts->rider ?? company_table('riders')->where('id', $accounts->rider_id ?? $data->rider_id)->first());
+    $isEmployee = !empty($accounts->employee_id);
+    if (!isset($rider) || !$rider) {
+        $rider = $isEmployee
+            ? ($accounts->employee ?? company_table('employees')->where('id', $accounts->employee_id ?? $data->employee_id)->first())
+            : ($accounts->rider ?? company_table('riders')->where('id', $accounts->rider_id ?? $data->rider_id)->first());
+    }
+    $personCode = $isEmployee
+        ? ($rider->employee_id ?? '')
+        : ($rider->rider_id ?? '');
     $defaultNarration = old('narration', $data->detail ?: ('Visa Expense Payment — ' . ($data->visa_status ?? '')));
     $billingMonthValue = $data->billing_month
         ? \Carbon\Carbon::parse($data->billing_month)->format('Y-m')
@@ -22,6 +30,7 @@
     <input type="hidden" id="reload_page" value="1">
     <input type="hidden" name="id" value="{{ $data->id }}">
     <input type="hidden" name="rider_id" value="{{ $accounts->rider_id ?? $data->rider_id }}">
+    <input type="hidden" name="employee_id" value="{{ $accounts->employee_id ?? $data->employee_id }}">
     <input type="hidden" name="trans_date" value="{{ $data->trans_date ?? $data->date }}">
     <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
     <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
@@ -83,8 +92,8 @@
         <div class="alert alert-light border py-2 mb-3">
             <div class="row small g-2">
                 <div class="col-md-4">
-                    <span class="text-muted">Rider:</span>
-                    <strong>{{ $rider ? trim(($rider->rider_id ?? '') . ' — ' . ($rider->name ?? '')) : '—' }}</strong>
+                    <span class="text-muted">{{ $isEmployee ? 'Employee' : 'Rider' }}:</span>
+                    <strong>{{ $rider ? trim(($personCode ?? '') . ' — ' . ($rider->name ?? '')) : '—' }}</strong>
                 </div>
                 <div class="col-md-4">
                     <span class="text-muted">Visa Status:</span>

@@ -169,7 +169,6 @@
 @endcan
 @endsection
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     .invoice-checkbox {
         transform: scale(1.2);
@@ -185,22 +184,12 @@
         transition: all 0.3s ease;
     }
 </style>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Rider Invoice',
+    'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+    'method' => 'GET',
+])
 <script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = url;
-            }
-        })
-    }
     $(document).ready(function() {
         $('#rider_id').select2({
             dropdownParent: $('#searchTopbody'),

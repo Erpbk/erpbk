@@ -357,11 +357,12 @@ class FixedAssetController extends AppBaseController
         $asset->save();
         $asset->delete();
 
-        if ($request->ajax()) {
-            return response()->json(['message' => 'Fixed asset deleted successfully.', 'reload' => true]);
+        $trashUrl = route('settings-panel.trash.index') . '?module=fixed_assets';
+        if (wants_delete_json()) {
+            return delete_json_response('Fixed asset', $trashUrl);
         }
 
-        Flash::success('Fixed asset deleted successfully.');
+        Flash::success(delete_outcome_message('Fixed asset', $trashUrl));
         return redirect()->route('fixed-assets.index');
     }
 

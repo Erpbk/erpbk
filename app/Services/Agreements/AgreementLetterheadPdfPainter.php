@@ -16,7 +16,7 @@ class AgreementLetterheadPdfPainter
 
     public function registerDompdfCallbacks(Dompdf $dompdf, ?AgreementCategory $category): void
     {
-        if ($category === null) {
+        if ($category === null || $category->letterheadMode() === 'none') {
             return;
         }
 

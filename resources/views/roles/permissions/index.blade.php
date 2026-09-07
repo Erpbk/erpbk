@@ -86,7 +86,7 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                 <div>
                     <h5 class="mb-0 fw-bold">Top Bars &amp; Rider Statuses</h5>
-                    <small class="text-muted">All modules (Riders, Bikes, Employees, Cheques, Customers, Garages, and every other Top Bar). Toggle View on each Top Bar and its values.</small>
+                    <small class="text-muted">Only this company's Top Bars and Rider Statuses (Riders, Bikes, Employees, Cheques, and every other module). Toggle View on each Top Bar and its values.</small>
                 </div>
                 <div class="d-flex flex-wrap gap-2">
                     <button type="button" class="btn btn-sm btn-outline-primary" id="rfpDynamicSelectAll">Select all</button>

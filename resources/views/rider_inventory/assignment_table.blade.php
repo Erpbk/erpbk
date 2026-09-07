@@ -107,15 +107,9 @@
                     @endcan
                     @can('riders_inventory_delete')
                     <button type="button" class="btn btn-sm btn-outline-danger"
-                        onclick="if(confirm('Delete this assignment? It will be moved to the Recycle Bin.')) { document.getElementById('delete-assignment-{{ $row->id }}').submit(); }">
+                        onclick='confirmDelete(@json(route('RiderInventory.destroyAssignment', $row->id)))'>
                         Delete
                     </button>
-                    <form id="delete-assignment-{{ $row->id }}"
-                        action="{{ route('RiderInventory.destroyAssignment', $row->id) }}"
-                        method="POST" style="display:none;">
-                        @csrf
-                        @method('DELETE')
-                    </form>
                     @endcan
                 </div>
                 @elseif(in_array($row->status, ['returned', 'lost', 'returned_to_customer'], true))

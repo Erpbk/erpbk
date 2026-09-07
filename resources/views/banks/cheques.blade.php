@@ -34,50 +34,16 @@
 @endsection
 
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Cheque',
+    'confirmText' => 'This will submit a delete request or move the cheque to the Recycle Bin.',
+])
 <script>
     $(document).ready(function(){
         $(document).on('click', '.delete-cheque', function(e) {
             e.preventDefault();
-            const url = $(this).data('url');
-            
-            Swal.fire({
-                title: 'Are you sure?',
-                text: "You won't be able to revert this!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: url,
-                        type: 'DELETE',
-                        data: {
-                            _token: '{{ csrf_token() }}'
-                        },
-                        success: function(response) {
-                            Swal.fire(
-                                'Deleted!',
-                                'Cheque has been deleted.',
-                                'success'
-                            ).then(() => {
-                                location.reload();
-                            });
-                        },
-                        error: function(xhr) {
-                            Swal.fire(
-                                'Error!',
-                                'Failed to delete Cheque. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
-                                'error'
-                            );
-                        }
-                    });
-                }
-            });
+            confirmDelete($(this).data('url'));
         });
     })
 </script>
-
 @endsection

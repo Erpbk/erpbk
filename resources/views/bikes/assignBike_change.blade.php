@@ -13,7 +13,7 @@ $company = $bike->rentalCompany;
 
 $assignFields = $assignFields ?? \App\Models\BikeCustomField::assignModalFields('change');
 $inlineFields = $assignFields->filter(function ($f) {
-if (($f->field_key ?? '') === 'notes') {
+if (in_array($f->field_key ?? '', ['notes', 'condition_images'], true)) {
 return false;
 }
 if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
@@ -23,7 +23,7 @@ return false;
 return true;
 });
 $wideFields = $assignFields->filter(function ($f) {
-if (($f->field_key ?? '') === 'notes') {
+if (in_array($f->field_key ?? '', ['notes', 'condition_images'], true)) {
 return true;
 }
 if ($f->kind === 'custom' && ($f->resolvedInputSpec()['type'] ?? '') === 'textarea') {
@@ -35,7 +35,7 @@ return false;
 @endphp
 
 <script src="{{ asset('js/modal_custom.js') }}"></script>
-<form action="{{ route('bikes.assignrider', $id) }}" method="post" id="formajax">
+<form action="{{ route('bikes.assignrider', $id) }}" method="post" id="formajax" enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="bike_id" value="{{ $id }}" />
 

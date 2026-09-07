@@ -51,6 +51,14 @@
                     <label for="billing month">Date</label>
                     <input type="date" name="date" class="form-control" value="{{ request('date') ?? '' }}">
                 </div>
+                <div class="form-group col-md-12">
+                    <label for="card_limit_daily">Card Limit ( Daily )</label>
+                    <select class="form-control" id="card_limit_daily" name="card_limit_daily">
+                        <option value="" {{ request('card_limit_daily') ? '' : 'selected' }}>Select</option>
+                        <option value="over_limit" {{ request('card_limit_daily') === 'over_limit' ? 'selected' : '' }}>Over limit</option>
+                        <option value="under_limit" {{ request('card_limit_daily') === 'under_limit' ? 'selected' : '' }}>Under limit</option>
+                    </select>
+                </div>
                 <div class="col-md-12 form-group text-center">
                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
                 </div>
@@ -80,47 +88,22 @@
 
 @section('page-script')
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Fuel Transaction',
+    'confirmText' => 'This will submit a delete request or move the transaction to the Recycle Bin.',
+    'fallbackMessage' => 'Fuel transaction moved to Recycle Bin.',
+])
 <script type="text/javascript">
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "You won't be able to revert this!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json'
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire('Deleted!', data.message, 'success').then(() => {
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire('Error!', data.message, 'error');
-                }
-            })
-            .catch(error => {
-                Swal.fire('Error!', 'An error occurred while deleting.', 'error');
-            });
-        }
-    });
-}
 $(document).ready(function () {
 
     $('#rider_id').select2({
         dropdownParent: $('#searchTopbody'),
         placeholder: "Filter By Rider",
+        allowClear: true
+    });
+    $('#card_limit_daily').select2({
+        dropdownParent: $('#searchTopbody'),
+        placeholder: "Filter By daily limit",
         allowClear: true
     });
 });

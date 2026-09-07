@@ -15,7 +15,6 @@ class FuelDataImport implements ToCollection
 {
     protected $fuelAccountId;
     protected $vatAccountId;
-    protected $serviceChargeAmount;
     protected $failedRows = [];
     protected $successCount = 0;
     protected $totalRows = 0;
@@ -25,7 +24,6 @@ class FuelDataImport implements ToCollection
         $this->fuelAccountId = 1097; // Default fuel account ID, should be made dynamic
         $this->vatAccountId = 1023; // Default VAT account ID, should be made dynamic
         $this->failedRows = [];
-        $this->serviceChargeAmount = FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE;
     }
 
     public function collection(Collection $rows)
@@ -199,13 +197,13 @@ class FuelDataImport implements ToCollection
             }
 
             // Post/rebuild one monthly ledger set per rider + billing month
+            // (service charge resolved from each related fuel card).
             if (! empty($riderMonthsToSync)) {
                 $ledger = app(FuelMonthlyLedgerService::class);
                 foreach ($riderMonthsToSync as $monthKey) {
                     $ledger->sync(
                         $monthKey['rider_id'],
-                        $monthKey['billing_month'],
-                        $this->serviceChargeAmount
+                        $monthKey['billing_month']
                     );
                 }
             }

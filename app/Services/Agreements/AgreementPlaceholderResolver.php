@@ -3,176 +3,157 @@
 namespace App\Services\Agreements;
 
 use App\Models\Company;
-use App\Models\Employee;
-use App\Models\Riders;
 use App\Support\CompanyContext;
+use App\Support\ModuleFieldSource;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 
 class AgreementPlaceholderResolver
 {
+    /**
+     * Build replacement map from the admin catalog (system + module DB fields).
+     *
+     * @return array<string, string>
+     */
     public function resolveForModule(string $module, Model $record, ?string $agreementDate = null): array
     {
-        return match ($module) {
-            'riders' => $record instanceof Riders
-                ? $this->resolveForRider($record, $agreementDate)
-                : $this->resolveForRider(Riders::query()->findOrFail($record->getKey()), $agreementDate),
-            'employees' => $record instanceof Employee
-                ? $this->resolveForEmployee($record, $agreementDate)
-                : $this->resolveForEmployee(Employee::query()->findOrFail($record->getKey()), $agreementDate),
-            default => $this->resolveGeneric($module, $record, $agreementDate),
-        };
-    }
+        $map = $this->systemMap();
 
-    public function resolveForEmployee(Employee $employee, ?string $agreementDate = null): array
-    {
-        $employee->loadMissing(['branch', 'department']);
+        foreach (app(AgreementPlaceholderCatalog::class)->placeholdersForModule($module) as $row) {
+            $token = (string) ($row->placeholder ?? '');
+            if ($token === '') {
+                continue;
+            }
 
-        $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
-        $custom = is_array($employee->custom_field_values) ? $employee->custom_field_values : [];
-
-        $agreementDateFormatted = $agreementDate
-            ? Carbon::parse($agreementDate)->format('d-M-Y')
-            : now()->format('d-M-Y');
-
-        $email = (string) ($employee->company_email ?: $employee->personal_email ?: '');
-
-        return [
-            '{rider_name}' => (string) ($employee->name ?? ''),
-            '{rider_code}' => (string) ($employee->employee_id ?? ''),
-            '{rider_email}' => $email,
-            '{rider_phone}' => (string) ($employee->company_contact ?: $employee->personal_contact ?: ''),
-            '{rider_cnic}' => (string) ($employee->emirate_id ?? ''),
-            '{rider_passport_number}' => (string) ($employee->passport ?? ''),
-            '{rider_nationality}' => '',
-            '{rider_date_of_birth}' => $this->formatDate($employee->dob),
-            '{rider_gender}' => '',
-            '{rider_address}' => (string) ($employee->address ?? ''),
-            '{rider_city}' => $company->city ?? '',
-            '{rider_country}' => $company->country ?? '',
-            '{joining_date}' => $this->formatDate($employee->doj),
-            '{designation}' => (string) ($employee->designation ?? ''),
-            '{salary}' => (string) ($employee->salary ?? ''),
-            '{branch_name}' => (string) ($employee->branch->name ?? ''),
-            '{company_name}' => (string) ($company->name ?? config('app.name')),
-            '{bike_number}' => '',
-            '{bike_model}' => '',
-            '{current_date}' => now()->format('d-M-Y'),
-            '{agreement_date}' => $agreementDateFormatted,
-        ];
-    }
-
-    public function resolveForRider(Riders $rider, ?string $agreementDate = null): array
-    {
-        $rider->loadMissing(['branch', 'bikes', 'country']);
-
-        $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
-        $custom = is_array($rider->custom_field_values) ? $rider->custom_field_values : [];
-
-        $agreementDateFormatted = $agreementDate
-            ? Carbon::parse($agreementDate)->format('d-M-Y')
-            : now()->format('d-M-Y');
-
-        $nationality = '';
-        if ($rider->country) {
-            $nationality = $rider->country->name ?? '';
-        } elseif (!empty($rider->nationality) && !is_numeric($rider->nationality)) {
-            $nationality = (string) $rider->nationality;
+            $sourceKey = trim((string) ($row->source_key ?: trim($token, '{}')));
+            $map[$token] = $this->resolveSourceKey($module, $record, $sourceKey);
         }
 
-        $bike = $rider->bikes;
-
-        return [
-            '{rider_name}' => (string) ($rider->name ?? ''),
-            '{rider_code}' => (string) ($rider->rider_id ?? ''),
-            '{rider_email}' => (string) ($rider->email ?? ''),
-            '{rider_phone}' => $this->customValue($rider, $custom, 'personal_contact'),
-            '{rider_cnic}' => $this->customValue($rider, $custom, 'nic') ?: (string) ($rider->emirate_id ?? ''),
-            '{rider_passport_number}' => (string) ($rider->passport ?? ''),
-            '{rider_nationality}' => $nationality,
-            '{rider_date_of_birth}' => $this->formatDate($rider->dob),
-            '{rider_gender}' => $this->customValue($rider, $custom, 'gender') ?: (string) ($rider->ethnicity ?? ''),
-            '{rider_address}' => $this->customValue($rider, $custom, 'address'),
-            '{rider_city}' => $this->customValue($rider, $custom, 'city') ?: ($company->city ?? ''),
-            '{rider_country}' => $this->customValue($rider, $custom, 'country') ?: ($company->country ?? ''),
-            '{joining_date}' => $this->formatDate($rider->doj),
-            '{designation}' => (string) ($rider->designation ?? ''),
-            '{salary}' => $this->customValue($rider, $custom, 'salary') ?: $this->customValue($rider, $custom, 'salary_model'),
-            '{branch_name}' => (string) ($rider->branch->name ?? ''),
-            '{company_name}' => (string) ($company->name ?? config('app.name')),
-            '{bike_number}' => (string) ($bike->plate ?? $bike->bike_number ?? ''),
-            '{bike_model}' => (string) ($bike->model ?? $bike->vehicle_type ?? ''),
-            '{current_date}' => now()->format('d-M-Y'),
-            '{agreement_date}' => $agreementDateFormatted,
-        ];
+        return $map;
     }
 
     /**
-     * Map common record fields onto agreement placeholders for non-rider/employee modules.
+     * @return array<string, string>
      */
-    private function resolveGeneric(string $module, Model $record, ?string $agreementDate = null): array
+    private function systemMap(): array
     {
-        $labelField = config("agreement_modules.modules.{$module}.label_field", 'name');
-        $codeField = config("agreement_modules.modules.{$module}.code_field", 'id');
-        $emailField = config("agreement_modules.modules.{$module}.email_field", 'email');
-        $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
+        return [
+            '{company_name}' => $this->companyName(),
+            '{current_date}' => now()->format('d-M-Y'),
+        ];
+    }
 
-        $agreementDateFormatted = $agreementDate
-            ? Carbon::parse($agreementDate)->format('d-M-Y')
-            : now()->format('d-M-Y');
+    private function resolveSourceKey(string $module, Model $record, string $sourceKey): string
+    {
+        if ($sourceKey === 'current_date') {
+            return now()->format('d-M-Y');
+        }
 
-        $attr = static function (Model $record, array $keys): string {
-            foreach ($keys as $key) {
-                $value = $record->getAttribute($key);
-                if ($value !== null && $value !== '') {
-                    return (string) $value;
-                }
+        if ($sourceKey === 'company_name') {
+            return $this->companyName();
+        }
+
+        if (str_contains($sourceKey, '.')) {
+            [$relation, $field] = explode('.', $sourceKey, 2);
+            $related = $this->resolveRelatedRecord($record, trim($relation));
+            if (! $related) {
+                return '';
             }
 
-            return '';
-        };
+            return $this->formatAttribute($related->getAttribute(trim($field)));
+        }
 
-        return [
-            '{rider_name}' => $attr($record, [$labelField, 'name']),
-            '{rider_code}' => $attr($record, [$codeField]) ?: (string) $record->getKey(),
-            '{rider_email}' => $attr($record, [$emailField, 'email']),
-            '{rider_phone}' => $attr($record, ['phone', 'contact_number', 'personal_contact', 'company_contact']),
-            '{rider_cnic}' => $attr($record, ['emirate_id', 'nic', 'cnic']),
-            '{rider_passport_number}' => $attr($record, ['passport', 'passport_number']),
-            '{rider_nationality}' => $attr($record, ['nationality']),
-            '{rider_date_of_birth}' => $this->formatDate($record->getAttribute('dob')),
-            '{rider_gender}' => $attr($record, ['gender']),
-            '{rider_address}' => $attr($record, ['address']),
-            '{rider_city}' => $attr($record, ['city']) ?: (string) ($company->city ?? ''),
-            '{rider_country}' => $attr($record, ['country']) ?: (string) ($company->country ?? ''),
-            '{joining_date}' => $this->formatDate($record->getAttribute('doj') ?? $record->getAttribute('joining_date')),
-            '{designation}' => $attr($record, ['designation']),
-            '{salary}' => $attr($record, ['salary']),
-            '{branch_name}' => (string) (data_get($record, 'branch.name') ?? ''),
-            '{company_name}' => (string) ($company->name ?? config('app.name')),
-            '{bike_number}' => $attr($record, ['plate', 'bike_number', 'bike_code']),
-            '{bike_model}' => $attr($record, ['model', 'vehicle_type']),
-            '{current_date}' => now()->format('d-M-Y'),
-            '{agreement_date}' => $agreementDateFormatted,
-        ];
+        try {
+            if (ModuleFieldSource::isSchemaFieldKey($module, $sourceKey)) {
+                return $this->formatAttribute($record->getAttribute($sourceKey));
+            }
+        } catch (\Throwable) {
+            // Fall through to attribute read.
+        }
+
+        return $this->formatAttribute($record->getAttribute($sourceKey));
+    }
+
+    private function resolveRelatedRecord(Model $record, string $relation): ?Model
+    {
+        if ($relation === '') {
+            return null;
+        }
+
+        try {
+            if ($record->relationLoaded($relation)) {
+                $loaded = $record->getRelation($relation);
+                if ($loaded instanceof Model) {
+                    return $loaded;
+                }
+                if ($loaded === null) {
+                    return null;
+                }
+            }
+        } catch (\Throwable) {
+            // Continue.
+        }
+
+        try {
+            if (method_exists($record, $relation)) {
+                $value = $record->{$relation}();
+                if ($value instanceof Relation) {
+                    $related = $value->getResults();
+
+                    return $related instanceof Model ? $related : null;
+                }
+            }
+        } catch (\Throwable) {
+            // Fall through to FK lookup.
+        }
+
+        $meta = app(AgreementPlaceholderCatalog::class)->foreignKeyMetaForRelation($relation);
+        $modelClass = $meta['model'] ?? null;
+        if (! is_string($modelClass) || ! is_subclass_of($modelClass, Model::class)) {
+            return null;
+        }
+
+        $fkColumn = isset($meta['fk_column']) ? (string) $meta['fk_column'] : null;
+        if ($fkColumn === null || $fkColumn === '') {
+            $fkColumn = $relation.'_id';
+        }
+
+        $fk = $record->getAttribute($fkColumn);
+        if ($fk === null || $fk === '') {
+            return null;
+        }
+
+        try {
+            return $modelClass::query()->find($fk);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function companyName(): string
+    {
+        $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
+
+        return (string) ($company->name ?? config('app.name'));
+    }
+
+    private function formatAttribute(mixed $attr): string
+    {
+        if ($attr === null || $attr === '') {
+            return '';
+        }
+
+        if ($attr instanceof \DateTimeInterface) {
+            return $this->formatDate($attr);
+        }
+
+        return is_scalar($attr) ? (string) $attr : '';
     }
 
     public function replace(string $html, array $map): string
     {
         return str_replace(array_keys($map), array_values($map), $html);
-    }
-
-    private function customValue(Riders $rider, array $custom, string $key): string
-    {
-        if (array_key_exists($key, $custom) && $custom[$key] !== null && $custom[$key] !== '') {
-            return (string) $custom[$key];
-        }
-
-        if ($rider->getAttribute($key) !== null && $rider->getAttribute($key) !== '') {
-            return (string) $rider->getAttribute($key);
-        }
-
-        return '';
     }
 
     private function formatDate(mixed $value): string

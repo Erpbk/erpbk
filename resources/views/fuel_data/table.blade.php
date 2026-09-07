@@ -9,9 +9,10 @@
          @if($vf('trans_date'))<th title="Inv Date" class="sorting" rowspan="1" colspan="1" >Time</th>@endif
          @if($vf('billing_month'))<th title="Inv Date" class="sorting" rowspan="1" colspan="1" >Billing Month</th>@endif
          @if($vf('card_no'))<th title="Billing Month" class="sorting" rowspan="1" colspan="1" >Card No</th>@endif
-         @if($vf('rider_id'))<th title="Supplier" class="sorting" rowspan="1" colspan="1" >Rider</th>@endif
-         <th title="Supplier" class="sorting" rowspan="1" colspan="1" >Rider Status</th>
+         @if($vf('rider_id'))<th title="User" class="sorting" rowspan="1" colspan="1" >Rider</th>@endif
+         <th title="User Status" class="sorting" rowspan="1" colspan="1" >User Status</th>
          @if($vf('bike_no'))<th title="Bike" class="sorting" rowspan="1" colspan="1" >Bike</th>@endif
+         @if($vf('qty'))<th title="Quantity" class="sorting" rowspan="1" colspan="1" >Qty</th>@endif
          @if($vf('total'))<th title="Total Amount" class="sorting" rowspan="1" colspan="1" >Amount</th>@endif
          <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
@@ -29,6 +30,7 @@
             <span class="badge bg-{{ $r->rider_status['badge'] }}">{{ $r->rider_status['text'] }}</span>
          </td>
          @if($vf('bike_no'))<td><a @if($r->bike) href="{{ route('bikeHistories.index') }}?bike_id={{ $r->bike->id }}" target="_blank" @else href="javascript:void(0);" @endif" >{{ $r->bike_no }}</a></td>@endif
+         @if($vf('qty'))<td>{{ $r->qty !== null ? number_format((float) $r->qty, 2) : '—' }}</td>@endif
          @if($vf('total'))<td>{{$r->total ?? 'N/A' }}</td>@endif
          <td style="position: relative;">
             @if(record_is_pending_deletion($r))

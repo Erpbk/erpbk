@@ -99,7 +99,7 @@ class FuelDataController extends Controller
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
-            'service_charges' => 'nullable|numeric|min:0.01'
+            'service_charges' => 'nullable|numeric|min:0'
         ], [
             'trans_no.unique' => 'This transaction number already exists.',
             'bike_no.exists' => 'Selected bike number does not exist.',
@@ -127,7 +127,9 @@ class FuelDataController extends Controller
             // Calculate values if not provided
             $subtotal = $request->subtotal ?? ($request->qty * $request->price);
             $total = $request->total ?? ($subtotal + $request->vat_amount);
-            $serviceCharges = (float) ($request->service_charges ?? FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE);
+            $serviceCharges = $request->filled('service_charges')
+                ? (float) $request->service_charges
+                : FuelMonthlyLedgerService::resolveFromCard($card);
             $billingMonth = $request->billing_month . '-01';
 
             // Store individual fuel line (shown on monthly invoice)
@@ -258,7 +260,7 @@ class FuelDataController extends Controller
             'vat_amount' => 'required|numeric|min:0',
             'subtotal' => 'nullable|numeric',
             'total' => 'nullable|numeric',
-            'service_charges' => 'nullable|numeric|min:0.01'
+            'service_charges' => 'nullable|numeric|min:0'
         ], [
             'trans_no.unique' => 'This transaction number already exists.',
             'bike_no.exists' => 'Selected bike number does not exist.',
@@ -297,7 +299,9 @@ class FuelDataController extends Controller
             $request['rider_id'] = $rider->id;
             $request['subtotal'] = $subtotal;
             $request['total'] = $total;
-            $serviceCharges = (float) ($request->service_charges ?? FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE);
+            $serviceCharges = $request->filled('service_charges')
+                ? (float) $request->service_charges
+                : FuelMonthlyLedgerService::resolveFromCard($card);
             $previousRiderId = (int) $fuelData->rider_id;
             $previousBillingMonth = Carbon::parse($fuelData->billing_month)->startOfMonth()->toDateString();
 
@@ -318,7 +322,7 @@ class FuelDataController extends Controller
             // Re-sync monthly ledger totals (old month if rider/month changed, then current)
             $ledger = app(FuelMonthlyLedgerService::class);
             if ($previousRiderId !== $newRiderId || $previousBillingMonth !== $newBillingMonth) {
-                $ledger->sync($previousRiderId, $previousBillingMonth, $serviceCharges);
+                $ledger->sync($previousRiderId, $previousBillingMonth);
             }
             $ledger->sync($newRiderId, $newBillingMonth, $serviceCharges);
 

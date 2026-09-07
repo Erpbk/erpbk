@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\General;
+use App\Models\FuelCards;
+use App\Models\FuelData;
 use App\Models\Riders;
 use App\Models\RiderTopCategory;
 use App\Models\RiderTopOption;
@@ -565,7 +567,7 @@ class ReportController extends Controller
   /**
    * Fuel charged to the rider = fuel_data line totals + monthly service charge.
    * Service charge is posted once per rider-month by FuelMonthlyLedgerService
-   * (default AED 25); use the posted ledger amount when present.
+   * from the related fuel card's service_charges; use the posted ledger amount when present.
    *
    * @param  array<int, int|string>  $riderIds
    * @return Collection<int|string, float>
@@ -607,8 +609,13 @@ class ReportController extends Controller
 
     $serviceByRider = [];
     foreach ($anchors as $anchor) {
-      $charge = (float) ($postedByAnchor[$anchor->anchor_id]
-        ?? FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE);
+      $fallback = 0.0;
+      if (! isset($postedByAnchor[$anchor->anchor_id])) {
+        $cardNo = company_table('fuel_data')->where('id', $anchor->anchor_id)->value('card_no');
+        $card = $cardNo ? FuelCards::where('card_number', $cardNo)->first() : null;
+        $fallback = FuelMonthlyLedgerService::resolveFromCard($card);
+      }
+      $charge = (float) ($postedByAnchor[$anchor->anchor_id] ?? $fallback);
       $serviceByRider[$anchor->rider_id] = ($serviceByRider[$anchor->rider_id] ?? 0.0) + $charge;
     }
 
@@ -644,7 +651,14 @@ class ReportController extends Controller
 
     return $posted !== null
       ? (float) $posted
-      : FuelMonthlyLedgerService::DEFAULT_SERVICE_CHARGE;
+      : FuelMonthlyLedgerService::resolveFromRows(
+          FuelData::with('card')
+            ->where('rider_id', $riderId)
+            ->whereDate('billing_month', $billingMonthDate)
+            ->orderBy('id')
+            ->limit(1)
+            ->get()
+        );
   }
 
   /**

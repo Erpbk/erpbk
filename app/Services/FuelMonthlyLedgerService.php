@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Helpers\Account;
+use App\Models\FuelCards;
 use App\Models\FuelData;
 use App\Models\Riders;
 use App\Models\Transactions;
 use App\Support\GlobalAccounts;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -16,12 +18,43 @@ use Illuminate\Support\Facades\Log;
  */
 class FuelMonthlyLedgerService
 {
-    public const DEFAULT_SERVICE_CHARGE = 25.0;
+    /**
+     * Resolve monthly service charge from a fuel card's service_charges field.
+     */
+    public static function resolveFromCard(?FuelCards $card): float
+    {
+        if (! $card || $card->service_charges === null || $card->service_charges === '') {
+            return 0.0;
+        }
+
+        return max(0.0, (float) $card->service_charges);
+    }
+
+    /**
+     * Resolve monthly service charge from fuel rows (first related card with a value).
+     *
+     * @param  Collection<int, FuelData>|iterable<int, FuelData>  $rows
+     */
+    public static function resolveFromRows($rows): float
+    {
+        foreach ($rows as $row) {
+            $card = $row->card ?? null;
+            if (! $card && ! empty($row->card_no)) {
+                $card = FuelCards::where('card_number', $row->card_no)->first();
+            }
+            if ($card && $card->service_charges !== null && $card->service_charges !== '') {
+                return self::resolveFromCard($card);
+            }
+        }
+
+        return 0.0;
+    }
 
     /**
      * Delete any existing fuel ledger for the rider/month, then post totals for current rows.
+     * When $serviceChargeAmount is null, charge is taken from the related fuel card(s).
      */
-    public function sync(int $riderId, $billingMonth, ?float $serviceChargeAmount = self::DEFAULT_SERVICE_CHARGE): void
+    public function sync(int $riderId, $billingMonth, ?float $serviceChargeAmount = null): void
     {
         $billingMonthDate = Carbon::parse($billingMonth)->startOfMonth()->toDateString();
         $rider = Riders::find($riderId);
@@ -64,6 +97,10 @@ class FuelMonthlyLedgerService
             return;
         }
 
+        if ($serviceChargeAmount === null) {
+            $serviceChargeAmount = self::resolveFromRows($activeRows);
+        }
+
         $this->postMonthlyTotals($rider, $activeRows, $billingMonthDate, $serviceChargeAmount);
     }
 
@@ -82,8 +119,8 @@ class FuelMonthlyLedgerService
 
         $totalAmount = (float) $activeRows->sum('total');
         $totalVat = (float) $activeRows->sum('vat_amount');
-        $serviceCharge = (float) ($serviceChargeAmount ?? self::DEFAULT_SERVICE_CHARGE);
-        $riderDebit = $totalAmount + max(0, $serviceCharge);
+        $serviceCharge = max(0.0, (float) ($serviceChargeAmount ?? self::resolveFromRows($activeRows)));
+        $riderDebit = $totalAmount + $serviceCharge;
 
         // One combined debit on the rider ledger (fuel total + service charge).
         if ($riderDebit > 0) {

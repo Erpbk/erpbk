@@ -108,6 +108,7 @@
             <option value="">Select Card Number</option>
             @foreach(\App\Models\FuelCards::all() as $fuelCard)
             <option value="{{ $fuelCard->card_number }}"
+                data-service-charges="{{ $fuelCard->service_charges ?? '' }}"
                 {{ old('card_no', $data?->card_no ?? '') == $fuelCard->card_number ? 'selected' : '' }}>
                 {{ $fuelCard->card_number }}
             </option>
@@ -163,9 +164,21 @@
         @enderror
     </div>
 
+    @php
+        $selectedCardNumber = old('card_no', $data?->card_no ?? '');
+        $selectedCard = $selectedCardNumber
+            ? \App\Models\FuelCards::where('card_number', $selectedCardNumber)->first()
+            : null;
+        $defaultServiceCharges = old(
+            'service_charges',
+            $data?->service_charges
+                ?? $selectedCard?->service_charges
+                ?? ''
+        );
+    @endphp
     <div class="col-md-4 mb-3">
-        <label for="total_display" class="form-label">Service Charges</label>
-        <input class="form-control" type="number" step="0.01" name="service_charges" id="service_charges" value="{{ old('service_charges', $data->service_charges ?? 25) }}">
+        <label for="service_charges" class="form-label">Service Charges</label>
+        <input class="form-control" type="number" step="0.01" min="0" name="service_charges" id="service_charges" value="{{ $defaultServiceCharges }}">
     </div>
 
     <div class="col-md-4 mb-3"></div>
@@ -216,6 +229,14 @@
             $('#subtotal').val(subtotal.toFixed(2));
             $('#total').val(total.toFixed(2));
         }
+
+        // Prefill service charges from the selected fuel card.
+        $('#card_no').on('change', function () {
+            const charges = $(this).find(':selected').attr('data-service-charges');
+            if (charges !== undefined && charges !== '') {
+                $('#service_charges').val(charges);
+            }
+        });
 
         // Attach event listeners
         $('#qty, #price, #vat_amount').on('input', calculateTotals);

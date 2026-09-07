@@ -203,14 +203,15 @@ class VendorsController extends AppBaseController
     $vendor = $this->vendorsRepository->find($id);
 
     if (empty($vendor)) {
-      Flash::error('Vendor not found!');
-      return redirect(route('vendors.index'));
+      return delete_error_response('Vendor not found!', route('vendors.index'), 404);
     }
 
     // Check if vendor has transactions - protect from deletion
     if ($vendor->transactions()->count() > 0) {
-      Flash::error('Cannot delete vendor. Vendor has ' . $vendor->transactions()->count() . ' transaction(s). Please deactivate instead.');
-      return redirect(route('vendors.index'));
+      return delete_error_response(
+        'Cannot delete vendor. Vendor has ' . $vendor->transactions()->count() . ' transaction(s). Please deactivate instead.',
+        route('vendors.index')
+      );
     }
 
     // Check if vendor account has ledger entries before deletion
@@ -220,8 +221,10 @@ class VendorsController extends AppBaseController
         ->count();
 
       if ($ledgerEntriesCount > 0) {
-        Flash::error("Cannot delete vendor. The vendor account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.");
-        return redirect(route('vendors.index'));
+        return delete_error_response(
+          "Cannot delete vendor. The vendor account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.",
+          route('vendors.index')
+        );
       }
     }
 
@@ -269,29 +272,20 @@ class VendorsController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    $message = delete_outcome_message(
-      'Vendor',
-      route('settings-panel.trash.index') . '?module=vendors'
-    );
-    if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
-      $message = str_replace(
-        'Vendor moved to Recycle Bin.',
-        'Vendor moved to Recycle Bin' . $cascadeMessage . '.',
-        $message
-      );
+    $trashUrl = route('settings-panel.trash.index') . '?module=vendors';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Vendor', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Vendor moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
     }
 
-    // Return JSON response for AJAX calls or Flash + redirect for regular requests
-    if (request()->expectsJson() || request()->ajax()) {
-      return response()->json([
-        'success' => true,
-        'message' => $message,
-        'queued' => (bool) request()->attributes->get('delete_approval_created'),
-        'reload' => true,
-      ]);
-    }
-
-    Flash::success($message)->important();
+    Flash::success('Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
     return redirect(route('vendors.index'));
   }
 

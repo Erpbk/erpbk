@@ -20,6 +20,9 @@
     $reasonField = $reasonField ?? 'delete_reason';
     $failFallback = 'Failed to delete ' . $entityName . '.';
 @endphp
+@once
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@endonce
 <script>
 (function () {
     if (typeof window.{{ $functionName }} === 'function' && window.{{ $functionName }}.__erpbkDeleteConfirm) {
@@ -50,7 +53,19 @@
         return @json($failFallback);
     }
 
+    function isDeleteSuccessPayload(response) {
+        return response
+            && typeof response === 'object'
+            && !Array.isArray(response)
+            && (typeof response.message === 'string' || response.success === true || response.queued === true);
+    }
+
     window.{{ $functionName }} = function (url) {
+        if (typeof Swal === 'undefined') {
+            alert('Delete confirmation is unavailable (SweetAlert failed to load).');
+            return;
+        }
+
         var swalOptions = {
             title: 'Are you sure?',
             text: @json($confirmText),
@@ -71,10 +86,21 @@
                     url: url,
                     type: @json($method),
                     data: data,
+                    dataType: 'json',
                     headers: {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
                     }
+                }).then(function (response) {
+                    if (!isDeleteSuccessPayload(response)) {
+                        Swal.showValidationMessage(@json($failFallback));
+                        return false;
+                    }
+                    if (response.success === false) {
+                        Swal.showValidationMessage(response.message || @json($failFallback));
+                        return false;
+                    }
+                    return response;
                 }).catch(function (xhr) {
                     Swal.showValidationMessage(extractDeleteError(xhr));
                 });
@@ -87,11 +113,11 @@
         @endif
 
         Swal.fire(swalOptions).then(function (result) {
-            if (!result.isConfirmed || !result.value) {
+            if (!result.isConfirmed || !isDeleteSuccessPayload(result.value)) {
                 return;
             }
 
-            var response = result.value || {};
+            var response = result.value;
             var queued = !!(response.queued);
             Swal.fire({
                 icon: queued ? 'warning' : 'success',

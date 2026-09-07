@@ -129,7 +129,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
             @endcan
             @can('voucher_delete')
             @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <a href="javascript:void(0);" onclick="confirmDelete(@json(route('vouchers.destroy', $voucherRouteParams($voucher->trans_code))))" class="dropdown-item waves-effect text-danger">
+            <a href="javascript:void(0);" onclick='confirmDelete(@json(route('vouchers.destroy', $voucherRouteParams($voucher->trans_code))))' class="dropdown-item waves-effect text-danger">
                 <i class="fa fa-trash my-1"></i> Delete
               </a>
             @endif

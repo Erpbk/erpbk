@@ -439,13 +439,16 @@ class SimInvoicesController extends AppBaseController
 
         $invoice = $this->simInvoicesRepository->find($id);
         if (empty($invoice)) {
-            Flash::error('Invoice not found');
-            return redirect(route('simInvoices.index'));
+            return delete_error_response('Invoice not found', route('simInvoices.index'), 404);
         }
         if ($invoice->status == 1) {
-            Flash::error('Cannot delete paid invoice. Only unpaid invoices can be deleted.');
-            return redirect(route('simInvoices.index'));
+            return delete_error_response(
+                'Cannot delete paid invoice. Only unpaid invoices can be deleted.',
+                route('simInvoices.index')
+            );
         }
+
+        $trashUrl = route('settings-panel.trash.index') . '?module=sim_invoices';
 
         try {
             // Delete first: when delete-approval is enabled this only queues a request
@@ -453,7 +456,11 @@ class SimInvoicesController extends AppBaseController
             $invoice->delete();
 
             if (request()->attributes->get('delete_approval_created')) {
-                Flash::success(delete_outcome_message('SIM invoice'));
+                if (wants_delete_json()) {
+                    return delete_json_response('SIM invoice', $trashUrl);
+                }
+
+                Flash::success(delete_outcome_message('SIM invoice', $trashUrl));
 
                 return redirect(route('simInvoices.index'));
             }
@@ -462,10 +469,11 @@ class SimInvoicesController extends AppBaseController
             $invoice->finalizeSoftDeletion(auth()->id());
             DB::commit();
 
-            Flash::success(delete_outcome_message(
-                'SIM invoice',
-                route('settings-panel.trash.index') . '?module=sim_invoices'
-            ));
+            if (wants_delete_json()) {
+                return delete_json_response('SIM invoice', $trashUrl);
+            }
+
+            Flash::success(delete_outcome_message('SIM invoice', $trashUrl));
         } catch (\Exception $e) {
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
@@ -473,7 +481,11 @@ class SimInvoicesController extends AppBaseController
             if (method_exists($invoice, 'trashed') && $invoice->trashed()) {
                 $invoice->restore();
             }
-            Flash::error('Error deleting invoice: ' . $e->getMessage());
+
+            return delete_error_response(
+                'Error deleting invoice: ' . $e->getMessage(),
+                route('simInvoices.index')
+            );
         }
 
         return redirect(route('simInvoices.index'));

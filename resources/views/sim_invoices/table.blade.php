@@ -66,7 +66,7 @@
                                 @endif
                             @endcan
                             @can('sims_invoices_delete')
-                                <a href="javascript:void(0);" onclick="confirmDelete(@json(route('simInvoices.destroy', $invoice->id)))" class="dropdown-item waves-effect">
+                                <a href="javascript:void(0);" onclick='confirmDelete(@json(route('simInvoices.destroy', $invoice->id)))' class="dropdown-item waves-effect">
                                     <i class="fa fa-trash mx-1"></i> Delete
                                 </a>
                             @endcan

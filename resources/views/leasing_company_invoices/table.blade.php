@@ -73,7 +73,7 @@
                   </a>
                   @endcan
                   @can('leasing_companies_invoices_delete')
-                  <a href="javascript:void(0);" onclick="confirmDelete(@json(route('leasingCompanyInvoices.destroy', $invoice->id)))" class="dropdown-item waves-effect">
+                  <a href="javascript:void(0);" onclick='confirmDelete(@json(route('leasingCompanyInvoices.destroy', $invoice->id)))' class="dropdown-item waves-effect">
                      <i class="fa fa-trash mx-1"></i> Delete
                   </a>
                   @endcan

@@ -203,25 +203,34 @@ class LeasingCompaniesController extends AppBaseController
         $leasingCompanies = $this->leasingCompaniesRepository->find($id);
 
         if (empty($leasingCompanies)) {
-            return response()->json(['errors' => ['error' => 'Company not found!']], 422);
+            return delete_error_response('Company not found!', route('leasingCompanies.index'), 404);
         }
 
         // Check if leasing company has transactions - protect from deletion
         $transactionCount = $leasingCompanies->transactions()->count();
         if ($transactionCount > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has '.$transactionCount.' transaction(s). Please deactivate instead.']], 422);
+            return delete_error_response(
+                'Cannot delete leasing company. Company has '.$transactionCount.' transaction(s). Please deactivate instead.',
+                route('leasingCompanies.index')
+            );
         }
 
         // Check if leasing company has assigned bikes - protect from deletion
         $bikeCount = $leasingCompanies->bikes()->count();
         if ($bikeCount > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has '.$bikeCount.' assigned bike(s). Please deactivate instead.']], 422);
+            return delete_error_response(
+                'Cannot delete leasing company. Company has '.$bikeCount.' assigned bike(s). Please deactivate instead.',
+                route('leasingCompanies.index')
+            );
         }
 
         // Check if leasing company has related vouchers - protect from deletion
         $voucherCount = $leasingCompanies->vouchers()->count();
         if ($voucherCount > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete leasing company. Company has '.$voucherCount.' voucher(s). Please deactivate instead.']], 422);
+            return delete_error_response(
+                'Cannot delete leasing company. Company has '.$voucherCount.' voucher(s). Please deactivate instead.',
+                route('leasingCompanies.index')
+            );
         }
 
         // Track cascaded deletions
@@ -271,9 +280,22 @@ class LeasingCompaniesController extends AppBaseController
             $cascadeMessage .= implode(', ', $parts).')';
         }
 
-        return response()->json([
-            'message' => 'Leasing company moved to Recycle Bin'.$cascadeMessage.'. <a href="'.route('settings-panel.trash.index').'?module=leasing_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
-        ]);
+        $trashUrl = route('settings-panel.trash.index').'?module=leasing_companies';
+        if (wants_delete_json()) {
+            $response = delete_json_response('Leasing company', $trashUrl);
+            if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+                $data = $response->getData(true);
+                $data['message'] = 'Leasing company moved to Recycle Bin'.$cascadeMessage
+                    .'. <a href="'.e($trashUrl).'" class="alert-link">View Recycle Bin</a> to restore if needed.';
+                $response->setData($data);
+            }
+
+            return $response;
+        }
+
+        Flash::success('Leasing company moved to Recycle Bin'.$cascadeMessage.'. <a href="'.$trashUrl.'" class="alert-link">View Recycle Bin</a> to restore if needed.');
+
+        return redirect(route('leasingCompanies.index'));
     }
 
     /**
@@ -754,17 +776,18 @@ class LeasingCompaniesController extends AppBaseController
         $invoice = $this->leasingCompanyInvoicesRepository->find($id);
 
         if (empty($invoice)) {
-            Flash::error('Invoice not found');
-
-            return redirect(route('leasingCompanyInvoices.index'));
+            return delete_error_response('Invoice not found', route('leasingCompanyInvoices.index'), 404);
         }
 
         // Check if invoice is paid - prevent deletion of paid invoices
         if ($invoice->status == 1) {
-            Flash::error('Cannot delete paid invoice. Only unpaid invoices can be deleted.');
-
-            return redirect(route('leasingCompanyInvoices.index'));
+            return delete_error_response(
+                'Cannot delete paid invoice. Only unpaid invoices can be deleted.',
+                route('leasingCompanyInvoices.index')
+            );
         }
+
+        $trashUrl = route('settings-panel.trash.index') . '?module=leasing_company_invoices';
 
         try {
             // Delete related transactions
@@ -786,12 +809,16 @@ class LeasingCompaniesController extends AppBaseController
             // Soft delete the invoice
             $invoice->delete();
 
-            Flash::success(delete_outcome_message(
-                'Leasing company invoice',
-                route('settings-panel.trash.index') . '?module=leasing_company_invoices'
-            ));
+            if (wants_delete_json()) {
+                return delete_json_response('Leasing company invoice', $trashUrl);
+            }
+
+            Flash::success(delete_outcome_message('Leasing company invoice', $trashUrl));
         } catch (\Exception $e) {
-            Flash::error('Error deleting invoice: '.$e->getMessage());
+            return delete_error_response(
+                'Error deleting invoice: '.$e->getMessage(),
+                route('leasingCompanyInvoices.index')
+            );
         }
 
         return redirect(route('leasingCompanyInvoices.index'));

@@ -104,18 +104,24 @@ class AdjustDeleteApprovalResponse
 
         $last = $messages->last();
         $text = '';
-        $level = 'success';
+        $level = '';
 
         if (is_object($last)) {
             $text = (string) ($last->message ?? '');
-            $level = (string) ($last->level ?? 'success');
+            $level = (string) ($last->level ?? '');
         } elseif (is_array($last)) {
             $text = (string) ($last['message'] ?? '');
-            $level = (string) ($last['level'] ?? 'success');
+            $level = (string) ($last['level'] ?? '');
         }
 
+        // No flash on a delete redirect usually means the response was not a real
+        // soft-delete success (or flash failed). Never invent a success message.
         if ($text === '') {
-            $text = 'Record moved to Recycle Bin.';
+            return response()->json([
+                'success' => false,
+                'message' => 'Delete failed. Please try again.',
+                'queued' => false,
+            ], 422);
         }
 
         if (in_array($level, ['danger', 'error'], true)) {

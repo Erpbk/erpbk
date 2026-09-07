@@ -178,7 +178,6 @@ $riderUnpaidTotal = company_table('visa_expenses')
 </div>
 @endsection
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @include('delete_requests._confirm_delete_script', [
     'entityName' => 'Visa Expense',
     'confirmText' => 'This will submit a delete request or move the visa expense to the Recycle Bin.',

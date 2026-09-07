@@ -144,7 +144,6 @@
 </div>
 @endsection
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @include('delete_requests._confirm_delete_script', [
     'entityName' => 'Salik Record',
     'confirmText' => 'This will submit a delete request or move the Salik record to the Recycle Bin.',

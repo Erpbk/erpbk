@@ -91,7 +91,10 @@
 @endsection
 
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Loan',
+    'confirmText' => 'This will move the loan (and its installments) to the Recycle Bin, or submit a delete request if approval is required.',
+])
 <script>
 function confirmDisburse(url) {
     Swal.fire({
@@ -119,10 +122,6 @@ function confirmDisburse(url) {
     });
 }
 </script>
-@include('delete_requests._confirm_delete_script', [
-    'entityName' => 'Loan',
-    'confirmText' => 'This will move the loan (and its installments) to the Recycle Bin, or submit a delete request if approval is required.',
-])
 <script>
 $(document).ready(function() {
     $('#status, #branch_id').select2({ dropdownParent: $('#searchTopbody'), allowClear: true });

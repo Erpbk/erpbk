@@ -169,7 +169,6 @@
 @endcan
 @endsection
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     .invoice-checkbox {
         transform: scale(1.2);

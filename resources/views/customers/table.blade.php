@@ -57,7 +57,7 @@
                      </a>
                   @endcan
                   @can('customer_delete')
-                  <a href="javascript:void(0);" onclick="confirmDelete(@json(route('customers.destroy', ['id' => $r->id])))" class="dropdown-item waves-effect">
+                  <a href="javascript:void(0);" onclick='confirmDelete(@json(route('customers.destroy', ['id' => $r->id])))' class="dropdown-item waves-effect">
                      <i class="fa fa-trash"></i> Delete
                   </a>
                   @endcan

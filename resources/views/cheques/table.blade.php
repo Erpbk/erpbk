@@ -146,7 +146,6 @@
     'confirmText' => 'This will submit a delete request or move the cheque to the Recycle Bin.',
 ])
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $('#dataTableBuilder').DataTable({
         "paging": true, // Enable DataTables pagination

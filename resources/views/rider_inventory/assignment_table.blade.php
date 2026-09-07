@@ -107,7 +107,7 @@
                     @endcan
                     @can('riders_inventory_delete')
                     <button type="button" class="btn btn-sm btn-outline-danger"
-                        onclick="confirmDelete(@json(route('RiderInventory.destroyAssignment', $row->id)))">
+                        onclick='confirmDelete(@json(route('RiderInventory.destroyAssignment', $row->id)))'>
                         Delete
                     </button>
                     @endcan

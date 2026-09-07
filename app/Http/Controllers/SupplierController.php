@@ -190,13 +190,13 @@ class SupplierController extends AppBaseController
     $supplier = $this->suppliersRepository->find($id);
 
     if (empty($supplier)) {
-      return response()->json(['errors' => ['error' => 'Supplier not found!']], 422);
+      return delete_error_response('Supplier not found!', route('suppliers.index'), 404);
     }
 
     // Check if supplier has transactions - protect from deletion
     $blockReason = $supplier->cannotBeDeletedReason();
     if ($blockReason) {
-      return response()->json(['errors' => ['error' => $blockReason]], 422);
+      return delete_error_response($blockReason, route('suppliers.index'));
     }
 
     // Check if supplier account has ledger entries before deletion
@@ -206,7 +206,10 @@ class SupplierController extends AppBaseController
         ->count();
 
       if ($ledgerEntriesCount > 0) {
-        return response()->json(['errors' => ['error' => "Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
+        return delete_error_response(
+          "Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.",
+          route('suppliers.index')
+        );
       }
     }
 
@@ -262,15 +265,9 @@ class SupplierController extends AppBaseController
       );
     }
 
-    if (request()->attributes->get('delete_approval_created')) {
-      return delete_json_response(
-        'Supplier',
-        route('settings-panel.trash.index') . '?module=suppliers'
-      );
-    }
-
+    $trashUrl = route('settings-panel.trash.index') . '?module=suppliers';
     $cascadeMessage = '';
-    if (!empty($cascadedItems)) {
+    if (!empty($cascadedItems) && ! request()->attributes->get('delete_approval_created')) {
       $cascadeMessage = ' (Also deleted: ';
       $parts = [];
       foreach ($cascadedItems as $item) {
@@ -279,24 +276,20 @@ class SupplierController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    $message = delete_outcome_message(
-      'Supplier',
-      route('settings-panel.trash.index') . '?module=suppliers'
-    );
-    if ($cascadeMessage !== '') {
-      $message = str_replace(
-        'Supplier moved to Recycle Bin.',
-        'Supplier moved to Recycle Bin' . $cascadeMessage . '.',
-        $message
-      );
+    if (wants_delete_json()) {
+      $response = delete_json_response('Supplier', $trashUrl);
+      if ($cascadeMessage !== '') {
+        $data = $response->getData(true);
+        $data['message'] = 'Supplier moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
     }
 
-    return response()->json([
-      'success' => true,
-      'message' => $message,
-      'queued' => false,
-      'reload' => true,
-    ]);
+    Flash::success('Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    return redirect(route('suppliers.index'));
   }
 
   public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)

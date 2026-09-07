@@ -291,21 +291,30 @@ class AccountsController extends AppBaseController
     $accounts = $this->findAccessibleAccount($id);
 
     if (empty($accounts)) {
-      return response()->json(['errors' => ['error' => 'Account not found!']], 422);
+      return delete_error_response('Account not found!', route('accounts.index'), 404);
     }
 
     if ($this->isAccountLinkedToGlobal($accounts)) {
-      return response()->json(['errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.']], 422);
+      return delete_error_response(
+        'Accounts linked to global accounts can only be managed from the Admin panel.',
+        route('accounts.index')
+      );
     }
 
     if ((bool) $accounts->is_fixed && !Auth::guard('admin')->check()) {
-      return response()->json(['errors' => ['error' => 'Fixed account can only be deleted from admin panel.']], 422);
+      return delete_error_response(
+        'Fixed account can only be deleted from admin panel.',
+        route('accounts.index')
+      );
     }
 
     // Check if account is a parent (has child accounts)
     $childAccountsCount = Accounts::where('parent_id', $accounts->id)->count();
     if ($childAccountsCount > 0) {
-      return response()->json(['errors' => ['error' => "Cannot delete account. This account has {$childAccountsCount} sub-account(s). Please delete or reassign child accounts first."]], 422);
+      return delete_error_response(
+        "Cannot delete account. This account has {$childAccountsCount} sub-account(s). Please delete or reassign child accounts first.",
+        route('accounts.index')
+      );
     }
 
     // Track cascaded deletions for referenced records
@@ -355,24 +364,21 @@ class AccountsController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
-    $message = delete_outcome_message(
-      'Account',
-      route('settings-panel.trash.index') . '?module=accounts'
-    );
-    if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
-      $message = str_replace(
-        'Account moved to Recycle Bin.',
-        'Account moved to Recycle Bin' . $cascadeMessage . '.',
-        $message
-      );
+    $trashUrl = route('settings-panel.trash.index') . '?module=accounts';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Account', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Account moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
     }
 
-    return response()->json([
-      'success' => true,
-      'message' => $message,
-      'queued' => (bool) request()->attributes->get('delete_approval_created'),
-      'reload' => true,
-    ]);
+    Flash::success('Account moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    return redirect(route('accounts.index'));
   }
 
   /**

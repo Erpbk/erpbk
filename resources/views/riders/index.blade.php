@@ -289,7 +289,6 @@
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @include('delete_requests._confirm_delete_script', [
     'entityName' => 'Rider',
     'confirmText' => 'This will submit a delete request or move the rider to the Recycle Bin.',

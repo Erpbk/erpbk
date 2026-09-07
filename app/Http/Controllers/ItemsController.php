@@ -239,8 +239,7 @@ class ItemsController extends AppBaseController
     $item = $this->itemsRepository->find($id);
 
     if (empty($item)) {
-      Flash::error('Item not found!');
-      return redirect()->back();
+      return delete_error_response('Item not found!', null, 404);
     }
 
     // Check if item is used in any rider invoices
@@ -252,8 +251,9 @@ class ItemsController extends AppBaseController
     // If item exists in any invoice, prevent deletion
     if ($riderInvoiceCount > 0 || $supplierInvoiceCount > 0) {
       $totalInvoices = $riderInvoiceCount + $supplierInvoiceCount;
-      Flash::error("Cannot delete this item as it is linked to {$totalInvoices} invoice(s). Please remove the item from all invoices first.");
-      return redirect()->back();
+      return delete_error_response(
+        "Cannot delete this item as it is linked to {$totalInvoices} invoice(s). Please remove the item from all invoices first."
+      );
     }
 
     DB::beginTransaction();
@@ -333,7 +333,20 @@ class ItemsController extends AppBaseController
         $cascadeMessage .= implode(', ', $parts) . ')';
       }
 
-      Flash::success('Item moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('trash.index') . '?module=items" class="alert-link">View Recycle Bin</a> to restore if needed.');
+      $trashUrl = route('settings-panel.trash.index') . '?module=items';
+      if (wants_delete_json()) {
+        $response = delete_json_response('Item', $trashUrl);
+        if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+          $data = $response->getData(true);
+          $data['message'] = 'Item moved to Recycle Bin' . $cascadeMessage
+            . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+          $response->setData($data);
+        }
+
+        return $response;
+      }
+
+      Flash::success('Item moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
       return redirect()->back();
     } catch (\Exception $e) {
       DB::rollBack();
@@ -342,8 +355,7 @@ class ItemsController extends AppBaseController
         'error' => $e->getMessage(),
         'trace' => $e->getTraceAsString()
       ]);
-      Flash::error('Failed to delete item: ' . $e->getMessage());
-      return redirect()->back();
+      return delete_error_response('Failed to delete item: ' . $e->getMessage());
     }
   }
 

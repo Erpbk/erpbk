@@ -226,18 +226,24 @@ class RecruitersController extends AppBaseController
         $recruiter = $this->recruitersRepository->find((int)$id);
 
         if (empty($recruiter)) {
-            return response()->json(['errors' => ['error' => 'Recruiter not found!']], 422);
+            return delete_error_response('Recruiter not found!', route('recruiters.index'), 404);
         }
 
         // Check if recruiter has transactions - protect from deletion
         if ($recruiter->transactions()->count() > 0) {
-            return response()->json(['errors' => ['error' => 'Cannot delete recruiter. Recruiter has ' . $recruiter->transactions()->count() . ' transaction(s). Please deactivate instead.']], 422);
+            return delete_error_response(
+                'Cannot delete recruiter. Recruiter has ' . $recruiter->transactions()->count() . ' transaction(s). Please deactivate instead.',
+                route('recruiters.index')
+            );
         }
 
         // Check if recruiter has active riders
         $activeRidersCount = $recruiter->riders()->withoutGlobalScope('branch')->count();
         if ($activeRidersCount > 0) {
-            return response()->json(['errors' => ['error' => "Cannot delete recruiter. Recruiter has {$activeRidersCount} active rider(s). Please reassign riders first."]], 422);
+            return delete_error_response(
+                "Cannot delete recruiter. Recruiter has {$activeRidersCount} active rider(s). Please reassign riders first.",
+                route('recruiters.index')
+            );
         }
 
         // Check if recruiter account has ledger entries before deletion
@@ -247,7 +253,10 @@ class RecruitersController extends AppBaseController
                 ->count();
 
             if ($ledgerEntriesCount > 0) {
-                return response()->json(['errors' => ['error' => "Cannot delete recruiter. The recruiter account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first."]], 422);
+                return delete_error_response(
+                    "Cannot delete recruiter. The recruiter account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.",
+                    route('recruiters.index')
+                );
             }
         }
 
@@ -295,24 +304,21 @@ class RecruitersController extends AppBaseController
             $cascadeMessage .= implode(', ', $parts) . ')';
         }
 
-        $message = delete_outcome_message(
-            'Recruiter',
-            route('settings-panel.trash.index') . '?module=recruiters'
-        );
-        if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
-            $message = str_replace(
-                'Recruiter moved to Recycle Bin.',
-                'Recruiter moved to Recycle Bin' . $cascadeMessage . '.',
-                $message
-            );
+        $trashUrl = route('settings-panel.trash.index') . '?module=recruiters';
+        if (wants_delete_json()) {
+            $response = delete_json_response('Recruiter', $trashUrl);
+            if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+                $data = $response->getData(true);
+                $data['message'] = 'Recruiter moved to Recycle Bin' . $cascadeMessage
+                    . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+                $response->setData($data);
+            }
+
+            return $response;
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => $message,
-            'queued' => (bool) request()->attributes->get('delete_approval_created'),
-            'reload' => true,
-        ]);
+        Flash::success('Recruiter moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+        return redirect(route('recruiters.index'));
     }
 
     /**

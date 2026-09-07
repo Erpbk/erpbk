@@ -34,6 +34,14 @@ return [
         'Verdana',
         'Courier New',
         'Segoe UI',
+        // Arabic (Naskh)
+        'Noto Naskh Arabic',
+        'Amiri',
+        'Scheherazade New',
+        // Urdu (Nastaliq / Arabic-script)
+        'Noto Nastaliq Urdu',
+        'Lateef',
+        'Harmattan',
     ],
 
     /**
@@ -60,7 +68,19 @@ return [
         'sans-serif' => 'Calibri',
         'serif' => 'Times New Roman',
         'monospace' => 'Courier New',
-        'aptos' => 'Calibri',
+            'aptos' => 'Calibri',
         'arial unicode ms' => 'Arial',
+        'google sans' => 'Calibri',
+        'noto naskh arabic' => 'Noto Naskh Arabic',
+        'notonaskharabic' => 'Noto Naskh Arabic',
+        'amiri' => 'Amiri',
+        'scheherazade' => 'Scheherazade New',
+        'scheherazade new' => 'Scheherazade New',
+        'scheherazadenew' => 'Scheherazade New',
+        'noto nastaliq urdu' => 'Noto Nastaliq Urdu',
+        'notonastaliqurdu' => 'Noto Nastaliq Urdu',
+        'nastaliq' => 'Noto Nastaliq Urdu',
+        'lateef' => 'Lateef',
+        'harmattan' => 'Harmattan',
     ],
 ];

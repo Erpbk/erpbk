@@ -31,6 +31,62 @@ class AgreementFontSettings
         return implode(', ', $parts);
     }
 
+    /**
+     * Prefer a Naskh face that includes Arabic Presentation Forms for Dompdf.
+     */
+    public function rtlDefaultFamily(): string
+    {
+        // Amiri ships filled Arabic Presentation Forms outlines that Dompdf embeds
+        // reliably; some Naskh builds map those codepoints but still paint .notdef.
+        return 'Amiri';
+    }
+
+    /**
+     * Prefer a Naskh face that includes Arabic Presentation Forms for Dompdf.
+     */
+    public function rtlFamilyStackCss(): string
+    {
+        $preferred = $this->rtlDefaultFamily();
+        $names = array_values(array_unique(array_filter([
+            $preferred,
+            'Scheherazade New',
+            'Noto Naskh Arabic',
+            'Lateef',
+        ])));
+
+        $parts = [];
+        foreach ($names as $name) {
+            $parts[] = preg_match('/\s/', (string) $name) ? "'" . $name . "'" : $name;
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * TinyMCE often stamps Calibri/Arial onto spans; Dompdf then paints shaped
+     * presentation-form codepoints with a Latin face → missing-glyph boxes.
+     */
+    public function forceRtlFontFamiliesInHtml(string $html): string
+    {
+        $family = $this->rtlDefaultFamily();
+        $quoted = "'".$family."'";
+
+        // Match through HTML-encoded quotes (&#039;) that Blade may emit in CSS.
+        $html = preg_replace(
+            '/font-family\s*:\s*[^;}]+/i',
+            'font-family: '.$quoted,
+            $html
+        ) ?? $html;
+
+        $html = preg_replace(
+            '/\bfont-family\s*=\s*(["\'])[^"\']*\1/i',
+            'font-family='.$quoted,
+            $html
+        ) ?? $html;
+
+        return $html;
+    }
+
     public function sizePt(): float
     {
         return (float) config('agreement_fonts.size_pt', 11);
@@ -77,6 +133,12 @@ class AgreementFontSettings
             'Georgia' => 'georgia,serif',
             'Verdana' => 'verdana,sans-serif',
             'Courier New' => 'courier new,courier,monospace',
+            'Noto Naskh Arabic' => "'Noto Naskh Arabic',serif",
+            'Amiri' => 'Amiri,serif',
+            'Scheherazade New' => "'Scheherazade New',serif",
+            'Noto Nastaliq Urdu' => "'Noto Nastaliq Urdu',serif",
+            'Lateef' => 'Lateef,serif',
+            'Harmattan' => 'Harmattan,sans-serif',
         ];
 
         $parts = [];
@@ -84,7 +146,7 @@ class AgreementFontSettings
             if ($family === 'Segoe UI') {
                 continue;
             }
-            $css = $map[$family] ?? ($family . ',sans-serif');
+            $css = $map[$family] ?? ("'" . $family . "',sans-serif");
             $parts[] = $family . '=' . $css;
         }
 
@@ -112,6 +174,12 @@ class AgreementFontSettings
             'Georgia' => 'Georgia,serif',
             'Verdana' => 'Verdana,sans-serif',
             'Courier New' => 'Courier New,Courier,monospace',
+            'Noto Naskh Arabic' => "'Noto Naskh Arabic',serif",
+            'Amiri' => 'Amiri,serif',
+            'Scheherazade New' => "'Scheherazade New',serif",
+            'Noto Nastaliq Urdu' => "'Noto Nastaliq Urdu',serif",
+            'Lateef' => 'Lateef,serif',
+            'Harmattan' => 'Harmattan,sans-serif',
         ];
 
         $options = [];
@@ -127,12 +195,18 @@ class AgreementFontSettings
 
     /**
      * Rewrite stored Word/TinyMCE font CSS onto the allowed agreement families and sizes.
+     * Also strips Google/Docs paste wrappers that break Dompdf Arabic shaping.
      */
     public function normalizeHtml(string $html): string
     {
         if (trim($html) === '') {
             return $html;
         }
+
+        // Paste from Google Search/Docs injects host UI chrome into the body.
+        $html = preg_replace('/<!--TgQPHd.*?-->/s', '', $html) ?? $html;
+        $html = preg_replace('/\sdata-(?:sfc-[a-z]+|hveid|complete|copy-service-[a-z-]+)="[^"]*"/i', '', $html) ?? $html;
+        $html = preg_replace("/\sdata-(?:sfc-[a-z]+|hveid|complete|copy-service-[a-z-]+)='[^']*'/i", '', $html) ?? $html;
 
         $dom = new DOMDocument('1.0', 'UTF-8');
         $dom->preserveWhiteSpace = true;
@@ -147,6 +221,8 @@ class AgreementFontSettings
         }
 
         $this->normalizeElement($root);
+        $this->unwrapPasteChrome($root);
+        $this->ensureBlockWrappers($root);
 
         $out = '';
         foreach ($root->childNodes as $child) {
@@ -154,6 +230,102 @@ class AgreementFontSettings
         }
 
         return $out;
+    }
+
+    /**
+     * Dompdf ignores text-align on anonymous text nodes; keep body text in blocks.
+     */
+    private function ensureBlockWrappers(DOMElement $root): void
+    {
+        $doc = $root->ownerDocument;
+        if (! $doc) {
+            return;
+        }
+
+        // Drop empty leftover wrappers (common after Google paste unwrap).
+        foreach (iterator_to_array($root->childNodes) as $child) {
+            if (! $child instanceof DOMElement) {
+                continue;
+            }
+            $tag = strtolower($child->tagName);
+            if (in_array($tag, ['div', 'span'], true) && trim($child->textContent ?? '') === '') {
+                $root->removeChild($child);
+            }
+        }
+
+        $hasElement = false;
+        foreach ($root->childNodes as $child) {
+            if ($child instanceof DOMElement) {
+                $hasElement = true;
+                break;
+            }
+        }
+
+        if ($hasElement) {
+            return;
+        }
+
+        $text = trim($root->textContent ?? '');
+        if ($text === '') {
+            return;
+        }
+
+        while ($root->firstChild) {
+            $root->removeChild($root->firstChild);
+        }
+
+        $p = $doc->createElement('p');
+        $p->appendChild($doc->createTextNode($text));
+        $root->appendChild($p);
+    }
+
+    /**
+     * Unwrap Google paste host divs and drop empty placeholder spans.
+     */
+    private function unwrapPasteChrome(DOMElement $root): void
+    {
+        $xpath = new \DOMXPath($root->ownerDocument);
+        /** @var list<DOMElement> $nodes */
+        $nodes = [];
+        foreach ($xpath->query('.//*', $root) ?: [] as $node) {
+            if ($node instanceof DOMElement) {
+                $nodes[] = $node;
+            }
+        }
+
+        // Deepest-first so nested wrappers unwrap cleanly.
+        $nodes = array_reverse($nodes);
+
+        foreach ($nodes as $element) {
+            $tag = strtolower($element->tagName);
+            $class = $element->getAttribute('class');
+
+            if ($tag === 'span' && trim($element->textContent ?? '') === '' && ! $element->hasChildNodes()) {
+                $element->parentNode?->removeChild($element);
+                continue;
+            }
+
+            $isGoogleHost = $tag === 'div' && (
+                str_contains($class, 'n6owBd')
+                || str_contains($class, 'awi2gc')
+                || $element->hasAttribute('data-copy-service-computed-style')
+                || $element->hasAttribute('data-sfc-root')
+            );
+
+            if (! $isGoogleHost) {
+                continue;
+            }
+
+            $parent = $element->parentNode;
+            if (! $parent) {
+                continue;
+            }
+
+            while ($element->firstChild) {
+                $parent->insertBefore($element->firstChild, $element);
+            }
+            $parent->removeChild($element);
+        }
     }
 
     private function normalizeElement(DOMElement $element): void
@@ -435,6 +607,42 @@ class AgreementFontSettings
                 'bold' => [$bundle . 'Caladea-Bold.ttf', $win . 'cambriab.ttf', $dejavu . 'DejaVuSerif-Bold.ttf'],
                 'italic' => [$bundle . 'Caladea-Italic.ttf', $win . 'cambriai.ttf', $dejavu . 'DejaVuSerif-Italic.ttf'],
                 'bold_italic' => [$bundle . 'Caladea-BoldItalic.ttf', $win . 'cambriaz.ttf', $dejavu . 'DejaVuSerif-BoldItalic.ttf'],
+            ],
+            'Noto Naskh Arabic' => [
+                'normal' => [$bundle . 'NotoNaskhArabic-Regular.ttf'],
+                'bold' => [$bundle . 'NotoNaskhArabic-Bold.ttf', $bundle . 'NotoNaskhArabic-Regular.ttf'],
+                'italic' => [$bundle . 'NotoNaskhArabic-Regular.ttf'],
+                'bold_italic' => [$bundle . 'NotoNaskhArabic-Bold.ttf', $bundle . 'NotoNaskhArabic-Regular.ttf'],
+            ],
+            'Amiri' => [
+                'normal' => [$bundle . 'Amiri-Regular.ttf'],
+                'bold' => [$bundle . 'Amiri-Bold.ttf', $bundle . 'Amiri-Regular.ttf'],
+                'italic' => [$bundle . 'Amiri-Italic.ttf', $bundle . 'Amiri-Regular.ttf'],
+                'bold_italic' => [$bundle . 'Amiri-BoldItalic.ttf', $bundle . 'Amiri-Bold.ttf', $bundle . 'Amiri-Regular.ttf'],
+            ],
+            'Scheherazade New' => [
+                'normal' => [$bundle . 'ScheherazadeNew-Regular.ttf'],
+                'bold' => [$bundle . 'ScheherazadeNew-Bold.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
+                'italic' => [$bundle . 'ScheherazadeNew-Regular.ttf'],
+                'bold_italic' => [$bundle . 'ScheherazadeNew-Bold.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
+            ],
+            'Noto Nastaliq Urdu' => [
+                'normal' => [$bundle . 'NotoNastaliqUrdu-Regular.ttf'],
+                'bold' => [$bundle . 'NotoNastaliqUrdu-Bold.ttf', $bundle . 'NotoNastaliqUrdu-Regular.ttf'],
+                'italic' => [$bundle . 'NotoNastaliqUrdu-Regular.ttf'],
+                'bold_italic' => [$bundle . 'NotoNastaliqUrdu-Bold.ttf', $bundle . 'NotoNastaliqUrdu-Regular.ttf'],
+            ],
+            'Lateef' => [
+                'normal' => [$bundle . 'Lateef-Regular.ttf'],
+                'bold' => [$bundle . 'Lateef-Bold.ttf', $bundle . 'Lateef-Regular.ttf'],
+                'italic' => [$bundle . 'Lateef-Regular.ttf'],
+                'bold_italic' => [$bundle . 'Lateef-Bold.ttf', $bundle . 'Lateef-Regular.ttf'],
+            ],
+            'Harmattan' => [
+                'normal' => [$bundle . 'Harmattan-Regular.ttf'],
+                'bold' => [$bundle . 'Harmattan-Bold.ttf', $bundle . 'Harmattan-Regular.ttf'],
+                'italic' => [$bundle . 'Harmattan-Regular.ttf'],
+                'bold_italic' => [$bundle . 'Harmattan-Bold.ttf', $bundle . 'Harmattan-Regular.ttf'],
             ],
         ] as $family => $styles) {
             $variants = [

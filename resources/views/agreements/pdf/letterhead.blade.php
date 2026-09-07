@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ $agreementRtl ? 'ar' : 'en' }}">
 <head>
   <meta charset="utf-8">
   <title>{{ $template->template_name ?? 'Agreement' }}</title>
@@ -23,6 +23,7 @@
   $agreementLineHeight = $agreementLineHeight ?? $fonts->lineHeight();
   $agreementFontColor = $agreementFontColor ?? $fonts->color();
   $agreementHeadingSizesPt = $agreementHeadingSizesPt ?? $fonts->headingSizesPt();
+  $agreementRtl = ! empty($agreementRtl);
   // Dompdf/A4 rounding: a full-height box can overflow by a fraction of a mm and split a blank page.
   $pageBoxH = $forPdf ? round($pageH - 0.4, 1) : $pageH;
   @endphp
@@ -151,6 +152,34 @@
       font-size: {{ $agreementFontSizePt }}pt;
       line-height: {{ $agreementLineHeight }};
       color: {{ $agreementFontColor }};
+    }
+
+    /*
+     * Ar-PHP utf8Glyphs already emits visual order for LTR engines.
+     * Align right only — do not set direction:rtl or glyphs reverse twice.
+     */
+    .content--rtl {
+      text-align: right !important;
+    }
+    /* Dompdf ignores OpenType; shaped glyphs need a Naskh/Amiri face. */
+    .content--rtl,
+    .content--rtl * {
+      font-family: {{ $agreementFontFamily }} !important;
+    }
+    .content--rtl p,
+    .content--rtl h1,
+    .content--rtl h2,
+    .content--rtl h3,
+    .content--rtl h4,
+    .content--rtl li,
+    .content--rtl td,
+    .content--rtl th {
+      text-align: right !important;
+    }
+    .content--rtl ul,
+    .content--rtl ol {
+      padding-right: 1.4em;
+      padding-left: 0;
     }
 
     .content p { margin: 0 0 0.5em; }
@@ -287,7 +316,7 @@
       </div>
       @endif
       <div class="agreement-page-body">
-        <div class="content">
+        <div class="content{{ $agreementRtl ? ' content--rtl' : '' }}">
           {!! $pageBody !!}
         </div>
       </div>

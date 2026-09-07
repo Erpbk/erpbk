@@ -5,3 +5,13 @@ Tinos (Times New Roman) — Apache License 2.0 — https://github.com/google/fon
 Cousine (Courier New) — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/cousine
 Caladea (Cambria) — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/caladea
 DejaVu (Arial / Georgia / Verdana / Segoe UI fallbacks) — Bitstream Vera / DejaVu licenses — vendor/dompdf/dompdf/lib/fonts
+
+Arabic
+Noto Naskh Arabic — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/notonaskharabic
+Amiri — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/amiri
+Scheherazade New — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/scheherazadenew
+
+Urdu
+Noto Nastaliq Urdu — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/notonastaliqurdu
+Lateef — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/lateef
+Harmattan — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/harmattan

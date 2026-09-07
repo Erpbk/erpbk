@@ -111,6 +111,9 @@
   if (! $pdfStreamUrl && $pdfDownloadUrl) {
       $pdfStreamUrl = $pdfDownloadUrl . (str_contains($pdfDownloadUrl, '?') ? '&' : '?') . 'inline=1';
   }
+  if ($pdfStreamUrl) {
+      $pdfStreamUrl .= (str_contains($pdfStreamUrl, '?') ? '&' : '?') . 't=' . time();
+  }
   @endphp
   <div class="toolbar">
     <strong>{{ $template->template_name ?? 'Agreement Preview' }}</strong>

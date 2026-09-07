@@ -19,7 +19,8 @@ class AgreementPdfService
         protected AgreementLetterheadLayout $letterheadLayout,
         protected AgreementLetterheadPaginator $letterheadPaginator,
         protected AgreementFontSettings $fonts,
-        protected AgreementLetterheadPdfPainter $letterheadPainter
+        protected AgreementLetterheadPdfPainter $letterheadPainter,
+        protected AgreementRtlTextShaper $rtlTextShaper
     ) {}
 
     /**
@@ -61,6 +62,16 @@ class AgreementPdfService
         $body = $this->pdfBranding->inlineHtmlImages(
             $this->fonts->normalizeHtml($this->resolver->replace($content, $map))
         );
+
+        // Dompdf has no OpenType shaping: shape Arabic/Urdu for PDF only so the
+        // editor still shows logical Unicode while downloads render joined glyphs.
+        $agreementRtl = false;
+        if ($forPdf) {
+            $shaped = $this->rtlTextShaper->shapeHtmlForPdf($body);
+            $body = $shaped['html'];
+            $agreementRtl = $shaped['rtl'];
+        }
+
         $template->loadMissing(['category.letterhead', 'category.watermark']);
         $category = $template->category;
         $branding = $this->pdfBranding->withUploadedLetterhead(
@@ -88,12 +99,15 @@ class AgreementPdfService
             'pageHeightMm' => $this->letterheadLayout->pageHeightMm($category),
             'forPdf' => $forPdf,
             'withLetterhead' => $withLetterhead,
+            'agreementRtl' => $agreementRtl,
             'rider' => $subject,
             'template' => $template,
             'category' => $category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
             'pdfFontFaces' => $pdfFontFaces,
-            'agreementFontFamily' => $this->fonts->familyStackCss(),
+            'agreementFontFamily' => $agreementRtl
+                ? $this->fonts->rtlFamilyStackCss()
+                : $this->fonts->familyStackCss(),
             'agreementFontSizePt' => $this->fonts->sizePt(),
             'agreementLineHeight' => $this->fonts->lineHeight(),
             'agreementFontColor' => $this->fonts->color(),
@@ -147,7 +161,16 @@ class AgreementPdfService
     private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true)
     {
         $fontFaces = $this->pdfFontFaces();
-        $defaultFont = $this->fonts->defaultFamily();
+        $isRtl = str_contains($html, 'content--rtl')
+            || $this->rtlTextShaper->containsArabicScript($html);
+
+        if ($isRtl) {
+            $html = $this->fonts->forceRtlFontFamiliesInHtml($html);
+        }
+
+        $defaultFont = $isRtl
+            ? $this->fonts->rtlDefaultFamily()
+            : $this->fonts->defaultFamily();
         $defaultFont = $fontFaces !== [] ? $defaultFont : 'DejaVu Sans';
 
         $pdf = app('dompdf.wrapper');

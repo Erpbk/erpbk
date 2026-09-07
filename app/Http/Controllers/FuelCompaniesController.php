@@ -310,8 +310,23 @@ class FuelCompaniesController extends AppBaseController
             $cascadeMessage = ' (Also deleted: ' . implode(', ', $parts) . ')';
         }
 
+        $message = delete_outcome_message(
+            'Fuel company',
+            route('settings-panel.trash.index') . '?module=fuel_companies'
+        );
+        if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+            $message = str_replace(
+                'Fuel company moved to Recycle Bin.',
+                'Fuel company moved to Recycle Bin' . $cascadeMessage . '.',
+                $message
+            );
+        }
+
         return response()->json([
-            'message' => 'Fuel company moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=fuel_companies" class="alert-link">View Recycle Bin</a> to restore if needed.',
+            'success' => true,
+            'message' => $message,
+            'queued' => (bool) request()->attributes->get('delete_approval_created'),
+            'reload' => true,
         ]);
     }
 

@@ -57,13 +57,9 @@
                      </a>
                   @endcan
                   @can('customer_delete')
-                  {!! Form::open(['route' => ['customers.destroy', ['id' => $r->id]], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
-                  {!! Form::button('<i class="fa fa-trash"></i> Delete', [
-                     'type' => 'submit',
-                     'class' => 'dropdown-item waves-effect',
-                     'onclick' => 'return confirm("Are you sure you want to delete this customer? This will move it to the Recycle Bin.")'
-                  ]) !!}
-                  {!! Form::close() !!}
+                  <a href="javascript:void(0);" onclick="confirmDelete(@json(route('customers.destroy', ['id' => $r->id])))" class="dropdown-item waves-effect">
+                     <i class="fa fa-trash"></i> Delete
+                  </a>
                   @endcan
                </div>
             </div>

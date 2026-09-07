@@ -295,8 +295,23 @@ class RecruitersController extends AppBaseController
             $cascadeMessage .= implode(', ', $parts) . ')';
         }
 
+        $message = delete_outcome_message(
+            'Recruiter',
+            route('settings-panel.trash.index') . '?module=recruiters'
+        );
+        if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+            $message = str_replace(
+                'Recruiter moved to Recycle Bin.',
+                'Recruiter moved to Recycle Bin' . $cascadeMessage . '.',
+                $message
+            );
+        }
+
         return response()->json([
-            'message' => 'Recruiter moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=recruiters" class="alert-link">View Recycle Bin</a> to restore if needed.'
+            'success' => true,
+            'message' => $message,
+            'queued' => (bool) request()->attributes->get('delete_approval_created'),
+            'reload' => true,
         ]);
     }
 

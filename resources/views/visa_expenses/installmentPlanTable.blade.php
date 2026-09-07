@@ -553,59 +553,15 @@
         }
     }
 
-    // Soft delete with cascade tracking confirmation
-    function confirmDeleteProtected(url) {
-        try {
-            const match = url && url.match(/deleteInstallment\/(\d+)/);
-            const installmentId = match && match[1] ? match[1] : null;
-            if (!installmentId) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: 'Unable to detect installment to delete.',
-                    confirmButtonText: 'OK',
-                    confirmButtonColor: '#dc3545'
-                });
-                return false;
-            }
-
-            // Show confirmation dialog for delete-approval workflow
-            Swal.fire({
-                title: 'Delete Installment Plan?',
-                html: '<p>Are you sure you want to request deletion of this installment plan?</p>' +
-                    '<p class="text-muted small">Until an administrator approves:</p>' +
-                    '<ul class="text-start text-muted small">' +
-                    '<li>The installment entry stays visible and locked</li>' +
-                    '<li>Related vouchers and transactions stay visible</li>' +
-                    '<li>Nothing is removed from accounts until approval</li>' +
-                    '</ul>',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Yes, submit delete request',
-                cancelButtonText: 'Cancel',
-                confirmButtonColor: '#dc3545',
-                cancelButtonColor: '#6c757d',
-                reverseButtons: true
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = url;
-                }
-            });
-
-            return false;
-        } catch (e) {
-            console.error('Error in confirmDeleteProtected:', e);
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: 'An error occurred while processing the deletion request.',
-                confirmButtonText: 'OK',
-                confirmButtonColor: '#dc3545'
-            });
-            return false;
-        }
-    }
-
+    // Soft delete with cascade tracking confirmation — provided by shared partial below
+</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Installment Plan',
+    'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
+    'method' => 'GET',
+    'functionName' => 'confirmDeleteProtected',
+])
+<script>
     // Store original values when page loads
     document.addEventListener('DOMContentLoaded', function() {
         const scope = installmentInlineScope();

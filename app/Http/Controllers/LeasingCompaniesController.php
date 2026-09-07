@@ -786,7 +786,10 @@ class LeasingCompaniesController extends AppBaseController
             // Soft delete the invoice
             $invoice->delete();
 
-            Flash::success('Invoice deleted successfully.');
+            Flash::success(delete_outcome_message(
+                'Leasing company invoice',
+                route('settings-panel.trash.index') . '?module=leasing_company_invoices'
+            ));
         } catch (\Exception $e) {
             Flash::error('Error deleting invoice: '.$e->getMessage());
         }

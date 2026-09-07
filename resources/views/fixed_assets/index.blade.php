@@ -114,21 +114,9 @@
 
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "This asset will be deleted.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = url;
-        }
-    });
-}
-</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Fixed Asset',
+    'confirmText' => 'This will submit a delete request or move the asset to the Recycle Bin.',
+    'method' => 'GET',
+])
 @endsection

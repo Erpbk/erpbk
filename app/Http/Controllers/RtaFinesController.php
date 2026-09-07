@@ -782,9 +782,15 @@ class RtaFinesController extends AppBaseController
                 if ($path)
                     \Storage::delete($path);
                 if ($request->ajax()) {
-                    return response()->json(['message' => 'Fine Deleted Successfully', 'reload' => true], 200);
+                    return delete_json_response(
+                        'RTA Fine',
+                        route('settings-panel.trash.index') . '?module=rta_fines'
+                    );
                 }
-                Flash::success('RTA Fine deleted successfully with all related records.');
+                Flash::success(delete_outcome_message(
+                    'RTA Fine',
+                    route('settings-panel.trash.index') . '?module=rta_fines'
+                ));
             } catch (\Exception $e) {
                 DB::rollBack();
                 \Log::error("Error deleting RTA Fine ID: {$id} - " . $e->getMessage());

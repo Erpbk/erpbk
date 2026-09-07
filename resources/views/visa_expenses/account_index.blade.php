@@ -269,6 +269,11 @@
     }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Visa Expense Account',
+    'confirmText' => 'This will submit a delete request or move the account to the Recycle Bin.',
+    'method' => 'GET',
+])
 <script type="text/javascript">
     function filterByVisaStatus(visaStatusId) {
         var url = new URL(window.location.href);
@@ -345,21 +350,6 @@
         sliderTrack.dataset.tickerIntervalId = String(intervalId);
     }
 
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                window.location.href = url;
-            }
-        })
-    }
     $(document).ready(function() {
         var $createModal = $('#createaccount');
         var $categorySelect = $('#renewal_category_id');

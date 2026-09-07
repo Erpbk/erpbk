@@ -117,43 +117,8 @@
 {!! $data->links('components.global-pagination') !!}
 @endif
 
-<script>
-   function confirmDelete(url) {
-      Swal.fire({
-         title: 'Are you sure?',
-         text: "You won't be able to revert this!",
-         icon: 'warning',
-         showCancelButton: true,
-         confirmButtonColor: '#3085d6',
-         cancelButtonColor: '#d33',
-         confirmButtonText: 'Yes, delete it!'
-      }).then((result) => {
-         if (result.isConfirmed) {
-            $.ajax({
-               url: url,
-               type: 'DELETE',
-               data: {
-                  _token: '{{ csrf_token() }}'
-               },
-               success: function(response) {
-                  Swal.fire(
-                     'Deleted!',
-                     'Fine has been deleted.',
-                     'success'
-                  ).then(() => {
-                     location.reload();
-                  });
-               },
-               error: function(xhr) {
-                  Swal.fire(
-                     'Error!',
-                     'Failed to delete Receipt. ' + (xhr.responseJSON?.message || xhr.statusText || 'Unknown error'),
-                     'error'
-                  );
-               }
-            });
-         }
-      });
-   };
-</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'RTA Fine',
+    'confirmText' => 'This will submit a delete request or move the fine to the Recycle Bin.',
+])
 @include('delete_requests._pending_table_script', ['items' => $data])

@@ -1430,10 +1430,10 @@ class EmployeeController extends Controller
 
         $employee->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Employee deleted successfully!',
-        ], 200);
+        return delete_json_response(
+            'Employee',
+            route('settings-panel.trash.index') . '?module=employees'
+        );
     }
 
     public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)

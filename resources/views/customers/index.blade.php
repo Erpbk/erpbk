@@ -108,6 +108,10 @@
 
 @endsection
 @section('page-script')
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Customer',
+    'confirmText' => 'This will submit a delete request or move the customer to the Recycle Bin.',
+])
 <script type="text/javascript">
     $(document).ready(function() {
         $('.select2').select2({

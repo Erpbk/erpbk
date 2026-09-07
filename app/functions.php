@@ -248,3 +248,20 @@ if (! function_exists('delete_outcome_message')) {
         return $entityName . ' moved to Recycle Bin.' . $link;
     }
 }
+
+if (! function_exists('delete_json_response')) {
+    /**
+     * Standard JSON payload for soft-delete / delete-approval outcomes.
+     */
+    function delete_json_response(string $entityName = 'Record', ?string $recycleBinUrl = null, int $status = 200): \Illuminate\Http\JsonResponse
+    {
+        $queued = (bool) request()->attributes->get('delete_approval_created');
+
+        return response()->json([
+            'success' => true,
+            'message' => delete_outcome_message($entityName, $recycleBinUrl),
+            'queued' => $queued,
+            'reload' => true,
+        ], $status);
+    }
+}

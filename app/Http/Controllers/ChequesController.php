@@ -378,10 +378,10 @@ class ChequesController extends Controller
                     PublicStorageDisk::delete('vouchers/' . $cheque->attachment);
                 }
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Cheque deleted successfully.'
-                ]);
+                return delete_json_response(
+                    'Cheque',
+                    route('settings-panel.trash.index') . '?module=cheques'
+                );
             } catch (\Exception $e) {
                 DB::rollBack();
                 return response()->json([

@@ -145,28 +145,11 @@
 @endsection
 @section('page-script')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Salik Record',
+    'confirmText' => 'This will submit a delete request or move the Salik record to the Recycle Bin.',
+])
 <script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: url,
-                    type: 'DELETE',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    success: function() { location.reload(); },
-                    error: function(xhr) {
-                        Swal.fire('Error!', xhr.responseJSON?.message || 'Delete failed', 'error');
-                    }
-                });
-            }
-        });
-    }
     $(document).ready(function() {
         $('#rider_id, #branch_id, #status, #company').select2({ dropdownParent: $('#searchTopbody'), allowClear: true });
         $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {

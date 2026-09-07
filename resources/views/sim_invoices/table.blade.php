@@ -66,13 +66,9 @@
                                 @endif
                             @endcan
                             @can('sims_invoices_delete')
-                                {!! Form::open(['route' => ['simInvoices.destroy', $invoice->id], 'method' => 'DELETE', 'style' => 'display:inline;']) !!}
-                                {!! Form::button('<i class="fa fa-trash mx-1"></i> Delete', [
-                                    'type' => 'submit',
-                                    'class' => 'dropdown-item waves-effect border-0 bg-transparent w-100 text-start',
-                                    'onclick' => "return confirm('Move this invoice to the Recycle Bin? Line items and the attachment stay until it is permanently deleted.');"
-                                ]) !!}
-                                {!! Form::close() !!}
+                                <a href="javascript:void(0);" onclick="confirmDelete(@json(route('simInvoices.destroy', $invoice->id)))" class="dropdown-item waves-effect">
+                                    <i class="fa fa-trash mx-1"></i> Delete
+                                </a>
                             @endcan
                         </div>
                     </div>

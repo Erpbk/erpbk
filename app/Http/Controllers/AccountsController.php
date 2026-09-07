@@ -355,8 +355,23 @@ class AccountsController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
+    $message = delete_outcome_message(
+      'Account',
+      route('settings-panel.trash.index') . '?module=accounts'
+    );
+    if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+      $message = str_replace(
+        'Account moved to Recycle Bin.',
+        'Account moved to Recycle Bin' . $cascadeMessage . '.',
+        $message
+      );
+    }
+
     return response()->json([
-      'message' => 'Account moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=accounts" class="alert-link">View Recycle Bin</a> to restore if needed.'
+      'success' => true,
+      'message' => $message,
+      'queued' => (bool) request()->attributes->get('delete_approval_created'),
+      'reload' => true,
     ]);
   }
 

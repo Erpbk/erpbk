@@ -89,52 +89,12 @@
 @section('page-script')
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Fuel Transaction',
+    'confirmText' => 'This will submit a delete request or move the transaction to the Recycle Bin.',
+    'fallbackMessage' => 'Fuel transaction moved to Recycle Bin.',
+])
 <script type="text/javascript">
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: 'This will submit a delete request or move the transaction to the Recycle Bin.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!',
-        showLoaderOnConfirm: true,
-        allowOutsideClick: () => !Swal.isLoading(),
-        preConfirm: () => {
-            return fetch(url, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-            }).then(async (response) => {
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || data.success === false) {
-                    throw new Error(data.message || 'Failed to delete fuel transaction.');
-                }
-                return data;
-            }).catch((error) => {
-                Swal.showValidationMessage(error.message || 'An error occurred while deleting.');
-            });
-        }
-    }).then((result) => {
-        if (!result.isConfirmed || !result.value) {
-            return;
-        }
-
-        const data = result.value;
-        Swal.fire({
-            icon: 'success',
-            title: data.queued ? 'Delete requested' : 'Deleted!',
-            html: data.message || 'Fuel transaction moved to Recycle Bin.',
-            confirmButtonText: 'OK'
-        }).then(() => {
-            location.reload();
-        });
-    });
-}
 $(document).ready(function () {
 
     $('#rider_id').select2({

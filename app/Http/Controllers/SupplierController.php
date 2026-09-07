@@ -263,11 +263,10 @@ class SupplierController extends AppBaseController
     }
 
     if (request()->attributes->get('delete_approval_created')) {
-      return response()->json([
-        'message' => \App\Services\DeleteRequestService::pendingMessage(
-          \App\Services\DeleteRequestService::lastCreatedFor($supplier)
-        ),
-      ]);
+      return delete_json_response(
+        'Supplier',
+        route('settings-panel.trash.index') . '?module=suppliers'
+      );
     }
 
     $cascadeMessage = '';
@@ -280,8 +279,23 @@ class SupplierController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
+    $message = delete_outcome_message(
+      'Supplier',
+      route('settings-panel.trash.index') . '?module=suppliers'
+    );
+    if ($cascadeMessage !== '') {
+      $message = str_replace(
+        'Supplier moved to Recycle Bin.',
+        'Supplier moved to Recycle Bin' . $cascadeMessage . '.',
+        $message
+      );
+    }
+
     return response()->json([
-      'message' => 'Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=suppliers" class="alert-link">View Recycle Bin</a> to restore if needed.'
+      'success' => true,
+      'message' => $message,
+      'queued' => false,
+      'reload' => true,
     ]);
   }
 

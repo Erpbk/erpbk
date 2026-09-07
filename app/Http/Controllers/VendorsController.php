@@ -269,14 +269,29 @@ class VendorsController extends AppBaseController
       $cascadeMessage .= implode(', ', $parts) . ')';
     }
 
+    $message = delete_outcome_message(
+      'Vendor',
+      route('settings-panel.trash.index') . '?module=vendors'
+    );
+    if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+      $message = str_replace(
+        'Vendor moved to Recycle Bin.',
+        'Vendor moved to Recycle Bin' . $cascadeMessage . '.',
+        $message
+      );
+    }
+
     // Return JSON response for AJAX calls or Flash + redirect for regular requests
     if (request()->expectsJson() || request()->ajax()) {
       return response()->json([
-        'message' => 'Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.'
+        'success' => true,
+        'message' => $message,
+        'queued' => (bool) request()->attributes->get('delete_approval_created'),
+        'reload' => true,
       ]);
     }
 
-    Flash::success('Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . route('settings-panel.trash.index') . '?module=vendors" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    Flash::success($message)->important();
     return redirect(route('vendors.index'));
   }
 

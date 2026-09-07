@@ -244,45 +244,8 @@ $(document).ready(function () {
 
 </script>
 
-<script>
-function confirmDelete(url) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: 'This will submit a delete request or move the card to the Recycle Bin.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Yes, delete it!',
-        showLoaderOnConfirm: true,
-        allowOutsideClick: () => !Swal.isLoading(),
-        preConfirm: () => {
-            return $.ajax({
-                url: url,
-                type: 'DELETE',
-                data: { _token: '{{ csrf_token() }}' }
-            }).catch((xhr) => {
-                const message = (xhr.responseJSON && xhr.responseJSON.message)
-                    || xhr.statusText
-                    || 'Failed to delete Fuel Card.';
-                Swal.showValidationMessage(message);
-            });
-        }
-    }).then((result) => {
-        if (!result.isConfirmed || !result.value) {
-            return;
-        }
-
-        const response = result.value;
-        Swal.fire({
-            icon: 'success',
-            title: response.queued ? 'Delete requested' : 'Deleted!',
-            html: response.message || 'Fuel Card moved to Recycle Bin.',
-            confirmButtonText: 'OK'
-        }).then(() => {
-            location.reload();
-        });
-    });
-}
-</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Fuel Card',
+    'confirmText' => 'This will submit a delete request or move the card to the Recycle Bin.',
+])
 @endsection

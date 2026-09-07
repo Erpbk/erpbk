@@ -107,6 +107,10 @@
 @endsection
 
 @section('page-script')
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'SIM Invoice',
+    'confirmText' => 'Move this invoice to the Recycle Bin? Line items and the attachment stay until it is permanently deleted.',
+])
 <script type="text/javascript">
     $(document).ready(function() {
         $('#vendor_id').select2({

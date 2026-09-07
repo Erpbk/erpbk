@@ -138,58 +138,10 @@
     });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script type="text/javascript">
-    function confirmDelete(url) {
-        Swal.fire({
-            title: 'Are you sure?',
-            text: "This will move the record to the Recycle Bin, or queue a delete request if approval is required.",
-            icon: 'warning',
-            input: 'textarea',
-            inputPlaceholder: 'Reason (optional)',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Yes, delete it!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $('#loading-overlay').show();
-                $.ajax({
-                    url: url,
-                    type: 'DELETE',
-                    data: {
-                        _token: '{{ csrf_token() }}',
-                        delete_reason: result.value || ''
-                    },
-                    success: function(response) {
-                        $('#loading-overlay').hide();
-                        var queued = !!(response && response.queued);
-                        Swal.fire({
-                            icon: queued ? 'warning' : 'success',
-                            title: queued ? 'Delete request submitted' : 'Deleted!',
-                            html: response.message,
-                            showConfirmButton: true,
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            location.reload();
-                        });
-                    },
-                    error: function(xhr) {
-                        $('#loading-overlay').hide();
-                        let errorMessage = 'An error occurred while deleting.';
-                        if (xhr.responseJSON && xhr.responseJSON.errors) {
-                            errorMessage = Object.values(xhr.responseJSON.errors).join('<br>');
-                        } else if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = xhr.responseJSON.message;
-                        }
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error!',
-                            html: errorMessage
-                        });
-                    }
-                });
-            }
-        });
-    }
-</script>
+@include('delete_requests._confirm_delete_script', [
+    'entityName' => 'Bike Rent Company',
+    'confirmText' => 'This will move the record to the Recycle Bin, or queue a delete request if approval is required.',
+    'askReason' => true,
+])
+
 @endsection

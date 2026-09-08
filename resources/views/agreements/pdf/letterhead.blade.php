@@ -26,8 +26,12 @@
   $agreementRtl = false; // never whole-document RTL; use per-segment classes
   $agreementHasArabic = ! empty($agreementHasArabic);
   $agreementRtlFontFamily = $agreementRtlFontFamily ?? $fonts->rtlFamilyStackCss();
+  $pdfEngine = $pdfEngine ?? 'html';
+  $isChromePdf = $pdfEngine === 'chrome';
+  $isMpdf = $pdfEngine === 'mpdf';
   // Dompdf/A4 rounding: a full-height box can overflow by a fraction of a mm and split a blank page.
-  $pageBoxH = $forPdf ? round($pageH - 0.4, 1) : $pageH;
+  // Chrome uses full page height; mPDF needs a tiny shrink to avoid blank trailing pages.
+  $pageBoxH = ($forPdf && $isMpdf) ? round($pageH - 0.4, 1) : $pageH;
   @endphp
   <style>
     @page {
@@ -35,14 +39,14 @@
       margin: 0;
     }
 
-    @if (! $forPdf)
+    @if (! $forPdf || $isChromePdf)
     @foreach ($pdfFontFaces as $face)
     @font-face {
       font-family: '{{ $face['family'] }}';
       font-weight: {{ $face['weight'] }};
       font-style: {{ $face['style'] }};
       font-display: swap;
-      src: url('{{ $face['url'] }}') format('truetype');
+      src: url('{{ $isChromePdf ? ($face['uri'] ?? $face['url']) : $face['url'] }}') format('truetype');
     }
     @endforeach
     @endif
@@ -54,7 +58,7 @@
       padding: 0;
       width: {{ $pageW }}mm;
       /* Transparent in PDF so canvas-painted letterhead shows through; white for on-screen HTML preview. */
-      background: {{ $forPdf ? 'transparent' : '#fff' }};
+      background: {{ ($forPdf && $isMpdf) ? 'transparent' : '#fff' }};
       --word-page-width: {{ $pageW }}mm;
       --word-page-height: {{ $pageBoxH }}mm;
     }
@@ -72,7 +76,7 @@
       height: {{ $pageBoxH }}mm;
       min-height: {{ $pageBoxH }}mm;
       max-height: {{ $pageBoxH }}mm;
-      background: {{ $forPdf ? 'transparent' : '#fff' }};
+      background: {{ ($forPdf && $isMpdf) ? 'transparent' : '#fff' }};
       overflow: hidden;
       page-break-before: auto;
       break-before: auto;
@@ -109,7 +113,7 @@
       z-index: 0;
     }
 
-    @if ($forPdf)
+    @if ($isMpdf)
     .letterhead-overlay--fixed {
       position: fixed;
       top: 0;
@@ -157,19 +161,38 @@
     }
 
     /*
-     * Mixed-script PDFs: English stays LTR with the Latin stack.
-     * Arabic runs are shaped to visual-order presentation forms for LTR Dompdf
-     * (measure-based <br /> wraps). Align right only — never direction:rtl on
-     * shaped glyphs (that reverses joining / presentation forms).
+     * Logical Unicode Arabic for chrome + mPDF + HTML preview.
+     * Chrome/browser: direction:rtl; text-align:right (no bidi-override / bdo / LRO).
+     * mPDF: same RTL CSS; OpenType shapes glyphs.
      */
-    .agreement-ar {
+    @if ($isChromePdf)
+    .agreement-ar,
+    .agreement-ar-block,
+    [dir="rtl"] {
       font-family: {{ $agreementRtlFontFamily }} !important;
+      direction: rtl;
+      text-align: right;
+      unicode-bidi: isolate;
     }
+    .agreement-ar-block ul,
+    .agreement-ar-block ol,
+    [dir="rtl"] ul,
+    [dir="rtl"] ol {
+      padding-right: 1.4em;
+      padding-left: 0;
+    }
+    .agreement-ltr-block,
+    [dir="ltr"] {
+      direction: ltr;
+      text-align: left !important;
+    }
+    @elseif ($isMpdf || $forPdf)
+    .agreement-ar,
     .agreement-ar-block {
-      text-align: right !important;
-    }
-    .agreement-ar-block .agreement-ar {
       font-family: {{ $agreementRtlFontFamily }} !important;
+      direction: rtl;
+      text-align: right;
+      unicode-bidi: isolate;
     }
     .agreement-ar-block ul,
     .agreement-ar-block ol {
@@ -177,8 +200,27 @@
       padding-left: 0;
     }
     .agreement-ltr-block {
+      direction: ltr;
       text-align: left !important;
     }
+    @else
+    /* On-screen HTML preview / print: keep logical Unicode; browser shapes Arabic. */
+    .agreement-ar,
+    .agreement-ar-block {
+      font-family: {{ $agreementRtlFontFamily }} !important;
+      direction: rtl;
+      text-align: right;
+    }
+    .agreement-ar-block ul,
+    .agreement-ar-block ol {
+      padding-right: 1.4em;
+      padding-left: 0;
+    }
+    .agreement-ltr-block {
+      direction: ltr;
+      text-align: left !important;
+    }
+    @endif
 
     .content p { margin: 0 0 0.5em; }
     .content h1, .content h2, .content h3, .content h4 {
@@ -278,11 +320,10 @@
     $hasDesign = ! empty($branding['letterhead_src']);
     $hasWatermark = ! empty($branding['watermark_src']);
     $showCompanyHeader = $withLetterhead && $letterheadMode !== 'none' && ! $hasDesign;
-    // Dompdf treats full-page letterhead <img> as layout height and splits every
-    // sheet. PDF mode paints the design via AgreementLetterheadPdfPainter instead.
-    $showPerPageChrome = $withLetterhead && ! $forPdf;
-    $showPdfDesignWatermark = $forPdf && $withLetterhead && $hasDesign && $hasWatermark;
-    $showFixedChrome = $forPdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
+    // Chrome embeds letterhead images in HTML (file access). mPDF paints via canvas painter.
+    $showPerPageChrome = $withLetterhead && (! $forPdf || $isChromePdf);
+    $showPdfDesignWatermark = $isMpdf && $withLetterhead && $hasDesign && $hasWatermark;
+    $showFixedChrome = $isMpdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
   @endphp
   @if ($showFixedChrome)
   <div class="letterhead-overlay letterhead-overlay--fixed">

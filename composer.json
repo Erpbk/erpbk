@@ -27,6 +27,7 @@
     "livewire/livewire": "^3.7.15",
     "maatwebsite/excel": "^3.1",
     "maestroerror/php-heic-to-jpg": "^1.0",
+    "mpdf/mpdf": "*",
     "spatie/laravel-permission": "^6.0",
     "unisharp/laravel-filemanager": "*",
     "yajra/laravel-datatables": "^10.0",

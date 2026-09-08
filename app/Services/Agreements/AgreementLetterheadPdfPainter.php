@@ -4,6 +4,7 @@ namespace App\Services\Agreements;
 
 use App\Models\AgreementCategory;
 use Dompdf\Dompdf;
+use Mpdf\Mpdf;
 
 /**
  * Paints a full-page letterhead on every PDF page before content renders.
@@ -41,7 +42,37 @@ class AgreementLetterheadPdfPainter
         ]);
     }
 
+    /**
+     * Full-page letterhead behind content for the mPDF agreement path.
+     */
+    public function applyToMpdf(Mpdf $mpdf, ?AgreementCategory $category): void
+    {
+        if ($category === null || $category->letterheadMode() === 'none') {
+            return;
+        }
+
+        $src = $this->resolveFilesystemImage($category);
+        if ($src === null) {
+            return;
+        }
+
+        // Stretch to page size, top-left origin, fully opaque, behind HTML.
+        $mpdf->SetWatermarkImage($src, 1, [$mpdf->w, $mpdf->h], [0, 0]);
+        $mpdf->showWatermarkImage = true;
+        $mpdf->watermarkImgBehind = true;
+    }
+
     private function resolveImageSource(AgreementCategory $category): ?string
+    {
+        $path = $this->resolveFilesystemImage($category);
+        if ($path !== null) {
+            return $path;
+        }
+
+        return $this->pdfBranding->letterheadDataUri($category);
+    }
+
+    private function resolveFilesystemImage(AgreementCategory $category): ?string
     {
         $path = $category->letterheadFilesystemPath();
         if ($path !== null) {
@@ -51,6 +82,6 @@ class AgreementLetterheadPdfPainter
             }
         }
 
-        return $this->pdfBranding->letterheadDataUri($category);
+        return null;
     }
 }

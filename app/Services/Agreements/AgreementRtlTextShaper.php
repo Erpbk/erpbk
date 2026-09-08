@@ -14,10 +14,15 @@ use Throwable;
  * so connected letters render. Mixed docs keep English LTR and mark Arabic
  * segments/blocks only — never force whole-document RTL.
  *
- * Strategy: Ar-PHP utf8Glyphs emits visual-order presentation forms meant to be
- * painted LTR by Dompdf. Soft-wrap each Arabic segment by measured width (TTF /
- * Dompdf-equivalent), shape each line separately, and join with <br /> so line
- * order matches logical start→end without direction:rtl (which breaks joining).
+ * Strategy: protect strong LTR tokens (Latin, Western digits, ID/phone) with
+ * ASCII placeholders, run utf8Glyphs once on the protected Arabic stream so
+ * phrase/word order stays correct, then restore LTR payloads unchanged.
+ * Soft-wrap by measured width on logical whitespace tokens; never Ar-PHP
+ * char-count wrap; never direction:rtl on shaped glyphs.
+ * PDF wrap uses <bdo dir="ltr" class="agreement-ar"> plus Unicode LRO/PDF
+ * (U+202D…U+202C) per shaped line; letterhead CSS also sets direction:ltr +
+ * unicode-bidi:bidi-override on .agreement-ar / bdo.agreement-ar so Dompdf
+ * cannot re-reverse visual-order Presentation Forms on paint.
  */
 class AgreementRtlTextShaper
 {
@@ -25,6 +30,12 @@ class AgreementRtlTextShaper
      * Arabic script including Arabic, Supplement, Extended-A/B, Presentation Forms.
      */
     private const ARABIC_SCRIPT = '/[\x{0600}-\x{06FF}\x{0750}-\x{077F}\x{08A0}-\x{08FF}\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}]/u';
+
+    /**
+     * Strong LTR tokens: Latin, Western digits, and ID/phone/email punctuation
+     * bound to those tokens (hyphenated IDs, slashes, chassis codes, etc.).
+     */
+    private const LTR_TOKEN = '/\+?[A-Za-z0-9][A-Za-z0-9\-\/:._+%@]*/u';
 
     /**
      * Tashkeel / combining marks that trip Ar-PHP when adjacent to spaces.
@@ -36,6 +47,12 @@ class AgreementRtlTextShaper
      * count; we break lines ourselves by measured width.
      */
     private const PDF_GLYPHS_NO_WRAP = 999999;
+
+    /** U+202D LEFT-TO-RIGHT OVERRIDE — force visual-order glyph paint LTR. */
+    private const LRO = "\u{202D}";
+
+    /** U+202C POP DIRECTIONAL FORMATTING — close LRO. */
+    private const PDF = "\u{202C}";
 
     /**
      * Default usable content width (pt) when caller has not configured layout —
@@ -160,7 +177,7 @@ class AgreementRtlTextShaper
             }
 
             $shaped = $this->newlinesToBr($this->shapeSegment($arabic, $segment));
-            $wrapped = '<span class="agreement-ar">'.$shaped.'</span>';
+            $wrapped = '<bdo dir="ltr" class="agreement-ar">'.$shaped.'</bdo>';
             $html = substr_replace($html, $wrapped, $start, $length);
         }
 
@@ -239,10 +256,11 @@ class AgreementRtlTextShaper
                     continue;
                 }
                 if ($this->containsArabicScript($part)) {
-                    $span = $doc->createElement('span');
-                    $span->setAttribute('class', 'agreement-ar');
-                    $this->appendShapedTextWithBreaks($span, $this->shapeSegment($arabic, $part));
-                    $frag->appendChild($span);
+                    $bdo = $doc->createElement('bdo');
+                    $bdo->setAttribute('dir', 'ltr');
+                    $bdo->setAttribute('class', 'agreement-ar');
+                    $this->appendShapedTextWithBreaks($bdo, $this->shapeSegment($arabic, $part));
+                    $frag->appendChild($bdo);
                 } else {
                     $frag->appendChild($doc->createTextNode($part));
                 }
@@ -290,6 +308,12 @@ class AgreementRtlTextShaper
                 continue;
             }
 
+            // Strip CSS direction/unicode-bidi from every element (TinyMCE inline
+            // styles) so author styles do not fight letterhead .agreement-ar
+            // direction:ltr + unicode-bidi:bidi-override. Visual-order glyphs would
+            // reverse twice if TinyMCE direction:rtl survived.
+            $this->stripDirectionFromInlineStyle($node);
+
             $tag = strtolower($node->tagName);
             if (! in_array($tag, self::BLOCK_TAGS, true)) {
                 continue;
@@ -317,6 +341,40 @@ class AgreementRtlTextShaper
         }
 
         return $out !== '' ? $out : $html;
+    }
+
+    /**
+     * Remove direction / unicode-bidi from inline style; keep text-align, fonts, etc.
+     */
+    private function stripDirectionFromInlineStyle(DOMElement $element): void
+    {
+        if (! $element->hasAttribute('style')) {
+            return;
+        }
+
+        $style = $element->getAttribute('style');
+        if ($style === '') {
+            return;
+        }
+
+        $parts = preg_split('/\s*;\s*/', $style, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $kept = [];
+        foreach ($parts as $part) {
+            $decl = trim($part);
+            if ($decl === '') {
+                continue;
+            }
+            if (preg_match('/^(direction|unicode-bidi)\s*:/i', $decl) === 1) {
+                continue;
+            }
+            $kept[] = $decl;
+        }
+
+        if ($kept === []) {
+            $element->removeAttribute('style');
+        } else {
+            $element->setAttribute('style', implode('; ', $kept).';');
+        }
     }
 
     private function isMostlyArabic(string $text): bool
@@ -347,19 +405,25 @@ class AgreementRtlTextShaper
      * poorly on presentation forms, so strip marks before shaping.
      *
      * Packs the logical segment into width-fitting lines, then shapes each line
-     * to visual-order presentation forms (no string reverse / direction:rtl).
+     * with mixed BiDi (Arabic glyphs only; LTR islands preserved).
      */
     private function shapeSegment(Arabic $arabic, string $segment): string
     {
         $prepared = preg_replace(self::ARABIC_MARKS, '', $segment) ?? $segment;
         $lines = $this->wrapAndShapeLines($arabic, $prepared);
         if ($lines !== []) {
-            return implode("\n", $lines);
+            return implode("\n", array_map(
+                fn (string $line): string => $this->applyLtrOverrideMarkers($line),
+                $lines
+            ));
         }
 
-        $fallback = $this->utf8GlyphsSafe($arabic, $segment);
+        $fallback = $this->shapeMixedVisual($arabic, $segment);
+        if ($fallback === null) {
+            return $segment;
+        }
 
-        return $fallback ?? $segment;
+        return $this->applyLtrOverrideMarkers($fallback);
     }
 
     /**
@@ -389,12 +453,13 @@ class AgreementRtlTextShaper
 
     /**
      * Pack a single paragraph (no hard newlines) by measured glyph width.
+     * Tokenizes on whitespace so hyphenated LTR IDs / chassis codes stay intact.
      *
      * @return list<string>
      */
     private function packParagraphByWidth(Arabic $arabic, string $paragraph): array
     {
-        $shapedWhole = $this->utf8GlyphsSafe($arabic, $paragraph);
+        $shapedWhole = $this->shapeMixedVisual($arabic, $paragraph);
         if ($shapedWhole !== null && $this->measureWidthPt($shapedWhole) <= $this->contentWidthPt) {
             return [$shapedWhole];
         }
@@ -409,11 +474,11 @@ class AgreementRtlTextShaper
 
         foreach ($words as $word) {
             $candidate = $current === '' ? $word : $current.' '.$word;
-            $shapedCandidate = $this->utf8GlyphsSafe($arabic, $candidate);
+            $shapedCandidate = $this->shapeMixedVisual($arabic, $candidate);
             $width = $this->measureWidthPt($shapedCandidate ?? $candidate);
 
             if ($current !== '' && $width > $this->contentWidthPt) {
-                $shapedLine = $this->utf8GlyphsSafe($arabic, $current);
+                $shapedLine = $this->shapeMixedVisual($arabic, $current);
                 $lines[] = $shapedLine ?? $current;
                 $current = $word;
                 continue;
@@ -423,11 +488,59 @@ class AgreementRtlTextShaper
         }
 
         if ($current !== '') {
-            $shapedLine = $this->utf8GlyphsSafe($arabic, $current);
+            $shapedLine = $this->shapeMixedVisual($arabic, $current);
             $lines[] = $shapedLine ?? $current;
         }
 
         return $lines !== [] ? $lines : [$shapedWhole ?? $paragraph];
+    }
+
+    /**
+     * Shape mixed Arabic + Western text for Dompdf LTR embedding.
+     *
+     * Protect strong LTR tokens with ASCII placeholders utf8Glyphs will not
+     * alter, shape the whole protected string once (Arabic words + spaces +
+     * punctuation stay one stream so phrase order stays correct), then restore
+     * original LTR payloads without reversing them. Do not reverse runs —
+     * utf8Glyphs already emits visual-order presentation forms.
+     */
+    private function shapeMixedVisual(Arabic $arabic, string $text): ?string
+    {
+        if ($text === '') {
+            return '';
+        }
+
+        if (! $this->containsArabicScript($text)) {
+            return $text;
+        }
+
+        $map = [];
+        $protected = preg_replace_callback(
+            self::LTR_TOKEN,
+            static function (array $matches) use (&$map): string {
+                $key = '[[~L'.count($map).'~]]';
+                $map[$key] = $matches[0];
+
+                return $key;
+            },
+            $text
+        );
+
+        if ($protected === null) {
+            return null;
+        }
+
+        $glyphs = $this->utf8GlyphsSafe($arabic, $protected);
+        if ($glyphs === null) {
+            return null;
+        }
+
+        if ($map !== []) {
+            // strtr tries longest keys first, so [[~L10~]] is safe vs [[~L1~]].
+            $glyphs = strtr($glyphs, $map);
+        }
+
+        return $glyphs;
     }
 
     /**
@@ -473,6 +586,19 @@ class AgreementRtlTextShaper
         }
 
         return null;
+    }
+
+    /**
+     * Wrap a shaped glyph line with Unicode LRO…PDF so plain-text / Dompdf
+     * BiDi cannot re-apply Arabic RTL to Presentation Forms.
+     */
+    private function applyLtrOverrideMarkers(string $glyphs): string
+    {
+        if ($glyphs === '') {
+            return '';
+        }
+
+        return self::LRO.$glyphs.self::PDF;
     }
 
     /**
@@ -522,5 +648,593 @@ class AgreementRtlTextShaper
         } finally {
             restore_error_handler();
         }
+    }
+
+    /**
+     * Prepare logical Unicode HTML for mPDF (no Ar-PHP glyphs, no bdo/LRO).
+     * Marks Arabic-heavy / dir=rtl blocks so letterhead CSS can apply
+     * direction:rtl; text-align:right and the Arabic font stack.
+     *
+     * @return array{html: string, rtl: bool, has_arabic: bool}
+     */
+    public function prepareLogicalHtmlForMpdf(string $html): array
+    {
+        if ($html === '' || ! $this->containsArabicScript($html)) {
+            return ['html' => $html, 'rtl' => false, 'has_arabic' => false];
+        }
+
+        try {
+            $marked = $this->markLogicalArabicBlocks($html);
+        } catch (Throwable) {
+            $marked = $html;
+        }
+
+        return [
+            'html' => $marked,
+            'rtl' => false,
+            'has_arabic' => true,
+        ];
+    }
+
+    /**
+     * Keep logical Unicode; add agreement-ar / agreement-ar-block helpers for CSS.
+     * Preserve editor dir=rtl and direction:rtl (mPDF shapes OpenType correctly).
+     */
+    private function markLogicalArabicBlocks(string $html): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="rtl-root">'.$html.'</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('rtl-root');
+        if (! $root instanceof DOMElement) {
+            return $html;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        foreach ($xpath->query('.//*', $root) ?: [] as $node) {
+            if (! $node instanceof DOMElement) {
+                continue;
+            }
+
+            $tag = strtolower($node->tagName);
+            if (! in_array($tag, self::BLOCK_TAGS, true)) {
+                continue;
+            }
+
+            $dir = strtolower(trim($node->getAttribute('dir')));
+            $text = $node->textContent ?? '';
+
+            if ($dir === 'rtl' || ($dir === '' && $this->isMostlyArabic($text))) {
+                $this->addClass($node, 'agreement-ar-block');
+                $this->addClass($node, 'agreement-ar');
+                if ($dir === '') {
+                    $node->setAttribute('dir', 'rtl');
+                }
+            } elseif ($dir === 'ltr') {
+                $this->addClass($node, 'agreement-ltr-block');
+            }
+        }
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child) ?: '';
+        }
+
+        return $out !== '' ? $out : $html;
+    }
+
+    /**
+     * Prepare logical Unicode HTML for Chrome/Edge headless PDF.
+     * No Ar-PHP glyph shaping — Chrome shapes Arabic natively under direction:rtl.
+     * Wrap strong LTR tokens (phones, IDs, codes, plates) in <bdi dir="ltr"> so
+     * hyphen/slash neutrals keep editor order instead of BiDi-reversing to
+     * e.g. 4-6268395-1988-784.
+     *
+     * @return array{html: string, rtl: bool, has_arabic: bool}
+     */
+    public function prepareLogicalHtmlForChrome(string $html): array
+    {
+        $hasArabic = $html !== '' && $this->containsArabicScript($html);
+        if ($html === '') {
+            return ['html' => $html, 'rtl' => false, 'has_arabic' => false];
+        }
+
+        $wrapped = $html;
+
+        // Mark Arabic-heavy / dir=rtl blocks for letterhead Chrome CSS helpers first,
+        // then normalize TinyMCE-reversed field lines (LTR value + colon + Arabic label),
+        // then wrap LTR tokens so a second DOM parse cannot drop <bdi> isolates.
+        if ($hasArabic) {
+            try {
+                $wrapped = $this->markLogicalArabicBlocks($wrapped);
+            } catch (Throwable) {
+                $wrapped = $html;
+            }
+
+            try {
+                $wrapped = $this->normalizeChromeRtlFieldLabelOrder($wrapped);
+            } catch (Throwable) {
+                // Keep marked HTML even if field-order normalization fails.
+            }
+        }
+
+        try {
+            $wrapped = $this->wrapLtrTokensForChrome($wrapped);
+        } catch (Throwable) {
+            // Keep marked HTML even if LTR wrapping fails.
+        }
+
+        return [
+            'html' => $wrapped,
+            'rtl' => false,
+            'has_arabic' => $hasArabic,
+        ];
+    }
+
+
+    /**
+     * TinyMCE RTL sometimes stores field lines as LTR_VALUE + colon + Arabic_label
+     * (value-before-label). With direction:rtl that puts the heading on the wrong side.
+     * Normalize to label + colon + value (same logical order as correct plate lines).
+     * Only rewrites lines that are essentially that reversed field pattern — leaves
+     * already label-first plate lines and body prose (phones mid-sentence) alone.
+     */
+    private function normalizeChromeRtlFieldLabelOrder(string $html): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="rtl-root">'.$html.'</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('rtl-root');
+        if (! $root instanceof DOMElement) {
+            return $html;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        foreach ($xpath->query('.//*', $root) ?: [] as $node) {
+            if (! $node instanceof DOMElement) {
+                continue;
+            }
+            $tag = strtolower($node->tagName);
+            if (! in_array($tag, self::BLOCK_TAGS, true)) {
+                continue;
+            }
+            $this->normalizeChromeRtlFieldLinesInBlock($node);
+        }
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child) ?: '';
+        }
+
+        return $out !== '' ? $out : $html;
+    }
+
+    /**
+     * Walk a block's children line-by-line (split on <br>) and fix reversed field order.
+     */
+    private function normalizeChromeRtlFieldLinesInBlock(DOMElement $block): void
+    {
+        $doc = $block->ownerDocument;
+        if (! $doc) {
+            return;
+        }
+
+        // Only leaf blocks — avoid flattening a parent that wraps nested <p>/<div>.
+        foreach ($block->childNodes as $child) {
+            if ($child instanceof DOMElement && in_array(strtolower($child->tagName), self::BLOCK_TAGS, true)) {
+                return;
+            }
+        }
+
+        $children = iterator_to_array($block->childNodes);
+        if ($children === []) {
+            return;
+        }
+
+        $lines = [];
+        $current = [];
+        foreach ($children as $child) {
+            if ($child instanceof DOMElement && strtolower($child->tagName) === 'br') {
+                $lines[] = ['nodes' => $current, 'br' => $child];
+                $current = [];
+                continue;
+            }
+            $current[] = $child;
+        }
+        $lines[] = ['nodes' => $current, 'br' => null];
+
+        $changed = false;
+        $rebuilt = [];
+        foreach ($lines as $line) {
+            $normalized = $this->normalizeChromeRtlFieldLineNodes($doc, $line['nodes']);
+            if ($normalized !== null) {
+                $changed = true;
+                foreach ($normalized as $n) {
+                    $rebuilt[] = $n;
+                }
+            } else {
+                foreach ($line['nodes'] as $n) {
+                    $rebuilt[] = $n;
+                }
+            }
+            if ($line['br'] instanceof DOMElement) {
+                $rebuilt[] = $line['br'];
+            }
+        }
+
+        if (! $changed) {
+            return;
+        }
+
+        while ($block->firstChild) {
+            $block->removeChild($block->firstChild);
+        }
+        foreach ($rebuilt as $n) {
+            $block->appendChild($n);
+        }
+    }
+
+    /**
+     * @param  list<DOMNode>  $nodes
+     * @return list<DOMNode>|null  Replacement nodes, or null if no change
+     */
+    private function normalizeChromeRtlFieldLineNodes(DOMDocument $doc, array $nodes): ?array
+    {
+        if ($nodes === []) {
+            return null;
+        }
+
+        $text = '';
+        foreach ($nodes as $node) {
+            $text .= $node->textContent ?? '';
+        }
+        $trimmed = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+        if ($trimmed === '') {
+            return null;
+        }
+
+        // Reversed TinyMCE field: LTR value, colon, Arabic label (entire line).
+        if (preg_match(
+            '/^([A-Za-z0-9][A-Za-z0-9\-\/:._+%@]*)\s*(:|：)\s*(.+)$/u',
+            $trimmed,
+            $m
+        ) !== 1) {
+            return null;
+        }
+
+        $value = $m[1];
+        $colon = $m[2];
+        $label = trim($m[3]);
+
+        if ($label === '' || ! $this->containsArabicScript($label) || ! $this->isMostlyArabic($label)) {
+            return null;
+        }
+
+        // Reject if the "label" still embeds another LTR field token (not a plain heading).
+        if (preg_match(self::LTR_TOKEN, $label) === 1 && preg_match('/[0-9]/', $label) === 1) {
+            return null;
+        }
+
+        // Preserve TinyMCE inline typography so rebuilt lines match sibling field lines.
+        $lineStyle = $this->bestChromeRtlFieldLineStyle($nodes);
+        $lineClass = $this->bestChromeRtlFieldLineClass($nodes);
+        $valueStyle = $this->bestChromeRtlFieldValueStyle($nodes, $value);
+
+        // Rebuild like plate: <strong>LABEL <span>:</span></strong><span>VALUE</span>
+        // optionally wrapped in a span carrying the Arabic body font-size/family.
+        $strong = $doc->createElement('strong');
+        $strong->appendChild($doc->createTextNode($label.' '));
+        $colonSpan = $doc->createElement('span');
+        $colonSpan->appendChild($doc->createTextNode($colon));
+        $strong->appendChild($colonSpan);
+
+        $valueSpan = $doc->createElement('span');
+        if ($valueStyle !== '') {
+            $valueSpan->setAttribute('style', $valueStyle);
+        }
+        $valueSpan->appendChild($doc->createTextNode($value));
+
+        if ($lineStyle !== '' || $lineClass !== '') {
+            $wrapper = $doc->createElement('span');
+            if ($lineStyle !== '') {
+                $wrapper->setAttribute('style', $lineStyle);
+            }
+            if ($lineClass !== '') {
+                $wrapper->setAttribute('class', $lineClass);
+            }
+            $wrapper->appendChild($strong);
+            $wrapper->appendChild($valueSpan);
+
+            return [$wrapper];
+        }
+
+        return [$strong, $valueSpan];
+    }
+
+    /**
+     * Prefer a wrapper/element style with font-size and/or Arabic (Noto) font-family.
+     *
+     * @param  list<DOMNode>  $nodes
+     */
+    private function bestChromeRtlFieldLineStyle(array $nodes): string
+    {
+        $candidates = $this->collectInlineStylesFromNodes($nodes);
+        $best = '';
+        $bestScore = -1;
+        foreach ($candidates as $style) {
+            $score = 0;
+            if (preg_match('/font-size\s*:/i', $style) === 1) {
+                $score += 4;
+            }
+            if (preg_match('/font-family\s*:/i', $style) === 1) {
+                $score += 2;
+                if (preg_match('/Noto|Naskh|Arabic|Amiri|Lateef|Scheherazade/i', $style) === 1) {
+                    $score += 3;
+                }
+            }
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $style;
+            }
+        }
+
+        return $best;
+    }
+
+    /**
+     * Optional class from the best-styled element (same preference as line style).
+     *
+     * @param  list<DOMNode>  $nodes
+     */
+    private function bestChromeRtlFieldLineClass(array $nodes): string
+    {
+        $bestClass = '';
+        $bestScore = -1;
+        $this->walkDomNodes($nodes, function (DOMNode $node) use (&$bestClass, &$bestScore): void {
+            if (! $node instanceof DOMElement) {
+                return;
+            }
+            $style = trim($node->getAttribute('style'));
+            $class = trim($node->getAttribute('class'));
+            if ($style === '' && $class === '') {
+                return;
+            }
+            $score = 0;
+            if (preg_match('/font-size\s*:/i', $style) === 1) {
+                $score += 4;
+            }
+            if (preg_match('/font-family\s*:/i', $style) === 1) {
+                $score += 2;
+                if (preg_match('/Noto|Naskh|Arabic|Amiri|Lateef|Scheherazade/i', $style) === 1) {
+                    $score += 3;
+                }
+            }
+            if ($class !== '') {
+                $score += 1;
+            }
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $bestClass = $class;
+            }
+        });
+
+        return $bestClass;
+    }
+
+    /**
+     * Prefer Calibri / font-family from the original LTR value node when present.
+     *
+     * @param  list<DOMNode>  $nodes
+     */
+    private function bestChromeRtlFieldValueStyle(array $nodes, string $value): string
+    {
+        $best = '';
+        $bestScore = -1;
+        $this->walkDomNodes($nodes, function (DOMNode $node) use (&$best, &$bestScore, $value): void {
+            if (! $node instanceof DOMElement) {
+                return;
+            }
+            $text = trim(preg_replace('/\s+/u', ' ', $node->textContent ?? '') ?? '');
+            $style = trim($node->getAttribute('style'));
+            if ($style === '') {
+                return;
+            }
+            $score = 0;
+            // Exact / near-exact value carrier wins.
+            if ($text === $value || str_starts_with($text, $value)) {
+                $score += 6;
+            }
+            if (preg_match('/font-family\s*:/i', $style) === 1) {
+                $score += 2;
+                if (preg_match('/Calibri|Arial|Helvetica|Roboto|sans-serif/i', $style) === 1) {
+                    $score += 3;
+                }
+            }
+            if (preg_match('/font-size\s*:/i', $style) === 1) {
+                $score += 1;
+            }
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $style;
+            }
+        });
+
+        return $best;
+    }
+
+    /**
+     * @param  list<DOMNode>  $nodes
+     * @return list<string>
+     */
+    private function collectInlineStylesFromNodes(array $nodes): array
+    {
+        $styles = [];
+        $this->walkDomNodes($nodes, function (DOMNode $node) use (&$styles): void {
+            if ($node instanceof DOMElement) {
+                $style = trim($node->getAttribute('style'));
+                if ($style !== '') {
+                    $styles[] = $style;
+                }
+            }
+        });
+
+        return $styles;
+    }
+
+    /**
+     * @param  list<DOMNode>  $nodes
+     * @param  callable(DOMNode): void  $visitor
+     */
+    private function walkDomNodes(array $nodes, callable $visitor): void
+    {
+        foreach ($nodes as $node) {
+            $visitor($node);
+            if ($node->hasChildNodes()) {
+                $this->walkDomNodes(iterator_to_array($node->childNodes), $visitor);
+            }
+        }
+    }
+    private function wrapLtrTokensForChrome(string $html): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="rtl-root">'.$html.'</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('rtl-root');
+        if (! $root instanceof DOMElement) {
+            return $html;
+        }
+
+        $this->wrapLtrTokensInDomNode($root);
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child) ?: '';
+        }
+
+        return $out !== '' ? $out : $html;
+    }
+
+    private function wrapLtrTokensInDomNode(DOMNode $node): void
+    {
+        if ($node instanceof DOMText) {
+            $this->wrapLtrTokensInTextNode($node);
+
+            return;
+        }
+
+        if (! $node instanceof DOMElement) {
+            return;
+        }
+
+        $tag = strtolower($node->tagName);
+        if (in_array($tag, ['script', 'style', 'code', 'pre'], true)) {
+            return;
+        }
+
+        // Already inside an LTR isolate — do not nest another wrap.
+        if ($this->elementOrAncestorIsLtrIsolate($node)) {
+            return;
+        }
+
+        foreach (iterator_to_array($node->childNodes) as $child) {
+            $this->wrapLtrTokensInDomNode($child);
+        }
+    }
+
+    private function elementOrAncestorIsLtrIsolate(DOMElement $element): bool
+    {
+        $n = $element;
+        while ($n instanceof DOMElement) {
+            $dir = strtolower(trim($n->getAttribute('dir')));
+            if ($dir === 'ltr') {
+                return true;
+            }
+            $n = $n->parentNode instanceof DOMElement ? $n->parentNode : null;
+        }
+
+        return false;
+    }
+
+    private function wrapLtrTokensInTextNode(DOMText $node): void
+    {
+        $text = $node->nodeValue ?? '';
+        if ($text === '' || preg_match(self::LTR_TOKEN, $text) !== 1) {
+            return;
+        }
+
+        $parent = $node->parentNode;
+        $doc = $node->ownerDocument;
+        if (! $parent instanceof DOMElement || ! $doc) {
+            return;
+        }
+
+        if ($this->elementOrAncestorIsLtrIsolate($parent)) {
+            return;
+        }
+
+        $parts = preg_split(
+            '/(\+?[A-Za-z0-9][A-Za-z0-9\-\/:._+%@]*)/u',
+            $text,
+            -1,
+            PREG_SPLIT_DELIM_CAPTURE
+        );
+        if ($parts === false || count($parts) <= 1) {
+            return;
+        }
+
+        $needsWrap = false;
+        foreach ($parts as $i => $part) {
+            if ($i % 2 === 1 && $this->shouldIsolateLtrTokenForChrome($part)) {
+                $needsWrap = true;
+                break;
+            }
+        }
+        if (! $needsWrap) {
+            return;
+        }
+
+        $frag = $doc->createDocumentFragment();
+        foreach ($parts as $i => $part) {
+            if ($part === '') {
+                continue;
+            }
+            if ($i % 2 === 1 && $this->shouldIsolateLtrTokenForChrome($part)) {
+                $bdi = $doc->createElement('bdi');
+                $bdi->setAttribute('dir', 'ltr');
+                $bdi->appendChild($doc->createTextNode($part));
+                $frag->appendChild($bdi);
+            } else {
+                $frag->appendChild($doc->createTextNode($part));
+            }
+        }
+        $parent->replaceChild($frag, $node);
+    }
+
+    /**
+     * Isolate Western digit / Latin runs that BiDi would scramble under RTL:
+     * hyphenated phones/IDs, slash codes, alphanumeric Latin+digit tokens.
+     */
+    private function shouldIsolateLtrTokenForChrome(string $token): bool
+    {
+        if ($token === '' || preg_match('/[0-9]/', $token) !== 1) {
+            return false;
+        }
+
+        // Digits + phone/ID punctuation, or letters+digits, or digit runs.
+        return preg_match('/[\-\/:._+%@]/', $token) === 1
+            || preg_match('/[A-Za-z]/', $token) === 1
+            || preg_match('/\d{2,}/', $token) === 1;
     }
 }

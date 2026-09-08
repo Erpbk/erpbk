@@ -9,6 +9,9 @@ use App\Services\Agreements\AgreementModuleService;
 use App\Services\Email\CompanyEmailBrandingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Mpdf\Config\ConfigVariables;
+use Mpdf\Config\FontVariables;
+use Mpdf\Mpdf;
 
 class AgreementPdfService
 {
@@ -20,7 +23,8 @@ class AgreementPdfService
         protected AgreementLetterheadPaginator $letterheadPaginator,
         protected AgreementFontSettings $fonts,
         protected AgreementLetterheadPdfPainter $letterheadPainter,
-        protected AgreementRtlTextShaper $rtlTextShaper
+        protected AgreementRtlTextShaper $rtlTextShaper,
+        protected AgreementChromePdfPrinter $chromePdfPrinter
     ) {}
 
     /**
@@ -52,7 +56,8 @@ class AgreementPdfService
         ?string $agreementDate = null,
         bool $useSampleData = false,
         bool $forPdf = false,
-        bool $withLetterhead = true
+        bool $withLetterhead = true,
+        ?string $pdfEngine = null
     ): string {
         $content = (string) ($template->description ?? '');
         $map = $useSampleData
@@ -66,20 +71,26 @@ class AgreementPdfService
         $template->loadMissing(['category.letterhead', 'category.watermark']);
         $category = $template->category;
 
-        // Dompdf has no OpenType shaping: shape Arabic segments for PDF only so the
-        // editor still shows logical Unicode while downloads render joined glyphs.
-        // Mixed docs stay LTR at document level; Arabic runs/blocks are marked.
-        // Visual-order glyphs + measure-based <br /> wraps (no direction:rtl).
+        // PDF engines:
+        // - chrome: logical Unicode HTML (no Ar-PHP shaping); Chrome shapes Arabic.
+        // - mpdf: logical Unicode + OpenType; mark Arabic blocks for RTL CSS.
+        // Never run Dompdf-era utf8Glyphs / bdo / LRO on either path.
         $agreementHasArabic = false;
         if ($forPdf) {
-            $this->rtlTextShaper->configureForPdf(
-                $this->letterheadLayout->contentWidthPt($category),
-                $this->fonts->sizePt(),
-                $this->resolveArabicFontPath()
-            );
-            $shaped = $this->rtlTextShaper->shapeHtmlForPdf($body);
-            $body = $shaped['html'];
-            $agreementHasArabic = ! empty($shaped['has_arabic']);
+            $pdfEngine = $pdfEngine ?: $this->resolvePdfEngine();
+            $agreementHasArabic = $this->rtlTextShaper->containsArabicScript($body);
+            if ($pdfEngine === 'mpdf') {
+                $prepared = $this->rtlTextShaper->prepareLogicalHtmlForMpdf($body);
+                $body = $prepared['html'];
+                $agreementHasArabic = ! empty($prepared['has_arabic']);
+            } elseif ($pdfEngine === 'chrome') {
+                // Logical Unicode + <bdi dir="ltr"> around phones/IDs/chassis/plates.
+                $prepared = $this->rtlTextShaper->prepareLogicalHtmlForChrome($body);
+                $body = $prepared['html'];
+                $agreementHasArabic = ! empty($prepared['has_arabic']);
+            }
+        } else {
+            $pdfEngine = 'html';
         }
         $branding = $this->pdfBranding->withUploadedLetterhead(
             $this->pdfBranding->forCompany($template->company_id),
@@ -105,6 +116,7 @@ class AgreementPdfService
             'pageWidthMm' => $this->letterheadLayout->pageWidthMm($category),
             'pageHeightMm' => $this->letterheadLayout->pageHeightMm($category),
             'forPdf' => $forPdf,
+            'pdfEngine' => $pdfEngine,
             'withLetterhead' => $withLetterhead,
             'agreementRtl' => false,
             'agreementHasArabic' => $agreementHasArabic,
@@ -113,8 +125,12 @@ class AgreementPdfService
             'category' => $category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
             'pdfFontFaces' => $pdfFontFaces,
-            'agreementFontFamily' => $this->fonts->familyStackCss(),
-            'agreementRtlFontFamily' => $this->fonts->rtlFamilyStackCss(),
+            'agreementFontFamily' => ($forPdf && $pdfEngine === 'mpdf')
+                ? $this->mpdfFamilyStackCss($this->fonts->defaultFamily(), $this->fonts->familyStackCss())
+                : $this->fonts->familyStackCss(),
+            'agreementRtlFontFamily' => ($forPdf && $pdfEngine === 'mpdf')
+                ? $this->mpdfRtlFamilyStackCss()
+                : $this->fonts->rtlFamilyStackCss(),
             'agreementFontSizePt' => $this->fonts->sizePt(),
             'agreementLineHeight' => $this->fonts->lineHeight(),
             'agreementFontColor' => $this->fonts->color(),
@@ -139,9 +155,10 @@ class AgreementPdfService
         bool $withLetterhead = true
     ) {
         $template->loadMissing(['category.letterhead', 'category.watermark']);
-        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead);
+        $engine = $this->resolvePdfEngine();
+        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead, $engine);
 
-        return $this->buildPdf($html, $template->category, $withLetterhead);
+        return $this->buildPdf($html, $template->category, $withLetterhead, $engine);
     }
 
     public function previewPdf(
@@ -152,6 +169,7 @@ class AgreementPdfService
     ) {
         $rider = $rider ?? new Riders(['name' => 'Sample Rider', 'rider_id' => 'R-0001']);
         $template->loadMissing(['category.letterhead', 'category.watermark']);
+        $engine = $this->resolvePdfEngine();
         $html = $this->renderHtmlForModule(
             $template,
             'riders',
@@ -159,60 +177,275 @@ class AgreementPdfService
             $agreementDate,
             $rider->exists === false,
             true,
-            $withLetterhead
+            $withLetterhead,
+            $engine
         );
 
-        return $this->buildPdf($html, $template->category, $withLetterhead);
+        return $this->buildPdf($html, $template->category, $withLetterhead, $engine);
     }
 
-    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true)
+    /**
+     * Prefer Chrome/Edge headless when available; fall back to mPDF (English-ok).
+     */
+    private function resolvePdfEngine(): string
     {
-        $fontFaces = $this->pdfFontFaces();
+        return $this->chromePdfPrinter->isAvailable() ? 'chrome' : 'mpdf';
+    }
+
+    /**
+     * Build agreement PDFs via Chrome headless or mPDF.
+     */
+    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true, ?string $engine = null)
+    {
+        $engine = $engine ?: $this->resolvePdfEngine();
+        if ($engine === 'chrome') {
+            return $this->buildChromePdf($html);
+        }
+
+        return $this->buildMpdf($html, $category, $withLetterhead);
+    }
+
+    private function buildChromePdf(string $html): AgreementChromePdfDocument
+    {
+        $bytes = $this->chromePdfPrinter->htmlToPdf($html);
+
+        return new AgreementChromePdfDocument($bytes);
+    }
+
+    /**
+     * Build agreement PDFs with mPDF (logical Unicode + OpenType Arabic shaping).
+     */
+    private function buildMpdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true)
+    {
         $hasArabic = str_contains($html, 'agreement-ar')
             || str_contains($html, 'agreement-ar-block')
             || $this->rtlTextShaper->containsArabicScript($html);
 
         if ($hasArabic) {
-            // Apply Amiri only to marked Arabic segments/blocks — keep Latin default.
             $html = $this->fonts->forceRtlFontFamiliesInHtml($html);
+            // Remap CSS font-family display names onto mPDF registered keys.
+            $html = $this->remapFontFamiliesForMpdf($html);
+            $html = preg_replace('/font-family:\s*[\'"]?(amiri|notonaskharabic|scheherazadenew|Amiri|Noto Naskh Arabic|Scheherazade New)[\'"]?/i', 'font-family: lateef', $html) ?? $html;
+            // Prefer Noto Naskh (OTL) over Amiri for shaping.
+            $html = str_ireplace(['font-family: Amiri', "font-family: 'Amiri'"], 'font-family: amiri', $html);
         }
 
-        $defaultFont = $this->fonts->defaultFamily();
-        $defaultFont = $fontFaces !== [] ? $defaultFont : 'DejaVu Sans';
-
-        $pdf = app('dompdf.wrapper');
         $size = $this->letterheadLayout->resolvedPageSize($category);
-        $widthPt = $size['width_mm'] * 72 / 25.4;
-        $heightPt = $size['height_mm'] * 72 / 25.4;
-        $pdf->setPaper([0, 0, $widthPt, $heightPt], 'portrait');
+        $fontConfig = $this->mpdfFontConfig();
 
-        $dompdf = $pdf->getDomPDF();
-        $options = $dompdf->getOptions();
-        $options->setIsHtml5ParserEnabled(true);
-        $options->setIsRemoteEnabled(true);
-        $options->setIsFontSubsettingEnabled(false);
-        $options->setIsJavascriptEnabled(false);
-        $options->setDefaultMediaType('screen');
-        // 1.1 matches browser line boxes; 1.0 made downloaded text look smaller than print.
-        $options->setFontHeightRatio(1.1);
-        $options->setDpi(96);
-        $options->setFontDir(storage_path('fonts'));
-        $options->setFontCache(storage_path('fonts'));
-        $options->setDefaultFont($defaultFont);
-        $options->setChroot($this->fontChrootDirectories($fontFaces));
-        $dompdf->setOptions($options);
-        $dompdf->setBasePath(public_path());
-        $this->fonts->refreshDompdfFontRegistry($fontFaces);
-        $this->registerPdfFonts($dompdf, $fontFaces);
-        if ($withLetterhead) {
-            $this->letterheadPainter->registerDompdfCallbacks($dompdf, $category);
-        } else {
-            $dompdf->setCallbacks([]);
+        $tempDir = storage_path('app/mpdf-temp');
+        if (! is_dir($tempDir)) {
+            @mkdir($tempDir, 0775, true);
         }
 
-        $pdf->loadHTML($html);
+        $defaultFont = $this->mpdfFontKey($this->fonts->defaultFamily());
+        if (! isset($fontConfig['fontdata'][$defaultFont])) {
+            $defaultFont = isset($fontConfig['fontdata']['dejavusans']) ? 'dejavusans' : 'amiri';
+        }
 
-        return $pdf;
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => [$size['width_mm'], $size['height_mm']],
+            'orientation' => 'P',
+            'margin_left' => 0,
+            'margin_right' => 0,
+            'margin_top' => 0,
+            'margin_bottom' => 0,
+            'margin_header' => 0,
+            'margin_footer' => 0,
+            'tempDir' => $tempDir,
+            'fontDir' => $fontConfig['fontDir'],
+            'fontdata' => $fontConfig['fontdata'],
+            'default_font' => $defaultFont,
+            'default_font_size' => $this->fonts->sizePt(),
+            'autoScriptToLang' => true,
+            'autoLangToFont' => false,
+            'useSubstitutions' => true,
+            'curlAllowUnsafeSslRequests' => true,
+        ]);
+
+        $mpdf->SetDisplayMode('fullpage');
+        $mpdf->SetTitle('Agreement');
+
+        if ($withLetterhead) {
+            $this->letterheadPainter->applyToMpdf($mpdf, $category);
+        }
+
+        // Large letterhead/logo data-URIs exceed default pcre.backtrack_limit in mPDF.
+        $html = $this->materializeDataUrisForMpdf($html, $tempDir);
+        $previousLimit = ini_get('pcre.backtrack_limit');
+        @ini_set('pcre.backtrack_limit', (string) max(10000000, (int) $previousLimit));
+        // Some Arabic TTFs trip undefined-offset notices inside mPDF GSUB/GPOS readers;
+        // Laravel promotes those to ErrorException ? ignore only those font metrics notices.
+        $previousReporting = error_reporting(E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
+        set_error_handler(static function () {
+            return true;
+        });
+        try {
+            $mpdf->WriteHTML($html);
+        } finally {
+            restore_error_handler();
+            error_reporting($previousReporting);
+            if ($previousLimit !== false) {
+                @ini_set('pcre.backtrack_limit', (string) $previousLimit);
+            }
+        }
+
+        return new AgreementMpdfDocument($mpdf);
+    }
+
+    /**
+     * @return array{fontDir: list<string>, fontdata: array<string, array<string, mixed>>}
+     */
+    private function mpdfFontConfig(): array
+    {
+        $defaults = (new ConfigVariables())->getDefaults();
+        $fontDirs = $defaults['fontDir'];
+        $bundled = $this->fonts->bundledFontDirectory();
+        if (is_dir($bundled)) {
+            $fontDirs[] = $bundled;
+        }
+        $fontDirs[] = storage_path('fonts');
+
+        $fontDefaults = (new FontVariables())->getDefaults();
+        $fontData = $fontDefaults['fontdata'];
+
+        // Core Arabic faces with OpenType layout enabled.
+                $fontData['lateef'] = [
+            'R' => 'Lateef-Regular.ttf',
+            'useOTL' => 0xFF,
+            'useKashida' => 75,
+        ];
+        // Modern Amiri/Noto/Scheherazade New trip unsupported GPOS/GSUB formats or OOM in mPDF OTL.
+        $fontData['amiri'] = [
+            'R' => 'Amiri-Regular.ttf',
+            'B' => 'Amiri-Bold.ttf',
+            'I' => 'Amiri-Italic.ttf',
+            'BI' => 'Amiri-BoldItalic.ttf',
+        ];
+        $fontData['notonaskharabic'] = [
+            'R' => 'NotoNaskhArabic-Regular.ttf',
+            'B' => 'NotoNaskhArabic-Bold.ttf',
+        ];
+        $fontData['scheherazadenew'] = [
+            'R' => 'ScheherazadeNew-Regular.ttf',
+            'B' => 'ScheherazadeNew-Bold.ttf',
+        ];
+
+        // Map bundled Latin substitutes (Carlito≈Calibri, etc.) when present.
+        $latinMap = [
+            'calibri' => ['R' => 'Carlito-Regular.ttf', 'B' => 'Carlito-Bold.ttf', 'I' => 'Carlito-Italic.ttf', 'BI' => 'Carlito-BoldItalic.ttf'],
+            'carlito' => ['R' => 'Carlito-Regular.ttf', 'B' => 'Carlito-Bold.ttf', 'I' => 'Carlito-Italic.ttf', 'BI' => 'Carlito-BoldItalic.ttf'],
+            'arial' => ['R' => 'Carlito-Regular.ttf', 'B' => 'Carlito-Bold.ttf', 'I' => 'Carlito-Italic.ttf', 'BI' => 'Carlito-BoldItalic.ttf'],
+            'timesnewroman' => ['R' => 'Tinos-Regular.ttf', 'B' => 'Tinos-Bold.ttf', 'I' => 'Tinos-Italic.ttf', 'BI' => 'Tinos-BoldItalic.ttf'],
+            'tinos' => ['R' => 'Tinos-Regular.ttf', 'B' => 'Tinos-Bold.ttf', 'I' => 'Tinos-Italic.ttf', 'BI' => 'Tinos-BoldItalic.ttf'],
+            'cambria' => ['R' => 'Caladea-Regular.ttf', 'B' => 'Caladea-Bold.ttf', 'I' => 'Caladea-Italic.ttf', 'BI' => 'Caladea-BoldItalic.ttf'],
+            'caladea' => ['R' => 'Caladea-Regular.ttf', 'B' => 'Caladea-Bold.ttf', 'I' => 'Caladea-Italic.ttf', 'BI' => 'Caladea-BoldItalic.ttf'],
+            'couriernew' => ['R' => 'Cousine-Regular.ttf', 'B' => 'Cousine-Bold.ttf', 'I' => 'Cousine-Italic.ttf', 'BI' => 'Cousine-BoldItalic.ttf'],
+            'cousine' => ['R' => 'Cousine-Regular.ttf', 'B' => 'Cousine-Bold.ttf', 'I' => 'Cousine-Italic.ttf', 'BI' => 'Cousine-BoldItalic.ttf'],
+            'dejavusans' => ['R' => 'DejaVuSans.ttf', 'B' => 'DejaVuSans-Bold.ttf', 'I' => 'DejaVuSans-Oblique.ttf', 'BI' => 'DejaVuSans-BoldOblique.ttf'],
+        ];
+
+        foreach ($latinMap as $key => $files) {
+            $regular = $bundled.($files['R'] ?? '');
+            if ($regular !== $bundled && is_readable($regular)) {
+                $fontData[$key] = $files;
+            }
+        }
+
+        // Also register any cached faces from AgreementFontSettings.
+        foreach ($this->fonts->cachedFaces() as $face) {
+            $family = (string) ($face['family'] ?? '');
+            $path = (string) ($face['path'] ?? '');
+            if ($family === '' || $path === '' || ! is_readable($path)) {
+                continue;
+            }
+            $key = $this->mpdfFontKey($family);
+            $weight = strtolower((string) ($face['weight'] ?? 'normal'));
+            $style = strtolower((string) ($face['style'] ?? 'normal'));
+            $slot = 'R';
+            if ($weight === 'bold' && $style === 'italic') {
+                $slot = 'BI';
+            } elseif ($weight === 'bold') {
+                $slot = 'B';
+            } elseif ($style === 'italic') {
+                $slot = 'I';
+            }
+            if (! isset($fontData[$key])) {
+                $fontData[$key] = [];
+            }
+            // Prefer basename in a known fontDir when possible.
+            $basename = basename($path);
+            $dir = dirname($path);
+            if (! in_array($dir, $fontDirs, true)) {
+                $fontDirs[] = $dir;
+            }
+            $fontData[$key][$slot] = $basename;
+            if ($key === 'lateef') {
+                $fontData[$key]['useOTL'] = 0xFF;
+                $fontData[$key]['useKashida'] = 75;
+            }
+        }
+
+        return [
+            'fontDir' => array_values(array_unique($fontDirs)),
+            'fontdata' => $fontData,
+        ];
+    }
+
+    private function mpdfFontKey(string $family): string
+    {
+        return strtolower(preg_replace('/[^A-Za-z0-9]+/', '', $family) ?? $family);
+    }
+
+    private function mpdfRtlFamilyStackCss(): string
+    {
+        return 'lateef, amiri, notonaskharabic, scheherazadenew';
+    }
+
+    private function mpdfFamilyStackCss(string $defaultFamily, string $fallbackStack): string
+    {
+        $key = $this->mpdfFontKey($defaultFamily);
+        $parts = [$key];
+        foreach (preg_split('/\s*,\s*/', $fallbackStack) ?: [] as $name) {
+            $name = trim($name, " \t\n\r\0\x0B'\"");
+            if ($name === '') {
+                continue;
+            }
+            $k = $this->mpdfFontKey($name);
+            if ($k !== '' && ! in_array($k, $parts, true)) {
+                $parts[] = $k;
+            }
+        }
+        $parts[] = 'dejavusans';
+
+        return implode(', ', $parts);
+    }
+
+    private function remapFontFamiliesForMpdf(string $html): string
+    {
+        $map = [
+            'Lateef' => 'lateef',
+            'Amiri' => 'amiri',
+            'Noto Naskh Arabic' => 'notonaskharabic',
+            'Scheherazade New' => 'scheherazadenew',
+            'Calibri' => 'calibri',
+            'Arial' => 'arial',
+            'Times New Roman' => 'timesnewroman',
+            'Cambria' => 'cambria',
+            'Courier New' => 'couriernew',
+            'DejaVu Sans' => 'dejavusans',
+        ];
+
+        foreach ($map as $from => $to) {
+            $html = str_ireplace(
+                ["font-family: '{$from}'", "font-family:{$from}", "font-family: {$from}"],
+                "font-family: {$to}",
+                $html
+            );
+        }
+
+        return $html;
     }
 
     /**
@@ -258,50 +491,6 @@ class AgreementPdfService
         return $faces;
     }
 
-    /**
-     * @param  list<array{family: string, weight: string, style: string, uri: string}>  $faces
-     */
-    private function registerPdfFonts(\Dompdf\Dompdf $dompdf, array $faces): void
-    {
-        $metrics = $dompdf->getFontMetrics();
-
-        foreach ($faces as $face) {
-            $metrics->registerFont(
-                [
-                    'family' => $face['family'],
-                    'weight' => $face['weight'],
-                    'style' => $face['style'],
-                ],
-                $face['path']
-            );
-        }
-    }
-
-    /**
-     * @param  list<array{path: string}>  $faces
-     * @return list<string>
-     */
-    private function fontChrootDirectories(array $faces): array
-    {
-        $dirs = [
-            storage_path('fonts'),
-            storage_path('app/public'),
-            public_path(),
-            base_path(),
-        ];
-
-        foreach ($faces as $face) {
-            $dirs[] = dirname($face['path']);
-        }
-
-        $dejavu = base_path('vendor/dompdf/dompdf/lib/fonts');
-        if (is_dir($dejavu)) {
-            $dirs[] = $dejavu;
-        }
-
-        return array_values(array_unique($dirs));
-    }
-
     private function fileUri(string $path): string
     {
         $normalized = str_replace('\\', '/', $path);
@@ -312,6 +501,40 @@ class AgreementPdfService
         return 'file://' . $normalized;
     }
 
+
+    /**
+     * Replace bulky data:image URIs with temp files so mPDF/PCRE can parse the HTML.
+     */
+    private function materializeDataUrisForMpdf(string $html, string $tempDir): string
+    {
+        if (! str_contains($html, 'data:image')) {
+            return $html;
+        }
+
+        return preg_replace_callback(
+            '/src=(["\'])(data:image\/([a-z0-9+.-]+);base64,([A-Za-z0-9+\/=]+))\1/i',
+            static function (array $m) use ($tempDir): string {
+                $quote = $m[1];
+                $ext = strtolower($m[3]);
+                $ext = match ($ext) {
+                    'jpeg' => 'jpg',
+                    'svg+xml' => 'svg',
+                    default => preg_replace('/[^a-z0-9]/', '', $ext) ?: 'img',
+                };
+                $bin = base64_decode($m[4], true);
+                if ($bin === false || $bin === '') {
+                    return $m[0];
+                }
+                $file = rtrim($tempDir, '\\/').DIRECTORY_SEPARATOR.'img_'.sha1($m[4]).'.'.$ext;
+                if (! is_file($file)) {
+                    @file_put_contents($file, $bin);
+                }
+
+                return 'src='.$quote.str_replace('\\', '/', $file).$quote;
+            },
+            $html
+        ) ?? $html;
+    }
     private function sampleMap(): array
     {
         return [

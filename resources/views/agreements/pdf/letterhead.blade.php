@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ $agreementRtl ? 'ar' : 'en' }}">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <title>{{ $template->template_name ?? 'Agreement' }}</title>
@@ -23,7 +23,9 @@
   $agreementLineHeight = $agreementLineHeight ?? $fonts->lineHeight();
   $agreementFontColor = $agreementFontColor ?? $fonts->color();
   $agreementHeadingSizesPt = $agreementHeadingSizesPt ?? $fonts->headingSizesPt();
-  $agreementRtl = ! empty($agreementRtl);
+  $agreementRtl = false; // never whole-document RTL; use per-segment classes
+  $agreementHasArabic = ! empty($agreementHasArabic);
+  $agreementRtlFontFamily = $agreementRtlFontFamily ?? $fonts->rtlFamilyStackCss();
   // Dompdf/A4 rounding: a full-height box can overflow by a fraction of a mm and split a blank page.
   $pageBoxH = $forPdf ? round($pageH - 0.4, 1) : $pageH;
   @endphp
@@ -155,31 +157,26 @@
     }
 
     /*
-     * Ar-PHP utf8Glyphs already emits visual order for LTR engines.
-     * Align right only — do not set direction:rtl or glyphs reverse twice.
+     * Mixed-script PDFs: English stays LTR with the Latin stack.
+     * Ar-PHP utf8Glyphs already emits visual order for LTR engines — do NOT set
+     * direction:rtl on shaped Arabic or glyphs reverse twice.
      */
-    .content--rtl {
+    .agreement-ar {
+      font-family: {{ $agreementRtlFontFamily }} !important;
+    }
+    .agreement-ar-block {
       text-align: right !important;
     }
-    /* Dompdf ignores OpenType; shaped glyphs need a Naskh/Amiri face. */
-    .content--rtl,
-    .content--rtl * {
-      font-family: {{ $agreementFontFamily }} !important;
+    .agreement-ar-block .agreement-ar {
+      font-family: {{ $agreementRtlFontFamily }} !important;
     }
-    .content--rtl p,
-    .content--rtl h1,
-    .content--rtl h2,
-    .content--rtl h3,
-    .content--rtl h4,
-    .content--rtl li,
-    .content--rtl td,
-    .content--rtl th {
-      text-align: right !important;
-    }
-    .content--rtl ul,
-    .content--rtl ol {
+    .agreement-ar-block ul,
+    .agreement-ar-block ol {
       padding-right: 1.4em;
       padding-left: 0;
+    }
+    .agreement-ltr-block {
+      text-align: left !important;
     }
 
     .content p { margin: 0 0 0.5em; }
@@ -316,7 +313,7 @@
       </div>
       @endif
       <div class="agreement-page-body">
-        <div class="content{{ $agreementRtl ? ' content--rtl' : '' }}">
+        <div class="content">
           {!! $pageBody !!}
         </div>
       </div>

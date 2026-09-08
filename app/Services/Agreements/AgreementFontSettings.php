@@ -51,7 +51,6 @@ class AgreementFontSettings
             $preferred,
             'Scheherazade New',
             'Noto Naskh Arabic',
-            'Lateef',
         ])));
 
         $parts = [];
@@ -65,22 +64,43 @@ class AgreementFontSettings
     /**
      * TinyMCE often stamps Calibri/Arial onto spans; Dompdf then paints shaped
      * presentation-form codepoints with a Latin face → missing-glyph boxes.
+     *
+     * Only force the Arabic face onto marked Arabic segments/blocks — never the
+     * whole bilingual document.
      */
     public function forceRtlFontFamiliesInHtml(string $html): string
     {
+        if ($html === '' || (! str_contains($html, 'agreement-ar') && ! str_contains($html, 'agreement-ar-block'))) {
+            return $html;
+        }
+
         $family = $this->rtlDefaultFamily();
         $quoted = "'".$family."'";
 
-        // Match through HTML-encoded quotes (&#039;) that Blade may emit in CSS.
-        $html = preg_replace(
-            '/font-family\s*:\s*[^;}]+/i',
-            'font-family: '.$quoted,
-            $html
-        ) ?? $html;
+        $html = preg_replace_callback(
+            '/<(span|p|div|h[1-6]|li|td|th|blockquote)\b([^>]*\bclass=(["\'])[^"\']*\bagreement-ar(?:-block)?\b[^"\']*)([^>]*)>/i',
+            static function (array $m) use ($quoted): string {
+                $tag = $m[1];
+                $attrs = $m[2].$m[4];
+                if (preg_match('/\bstyle\s*=\s*(["\'])(.*?)/i', $attrs, $styleMatch)) {
+                    $style = $styleMatch[2];
+                    if (preg_match('/font-family\s*:\s*[^;]+/i', $style)) {
+                        $style = preg_replace('/font-family\s*:\s*[^;]+/i', 'font-family: '.$quoted, $style) ?? $style;
+                    } else {
+                        $style = rtrim($style, '; ').'; font-family: '.$quoted;
+                    }
+                    $attrs = preg_replace(
+                        '/\bstyle\s*=\s*(["\'])(.*?)/i',
+                        'style='.$style.'',
+                        $attrs,
+                        1
+                    ) ?? $attrs;
+                } else {
+                    $attrs .= ' style="font-family: '.$quoted.'"';
+                }
 
-        $html = preg_replace(
-            '/\bfont-family\s*=\s*(["\'])[^"\']*\1/i',
-            'font-family='.$quoted,
+                return '<'.$tag.$attrs.'>';
+            },
             $html
         ) ?? $html;
 
@@ -136,9 +156,6 @@ class AgreementFontSettings
             'Noto Naskh Arabic' => "'Noto Naskh Arabic',serif",
             'Amiri' => 'Amiri,serif',
             'Scheherazade New' => "'Scheherazade New',serif",
-            'Noto Nastaliq Urdu' => "'Noto Nastaliq Urdu',serif",
-            'Lateef' => 'Lateef,serif',
-            'Harmattan' => 'Harmattan,sans-serif',
         ];
 
         $parts = [];
@@ -177,9 +194,6 @@ class AgreementFontSettings
             'Noto Naskh Arabic' => "'Noto Naskh Arabic',serif",
             'Amiri' => 'Amiri,serif',
             'Scheherazade New' => "'Scheherazade New',serif",
-            'Noto Nastaliq Urdu' => "'Noto Nastaliq Urdu',serif",
-            'Lateef' => 'Lateef,serif',
-            'Harmattan' => 'Harmattan,sans-serif',
         ];
 
         $options = [];
@@ -625,24 +639,6 @@ class AgreementFontSettings
                 'bold' => [$bundle . 'ScheherazadeNew-Bold.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
                 'italic' => [$bundle . 'ScheherazadeNew-Regular.ttf'],
                 'bold_italic' => [$bundle . 'ScheherazadeNew-Bold.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
-            ],
-            'Noto Nastaliq Urdu' => [
-                'normal' => [$bundle . 'NotoNastaliqUrdu-Regular.ttf'],
-                'bold' => [$bundle . 'NotoNastaliqUrdu-Bold.ttf', $bundle . 'NotoNastaliqUrdu-Regular.ttf'],
-                'italic' => [$bundle . 'NotoNastaliqUrdu-Regular.ttf'],
-                'bold_italic' => [$bundle . 'NotoNastaliqUrdu-Bold.ttf', $bundle . 'NotoNastaliqUrdu-Regular.ttf'],
-            ],
-            'Lateef' => [
-                'normal' => [$bundle . 'Lateef-Regular.ttf'],
-                'bold' => [$bundle . 'Lateef-Bold.ttf', $bundle . 'Lateef-Regular.ttf'],
-                'italic' => [$bundle . 'Lateef-Regular.ttf'],
-                'bold_italic' => [$bundle . 'Lateef-Bold.ttf', $bundle . 'Lateef-Regular.ttf'],
-            ],
-            'Harmattan' => [
-                'normal' => [$bundle . 'Harmattan-Regular.ttf'],
-                'bold' => [$bundle . 'Harmattan-Bold.ttf', $bundle . 'Harmattan-Regular.ttf'],
-                'italic' => [$bundle . 'Harmattan-Regular.ttf'],
-                'bold_italic' => [$bundle . 'Harmattan-Bold.ttf', $bundle . 'Harmattan-Regular.ttf'],
             ],
         ] as $family => $styles) {
             $variants = [

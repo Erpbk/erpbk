@@ -63,13 +63,14 @@ class AgreementPdfService
             $this->fonts->normalizeHtml($this->resolver->replace($content, $map))
         );
 
-        // Dompdf has no OpenType shaping: shape Arabic/Urdu for PDF only so the
+        // Dompdf has no OpenType shaping: shape Arabic segments for PDF only so the
         // editor still shows logical Unicode while downloads render joined glyphs.
-        $agreementRtl = false;
+        // Mixed docs stay LTR at document level; Arabic runs/blocks are marked.
+        $agreementHasArabic = false;
         if ($forPdf) {
             $shaped = $this->rtlTextShaper->shapeHtmlForPdf($body);
             $body = $shaped['html'];
-            $agreementRtl = $shaped['rtl'];
+            $agreementHasArabic = ! empty($shaped['has_arabic']);
         }
 
         $template->loadMissing(['category.letterhead', 'category.watermark']);
@@ -99,15 +100,15 @@ class AgreementPdfService
             'pageHeightMm' => $this->letterheadLayout->pageHeightMm($category),
             'forPdf' => $forPdf,
             'withLetterhead' => $withLetterhead,
-            'agreementRtl' => $agreementRtl,
+            'agreementRtl' => false,
+            'agreementHasArabic' => $agreementHasArabic,
             'rider' => $subject,
             'template' => $template,
             'category' => $category,
             'agreementDate' => $agreementDate ?? now()->format('Y-m-d'),
             'pdfFontFaces' => $pdfFontFaces,
-            'agreementFontFamily' => $agreementRtl
-                ? $this->fonts->rtlFamilyStackCss()
-                : $this->fonts->familyStackCss(),
+            'agreementFontFamily' => $this->fonts->familyStackCss(),
+            'agreementRtlFontFamily' => $this->fonts->rtlFamilyStackCss(),
             'agreementFontSizePt' => $this->fonts->sizePt(),
             'agreementLineHeight' => $this->fonts->lineHeight(),
             'agreementFontColor' => $this->fonts->color(),
@@ -161,16 +162,16 @@ class AgreementPdfService
     private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true)
     {
         $fontFaces = $this->pdfFontFaces();
-        $isRtl = str_contains($html, 'content--rtl')
+        $hasArabic = str_contains($html, 'agreement-ar')
+            || str_contains($html, 'agreement-ar-block')
             || $this->rtlTextShaper->containsArabicScript($html);
 
-        if ($isRtl) {
+        if ($hasArabic) {
+            // Apply Amiri only to marked Arabic segments/blocks — keep Latin default.
             $html = $this->fonts->forceRtlFontFamiliesInHtml($html);
         }
 
-        $defaultFont = $isRtl
-            ? $this->fonts->rtlDefaultFamily()
-            : $this->fonts->defaultFamily();
+        $defaultFont = $this->fonts->defaultFamily();
         $defaultFont = $fontFaces !== [] ? $defaultFont : 'DejaVu Sans';
 
         $pdf = app('dompdf.wrapper');

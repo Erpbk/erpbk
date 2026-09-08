@@ -518,7 +518,7 @@
         this.letterhead.fontFacesCss,
         'html{background:' + canvas + ';min-height:100%;overflow-x:auto;',
         '--word-page-width:' + size.width + 'mm;--word-page-height:' + size.height + 'mm;}',
-        'body{position:relative;--word-margin-right:' + pad.right + 'mm;--word-margin-left:' + pad.left + 'mm;',
+        'body{direction:ltr;unicode-bidi:plaintext;position:relative;--word-margin-right:' + pad.right + 'mm;--word-margin-left:' + pad.left + 'mm;',
         '--word-page-width:' + size.width + 'mm;--word-page-height:' + size.height + 'mm;',
         'font-family:' + this.fonts.family + ';font-size:' + this.fonts.sizePt + 'pt;line-height:' + this.fonts.lineHeight + ';color:' + this.fonts.color + ';',
         'background:#ffffff;width:var(--word-page-width);min-width:var(--word-page-width);max-width:none;min-height:var(--word-page-height);height:auto;',
@@ -528,6 +528,8 @@
         'table{border-collapse:collapse;width:100%;max-width:100%;margin:4pt 0;}',
         'table td,table th{border:1px solid #94a3b8;padding:4px 8px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;}',
         'p,h1,h2,h3,h4,li,div{max-width:100%;box-sizing:border-box;}',
+        '[dir=rtl]{direction:rtl;text-align:right;unicode-bidi:embed;}',
+        '[dir=ltr]{direction:ltr;text-align:left;unicode-bidi:embed;}',
         'p{margin:0 0 .5em;}',
         'h1,h2,h3,h4{margin:0 0 .55em;line-height:1.25;}',
         'h1{font-size:' + this.fonts.headings.h1 + 'pt;}',
@@ -676,6 +678,8 @@
         alignC: '<path d="M4 6h16M7 12h10M5 18h14"/>',
         alignR: '<path d="M4 6h16M10 12h10M6 18h14"/>',
         alignJ: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+        dirLtr: '<path d="M4 6h10M4 12h14M4 18h8"/><path d="M18 8l3 4-3 4"/>',
+        dirRtl: '<path d="M20 6H10M20 12H6M20 18h-8"/><path d="M6 8L3 12l3 4"/>',
         bullet: '<path d="M9 6h12M9 12h12M9 18h12"/><circle cx="5" cy="6" r="1.2" fill="currentColor"/><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="5" cy="18" r="1.2" fill="currentColor"/>',
         number: '<path d="M10 6h11M10 12h11M10 18h11"/><path d="M4 5h2v4M4 17h3M4 15h2v2"/>',
         outdent: '<path d="M9 6h12M13 12h8M9 18h12M4 9l3 3-3 3"/>',
@@ -763,6 +767,8 @@
         '        <button type="button" class="word-ribbon-btn" data-cmd="JustifyCenter" data-state="JustifyCenter" title="Center">' + i('alignC') + '</button>',
         '        <button type="button" class="word-ribbon-btn" data-cmd="JustifyRight" data-state="JustifyRight" title="Align right">' + i('alignR') + '</button>',
         '        <button type="button" class="word-ribbon-btn" data-cmd="JustifyFull" data-state="JustifyFull" title="Justify">' + i('alignJ') + '</button>',
+        '        <button type="button" class="word-ribbon-btn" data-dir="ltr" title="Left to right (English)">' + i('dirLtr') + '</button>',
+        '        <button type="button" class="word-ribbon-btn" data-dir="rtl" title="Right to left (Arabic)">' + i('dirRtl') + '</button>',
         '      </div></div></div><div class="word-ribbon-group-label">Paragraph</div></div>',
         '    <div class="word-ribbon-group"><div class="word-ribbon-group-body">',
         '      <button type="button" class="word-ribbon-style" data-format="p" title="Normal"><span class="word-ribbon-style-preview">AaBbCc</span><span class="word-ribbon-style-name">Normal</span></button>',
@@ -793,6 +799,8 @@
         '        <button type="button" class="word-ribbon-btn" data-cmd="JustifyCenter" title="Center">' + i('alignC') + '</button>',
         '        <button type="button" class="word-ribbon-btn" data-cmd="JustifyRight" title="Align right">' + i('alignR') + '</button>',
         '        <button type="button" class="word-ribbon-btn" data-cmd="JustifyFull" title="Justify">' + i('alignJ') + '</button>',
+        '        <button type="button" class="word-ribbon-btn" data-dir="ltr" title="Left to right (English)">' + i('dirLtr') + '</button>',
+        '        <button type="button" class="word-ribbon-btn" data-dir="rtl" title="Right to left (Arabic)">' + i('dirRtl') + '</button>',
         '      </div>',
         '      <div class="word-ribbon-row">',
         '        <button type="button" class="word-ribbon-btn" data-cmd="Outdent" title="Decrease indent">' + i('outdent') + '</button>',
@@ -876,6 +884,31 @@
       ribbon.querySelectorAll('[data-cmd]').forEach(function (btn) {
         btn.addEventListener('click', function () {
           run(btn.getAttribute('data-cmd'));
+        });
+      });
+
+      ribbon.querySelectorAll('[data-dir]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var dir = btn.getAttribute('data-dir');
+          editor.focus();
+          var blocks = editor.selection ? editor.selection.getSelectedBlocks() : [];
+          if (!blocks || !blocks.length) {
+            var node = editor.selection && editor.selection.getNode();
+            blocks = node ? [editor.dom.getParent(node, 'p,h1,h2,h3,h4,h5,h6,li,td,th,div,blockquote') || node] : [];
+          }
+          blocks.forEach(function (block) {
+            if (!block || !block.setAttribute) {
+              return;
+            }
+            block.setAttribute('dir', dir);
+            if (dir === 'rtl') {
+              editor.dom.setStyle(block, 'text-align', 'right');
+            } else {
+              editor.dom.setStyle(block, 'text-align', 'left');
+            }
+          });
+          editor.nodeChanged();
+          editor.fire('change');
         });
       });
 
@@ -1341,7 +1374,7 @@
         convert_unsafe_embeds: false,
         font_size_formats: this.fonts.sizeFormats,
         font_family_formats: this.fonts.familyFormats,
-        extended_valid_elements: 'p[data-agreement-page-break|class|style|contenteditable|aria-hidden],div[data-agreement-page-break|class|style|contenteditable|aria-hidden],span[*],h1[*],h2[*],h3[*],h4[*],td[*],th[*],li[*],table[*],img[class|src|alt|title|width|height|style|data-mce-pagebreak]',
+        extended_valid_elements: 'p[data-agreement-page-break|class|style|contenteditable|aria-hidden|dir],div[data-agreement-page-break|class|style|contenteditable|aria-hidden|dir],span[*],h1[*],h2[*],h3[*],h4[*],td[*],th[*],li[*],table[*],blockquote[*],img[class|src|alt|title|width|height|style|data-mce-pagebreak]',
         pagebreak_separator: '<p class="agreement-page-break" data-agreement-page-break="1" contenteditable="false">&nbsp;</p>',
         pagebreak_split_block: true,
         remove_trailing_brs: false,

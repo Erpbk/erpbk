@@ -38,14 +38,11 @@ return [
         'Noto Naskh Arabic',
         'Amiri',
         'Scheherazade New',
-        // Urdu (Nastaliq / Arabic-script)
-        'Noto Nastaliq Urdu',
-        'Lateef',
-        'Harmattan',
     ],
 
     /**
      * Word/CSS aliases → canonical family name.
+     * Former Urdu product fonts map onto Amiri so stored docs still render.
      *
      * @var array<string, string>
      */
@@ -68,7 +65,7 @@ return [
         'sans-serif' => 'Calibri',
         'serif' => 'Times New Roman',
         'monospace' => 'Courier New',
-            'aptos' => 'Calibri',
+        'aptos' => 'Calibri',
         'arial unicode ms' => 'Arial',
         'google sans' => 'Calibri',
         'noto naskh arabic' => 'Noto Naskh Arabic',
@@ -77,10 +74,11 @@ return [
         'scheherazade' => 'Scheherazade New',
         'scheherazade new' => 'Scheherazade New',
         'scheherazadenew' => 'Scheherazade New',
-        'noto nastaliq urdu' => 'Noto Nastaliq Urdu',
-        'notonastaliqurdu' => 'Noto Nastaliq Urdu',
-        'nastaliq' => 'Noto Nastaliq Urdu',
-        'lateef' => 'Lateef',
-        'harmattan' => 'Harmattan',
+        // Retired Urdu product fonts → Arabic Naskh
+        'noto nastaliq urdu' => 'Amiri',
+        'notonastaliqurdu' => 'Amiri',
+        'nastaliq' => 'Amiri',
+        'lateef' => 'Amiri',
+        'harmattan' => 'Amiri',
     ],
 ];

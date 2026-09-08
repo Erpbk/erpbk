@@ -10,8 +10,9 @@ use DOMText;
 use Throwable;
 
 /**
- * Dompdf cannot shape Arabic/Urdu OpenType glyphs. Pre-process HTML with Ar-PHP
- * so connected letters render, and mark the document for RTL-friendly alignment.
+ * Dompdf cannot shape Arabic OpenType glyphs. Pre-process HTML with Ar-PHP
+ * so connected letters render. Mixed docs keep English LTR and mark Arabic
+ * segments/blocks only — never force whole-document RTL.
  */
 class AgreementRtlTextShaper
 {
@@ -25,20 +26,25 @@ class AgreementRtlTextShaper
      */
     private const ARABIC_MARKS = '/[\x{064B}-\x{065F}\x{0670}\x{06D6}-\x{06ED}]/u';
 
+    private const BLOCK_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th', 'div', 'blockquote'];
+
     public function containsArabicScript(string $text): bool
     {
         return (bool) preg_match(self::ARABIC_SCRIPT, $text);
     }
 
     /**
-     * Shape Arabic/Urdu runs for Dompdf and flag whether the HTML is RTL-heavy.
+     * Shape Arabic runs for Dompdf and mark per-segment/block direction helpers.
      *
-     * @return array{html: string, rtl: bool}
+     * `rtl` is always false for document-wide flags (mixed LTR/RTL).
+     * `has_arabic` is true when Arabic was present and shaped/marked.
+     *
+     * @return array{html: string, rtl: bool, has_arabic: bool}
      */
     public function shapeHtmlForPdf(string $html): array
     {
         if ($html === '' || ! $this->containsArabicScript($html)) {
-            return ['html' => $html, 'rtl' => false];
+            return ['html' => $html, 'rtl' => false, 'has_arabic' => false];
         }
 
         try {
@@ -51,9 +57,16 @@ class AgreementRtlTextShaper
             }
         }
 
+        try {
+            $shaped = $this->prepareMixedDirectionBlocks($shaped);
+        } catch (Throwable) {
+            // Keep shaped HTML even if block marking fails.
+        }
+
         return [
             'html' => $shaped,
-            'rtl' => true,
+            'rtl' => false,
+            'has_arabic' => true,
         ];
     }
 
@@ -75,11 +88,26 @@ class AgreementRtlTextShaper
                 continue;
             }
 
+            // Skip if this offset already sits inside a tag name/attribute.
+            if ($this->offsetInsideHtmlTag($html, $start)) {
+                continue;
+            }
+
             $shaped = $this->shapeSegment($arabic, $segment);
-            $html = substr_replace($html, $shaped, $start, $length);
+            $wrapped = '<span class="agreement-ar">'.$shaped.'</span>';
+            $html = substr_replace($html, $wrapped, $start, $length);
         }
 
         return $html;
+    }
+
+    private function offsetInsideHtmlTag(string $html, int $offset): bool
+    {
+        $before = substr($html, 0, $offset);
+        $lastOpen = strrpos($before, '<');
+        $lastClose = strrpos($before, '>');
+
+        return $lastOpen !== false && ($lastClose === false || $lastOpen > $lastClose);
     }
 
     /**
@@ -119,9 +147,40 @@ class AgreementRtlTextShaper
     {
         if ($node instanceof DOMText) {
             $text = $node->nodeValue ?? '';
-            if ($text !== '' && $this->containsArabicScript($text)) {
-                $node->nodeValue = $this->shapeSegment($arabic, $text);
+            if ($text === '' || ! $this->containsArabicScript($text)) {
+                return;
             }
+
+            $parent = $node->parentNode;
+            $doc = $node->ownerDocument;
+            if (! $parent || ! $doc) {
+                $node->nodeValue = $this->shapeSegment($arabic, $text);
+                return;
+            }
+
+            // Split mixed text into Latin + wrapped Arabic runs.
+            $parts = preg_split(
+                '/('.substr(self::ARABIC_SCRIPT, 1, -2).'+)/u',
+                $text,
+                -1,
+                PREG_SPLIT_DELIM_CAPTURE
+            ) ?: [$text];
+
+            $frag = $doc->createDocumentFragment();
+            foreach ($parts as $part) {
+                if ($part === '') {
+                    continue;
+                }
+                if ($this->containsArabicScript($part)) {
+                    $span = $doc->createElement('span');
+                    $span->setAttribute('class', 'agreement-ar');
+                    $span->appendChild($doc->createTextNode($this->shapeSegment($arabic, $part)));
+                    $frag->appendChild($span);
+                } else {
+                    $frag->appendChild($doc->createTextNode($part));
+                }
+            }
+            $parent->replaceChild($frag, $node);
 
             return;
         }
@@ -141,6 +200,81 @@ class AgreementRtlTextShaper
     }
 
     /**
+     * Honour editor dir=rtl/ltr per block; auto-mark Arabic-heavy blocks.
+     * For PDF we never keep direction:rtl on shaped text (would reverse twice).
+     */
+    private function prepareMixedDirectionBlocks(string $html): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="rtl-root">'.$html.'</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('rtl-root');
+        if (! $root instanceof DOMElement) {
+            return $html;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        foreach ($xpath->query('.//*', $root) ?: [] as $node) {
+            if (! $node instanceof DOMElement) {
+                continue;
+            }
+
+            $tag = strtolower($node->tagName);
+            if (! in_array($tag, self::BLOCK_TAGS, true)) {
+                continue;
+            }
+
+            $dir = strtolower(trim($node->getAttribute('dir')));
+            $text = $node->textContent ?? '';
+
+            if ($dir === 'rtl' || ($dir === '' && $this->isMostlyArabic($text))) {
+                $this->addClass($node, 'agreement-ar-block');
+            }
+
+            // Drop dir on PDF HTML so Dompdf does not re-reverse visual-order glyphs.
+            if ($dir === 'rtl' || $dir === 'ltr') {
+                $node->removeAttribute('dir');
+                if ($dir === 'ltr') {
+                    $this->addClass($node, 'agreement-ltr-block');
+                }
+            }
+        }
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child) ?: '';
+        }
+
+        return $out !== '' ? $out : $html;
+    }
+
+    private function isMostlyArabic(string $text): bool
+    {
+        if (! $this->containsArabicScript($text)) {
+            return false;
+        }
+
+        $arabic = preg_match_all(self::ARABIC_SCRIPT, $text) ?: 0;
+        $latin = preg_match_all('/[A-Za-z]/', $text) ?: 0;
+
+        return $arabic > 0 && $arabic >= max(1, $latin);
+    }
+
+    private function addClass(DOMElement $element, string $class): void
+    {
+        $existing = trim($element->getAttribute('class'));
+        $parts = $existing === '' ? [] : (preg_split('/\s+/', $existing) ?: []);
+        if (! in_array($class, $parts, true)) {
+            $parts[] = $class;
+        }
+        $element->setAttribute('class', implode(' ', $parts));
+    }
+
+    /**
      * Ar-PHP utf8Glyphs emits notices on some harakat+space sequences; Laravel
      * promotes those to ErrorException. Dompdf also places leftover tashkeel
      * poorly on presentation forms, so strip marks before shaping.
@@ -153,7 +287,6 @@ class AgreementRtlTextShaper
             return $shaped;
         }
 
-        // Last resort: original text (may still crash Ar-PHP — guarded above).
         $shaped = $this->utf8GlyphsSafe($arabic, $segment);
 
         return $shaped ?? $segment;

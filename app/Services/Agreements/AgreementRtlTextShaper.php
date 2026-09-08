@@ -26,6 +26,18 @@ class AgreementRtlTextShaper
      */
     private const ARABIC_MARKS = '/[\x{064B}-\x{065F}\x{0670}\x{06D6}-\x{06ED}]/u';
 
+    /**
+     * Soft wrap length for Ar-PHP utf8Glyphs when shaping for Dompdf.
+     *
+     * Dompdf lays out already-visual-order Arabic in LTR. If the whole paragraph
+     * is one glyph string, wrap order reverses vertically (logical end on the
+     * first PDF line). ~80 Arabic presentation-form chars fits roughly one line
+     * of ~11pt text on A4 content width (~450–500pt usable); Ar-PHP then inserts
+     * \n at word boundaries so we can emit <br /> and keep visual top→bottom
+     * matching logical start→end.
+     */
+    private const PDF_ARABIC_LINE_CHARS = 80;
+
     private const BLOCK_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th', 'div', 'blockquote'];
 
     public function containsArabicScript(string $text): bool
@@ -93,7 +105,7 @@ class AgreementRtlTextShaper
                 continue;
             }
 
-            $shaped = $this->shapeSegment($arabic, $segment);
+            $shaped = $this->newlinesToBr($this->shapeSegment($arabic, $segment));
             $wrapped = '<span class="agreement-ar">'.$shaped.'</span>';
             $html = substr_replace($html, $wrapped, $start, $length);
         }
@@ -174,7 +186,7 @@ class AgreementRtlTextShaper
                 if ($this->containsArabicScript($part)) {
                     $span = $doc->createElement('span');
                     $span->setAttribute('class', 'agreement-ar');
-                    $span->appendChild($doc->createTextNode($this->shapeSegment($arabic, $part)));
+                    $this->appendShapedTextWithBreaks($span, $this->shapeSegment($arabic, $part));
                     $frag->appendChild($span);
                 } else {
                     $frag->appendChild($doc->createTextNode($part));
@@ -292,6 +304,37 @@ class AgreementRtlTextShaper
         return $shaped ?? $segment;
     }
 
+    /**
+     * Convert Ar-PHP soft-wrap newlines into HTML breaks for string insertion.
+     */
+    private function newlinesToBr(string $shaped): string
+    {
+        return str_replace(["\r\n", "\n", "\r"], '<br />', $shaped);
+    }
+
+    /**
+     * Append shaped glyph text to a DOM element, turning soft-wrap newlines
+     * into real <br> nodes (never put raw "<br>" into createTextNode).
+     */
+    private function appendShapedTextWithBreaks(DOMElement $parent, string $shaped): void
+    {
+        $doc = $parent->ownerDocument;
+        if (! $doc) {
+            return;
+        }
+
+        $lines = preg_split("/\r\n|\n|\r/", $shaped) ?: [$shaped];
+        $last = count($lines) - 1;
+        foreach ($lines as $i => $line) {
+            if ($line !== '') {
+                $parent->appendChild($doc->createTextNode($line));
+            }
+            if ($i < $last) {
+                $parent->appendChild($doc->createElement('br'));
+            }
+        }
+    }
+
     private function utf8GlyphsSafe(Arabic $arabic, string $segment): ?string
     {
         set_error_handler(static function (int $severity, string $message): bool {
@@ -300,9 +343,9 @@ class AgreementRtlTextShaper
         });
 
         try {
-            // High max_chars avoids injecting \n wraps into long paragraphs.
+            // Soft-wrap near one PDF line so Dompdf does not reverse vertical order.
             // hindo=false keeps Western digits (0-9) unchanged in mixed agreements.
-            return $arabic->utf8Glyphs($segment, 10000, false);
+            return $arabic->utf8Glyphs($segment, self::PDF_ARABIC_LINE_CHARS, false);
         } catch (Throwable) {
             return null;
         } finally {

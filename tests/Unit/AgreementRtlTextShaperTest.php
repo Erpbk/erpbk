@@ -85,15 +85,25 @@ class AgreementRtlTextShaperTest extends TestCase
         $this->assertStringContainsString('Hello English', $result['html']);
     }
 
-    public function test_long_arabic_does_not_inject_newlines(): void
+    public function test_long_arabic_gets_visual_line_breaks(): void
     {
         $shaper = new AgreementRtlTextShaper();
+        // Long enough that Ar-PHP soft-wraps near PDF_ARABIC_LINE_CHARS (~80).
         $html = '<p>'.str_repeat('هذا نص عربي طويل للاختبار ', 20).'</p>';
 
         $result = $shaper->shapeHtmlForPdf($html);
 
         $this->assertFalse($result['rtl']);
         $this->assertTrue($result['has_arabic']);
+        $this->assertStringContainsString('agreement-ar', $result['html']);
+        // Soft wraps become HTML breaks so Dompdf keeps visual top→bottom order.
+        $this->assertMatchesRegularExpression('/<br\s*\/?>/i', $result['html']);
+        $this->assertGreaterThanOrEqual(
+            2,
+            preg_match_all('/<br\s*\/?>/i', $result['html']),
+            'Long Arabic paragraph should produce multiple visual lines'
+        );
+        // Raw newlines from utf8Glyphs must not leak into HTML output.
         $this->assertStringNotContainsString("\n", $result['html']);
     }
 

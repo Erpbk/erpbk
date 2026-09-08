@@ -4,7 +4,8 @@
   $watermarkSrc = $branding['watermark_src'] ?? null;
   $letterheadMode = $branding['letterhead_mode'] ?? 'default';
   $chromeW = $pageWidthMm ?? 210;
-  $chromeH = $pageHeightMm ?? 297;
+  // Full paper height for design letterhead (matches Chrome; ignore pageBoxH shrink).
+  $chromeH = $paperHeightMm ?? $pageHeightMm ?? 297;
   $wmSize = 90;
   $wmTop = round(($chromeH - $wmSize) / 2, 1);
   $wmLeft = round(($chromeW - $wmSize) / 2, 1);
@@ -15,7 +16,7 @@
     style="width: {{ $chromeW }}mm; height: {{ $chromeH }}mm; max-width: none; border: 0; display: block; position: absolute; top: 0; left: 0;">
 </div>
 @elseif($letterheadMode !== 'none')
-@include('agreements.pdf.partials.page-header')
+@include('agreements.pdf.partials.page-header', ['branding' => $branding, 'pdfEngine' => ($pdfEngine ?? 'html')])
 @endif
 @if(!empty($watermarkSrc))
 <div class="page-watermark" aria-hidden="true" style="top: {{ $wmTop }}mm; left: {{ $wmLeft }}mm;">

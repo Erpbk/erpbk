@@ -57,8 +57,8 @@
       margin: 0;
       padding: 0;
       width: {{ $pageW }}mm;
-      /* Transparent in PDF so canvas-painted letterhead shows through; white for on-screen HTML preview. */
-      background: {{ ($forPdf && $isMpdf) ? 'transparent' : '#fff' }};
+      /* White page; letterhead is embedded in HTML for both Chrome and mPDF (no canvas painter). */
+      background: #fff;
       --word-page-width: {{ $pageW }}mm;
       --word-page-height: {{ $pageBoxH }}mm;
     }
@@ -76,7 +76,7 @@
       height: {{ $pageBoxH }}mm;
       min-height: {{ $pageBoxH }}mm;
       max-height: {{ $pageBoxH }}mm;
-      background: {{ ($forPdf && $isMpdf) ? 'transparent' : '#fff' }};
+      background: #fff;
       overflow: hidden;
       page-break-before: auto;
       break-before: auto;
@@ -113,7 +113,13 @@
       z-index: 0;
     }
 
+
     @if ($isMpdf)
+    /*
+     * mPDF letterhead: prefer position:fixed HTML chrome (repeats every page).
+     * Do NOT force full-page height on overlays — if absolute/fixed fails, a 297mm
+     * in-flow box creates blank pages. Constrain company logos explicitly (mm + px attrs).
+     */
     .letterhead-overlay--fixed {
       position: fixed;
       top: 0;
@@ -124,6 +130,40 @@
       pointer-events: none;
       z-index: 10;
     }
+    .letterhead-overlay--fixed .page-letterhead-design {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: {{ $pageW }}mm;
+      height: 0;
+      overflow: visible;
+    }
+    .letterhead-overlay--fixed .page-letterhead-design img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: {{ $pageW }}mm;
+      height: {{ $pageH }}mm;
+      max-width: none;
+      max-height: none;
+    }
+    .page-header-logo .company-logo-img {
+      width: 45mm;
+      height: 18mm;
+      max-width: 58mm;
+      max-height: 22mm;
+    }
+    /* Tighten body spacing vs Chrome so Noto + OTL more often fits on one page. */
+    body, .content {
+      line-height: {{ $agreementLineHeight }};
+    }
+    .content p { margin: 0 0 0.32em; }
+    .content h1, .content h2, .content h3, .content h4 { margin: 0 0 0.4em; }
+    .content table { margin: 2pt 0; }
+    .content table th, .content table td { padding: 3px 6px; }
+    .content ul, .content ol { margin: 1pt 0 3pt 16pt; }
+    .content li { margin: 0 0 1pt; }
+    .content hr { margin: 5pt 0; }
     @endif
 
     .agreement-page-header {
@@ -188,20 +228,26 @@
     }
     @elseif ($isMpdf || $forPdf)
     .agreement-ar,
-    .agreement-ar-block {
+    .agreement-ar-block,
+    [dir="rtl"] {
       font-family: {{ $agreementRtlFontFamily }} !important;
       direction: rtl;
       text-align: right;
       unicode-bidi: isolate;
     }
     .agreement-ar-block ul,
-    .agreement-ar-block ol {
+    .agreement-ar-block ol,
+    [dir="rtl"] ul,
+    [dir="rtl"] ol {
       padding-right: 1.4em;
       padding-left: 0;
     }
-    .agreement-ltr-block {
+    .agreement-ltr-block,
+    [dir="ltr"],
+    bdi[dir="ltr"] {
       direction: ltr;
       text-align: left !important;
+      unicode-bidi: isolate;
     }
     @else
     /* On-screen HTML preview / print: keep logical Unicode; browser shapes Arabic. */
@@ -320,17 +366,20 @@
     $hasDesign = ! empty($branding['letterhead_src']);
     $hasWatermark = ! empty($branding['watermark_src']);
     $showCompanyHeader = $withLetterhead && $letterheadMode !== 'none' && ! $hasDesign;
-    // Chrome embeds letterhead images in HTML (file access). mPDF paints via canvas painter.
-    $showPerPageChrome = $withLetterhead && (! $forPdf || $isChromePdf);
-    $showPdfDesignWatermark = $isMpdf && $withLetterhead && $hasDesign && $hasWatermark;
-    $showFixedChrome = $isMpdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
+    // HTML letterhead for both engines (no canvas painter).
+    // Chrome/preview: per-page absolute overlays.
+    // mPDF: one position:fixed overlay so chrome repeats if content spills pages.
+    $showFixedChrome = $isMpdf && $withLetterhead;
+    $showPerPageChrome = $withLetterhead && ! $showFixedChrome;
   @endphp
   @if ($showFixedChrome)
   <div class="letterhead-overlay letterhead-overlay--fixed">
       @include('agreements.pdf.partials.page-chrome', [
         'pageWidthMm' => $pageW,
         'pageHeightMm' => $pageH,
+        'paperHeightMm' => $pageH,
         'branding' => $branding,
+        'pdfEngine' => $pdfEngine,
       ])
   </div>
   @endif
@@ -342,15 +391,9 @@
         @include('agreements.pdf.partials.page-chrome', [
           'pageWidthMm' => $pageW,
           'pageHeightMm' => $forPdf ? $pageH : $pageBoxH,
+          'paperHeightMm' => $pageH,
           'branding' => $branding,
-        ])
-      </div>
-      @elseif($showPdfDesignWatermark)
-      <div class="letterhead-overlay letterhead-overlay--design">
-        @include('agreements.pdf.partials.page-chrome', [
-          'pageWidthMm' => $pageW,
-          'pageHeightMm' => $pageH,
-          'branding' => array_merge($branding, ['letterhead_src' => null, 'letterhead_mode' => 'none']),
+          'pdfEngine' => $pdfEngine,
         ])
       </div>
       @endif

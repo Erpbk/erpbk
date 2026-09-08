@@ -7,13 +7,14 @@ $address = trim((string) ($branding['address'] ?? ''));
 $locationLine = trim((string) ($branding['location_line'] ?? ''));
 $city = trim((string) ($branding['city'] ?? ''));
 $country = trim((string) ($branding['country'] ?? ''));
+$pdfEngine = $pdfEngine ?? 'html';
 @endphp
 <header class="page-header">
   <div class="page-header-inner">
     <table class="page-header-table" cellpadding="0" cellspacing="0">
       <tr>
         <td class="page-header-logo">
-          @include('agreements.pdf.partials.logo')
+          @include('agreements.pdf.partials.logo', ['branding' => $branding, 'pdfEngine' => $pdfEngine])
         </td>
         <td class="page-header-info">
           @if($email !== '')

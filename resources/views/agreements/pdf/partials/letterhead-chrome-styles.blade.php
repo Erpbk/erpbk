@@ -1,7 +1,8 @@
 {{-- Shared header + watermark chrome. Used by PDF/preview pages and the TinyMCE editor overlay. --}}
 @php
   $chromeW = $pageWidthMm ?? 210;
-  $chromeH = $pageHeightMm ?? 297;
+  // Prefer full paper height for letterhead artwork (avoid mPDF pageBoxH shrink clipping design).
+  $chromeH = $paperHeightMm ?? $pageHeightMm ?? 297;
   $chromeHeaderTop = $headerTopMarginMm ?? 8;
 @endphp
 .page-decor {

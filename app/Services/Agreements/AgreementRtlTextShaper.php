@@ -659,20 +659,39 @@ class AgreementRtlTextShaper
      */
     public function prepareLogicalHtmlForMpdf(string $html): array
     {
-        if ($html === '' || ! $this->containsArabicScript($html)) {
+        $hasArabic = $html !== '' && $this->containsArabicScript($html);
+        if ($html === '') {
             return ['html' => $html, 'rtl' => false, 'has_arabic' => false];
         }
 
+        $wrapped = $html;
+
+        // Same logical prep as Chrome: Arabic block marks, field-label reorder, LTR isolates.
+        // mPDF shapes OpenType under direction:rtl; <bdi dir="ltr"> keeps phones/IDs ordered.
+        if ($hasArabic) {
+            try {
+                $wrapped = $this->markLogicalArabicBlocks($wrapped);
+            } catch (Throwable) {
+                $wrapped = $html;
+            }
+
+            try {
+                $wrapped = $this->normalizeChromeRtlFieldLabelOrder($wrapped);
+            } catch (Throwable) {
+                // Keep marked HTML even if field-order normalization fails.
+            }
+        }
+
         try {
-            $marked = $this->markLogicalArabicBlocks($html);
+            $wrapped = $this->wrapLtrTokensForChrome($wrapped);
         } catch (Throwable) {
-            $marked = $html;
+            // Keep marked HTML even if LTR wrapping fails.
         }
 
         return [
-            'html' => $marked,
+            'html' => $wrapped,
             'rtl' => false,
-            'has_arabic' => true,
+            'has_arabic' => $hasArabic,
         ];
     }
 

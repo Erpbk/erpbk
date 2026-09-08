@@ -132,7 +132,10 @@ class AgreementPdfService
                 ? $this->mpdfRtlFamilyStackCss()
                 : $this->fonts->rtlFamilyStackCss(),
             'agreementFontSizePt' => $this->fonts->sizePt(),
-            'agreementLineHeight' => $this->fonts->lineHeight(),
+            // mPDF Arabic metrics wrap a bit looser than Chrome/Noto; tighten slightly for page parity.
+            'agreementLineHeight' => ($forPdf && $pdfEngine === 'mpdf')
+                ? max(1.2, round($this->fonts->lineHeight() * 0.9, 2))
+                : $this->fonts->lineHeight(),
             'agreementFontColor' => $this->fonts->color(),
             'agreementHeadingSizesPt' => $this->fonts->headingSizesPt(),
         ])->render();
@@ -223,15 +226,31 @@ class AgreementPdfService
 
         if ($hasArabic) {
             $html = $this->fonts->forceRtlFontFamiliesInHtml($html);
-            // Remap CSS font-family display names onto mPDF registered keys.
-            $html = $this->remapFontFamiliesForMpdf($html);
-            $html = preg_replace('/font-family:\s*[\'"]?(amiri|notonaskharabic|scheherazadenew|Amiri|Noto Naskh Arabic|Scheherazade New)[\'"]?/i', 'font-family: lateef', $html) ?? $html;
-            // Prefer Noto Naskh (OTL) over Amiri for shaping.
-            $html = str_ireplace(['font-family: Amiri', "font-family: 'Amiri'"], 'font-family: amiri', $html);
+            // Prefer Noto Naskh Arabic (Chrome parity) when registered with useOTL; Lateef fallback.
+            // GPOS Type 5 Format 3 is skipped via scripts/patch-mpdf-gpos.php so Noto/Amiri can load.
+            $html = $this->forceLateefFontsForMpdfHtml($html);
         }
 
+        try {
+            return $this->createMpdfDocument($html, $category, $withLetterhead, true);
+        } catch (\Throwable $e) {
+            if (! $this->isMpdfGposFailure($e)) {
+                throw $e;
+            }
+            // Live Amiri/Noto/Scheherazade (or other faces) can still trip unsupported GPOS;
+            // rebuild once with all useOTL disabled so the request does not 500.
+            return $this->createMpdfDocument($html, $category, $withLetterhead, false);
+        }
+    }
+
+    private function createMpdfDocument(
+        string $html,
+        ?\App\Models\AgreementCategory $category,
+        bool $withLetterhead,
+        bool $enableOtl
+    ): AgreementMpdfDocument {
         $size = $this->letterheadLayout->resolvedPageSize($category);
-        $fontConfig = $this->mpdfFontConfig();
+        $fontConfig = $this->mpdfFontConfig($enableOtl);
 
         $tempDir = storage_path('app/mpdf-temp');
         if (! is_dir($tempDir)) {
@@ -240,7 +259,8 @@ class AgreementPdfService
 
         $defaultFont = $this->mpdfFontKey($this->fonts->defaultFamily());
         if (! isset($fontConfig['fontdata'][$defaultFont])) {
-            $defaultFont = isset($fontConfig['fontdata']['dejavusans']) ? 'dejavusans' : 'amiri';
+            $defaultFont = $this->preferredMpdfArabicFontKey($fontConfig['fontdata'])
+                ?? (isset($fontConfig['fontdata']['dejavusans']) ? 'dejavusans' : 'lateef');
         }
 
         $mpdf = new Mpdf([
@@ -267,22 +287,23 @@ class AgreementPdfService
         $mpdf->SetDisplayMode('fullpage');
         $mpdf->SetTitle('Agreement');
 
-        if ($withLetterhead) {
-            $this->letterheadPainter->applyToMpdf($mpdf, $category);
-        }
+        // Letterhead is embedded in HTML (same model as Chrome) for visual parity.
+        // Do NOT also SetWatermarkImage via letterheadPainter — that double-draws / blows up logos.
+        // Painter remains available for legacy callers but is unused on the live agreement path.
 
         // Large letterhead/logo data-URIs exceed default pcre.backtrack_limit in mPDF.
         $html = $this->materializeDataUrisForMpdf($html, $tempDir);
         $previousLimit = ini_get('pcre.backtrack_limit');
         @ini_set('pcre.backtrack_limit', (string) max(10000000, (int) $previousLimit));
         // Some Arabic TTFs trip undefined-offset notices inside mPDF GSUB/GPOS readers;
-        // Laravel promotes those to ErrorException ? ignore only those font metrics notices.
+        // Laravel promotes those to ErrorException — ignore only those font metrics notices.
         $previousReporting = error_reporting(E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
         set_error_handler(static function () {
             return true;
         });
         try {
             $mpdf->WriteHTML($html);
+            $this->suppressTrailingEmptyMpdfPage($mpdf);
         } finally {
             restore_error_handler();
             error_reporting($previousReporting);
@@ -294,10 +315,22 @@ class AgreementPdfService
         return new AgreementMpdfDocument($mpdf);
     }
 
+    private function isMpdfGposFailure(\Throwable $e): bool
+    {
+        if ($e instanceof \Mpdf\MpdfException) {
+            return true;
+        }
+        $message = $e->getMessage();
+
+        return stripos($message, 'GPOS') !== false
+            || stripos($message, 'GSUB') !== false
+            || stripos($message, 'ttfontsuni') !== false;
+    }
+
     /**
      * @return array{fontDir: list<string>, fontdata: array<string, array<string, mixed>>}
      */
-    private function mpdfFontConfig(): array
+    private function mpdfFontConfig(bool $enableOtl = true): array
     {
         $defaults = (new ConfigVariables())->getDefaults();
         $fontDirs = $defaults['fontDir'];
@@ -310,27 +343,68 @@ class AgreementPdfService
         $fontDefaults = (new FontVariables())->getDefaults();
         $fontData = $fontDefaults['fontdata'];
 
-        // Core Arabic faces with OpenType layout enabled.
-                $fontData['lateef'] = [
-            'R' => 'Lateef-Regular.ttf',
-            'useOTL' => 0xFF,
-            'useKashida' => 75,
+        $lateefFile = $bundled.'Lateef-Regular.ttf';
+        if (! is_readable($lateefFile)) {
+            throw new \RuntimeException(
+                'Lateef-Regular.ttf is required as Arabic fallback for mPDF. Place it under resources/fonts/agreements/.'
+            );
+        }
+
+        // Prefer Noto Naskh Arabic (matches Chrome @font-face). Amiri/Scheherazade also OK
+        // after scripts/patch-mpdf-gpos.php skips unsupported GPOS Type 5 Format 3.
+        $arabicFaces = [
+            'notonaskharabic' => [
+                'R' => 'NotoNaskhArabic-Regular.ttf',
+                'B' => 'NotoNaskhArabic-Bold.ttf',
+            ],
+            'amiri' => [
+                'R' => 'Amiri-Regular.ttf',
+                'B' => 'Amiri-Bold.ttf',
+                'I' => 'Amiri-Italic.ttf',
+                'BI' => 'Amiri-BoldItalic.ttf',
+            ],
+            'scheherazadenew' => [
+                'R' => 'ScheherazadeNew-Regular.ttf',
+                'B' => 'ScheherazadeNew-Bold.ttf',
+            ],
+            'lateef' => [
+                'R' => 'Lateef-Regular.ttf',
+            ],
         ];
-        // Modern Amiri/Noto/Scheherazade New trip unsupported GPOS/GSUB formats or OOM in mPDF OTL.
-        $fontData['amiri'] = [
-            'R' => 'Amiri-Regular.ttf',
-            'B' => 'Amiri-Bold.ttf',
-            'I' => 'Amiri-Italic.ttf',
-            'BI' => 'Amiri-BoldItalic.ttf',
-        ];
-        $fontData['notonaskharabic'] = [
-            'R' => 'NotoNaskhArabic-Regular.ttf',
-            'B' => 'NotoNaskhArabic-Bold.ttf',
-        ];
-        $fontData['scheherazadenew'] = [
-            'R' => 'ScheherazadeNew-Regular.ttf',
-            'B' => 'ScheherazadeNew-Bold.ttf',
-        ];
+
+        foreach ($arabicFaces as $key => $files) {
+            $regular = $bundled.($files['R'] ?? '');
+            if ($regular === $bundled || ! is_readable($regular)) {
+                continue;
+            }
+            $entry = ['R' => $files['R']];
+            foreach (['B', 'I', 'BI'] as $slot) {
+                if (! empty($files[$slot]) && is_readable($bundled.$files[$slot])) {
+                    $entry[$slot] = $files[$slot];
+                }
+            }
+            if ($enableOtl) {
+                $entry['useOTL'] = 0xFF;
+                $entry['useKashida'] = 75;
+            }
+            $fontData[$key] = $entry;
+        }
+
+        // Alias common CSS keys onto the same face files.
+        if (isset($fontData['notonaskharabic'])) {
+            $fontData['notonaskh'] = $fontData['notonaskharabic'];
+        }
+        if (isset($fontData['scheherazadenew'])) {
+            $fontData['scheherazade'] = $fontData['scheherazadenew'];
+        }
+
+        if (! $enableOtl) {
+            foreach ($fontData as $key => $meta) {
+                if (is_array($meta) && array_key_exists('useOTL', $meta)) {
+                    unset($fontData[$key]['useOTL'], $fontData[$key]['useKashida']);
+                }
+            }
+        }
 
         // Map bundled Latin substitutes (Carlito≈Calibri, etc.) when present.
         $latinMap = [
@@ -353,6 +427,8 @@ class AgreementPdfService
             }
         }
 
+        $arabicOtlKeys = ['notonaskharabic', 'notonaskh', 'amiri', 'scheherazadenew', 'scheherazade', 'lateef'];
+
         // Also register any cached faces from AgreementFontSettings.
         foreach ($this->fonts->cachedFaces() as $face) {
             $family = (string) ($face['family'] ?? '');
@@ -374,16 +450,21 @@ class AgreementPdfService
             if (! isset($fontData[$key])) {
                 $fontData[$key] = [];
             }
-            // Prefer basename in a known fontDir when possible.
             $basename = basename($path);
             $dir = dirname($path);
             if (! in_array($dir, $fontDirs, true)) {
                 $fontDirs[] = $dir;
             }
             $fontData[$key][$slot] = $basename;
-            if ($key === 'lateef') {
-                $fontData[$key]['useOTL'] = 0xFF;
-                $fontData[$key]['useKashida'] = 75;
+            if (in_array($key, $arabicOtlKeys, true)) {
+                if ($enableOtl) {
+                    $fontData[$key]['useOTL'] = 0xFF;
+                    $fontData[$key]['useKashida'] = 75;
+                } else {
+                    unset($fontData[$key]['useOTL'], $fontData[$key]['useKashida']);
+                }
+            } elseif (! $enableOtl) {
+                unset($fontData[$key]['useOTL'], $fontData[$key]['useKashida']);
             }
         }
 
@@ -393,6 +474,32 @@ class AgreementPdfService
         ];
     }
 
+    /**
+     * mPDF fontdata key for the Arabic face that best matches Chrome (Noto), else Lateef.
+     *
+     * @param  array<string, mixed>|null  $fontData
+     */
+    private function preferredMpdfArabicFontKey(?array $fontData = null): ?string
+    {
+        $bundled = $this->fonts->bundledFontDirectory();
+        $candidates = [
+            'notonaskharabic' => $bundled.'NotoNaskhArabic-Regular.ttf',
+            'amiri' => $bundled.'Amiri-Regular.ttf',
+            'scheherazadenew' => $bundled.'ScheherazadeNew-Regular.ttf',
+            'lateef' => $bundled.'Lateef-Regular.ttf',
+        ];
+        foreach ($candidates as $key => $file) {
+            if ($fontData !== null && ! isset($fontData[$key])) {
+                continue;
+            }
+            if (is_readable($file)) {
+                return $key;
+            }
+        }
+
+        return isset($fontData['lateef']) ? 'lateef' : null;
+    }
+
     private function mpdfFontKey(string $family): string
     {
         return strtolower(preg_replace('/[^A-Za-z0-9]+/', '', $family) ?? $family);
@@ -400,13 +507,22 @@ class AgreementPdfService
 
     private function mpdfRtlFamilyStackCss(): string
     {
-        return 'lateef, amiri, notonaskharabic, scheherazadenew';
+        $key = $this->preferredMpdfArabicFontKey() ?? 'lateef';
+        $parts = [$key];
+        if ($key !== 'lateef') {
+            $parts[] = 'lateef';
+        }
+
+        return implode(', ', $parts);
     }
 
     private function mpdfFamilyStackCss(string $defaultFamily, string $fallbackStack): string
     {
         $key = $this->mpdfFontKey($defaultFamily);
-        $parts = [$key];
+        $parts = [];
+        if ($key !== '') {
+            $parts[] = $key;
+        }
         foreach (preg_split('/\s*,\s*/', $fallbackStack) ?: [] as $name) {
             $name = trim($name, " \t\n\r\0\x0B'\"");
             if ($name === '') {
@@ -417,18 +533,82 @@ class AgreementPdfService
                 $parts[] = $k;
             }
         }
+        $arabic = $this->preferredMpdfArabicFontKey() ?? 'lateef';
+        if (! in_array($arabic, $parts, true)) {
+            $parts[] = $arabic;
+        }
+        if ($arabic !== 'lateef' && ! in_array('lateef', $parts, true)) {
+            $parts[] = 'lateef';
+        }
         $parts[] = 'dejavusans';
 
         return implode(', ', $parts);
     }
 
+    /**
+     * Remap display font names to mPDF keys, then force Arabic faces onto Noto (or Lateef fallback).
+     * Method name kept for BC with unit tests / call sites; target face is preferredMpdfArabicFontKey().
+     * Requires scripts/patch-mpdf-gpos.php so Noto/Amiri load with useOTL.
+     */
+    public function forceLateefFontsForMpdfHtml(string $html): string
+    {
+        $html = $this->remapFontFamiliesForMpdf($html);
+        $target = $this->preferredMpdfArabicFontKey() ?? 'lateef';
+
+        $arabicPattern = 'lateef|amiri|notonaskharabic|scheherazadenew|scheherazade'
+            .'|noto\s*naskh\s*arabic|noto\s*sans\s*arabic|noto\s*naskh|xb\s*zar|xbzar';
+
+        $replaceFamily = static function (string $chunk) use ($arabicPattern, $target): string {
+            return preg_replace_callback(
+                '/font-family\s*:\s*[^;]+/i',
+                static function (array $m) use ($arabicPattern, $target): string {
+                    return preg_match('/'.$arabicPattern.'/i', $m[0])
+                        ? 'font-family: '.$target
+                        : $m[0];
+                },
+                $chunk
+            ) ?? $chunk;
+        };
+
+        $html = preg_replace_callback(
+            '/(style\s*=\s*)([\'"])(.*?)\2/is',
+            static function (array $m) use ($replaceFamily): string {
+                return $m[1].$m[2].$replaceFamily($m[3]).$m[2];
+            },
+            $html
+        ) ?? $html;
+
+        $html = preg_replace_callback(
+            '/(<style\b[^>]*>)(.*?)(<\/style>)/is',
+            static function (array $m) use ($arabicPattern, $target): string {
+                $css = preg_replace_callback(
+                    '/font-family\s*:\s*[^;}\n]+/i',
+                    static function (array $fm) use ($arabicPattern, $target): string {
+                        return preg_match('/'.$arabicPattern.'/i', $fm[0])
+                            ? 'font-family: '.$target
+                            : $fm[0];
+                    },
+                    $m[2]
+                ) ?? $m[2];
+
+                return $m[1].$css.$m[3];
+            },
+            $html
+        ) ?? $html;
+
+        return $html;
+    }
+
     private function remapFontFamiliesForMpdf(string $html): string
     {
+        $arabicTarget = $this->preferredMpdfArabicFontKey() ?? 'lateef';
         $map = [
             'Lateef' => 'lateef',
-            'Amiri' => 'amiri',
-            'Noto Naskh Arabic' => 'notonaskharabic',
-            'Scheherazade New' => 'scheherazadenew',
+            'Amiri' => $arabicTarget,
+            'Noto Naskh Arabic' => $arabicTarget,
+            'Noto Sans Arabic' => $arabicTarget,
+            'Scheherazade New' => $arabicTarget,
+            'Scheherazade' => $arabicTarget,
             'Calibri' => 'calibri',
             'Arial' => 'arial',
             'Times New Roman' => 'timesnewroman',
@@ -439,7 +619,7 @@ class AgreementPdfService
 
         foreach ($map as $from => $to) {
             $html = str_ireplace(
-                ["font-family: '{$from}'", "font-family:{$from}", "font-family: {$from}"],
+                ["font-family: '{$from}'", "font-family:\"{$from}\"", "font-family:{$from}", "font-family: {$from}"],
                 "font-family: {$to}",
                 $html
             );
@@ -448,6 +628,22 @@ class AgreementPdfService
         return $html;
     }
 
+    /**
+     * Drop a trailing blank mPDF page when content barely overflowed (Chrome often stays on 1).
+     */
+    private function suppressTrailingEmptyMpdfPage(Mpdf $mpdf): void
+    {
+        if ($mpdf->page < 2) {
+            return;
+        }
+        $last = $mpdf->pages[$mpdf->page] ?? '';
+        // Fixed letterhead chrome still writes operators; treat as empty if almost no text showing ops.
+        $textOps = preg_match_all('/\((?:\\\\.|[^\\\\)]){2,}\)\s*Tj/s', $last) ?: 0;
+        $textOps += preg_match_all('/\[(?:[^\]]*)\]\s*TJ/s', $last) ?: 0;
+        if ($textOps <= 2 && strlen($last) < 2500) {
+            $mpdf->DeletePages($mpdf->page);
+        }
+    }
     /**
      * Absolute TTF path for the Arabic face used when measuring wrap width.
      */
@@ -505,7 +701,7 @@ class AgreementPdfService
     /**
      * Replace bulky data:image URIs with temp files so mPDF/PCRE can parse the HTML.
      */
-    private function materializeDataUrisForMpdf(string $html, string $tempDir): string
+        private function materializeDataUrisForMpdf(string $html, string $tempDir): string
     {
         if (! str_contains($html, 'data:image')) {
             return $html;
@@ -513,7 +709,7 @@ class AgreementPdfService
 
         return preg_replace_callback(
             '/src=(["\'])(data:image\/([a-z0-9+.-]+);base64,([A-Za-z0-9+\/=]+))\1/i',
-            static function (array $m) use ($tempDir): string {
+            function (array $m) use ($tempDir): string {
                 $quote = $m[1];
                 $ext = strtolower($m[3]);
                 $ext = match ($ext) {
@@ -528,6 +724,7 @@ class AgreementPdfService
                 $file = rtrim($tempDir, '\\/').DIRECTORY_SEPARATOR.'img_'.sha1($m[4]).'.'.$ext;
                 if (! is_file($file)) {
                     @file_put_contents($file, $bin);
+                    $this->downscaleRasterForMpdf($file, $ext);
                 }
 
                 return 'src='.$quote.str_replace('\\', '/', $file).$quote;
@@ -535,6 +732,64 @@ class AgreementPdfService
             $html
         ) ?? $html;
     }
+
+    /**
+     * Shrink oversized landscape/square rasters (company logos) so mPDF cannot
+     * layout from multi-megapixel intrinsic dimensions when CSS max-* is ignored.
+     * Portrait near-A4 letterhead designs are left alone.
+     */
+    private function downscaleRasterForMpdf(string $file, string $ext): void
+    {
+        if (! in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif'], true) || ! is_readable($file)) {
+            return;
+        }
+        $info = @getimagesize($file);
+        if ($info === false) {
+            return;
+        }
+        [$w, $h] = $info;
+        if ($w < 800) {
+            return;
+        }
+        // Full-page letterheads are portrait (~0.7 w/h). Logos are usually wider than tall.
+        if ($h > 0 && ($w / $h) < 0.95) {
+            return;
+        }
+        $maxW = 480;
+        $newW = $maxW;
+        $newH = max(1, (int) round($h * ($maxW / $w)));
+        $src = match ($info[2]) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($file),
+            IMAGETYPE_PNG => @imagecreatefrompng($file),
+            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($file) : false,
+            IMAGETYPE_GIF => @imagecreatefromgif($file),
+            default => false,
+        };
+        if ($src === false) {
+            return;
+        }
+        $dst = imagecreatetruecolor($newW, $newH);
+        if ($dst === false) {
+            imagedestroy($src);
+
+            return;
+        }
+        if ($info[2] === IMAGETYPE_PNG || $info[2] === IMAGETYPE_WEBP) {
+            imagealphablending($dst, false);
+            imagesavealpha($dst, true);
+        }
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
+        match ($info[2]) {
+            IMAGETYPE_JPEG => imagejpeg($dst, $file, 82),
+            IMAGETYPE_PNG => imagepng($dst, $file, 6),
+            IMAGETYPE_WEBP => function_exists('imagewebp') ? imagewebp($dst, $file, 82) : imagepng($dst, $file, 6),
+            IMAGETYPE_GIF => imagegif($dst, $file),
+            default => null,
+        };
+        imagedestroy($src);
+        imagedestroy($dst);
+    }
+
     private function sampleMap(): array
     {
         return [

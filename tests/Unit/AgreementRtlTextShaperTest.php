@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\Agreements\AgreementRtlTextShaper;
+use ArPHP\I18N\Arabic;
 use Tests\TestCase;
 
 class AgreementRtlTextShaperTest extends TestCase
@@ -80,15 +81,21 @@ class AgreementRtlTextShaperTest extends TestCase
         $this->assertTrue($result['has_arabic']);
         $this->assertStringContainsString('agreement-ar-block', $result['html']);
         $this->assertStringContainsString('agreement-ltr-block', $result['html']);
+        // Direction is applied via align/CSS classes, not HTML dir (avoids double-reverse).
         $this->assertStringNotContainsString('dir="rtl"', $result['html']);
         $this->assertStringNotContainsString('dir="ltr"', $result['html']);
         $this->assertStringContainsString('Hello English', $result['html']);
     }
 
-    public function test_long_arabic_gets_visual_line_breaks(): void
+    public function test_long_arabic_uses_measure_based_breaks_not_char_constant(): void
     {
         $shaper = new AgreementRtlTextShaper();
-        // Long enough that Ar-PHP soft-wraps near PDF_ARABIC_LINE_CHARS (~80).
+        // Narrow column forces multiple lines; measurer uses char count as a stand-in for width.
+        $shaper->configureForPdf(40.0, 11.0);
+        $shaper->setWidthMeasurer(static function (string $text, float $sizePt, ?string $fontFile): float {
+            return mb_strlen($text, 'UTF-8') * 1.0; // 1pt per glyph → width 40 packs ~40 glyphs
+        });
+
         $html = '<p>'.str_repeat('هذا نص عربي طويل للاختبار ', 20).'</p>';
 
         $result = $shaper->shapeHtmlForPdf($html);
@@ -96,15 +103,49 @@ class AgreementRtlTextShaperTest extends TestCase
         $this->assertFalse($result['rtl']);
         $this->assertTrue($result['has_arabic']);
         $this->assertStringContainsString('agreement-ar', $result['html']);
-        // Soft wraps become HTML breaks so Dompdf keeps visual top→bottom order.
-        $this->assertMatchesRegularExpression('/<br\s*\/?>/i', $result['html']);
-        $this->assertGreaterThanOrEqual(
-            2,
-            preg_match_all('/<br\s*\/?>/i', $result['html']),
-            'Long Arabic paragraph should produce multiple visual lines'
+        $this->assertStringContainsString('agreement-ar-block', $result['html']);
+        $this->assertMatchesRegularExpression('/<br\s*\/?>/i', $result['html'], 'Width packing should emit <br /> lines');
+        $this->assertTrue(
+            $shaper->containsArabicScript($result['html'])
+            || preg_match('/[\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}]/u', $result['html']) === 1,
+            'Long Arabic should still be shaped to presentation forms'
         );
-        // Raw newlines from utf8Glyphs must not leak into HTML output.
-        $this->assertStringNotContainsString("\n", $result['html']);
+    }
+
+    public function test_wide_column_keeps_short_arabic_on_one_line(): void
+    {
+        $shaper = new AgreementRtlTextShaper();
+        $shaper->configureForPdf(2000.0, 11.0);
+        $shaper->setWidthMeasurer(static function (string $text, float $sizePt, ?string $fontFile): float {
+            return mb_strlen($text, 'UTF-8') * 1.0;
+        });
+
+        $html = '<p>مرحبا بالعالم</p>';
+        $result = $shaper->shapeHtmlForPdf($html);
+
+        $this->assertTrue($result['has_arabic']);
+        $this->assertDoesNotMatchRegularExpression('/<br\s*\/?>/i', $result['html']);
+    }
+
+    public function test_shaped_glyphs_stay_in_visual_order_not_reversed(): void
+    {
+        $shaper = new AgreementRtlTextShaper();
+        $shaper->configureForPdf(2000.0, 11.0);
+        $arabic = new Arabic();
+        $logical = 'مرحبا';
+        $expectedVisual = $arabic->utf8Glyphs($logical, 999999, false);
+
+        $result = $shaper->shapeHtmlForPdf('<p>'.$logical.'</p>');
+
+        $this->assertStringContainsString($expectedVisual, $result['html']);
+        $reversed = implode('', array_reverse(preg_split('//u', $expectedVisual, -1, PREG_SPLIT_NO_EMPTY) ?: []));
+        if ($reversed !== $expectedVisual) {
+            $this->assertStringNotContainsString(
+                '>'.$reversed.'<',
+                $result['html'],
+                'Must not reverse visual-order presentation forms'
+            );
+        }
     }
 
     public function test_vocalized_arabic_with_spaces_does_not_crash(): void

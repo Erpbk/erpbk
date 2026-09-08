@@ -158,8 +158,9 @@
 
     /*
      * Mixed-script PDFs: English stays LTR with the Latin stack.
-     * Ar-PHP utf8Glyphs already emits visual order for LTR engines — do NOT set
-     * direction:rtl on shaped Arabic or glyphs reverse twice.
+     * Arabic runs are shaped to visual-order presentation forms for LTR Dompdf
+     * (measure-based <br /> wraps). Align right only — never direction:rtl on
+     * shaped glyphs (that reverses joining / presentation forms).
      */
     .agreement-ar {
       font-family: {{ $agreementRtlFontFamily }} !important;

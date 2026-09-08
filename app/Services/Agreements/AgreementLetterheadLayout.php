@@ -215,6 +215,24 @@ class AgreementLetterheadLayout
     }
 
     /**
+     * Usable content/column width in mm (page width minus side margins).
+     */
+    public function contentWidthMm(?AgreementCategory $category = null): float
+    {
+        $m = $this->resolvedMarginsMm($category);
+
+        return max(20.0, $this->pageWidthMm($category) - $m['left'] - $m['right']);
+    }
+
+    /**
+     * Usable content/column width in PDF points (for Arabic measure-based wrapping).
+     */
+    public function contentWidthPt(?AgreementCategory $category = null): float
+    {
+        return $this->contentWidthMm($category) * 72.0 / 25.4;
+    }
+
+    /**
      * Usable content height per page, aligned with letterhead.blade.php layout.
      * Identical with or without digital letterhead so pre-printed paper aligns.
      * Same budget for preview and PDF download so page breaks match.

@@ -13,6 +13,11 @@ use Throwable;
  * Dompdf cannot shape Arabic OpenType glyphs. Pre-process HTML with Ar-PHP
  * so connected letters render. Mixed docs keep English LTR and mark Arabic
  * segments/blocks only — never force whole-document RTL.
+ *
+ * Strategy: Ar-PHP utf8Glyphs emits visual-order presentation forms meant to be
+ * painted LTR by Dompdf. Soft-wrap each Arabic segment by measured width (TTF /
+ * Dompdf-equivalent), shape each line separately, and join with <br /> so line
+ * order matches logical start→end without direction:rtl (which breaks joining).
  */
 class AgreementRtlTextShaper
 {
@@ -27,22 +32,71 @@ class AgreementRtlTextShaper
     private const ARABIC_MARKS = '/[\x{064B}-\x{065F}\x{0670}\x{06D6}-\x{06ED}]/u';
 
     /**
-     * Soft wrap length for Ar-PHP utf8Glyphs when shaping for Dompdf.
-     *
-     * Dompdf lays out already-visual-order Arabic in LTR. If the whole paragraph
-     * is one glyph string, wrap order reverses vertically (logical end on the
-     * first PDF line). ~80 Arabic presentation-form chars fits roughly one line
-     * of ~11pt text on A4 content width (~450–500pt usable); Ar-PHP then inserts
-     * \n at word boundaries so we can emit <br /> and keep visual top→bottom
-     * matching logical start→end.
+     * Pass a huge max to utf8Glyphs so Ar-PHP does not soft-wrap by character
+     * count; we break lines ourselves by measured width.
      */
-    private const PDF_ARABIC_LINE_CHARS = 80;
+    private const PDF_GLYPHS_NO_WRAP = 999999;
+
+    /**
+     * Default usable content width (pt) when caller has not configured layout —
+     * roughly A4 minus 12mm side margins at 11pt body size.
+     */
+    private const DEFAULT_CONTENT_WIDTH_PT = 527.0;
+
+    private const DEFAULT_FONT_SIZE_PT = 11.0;
 
     private const BLOCK_TAGS = ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'td', 'th', 'div', 'blockquote'];
+
+    private float $contentWidthPt = self::DEFAULT_CONTENT_WIDTH_PT;
+
+    private float $fontSizePt = self::DEFAULT_FONT_SIZE_PT;
+
+    private ?string $fontFile = null;
+
+    /** @var (callable(string, float, ?string): float)|null */
+    private $widthMeasurer = null;
 
     public function containsArabicScript(string $text): bool
     {
         return (bool) preg_match(self::ARABIC_SCRIPT, $text);
+    }
+
+    /**
+     * Configure measure-based wrapping for the PDF content column.
+     *
+     * @param  float  $contentWidthPt  Usable content/column width in PDF points
+     * @param  float  $fontSizePt  Arabic body font size in points
+     * @param  string|null  $fontFile  Absolute path to the Arabic TTF used in the PDF
+     */
+    public function configureForPdf(float $contentWidthPt, float $fontSizePt, ?string $fontFile = null): self
+    {
+        $this->contentWidthPt = max(1.0, $contentWidthPt);
+        $this->fontSizePt = max(1.0, $fontSizePt);
+        $this->fontFile = $fontFile;
+
+        return $this;
+    }
+
+    /**
+     * Inject a width measurer for unit tests: fn(string $text, float $sizePt, ?string $fontFile): float
+     *
+     * @param  (callable(string, float, ?string): float)|null  $measurer
+     */
+    public function setWidthMeasurer(?callable $measurer): self
+    {
+        $this->widthMeasurer = $measurer;
+
+        return $this;
+    }
+
+    public function contentWidthPt(): float
+    {
+        return $this->contentWidthPt;
+    }
+
+    public function fontSizePt(): float
+    {
+        return $this->fontSizePt;
     }
 
     /**
@@ -167,6 +221,7 @@ class AgreementRtlTextShaper
             $doc = $node->ownerDocument;
             if (! $parent || ! $doc) {
                 $node->nodeValue = $this->shapeSegment($arabic, $text);
+
                 return;
             }
 
@@ -290,22 +345,138 @@ class AgreementRtlTextShaper
      * Ar-PHP utf8Glyphs emits notices on some harakat+space sequences; Laravel
      * promotes those to ErrorException. Dompdf also places leftover tashkeel
      * poorly on presentation forms, so strip marks before shaping.
+     *
+     * Packs the logical segment into width-fitting lines, then shapes each line
+     * to visual-order presentation forms (no string reverse / direction:rtl).
      */
     private function shapeSegment(Arabic $arabic, string $segment): string
     {
         $prepared = preg_replace(self::ARABIC_MARKS, '', $segment) ?? $segment;
-        $shaped = $this->utf8GlyphsSafe($arabic, $prepared);
-        if ($shaped !== null) {
-            return $shaped;
+        $lines = $this->wrapAndShapeLines($arabic, $prepared);
+        if ($lines !== []) {
+            return implode("\n", $lines);
         }
 
-        $shaped = $this->utf8GlyphsSafe($arabic, $segment);
+        $fallback = $this->utf8GlyphsSafe($arabic, $segment);
 
-        return $shaped ?? $segment;
+        return $fallback ?? $segment;
     }
 
     /**
-     * Convert Ar-PHP soft-wrap newlines into HTML breaks for string insertion.
+     * @return list<string> Visual-order shaped lines (no trailing newlines)
+     */
+    private function wrapAndShapeLines(Arabic $arabic, string $text): array
+    {
+        $paragraphs = preg_split("/\r\n|\n|\r/", $text);
+        if ($paragraphs === false || $paragraphs === []) {
+            $paragraphs = [$text];
+        }
+
+        $out = [];
+        foreach ($paragraphs as $paragraph) {
+            if ($paragraph === '') {
+                $out[] = '';
+                continue;
+            }
+
+            foreach ($this->packParagraphByWidth($arabic, $paragraph) as $line) {
+                $out[] = $line;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pack a single paragraph (no hard newlines) by measured glyph width.
+     *
+     * @return list<string>
+     */
+    private function packParagraphByWidth(Arabic $arabic, string $paragraph): array
+    {
+        $shapedWhole = $this->utf8GlyphsSafe($arabic, $paragraph);
+        if ($shapedWhole !== null && $this->measureWidthPt($shapedWhole) <= $this->contentWidthPt) {
+            return [$shapedWhole];
+        }
+
+        $words = preg_split('/\s+/u', trim($paragraph), -1, PREG_SPLIT_NO_EMPTY);
+        if ($words === false || $words === []) {
+            return [$shapedWhole ?? $paragraph];
+        }
+
+        $lines = [];
+        $current = '';
+
+        foreach ($words as $word) {
+            $candidate = $current === '' ? $word : $current.' '.$word;
+            $shapedCandidate = $this->utf8GlyphsSafe($arabic, $candidate);
+            $width = $this->measureWidthPt($shapedCandidate ?? $candidate);
+
+            if ($current !== '' && $width > $this->contentWidthPt) {
+                $shapedLine = $this->utf8GlyphsSafe($arabic, $current);
+                $lines[] = $shapedLine ?? $current;
+                $current = $word;
+                continue;
+            }
+
+            $current = $candidate;
+        }
+
+        if ($current !== '') {
+            $shapedLine = $this->utf8GlyphsSafe($arabic, $current);
+            $lines[] = $shapedLine ?? $current;
+        }
+
+        return $lines !== [] ? $lines : [$shapedWhole ?? $paragraph];
+    }
+
+    /**
+     * Measure text width in PDF points against the configured Arabic face.
+     * Prefer an injected measurer (tests), then GD imagettfbbox on the TTF
+     * (same face Dompdf embeds), then a conservative em estimate.
+     */
+    private function measureWidthPt(string $text): float
+    {
+        if ($text === '') {
+            return 0.0;
+        }
+
+        if ($this->widthMeasurer !== null) {
+            return (float) ($this->widthMeasurer)($text, $this->fontSizePt, $this->fontFile);
+        }
+
+        $fontFile = $this->fontFile ?? $this->defaultArabicFontPath();
+        if ($fontFile !== null && function_exists('imagettfbbox') && is_readable($fontFile)) {
+            $box = @imagettfbbox($this->fontSizePt, 0, $fontFile, $text);
+            if (is_array($box)) {
+                $widthPx = (float) abs($box[2] - $box[0]);
+                // PHP GD FreeType typically rasterizes at 96 DPI while size is in pt.
+                return $widthPx * 72.0 / 96.0;
+            }
+        }
+
+        // Fallback when TTF/GD unavailable: ~0.55em average for Arabic presentation forms.
+        return mb_strlen($text, 'UTF-8') * $this->fontSizePt * 0.55;
+    }
+
+    private function defaultArabicFontPath(): ?string
+    {
+        $candidates = [
+            resource_path('fonts/agreements/Amiri-Regular.ttf'),
+            storage_path('fonts/amiri-normal-normal.ttf'),
+        ];
+
+        foreach ($candidates as $path) {
+            if (is_readable($path)) {
+                return $path;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Convert soft-wrap newlines into HTML breaks for string insertion.
      */
     private function newlinesToBr(string $shaped): string
     {
@@ -343,9 +514,9 @@ class AgreementRtlTextShaper
         });
 
         try {
-            // Soft-wrap near one PDF line so Dompdf does not reverse vertical order.
+            // No Ar-PHP char-count wrap; width packing owns line breaks.
             // hindo=false keeps Western digits (0-9) unchanged in mixed agreements.
-            return $arabic->utf8Glyphs($segment, self::PDF_ARABIC_LINE_CHARS, false);
+            return $arabic->utf8Glyphs($segment, self::PDF_GLYPHS_NO_WRAP, false);
         } catch (Throwable) {
             return null;
         } finally {

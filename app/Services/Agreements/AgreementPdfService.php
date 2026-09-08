@@ -63,18 +63,24 @@ class AgreementPdfService
             $this->fonts->normalizeHtml($this->resolver->replace($content, $map))
         );
 
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
+        $category = $template->category;
+
         // Dompdf has no OpenType shaping: shape Arabic segments for PDF only so the
         // editor still shows logical Unicode while downloads render joined glyphs.
         // Mixed docs stay LTR at document level; Arabic runs/blocks are marked.
+        // Visual-order glyphs + measure-based <br /> wraps (no direction:rtl).
         $agreementHasArabic = false;
         if ($forPdf) {
+            $this->rtlTextShaper->configureForPdf(
+                $this->letterheadLayout->contentWidthPt($category),
+                $this->fonts->sizePt(),
+                $this->resolveArabicFontPath()
+            );
             $shaped = $this->rtlTextShaper->shapeHtmlForPdf($body);
             $body = $shaped['html'];
             $agreementHasArabic = ! empty($shaped['has_arabic']);
         }
-
-        $template->loadMissing(['category.letterhead', 'category.watermark']);
-        $category = $template->category;
         $branding = $this->pdfBranding->withUploadedLetterhead(
             $this->pdfBranding->forCompany($template->company_id),
             $category
@@ -207,6 +213,27 @@ class AgreementPdfService
         $pdf->loadHTML($html);
 
         return $pdf;
+    }
+
+    /**
+     * Absolute TTF path for the Arabic face used when measuring wrap width.
+     */
+    private function resolveArabicFontPath(): ?string
+    {
+        $preferred = $this->fonts->rtlDefaultFamily();
+        foreach ($this->fonts->cachedFaces() as $face) {
+            if (($face['family'] ?? '') === $preferred
+                && ($face['weight'] ?? '') === 'normal'
+                && ($face['style'] ?? '') === 'normal'
+                && is_readable($face['path'] ?? '')
+            ) {
+                return (string) $face['path'];
+            }
+        }
+
+        $bundled = $this->fonts->bundledFontDirectory().'Amiri-Regular.ttf';
+
+        return is_readable($bundled) ? $bundled : null;
     }
 
     /**

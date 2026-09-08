@@ -57,7 +57,8 @@ class RiderInvoicesController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
         $query = RiderInvoices::query()
-            ->orderBy('billing_month', 'desc');
+            ->orderBy('billing_month', 'desc')
+            ->orderBy('status', 'asc');
         $query->whereHas('rider');
         // Filters
         if ($request->has('id') && ! empty($request->id)) {

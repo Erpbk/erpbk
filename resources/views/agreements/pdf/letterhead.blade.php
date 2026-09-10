@@ -29,14 +29,18 @@
   $pdfEngine = $pdfEngine ?? 'html';
   $isChromePdf = $pdfEngine === 'chrome';
   $isMpdf = $pdfEngine === 'mpdf';
+  // Continuous native flow for mPDF + Chrome PDF (same model). Preview still paginates.
+  $mpdfNativeFlow = $forPdf && ($isMpdf || $isChromePdf) && ! empty($mpdfNativeFlow);
   // Dompdf/A4 rounding: a full-height box can overflow by a fraction of a mm and split a blank page.
-  // Chrome uses full page height; mPDF needs a tiny shrink to avoid blank trailing pages.
-  $pageBoxH = ($forPdf && $isMpdf) ? round($pageH - 0.4, 1) : $pageH;
+  // Chrome uses full page height; mPDF fixed-box path needs a tiny shrink to avoid blank trailing pages.
+  // Native-flow PDF uses engine/@page margins instead of fixed .agreement-page boxes.
+  $pageBoxH = ($forPdf && $isMpdf && ! $mpdfNativeFlow) ? round($pageH - 0.4, 1) : $pageH;
   @endphp
   <style>
     @page {
       size: {{ $pageW }}mm {{ $pageH }}mm;
-      margin: 0;
+      /* Native flow (mPDF + Chrome): @page margins = content zone every printed page. */
+      margin: {{ $mpdfNativeFlow ? ($contentPadTopMm . 'mm ' . $mr . 'mm ' . $contentPadBottomMm . 'mm ' . $ml . 'mm') : '0' }};
     }
 
     @if (! $forPdf || $isChromePdf)
@@ -56,9 +60,10 @@
     html, body {
       margin: 0;
       padding: 0;
-      width: {{ $pageW }}mm;
-      /* White page; letterhead is embedded in HTML for both Chrome and mPDF (no canvas painter). */
-      background: #fff;
+      /* Native flow: 100% inside engine content box (@page margins). Preview/fixed boxes: full paper width. */
+      width: {{ $mpdfNativeFlow ? '100%' : ($pageW . 'mm') }};
+      /* Transparent for PDF engines so letterhead underlay (mPDF watermark / Chrome stamp) shows through. */
+      background: {{ ($forPdf && ($isMpdf || ($isChromePdf && $mpdfNativeFlow))) ? 'transparent' : '#fff' }};
       --word-page-width: {{ $pageW }}mm;
       --word-page-height: {{ $pageBoxH }}mm;
     }
@@ -70,13 +75,35 @@
       line-height: {{ $agreementLineHeight }};
     }
 
+    @if ($mpdfNativeFlow)
+    /* Native flow (mPDF + Chrome): page margins reserve letterhead/footer; content fills the zone. */
+    .agreement-flow {
+      position: relative;
+      width: 100%;
+      background: transparent;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .agreement-flow .content [data-agreement-page-break],
+    .agreement-flow .content .agreement-page-break,
+    .agreement-flow .content .mce-pagebreak {
+      display: block !important;
+      height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      overflow: hidden !important;
+      page-break-before: always;
+      break-before: page;
+    }
+    @else
     .agreement-page {
       position: relative;
       width: {{ $pageW }}mm;
       height: {{ $pageBoxH }}mm;
       min-height: {{ $pageBoxH }}mm;
       max-height: {{ $pageBoxH }}mm;
-      background: #fff;
+      background: {{ ($forPdf && $isMpdf) ? 'transparent' : '#fff' }};
       overflow: hidden;
       page-break-before: auto;
       break-before: auto;
@@ -87,6 +114,7 @@
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+    @endif
 
     .agreement-page:first-child {
       page-break-before: auto;
@@ -113,12 +141,11 @@
       z-index: 0;
     }
 
-
     @if ($isMpdf)
     /*
-     * mPDF letterhead: prefer position:fixed HTML chrome (repeats every page).
-     * Do NOT force full-page height on overlays — if absolute/fixed fails, a 297mm
-     * in-flow box creates blank pages. Constrain company logos explicitly (mm + px attrs).
+     * mPDF: design letterhead is painted behind via applyToMpdf (SetWatermarkImage).
+     * Fixed chrome is only for company header / watermark when there is NO design image.
+     * Constrain company logos explicitly so mPDF cannot blow them up.
      */
     .letterhead-overlay--fixed {
       position: fixed;
@@ -130,23 +157,6 @@
       pointer-events: none;
       z-index: 10;
     }
-    .letterhead-overlay--fixed .page-letterhead-design {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: {{ $pageW }}mm;
-      height: 0;
-      overflow: visible;
-    }
-    .letterhead-overlay--fixed .page-letterhead-design img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: {{ $pageW }}mm;
-      height: {{ $pageH }}mm;
-      max-width: none;
-      max-height: none;
-    }
     .page-header-logo .company-logo-img {
       width: 45mm;
       height: 18mm;
@@ -157,13 +167,46 @@
     body, .content {
       line-height: {{ $agreementLineHeight }};
     }
-    .content p { margin: 0 0 0.32em; }
-    .content h1, .content h2, .content h3, .content h4 { margin: 0 0 0.4em; }
+    .content p { margin: 0 0 0.22em; }
+    .content h1, .content h2, .content h3, .content h4 { margin: 0 0 0.28em; }
     .content table { margin: 2pt 0; }
     .content table th, .content table td { padding: 3px 6px; }
     .content ul, .content ol { margin: 1pt 0 3pt 16pt; }
     .content li { margin: 0 0 1pt; }
     .content hr { margin: 5pt 0; }
+    @endif
+
+    @if ($isChromePdf && $mpdfNativeFlow)
+    /*
+     * Chrome native flow: @page margins inset content every page (same as mPDF).
+     * Design letterhead is stamped full-bleed after print (applyToChromePdf), not via
+     * negative-offset fixed HTML. Fixed overlay here is only company header / watermark.
+     */
+    .letterhead-overlay--fixed {
+      position: fixed;
+      top: -{{ $contentPadTopMm }}mm;
+      left: -{{ $ml }}mm;
+      width: {{ $pageW }}mm;
+      height: 0;
+      overflow: visible;
+      pointer-events: none;
+      z-index: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .agreement-flow .content {
+      position: relative;
+      z-index: 3;
+      background: transparent;
+      /* Margins come from @page now — do not duplicate as content padding. */
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body, .agreement-flow {
+      background: transparent !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
     @endif
 
     .agreement-page-header {
@@ -175,7 +218,7 @@
     .agreement-page-body {
       position: relative;
       z-index: 3;
-      padding: {{ $contentPadTopMm }}mm {{ $mr }}mm {{ $contentPadBottomMm }}mm {{ $ml }}mm;
+      padding: {{ $mpdfNativeFlow ? 0 : $contentPadTopMm }}mm {{ $mpdfNativeFlow ? 0 : $mr }}mm {{ $mpdfNativeFlow ? 0 : $contentPadBottomMm }}mm {{ $mpdfNativeFlow ? 0 : $ml }}mm;
       overflow: visible;
       box-sizing: border-box;
     }
@@ -366,11 +409,16 @@
     $hasDesign = ! empty($branding['letterhead_src']);
     $hasWatermark = ! empty($branding['watermark_src']);
     $showCompanyHeader = $withLetterhead && $letterheadMode !== 'none' && ! $hasDesign;
-    // HTML letterhead for both engines (no canvas painter).
-    // Chrome/preview: per-page absolute overlays.
-    // mPDF: one position:fixed overlay so chrome repeats if content spills pages.
-    $showFixedChrome = $isMpdf && $withLetterhead;
-    $showPerPageChrome = $withLetterhead && ! $showFixedChrome;
+    // Preview (and any non-native Chrome path): per-page HTML chrome.
+    // Chrome native flow + design: applyToChromePdf stamps letterhead; no HTML design img.
+    // Chrome native flow without design: fixed chrome for company header/watermark.
+    // mPDF PDF + design: applyToMpdf paints letterhead behind; no HTML design img.
+    // mPDF PDF without design: fixed chrome for company header/watermark (Dompdf-era).
+    $showPerPageChrome = $withLetterhead && (! $forPdf || ($isChromePdf && ! $mpdfNativeFlow));
+    $showChromeFixedLetterhead = $forPdf && $isChromePdf && $mpdfNativeFlow && $withLetterhead
+      && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
+    $showPdfDesignWatermark = $forPdf && ($isMpdf || $isChromePdf) && $withLetterhead && $hasDesign && $hasWatermark;
+    $showFixedChrome = $forPdf && $isMpdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
   @endphp
   @if ($showFixedChrome)
   <div class="letterhead-overlay letterhead-overlay--fixed">
@@ -384,6 +432,34 @@
   </div>
   @endif
   <div class="preview-pages" id="agreement-preview-pages" @if(! $forPdf) aria-live="polite" @endif>
+    @if ($mpdfNativeFlow)
+    <div class="agreement-flow">
+      @if($showChromeFixedLetterhead)
+      <div class="letterhead-overlay letterhead-overlay--fixed{{ $hasDesign ? ' letterhead-overlay--design' : '' }}">
+        @include('agreements.pdf.partials.page-chrome', [
+          'pageWidthMm' => $pageW,
+          'pageHeightMm' => $pageH,
+          'paperHeightMm' => $pageH,
+          'branding' => $branding,
+          'pdfEngine' => $pdfEngine,
+        ])
+      </div>
+      @elseif($showPdfDesignWatermark)
+      <div class="letterhead-overlay letterhead-overlay--design">
+        @include('agreements.pdf.partials.page-chrome', [
+          'pageWidthMm' => $pageW,
+          'pageHeightMm' => $pageH,
+          'paperHeightMm' => $pageH,
+          'branding' => array_merge($branding, ['letterhead_src' => null, 'letterhead_mode' => 'none']),
+          'pdfEngine' => $pdfEngine,
+        ])
+      </div>
+      @endif
+      <div class="content">
+        {!! $body !!}
+      </div>
+    </div>
+    @else
     @foreach ($renderPages as $pageBody)
     <div class="agreement-page preview-page">
       @if($showPerPageChrome)
@@ -396,6 +472,16 @@
           'pdfEngine' => $pdfEngine,
         ])
       </div>
+      @elseif($showPdfDesignWatermark)
+      <div class="letterhead-overlay letterhead-overlay--design">
+        @include('agreements.pdf.partials.page-chrome', [
+          'pageWidthMm' => $pageW,
+          'pageHeightMm' => $pageH,
+          'paperHeightMm' => $pageH,
+          'branding' => array_merge($branding, ['letterhead_src' => null, 'letterhead_mode' => 'none']),
+          'pdfEngine' => $pdfEngine,
+        ])
+      </div>
       @endif
       <div class="agreement-page-body">
         <div class="content">
@@ -404,6 +490,7 @@
       </div>
     </div>
     @endforeach
+    @endif
   </div>
   @if (! $forPdf)
   <script>

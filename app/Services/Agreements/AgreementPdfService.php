@@ -102,12 +102,19 @@ class AgreementPdfService
         $contentZoneMm = $this->letterheadLayout->contentZoneHeightMm($category, $withLetterhead);
         $margins = $this->letterheadLayout->resolvedMarginsMm($category);
         $contentPadding = $this->letterheadLayout->contentPaddingMm($category, $withLetterhead);
-        $pages = $this->letterheadPaginator->paginate($body, $contentZoneMm);
+        // mPDF + Chrome PDF: continuous native flow (no pre-split .agreement-page
+        // boxes). Engine/@page margins fill to the bottom when bottom margin is 0.
+        // HTML preview still uses the paginator for on-screen page chrome.
+        $mpdfNativeFlow = $forPdf && in_array($pdfEngine, ['mpdf', 'chrome'], true);
+        $pages = $mpdfNativeFlow
+            ? [$body]
+            : $this->letterheadPaginator->paginate($body, $contentZoneMm, $pdfEngine);
         $pdfFontFaces = $this->pdfFontFaces();
 
         return view('agreements.pdf.letterhead', [
             'body' => $body,
             'pages' => $pages,
+            'mpdfNativeFlow' => $mpdfNativeFlow,
             'contentZoneHeightMm' => $contentZoneMm,
             'branding' => $branding,
             'letterheadMargins' => $margins,
@@ -202,15 +209,20 @@ class AgreementPdfService
     {
         $engine = $engine ?: $this->resolvePdfEngine();
         if ($engine === 'chrome') {
-            return $this->buildChromePdf($html);
+            return $this->buildChromePdf($html, $category, $withLetterhead);
         }
 
         return $this->buildMpdf($html, $category, $withLetterhead);
     }
 
-    private function buildChromePdf(string $html): AgreementChromePdfDocument
+    private function buildChromePdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true): AgreementChromePdfDocument
     {
         $bytes = $this->chromePdfPrinter->htmlToPdf($html);
+
+        // Content-only Chrome PDF + full-page letterhead stamp (mirrors mPDF SetWatermarkImage).
+        if ($withLetterhead) {
+            $bytes = $this->letterheadPainter->applyToChromePdf($bytes, $category);
+        }
 
         return new AgreementChromePdfDocument($bytes);
     }
@@ -263,14 +275,17 @@ class AgreementPdfService
                 ?? (isset($fontConfig['fontdata']['dejavusans']) ? 'dejavusans' : 'lateef');
         }
 
+        $margins = $this->letterheadLayout->resolvedMarginsMm($category);
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
             'format' => [$size['width_mm'], $size['height_mm']],
             'orientation' => 'P',
-            'margin_left' => 0,
-            'margin_right' => 0,
-            'margin_top' => 0,
-            'margin_bottom' => 0,
+            // Content zone = page minus category margins (bottom 0 => fill to page end).
+            // Letterhead watermark still paints the full physical page behind.
+            'margin_left' => $margins['left'],
+            'margin_right' => $margins['right'],
+            'margin_top' => $margins['top'],
+            'margin_bottom' => $margins['bottom'],
             'margin_header' => 0,
             'margin_footer' => 0,
             'tempDir' => $tempDir,
@@ -287,9 +302,11 @@ class AgreementPdfService
         $mpdf->SetDisplayMode('fullpage');
         $mpdf->SetTitle('Agreement');
 
-        // Letterhead is embedded in HTML (same model as Chrome) for visual parity.
-        // Do NOT also SetWatermarkImage via letterheadPainter — that double-draws / blows up logos.
-        // Painter remains available for legacy callers but is unused on the live agreement path.
+        // Dompdf-era model: paint design letterhead BEHIND content (watermark image),
+        // not as a full-page HTML <img> (which double-draws / splits pages).
+        if ($withLetterhead) {
+            $this->letterheadPainter->applyToMpdf($mpdf, $category);
+        }
 
         // Large letterhead/logo data-URIs exceed default pcre.backtrack_limit in mPDF.
         $html = $this->materializeDataUrisForMpdf($html, $tempDir);
@@ -303,6 +320,7 @@ class AgreementPdfService
         });
         try {
             $mpdf->WriteHTML($html);
+            $this->suppressLeadingEmptyMpdfPage($mpdf);
             $this->suppressTrailingEmptyMpdfPage($mpdf);
         } finally {
             restore_error_handler();
@@ -406,7 +424,7 @@ class AgreementPdfService
             }
         }
 
-        // Map bundled Latin substitutes (Carlito≈Calibri, etc.) when present.
+        // Map bundled Latin substitutes (Carlitoâ‰ˆCalibri, etc.) when present.
         $latinMap = [
             'calibri' => ['R' => 'Carlito-Regular.ttf', 'B' => 'Carlito-Bold.ttf', 'I' => 'Carlito-Italic.ttf', 'BI' => 'Carlito-BoldItalic.ttf'],
             'carlito' => ['R' => 'Carlito-Regular.ttf', 'B' => 'Carlito-Bold.ttf', 'I' => 'Carlito-Italic.ttf', 'BI' => 'Carlito-BoldItalic.ttf'],
@@ -629,21 +647,106 @@ class AgreementPdfService
     }
 
     /**
-     * Drop a trailing blank mPDF page when content barely overflowed (Chrome often stays on 1).
+     * Drop trailing blank / letterhead-only mPDF pages when content barely overflowed.
+     * Chrome letterhead chrome (and design contact strings) still write Tj operators, so
+     * count only "real" body text — short chrome snippets alone must not keep a page.
      */
-    private function suppressTrailingEmptyMpdfPage(Mpdf $mpdf): void
+    private function suppressLeadingEmptyMpdfPage(Mpdf $mpdf): void
     {
-        if ($mpdf->page < 2) {
-            return;
-        }
-        $last = $mpdf->pages[$mpdf->page] ?? '';
-        // Fixed letterhead chrome still writes operators; treat as empty if almost no text showing ops.
-        $textOps = preg_match_all('/\((?:\\\\.|[^\\\\)]){2,}\)\s*Tj/s', $last) ?: 0;
-        $textOps += preg_match_all('/\[(?:[^\]]*)\]\s*TJ/s', $last) ?: 0;
-        if ($textOps <= 2 && strlen($last) < 2500) {
-            $mpdf->DeletePages($mpdf->page);
+        // Native-flow HTML chrome / @page setup can leave a leading blank sheet.
+        while ($mpdf->page >= 2) {
+            $first = $mpdf->pages[1] ?? '';
+            if (! $this->mpdfPageIsEmptyish($first)) {
+                break;
+            }
+            $mpdf->DeletePages(1);
         }
     }
+
+    private function suppressTrailingEmptyMpdfPage(Mpdf $mpdf): void
+    {
+        // Loop: overflow can leave more than one trailing chrome-only page.
+        while ($mpdf->page >= 2) {
+            $pageNo = $mpdf->page;
+            $last = $mpdf->pages[$pageNo] ?? '';
+            if (! $this->mpdfPageIsEmptyish($last)) {
+                break;
+            }
+            $mpdf->DeletePages($pageNo);
+        }
+    }
+
+    /**
+     * True when a page stream has little/no real body text (letterhead chrome alone is empty-ish).
+     */
+    private function mpdfPageIsEmptyish(string $pageStream): bool
+    {
+        $strings = [];
+        if (preg_match_all('/\((?:\\\\.|[^\\\\)])*\)\s*Tj/s', $pageStream, $m)) {
+            foreach ($m[0] as $op) {
+                if (preg_match('/^\((.*)\)\s*Tj$/s', $op, $inner)) {
+                    $decoded = stripcslashes($inner[1]);
+                    $decoded = trim(preg_replace('/\s+/u', ' ', $decoded) ?? $decoded);
+                    if ($decoded !== '') {
+                        $strings[] = $decoded;
+                    }
+                }
+            }
+        }
+        if (preg_match_all('/\[((?:[^\]]|\\\])*)\]\s*TJ/s', $pageStream, $m2)) {
+            foreach ($m2[1] as $arr) {
+                if (preg_match_all('/\((?:\\\\.|[^\\\\)])*\)/s', $arr, $parts)) {
+                    $chunk = '';
+                    foreach ($parts[0] as $p) {
+                        $chunk .= stripcslashes(substr($p, 1, -1));
+                    }
+                    $chunk = trim(preg_replace('/\s+/u', ' ', $chunk) ?? $chunk);
+                    if ($chunk !== '') {
+                        $strings[] = $chunk;
+                    }
+                }
+            }
+        }
+
+        $bodyish = [];
+        foreach ($strings as $s) {
+            // Skip typical letterhead chrome fragments (emails, phones, short labels).
+            if ($this->mpdfTextLooksLikeLetterheadChrome($s)) {
+                continue;
+            }
+            $bodyish[] = $s;
+        }
+
+        $bodyChars = mb_strlen(implode(' ', $bodyish), 'UTF-8');
+        // Almost no body text => empty-ish (chrome-only / blank trailing page).
+        return $bodyChars < 40 && count($bodyish) <= 2;
+    }
+
+    private function mpdfTextLooksLikeLetterheadChrome(string $text): bool
+    {
+        $t = trim($text);
+        if ($t === '') {
+            return true;
+        }
+        // Short fragments are almost always chrome (logo alt text, rules, contact bits).
+        if (mb_strlen($t, 'UTF-8') <= 48) {
+            if (preg_match('/@/', $t)) {
+                return true; // email
+            }
+            if (preg_match('/^\+?[\d\s\-().\/]{6,}$/u', $t)) {
+                return true; // phone
+            }
+            if (preg_match('/^(tel|fax|email|www\.|http)/iu', $t)) {
+                return true;
+            }
+            if (mb_strlen($t, 'UTF-8') <= 18) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Absolute TTF path for the Arabic face used when measuring wrap width.
      */
@@ -701,36 +804,62 @@ class AgreementPdfService
     /**
      * Replace bulky data:image URIs with temp files so mPDF/PCRE can parse the HTML.
      */
-        private function materializeDataUrisForMpdf(string $html, string $tempDir): string
+    private function materializeDataUrisForMpdf(string $html, string $tempDir): string
     {
         if (! str_contains($html, 'data:image')) {
             return $html;
         }
 
-        return preg_replace_callback(
+        $write = function (string $ext, string $b64) use ($tempDir): ?string {
+            $ext = strtolower($ext);
+            $ext = match ($ext) {
+                'jpeg' => 'jpg',
+                'svg+xml' => 'svg',
+                default => preg_replace('/[^a-z0-9]/', '', $ext) ?: 'img',
+            };
+            $bin = base64_decode($b64, true);
+            if ($bin === false || $bin === '') {
+                return null;
+            }
+            $file = rtrim($tempDir, '\\/').DIRECTORY_SEPARATOR.'img_'.sha1($b64).'.'.$ext;
+            if (! is_file($file)) {
+                @file_put_contents($file, $bin);
+                $this->downscaleRasterForMpdf($file, $ext);
+            }
+
+            return str_replace('\\', '/', $file);
+        };
+
+        // <img src="data:image/...">
+        $html = preg_replace_callback(
             '/src=(["\'])(data:image\/([a-z0-9+.-]+);base64,([A-Za-z0-9+\/=]+))\1/i',
-            function (array $m) use ($tempDir): string {
-                $quote = $m[1];
-                $ext = strtolower($m[3]);
-                $ext = match ($ext) {
-                    'jpeg' => 'jpg',
-                    'svg+xml' => 'svg',
-                    default => preg_replace('/[^a-z0-9]/', '', $ext) ?: 'img',
-                };
-                $bin = base64_decode($m[4], true);
-                if ($bin === false || $bin === '') {
+            function (array $m) use ($write): string {
+                $path = $write($m[3], $m[4]);
+                if ($path === null) {
                     return $m[0];
                 }
-                $file = rtrim($tempDir, '\\/').DIRECTORY_SEPARATOR.'img_'.sha1($m[4]).'.'.$ext;
-                if (! is_file($file)) {
-                    @file_put_contents($file, $bin);
-                    $this->downscaleRasterForMpdf($file, $ext);
-                }
 
-                return 'src='.$quote.str_replace('\\', '/', $file).$quote;
+                return 'src='.$m[1].$path.$m[1];
             },
             $html
         ) ?? $html;
+
+        // CSS url('data:image...') / url("data:image...") for mPDF page backgrounds.
+        $html = preg_replace_callback(
+            '/url\((["\']?)(data:image\/([a-z0-9+.-]+);base64,([A-Za-z0-9+\/=]+))\1\)/i',
+            function (array $m) use ($write): string {
+                $path = $write($m[3], $m[4]);
+                if ($path === null) {
+                    return $m[0];
+                }
+                $q = $m[1] !== '' ? $m[1] : "'";
+
+                return 'url('.$q.$path.$q.')';
+            },
+            $html
+        ) ?? $html;
+
+        return $html;
     }
 
     /**

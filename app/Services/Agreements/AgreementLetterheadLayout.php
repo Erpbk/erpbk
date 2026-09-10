@@ -12,32 +12,29 @@ class AgreementLetterheadLayout
      */
     public function resolvedMarginsMm(?AgreementCategory $category): array
     {
-        $defaults = $this->defaultMarginsMm();
-
+        $defaults = $this->defaultMarginsMm($category);
         $saved = $category?->letterhead_margins;
-        $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
+
+        $pageH = $this->pageHeightMm($category);
+        $pageW = $this->pageWidthMm($category);
+        // Soft clamp only: leave ~20mm content so layout cannot break. Do NOT
+        // floor to header_reserve / footer_reserve / hard mins like 30mm.
+        $maxVertical = max(0.0, $pageH - 20.0);
+        $maxHorizontal = max(0.0, $pageW - 20.0);
+
+        $pick = function (string $key) use ($saved, $defaults): float {
+            if (is_array($saved) && array_key_exists($key, $saved) && is_numeric($saved[$key])) {
+                return (float) $saved[$key];
+            }
+
+            return (float) ($defaults[$key] ?? 0);
+        };
 
         return [
-            'top' => $this->clamp(
-                (float) (is_array($saved) ? ($saved['top'] ?? $defaults['top']) : $defaults['top']),
-                30,
-                100
-            ),
-            'bottom' => $this->clamp(
-                (float) (is_array($saved) ? ($saved['bottom'] ?? $defaults['bottom']) : $defaults['bottom']),
-                0,
-                50
-            ),
-            'left' => $this->clamp(
-                (float) (is_array($saved) ? ($saved['left'] ?? $side['left']) : $side['left']),
-                5,
-                55
-            ),
-            'right' => $this->clamp(
-                (float) (is_array($saved) ? ($saved['right'] ?? $side['right']) : $side['right']),
-                5,
-                55
-            ),
+            'top' => $this->clamp($pick('top'), 0.0, $maxVertical),
+            'bottom' => $this->clamp($pick('bottom'), 0.0, $maxVertical),
+            'left' => $this->clamp($pick('left'), 0.0, $maxHorizontal),
+            'right' => $this->clamp($pick('right'), 0.0, $maxHorizontal),
         ];
     }
 
@@ -57,6 +54,8 @@ class AgreementLetterheadLayout
 
     /**
      * Scan letterhead artwork to find header, footer, and side decoration bounds.
+     * Suggestion clamps below are UI auto-suggest proposals only; applied PDF
+     * layout always uses saved category letterhead_margins via resolvedMarginsMm().
      *
      * @return array{top: float, bottom: float, left: float, right: float}
      */
@@ -141,20 +140,51 @@ class AgreementLetterheadLayout
     /**
      * @return array{top: float, bottom: float, left: float, right: float}
      */
-    public function defaultMarginsMm(): array
+    public function defaultMarginsMm(?AgreementCategory $category = null): array
     {
-        $pageH = $this->pageHeightMm();
-        $headerReserve = (float) config('agreement_letterhead.header_reserve_mm', 32);
-        $topGapPct = (float) config('agreement_letterhead.content_top_gap_pct', 0.02);
-        $bottomPct = (float) config('agreement_letterhead.content_bottom_pct', 0.034);
+        $pageH = $this->pageHeightMm($category);
         $side = config('agreement_letterhead.side_margins_mm', ['left' => 12, 'right' => 12]);
-        $footer = (float) config('agreement_letterhead.footer_reserve_mm', 10);
+        $explicit = config('agreement_letterhead.default_margins_mm');
+
+        $top = null;
+        $bottom = null;
+        if (is_array($explicit)) {
+            if (array_key_exists('top', $explicit) && is_numeric($explicit['top'])) {
+                $top = (float) $explicit['top'];
+            }
+            if (array_key_exists('bottom', $explicit) && is_numeric($explicit['bottom'])) {
+                $bottom = (float) $explicit['bottom'];
+            }
+        }
+
+        if ($top === null) {
+            $headerReserve = (float) config('agreement_letterhead.header_reserve_mm', 32);
+            $topGapPct = (float) config('agreement_letterhead.content_top_gap_pct', 0.02);
+            $top = round($headerReserve + ($pageH * $topGapPct), 1);
+        }
+
+        if ($bottom === null) {
+            $bottomPct = (float) config('agreement_letterhead.content_bottom_pct', 0.034);
+            $footer = (float) config('agreement_letterhead.footer_reserve_mm', 10);
+            $bottom = $footer > 0 ? $footer : round($pageH * $bottomPct, 1);
+        }
+
+        $left = (float) ($side['left'] ?? 12);
+        $right = (float) ($side['right'] ?? 12);
+        if (is_array($explicit)) {
+            if (array_key_exists('left', $explicit) && is_numeric($explicit['left'])) {
+                $left = (float) $explicit['left'];
+            }
+            if (array_key_exists('right', $explicit) && is_numeric($explicit['right'])) {
+                $right = (float) $explicit['right'];
+            }
+        }
 
         return [
-            'top' => round($headerReserve + ($pageH * $topGapPct), 1),
-            'bottom' => $footer > 0 ? $footer : round($pageH * $bottomPct, 1),
-            'left' => (float) ($side['left'] ?? 12),
-            'right' => (float) ($side['right'] ?? 12),
+            'top' => $top,
+            'bottom' => $bottom,
+            'left' => $left,
+            'right' => $right,
         ];
     }
 

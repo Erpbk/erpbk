@@ -10,21 +10,31 @@ class AgreementLetterheadPaginator
 {
     private const CONTENT_FONT_PT = 11.0;
 
-    /**
-     * Scale PHP height estimates so a packed page still fits Dompdf.
-     * Keep modest: large factors leave visible empty space above the
-     * category bottom margin. Pair with font-aware row/block estimates.
-     */
-    /**
-     * Scale PHP height estimates so a packed page still fits Dompdf.
-     * Keep modest: 1.0 overflows Dompdf sheets; large factors leave empty
-     * bottoms above the category margin. Pair with font-aware estimates.
-     */
-    private const ESTIMATE_TO_DOMPDF = 1.08;
-
     private const HEADING_FONT_PT = 14.0;
 
-    private const LINE_HEIGHT_RATIO = 1.5;
+    /**
+     * Dompdf/Chrome-era defaults. Live mPDF path uses tighter metrics via
+     * estimateScaleFactor() / defaultLineHeightRatio() / paragraphMarginEm().
+     */
+    private const ESTIMATE_TO_CHROME = 1.08;
+
+    private const ESTIMATE_TO_MPDF = 1.03;
+
+    private const LINE_HEIGHT_RATIO_CHROME = 1.5;
+
+    /** Matches AgreementPdfService mPDF lineHeight * 0.9 when config is 1.5. */
+    private const LINE_HEIGHT_RATIO_MPDF = 1.35;
+
+    private const PARAGRAPH_MARGIN_EM_CHROME = 0.5;
+
+    /** Matches letterhead.blade.php mPDF .content p { margin: 0 0 0.32em }. */
+    private const PARAGRAPH_MARGIN_EM_MPDF = 0.32;
+
+    /** @deprecated Prefer estimateScaleFactor(). */
+    private const ESTIMATE_TO_DOMPDF = self::ESTIMATE_TO_CHROME;
+
+    /** @deprecated Prefer defaultLineHeightRatio(). */
+    private const LINE_HEIGHT_RATIO = self::LINE_HEIGHT_RATIO_CHROME;
 
     private const CHARS_PER_LINE = 92;
 
@@ -34,6 +44,9 @@ class AgreementLetterheadPaginator
 
     private int $appendDepth = 0;
 
+    /** chrome | mpdf | html (preview). Drives height-estimate calibration. */
+    private string $pdfEngine = 'mpdf';
+
     /**
      * Split agreement HTML into page chunks that fit the content zone
      * (page height minus the category's top and bottom margins).
@@ -42,9 +55,10 @@ class AgreementLetterheadPaginator
      *
      * @return list<string>
      */
-    public function paginate(string $bodyHtml, float $contentZoneHeightMm): array
+    public function paginate(string $bodyHtml, float $contentZoneHeightMm, ?string $pdfEngine = null): array
     {
         $this->appendDepth = 0;
+        $this->pdfEngine = $this->normalizePdfEngine($pdfEngine);
         $this->budgetPt = max(40, $contentZoneHeightMm) * (72 / 25.4);
         $bodyHtml = $this->normalizeBodyHtml($bodyHtml);
 
@@ -124,6 +138,9 @@ class AgreementLetterheadPaginator
         if ($pages !== []) {
             $pages = $this->rebalancePages($pages);
             $pages = $this->pullLeadingBlocks($pages);
+            $pages = $this->fillUnderflowPages($pages);
+            $pages = $this->rebalancePages($pages);
+            $pages = $this->absorbTinyIntermediatePages($pages);
             $pages = $this->attachOrphanImagePages($pages);
         }
 
@@ -190,6 +207,51 @@ class AgreementLetterheadPaginator
             }
 
             $pages[$prevIndex] = $prev.$last;
+            array_pop($pages);
+        }
+
+        return $this->attachShortTrailingPages(array_values($pages));
+    }
+
+    /**
+     * Pull a short final sheet (signature / title line) onto the previous page.
+     * Orphan-heading rules otherwise leave "Name & Signature" alone and mPDF may
+     * suppress that trailing near-empty page.
+     *
+     * @param  list<string>  $pages
+     * @return list<string>
+     */
+    private function attachShortTrailingPages(array $pages): array
+    {
+        while (count($pages) >= 2) {
+            $last = $pages[array_key_last($pages)];
+            if ($this->isBlankHtml($last)) {
+                array_pop($pages);
+
+                continue;
+            }
+
+            $text = html_entity_decode(strip_tags($last), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $text = preg_replace('/\x{00A0}/u', ' ', $text) ?? $text;
+            $text = trim(preg_replace('/\s+/u', ' ', $text) ?? '');
+            $estPt = $this->estimateHtmlHeightPt($last);
+            $short = mb_strlen($text) <= 120 || $estPt <= $this->packBudgetPt() * 0.18;
+            if (! $short) {
+                break;
+            }
+
+            $prevIndex = count($pages) - 2;
+            $prev = $this->stripTrailingEmptyBlocks($pages[$prevIndex]);
+            $combined = $prev.$last;
+            // Modest over-budget slack: PHP estimates still run a bit high vs mPDF paint.
+            $limit = $this->packBudgetPt() * ($this->usesMpdfMetrics() ? 1.08 : 1.02);
+            if ($this->estimateHtmlHeightPt($combined) > $limit) {
+                $pages[$prevIndex] = $prev;
+
+                break;
+            }
+
+            $pages[$prevIndex] = $combined;
             array_pop($pages);
         }
 
@@ -265,6 +327,143 @@ class AgreementLetterheadPaginator
     }
 
     /**
+     * mPDF paint often finishes short of PHP height estimates (esp. tables),
+     * leaving multi-mm empty bottoms on "full" pages when bottom margin is 0.
+     * After the normal pull pass, keep drawing from the next page while a
+     * near-full non-final page still has estimate headroom under an overshoot
+     * budget. Pages with clear estimated unused space keep the normal budget
+     * so accurately estimated sheets are not over-filled into a clip.
+     *
+     * @param  list<string>  $pages
+     * @return list<string>
+     */
+    /**
+     * Merge very short middle sheets into neighbors. Fill/orphan co-pull can
+     * leave a 1–2 block stranded page between fuller sheets.
+     *
+     * @param  list<string>  $pages
+     * @return list<string>
+     */
+    private function absorbTinyIntermediatePages(array $pages): array
+    {
+        if (count($pages) < 3) {
+            return $pages;
+        }
+
+        $tinyLimit = $this->packBudgetPt() * 0.22;
+        $index = 1;
+        while ($index < count($pages) - 1) {
+            $est = $this->estimateHtmlHeightPt($pages[$index]);
+            if ($est > $tinyLimit) {
+                $index++;
+
+                continue;
+            }
+
+            $prev = $this->stripTrailingEmptyBlocks($pages[$index - 1]);
+            $combinedPrev = $prev . $pages[$index];
+            $prevLimit = $this->usesMpdfMetrics()
+                ? $this->packBudgetPt() + $this->mpdfFillOvershootPt()
+                : $this->packBudgetPt();
+            if ($this->estimateHtmlHeightPt($combinedPrev) <= $prevLimit) {
+                $pages[$index - 1] = $combinedPrev;
+                array_splice($pages, $index, 1);
+
+                continue;
+            }
+
+            $next = $pages[$index] . $pages[$index + 1];
+            if ($this->estimateHtmlHeightPt($next) <= $this->packBudgetPt() * ($this->usesMpdfMetrics() ? 1.08 : 1.02)) {
+                $pages[$index + 1] = $next;
+                array_splice($pages, $index, 1);
+
+                continue;
+            }
+
+            $index++;
+        }
+
+        return array_values($pages);
+    }
+
+    private function fillUnderflowPages(array $pages): array
+    {
+        if (count($pages) < 2 || ! $this->usesMpdfMetrics()) {
+            return $pages;
+        }
+
+        $index = 0;
+        while ($index < count($pages) - 1) {
+            $limit = $this->fillPackLimitPt($pages[$index]);
+            $est = $this->estimateHtmlHeightPt($pages[$index]);
+            // Stop when within ~3mm of the fill limit (safety against clip).
+            if ($limit - $est < $this->fillSafetyEpsilonPt()) {
+                $index++;
+
+                continue;
+            }
+
+            $moved = $this->moveLeadingMarkup($pages[$index], $pages[$index + 1], $limit);
+            if ($moved === null) {
+                $index++;
+
+                continue;
+            }
+
+            $pages[$index] = $moved[0];
+            if ($this->isBlankHtml($moved[1])) {
+                array_splice($pages, $index + 1, 1);
+
+                continue;
+            }
+
+            $pages[$index + 1] = $moved[1];
+        }
+
+        return array_values($pages);
+    }
+
+    /**
+     * Near-full pages get modest estimate overshoot; sparse pages use the
+     * true content-zone budget so we do not stack content onto under-estimated
+     * sheets (which already paint close to the bottom).
+     */
+    private function fillPackLimitPt(string $pageHtml): float
+    {
+        $budget = $this->packBudgetPt();
+        $est = $this->estimateHtmlHeightPt($pageHtml);
+        if ($est >= $budget - $this->fillNearFullEpsilonPt()) {
+            return $budget + $this->mpdfFillOvershootPt();
+        }
+
+        return $budget;
+    }
+
+    /** ~3mm — treat estimate within this of budget as "full". */
+    private function fillNearFullEpsilonPt(): float
+    {
+        // ~4mm — only pages that already look full get estimate overshoot.
+        return 22.0;
+    }
+
+    /** ~2mm leftover under the fill limit before stopping. */
+    private function fillSafetyEpsilonPt(): float
+    {
+        return 7.0;
+    }
+
+    /**
+     * Extra estimate room (~18mm) when a page already looks full — closes the
+     * systematic PHP-vs-mPDF gap without lowering the global scale (which would
+     * over-pack accurately estimated text pages).
+     */
+    private function mpdfFillOvershootPt(): float
+    {
+        // ~8mm estimate slack for title+first-line co-pull on near-full pages.
+        return 0.0;
+    }
+
+    /**
      * After whole-page merges, move leading blocks from the next page onto any
      * page that still has leftover content-zone space.
      *
@@ -302,8 +501,9 @@ class AgreementLetterheadPaginator
     /**
      * @return array{0: string, 1: string}|null
      */
-    private function moveLeadingMarkup(string $current, string $next): ?array
+    private function moveLeadingMarkup(string $current, string $next, ?float $packLimitPt = null): ?array
     {
+        $limit = $packLimitPt ?? $this->packBudgetPt();
         $parts = $this->htmlToMarkupParts($next);
         if ($parts === []) {
             return null;
@@ -312,26 +512,27 @@ class AgreementLetterheadPaginator
         $first = array_shift($parts);
         if ($this->isBlankHtml($first)) {
             $combinedBlank = $current . $first;
-            if ($this->estimateHtmlHeightPt($combinedBlank) <= $this->packBudgetPt()) {
+            if ($this->estimateHtmlHeightPt($combinedBlank) <= $limit) {
                 return [$combinedBlank, implode('', $parts)];
             }
 
             return null;
         }
 
-        // Never pull a section title onto the previous sheet by itself — that
-        // orphans titles like "Contract Highlights" from their table/body.
-        if ($this->markupIsOrphanHeading($first)) {
-            return null;
+        // Keep section titles with their following body. Prefer pulling the
+        // title + next block (or a slice) together so leftover zone is used
+        // without stranding "d. Target Revisions" alone on the prior sheet.
+        if ($this->markupIsOrphanHeading($first) && ! $this->isBlankHtml(implode('', $parts))) {
+            return $this->moveOrphanHeadingWithBody($current, $first, $parts, $limit);
         }
 
         $combined = $current . $first;
-        if ($this->estimateHtmlHeightPt($combined) <= $this->packBudgetPt()) {
+        if ($this->estimateHtmlHeightPt($combined) <= $limit) {
             return [$combined, implode('', $parts)];
         }
 
-        $leftover = $this->packBudgetPt() - $this->estimateHtmlHeightPt($current);
-        if ($leftover < self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
+        $leftover = $limit - $this->estimateHtmlHeightPt($current);
+        if ($leftover < self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
             return null;
         }
 
@@ -341,6 +542,41 @@ class AgreementLetterheadPaginator
         }
 
         return [$current . $sliced[0], $sliced[1] . implode('', $parts)];
+    }
+
+    /**
+     * @param  list<string>  $parts
+     * @return array{0: string, 1: string}|null
+     */
+    private function moveOrphanHeadingWithBody(string $current, string $heading, array $parts, float $limit): ?array
+    {
+        $headingEst = $this->estimateHtmlHeightPt($heading);
+        $leftover = $limit - $this->estimateHtmlHeightPt($current);
+        if ($leftover < $headingEst + self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
+            return null;
+        }
+
+        $body = array_shift($parts);
+        if ($body === null || $this->isBlankHtml($body)) {
+            return null;
+        }
+
+        $together = $current . $heading . $body;
+        if ($this->estimateHtmlHeightPt($together) <= $limit) {
+            return [$together, implode('', $parts)];
+        }
+
+        $bodyBudget = $leftover - $headingEst;
+        if ($bodyBudget < self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
+            return null;
+        }
+
+        $sliced = $this->sliceMarkupForBudget($body, $bodyBudget);
+        if ($sliced === null) {
+            return null;
+        }
+
+        return [$current . $heading . $sliced[0], $sliced[1] . implode('', $parts)];
     }
 
     private function markupIsOrphanHeading(string $html): bool
@@ -579,7 +815,7 @@ class AgreementLetterheadPaginator
     {
         // One-and-a-half lines is enough to attempt a split; three lines left
         // large bottoms empty when the next block was only slightly taller.
-        return self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO * 1.5;
+        return self::CONTENT_FONT_PT * $this->defaultLineHeightRatio() * 1.5;
     }
 
     /**
@@ -670,7 +906,9 @@ class AgreementLetterheadPaginator
      */
     private function isEmphasisOnlyLine(DOMElement $node): bool
     {
-        $emphasisTags = ['strong', 'b', 'u', 'em', 'span'];
+        // Do not treat generic <span style="font-size:..."> wrappers as emphasis —
+        // that falsely blocked pulls of ordinary lead-in lines onto prior pages.
+        $emphasisTags = ['strong', 'b', 'u', 'em'];
         $ignorableTags = ['br', 'wbr', 'hr'];
         $hasEmphasisText = false;
 
@@ -769,7 +1007,7 @@ class AgreementLetterheadPaginator
                     $text,
                     $this->styleFontSizePt($child),
                     $this->styleLineHeightRatio($child)
-                ) + 4
+                ) + $this->textBlockPaddingPt()
             );
             if ($text !== '' && $textPt <= $remaining) {
                 $currentNodes[] = $child;
@@ -952,7 +1190,7 @@ class AgreementLetterheadPaginator
                 $usedPt += $this->safeEstimate($this->estimateNodeHeightPt($carried));
             }
             $remaining = max(0.0, $this->budgetPt - $usedPt);
-        } elseif ($remaining < self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO && $currentNodes !== []) {
+        } elseif ($remaining < self::CONTENT_FONT_PT * $this->defaultLineHeightRatio() && $currentNodes !== []) {
             $carry = $this->popTrailingHeading($currentNodes, $usedPt);
             if ($currentNodes !== []) {
                 $pages[] = $this->joinHtml($dom, $currentNodes);
@@ -1062,7 +1300,7 @@ class AgreementLetterheadPaginator
         array &$currentNodes,
         float &$usedPt
     ): bool {
-        if ($remainingPt < self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO || ! $child instanceof DOMElement) {
+        if ($remainingPt < self::CONTENT_FONT_PT * $this->defaultLineHeightRatio() || ! $child instanceof DOMElement) {
             return false;
         }
 
@@ -1162,7 +1400,7 @@ class AgreementLetterheadPaginator
             $itemEstimate = $this->safeEstimate($this->estimateNodeHeightPt($item));
             if ($packedHeight + $itemEstimate > $remainingPt && $packed !== []) {
                 $leftover = $remainingPt - $packedHeight;
-                if ($item instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
+                if ($item instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
                     $sliced = $this->sliceElementForBudget($dom, $item, $leftover);
                     if ($sliced !== null) {
                         foreach ($packed as $node) {
@@ -1242,7 +1480,7 @@ class AgreementLetterheadPaginator
             }
 
             $leftover = $remainingPt - $packedHeight;
-            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
+            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
                 $sliced = $this->sliceElementForBudget($dom, $node, $leftover);
                 if ($sliced !== null) {
                     foreach ($packed as $item) {
@@ -1348,7 +1586,7 @@ class AgreementLetterheadPaginator
             }
 
             $leftover = $remainingPt - $packedHeight;
-            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
+            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
                 $sliced = $this->sliceElementForBudget($dom, $node, $leftover);
                 if ($sliced !== null) {
                     foreach ($packed as $item) {
@@ -1480,7 +1718,7 @@ class AgreementLetterheadPaginator
             }
 
             $leftover = $budgetPt - $packedHeight;
-            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * self::LINE_HEIGHT_RATIO) {
+            if ($node instanceof DOMElement && $leftover >= self::CONTENT_FONT_PT * $this->defaultLineHeightRatio()) {
                 $sliced = $this->sliceElementForBudget($dom, $node, $leftover);
                 if ($sliced !== null) {
                     $packed[] = $sliced[0];
@@ -1996,7 +2234,7 @@ class AgreementLetterheadPaginator
 
         $fontPt = $this->styleFontSizePt($block);
         $lineHeightRatio = $this->styleLineHeightRatio($block);
-        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio) + 4);
+        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio) + $this->textBlockPaddingPt());
         if ($estimate <= $this->budgetPt) {
             return [$block];
         }
@@ -2031,7 +2269,7 @@ class AgreementLetterheadPaginator
 
         $fontPt = $this->styleFontSizePt($block);
         $lineHeightRatio = $this->styleLineHeightRatio($block);
-        $fullEstimate = $this->safeEstimate($this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio) + 4);
+        $fullEstimate = $this->safeEstimate($this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio) + $this->textBlockPaddingPt());
         if ($fullEstimate <= $budgetPt) {
             return [$block];
         }
@@ -2043,7 +2281,7 @@ class AgreementLetterheadPaginator
         foreach ($words as $index => $word) {
             $candidateWords = array_merge($firstWords, [$word]);
             $candidate = implode(' ', $candidateWords);
-            $estimate = $this->safeEstimate($this->estimateTextHeightPt($candidate, $fontPt, $lineHeightRatio) + 4);
+            $estimate = $this->safeEstimate($this->estimateTextHeightPt($candidate, $fontPt, $lineHeightRatio) + $this->textBlockPaddingPt());
 
             if ($estimate <= $budgetPt) {
                 $firstWords[] = $word;
@@ -2128,7 +2366,7 @@ class AgreementLetterheadPaginator
 
         $fontPt = $this->styleFontSizePt($li);
         $lineHeightRatio = $this->styleLineHeightRatio($li);
-        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio) + 6);
+        $estimate = $this->safeEstimate($this->estimateTextHeightPt($text, $fontPt, $lineHeightRatio) + $this->listItemPaddingPt());
         if ($estimate <= $this->budgetPt) {
             return [$li];
         }
@@ -2428,9 +2666,59 @@ class AgreementLetterheadPaginator
         return $this->budgetPt;
     }
 
+    private function normalizePdfEngine(?string $pdfEngine): string
+    {
+        $engine = strtolower(trim((string) $pdfEngine));
+        if (in_array($engine, ['mpdf', 'chrome', 'html'], true)) {
+            return $engine;
+        }
+
+        // Prefer mPDF calibration: live forced-mPDF path and Chrome-unavailable fallback.
+        return 'mpdf';
+    }
+
+    private function usesMpdfMetrics(): bool
+    {
+        return $this->pdfEngine === 'mpdf';
+    }
+
+    /**
+     * Scale raw PHP estimates toward the active PDF engine's paint height.
+     * mPDF paints tighter than Dompdf/Chrome for the same HTML.
+     */
+    private function estimateScaleFactor(): float
+    {
+        return $this->usesMpdfMetrics() ? self::ESTIMATE_TO_MPDF : self::ESTIMATE_TO_CHROME;
+    }
+
+    private function defaultLineHeightRatio(): float
+    {
+        return $this->usesMpdfMetrics()
+            ? self::LINE_HEIGHT_RATIO_MPDF
+            : self::LINE_HEIGHT_RATIO_CHROME;
+    }
+
+    private function paragraphMarginEm(): float
+    {
+        return $this->usesMpdfMetrics()
+            ? self::PARAGRAPH_MARGIN_EM_MPDF
+            : self::PARAGRAPH_MARGIN_EM_CHROME;
+    }
+
+    /** Extra padding on text/list blocks beyond line metrics. */
+    private function textBlockPaddingPt(): float
+    {
+        return $this->usesMpdfMetrics() ? 2.0 : 4.0;
+    }
+
+    private function listItemPaddingPt(): float
+    {
+        return $this->usesMpdfMetrics() ? 3.0 : 6.0;
+    }
+
     private function safeEstimate(float $estimate): float
     {
-        return max(0.0, $estimate * self::ESTIMATE_TO_DOMPDF);
+        return max(0.0, $estimate * $this->estimateScaleFactor());
     }
 
     private function estimateNodeHeightPt(DOMNode $node): float
@@ -2455,7 +2743,7 @@ class AgreementLetterheadPaginator
                 $node->textContent ?? '',
                 $this->styleFontSizePt($node),
                 $this->styleLineHeightRatio($node)
-            ) + 4,
+            ) + $this->textBlockPaddingPt(),
             default => $this->estimateBlockHeightPt($node),
         };
     }
@@ -2499,7 +2787,7 @@ class AgreementLetterheadPaginator
         $tableLineHeightRatio = $this->styleLineHeightRatio($table);
         $cssHeight = $this->cssLengthToPt($row->getAttribute('style'), 'height')
             ?? $this->cssLengthToPt($row->getAttribute('style'), 'min-height');
-        $maxPt = $cssHeight ?? ($tableFontPt * $tableLineHeightRatio);
+        $contentDerived = $tableFontPt * $tableLineHeightRatio;
 
         foreach ($this->directCells($row) as $cell) {
             $nestedHeight = 0.0;
@@ -2510,21 +2798,52 @@ class AgreementLetterheadPaginator
             }
 
             if ($nestedHeight > 0) {
-                $maxPt = max($maxPt, $nestedHeight + 4);
+                $contentDerived = max($contentDerived, $nestedHeight + 4);
 
                 continue;
             }
 
             $cellFontPt = $this->inheritedFontSizePt($cell, $table);
             $cellLineHeight = $cellFontPt * $this->inheritedLineHeightRatio($cell, $table);
-            $cellCss = $this->cssLengthToPt($cell->getAttribute('style'), 'height');
+            $cellCss = $this->cssLengthToPt($cell->getAttribute('style'), 'height')
+                ?? $this->cssLengthToPt($cell->getAttribute('style'), 'min-height');
             $lines = $this->estimateCellLines($cell, $this->cellCharsForWidth($cell, $columnCount));
-            $cellPad = max(3.0, $cellFontPt * 0.55);
+            $cellPad = max(1.5, $cellFontPt * ($this->usesMpdfMetrics() ? 0.22 : 0.55));
             $contentPt = ($lines * $cellLineHeight) + $cellPad;
-            $maxPt = max($maxPt, $cellCss ?? 0.0, $contentPt);
+            // Soften TinyMCE cell height floors that exceed content-derived height.
+            $contentDerived = max($contentDerived, $this->softenCssHeightFloor($cellCss, $contentPt));
         }
 
-        return $maxPt;
+        return $this->softenCssHeightFloor($cssHeight, $contentDerived);
+    }
+
+    /**
+     * TinyMCE often stores editor row/cell heights larger than PDF paint.
+     * Prefer content-derived height when CSS is only a modestly larger floor;
+     * otherwise keep a soft fraction of the surplus so packing is not starved.
+     */
+    private function softenCssHeightFloor(?float $cssHeight, float $contentPt): float
+    {
+        $contentPt = max(0.0, $contentPt);
+        if ($cssHeight === null || $cssHeight <= 0) {
+            return $contentPt;
+        }
+
+        if ($contentPt <= 0) {
+            return $cssHeight;
+        }
+
+        if ($cssHeight <= $contentPt * 1.12) {
+            return max($cssHeight, $contentPt);
+        }
+
+        $surplus = $cssHeight - $contentPt;
+        if ($this->usesMpdfMetrics()) {
+            // mPDF ignores most TinyMCE row height floors; keep almost none.
+            return $contentPt + min($surplus * 0.08, $contentPt * 0.06);
+        }
+
+        return $contentPt + min($surplus * 0.28, $contentPt * 0.18);
     }
 
     private function inheritedFontSizePt(DOMElement $node, DOMElement $ancestor): float
@@ -2623,7 +2942,8 @@ class AgreementLetterheadPaginator
             }
 
             $counted = true;
-            $total += $this->safeEstimate($this->estimateNodeHeightPt($child));
+            // Do not safeEstimate here — callers wrap the list estimate once.
+            $total += $this->estimateNodeHeightPt($child);
         }
 
         if (! $counted) {
@@ -2654,7 +2974,7 @@ class AgreementLetterheadPaginator
                 return $imageHeight + 8.0;
             }
 
-            $margin = strtolower($node->tagName) === 'p' ? $fontPt * 0.5 : 0.0;
+            $margin = strtolower($node->tagName) === 'p' ? $fontPt * $this->paragraphMarginEm() : 0.0;
 
             return ($fontPt * $lineHeightRatio) + $margin;
         }
@@ -2682,8 +3002,8 @@ class AgreementLetterheadPaginator
             return $total + ($text === '' ? 0.0 : 4.0);
         }
 
-        // Match .content p { margin: 0 0 0.5em } rather than a fixed +6pt.
-        return $textHeight + $imageHeight + ($fontPt * 0.55);
+        // Match engine CSS: mPDF .content p { margin: 0 0 0.32em }; Chrome 0.5em.
+        return $textHeight + $imageHeight + ($fontPt * $this->paragraphMarginEm());
     }
 
     private function estimateTextHeightPt(string $text, float $fontSizePt, ?float $lineHeightRatio = null): float
@@ -2692,18 +3012,24 @@ class AgreementLetterheadPaginator
             return 0.0;
         }
 
-        $lineHeight = $fontSizePt * ($lineHeightRatio ?? self::LINE_HEIGHT_RATIO);
+        $lineHeight = $fontSizePt * ($lineHeightRatio ?? $this->defaultLineHeightRatio());
         $charsPerLine = $this->charsPerLineForFont($fontSizePt);
         $lines = max(1, (int) ceil(mb_strlen($text) / $charsPerLine));
+        $fudge = $this->usesMpdfMetrics() ? 1.0 : 2.0;
 
-        return ($lines * $lineHeight) + 2;
+        return ($lines * $lineHeight) + $fudge;
     }
 
     private function charsPerLineForFont(float $fontSizePt): int
     {
+        $base = self::CHARS_PER_LINE;
+        // mPDF wraps a touch earlier than the Dompdf/Chrome char budget.
+        if ($this->usesMpdfMetrics()) {
+            $base = (int) floor($base * 0.94);
+        }
         $scale = self::CONTENT_FONT_PT / max(6.0, $fontSizePt);
 
-        return max(40, (int) floor(self::CHARS_PER_LINE * $scale));
+        return max(40, (int) floor($base * $scale));
     }
 
     private function styleFontSizePt(DOMElement $node): float
@@ -2759,6 +3085,6 @@ class AgreementLetterheadPaginator
             }
         }
 
-        return self::LINE_HEIGHT_RATIO;
+        return $this->defaultLineHeightRatio();
     }
 }

@@ -5,11 +5,10 @@ namespace App\Imports;
 use App\Models\FuelData;
 use App\Models\FuelCards;
 use App\Services\FuelMonthlyLedgerService;
+use App\Support\ExcelDate;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use DB;
-use Carbon\Carbon;
 
 class FuelDataImport implements ToCollection
 {
@@ -269,18 +268,7 @@ class FuelDataImport implements ToCollection
      */
     private function parseTransactionDate($dateValue)
     {
-        if (empty($dateValue)) {
-            return null;
-        }
-
-        try {
-            if (is_numeric($dateValue)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject($dateValue));
-            }
-            return Carbon::parse($dateValue);
-        } catch (\Exception $e) {
-            return null;
-        }
+        return ExcelDate::parse($dateValue);
     }
 
     /**
@@ -288,21 +276,7 @@ class FuelDataImport implements ToCollection
      */
     private function parseBillingMonth($billingMonth)
     {
-        if (empty($billingMonth)) {
-            return null;
-        }
-
-        try {
-            if ($billingMonth instanceof Carbon) {
-                return $billingMonth->copy()->startOfMonth();
-            }
-            if (is_numeric($billingMonth)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject($billingMonth))->startOfMonth();
-            }
-            return Carbon::parse($billingMonth)->startOfMonth();
-        } catch (\Exception $e) {
-            return null;
-        }
+        return ExcelDate::parseBillingMonth($billingMonth);
     }
 
     // extract bike plate number from full string (if needed)

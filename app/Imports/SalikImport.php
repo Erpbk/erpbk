@@ -8,6 +8,7 @@ use App\Models\Riders;
 use App\Models\BikeHistory;
 use App\Models\BikeRentCompany;
 use App\Models\FailedSalikImport;
+use App\Support\ExcelDate;
 use App\Support\ExcelSlashDateFormat;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -15,7 +16,6 @@ use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use DB;
 use Auth;
 use Carbon\Carbon;
@@ -59,7 +59,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
 
     /**
      * Keep slash/dash date strings as text so we can parse them as d/m/Y (not US m/d/Y).
-     * Excel serial numbers are still accepted via numeric path in parseExcelDate.
+     * Excel serial numbers are still accepted via numeric path in ExcelDate::parse.
      */
     public function bindValue(Cell $cell, $value)
     {
@@ -478,111 +478,16 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         return ExcelSlashDateFormat::detectOrder($samples);
     }
 
-    /**
-     * Parse any Excel date/time cell value into Carbon.
-     * Slash/dash dates use sheet-detected d/m/Y or m/d/Y order.
-     */
-    private function parseExcelDate($value): ?Carbon
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        try {
-            if ($value instanceof Carbon) {
-                return $value->copy();
-            }
-
-            if ($value instanceof \DateTimeInterface) {
-                return Carbon::instance($value);
-            }
-
-            if (is_string($value)) {
-                $value = trim($value);
-                if ($value === '') {
-                    return null;
-                }
-            }
-
-            // Excel serial number (real date cell)
-            if (is_numeric($value)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-            }
-
-            if (!is_string($value)) {
-                return null;
-            }
-
-            // Slash/dash numeric dates — use detected sheet order (dmy or mdy)
-            if (preg_match('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/', $value)) {
-                $parsed = ExcelSlashDateFormat::parse($value, $this->slashDateOrder);
-                if ($parsed) {
-                    return $parsed;
-                }
-
-                return null;
-            }
-
-            foreach ($this->excelDateFormats() as $format) {
-                $parsed = $this->tryParseWithFormat($value, $format);
-                if ($parsed) {
-                    return $parsed;
-                }
-            }
-
-            // Avoid Carbon::parse() on slash dates — it defaults to m/d/Y
-            return Carbon::parse($value);
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
-    private function excelDateFormats(): array
-    {
-        return [
-            'Y-m-d H:i:s',
-            'Y-m-d H:i',
-            'Y-m-d',
-            'd M Y H:i:s',
-            'd M Y',
-            'd M y',
-            'j M Y',
-            'j M y',
-            'd-M-Y',
-            'd-M-y',
-            'M d, Y',
-            'M d Y',
-            'Y/m/d',
-        ];
-    }
-
-    private function tryParseWithFormat(string $value, string $format): ?Carbon
-    {
-        $dateTime = \DateTime::createFromFormat('!' . $format, $value);
-        if ($dateTime === false) {
-            return null;
-        }
-
-        $errors = \DateTime::getLastErrors();
-        if (is_array($errors) && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)) {
-            return null;
-        }
-
-        return Carbon::instance($dateTime);
-    }
-
     private function parseTripDate($tripDate)
     {
-        $parsed = $this->parseExcelDate($tripDate);
+        $parsed = ExcelDate::parse($tripDate, $this->slashDateOrder);
 
         return $parsed ? $parsed->startOfDay() : null;
     }
 
     private function parseBillingMonth($billingMonth)
     {
-        $parsed = $this->parseExcelDate($billingMonth);
-
-        return $parsed ? $parsed->startOfMonth() : null;
+        return ExcelDate::parseBillingMonth($billingMonth, $this->slashDateOrder);
     }
 
     /**
@@ -591,57 +496,12 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
      */
     private function parseTripTime($tripTime)
     {
-        if ($tripTime === null || $tripTime === '') {
-            return null;
-        }
-
-        try {
-            if ($tripTime instanceof Carbon) {
-                return $tripTime->format('h:i:s A');
-            }
-
-            if ($tripTime instanceof \DateTimeInterface) {
-                return Carbon::instance($tripTime)->format('h:i:s A');
-            }
-
-            if (is_string($tripTime)) {
-                $tripTime = trim($tripTime);
-                if ($tripTime === '') {
-                    return null;
-                }
-            }
-
-            if (is_numeric($tripTime)) {
-                $dateTime = ExcelDate::excelToDateTimeObject((float) $tripTime);
-                return Carbon::instance($dateTime)->format('h:i:s A');
-            }
-
-            if (is_string($tripTime)) {
-                foreach (['H:i:s', 'H:i', 'h:i:s A', 'h:i A', 'g:i A', 'g:i:s A'] as $format) {
-                    $parsed = $this->tryParseWithFormat($tripTime, $format);
-                    if ($parsed) {
-                        return $parsed->format('h:i:s A');
-                    }
-                }
-
-                // Combined datetime string — extract time portion
-                $parsedDate = $this->parseExcelDate($tripTime);
-                if ($parsedDate) {
-                    return $parsedDate->format('h:i:s A');
-                }
-            }
-
-            return Carbon::parse($tripTime)->format('h:i:s A');
-        } catch (\Exception $e) {
-            return null;
-        }
+        return ExcelDate::formatTime($tripTime, 'h:i:s A', $this->slashDateOrder);
     }
 
     private function parseTransactionPostDate($transactionPostDate)
     {
-        $parsed = $this->parseExcelDate($transactionPostDate);
-
-        return $parsed ? $parsed->format('d M Y') : null;
+        return ExcelDate::format($transactionPostDate, 'd M Y', $this->slashDateOrder);
     }
 
     /**

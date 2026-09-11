@@ -11,13 +11,13 @@ use App\Models\Riders;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Support\CompanyContext;
+use App\Support\ExcelDate;
 use App\Support\ExcelSlashDateFormat;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class ImportPaidRiderInvoice implements ToCollection
 {
@@ -313,7 +313,7 @@ class ImportPaidRiderInvoice implements ToCollection
 
     private function resolvePaymentDate($row): Carbon
     {
-        $parsed = $this->parseExcelDate($this->cell($row, 'payment_date'));
+        $parsed = ExcelDate::parse($this->cell($row, 'payment_date'), $this->slashDateOrder);
         if (! $parsed) {
             throw new \RuntimeException('Invalid payment date.');
         }
@@ -328,27 +328,7 @@ class ImportPaidRiderInvoice implements ToCollection
 
     private function parseBillingMonth($value): ?Carbon
     {
-        $parsed = $this->parseExcelDate($value);
-        if ($parsed) {
-            return $parsed->copy()->startOfMonth();
-        }
-
-        if (! is_string($value)) {
-            return null;
-        }
-
-        $value = trim($value);
-        foreach (['Y-m', 'Y/m', 'm/Y', 'M Y', 'F Y', 'Y-m-d'] as $format) {
-            try {
-                $date = Carbon::createFromFormat($format, $value);
-
-                return $date->startOfMonth();
-            } catch (\Throwable $e) {
-                continue;
-            }
-        }
-
-        return null;
+        return ExcelDate::parseBillingMonth($value, $this->slashDateOrder);
     }
 
     private function detectSheetSlashDateOrder(Collection $rows): string
@@ -363,33 +343,5 @@ class ImportPaidRiderInvoice implements ToCollection
         }
 
         return ExcelSlashDateFormat::detectOrder($samples);
-    }
-
-    private function parseExcelDate($value): ?Carbon
-    {
-        if ($this->isBlank($value)) {
-            return null;
-        }
-
-        try {
-            if ($value instanceof Carbon) {
-                return $value->copy();
-            }
-            if ($value instanceof \DateTimeInterface) {
-                return Carbon::instance($value);
-            }
-            if (is_numeric($value)) {
-                return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value));
-            }
-
-            $value = trim((string) $value);
-            if (preg_match('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/', $value)) {
-                return ExcelSlashDateFormat::parse($value, $this->slashDateOrder);
-            }
-
-            return Carbon::parse($value);
-        } catch (\Throwable $e) {
-            return null;
-        }
     }
 }

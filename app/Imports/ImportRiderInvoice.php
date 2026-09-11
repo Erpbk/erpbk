@@ -4,6 +4,8 @@ namespace App\Imports;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
+use App\Support\ExcelDate;
+use App\Support\ExcelSlashDateFormat;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Branch;
@@ -12,16 +14,17 @@ use App\Models\RiderInvoiceItem;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
 use App\Services\TransactionService;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Concerns\ToCollection;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ImportRiderInvoice implements ToCollection
 {
+    /** @var string ExcelSlashDateFormat::ORDER_DMY|ORDER_MDY */
+    protected string $slashDateOrder = ExcelSlashDateFormat::ORDER_DMY;
+
     /**
      * @param  array  $row
      * @return Model|null
@@ -35,6 +38,8 @@ class ImportRiderInvoice implements ToCollection
 
             return array_pad(array_slice($rowArray, 0, $maxColumns), $maxColumns, null);
         });
+
+        $this->slashDateOrder = $this->detectSheetSlashDateOrder($rows);
 
         /*
         |--------------------------------------------------------------------------
@@ -129,16 +134,18 @@ class ImportRiderInvoice implements ToCollection
                 |--------------------------------------------------------------------------
                 */
 
-                $invoiceDate = Carbon::instance(
-                    Date::excelToDateTimeObject($row[0])
-                )->format('Y-m-d');
+                $invoiceDate = ExcelDate::format($row[0], 'Y-m-d', $this->slashDateOrder);
+                if ($invoiceDate === null) {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row(' . ($index + 1) . ') - Invalid Invoice Date.',
+                    ]);
+                }
 
-                $billingMonth = date('Y-m-01', strtotime($row[10]));
-
-                if ($billingMonth === '1970-01-01') {
-                    $billingMonth = Carbon::instance(
-                        Date::excelToDateTimeObject($row[10])
-                    )->format('Y-m-01');
+                $billingMonth = ExcelDate::formatBillingMonth($row[10], 'Y-m-01', $this->slashDateOrder);
+                if ($billingMonth === null) {
+                    throw ValidationException::withMessages([
+                        'file' => 'Row(' . ($index + 1) . ') - Invalid Billing Month.',
+                    ]);
                 }
 
                 /*
@@ -394,5 +401,28 @@ class ImportRiderInvoice implements ToCollection
         throw ValidationException::withMessages([
             'file' => "Row({$rowNumber}) - {$hint}, rider {$riderCode} has no valid branch, and no active company branch exists.",
         ]);
+    }
+
+    /**
+     * Scan invoice date + billing month columns to detect d/m/Y vs m/d/Y.
+     */
+    private function detectSheetSlashDateOrder(Collection $rows): string
+    {
+        $samples = [];
+
+        foreach ($rows->skip(1) as $row) {
+            foreach ([0, 10] as $col) {
+                $value = $row[$col] ?? null;
+                if ($value !== null && $value !== '' && ExcelSlashDateFormat::extractDayMonthParts($value) !== null) {
+                    $samples[] = $value;
+                }
+            }
+
+            if (count($samples) >= 50) {
+                break;
+            }
+        }
+
+        return ExcelSlashDateFormat::detectOrder($samples);
     }
 }

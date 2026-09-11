@@ -11,6 +11,7 @@ use App\Models\Vouchers;
 use App\Models\RtaFines;
 use App\Models\FailedSalikImport;
 use App\Services\TransactionService;
+use App\Support\ExcelDate;
 use Illuminate\Support\Collection;
 use App\Repositories\RtaFinesRepository;
 use Maatwebsite\Excel\Concerns\ToCollection;
@@ -74,8 +75,8 @@ class RTAFineImport implements ToCollection
                     // Extract data with validation
                     $bikePlate      = trim($row[0] ?? '');
                     $ticketNumber   = trim($row[1] ?? '');
-                    $tripDate       = $row[2] ? Carbon::parse($row[2])->format('Y-m-d') : null;
-                    $tripTime       = $row[3] ? Carbon::parse($row[3])->format('H:i:s') : null;
+                    $tripDate       = ExcelDate::format($row[2] ?? null);
+                    $tripTime       = ExcelDate::formatTime($row[3] ?? null, 'H:i:s');
                     $fineAmount     = (float)($row[4] ?? 0);
                     $fineDetails    = trim($row[5] ?? '');
                     $adminFee       = (float)($row[6] ?? 25);

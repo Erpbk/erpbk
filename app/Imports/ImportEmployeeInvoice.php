@@ -3,12 +3,12 @@
 namespace App\Imports;
 
 use App\Helpers\Account;
+use App\Support\ExcelDate;
 use App\Support\GlobalAccounts;
 use App\Models\Employee;
 use App\Models\EmployeeInvoiceItem;
 use App\Models\EmployeeInvoices;
 use App\Services\TransactionService;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -17,7 +17,6 @@ use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
-use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class ImportEmployeeInvoice extends DefaultValueBinder implements ToCollection, WithCustomValueBinder
 {
@@ -249,27 +248,12 @@ class ImportEmployeeInvoice extends DefaultValueBinder implements ToCollection, 
             throw new \RuntimeException("{$label} is required.");
         }
 
-        if (is_numeric($value)) {
-            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->format('Y-m-d');
+        $formatted = ExcelDate::format($value);
+        if ($formatted === null) {
+            throw new \RuntimeException("Invalid {$label}: " . trim((string) $value));
         }
 
-        $raw = trim((string) $value);
-        try {
-            if (preg_match('/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/', $raw, $m)) {
-                $day = (int) $m[1];
-                $month = (int) $m[2];
-                $year = (int) $m[3];
-                if ($year < 100) {
-                    $year += 2000;
-                }
-
-                return Carbon::createFromDate($year, $month, $day)->format('Y-m-d');
-            }
-
-            return Carbon::parse($raw)->format('Y-m-d');
-        } catch (\Exception $e) {
-            throw new \RuntimeException("Invalid {$label}: {$raw}");
-        }
+        return $formatted;
     }
 
     private function parseBillingMonth($value, int $rowNumber): string
@@ -278,28 +262,11 @@ class ImportEmployeeInvoice extends DefaultValueBinder implements ToCollection, 
             throw new \RuntimeException('Billing Month is required.');
         }
 
-        if (is_numeric($value)) {
-            return Carbon::instance(ExcelDate::excelToDateTimeObject((float) $value))->format('Y-m-01');
+        $formatted = ExcelDate::formatBillingMonth($value);
+        if ($formatted === null) {
+            throw new \RuntimeException('Invalid Billing Month: ' . trim((string) $value));
         }
 
-        $raw = trim((string) $value);
-
-        $fromStrtotime = date('Y-m-01', strtotime($raw));
-        if ($fromStrtotime !== '1970-01-01') {
-            return $fromStrtotime;
-        }
-
-        try {
-            if (preg_match('/^\d{4}-\d{2}$/', $raw)) {
-                return $raw.'-01';
-            }
-            if (preg_match('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/', $raw)) {
-                return Carbon::createFromFormat('d/m/Y', preg_replace('/[.\-]/', '/', substr($raw, 0, 10)))->format('Y-m-01');
-            }
-
-            return Carbon::parse($raw)->format('Y-m-01');
-        } catch (\Exception $e) {
-            throw new \RuntimeException("Invalid Billing Month: {$raw}");
-        }
+        return $formatted;
     }
 }

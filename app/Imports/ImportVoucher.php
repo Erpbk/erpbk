@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Helpers\Account;
 use App\Helpers\General;
+use App\Support\ExcelDate;
 use App\Support\GlobalAccounts;
 use App\Models\Items;
 use App\Models\RiderActivities;
@@ -20,8 +21,6 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Illuminate\Support\Facades\DB;
 use Auth;
 use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
-use Carbon\Carbon;
 
 class ImportVoucher implements ToCollection
 {
@@ -43,13 +42,7 @@ class ImportVoucher implements ToCollection
   }
   private function transformDate($value)
   {
-    // Handle Excel date format
-    if (is_numeric($value)) {
-      return Carbon::instance(Date::excelToDateTimeObject($value))->format('Y-m-d');
-    }
-
-    // Try parsing as regular date string
-    return Carbon::parse($value)->format('Y-m-d');
+    return ExcelDate::format($value);
   }
   public function collection(Collection $rows)
   {

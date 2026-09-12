@@ -76,7 +76,7 @@ class ExcelDate
 
     /**
      * Parse a billing-month cell to the first day of that month.
-     * Also accepts month-only strings such as "2025-01", "Jan 2025", "F Y".
+     * Also accepts month-only strings such as "2025-01", "11-2025", "Jan 2025", "Nov-2025".
      */
     public static function parseBillingMonth($value, string $slashOrder = ExcelSlashDateFormat::ORDER_DMY): ?Carbon
     {
@@ -85,20 +85,24 @@ class ExcelDate
         }
 
         // Prefer month-only formats before full-date parse (avoids "Jan 2025" → M d Y).
+        // Also try dotted values like "11.2025" before treating them as Excel serials.
         if (is_string($value) || is_numeric($value)) {
-            $raw = trim((string) $value);
-            if ($raw !== '' && ! is_numeric($raw)) {
-                foreach (['Y-m', 'Y/m', 'm/Y', 'M Y', 'F Y'] as $format) {
+            $raw = self::normalizeBillingMonthString((string) $value);
+            if ($raw !== '') {
+                foreach (self::billingMonthFormats() as $format) {
                     $date = self::tryParseWithFormat($raw, $format);
-                    if ($date) {
+                    if ($date && self::isPlausibleBillingYear($date->year)) {
                         return $date->startOfMonth();
                     }
                 }
             }
         }
 
-        $parsed = self::parse($value, $slashOrder);
-        if ($parsed) {
+        $parsed = self::parse(
+            is_string($value) ? self::normalizeBillingMonthString($value) : $value,
+            $slashOrder
+        );
+        if ($parsed && self::isPlausibleBillingYear($parsed->year)) {
             return $parsed->copy()->startOfMonth();
         }
 
@@ -196,6 +200,59 @@ class ExcelDate
             'M d Y',
             'Y/m/d',
         ];
+    }
+
+    /**
+     * Month-only formats commonly used in billing-month Excel columns.
+     *
+     * @return list<string>
+     */
+    private static function billingMonthFormats(): array
+    {
+        return [
+            'Y-m',
+            'Y/m',
+            'Y.m',
+            'm-Y',
+            'm/Y',
+            'm.Y',
+            'n-Y',
+            'n/Y',
+            'm-y',
+            'm/y',
+            'M Y',
+            'M-Y',
+            'M/Y',
+            'F Y',
+            'F-Y',
+            'F/Y',
+            'M y',
+            'M-y',
+            'F y',
+            'F-y',
+        ];
+    }
+
+    /**
+     * Normalize billing-month text (trim, collapse spaces, normalize dashes).
+     */
+    private static function normalizeBillingMonthString(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        // Excel/Word often insert en/em dashes in values like "Nov–2025".
+        $value = str_replace(["\u{2013}", "\u{2014}", '–', '—'], '-', $value);
+        $value = preg_replace('/\s+/', ' ', $value) ?? $value;
+
+        return trim($value);
+    }
+
+    private static function isPlausibleBillingYear(int $year): bool
+    {
+        return $year >= 2000 && $year <= 2100;
     }
 
     private static function tryParseWithFormat(string $value, string $format): ?Carbon

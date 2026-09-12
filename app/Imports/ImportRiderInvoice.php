@@ -143,8 +143,10 @@ class ImportRiderInvoice implements ToCollection
 
                 $billingMonth = ExcelDate::formatBillingMonth($row[10], 'Y-m-01', $this->slashDateOrder);
                 if ($billingMonth === null) {
+                    $rawBillingMonth = is_scalar($row[10]) ? trim((string) $row[10]) : '';
+                    $hint = $rawBillingMonth === '' ? 'empty' : "'{$rawBillingMonth}'";
                     throw ValidationException::withMessages([
-                        'file' => 'Row(' . ($index + 1) . ') - Invalid Billing Month.',
+                        'file' => 'Row(' . ($index + 1) . ") - Invalid Billing Month ({$hint}). Use formats like Nov-2025, 11-2025, or 2025-11.",
                     ]);
                 }
 

@@ -341,24 +341,14 @@ class VisaRenewalCategoryService
     /**
      * Categories the user may select when creating a new expense account for this person.
      *
-     * Rules:
-     *  - Before 1st Renewal is completed: at most one category is returned (the next in sequence).
-     *  - After 1st Renewal is completed: all active categories that do not yet have an account
-     *    for this person are returned (free selection, no fixed order enforced).
+     * All active categories that do not yet have an account for this person are returned.
+     * There is no sequential dependency — any category may be created independently.
      */
     public static function creatableCategoriesForPerson(string $personType, int $personId): Collection
     {
-        // Free-selection mode: 1st Renewal has been completed.
-        if (self::hasCompletedFirstRenewal($personType, $personId)) {
-            return self::activeOrdered()->filter(
-                static fn ($category) => self::accountForPersonCategory($personType, $personId, (int) $category->id) === null
-            )->values();
-        }
-
-        // Sequential mode: return only the very next creatable category (or none if blocked).
-        $next = self::nextCreatableCategoryForPerson($personType, $personId);
-
-        return $next ? collect([$next]) : collect();
+        return self::activeOrdered()->filter(
+            static fn ($category) => self::accountForPersonCategory($personType, $personId, (int) $category->id) === null
+        )->values();
     }
 
     public static function creatableCategoriesForRider(int $riderId): Collection

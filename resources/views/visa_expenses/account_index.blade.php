@@ -450,16 +450,16 @@
             if (categories.length === 0) {
                 $categorySelect.val('').trigger('change');
                 initCategorySelect2();
-                $categoryHelp.text('This person cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
+                $categoryHelp.text('All visa categories already have accounts for this person.');
                 return;
             }
 
             if (categories.length === 1) {
                 $categorySelect.val(String(categories[0].id));
-                $categoryHelp.text('Next allowed category: ' + categories[0].name + '.');
+                $categoryHelp.text('Only one category remaining: ' + categories[0].name + '.');
             } else {
                 $categorySelect.val('');
-                $categoryHelp.text('Select the renewal category for this new expense account.');
+                $categoryHelp.text('Select any visa category to create an account for.');
             }
 
             initCategorySelect2();

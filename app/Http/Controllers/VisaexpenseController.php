@@ -529,12 +529,12 @@ class VisaexpenseController extends AppBaseController
         }
 
         if (!VisaRenewalCategoryService::canCreateAccountForPersonCategory($personType, $personId, $categoryId)) {
-            $creatableCategories = VisaRenewalCategoryService::creatableCategoriesForPerson($personType, $personId);
-            if ($creatableCategories->isEmpty()) {
-                Flash::error('Cannot create a new visa expense account for "' . $category->name . '". Complete all unpaid entries in the current renewal category first.');
+            // Either the category is inactive or an account already exists for this person+category.
+            $existing = VisaRenewalCategoryService::accountForPersonCategory($personType, $personId, $categoryId);
+            if ($existing) {
+                Flash::error('A visa expense account for "' . $category->name . '" already exists for this ' . $personType . '.');
             } else {
-                $names = $creatableCategories->pluck('name')->implode('", "');
-                Flash::error('Cannot create an account for "' . $category->name . '". The currently available categories are: "' . $names . '".');
+                Flash::error('Cannot create a visa expense account for "' . $category->name . '". The category may be inactive.');
             }
             return redirect()->back()->withInput();
         }

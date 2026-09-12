@@ -580,7 +580,7 @@ class LicenseexpenseController extends AppBaseController
         $categories = LicenseCategoryService::creatableCategoriesForRider((int) $riderId);
 
         return response()->json([
-            'categories' => $categories->map(static fn ($c) => [
+            'categories' => $categories->map(static fn($c) => [
                 'id' => (int) $c->id,
                 'name' => $c->name,
             ])->values(),
@@ -678,6 +678,20 @@ class LicenseexpenseController extends AppBaseController
         $LicenseStatuses = LicenseCategoryService::activeStatusesForCategory($activeCategoryId);
         $riders = $riderId ? Riders::findOrFail($riderId) : null;
 
+        // ── License Installment section ──────────────────────────────────────
+        $licInstallmentBase = license_installment_plan::query()
+            ->where('rider_id', (int) $account->id);
+        $licInstallmentData = (clone $licInstallmentBase)
+            ->with(['vouchers', 'installmentTransactions'])
+            ->orderBy('date', 'asc')
+            ->get();
+        $licInstallmentStats = [
+            'unpaid_amount' => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->sum('amount'),
+            'paid_amount'   => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->sum('amount'),
+            'paid_count'    => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->count(),
+            'unpaid_count'  => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->count(),
+        ];
+
         $viewData = [
             'data' => $data,
             'account' => $account,
@@ -685,6 +699,8 @@ class LicenseexpenseController extends AppBaseController
             'riders' => $riders,
             'activeLicenseCategory' => $activeLicenseCategory,
             'siblingAccounts' => $siblingAccounts,
+            'licInstallmentData' => $licInstallmentData,
+            'licInstallmentStats' => $licInstallmentStats,
         ];
 
         $viewData = array_merge($viewData, $this->visaExpenseSectionDataForRider($request, $riderId));
@@ -721,7 +737,8 @@ class LicenseexpenseController extends AppBaseController
             ],
         ];
 
-        if (! $riderId
+        if (
+            ! $riderId
             || ! CompanyModuleVisibility::enabled('visa_expense')
             || ! user_can('visaexpense_view')
         ) {
@@ -858,7 +875,7 @@ class LicenseexpenseController extends AppBaseController
             $expenseAccount = ExpenseAccount::query()->license()->findOrFail($validated['rider_id']);
             $category = LicenseCategoryService::resolveCategoryForAccount($expenseAccount);
             $statusAllowed = LicenseCategoryService::activeStatusesForCategory((int) $category->id)
-                ->contains(fn ($s) => (string) $s->name === (string) $validated['license_status']);
+                ->contains(fn($s) => (string) $s->name === (string) $validated['license_status']);
             if (! $statusAllowed) {
                 Flash::error('The selected license status does not belong to this account\'s license category.');
                 return redirect()->back()->withInput();
@@ -925,18 +942,18 @@ class LicenseexpenseController extends AppBaseController
 
         $accounts = ExpenseAccount::query()->license()->with('rider')->find($data->expense_account_id)
             ?? ExpenseAccount::query()
-                ->license()
-                ->with('rider')
-                ->where('rider_id', $data->rider_id)
-                ->orderByDesc('id')
-                ->firstOrFail();
+            ->license()
+            ->with('rider')
+            ->where('rider_id', $data->rider_id)
+            ->orderByDesc('id')
+            ->firstOrFail();
 
         $rider = $accounts->rider ?? Riders::find($accounts->rider_id);
 
         $bankCashAccounts = $this->LicenseExpensePaymentAccountOptions();
         if ($bankCashAccounts->isEmpty()) {
             $bankCashAccounts = Accounts::bankAndCashDropdown()
-                ->filter(static fn ($label, $accId) => $accId !== '' && $accId !== null);
+                ->filter(static fn($label, $accId) => $accId !== '' && $accId !== null);
         }
 
         return view('license_expenses.pay_form', compact('data', 'accounts', 'rider', 'bankCashAccounts'));
@@ -960,14 +977,14 @@ class LicenseexpenseController extends AppBaseController
             $expense = license_expenses::findOrFail($validated['id']);
             $expenseAccount = ExpenseAccount::query()->license()->find($expense->expense_account_id)
                 ?? ExpenseAccount::query()
-                    ->license()
-                    ->where(function ($q) use ($request, $expense) {
-                        $q->where('id', $request->rider_id)
-                            ->orWhere('rider_id', $request->rider_id)
-                            ->orWhere('rider_id', $expense->rider_id);
-                    })
-                    ->orderByDesc('id')
-                    ->first();
+                ->license()
+                ->where(function ($q) use ($request, $expense) {
+                    $q->where('id', $request->rider_id)
+                        ->orWhere('rider_id', $request->rider_id)
+                        ->orWhere('rider_id', $expense->rider_id);
+                })
+                ->orderByDesc('id')
+                ->first();
 
             if (!$expenseAccount) {
                 throw new \RuntimeException('License expense account not found for this payment.');

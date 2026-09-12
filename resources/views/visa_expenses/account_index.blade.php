@@ -227,7 +227,7 @@
                                 @endforeach
                             </select>
                             <div class="form-text" id="renewal_category_help">
-                                Tickets are generated only from statuses in the selected visa category. Accounts must be created in category order.
+                                Tickets are generated only from statuses in the selected visa category. New Visa must be created first, then 1st Renewal. After 1st Renewal is completed, any category may be added freely.
                             </div>
                         </div>
                         @endif
@@ -430,7 +430,7 @@
             });
             $categorySelect.val('').trigger('change');
             initCategorySelect2();
-            $categoryHelp.text('Accounts must be created in category order. Tickets are generated only for statuses in the selected visa category.');
+            $categoryHelp.text('Select a person first to see available visa categories.');
         }
 
         function applyEligibleCategories(categories) {

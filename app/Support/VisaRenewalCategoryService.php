@@ -276,11 +276,17 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Next renewal category that may receive a new expense account for this person, or null if blocked / complete.
+     * Next renewal category that may receive a new expense account for this person under the strict
+     * sequential rules (New Visa → 1st Renewal). Returns null when blocked by unpaid entries or
+     * when the first-two-step sequence is complete (after that all remaining are open).
+     *
+     * Used only for legacy/error-message contexts. Prefer creatableCategoriesForPerson() for UI.
      */
     public static function nextCreatableCategoryForPerson(string $personType, int $personId): ?VisaRenewalCategory
     {
-        foreach (self::activeOrdered() as $category) {
+        $categories = self::activeOrdered();
+
+        foreach ($categories as $category) {
             $account = self::accountForPersonCategory($personType, $personId, (int) $category->id);
             if (!$account) {
                 return $category;
@@ -304,10 +310,52 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Categories the user may select when creating a new expense account for this person (at most one).
+     * Whether this person has completed the first-renewal threshold.
+     *
+     * The threshold is reached when:
+     *   1. The default (New Visa) category account exists and has no unpaid entries, AND
+     *   2. The second category (1st Renewal) account exists and has no unpaid entries.
+     *
+     * Once the threshold is passed, all remaining categories without accounts become creatable.
+     */
+    private static function hasCompletedFirstRenewal(string $personType, int $personId): bool
+    {
+        $categories = self::activeOrdered();
+
+        // Need at least 2 categories (New Visa + 1st Renewal) to reach the threshold.
+        if ($categories->count() < 2) {
+            return false;
+        }
+
+        // Check the first two categories in display_order.
+        foreach ($categories->take(2) as $category) {
+            $account = self::accountForPersonCategory($personType, $personId, (int) $category->id);
+            if (!$account || self::unpaidCountForAccount($account) > 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Categories the user may select when creating a new expense account for this person.
+     *
+     * Rules:
+     *  - Before 1st Renewal is completed: at most one category is returned (the next in sequence).
+     *  - After 1st Renewal is completed: all active categories that do not yet have an account
+     *    for this person are returned (free selection, no fixed order enforced).
      */
     public static function creatableCategoriesForPerson(string $personType, int $personId): Collection
     {
+        // Free-selection mode: 1st Renewal has been completed.
+        if (self::hasCompletedFirstRenewal($personType, $personId)) {
+            return self::activeOrdered()->filter(
+                static fn ($category) => self::accountForPersonCategory($personType, $personId, (int) $category->id) === null
+            )->values();
+        }
+
+        // Sequential mode: return only the very next creatable category (or none if blocked).
         $next = self::nextCreatableCategoryForPerson($personType, $personId);
 
         return $next ? collect([$next]) : collect();
@@ -338,9 +386,12 @@ class VisaRenewalCategoryService
             return false;
         }
 
-        $next = self::nextCreatableCategoryForPerson($personType, $personId);
+        $creatableIds = self::creatableCategoriesForPerson($personType, $personId)
+            ->pluck('id')
+            ->map(static fn ($id) => (int) $id)
+            ->all();
 
-        return $next && (int) $next->id === (int) $categoryId;
+        return in_array((int) $categoryId, $creatableIds, true);
     }
 
     public static function resolveCategoryForAccount(ExpenseAccount $account): VisaRenewalCategory

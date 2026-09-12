@@ -21,6 +21,7 @@ use App\Models\Vouchers;
 use App\Models\VoucherType;
 use App\Models\LedgerEntry;
 use App\Models\visa_installment_plan;
+use App\Models\license_installment_plan;
 use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Models\ExpenseAccount;
@@ -528,11 +529,12 @@ class VisaexpenseController extends AppBaseController
         }
 
         if (!VisaRenewalCategoryService::canCreateAccountForPersonCategory($personType, $personId, $categoryId)) {
-            $next = VisaRenewalCategoryService::nextCreatableCategoryForPerson($personType, $personId);
-            if ($next) {
-                Flash::error('You must fully pay all entries in the previous renewal category before creating an account for "' . $category->name . '". The next allowed category is "' . $next->name . '".');
+            $creatableCategories = VisaRenewalCategoryService::creatableCategoriesForPerson($personType, $personId);
+            if ($creatableCategories->isEmpty()) {
+                Flash::error('Cannot create a new visa expense account for "' . $category->name . '". Complete all unpaid entries in the current renewal category first.');
             } else {
-                Flash::error('Cannot create a new visa expense account for "' . $category->name . '". Complete all unpaid entries in the previous renewal category first, or this category is not yet available in sequence.');
+                $names = $creatableCategories->pluck('name')->implode('", "');
+                Flash::error('Cannot create an account for "' . $category->name . '". The currently available categories are: "' . $names . '".');
             }
             return redirect()->back()->withInput();
         }
@@ -811,6 +813,8 @@ class VisaexpenseController extends AppBaseController
             ],
             'activeLicenseCategory' => null,
             'licenseSiblingAccounts' => collect(),
+            'licInstallmentData'  => collect(),
+            'licInstallmentStats' => ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0],
         ];
 
         if (! $riderId
@@ -854,6 +858,18 @@ class VisaexpenseController extends AppBaseController
             $categoryId
         );
 
+        $licInstallmentBase = license_installment_plan::query()->where('rider_id', (int) $licenseAccount->id);
+        $licInstallmentData = (clone $licInstallmentBase)
+            ->with(['vouchers', 'installmentTransactions'])
+            ->orderBy('date', 'asc')
+            ->get();
+        $licInstallmentStats = [
+            'unpaid_amount' => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->sum('amount'),
+            'paid_amount'   => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->sum('amount'),
+            'paid_count'    => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->count(),
+            'unpaid_count'  => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->count(),
+        ];
+
         return [
             'showLicenseExpenseSection' => true,
             'licenseAccount' => $licenseAccount,
@@ -866,6 +882,8 @@ class VisaexpenseController extends AppBaseController
             ],
             'activeLicenseCategory' => $activeLicenseCategory,
             'licenseSiblingAccounts' => $licenseAccounts->where('id', '!=', $licenseAccount->id)->values(),
+            'licInstallmentData'  => $licInstallmentData,
+            'licInstallmentStats' => $licInstallmentStats,
         ];
     }
 

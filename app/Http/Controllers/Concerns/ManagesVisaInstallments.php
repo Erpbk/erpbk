@@ -51,7 +51,7 @@ trait ManagesVisaInstallments
 
     protected function installmentHeadAccountKey(): string
     {
-        return 'VISA_EXPENSE_ACCOUNT';
+        return 'INSTALLMENT_LOAN';
     }
 
     protected function installmentNarrationLabel(): string
@@ -1626,7 +1626,7 @@ trait ManagesVisaInstallments
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id' => GlobalAccounts::id($this->installmentHeadAccountKey()),
+                'account_id' => GlobalAccounts::id('INSTALLMENT_LOAN'),
                 'reference_id' => $installment->id,
                 'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
@@ -1777,8 +1777,8 @@ trait ManagesVisaInstallments
                 ->where('account_type', 'Liability')
                 ->first()
                 ?? Accounts::where('ref_id', $person->id)
-                    ->where('account_type', 'Liability')
-                    ->first();
+                ->where('account_type', 'Liability')
+                ->first();
         }
 
         $liabilityAccount = Accounts::where('ref_id', $person->id)

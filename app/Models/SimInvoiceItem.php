@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Traits\LogsActivity;
-use Illuminate\Database\Eloquent\Model;
 
 class SimInvoiceItem extends BaseModel
 {
@@ -14,21 +13,20 @@ class SimInvoiceItem extends BaseModel
     protected $fillable = [
         'inv_id',
         'sim_id',
-        'rental_amount',
-        'additional_charges',
-        'international_usage_charges',
-        'tax_rate',
-        'tax_amount',
-        'total_amount',
+        'item_id',
+        'qty',
+        'rate',
+        'discount',
+        'tax',
+        'amount',
     ];
 
     protected $casts = [
-        'rental_amount' => 'decimal:2',
-        'additional_charges' => 'decimal:2',
-        'international_usage_charges' => 'decimal:2',
-        'tax_rate' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'total_amount' => 'decimal:2',
+        'qty' => 'decimal:2',
+        'rate' => 'decimal:2',
+        'discount' => 'decimal:2',
+        'tax' => 'decimal:2',
+        'amount' => 'decimal:2',
     ];
 
     public function invoice()
@@ -39,5 +37,16 @@ class SimInvoiceItem extends BaseModel
     public function sim()
     {
         return $this->belongsTo(Sims::class, 'sim_id');
+    }
+
+    public function item()
+    {
+        return $this->belongsTo(Items::class, 'item_id');
+    }
+
+    /** Excl-VAT charge for this line. */
+    public function getExclAttribute(): float
+    {
+        return round(((float) $this->qty * (float) $this->rate) - (float) $this->discount, 2);
     }
 }

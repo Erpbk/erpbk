@@ -78,6 +78,60 @@ class SimInvoice extends BaseModel
         return $this->hasMany(SimInvoiceItem::class, 'inv_id', 'id');
     }
 
+    /**
+     * Build show/edit pivot: unique charge items as columns, one row per SIM.
+     *
+     * @return array{columns: \Illuminate\Support\Collection, rows: array<int, array{sim_id:int,sim:?Sims,charges:array<int,float>,vat:float,total:float,vat_percent:float}>}
+     */
+    public function pivotChargeGrid(): array
+    {
+        $this->loadMissing(['items.item', 'items.sim']);
+
+        $columns = $this->items
+            ->pluck('item')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
+        if ($columns->isEmpty()) {
+            $itemIds = $this->items->pluck('item_id')->unique()->filter()->values();
+            $columns = Items::whereIn('id', $itemIds)->orderBy('name')->get();
+        }
+
+        $rows = [];
+        foreach ($this->items->groupBy('sim_id') as $simId => $lines) {
+            $charges = [];
+            $qtys = [];
+            $vat = 0.0;
+            $total = 0.0;
+            $excl = 0.0;
+            foreach ($lines as $line) {
+                $itemId = (int) $line->item_id;
+                $lineExcl = ((float) $line->qty * (float) $line->rate) - (float) $line->discount;
+                $charges[$itemId] = round($lineExcl, 2);
+                $qtys[$itemId] = round((float) $line->qty, 2);
+                $vat += (float) $line->tax;
+                $total += (float) $line->amount;
+                $excl += $lineExcl;
+            }
+            $rows[] = [
+                'sim_id' => (int) $simId,
+                'sim' => $lines->first()->sim,
+                'charges' => $charges,
+                'qtys' => $qtys,
+                'vat' => round($vat, 2),
+                'total' => round($total, 2),
+                'vat_percent' => $excl > 0 ? round(($vat / $excl) * 100, 2) : 0.0,
+            ];
+        }
+
+        return [
+            'columns' => $columns,
+            'rows' => $rows,
+        ];
+    }
+
     public static function getIdFromInvoiceNumber($invoiceNumber)
     {
         $numericPart = preg_replace('/^SIMI-?/i', '', (string) $invoiceNumber);

@@ -333,9 +333,10 @@
         $companyEmail = $settings['company_email'] ?? 'info@simsolutions.com';
         
         // totals based on invoice data (or fallback)
-        $subtotal = $invoice->subtotal ?? ($invoice->items->sum('rental_amount') ?? 0);
-        $totalVat = $invoice->vat ?? $invoice->items->sum('tax_amount');
+        $subtotal = $invoice->subtotal ?? 0;
+        $totalVat = $invoice->vat ?? 0;
         $grandTotal = $invoice->total_amount ?? ($subtotal + $totalVat);
+        $currency = \App\Helpers\Currency::code() ?? 'AED';
     @endphp
     <table style="margin-bottom: 20px; border: none; background: transparent;">
         <tr style="border: none;">
@@ -402,47 +403,58 @@
     </div>
     @endif
 
-    <!-- SIM Items Table (aligned with supplier items table but with SIM-specific columns) -->
-    @if($invoice->items && $invoice->items->count() > 0)
+    <!-- SIM Items pivot: one row per SIM, one column per unique charge item -->
+    @if(!empty($pivotRows) && count($pivotRows) > 0)
     <div style="overflow-x: auto;">
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 18%;">SIM Number</th>
-                    <th style="width: 12%;">Monthly Rate ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
-                    <th style="width: 12%;">Additional Charges</th>
-                    <th style="width: 12%;">Intl. Usage Charges</th>
-                    <th style="width: 10%;">Amount (Excl. VAT)</th>
-                    <th style="width: 8%;">VAT Rate</th>
-                    <th style="width: 8%;">VAT Amount</th>
-                    <th style="width: 9%;">Total ({{ \App\Helpers\Currency::code() ?? 'AED' }})</th>
+                    <th style="text-align:center;">SIM Number</th>
+                    @foreach($pivotColumns as $col)
+                        <th style="text-align:center;">
+                            {{ $col->name }} ({{ $currency }})
+                            <div style="font-size:11px;font-weight:500;color:#64748b;margin-top:2px;">
+                                Rate: {{ number_format((float) ($col->price ?? 0), 2) }}
+                            </div>
+                        </th>
+                    @endforeach
+                    <th style="text-align:center;">VAT Amount</th>
+                    <th style="text-align:center;">Total ({{ $currency }})</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($invoice->items as $item)
-                    @php
-                        $vatAmtRow = $item->tax_amount ?? 0;
-                        $rowTotal = $item->total_amount ?? 0;
-                        $additionalCharges = (float) ($item->additional_charges ?? 0);
-                        $internationalUsage = (float) ($item->international_usage_charges ?? 0);
-                        $displayAmountExcl = (float) ($item->rental_amount ?? 0) + $additionalCharges + $internationalUsage;
-                    @endphp
+                @foreach($pivotRows as $row)
                     <tr>
-                        <td>{{ $item->sim->number ?? $item->sim_number ?? 'N/A' }}</td>
-                        <td class="num">{{ number_format($item->rental_amount ?? 0, 2) }}</td>
-                        <td class="num">{{ number_format($additionalCharges, 2) }}</td>
-                        <td class="num">{{ number_format($internationalUsage, 2) }}</td>
-                        <td class="num">{{ number_format($displayAmountExcl, 2) }}</td>
-                        <td class="num">{{ number_format($item->tax_rate ?? 0, 0) }}%</td>
-                        <td class="num">{{ number_format($vatAmtRow, 2) }}</td>
-                        <td class="num">{{ number_format($rowTotal, 2) }}</td>
+                        <td>{{ $row['sim']->number ?? 'N/A' }}</td>
+                        @foreach($pivotColumns as $col)
+                            @php $charge = $row['charges'][(int) $col->id] ?? 0; @endphp
+                            <td class="num">{{ number_format($charge, 2) }}</td>
+                        @endforeach
+                        <td class="num">{{ number_format($row['vat'], 2) }}</td>
+                        <td class="num">{{ number_format($row['total'], 2) }}</td>
                     </tr>
                 @endforeach
             </tbody>
+            <tfoot>
+                <tr>
+                    <td style="font-weight:700;">Totals</td>
+                    @foreach($pivotColumns as $col)
+                        @php
+                            $colSum = 0;
+                            foreach ($pivotRows as $row) {
+                                $colSum += (float) ($row['charges'][(int) $col->id] ?? 0);
+                            }
+                        @endphp
+                        <td class="num">{{ number_format($colSum, 2) }}</td>
+                    @endforeach
+                    <td class="num">{{ number_format($totalVat, 2) }}</td>
+                    <td class="num">{{ number_format($grandTotal, 2) }}</td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 
-    <!-- Financial Summary (like supplier invoice but with SIM totals) -->
+    <!-- Financial Summary -->
     <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
         <table style="width: 45%; min-width: 260px; border: 1px solid #e2e8f0;">
             <thead>
@@ -457,12 +469,6 @@
                     <td style="font-weight: 600;">VAT Amount:</td>
                     <td class="num">{{ \App\Helpers\Currency::format($totalVat, 2) ?? number_format($totalVat, 2) }}</td>
                 </tr>
-                @if(isset($invoice->discount) && $invoice->discount > 0)
-                <tr>
-                    <td style="font-weight: 600;">Discount:</td>
-                    <td class="num">{{ number_format($invoice->discount, 2) }}</td>
-                </tr>
-                @endif
             </tbody>
         </table>
     </div>

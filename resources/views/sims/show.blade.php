@@ -584,48 +584,39 @@
                                         <th>Inv Date</th>
                                         <th>Billing Month</th>
                                         <th>Company</th>
-                                        <th class="text-end">Rental</th>
-                                        <th class="text-end">Extra</th>
+                                        <th class="text-end">Charges</th>
+                                        <th class="text-end">VAT</th>
                                         <th class="text-end">Total</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($invoiceItems as $index => $item)
-                                    @php $invoice = $item->invoice; @endphp
+                                    @foreach($invoiceItems as $index => $invoice)
                                     <tr>
                                         <td>{{ $invoiceItems->firstItem() + $index }}</td>
                                         <td>
-                                            @if($invoice)
                                             <a href="javascript:void(0);" class="show-modal-right text-decoration-none"
                                                data-action="{{ route('simInvoices.show', $invoice->id) }}">
                                                 {{ $invoice->invoice_number ?? ('SIMI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT)) }}
                                             </a>
+                                        </td>
+                                        <td>
+                                            {{ $invoice->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d-M-Y') : '—' }}
+                                        </td>
+                                        <td>
+                                            {{ $invoice->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') : '—' }}
+                                        </td>
+                                        <td>{{ $invoice->company?->name ?? '—' }}</td>
+                                        <td class="text-end">{{ number_format((float) ($invoice->charges_excl ?? 0), 2) }}</td>
+                                        <td class="text-end">{{ number_format((float) ($invoice->vat_sum ?? 0), 2) }}</td>
+                                        <td class="text-end fw-semibold">{{ number_format((float) ($invoice->line_total ?? 0), 2) }}</td>
+                                        <td>
+                                            @if((int) $invoice->status === 1)
+                                            <span class="badge bg-success">Paid</span>
+                                            @elseif((int) $invoice->status === 3)
+                                            <span class="badge bg-warning">Partially Paid</span>
                                             @else
-                                            —
-                                            @endif
-                                        </td>
-                                        <td>
-                                            {{ $invoice?->inv_date ? \Carbon\Carbon::parse($invoice->inv_date)->format('d-M-Y') : '—' }}
-                                        </td>
-                                        <td>
-                                            {{ $invoice?->billing_month ? \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') : '—' }}
-                                        </td>
-                                        <td>{{ $invoice?->company?->name ?? '—' }}</td>
-                                        <td class="text-end">{{ number_format((float) $item->rental_amount, 2) }}</td>
-                                        <td class="text-end">{{ number_format((float) ($item->additional_charges + $item->international_usage_charges), 2) }}</td>
-                                        <td class="text-end fw-semibold">{{ number_format((float) $item->total_amount, 2) }}</td>
-                                        <td>
-                                            @if($invoice)
-                                                @if((int) $invoice->status === 1)
-                                                <span class="badge bg-success">Paid</span>
-                                                @elseif((int) $invoice->status === 3)
-                                                <span class="badge bg-warning">Partially Paid</span>
-                                                @else
-                                                <span class="badge bg-danger">Unpaid</span>
-                                                @endif
-                                            @else
-                                            —
+                                            <span class="badge bg-danger">Unpaid</span>
                                             @endif
                                         </td>
                                     </tr>

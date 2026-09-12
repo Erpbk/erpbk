@@ -7,6 +7,7 @@ use App\Http\Requests\CreateSimsRequest;
 use App\Http\Requests\UpdateSimsRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
+use App\Models\SimInvoice;
 use App\Models\SimInvoiceItem;
 use App\Repositories\SimsRepository;
 use App\Models\Sims;
@@ -313,19 +314,31 @@ class SimsController extends AppBaseController
             ->withQueryString()
             ->appends(['tab' => 'assignments']);
 
-        $invoiceItems = SimInvoiceItem::query()
-            ->with(['invoice.company'])
-            ->where('sim_id', $sims->id)
-            ->whereHas('invoice')
+        $invoiceItems = SimInvoice::query()
+            ->with('company')
+            ->whereIn('id', function ($q) use ($sims) {
+                $q->select('inv_id')
+                    ->from('sim_invoice_items')
+                    ->where('sim_id', $sims->id);
+            })
             ->orderByDesc('id')
             ->paginate(10, ['*'], 'invoice_page')
             ->withQueryString()
             ->appends(['tab' => 'invoices']);
 
+        $invoiceItems->getCollection()->transform(function (SimInvoice $invoice) use ($sims) {
+            $lines = SimInvoiceItem::where('inv_id', $invoice->id)->where('sim_id', $sims->id)->get();
+            $invoice->setAttribute('charges_excl', round($lines->sum(fn ($l) => ((float) $l->amount - (float) $l->tax)), 2));
+            $invoice->setAttribute('vat_sum', round($lines->sum('tax'), 2));
+            $invoice->setAttribute('line_total', round($lines->sum('amount'), 2));
+
+            return $invoice;
+        });
+
         $invoiceTotals = SimInvoiceItem::query()
             ->where('sim_id', $sims->id)
             ->whereHas('invoice')
-            ->selectRaw('COUNT(*) as bills, COALESCE(SUM(rental_amount), 0) as rental, COALESCE(SUM(total_amount), 0) as total')
+            ->selectRaw('COUNT(DISTINCT inv_id) as bills, COALESCE(SUM(amount - tax), 0) as rental, COALESCE(SUM(amount), 0) as total')
             ->first();
 
         return view('sims.show', compact('sims', 'histories', 'invoiceItems', 'invoiceTotals'));

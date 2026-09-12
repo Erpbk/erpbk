@@ -82,6 +82,7 @@ class Items extends BaseModel
             'rider' => '#17a2b8',         // Teal
             'employee' => '#6610f2',      // Purple
             'riderInventory' => '#fd7e14', // Orange
+            'sim' => '#0d6efd',           // Blue
         ];
         
         $ownerNames = [];

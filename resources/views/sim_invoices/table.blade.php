@@ -26,7 +26,7 @@
                 <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($invoice->billing_month)->format('M Y') }}</td>
                 <td>{{ $invoice->company->name ?? '-' }}</td>
-                <td><span class="badge bg-info">{{ $invoice->items_count ?? $invoice->items->count() }} sim(s)</span></td>
+                <td><span class="badge bg-info">{{ $invoice->items_count ?? $invoice->items->count() }} line(s)</span></td>
                 <td>{{ \App\Helpers\Currency::format($invoice->subtotal ?? 0, 2) }}</td>
                 <td>{{ \App\Helpers\Currency::format($invoice->vat ?? 0, 2) }}</td>
                 <td><strong>{{ \App\Helpers\Currency::format($invoice->total_amount ?? 0, 2) }}</strong></td>
@@ -49,12 +49,12 @@
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
                             @can('sims_invoices_edit')
-                                <a href="javascript:void(0);" data-action="{{ route('simInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Invoice">
+                                <a href="{{ route('simInvoices.edit', $invoice->id) }}" class='dropdown-item waves-effect'>
                                     <i class="fa fa-edit mx-1"></i> Edit
                                 </a>
                             @endcan
                             @can('sims_invoices_create')
-                                <a href="javascript:void(0);" data-action="{{ route('simInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Clone Invoice (Next Month)">
+                                <a href="{{ route('simInvoices.createFromClone', $invoice->id) }}" class='dropdown-item waves-effect'>
                                     <i class="fa fa-copy mx-1 text-primary"></i> Clone (Next Month)
                                 </a>
                             @endcan

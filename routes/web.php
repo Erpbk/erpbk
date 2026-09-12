@@ -584,6 +584,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::match(['get', 'post'], 'sims/assign/{id}', [SimsController::class, 'assign'])->name('sims.assign');
     Route::match(['get', 'post'], 'sims/return/{id}', [SimsController::class, 'return'])->name('sims.return');
+    Route::match(['get', 'post'], 'sims/charge-lost/{id}', [SimsController::class, 'chargeLost'])->name('sims.chargeLost');
     Route::match(['get', 'post'], 'sims/activate-deactivate', [SimsController::class, 'activateDeactivate'])->name('sims.activateDeactivate');
     Route::get('sims/export', [SimsController::class, 'export'])->name('sims.export');
     Route::match(['get', 'post'], 'sims/import', [SimsController::class, 'import'])->name('sims.import');

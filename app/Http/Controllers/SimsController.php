@@ -101,6 +101,7 @@ class SimsController extends AppBaseController
             'active' => $statsQuery->clone()->where('status', (string) Sims::STATUS_ASSIGNED)->count(),
             'deactivated' => $statsQuery->clone()->where('status', (string) Sims::STATUS_DEACTIVATED)->count(),
             'in_office' => $statsQuery->clone()->where('status', (string) Sims::STATUS_IN_OFFICE)->count(),
+            'lost' => $statsQuery->clone()->where('status', (string) Sims::STATUS_LOST)->count(),
             'user_absconded' => $userAbscondedCount,
             'companies' => $companyStats,
         ];
@@ -127,6 +128,8 @@ class SimsController extends AppBaseController
                 $query->where('status', (string) Sims::STATUS_IN_OFFICE);
             } elseif (in_array($statusFilter, ['deactivated', 'inactive'], true)) {
                 $query->where('status', (string) Sims::STATUS_DEACTIVATED);
+            } elseif (in_array($statusFilter, ['lost'], true)) {
+                $query->where('status', (string) Sims::STATUS_LOST);
             } elseif (in_array($statusFilter, ['user_absconded', 'absconded'], true)) {
                 $query->whereAssigneeAbsconded();
             }
@@ -298,6 +301,10 @@ class SimsController extends AppBaseController
             'employee',
             'createdBy',
             'updatedBy',
+            'lostRider',
+            'lostEmployee',
+            'lostBy',
+            'lostVoucher',
         ])->find($id);
 
         if (empty($sims)) {
@@ -414,6 +421,12 @@ class SimsController extends AppBaseController
         if ($sims->isDeactivated()) {
             return response()->json([
                 'errors' => ['error' => 'This SIM is deactivated and cannot be assigned. Activate it first.'],
+            ], 422);
+        }
+
+        if ($sims->isLost()) {
+            return response()->json([
+                'errors' => ['error' => 'This SIM is marked as lost and cannot be assigned.'],
             ], 422);
         }
 
@@ -751,6 +764,103 @@ class SimsController extends AppBaseController
                 : "{$updated} {$noun} activated and returned to office.",
             'reload' => true,
         ]);
+    }
+
+    /**
+     * Charge the holding rider/employee for a SIM that was lost or never returned.
+     * Posted as an Inventory Loss (IL) voucher.
+     */
+    public function chargeLost(Request $request, $company_slug, string $id)
+    {
+        if (! user_can('sims_sim_edit')) {
+            if ($request->isMethod('get')) {
+                abort(403, 'Unauthorized action.');
+            }
+
+            return response()->json(['message' => 'You do not have permission to charge for a lost SIM.'], 403);
+        }
+
+        $sim = Sims::find($id);
+        if (! $sim) {
+            if ($request->isMethod('get')) {
+                abort(404, 'SIM Not Found');
+            }
+
+            return response()->json(['message' => 'SIM Not Found'], 404);
+        }
+
+        if ($sim->isLost()) {
+            $message = 'This SIM is already marked as lost.';
+            if ($request->isMethod('get') || $request->ajax()) {
+                return response()->json(['message' => $message], 422);
+            }
+            Flash::error($message);
+
+            return redirect()->back();
+        }
+
+        if ($request->isMethod('get')) {
+            $sim->load('telecomCompany');
+            $chargeable = $sim->chargeablePerson();
+
+            return view('sims.charge_lost', [
+                'sim' => $sim,
+                'person' => $chargeable['model'] ?? null,
+                'personType' => $chargeable['type'] ?? null,
+            ]);
+        }
+
+        $data = $this->validate($request, [
+            'amount' => 'required|numeric|min:0.01',
+            'lost_date' => 'required|date',
+            'billing_month' => 'required|date',
+            'remarks' => 'nullable|string|max:1000',
+        ], [
+            'amount.required' => 'Please enter the amount to charge.',
+            'amount.min' => 'Charge amount must be greater than zero.',
+            'lost_date.required' => 'Please provide the date the SIM was lost.',
+            'billing_month.required' => 'Please select the billing month for the voucher.',
+        ]);
+
+        $billingMonth = \Carbon\Carbon::parse($data['billing_month'])->startOfMonth()->format('Y-m-d');
+
+        DB::beginTransaction();
+
+        try {
+            $result = app(\App\Services\SimLossService::class)->chargePersonForLostSim(
+                $sim,
+                (float) $data['amount'],
+                $data['lost_date'],
+                $billingMonth,
+                $data['remarks'] ?? null,
+                auth()->id()
+            );
+
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back();
+        }
+
+        $personLabel = $result['person']->name ?? ($result['person_type'] === 'employee' ? 'the employee' : 'the rider');
+        $message = 'SIM marked as lost. ' . number_format($result['amount'], 2)
+            . ' charged to ' . $personLabel
+            . ' on Inventory Loss voucher ' . ($result['voucher']->formatted_id ?? 'IL-' . str_pad((string) $result['voucher']->id, 4, '0', STR_PAD_LEFT)) . '.';
+
+        if ($request->ajax()) {
+            return response()->json(['message' => $message, 'reload' => true]);
+        }
+
+        Flash::success($message);
+
+        return redirect()->back();
     }
 
     /**

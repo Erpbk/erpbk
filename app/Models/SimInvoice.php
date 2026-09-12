@@ -115,6 +115,15 @@ class SimInvoice extends BaseModel
                 $total += (float) $line->amount;
                 $excl += $lineExcl;
             }
+
+            // Ensure every charge column has a value (0 when this SIM has no line for that item).
+            foreach ($columns as $col) {
+                $itemId = (int) $col->id;
+                if (! array_key_exists($itemId, $charges)) {
+                    $charges[$itemId] = 0.0;
+                }
+            }
+
             $rows[] = [
                 'sim_id' => (int) $simId,
                 'sim' => $lines->first()->sim,

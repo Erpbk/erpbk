@@ -244,6 +244,31 @@
         text-overflow: ellipsis;
         vertical-align: bottom;
     }
+
+    .sim-page .sim-danger-panel {
+        border: 1px solid #fecaca;
+        background: #fef2f2;
+        border-radius: 12px;
+        padding: 14px;
+        margin-top: 16px;
+    }
+
+    .sim-page .sim-danger-panel .title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #b91c1c;
+        font-weight: 600;
+        font-size: 13px;
+        margin-bottom: 6px;
+    }
+
+    .sim-page .sim-danger-panel .desc {
+        color: #7f1d1d;
+        font-size: 12px;
+        line-height: 1.5;
+        margin-bottom: 12px;
+    }
 </style>
 @endpush
 
@@ -376,13 +401,15 @@
                     @elseif($sims->isAssignable())
                     <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="lg"
                        data-title="Assign SIM" data-action="{{ route('sims.assign', $sims->id) }}">
-                        <i class="ti ti-user-plus me-1"></i> Assign Rider
+                        <i class="ti ti-user-plus me-1"></i> Assign
                     </a>
                     @else
                     <button type="button" class="btn btn-primary" disabled>
-                        <i class="ti ti-user-plus me-1"></i> Assign Rider
+                        <i class="ti ti-user-plus me-1"></i> Assign
                     </button>
-                    <small class="text-muted text-center">Activate this SIM before assigning it.</small>
+                    <small class="text-muted text-center">
+                        {{ $sims->isLost() ? 'A lost SIM cannot be assigned.' : 'Activate this SIM before assigning it.' }}
+                    </small>
                     @endif
                     @endcanany
 
@@ -392,7 +419,7 @@
                         <i class="ti ti-edit me-1"></i> Edit SIM
                     </a>
 
-                    @if(!$sims->assign_to)
+                    @if(!$sims->isLost() && !$sims->assign_to)
                     @php
                         $deactivating = !$sims->isDeactivated();
                     @endphp
@@ -408,6 +435,48 @@
                     @endif
                     @endcan
                     </div>
+
+                    @can('sims_sim_edit')
+                    <div class="sim-danger-panel">
+                        @if($sims->isLost())
+                        <div class="title"><i class="ti ti-alert-triangle"></i> SIM Lost / Not Returned</div>
+                        <div class="desc mb-2">
+                            Charged to
+                            <strong>{{ $sims->lostPersonLabel() }}</strong>
+                            on {{ $sims->lost_date ? \Carbon\Carbon::parse($sims->lost_date)->format('d-M-Y') : '—' }}.
+                            @if($sims->lost_remarks)
+                            <br>{{ $sims->lost_remarks }}
+                            @endif
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="text-muted" style="font-size: 11px;">Charged Amount</div>
+                                <div class="fw-bold text-danger" style="font-size: 18px;">
+                                    AED {{ number_format((float) $sims->lost_amount, 2) }}
+                                </div>
+                            </div>
+                            @if($sims->lostVoucherLabel())
+                            <a href="javascript:void(0);" class="btn btn-sm btn-outline-danger show-modal" data-size="xl"
+                               data-title="Voucher # {{ $sims->lostVoucherLabel() }}"
+                               data-action="{{ route('vouchers.show', $sims->lost_voucher_id) }}">
+                                <i class="ti ti-file-invoice me-1"></i>
+                                {{ $sims->lostVoucherLabel() }}
+                            </a>
+                            @endif
+                        </div>
+                        @else
+                        <div class="title"><i class="ti ti-alert-triangle"></i> SIM Lost / Not Returned</div>
+                        <div class="desc">
+                            Mark this SIM as lost or not returned and charge the holder. Enter the
+                            amount in the form; an Inventory Loss (IL) voucher is generated automatically.
+                        </div>
+                        <a href="javascript:void(0);" class="btn btn-danger btn-sm w-100 show-modal" data-size="xl"
+                           data-title="Charge Holder For Lost SIM" data-action="{{ route('sims.chargeLost', $sims->id) }}">
+                            <i class="ti ti-cash-off me-1"></i> Charge Holder (Lost SIM)
+                        </a>
+                        @endif
+                    </div>
+                    @endcan
                 </div>
             </div>
         </div>

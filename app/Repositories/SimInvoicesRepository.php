@@ -215,12 +215,11 @@ class SimInvoicesRepository extends BaseRepository
                 $rate = round((float) ($item->price ?? 0), 2);
                 $discount = 0.0;
                 $excl = round(($qty * $rate) - $discount, 2);
-                if (abs($excl) < 0.00001) {
-                    continue;
-                }
-
                 $tax = $vatPercent > 0 ? round($excl * ($vatPercent / 100), 2) : 0.0;
                 $amount = round($excl + $tax, 2);
+                if (abs($amount) < 0.00001) {
+                    continue;
+                }
 
                 $lines[] = [
                     'sim_id' => $simId,
@@ -356,7 +355,7 @@ class SimInvoicesRepository extends BaseRepository
                     : round((float) ($item['tax'] ?? 0), 2);
                 $amount = round($excl + $tax, 2);
 
-                if (abs($excl) < 0.00001 && abs($tax) < 0.00001) {
+                if (abs($amount) < 0.00001) {
                     continue;
                 }
 

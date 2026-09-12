@@ -117,8 +117,8 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
                 $discount = 0.0;
                 $lineExcl = round(($qty * $rate) - $discount, 2);
                 $tax = $this->vatPercent > 0 ? round($lineExcl * ($this->vatPercent / 100), 2) : 0.0;
-
-                if (abs($lineExcl) < 0.00001 && abs($tax) < 0.00001) {
+                $amount = round($lineExcl + $tax, 2);
+                if (abs($amount) < 0.00001) {
                     continue;
                 }
 

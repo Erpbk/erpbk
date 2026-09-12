@@ -17,6 +17,7 @@
           $assignedActive = in_array($currentStatus, ['assigned', 'active'], true);
           $inOfficeActive = in_array($currentStatus, ['in_office', 'in-office', 'office'], true);
           $deactivatedActive = in_array($currentStatus, ['deactivated', 'inactive'], true);
+          $lostActive = $currentStatus === 'lost';
           $abscondedActive = in_array($currentStatus, ['user_absconded', 'absconded'], true);
           $totalActive = $currentStatus === '' && $currentCompany === '';
           $simStatUrl = function (array $overrides) use ($statBaseQuery) {
@@ -44,6 +45,10 @@
         <a href="{{ $simStatUrl(['status' => $deactivatedActive ? null : 'deactivated']) }}" class="total-card total-inactive{{ $deactivatedActive ? ' is-active' : '' }}" title="{{ $deactivatedActive ? 'Clear Deactivated filter' : 'Show deactivated SIMs' }}">
           <div class="label"><i class="fa fa-times-circle"></i>Deactivated</div>
           <div class="value" id="total_rejected">{{ $stats['deactivated'] ?? 0 }}</div>
+        </a>
+        <a href="{{ $simStatUrl(['status' => $lostActive ? null : 'lost']) }}" class="total-card total-1{{ $lostActive ? ' is-active' : '' }}" title="{{ $lostActive ? 'Clear Lost filter' : 'Show lost SIMs' }}">
+          <div class="label"><i class="fa fa-exclamation-triangle"></i>Lost</div>
+          <div class="value" id="total_lost">{{ $stats['lost'] ?? 0 }}</div>
         </a>
         <a href="{{ $simStatUrl(['status' => $abscondedActive ? null : 'user_absconded']) }}" class="total-card total-user-absconded{{ $abscondedActive ? ' is-active' : '' }}" title="{{ $abscondedActive ? 'Clear User Absconded filter' : 'Show SIMs assigned to absconded users' }}">
           <div class="label"><i class="fa fa-user-secret"></i>User Absconded</div>
@@ -148,7 +153,11 @@
               ])
               @can('sims_assign_create')
               @if(!$r->assign_to)
-              @if((int) $r->status === \App\Models\Sims::STATUS_DEACTIVATED)
+              @if((int) $r->status === \App\Models\Sims::STATUS_LOST)
+              <span class="dropdown-item text-muted" title="A lost SIM cannot be assigned.">
+                <i class="ti ti-alert-triangle my-1"></i>Lost
+              </span>
+              @elseif((int) $r->status === \App\Models\Sims::STATUS_DEACTIVATED)
               <span class="dropdown-item text-muted" title="Activate this SIM before assigning it.">
                 <i class="fa fa-ban my-1"></i>Deactivated
               </span>
@@ -160,6 +169,18 @@
               @else
               <a href="javascript:void(0);" data-size="lg" data-title="Return Sim" data-action="{{ route('sims.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
                 <i class="fa fa-undo my-1"></i>Return
+              </a>
+              @can('sims_sim_edit')
+              <a href="javascript:void(0);" data-size="xl" data-title="Charge Holder For Lost SIM" data-action="{{ route('sims.chargeLost', $r->id) }}" class='dropdown-item waves-effect show-modal text-danger'>
+                <i class="ti ti-alert-triangle my-1"></i>Charge Lost
+              </a>
+              @endcan
+              @endif
+              @endcan
+              @can('sims_sim_edit')
+              @if(!$r->isLost() && !$r->assign_to)
+              <a href="javascript:void(0);" data-size="xl" data-title="Charge Holder For Lost SIM" data-action="{{ route('sims.chargeLost', $r->id) }}" class='dropdown-item waves-effect show-modal text-danger'>
+                <i class="ti ti-alert-triangle my-1"></i>Charge Lost
               </a>
               @endif
               @endcan

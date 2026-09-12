@@ -76,7 +76,11 @@ class SimInvoicesController extends AppBaseController
         ];
 
         $data = $this->applyPagination(
-            (clone $query)->with('company')->withCount('items'),
+            (clone $query)->with('company')->withCount([
+                'items as sims_count' => function ($q) {
+                    $q->select(\DB::raw('count(distinct sim_id)'));
+                },
+            ]),
             $paginationParams
         );
         $companies = SimCompany::where('status', 1)->orderBy('name')->get();

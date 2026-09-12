@@ -21,6 +21,9 @@ class Sims extends BaseModel
   /** Held by the office, available to assign. */
   public const STATUS_IN_OFFICE = 2;
 
+  /** Lost / not returned; charged via Inventory Loss and cannot be assigned. */
+  public const STATUS_LOST = 3;
+
   public $fillable = [
     'branch_id',
     'number',
@@ -33,7 +36,15 @@ class Sims extends BaseModel
     'fleet_supervisor',
     'status',
     'emi',
-    'vendor'
+    'vendor',
+    'lost_date',
+    'lost_rider_id',
+    'lost_employee_id',
+    'lost_amount',
+    'lost_voucher_id',
+    'lost_trans_code',
+    'lost_remarks',
+    'lost_by',
   ];
 
   protected $casts = [
@@ -42,6 +53,14 @@ class Sims extends BaseModel
     'fleet_supervisor' => 'string',
     'emi' => 'string',
     'vendor' => 'string',
+    'lost_date' => 'date',
+    'lost_rider_id' => 'integer',
+    'lost_employee_id' => 'integer',
+    'lost_amount' => 'decimal:2',
+    'lost_voucher_id' => 'integer',
+    'lost_trans_code' => 'string',
+    'lost_remarks' => 'string',
+    'lost_by' => 'integer',
     'created_at' => 'datetime',
     'updated_at' => 'datetime',
     'deleted_at' => 'datetime'
@@ -156,6 +175,7 @@ class Sims extends BaseModel
       self::STATUS_ASSIGNED => ['label' => 'Assigned', 'badge' => 'bg-success'],
       self::STATUS_IN_OFFICE => ['label' => 'In office', 'badge' => 'bg-info'],
       self::STATUS_DEACTIVATED => ['label' => 'Deactivated', 'badge' => 'bg-danger'],
+      self::STATUS_LOST => ['label' => 'Lost', 'badge' => 'bg-dark'],
       default => ['label' => 'Unknown', 'badge' => 'bg-secondary'],
     };
   }
@@ -165,12 +185,106 @@ class Sims extends BaseModel
     return (int) $this->status === self::STATUS_DEACTIVATED;
   }
 
+  public function isLost(): bool
+  {
+    return (int) $this->status === self::STATUS_LOST;
+  }
+
   /**
    * A SIM can only go to a rider or employee when it is sitting in the office.
    */
   public function isAssignable(): bool
   {
-    return !$this->assign_to && !$this->isDeactivated();
+    return !$this->assign_to && !$this->isDeactivated() && !$this->isLost();
+  }
+
+  /**
+   * Person who should be charged if this SIM is lost: the current holder, or the
+   * most recent one when the SIM was already returned / left unreturned.
+   *
+   * @return array{type: string, model: Riders|Employee}|null
+   */
+  public function chargeablePerson(): ?array
+  {
+    if ($this->assign_to) {
+      $person = $this->assignedPerson();
+      if (!$person) {
+        return null;
+      }
+
+      return [
+        'type' => $this->assign_type === 'employee' ? 'employee' : 'rider',
+        'model' => $person,
+      ];
+    }
+
+    $lastHistory = $this->histories()
+      ->where(function ($q) {
+        $q->whereNotNull('rider_id')->orWhereNotNull('employee_id');
+      })
+      ->orderByDesc('note_date')
+      ->orderByDesc('id')
+      ->first();
+
+    if (!$lastHistory) {
+      return null;
+    }
+
+    if ($lastHistory->employee_id) {
+      $employee = Employee::find($lastHistory->employee_id);
+      return $employee ? ['type' => 'employee', 'model' => $employee] : null;
+    }
+
+    if ($lastHistory->rider_id) {
+      $rider = Riders::find($lastHistory->rider_id);
+      return $rider ? ['type' => 'rider', 'model' => $rider] : null;
+    }
+
+    return null;
+  }
+
+  public function lostRider()
+  {
+    return $this->belongsTo(Riders::class, 'lost_rider_id', 'id');
+  }
+
+  public function lostEmployee()
+  {
+    return $this->belongsTo(Employee::class, 'lost_employee_id', 'id');
+  }
+
+  public function lostBy()
+  {
+    return $this->belongsTo(User::class, 'lost_by', 'id');
+  }
+
+  public function lostVoucher()
+  {
+    return $this->belongsTo(Vouchers::class, 'lost_voucher_id', 'id');
+  }
+
+  public function lostVoucherLabel(): ?string
+  {
+    if (!$this->lost_voucher_id) {
+      return null;
+    }
+
+    return 'IL-' . str_pad((string) $this->lost_voucher_id, 4, '0', STR_PAD_LEFT);
+  }
+
+  public function lostPersonLabel(): string
+  {
+    if ($this->lostEmployee) {
+      $code = $this->lostEmployee->employee_id ?? $this->lostEmployee->id;
+      return trim(($this->lostEmployee->name ?? 'Employee') . ' (' . $code . ')');
+    }
+
+    if ($this->lostRider) {
+      $code = $this->lostRider->rider_id ?? $this->lostRider->id;
+      return trim(($this->lostRider->name ?? 'Rider') . ' (' . $code . ')');
+    }
+
+    return 'holder';
   }
 
   public function createdBy()

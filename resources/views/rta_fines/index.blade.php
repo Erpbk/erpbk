@@ -60,15 +60,6 @@
         color: #28a745;
     }
 
-    .total-accounts {
-        border-left-color: #007bff;
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.06), rgba(59, 130, 246, 0.02));
-    }
-
-    .total-accounts .label {
-        color: #007bff;
-    }
-
     .total-inactive {
         border-left-color: #373536;
         background: linear-gradient(180deg, rgba(55, 53, 54, 0.06), rgba(55, 53, 54, 0.02));
@@ -121,6 +112,15 @@
 
     .total-admin-charges .label {
         color: #ffc107;
+    }
+
+    .total-vat {
+        border-left-color: #fd7e14;
+        background: linear-gradient(180deg, rgba(253, 126, 20, 0.06), rgba(253, 126, 20, 0.02));
+    }
+
+    .total-vat .label {
+        color: #fd7e14;
     }
 
     #dataTableBuilder {
@@ -460,24 +460,22 @@
             <button class="btn btn-primary openFilterSidebar" id="openFilterSidebar"> <i class="fa fa-search"></i> Filter Fines</button>
         </div>
         <div class="totals-cards">
-            <div class="total-card total-accounts">
-                <div class="label"><i class="fa fa-ticket"></i>Total Tickets</div>
-                <div class="value" id="total_orders">{{ number_format($totaltickets ?? 0) }}</div>
-                <div class="label"><i class="fa fa-dollar"></i>Fine</div>
-                <div class="value" id="total_fine_amount">{{ number_format($totalAmount ?? 0, 2) }}</div>
-            </div>
+            @if(($listingStatus ?? 'unpaid') !== 'paid')
             <div class="total-card total-unpaid">
                 <div class="label"><i class="fa fa-times-circle"></i>Unpaid Fines</div>
                 <div class="value" id="unpaid_count">{{ number_format($unpaidCount ?? 0) }}</div>
                 <div class="label"><i class="fa fa-dollar"></i>Unpaid Amount</div>
                 <div class="value" id="unpaid_amount">{{ number_format($unpaidAmount ?? 0, 2) }}</div>
             </div>
+            @endif
+            @if(($listingStatus ?? 'unpaid') === 'paid')
             <div class="total-card total-paid">
                 <div class="label"><i class="fas fa-stamp"></i>Paid Fines</div>
                 <div class="value" id="paid_count">{{ number_format($paidCount ?? 0) }}</div>
                 <div class="label"><i class="fa fa-dollar"></i>Paid Amount</div>
                 <div class="value" id="paid_amount">{{ number_format($paidAmount ?? 0, 2) }}</div>
             </div>
+            @endif
             <div class="total-card total-tickets-amount">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Ticket Amount</div>
                 <div class="value" id="ticket_amount">{{ number_format($total_Amount ?? 0, 2) }}</div>
@@ -489,6 +487,10 @@
             <div class="total-card total-admin-charges">
                 <div class="label"><i class="far fa-money-bill-alt"></i>Admin Charges</div>
                 <div class="value" id="admin_charges">{{ number_format($adminFee ?? 0, 2) }}</div>
+            </div>
+            <div class="total-card total-vat">
+                <div class="label"><i class="far fa-money-bill-alt"></i>VAT</div>
+                <div class="value" id="vat_amount">{{ number_format($vatAmount ?? 0, 2) }}</div>
             </div>
         </div>
         <div class="card-body table-responsive px-2 py-0" id="table-data">

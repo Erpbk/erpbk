@@ -28,7 +28,14 @@
       <tr class="text-center" data-id="{{ $r->id }}">
          @if($vf('trip_date'))<td>{{ App\Helpers\General::DateFormat($r->trip_date) }}</td>@endif
          @if($vf('trip_time'))<td>{{$r->trip_time}}</td>@endif
-         @if($vf('billing_month'))<td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>@endif
+         @if($vf('billing_month'))
+         @php
+            $billingMonthValue = (Route::is('rtaFines.paid') && $r->paidVoucher?->billing_month)
+               ? $r->paidVoucher->billing_month
+               : $r->billing_month;
+         @endphp
+         <td>{{ $billingMonthValue ? \Carbon\Carbon::parse($billingMonthValue)->format('M Y') : '-' }}</td>
+         @endif
          @php
          $fileUrl = $r->paid_voucher_id ? asset('storage/' . $r->attachment) : asset('storage/' . $r->attachment_path);
          @endphp
@@ -64,7 +71,14 @@
          @if($vf('service_charges'))<td>{{ \App\Helpers\Currency::format($r->service_charges, 2) }}</td>@endif
          @if($vf('admin_fee'))<td>{{ \App\Helpers\Currency::format($r->admin_fee, 2) }}</td>@endif
          @if($vf('total_amount'))<td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>@endif
-         @if($vf('reference_number'))<td>{{ $r->reference_number ?? '-'}}</td>@endif
+         @if($vf('reference_number'))
+         @php
+            $referenceNumberValue = (Route::is('rtaFines.paid') && $r->paidVoucher)
+               ? ($r->paidVoucher->reference_number ?: null)
+               : $r->reference_number;
+         @endphp
+         <td>{{ $referenceNumberValue ?: '-' }}</td>
+         @endif
          @if($vf('status'))<td>
             @if($r->status == 'paid')
             <span class="badge bg-success">Paid</span>
@@ -90,7 +104,11 @@
                   <a href="javascript:void(0);" data-action="{{ route('rtaFines.viewvoucher', $r->id) }}" data-size="lg" data-title="Pay Fine:  {{ $r->ticket_no }}" class='dropdown-item waves-effect show-modal'>
                      Pay Fine
                   </a>
-                  <a href="javascript:void(0);" data-action="{{ route('rtaFines.edit' , $r->id) }}" data-size="xl" data-title="New Fine" class='dropdown-item waves-effect show-modal'>
+                  <a href="javascript:void(0);" data-action="{{ route('rtaFines.edit' , $r->id) }}" data-size="xl" data-title="Edit Fine" class='dropdown-item waves-effect show-modal'>
+                     Edit
+                  </a>
+                  @else
+                  <a href="javascript:void(0);" data-action="{{ route('rtaFines.viewvoucher', $r->id) }}" data-size="lg" data-title="Edit Payment: {{ $r->ticket_no }}" class='dropdown-item waves-effect show-modal'>
                      Edit
                   </a>
                   @endif

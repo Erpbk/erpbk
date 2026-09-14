@@ -41,6 +41,7 @@ class RtaFines extends BaseModel
     'admin_vat',
     'voucher_id',
     'paid_voucher_id',
+    'pay_account',
     'black_points',
     'is_impound',
   ];

@@ -193,8 +193,28 @@ class SimsController extends AppBaseController
         // Get all columns from sims table
         $filteredColumns = \Illuminate\Support\Facades\Schema::getColumnListing('sims');
 
-        // Columns to exclude
-        $exclude = ['id', 'created_at', 'updated_at', 'deleted_by', 'deleted_at', 'fleet_supervisor', 'created_by', 'updated_by', 'company_id', 'branch_id','assign_type'];
+        // Columns to exclude (lost_* stay on the SIM show page, not the list table)
+        $exclude = [
+            'id',
+            'created_at',
+            'updated_at',
+            'deleted_by',
+            'deleted_at',
+            'fleet_supervisor',
+            'created_by',
+            'updated_by',
+            'company_id',
+            'branch_id',
+            'assign_type',
+            'lost_date',
+            'lost_rider_id',
+            'lost_employee_id',
+            'lost_amount',
+            'lost_voucher_id',
+            'lost_trans_code',
+            'lost_remarks',
+            'lost_by',
+        ];
 
         // Final filtered columns
         $dbColumns = array_diff($filteredColumns, $exclude);

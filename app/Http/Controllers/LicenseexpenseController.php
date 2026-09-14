@@ -701,6 +701,7 @@ class LicenseexpenseController extends AppBaseController
             'riders' => $riders,
             'activeLicenseCategory' => $activeLicenseCategory,
             'siblingAccounts' => $siblingAccounts,
+            'licenseCategoryAccounts' => collect([$account])->merge($siblingAccounts)->sortBy('id')->values(),
             'licInstallmentData' => $licInstallmentData,
             'licInstallmentStats' => $licInstallmentStats,
         ];
@@ -730,6 +731,7 @@ class LicenseexpenseController extends AppBaseController
             'visaExpenseTotals' => $emptyStats,
             'activeRenewalCategory' => null,
             'visaSiblingAccounts' => collect(),
+            'visaCategoryAccounts' => collect(),
             'visaInstallmentData' => collect(),
             'visaInstallmentStats' => [
                 'unpaid_amount' => 0.0,
@@ -800,6 +802,7 @@ class LicenseexpenseController extends AppBaseController
             ],
             'activeRenewalCategory' => $activeRenewalCategory,
             'visaSiblingAccounts' => $visaAccounts->where('id', '!=', $visaAccount->id)->values(),
+            'visaCategoryAccounts' => $visaAccounts,
             'visaInstallmentData' => $visaInstallmentData,
             'visaInstallmentStats' => [
                 'unpaid_amount' => (float) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PENDING)->sum('amount'),

@@ -883,6 +883,7 @@ class VisaexpenseController extends AppBaseController
             ],
             'activeLicenseCategory' => null,
             'licenseSiblingAccounts' => collect(),
+            'licenseCategoryAccounts' => collect(),
             'licInstallmentData'  => collect(),
             'licInstallmentStats' => ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0],
         ];
@@ -910,7 +911,7 @@ class VisaexpenseController extends AppBaseController
         }
 
         if (! $licenseAccount) {
-            return array_merge($empty, ['showLicenseExpenseSection' => true]);
+            return $empty;
         }
 
         $activeLicenseCategory = LicenseCategoryService::resolveCategoryForAccount($licenseAccount);
@@ -952,6 +953,7 @@ class VisaexpenseController extends AppBaseController
             ],
             'activeLicenseCategory' => $activeLicenseCategory,
             'licenseSiblingAccounts' => $licenseAccounts->where('id', '!=', $licenseAccount->id)->values(),
+            'licenseCategoryAccounts' => $licenseAccounts,
             'licInstallmentData'  => $licInstallmentData,
             'licInstallmentStats' => $licInstallmentStats,
         ];

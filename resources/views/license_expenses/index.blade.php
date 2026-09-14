@@ -14,13 +14,27 @@ $totalPaid = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->sum
 $unpaidCount = (clone $categoryExpenseQuery)->where('payment_status', 'unpaid')->count();
 $paidCount = (clone $categoryExpenseQuery)->where('payment_status', 'paid')->count();
 
-$showVisaSection = !empty($showVisaExpenseSection);
+$licenseCategoryAccounts = collect($licenseCategoryAccounts ?? (
+    isset($siblingAccounts)
+        ? collect([$account])->merge($siblingAccounts)->unique('id')->sortBy('id')->values()
+        : collect([$account])
+));
+$visaCategoryAccounts = collect($visaCategoryAccounts ?? (
+    isset($visaAccount)
+        ? collect([$visaAccount])->merge($visaSiblingAccounts ?? [])->unique('id')->sortBy('id')->values()
+        : collect()
+));
+$showVisaSection = !empty($showVisaExpenseSection) && $visaCategoryAccounts->isNotEmpty();
 $licInstallmentData = $licInstallmentData ?? collect();
 $licInstallmentStats = $licInstallmentStats ?? ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0];
 
-// Determine active tab from query-string; default = license
-$activeTab = request('tab', 'license');
-if (!in_array($activeTab, ['license','visa'])) { $activeTab = 'license'; }
+$requestedTab = request('tab', 'license');
+$activeTab = ($requestedTab === 'visa' && $showVisaSection) ? 'visa' : 'license';
+// When a visa category was picked via visa_account_id, keep visa tab active
+if (request()->filled('visa_account_id') && $showVisaSection) {
+    $activeTab = 'visa';
+}
+$activeLicenseName = $activeLicenseCategory->name ?? 'License';
 @endphp
 
 <style>
@@ -183,51 +197,52 @@ if (!in_array($activeTab, ['license','visa'])) { $activeTab = 'license'; }
 <div class="content">
   @include('flash::message')
 
-  {{-- ── Tab navigation + sibling account quick-links (right-aligned) ── --}}
+  {{-- ── Dynamic category tabs (only accounts that exist for this rider) ── --}}
   <div class="d-flex align-items-center exp-tab-nav" id="expenseTabs" role="tablist">
-    {{-- left: module tabs --}}
-    <ul class="nav mb-0 border-0 flex-grow-1" style="border-bottom:none;">
+    <ul class="nav mb-0 border-0 flex-grow-1 flex-wrap" style="border-bottom:none;">
+      @foreach($licenseCategoryAccounts as $licAccount)
+      @php
+        $isActiveLic = $activeTab === 'license' && (int) $licAccount->id === (int) $account->id;
+        $licLabel = $licAccount->licenseCategory->name ?? ('Account #'.$licAccount->id);
+        $licUnpaid = \App\Support\LicenseCategoryService::unpaidCountForAccount($licAccount);
+        $licUrl = route('LicenseExpense.generatentries', ['id' => $licAccount->id, 'tab' => 'license']);
+      @endphp
       <li class="nav-item">
-        <a class="nav-link {{ $activeTab==='license' ? 'active':'' }}"
-          href="{{ request()->fullUrlWithQuery(['tab'=>'license']) }}"
-          id="tab-license">
+        <a class="nav-link {{ $isActiveLic ? 'active' : '' }}"
+          href="{{ $licUrl }}"
+          id="tab-license-cat-{{ $licAccount->id }}">
           <i class="fa fa-id-card me-1"></i>
-          License Expense
-          @if($unpaidCount > 0)
-          <span class="badge rounded-pill tab-badge-license ms-1">{{ $unpaidCount }}</span>
+          {{ $licLabel }}
+          @if($licUnpaid > 0)
+          <span class="badge rounded-pill tab-badge-license ms-1">{{ $licUnpaid }}</span>
           @endif
         </a>
       </li>
-      @if($showVisaSection)
-      <li class="nav-item">
-        <a class="nav-link {{ $activeTab==='visa' ? 'active':'' }}"
-          href="{{ request()->fullUrlWithQuery(['tab'=>'visa']) }}"
-          id="tab-visa">
-          <i class="fa fa-passport me-1"></i>
-          Visa Expense
-          @php $visaUnpaidCount = (int)($visaExpenseTotals['unpaid_count'] ?? 0); @endphp
-          @if($visaUnpaidCount > 0)
-          <span class="badge rounded-pill tab-badge-visa ms-1">{{ $visaUnpaidCount }}</span>
-          @endif
-        </a>
-      </li>
-      @endif
-    </ul>
-
-    {{-- right: sibling license account quick-links --}}
-    @if(isset($siblingAccounts) && $siblingAccounts->count() > 0)
-    <div class="d-flex align-items-center gap-1 ms-3 flex-shrink-0 pb-1">
-      <span class="text-muted small fw-semibold me-1" style="white-space:nowrap;">
-        <i class="fa fa-exchange-alt fa-xs me-1"></i>Switch:
-      </span>
-      @foreach($siblingAccounts as $sibling)
-      <a href="{{ route('LicenseExpense.generatentries', $sibling->id) }}"
-        class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem;line-height:1.7;">
-        {{ $sibling->licenseCategory->name ?? 'Account #'.$sibling->id }}
-      </a>
       @endforeach
-    </div>
-    @endif
+
+      @foreach($visaCategoryAccounts as $visaCat)
+      @php
+        $isActiveVisaCat = $activeTab === 'visa' && isset($visaAccount) && (int) $visaCat->id === (int) $visaAccount->id;
+        $visaLabel = $visaCat->renewalCategory->name ?? ('Account #'.$visaCat->id);
+        $visaCatUnpaid = \App\Support\VisaRenewalCategoryService::unpaidCountForAccount($visaCat);
+        $visaUrl = request()->fullUrlWithQuery([
+          'tab' => 'visa',
+          'visa_account_id' => $visaCat->id,
+        ]);
+      @endphp
+      <li class="nav-item">
+        <a class="nav-link {{ $isActiveVisaCat ? 'active' : '' }}"
+          href="{{ $visaUrl }}"
+          id="tab-visa-cat-{{ $visaCat->id }}">
+          <i class="fa fa-passport me-1"></i>
+          {{ $visaLabel }}
+          @if($visaCatUnpaid > 0)
+          <span class="badge rounded-pill tab-badge-visa ms-1">{{ $visaCatUnpaid }}</span>
+          @endif
+        </a>
+      </li>
+      @endforeach
+    </ul>
   </div>
 
   {{-- ════════════════════════════════════════════════════════════

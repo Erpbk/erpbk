@@ -18,22 +18,12 @@ $visaInstallmentStats = $visaInstallmentStats ?? [
 @endphp
 
 @if($showVisaSection && $visaAccount)
-@if($visaSiblingAccounts->count() > 0)
-<div class="alert alert-light border mb-3">
-  <span class="text-muted me-2">Other renewal accounts for this rider:</span>
-  @foreach($visaSiblingAccounts as $sibling)
-  <a href="{{ request()->fullUrlWithQuery(['visa_account_id' => $sibling->id]) }}" class="btn btn-sm btn-outline-secondary me-1 mb-1">
-    {{ $sibling->renewalCategory->name ?? 'Account #' . $sibling->id }}
-  </a>
-  @endforeach
-</div>
-@endif
+{{-- Category switching is handled by the dynamic top tabs; no inline Switch buttons. --}}
 
 <div class="card mb-3">
   <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
     <h3 class="mb-0">
-      Visa Expense - {{ $visaAccount->name }}
-      <span class="text-muted">({{ $activeRenewalCategory->name ?? 'New Visa' }})</span>
+      {{ $activeRenewalCategory->name ?? 'Visa Expense' }}
     </h3>
     @can('visaexpense_create')
     <a class="btn btn-primary action-btn show-modal"

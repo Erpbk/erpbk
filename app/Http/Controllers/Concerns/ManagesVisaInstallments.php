@@ -662,10 +662,27 @@ trait ManagesVisaInstallments
                 $billingMonth .= '-01';
             }
 
-            // Resolve INSTALLMENT_LOAN account (Cr side — loan balance reduces as payment comes in)
-            $installmentLoanAccountId = GlobalAccounts::idOrNull('INSTALLMENT_LOAN');
-            if (!$installmentLoanAccountId) {
-                throw new \RuntimeException('Contact ERP Administrator to Setup Installment Loan Account');
+            // Credit side = rider/employee liability account
+            $riderCreditAccount = null;
+            if ($expenseAccount) {
+                $riderCreditAccount = $this->resolvePersonLiabilityAccount($expenseAccount, $person);
+            }
+            if (!$riderCreditAccount && !empty($person->account_id)) {
+                $riderCreditAccount = Accounts::find($person->account_id);
+            }
+            if (!$riderCreditAccount) {
+                $refName = !empty($person->is_employee) ? 'employee' : null;
+                $riderCreditAccount = Accounts::where('ref_id', $person->id)
+                    ->where('account_type', 'Liability')
+                    ->when($refName, fn ($q) => $q->where('ref_name', $refName))
+                    ->when(empty($person->is_employee), fn ($q) => $q->where('parent_id', 1))
+                    ->first()
+                    ?? Accounts::where('ref_id', $person->id)
+                        ->where('account_type', 'Liability')
+                        ->first();
+            }
+            if (!$riderCreditAccount) {
+                throw new \RuntimeException('Rider liability account not found. Please create the liability account first.');
             }
 
             $totalPaid      = 0.0;
@@ -699,8 +716,8 @@ trait ManagesVisaInstallments
                 if ($payAmt > $remaining + 0.001) {
                     throw new \RuntimeException(
                         'Payment of ' . number_format($payAmt, 2) .
-                        ' exceeds remaining balance of ' . number_format($remaining, 2) .
-                        ' for installment #' . ($idx + 1) . '.'
+                            ' exceeds remaining balance of ' . number_format($remaining, 2) .
+                            ' for installment #' . ($idx + 1) . '.'
                     );
                 }
 
@@ -718,9 +735,9 @@ trait ManagesVisaInstallments
                 $totalPaid += $payAmt;
                 $paidLines[] = ['installment' => $installment, 'amount' => $payAmt];
 
-                // GL per installment: Cr INSTALLMENT_LOAN (loan balance reduces)
+                // GL per installment: Cr Rider (liability reduces / payment applied)
                 $TransactionService->recordTransaction([
-                    'account_id'     => $installmentLoanAccountId,
+                    'account_id'     => $riderCreditAccount->id,
                     'reference_id'   => $installment->id,
                     'reference_type' => $this->installmentReferenceType(),
                     'trans_code'     => $transCode,
@@ -737,7 +754,7 @@ trait ManagesVisaInstallments
                 throw new \RuntimeException('No valid payment amounts provided.');
             }
 
-            // GL: Dr Bank/Cash (total cash received — one entry for all installments)
+            // GL: Dr Bank/Cash (total cash received)
             $bankNarration = $personLabel . ' — payment received via '
                 . $bankAccount->name
                 . ' for ' . $this->installmentNarrationLabel();
@@ -778,7 +795,7 @@ trait ManagesVisaInstallments
                 'Created_By'     => auth()->id(),
                 'branch_id'      => $person->branch_id ?? null,
                 'trans_code'     => $transCode,
-            ], fn ($v) => $v !== null));
+            ], fn($v) => $v !== null));
 
             DB::commit();
 
@@ -791,7 +808,6 @@ trait ManagesVisaInstallments
 
             Flash::success($msg);
             return redirect()->back();
-
         } catch (\Exception $e) {
             DB::rollBack();
             if ($request->ajax()) {
@@ -2126,7 +2142,7 @@ trait ManagesVisaInstallments
         $bankParent = Accounts::where('account_type', 'Asset')
             ->where(function ($q) {
                 $q->where('name', 'like', '%Bank%')
-                  ->orWhere('name', 'like', '%Cash%');
+                    ->orWhere('name', 'like', '%Cash%');
             })
             ->whereNotNull('account_code')
             ->orderBy('id')
@@ -2148,7 +2164,7 @@ trait ManagesVisaInstallments
             ->where('account_type', 'Asset')
             ->where(function ($q) {
                 $q->where('account_code', 'like', 'BK%')
-                  ->orWhere('account_code', 'like', 'CB%');
+                    ->orWhere('account_code', 'like', 'CB%');
             })
             ->orderBy('account_code')
             ->pluck('label', 'id');
@@ -2156,7 +2172,7 @@ trait ManagesVisaInstallments
             return $items->prepend('Select Bank/Cash Account', '');
         }
 
-        return collect([''=>'No bank/cash accounts found — please configure BANK global account']);
+        return collect(['' => 'No bank/cash accounts found — please configure BANK global account']);
     }
 
     private function resolveExpenseAccountPerson(ExpenseAccount $expenseAccount): ?object

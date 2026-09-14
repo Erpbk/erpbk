@@ -496,7 +496,7 @@
   .rider-view-card-photo {
     width: 240px;
     height: 240px;
-    object-fit: cover;
+    object-fit: inherit;
     border-radius: 0.75rem;
     border: 5px solid #fff;
     background: #fff;
@@ -824,16 +824,17 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
       ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
       : 'Days in current status';
-      $isFavorited = isset($rider) && in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true);
-      @endphp
+      if (isset($rider) && auth()->check()) {
+      $isFavorited = in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true);
+      } @endphp
       @endisset
       <div class="user-avatar-section">
         <div class="rider-view-card-hero">
+          @isset($result)
           <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
             id="rider-favorite-star"
             data-rider-id="{{ $result['id'] ?? '' }}"
             title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
-          @isset($result)
           <div class="rider-view-card-status">
             <span class="rider-view-card-active {{ strtolower($employmentBadge['label'] ?? '') === 'active' ? '' : (strtolower($employmentBadge['label'] ?? '') === 'vacation' ? 'is-vacation' : 'is-inactive') }}" id="rider-hero-status-badge">{{ $employmentBadge['label'] ?? 'Inactive' }}</span>
             <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null)===null) style="display:none" @endif>

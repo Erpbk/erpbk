@@ -1,12 +1,13 @@
 @push('third_party_stylesheets')
 @endpush
 @php
-    $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
-    $installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
-    $installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
-    $canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
-    $canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
-    $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
+$installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
+$installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
+$installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
+$installmentPaymentReceivingRoute = $installmentPaymentReceivingRoute ?? 'Installments.paymentReceivingModal';
+$canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
+$canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
+$installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
 @endphp
 <div id="visa-installments-inline-edit-scope">
     <table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
@@ -15,11 +16,11 @@
                 <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
                 <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
                 <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
                 <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
-                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
                 <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
                 <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
+                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
                 <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
             </tr>
         </thead>
@@ -76,6 +77,22 @@
                         onblur="saveBillingMonth({{ $installment->id }})"
                         onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
                 </td>
+                <td class="text-start" style="min-width: 260px;">
+                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
+                    @if($canEditInstallment)
+                    @if(!$rowPendingDeletion)
+                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
+                    @endif
+                    @endif
+                    <textarea
+                        id="inst_narration_input_{{ $installment->id }}"
+                        rows="2"
+                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
+                </td>
                 <td>
                     <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
                     @if($canEditInstallment)
@@ -93,29 +110,13 @@
                         onblur="saveAmount({{ $installment->id }})"
                         onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
                 </td>
-                <td class="text-start" style="min-width: 260px;">
-                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
-                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
-                        <i class="fa fa-edit text-primary"></i>
-                    </a>
-                    @endif
-                    @endif
-                    <textarea
-                        id="inst_narration_input_{{ $installment->id }}"
-                        rows="2"
-                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
-                        class="form-control form-control-sm d-none"
-                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
-                </td>
-                <td>{!! $installment->status_badge !!}</td>
                 <td>
                     <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
                 </td>
                 <td>
                     <span id="inst_updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
                 </td>
+                <td>{!! $installment->status_badge !!}</td>
                 <td>
                     @if($installmentPendingDeletion)
                     @include('delete_requests._locked_cell', ['model' => $installment])
@@ -128,7 +129,18 @@
                         </button>
                         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
                             @if($canEditInstallment)
-                            @if($installment->status === 'pending')
+                            {{-- Payment Receiving --}}
+                            @if($installment->status !== 'paid')
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect show-modal action-btn"
+                                data-action="{{ route($installmentPaymentReceivingRoute, $installment->rider_id) }}"
+                                data-size="xl"
+                                data-title="Payment Receiving — {{ optional($installment->expenseAccount)->name ?? 'Installments' }}">
+                                <i class="fa fa-money-bill-wave me-2 text-primary"></i> Payment Receiving
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            @endif
+                            @if($installment->status === 'pending' || $installment->status === 'partial')
                             <a href="javascript:void(0);"
                                 onclick="markAsPaid({{ $installment->id }})"
                                 class='dropdown-item waves-effect'>
@@ -558,10 +570,10 @@
     // Soft delete with cascade tracking confirmation — provided by shared partial below
 </script>
 @include('delete_requests._confirm_delete_script', [
-    'entityName' => 'Installment Plan',
-    'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
-    'method' => 'GET',
-    'functionName' => 'confirmDeleteProtected',
+'entityName' => 'Installment Plan',
+'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
+'method' => 'GET',
+'functionName' => 'confirmDeleteProtected',
 ])
 <script>
     // Store original values when page loads

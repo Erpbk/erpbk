@@ -227,7 +227,7 @@
                                 @endforeach
                             </select>
                             <div class="form-text" id="renewal_category_help">
-                                Tickets are generated only from statuses in the selected visa category. Accounts must be created in category order.
+                                Tickets are generated only from statuses in the selected visa category. New Visa must be created first, then 1st Renewal. After 1st Renewal is completed, any category may be added freely.
                             </div>
                         </div>
                         @endif
@@ -430,7 +430,7 @@
             });
             $categorySelect.val('').trigger('change');
             initCategorySelect2();
-            $categoryHelp.text('Accounts must be created in category order. Tickets are generated only for statuses in the selected visa category.');
+            $categoryHelp.text('Select a person first to see available visa categories.');
         }
 
         function applyEligibleCategories(categories) {
@@ -450,16 +450,16 @@
             if (categories.length === 0) {
                 $categorySelect.val('').trigger('change');
                 initCategorySelect2();
-                $categoryHelp.text('This person cannot create a new account yet. Complete all unpaid entries in the current renewal category first, or all renewal categories already have accounts.');
+                $categoryHelp.text('All visa categories already have accounts for this person.');
                 return;
             }
 
             if (categories.length === 1) {
                 $categorySelect.val(String(categories[0].id));
-                $categoryHelp.text('Next allowed category: ' + categories[0].name + '.');
+                $categoryHelp.text('Only one category remaining: ' + categories[0].name + '.');
             } else {
                 $categorySelect.val('');
-                $categoryHelp.text('Select the renewal category for this new expense account.');
+                $categoryHelp.text('Select any visa category to create an account for.');
             }
 
             initCategorySelect2();

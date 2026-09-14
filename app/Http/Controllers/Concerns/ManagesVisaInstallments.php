@@ -51,7 +51,7 @@ trait ManagesVisaInstallments
 
     protected function installmentHeadAccountKey(): string
     {
-        return 'VISA_EXPENSE_ACCOUNT';
+        return 'INSTALLMENT_LOAN';
     }
 
     protected function installmentNarrationLabel(): string
@@ -107,13 +107,15 @@ trait ManagesVisaInstallments
     protected function installmentRouteNames(): array
     {
         return [
-            'create' => 'Installments.createInstallmentPlan',
-            'create_form' => 'Installments.createInstallmentPlanForm',
-            'pay' => 'Installments.payInstallment',
-            'update_field' => 'Installments.updateInstallmentField',
-            'delete' => 'Installments.deleteInstallment',
-            'invoice' => 'Installments.generateInstallmentInvoice',
-            'plan' => 'Installments.installmentPlan',
+            'create'           => 'Installments.createInstallmentPlan',
+            'create_form'      => 'Installments.createInstallmentPlanForm',
+            'pay'              => 'Installments.payInstallment',
+            'update_field'     => 'Installments.updateInstallmentField',
+            'delete'           => 'Installments.deleteInstallment',
+            'invoice'          => 'Installments.generateInstallmentInvoice',
+            'plan'             => 'Installments.installmentPlan',
+            'payment_receiving'         => 'Installments.paymentReceivingModal',
+            'process_payment_receiving' => 'Installments.processPaymentReceiving',
         ];
     }
 
@@ -433,6 +435,386 @@ trait ManagesVisaInstallments
             }
             Flash::error('Error creating installment plan: ' . $e->getMessage());
             return redirect()->back()->withInput();
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Payment Receiving — modal + processing
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET: render the Payment Receiving modal for a rider's installments.
+     *
+     * Uses the same three-tier fallback as generateInstallmentInvoice so that
+     * legacy installments (where rider_id is an Accounts.id or a Riders.id
+     * instead of expense_accounts.id) are handled gracefully.
+     */
+    public function paymentReceivingModal(Request $request, $company_slug, $riderId)
+    {
+        if (!$this->installmentAllows('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $person         = null;
+        $expenseAccount = null;
+        $installments   = collect();
+
+        // ── Tier 1: try expense_accounts.id ──────────────────────────────────
+        $ea = ExpenseAccount::with(['rider', 'employee'])->find($riderId);
+        if ($ea) {
+            $expenseAccount = $ea;
+            $person = $this->resolveExpenseAccountPerson($ea);
+            $installments = $this->installmentQuery()
+                ->where(function ($q) use ($ea) {
+                    $this->applyInstallmentRiderScope($q, $ea);
+                })
+                ->whereIn('status', [
+                    $this->installmentModelClass()::STATUS_PENDING,
+                    $this->installmentModelClass()::STATUS_PARTIAL,
+                ])
+                ->with(['vouchers', 'expenseAccount'])
+                ->orderBy('date', 'asc')
+                ->get();
+        }
+
+        // ── Tier 2: try accounts (liability / ledger) ─────────────────────────
+        if (!$person && ($ledgerAccount = Accounts::find($riderId))) {
+            $riderModel    = Riders::find($ledgerAccount->ref_id);
+            $employeeModel = $riderModel ? null : Employee::find($ledgerAccount->ref_id);
+            if ($riderModel) {
+                $person = (object) [
+                    'id'          => (int) $riderModel->id,
+                    'rider_id'    => (string) $riderModel->rider_id,
+                    'name'        => (string) $riderModel->name,
+                    'branch_id'   => $riderModel->branch_id,
+                    'is_employee' => false,
+                ];
+            } elseif ($employeeModel) {
+                $person = (object) [
+                    'id'          => (int) $employeeModel->id,
+                    'rider_id'    => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
+                    'name'        => (string) $employeeModel->name,
+                    'branch_id'   => $employeeModel->branch_id,
+                    'is_employee' => true,
+                ];
+            }
+            if ($person) {
+                $installments = $this->installmentModelClass()::query()
+                    ->where('rider_id', $riderId)
+                    ->whereIn('status', [
+                        $this->installmentModelClass()::STATUS_PENDING,
+                        $this->installmentModelClass()::STATUS_PARTIAL,
+                    ])
+                    ->with(['vouchers', 'expenseAccount'])
+                    ->orderBy('date', 'asc')
+                    ->get();
+            }
+        }
+
+        // ── Tier 3: try riders.id / employees.id directly ────────────────────
+        if (!$person) {
+            $riderModel    = Riders::find($riderId);
+            $employeeModel = $riderModel ? null : Employee::find($riderId);
+            if ($riderModel) {
+                $person = (object) [
+                    'id'          => (int) $riderModel->id,
+                    'rider_id'    => (string) $riderModel->rider_id,
+                    'name'        => (string) $riderModel->name,
+                    'branch_id'   => $riderModel->branch_id,
+                    'is_employee' => false,
+                ];
+            } elseif ($employeeModel) {
+                $person = (object) [
+                    'id'          => (int) $employeeModel->id,
+                    'rider_id'    => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
+                    'name'        => (string) $employeeModel->name,
+                    'branch_id'   => $employeeModel->branch_id,
+                    'is_employee' => true,
+                ];
+            }
+            if ($person) {
+                $installments = $this->installmentModelClass()::query()
+                    ->where('rider_id', $riderId)
+                    ->whereIn('status', [
+                        $this->installmentModelClass()::STATUS_PENDING,
+                        $this->installmentModelClass()::STATUS_PARTIAL,
+                    ])
+                    ->with(['vouchers', 'expenseAccount'])
+                    ->orderBy('date', 'asc')
+                    ->get();
+            }
+        }
+
+        if (!$person) {
+            abort(404, 'Person not found for the given ID.');
+        }
+
+        $bankCashAccounts = $this->safeBankCashDropdown();
+
+        return view('visa_expenses.partials.payment_receiving_modal', [
+            'person'           => $person,
+            'expenseAccount'   => $expenseAccount,
+            'riderId'          => $riderId,
+            'installments'     => $installments,
+            'bankCashAccounts' => $bankCashAccounts,
+            'voucherLabel'     => $this->installmentNarrationLabel(),
+            'processRoute'     => $this->installmentRouteNames()['process_payment_receiving'] ?? 'Installments.processPaymentReceiving',
+        ]);
+    }
+
+    /**
+     * POST: process payment receiving — create RV voucher, update installment paid_amount & status.
+     *
+     * Accepts `rider_id` (the raw URL param from paymentReceivingModal) and uses
+     * the same three-tier lookup so legacy installments (rider_id = riders.id or
+     * accounts.id) work the same as new ones (rider_id = expense_accounts.id).
+     */
+    public function processPaymentReceiving(Request $request)
+    {
+        if (!$this->installmentAllows('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $validated = $request->validate([
+            'rider_id'             => 'required|integer',
+            'bank_account_id'      => 'required|integer|exists:accounts,id',
+            'payment_date'         => 'required|date',
+            'billing_month'        => 'required',
+            'installment_ids'      => 'required|array|min:1',
+            'installment_ids.*'    => 'required|integer',
+            'pay_amounts'          => 'required|array|min:1',
+            'pay_amounts.*'        => 'required|numeric|min:0.01',
+            'narration'            => 'nullable|string|max:1000',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $riderId        = (int) $validated['rider_id'];
+            $expenseAccount = null;
+            $person         = null;
+
+            // ── Same three-tier lookup as paymentReceivingModal ───────────────
+            $ea = ExpenseAccount::with(['rider', 'employee'])->find($riderId);
+            if ($ea) {
+                $expenseAccount = $ea;
+                $person = $this->resolveExpenseAccountPerson($ea);
+            }
+
+            if (!$person && ($ledgerAccount = Accounts::find($riderId))) {
+                $riderModel    = Riders::find($ledgerAccount->ref_id);
+                $employeeModel = $riderModel ? null : Employee::find($ledgerAccount->ref_id);
+                if ($riderModel) {
+                    $person = (object) [
+                        'id'          => (int) $riderModel->id,
+                        'rider_id'    => (string) $riderModel->rider_id,
+                        'name'        => (string) $riderModel->name,
+                        'branch_id'   => $riderModel->branch_id,
+                        'account_id'  => $riderModel->account_id ?? null,
+                        'is_employee' => false,
+                    ];
+                } elseif ($employeeModel) {
+                    $person = (object) [
+                        'id'          => (int) $employeeModel->id,
+                        'rider_id'    => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
+                        'name'        => (string) $employeeModel->name,
+                        'branch_id'   => $employeeModel->branch_id,
+                        'account_id'  => $employeeModel->account_id ?? null,
+                        'is_employee' => true,
+                    ];
+                }
+            }
+
+            if (!$person) {
+                $riderModel    = Riders::find($riderId);
+                $employeeModel = $riderModel ? null : Employee::find($riderId);
+                if ($riderModel) {
+                    $person = (object) [
+                        'id'          => (int) $riderModel->id,
+                        'rider_id'    => (string) $riderModel->rider_id,
+                        'name'        => (string) $riderModel->name,
+                        'branch_id'   => $riderModel->branch_id,
+                        'account_id'  => $riderModel->account_id ?? null,
+                        'is_employee' => false,
+                    ];
+                } elseif ($employeeModel) {
+                    $person = (object) [
+                        'id'          => (int) $employeeModel->id,
+                        'rider_id'    => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
+                        'name'        => (string) $employeeModel->name,
+                        'branch_id'   => $employeeModel->branch_id,
+                        'account_id'  => $employeeModel->account_id ?? null,
+                        'is_employee' => true,
+                    ];
+                }
+            }
+
+            if (!$person) {
+                throw new \RuntimeException('Person not found for the given rider_id. Cannot record payment.');
+            }
+
+            $bankAccount = Accounts::findOrFail($validated['bank_account_id']);
+            $TransactionService = new TransactionService();
+            $transCode   = Account::trans_code();
+            $paymentDate = \Carbon\Carbon::parse($validated['payment_date']);
+            $billingMonth = $validated['billing_month'];
+            if (strlen($billingMonth) <= 7) {
+                $billingMonth .= '-01';
+            }
+
+            // Credit side = rider/employee liability account
+            $riderCreditAccount = null;
+            if ($expenseAccount) {
+                $riderCreditAccount = $this->resolvePersonLiabilityAccount($expenseAccount, $person);
+            }
+            if (!$riderCreditAccount && !empty($person->account_id)) {
+                $riderCreditAccount = Accounts::find($person->account_id);
+            }
+            if (!$riderCreditAccount) {
+                $refName = !empty($person->is_employee) ? 'employee' : null;
+                $riderCreditAccount = Accounts::where('ref_id', $person->id)
+                    ->where('account_type', 'Liability')
+                    ->when($refName, fn ($q) => $q->where('ref_name', $refName))
+                    ->when(empty($person->is_employee), fn ($q) => $q->where('parent_id', 1))
+                    ->first()
+                    ?? Accounts::where('ref_id', $person->id)
+                        ->where('account_type', 'Liability')
+                        ->first();
+            }
+            if (!$riderCreditAccount) {
+                throw new \RuntimeException('Rider liability account not found. Please create the liability account first.');
+            }
+
+            $totalPaid      = 0.0;
+            $installmentIds = array_map('intval', $validated['installment_ids']);
+            $payAmounts     = array_map('floatval', $validated['pay_amounts']);
+            $paidLines      = [];
+            $personLabel    = ($person->rider_id ?? '') . ' - ' . $person->name;
+
+            $baseNarration = $personLabel . ' — payment received for '
+                . $this->installmentNarrationLabel()
+                . ' (billing: ' . \Carbon\Carbon::parse($billingMonth)->format('M Y') . ')';
+            if (!empty($validated['narration'])) {
+                $baseNarration .= ' — ' . $validated['narration'];
+            }
+
+            foreach ($installmentIds as $idx => $instId) {
+                $payAmt = $payAmounts[$idx] ?? 0.0;
+                if ($payAmt <= 0) {
+                    continue;
+                }
+
+                /** @var \App\Models\visa_installment_plan $installment */
+                $installment = $this->installmentModelClass()::findOrFail($instId);
+
+                // Guard: only pending/partial installments can receive payment
+                if ($installment->status === $this->installmentModelClass()::STATUS_PAID) {
+                    throw new \RuntimeException('Installment #' . ($idx + 1) . ' is already fully paid.');
+                }
+
+                $remaining = (float) $installment->amount - (float) $installment->paid_amount;
+                if ($payAmt > $remaining + 0.001) {
+                    throw new \RuntimeException(
+                        'Payment of ' . number_format($payAmt, 2) .
+                            ' exceeds remaining balance of ' . number_format($remaining, 2) .
+                            ' for installment #' . ($idx + 1) . '.'
+                    );
+                }
+
+                $newPaid = (float) $installment->paid_amount + $payAmt;
+                $installment->paid_amount = $newPaid;
+                $installment->updated_by  = auth()->id();
+
+                if ($newPaid >= (float) $installment->amount - 0.001) {
+                    $installment->status = $this->installmentModelClass()::STATUS_PAID;
+                } else {
+                    $installment->status = $this->installmentModelClass()::STATUS_PARTIAL;
+                }
+                $installment->save();
+
+                $totalPaid += $payAmt;
+                $paidLines[] = ['installment' => $installment, 'amount' => $payAmt];
+
+                // GL per installment: Cr Rider (liability reduces / payment applied)
+                $TransactionService->recordTransaction([
+                    'account_id'     => $riderCreditAccount->id,
+                    'reference_id'   => $installment->id,
+                    'reference_type' => $this->installmentReferenceType(),
+                    'trans_code'     => $transCode,
+                    'trans_date'     => $paymentDate,
+                    'narration'      => $baseNarration,
+                    'credit'         => $payAmt,
+                    'branch_id'      => $person->branch_id ?? null,
+                    'billing_month'  => $billingMonth,
+                    'created_by'     => auth()->id(),
+                ]);
+            }
+
+            if ($totalPaid <= 0) {
+                throw new \RuntimeException('No valid payment amounts provided.');
+            }
+
+            // GL: Dr Bank/Cash (total cash received)
+            $bankNarration = $personLabel . ' — payment received via '
+                . $bankAccount->name
+                . ' for ' . $this->installmentNarrationLabel();
+            if (!empty($validated['narration'])) {
+                $bankNarration .= ' — ' . $validated['narration'];
+            }
+
+            $TransactionService->recordTransaction([
+                'account_id'     => $bankAccount->id,
+                'reference_id'   => $expenseAccount->id ?? $riderId,
+                'reference_type' => 'RV',
+                'trans_code'     => $transCode,
+                'trans_date'     => $paymentDate,
+                'narration'      => $bankNarration,
+                'debit'          => $totalPaid,
+                'branch_id'      => $person->branch_id ?? null,
+                'billing_month'  => $billingMonth,
+                'created_by'     => auth()->id(),
+            ]);
+
+            // Create a Receipt Voucher (RV) for the total payment
+            $firstInstallment = $paidLines[0]['installment'];
+            $rvRemarks = $personLabel . ' — Payment Received: '
+                . number_format($totalPaid, 2)
+                . ' (' . count($paidLines) . ' installment' . (count($paidLines) > 1 ? 's' : '') . ')';
+            if ($validated['narration']) {
+                $rvRemarks .= ' — ' . $validated['narration'];
+            }
+
+            Vouchers::create(array_filter([
+                'voucher_type'   => 'RV',
+                'amount'         => $totalPaid,
+                'date'           => $paymentDate->toDateString(),
+                'billing_month'  => $billingMonth,
+                'payment_type'   => 2,
+                'ref_id'         => $expenseAccount->id ?? $riderId,
+                'remarks'        => $rvRemarks,
+                'Created_By'     => auth()->id(),
+                'branch_id'      => $person->branch_id ?? null,
+                'trans_code'     => $transCode,
+            ], fn($v) => $v !== null));
+
+            DB::commit();
+
+            $msg = 'Payment of ' . number_format($totalPaid, 2) . ' received successfully for '
+                . count($paidLines) . ' installment' . (count($paidLines) > 1 ? 's' : '') . '.';
+
+            if ($request->ajax()) {
+                return response()->json(['message' => $msg, 'reload' => true]);
+            }
+
+            Flash::success($msg);
+            return redirect()->back();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json(['message' => 'Error: ' . $e->getMessage()], 422);
+            }
+            Flash::error('Error processing payment: ' . $e->getMessage());
+            return redirect()->back();
         }
     }
 
@@ -1401,7 +1783,10 @@ trait ManagesVisaInstallments
                 return redirect()->back();
             }
 
-            $rider->loadMissing(['vendor', 'sim']);
+            // loadMissing is only available on Eloquent models, not stdClass fallbacks
+            if ($rider instanceof \Illuminate\Database\Eloquent\Model) {
+                $rider->loadMissing(['vendor', 'sim']);
+            }
 
             if (request()->ajax()) {
                 return view($this->installmentViewInvoiceAjax(), compact('rider', 'installments', 'account'));
@@ -1626,7 +2011,7 @@ trait ManagesVisaInstallments
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id' => GlobalAccounts::id($this->installmentHeadAccountKey()),
+                'account_id' => GlobalAccounts::id('INSTALLMENT_LOAN'),
                 'reference_id' => $installment->id,
                 'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
@@ -1729,6 +2114,67 @@ trait ManagesVisaInstallments
     /**
      * @return object{id:int,rider_id:string,name:string,branch_id:?int}|null
      */
+    /**
+     * Return a bank/cash accounts dropdown without crashing when the BANK global
+     * account is not configured (account_id = null in global_accounts).
+     *
+     * Priority:
+     *  1. Children of the configured BANK parent account (same as bankAndCashDropdown).
+     *  2. Children of any Asset account whose name contains "Bank" or "Cash" (auto-detect).
+     *  3. Last resort: leaf-level Asset accounts (account_code that starts with BK or CB).
+     */
+    protected function safeBankCashDropdown(): \Illuminate\Support\Collection
+    {
+        // Tier 1: use BANK global account if configured
+        $bankParentId = GlobalAccounts::idOrNull('BANK');
+        if ($bankParentId) {
+            $items = Accounts::select('id', \DB::raw("CONCAT(account_code, ' - ', name) AS label"))
+                ->where('account_type', 'Asset')
+                ->where('parent_id', $bankParentId)
+                ->orderBy('account_code')
+                ->pluck('label', 'id');
+            if ($items->isNotEmpty()) {
+                return $items->prepend('Select Bank/Cash Account', '');
+            }
+        }
+
+        // Tier 2: find the parent account named like "Cash & Bank" / "Bank" automatically
+        $bankParent = Accounts::where('account_type', 'Asset')
+            ->where(function ($q) {
+                $q->where('name', 'like', '%Bank%')
+                    ->orWhere('name', 'like', '%Cash%');
+            })
+            ->whereNotNull('account_code')
+            ->orderBy('id')
+            ->first();
+
+        if ($bankParent) {
+            $items = Accounts::select('id', \DB::raw("CONCAT(account_code, ' - ', name) AS label"))
+                ->where('account_type', 'Asset')
+                ->where('parent_id', $bankParent->id)
+                ->orderBy('account_code')
+                ->pluck('label', 'id');
+            if ($items->isNotEmpty()) {
+                return $items->prepend('Select Bank/Cash Account', '');
+            }
+        }
+
+        // Tier 3: accounts whose code starts with BK / CB as last resort
+        $items = Accounts::select('id', \DB::raw("CONCAT(account_code, ' - ', name) AS label"))
+            ->where('account_type', 'Asset')
+            ->where(function ($q) {
+                $q->where('account_code', 'like', 'BK%')
+                    ->orWhere('account_code', 'like', 'CB%');
+            })
+            ->orderBy('account_code')
+            ->pluck('label', 'id');
+        if ($items->isNotEmpty()) {
+            return $items->prepend('Select Bank/Cash Account', '');
+        }
+
+        return collect(['' => 'No bank/cash accounts found — please configure BANK global account']);
+    }
+
     private function resolveExpenseAccountPerson(ExpenseAccount $expenseAccount): ?object
     {
         if ($expenseAccount->employee_id) {
@@ -1777,8 +2223,8 @@ trait ManagesVisaInstallments
                 ->where('account_type', 'Liability')
                 ->first()
                 ?? Accounts::where('ref_id', $person->id)
-                    ->where('account_type', 'Liability')
-                    ->first();
+                ->where('account_type', 'Liability')
+                ->first();
         }
 
         $liabilityAccount = Accounts::where('ref_id', $person->id)

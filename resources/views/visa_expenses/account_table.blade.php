@@ -81,74 +81,113 @@
    }
 </style>
 @endpush
+@php
+// Group individual ExpenseAccount rows by rider/employee so we show ONE row per person.
+$groupedPersons = collect($data->items())->groupBy(
+    fn ($r) => $r->employee_id ? 'emp:' . $r->employee_id : 'rider:' . $r->rider_id
+);
+@endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
          <th>Person ID</th>
-         <th style="width: 220px;">Account Name</th>
-         <th>Renewal Category</th>
+         <th style="width: 200px;">Name</th>
+         <th>Visa Categories</th>
          <th>Status</th>
          <th>Next Unpaid Document</th>
          <th>Expiry Document</th>
          <th>Person Code</th>
          <th>Labour Card #</th>
          <th>Policy Number</th>
-         <th>Balance</th>
+         <th>Total Balance</th>
          <th>Actions</th>
       </tr>
    </thead>
    <tbody>
-      @foreach($data as $r)
+      @foreach($groupedPersons as $personKey => $personAccounts)
       @php
+      $r = $personAccounts->first(); // representative row
       $isEmployeeAccount = !empty($r->employee_id);
+
       $hasActiveBike = !$isEmployeeAccount && company_table('bikes')
-      ->where('rider_id', $r->rider_id)
-      ->where('warehouse', 'Active')
-      ->exists();
+         ->where('rider_id', $r->rider_id)
+         ->where('warehouse', 'Active')
+         ->exists();
       $badgeClass = $isEmployeeAccount ? 'bg-label-info' : ($hasActiveBike ? 'bg-label-success' : 'bg-label-danger');
       $badgeLabel = $isEmployeeAccount ? 'Employee' : ($hasActiveBike ? 'Active' : 'Inactive');
-      $personRef = $isEmployeeAccount ? ($r->employee->employee_id ?? '-') : ($r->rider->rider_id ?? '-');
+
+      $personRef  = $isEmployeeAccount ? ($r->employee->employee_id ?? '-') : ($r->rider->rider_id ?? '-');
+      $personName = $isEmployeeAccount ? ($r->employee->name ?? $r->name) : ($r->rider->name ?? $r->name);
       $personCode = $isEmployeeAccount ? ($r->employee->person_code ?? '-') : ($r->rider->person_code ?? '-');
-      $laborCard = $isEmployeeAccount ? ($r->employee->labor_card_number ?? '-') : ($r->rider->labor_card_number ?? '-');
-      $policyNo = $isEmployeeAccount ? '-' : ($r->rider->policy_no ?? '-');
-      $categoryId = (int) ($r->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
-      $balance = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
-      (int) $r->id,
-      $r->rider_id ? (int) $r->rider_id : null,
-      $categoryId
-      )->sum('amount');
-      $nextUnpaid = ($nextUnpaidVisaByAccountId ?? [])[$r->id] ?? null;
+      $laborCard  = $isEmployeeAccount ? ($r->employee->labor_card_number ?? '-') : ($r->rider->labor_card_number ?? '-');
+      $policyNo   = $isEmployeeAccount ? '-' : ($r->rider->policy_no ?? '-');
+
+      // Total balance across ALL categories for this person
+      $totalBalance = $personAccounts->sum(function ($acct) {
+         $catId = (int) ($acct->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
+         return \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+            (int) $acct->id,
+            $acct->rider_id ? (int) $acct->rider_id : null,
+            $catId
+         )->sum('amount');
+      });
+
+      // Gather next-unpaid and urgent-expiry across ALL accounts for this person
+      $nextUnpaid   = null;
+      $urgentExpiry = null;
+      foreach ($personAccounts as $acct) {
+         if (!$nextUnpaid && isset($nextUnpaidVisaByAccountId[$acct->id])) {
+            $nextUnpaid = $nextUnpaidVisaByAccountId[$acct->id];
+         }
+         if (!$urgentExpiry && isset($urgentVisaExpiryByAccountId[$acct->id])) {
+            $urgentExpiry = $urgentVisaExpiryByAccountId[$acct->id];
+         }
+      }
+
       $nextWhen = '';
       if ($nextUnpaid) {
-      try {
-      if (!empty($nextUnpaid->date)) {
-      $nextWhen = \Carbon\Carbon::parse($nextUnpaid->date)->format('d M Y');
-      } elseif (!empty($nextUnpaid->billing_month)) {
-      $nextWhen = \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M Y');
+         try {
+            $nextWhen = !empty($nextUnpaid->date)
+               ? \Carbon\Carbon::parse($nextUnpaid->date)->format('d M Y')
+               : (!empty($nextUnpaid->billing_month) ? \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M Y') : '');
+         } catch (\Throwable $e) { $nextWhen = ''; }
       }
-      } catch (\Throwable $e) {
-      $nextWhen = '';
-      }
-      }
-      $urgentExpiry = ($urgentVisaExpiryByAccountId ?? [])[$r->id] ?? null;
+
       $urgentExpiryWhen = '';
       if ($urgentExpiry && !empty($urgentExpiry->expiry_date)) {
-      try {
-      $urgentExpiryWhen = \Carbon\Carbon::parse($urgentExpiry->expiry_date)->format('d M Y');
-      } catch (\Throwable $e) {
-      $urgentExpiryWhen = '';
+         try { $urgentExpiryWhen = \Carbon\Carbon::parse($urgentExpiry->expiry_date)->format('d M Y'); }
+         catch (\Throwable $e) { $urgentExpiryWhen = ''; }
       }
-      }
+
+      // Rider-overview URL (new grouped detail page)
+      $overviewUrl = $isEmployeeAccount
+         ? route('VisaExpense.showForRider', ['riderId' => $r->employee_id, 'type' => 'employee'])
+         : route('VisaExpense.showForRider', ['riderId' => $r->rider_id]);
+
+      // Keep a reference to the first single-account URL (for backward compat modals)
+      $firstAccountUrl = \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id);
+
       $selectedPersonKey = $isEmployeeAccount ? ('employee:' . $r->employee_id) : ('rider:' . $r->rider_id);
       @endphp
       <tr class="text-center">
          <td>{{ $personRef }}</td>
-         <td class="text-start"><a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}">{{ $r->name }}</a></td>
-         <td>{{ $r->renewalCategory->name ?? '—' }}</td>
+         <td class="text-start">
+            <a href="{{ $overviewUrl }}" class="fw-semibold text-decoration-none">{{ $personName }}</a>
+         </td>
+         {{-- All visa categories for this rider as badges --}}
+         <td class="text-start">
+            @foreach($personAccounts as $acct)
+            <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($acct->id, $acct->rider_id) }}"
+               class="badge bg-label-primary me-1 mb-1 text-decoration-none"
+               title="Open {{ $acct->renewalCategory->name ?? 'Visa' }} account">
+               {{ $acct->renewalCategory->name ?? '—' }}
+            </a>
+            @endforeach
+         </td>
          <td><span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span></td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)
-            <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
+            <a href="{{ $overviewUrl }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
                <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
                @if($nextWhen !== '')
                <span class="text-muted small text-center">{{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
@@ -160,7 +199,7 @@
          </td>
          <td class="align-middle @if($urgentExpiry && $urgentExpiryWhen !== '') visa-expiry-alert-cell @endif">
             @if($urgentExpiry && $urgentExpiryWhen !== '')
-            <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
+            <a href="{{ $overviewUrl }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
                <span class="fw-semibold d-block text-body text-center">{{ $urgentExpiry->visa_status ?? '—' }}</span>
                <span class="text-muted small d-block text-center">{{ $urgentExpiryWhen }}</span>
             </a>
@@ -171,7 +210,7 @@
          <td>{{ $personCode }}</td>
          <td>{{ $laborCard }}</td>
          <td>{{ $policyNo }}</td>
-         <td>{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $balance, 2) }}</td>
+         <td>{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalBalance, 2) }}</td>
          <td>
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -179,50 +218,65 @@
                </button>
                <div class="dropdown-menu dropdown-menu-end">
                   @can('visa_expense_view')
-                  <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id) }}" class='dropdown-item waves-effect'>
-                     <i class="fa fa-eye"></i> View
+                  <a href="{{ $overviewUrl }}" class='dropdown-item waves-effect'>
+                     <i class="fa fa-eye me-1"></i> View All Visa History
                   </a>
+                  @foreach($personAccounts as $acct)
+                  <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($acct->id, $acct->rider_id) }}" class='dropdown-item waves-effect ps-4'>
+                     <i class="fa fa-passport me-1 text-muted"></i> {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
+                  </a>
+                  @endforeach
                   @endcan
                   @can('visa_expense_edit')
-                  <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $r->id }}" class='dropdown-item waves-effect'>
-                     <i class="fa fa-edit"></i> Edit
+                  <div class="dropdown-divider"></div>
+                  @foreach($personAccounts as $acct)
+                  <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $acct->id }}" class='dropdown-item waves-effect'>
+                     <i class="fa fa-edit me-1"></i> Edit: {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
                   </a>
+                  @endforeach
                   @endcan
                   @can('visa_expense_delete')
-                  <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.deleteaccount', $r->id) }}" class='dropdown-item waves-effect js-delete-expense-account'>
-                     <i class="fa fa-trash"></i> Delete
+                  <div class="dropdown-divider"></div>
+                  @foreach($personAccounts as $acct)
+                  <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.deleteaccount', $acct->id) }}" class='dropdown-item waves-effect js-delete-expense-account text-danger'>
+                     <i class="fa fa-trash me-1"></i> Delete: {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
                   </a>
+                  @endforeach
                   @endcan
                </div>
             </div>
          </td>
       </tr>
 
-      <div class="modal fade" id="editaccount{{ $r->id }}" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+      {{-- Edit modals for each account of this person --}}
+      @foreach($personAccounts as $acct)
+      @php
+      $acctIsEmployee = !empty($acct->employee_id);
+      $acctPersonKey  = $acctIsEmployee ? ('employee:' . $acct->employee_id) : ('rider:' . $acct->rider_id);
+      $editPersonTargets = $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
+      $editAllowType     = $allowPersonTypeSelection ?? (count($editPersonTargets) >= 2);
+      $editDefaultType   = $acctIsEmployee
+         ? (in_array('employee', $editPersonTargets, true) ? 'employee' : ($editPersonTargets[0] ?? 'rider'))
+         : (in_array('rider', $editPersonTargets, true) ? 'rider' : ($editPersonTargets[0] ?? 'employee'));
+      $editRiderLabel    = \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? 'Rider';
+      $editEmployeeLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('employees') ?? 'Employee';
+      $editRiders        = $riders ?? company_table('riders')->where('status', 1)->orderBy('name')->get();
+      $editEmployees     = $employees ?? \App\Models\Employee::query()->where(function ($q) {
+         $q->where('status', 'active')->orWhere('status', 1)->orWhere('status', '1');
+      })->orderBy('name')->get();
+      @endphp
+      <div class="modal fade" id="editaccount{{ $acct->id }}" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
          <div class="modal-dialog modal-lg">
             <div class="modal-content">
                <div class="modal-header">
-                  <h5 class="modal-title">Update Account</h5>
+                  <h5 class="modal-title">Update Account — {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                </div>
                <div class="modal-body">
-                  @php
-                  $editPersonTargets = $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
-                  $editAllowType = $allowPersonTypeSelection ?? (count($editPersonTargets) >= 2);
-                  $editDefaultType = $isEmployeeAccount
-                     ? (in_array('employee', $editPersonTargets, true) ? 'employee' : ($editPersonTargets[0] ?? 'rider'))
-                     : (in_array('rider', $editPersonTargets, true) ? 'rider' : ($editPersonTargets[0] ?? 'employee'));
-                  $editRiderLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? 'Rider';
-                  $editEmployeeLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('employees') ?? 'Employee';
-                  $editRiders = $riders ?? company_table('riders')->where('status', 1)->orderBy('name')->get();
-                  $editEmployees = $employees ?? \App\Models\Employee::query()->where(function ($q) {
-                     $q->where('status', 'active')->orWhere('status', 1)->orWhere('status', '1');
-                  })->orderBy('name')->get();
-                  @endphp
                   <form action="{{ route('VisaExpense.editaccount') }}" method="POST" class="visa-edit-account-form">
                      @csrf
-                     <input type="hidden" name="id" value="{{ $r->id }}">
-                     <input type="hidden" name="person_key" class="visa-edit-person-key" value="{{ $selectedPersonKey }}">
+                     <input type="hidden" name="id" value="{{ $acct->id }}">
+                     <input type="hidden" name="person_key" class="visa-edit-person-key" value="{{ $acctPersonKey }}">
                      <div class="row g-3">
                         @if(empty($editPersonTargets))
                         <div class="col-12">
@@ -232,48 +286,45 @@
                         @if($editAllowType)
                         <div class="col-12">
                            <label class="form-label d-block mb-2">Type</label>
-                           <div class="btn-group w-100" role="group" aria-label="Person type">
+                           <div class="btn-group w-100" role="group">
                               @if(in_array('rider', $editPersonTargets, true))
-                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $r->id }}" id="edit_type_rider_{{ $r->id }}" value="rider"
+                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $acct->id }}" id="edit_type_rider_{{ $acct->id }}" value="rider"
                                  {{ $editDefaultType === 'rider' ? 'checked' : '' }} autocomplete="off">
-                              <label class="btn btn-outline-primary" for="edit_type_rider_{{ $r->id }}">{{ $editRiderLabel }}</label>
+                              <label class="btn btn-outline-primary" for="edit_type_rider_{{ $acct->id }}">{{ $editRiderLabel }}</label>
                               @endif
                               @if(in_array('employee', $editPersonTargets, true))
-                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $r->id }}" id="edit_type_employee_{{ $r->id }}" value="employee"
+                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $acct->id }}" id="edit_type_employee_{{ $acct->id }}" value="employee"
                                  {{ $editDefaultType === 'employee' ? 'checked' : '' }} autocomplete="off">
-                              <label class="btn btn-outline-primary" for="edit_type_employee_{{ $r->id }}">{{ $editEmployeeLabel }}</label>
+                              <label class="btn btn-outline-primary" for="edit_type_employee_{{ $acct->id }}">{{ $editEmployeeLabel }}</label>
                               @endif
                            </div>
                         </div>
                         @endif
-
                         @if(in_array('rider', $editPersonTargets, true))
                         <div class="col-12 visa-edit-person-field visa-edit-person-field-rider{{ $editDefaultType === 'employee' ? ' d-none' : '' }}">
-                           <label for="edit-rider-{{ $r->id }}" class="form-label">Select {{ $editRiderLabel }}</label>
-                           <select class="form-control rider-select visa-edit-person-select" id="edit-rider-{{ $r->id }}" data-person-type="rider"
+                           <label for="edit-rider-{{ $acct->id }}" class="form-label">Select {{ $editRiderLabel }}</label>
+                           <select class="form-control rider-select visa-edit-person-select" id="edit-rider-{{ $acct->id }}" data-person-type="rider"
                               {{ $editDefaultType === 'rider' ? 'required' : 'disabled' }}>
                               <option value="">Select</option>
                               @foreach($editRiders as $ri)
-                              <option value="rider:{{ $ri->id }}" @if($selectedPersonKey === 'rider:'.$ri->id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
+                              <option value="rider:{{ $ri->id }}" @if($acctPersonKey === 'rider:'.$ri->id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
                               @endforeach
                            </select>
                         </div>
                         @endif
-
                         @if(in_array('employee', $editPersonTargets, true))
                         <div class="col-12 visa-edit-person-field visa-edit-person-field-employee{{ $editDefaultType === 'rider' ? ' d-none' : '' }}">
-                           <label for="edit-employee-{{ $r->id }}" class="form-label">Select {{ $editEmployeeLabel }}</label>
-                           <select class="form-control rider-select visa-edit-person-select" id="edit-employee-{{ $r->id }}" data-person-type="employee"
+                           <label for="edit-employee-{{ $acct->id }}" class="form-label">Select {{ $editEmployeeLabel }}</label>
+                           <select class="form-control rider-select visa-edit-person-select" id="edit-employee-{{ $acct->id }}" data-person-type="employee"
                               {{ $editDefaultType === 'employee' ? 'required' : 'disabled' }}>
                               <option value="">Select</option>
                               @foreach($editEmployees as $em)
-                              <option value="employee:{{ $em->id }}" @if($selectedPersonKey === 'employee:'.$em->id) selected @endif>{{ $em->employee_id }} - {{ $em->name }}</option>
+                              <option value="employee:{{ $em->id }}" @if($acctPersonKey === 'employee:'.$em->id) selected @endif>{{ $em->employee_id }} - {{ $em->name }}</option>
                               @endforeach
                            </select>
                         </div>
                         @endif
                         @endif
-
                         <div class="col-12 text-center">
                            <button type="submit" class="btn btn-primary mt-2" @if(empty($editPersonTargets)) disabled @endif>Submit</button>
                         </div>
@@ -283,6 +334,7 @@
             </div>
          </div>
       </div>
+      @endforeach
       @endforeach
    </tbody>
 </table>

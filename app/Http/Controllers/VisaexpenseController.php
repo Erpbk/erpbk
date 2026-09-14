@@ -21,6 +21,7 @@ use App\Models\Vouchers;
 use App\Models\VoucherType;
 use App\Models\LedgerEntry;
 use App\Models\visa_installment_plan;
+use App\Models\license_installment_plan;
 use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Models\ExpenseAccount;
@@ -528,11 +529,12 @@ class VisaexpenseController extends AppBaseController
         }
 
         if (!VisaRenewalCategoryService::canCreateAccountForPersonCategory($personType, $personId, $categoryId)) {
-            $next = VisaRenewalCategoryService::nextCreatableCategoryForPerson($personType, $personId);
-            if ($next) {
-                Flash::error('You must fully pay all entries in the previous renewal category before creating an account for "' . $category->name . '". The next allowed category is "' . $next->name . '".');
+            // Either the category is inactive or an account already exists for this person+category.
+            $existing = VisaRenewalCategoryService::accountForPersonCategory($personType, $personId, $categoryId);
+            if ($existing) {
+                Flash::error('A visa expense account for "' . $category->name . '" already exists for this ' . $personType . '.');
             } else {
-                Flash::error('Cannot create a new visa expense account for "' . $category->name . '". Complete all unpaid entries in the previous renewal category first, or this category is not yet available in sequence.');
+                Flash::error('Cannot create a visa expense account for "' . $category->name . '". The category may be inactive.');
             }
             return redirect()->back()->withInput();
         }
@@ -708,7 +710,6 @@ class VisaexpenseController extends AppBaseController
 
     public function generatentries(Request $request, $company_slug, $id)
     {
-        // Check if user is authenticated first
         if (!auth()->check()) {
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
@@ -716,31 +717,94 @@ class VisaexpenseController extends AppBaseController
         if (!user_can('visaexpense_view')) {
             abort(403, 'Unauthorized action.');
         }
+
         $account = ExpenseAccount::query()->visa()->with(['rider', 'employee', 'renewalCategory'])->where('id', $id)->firstOrFail();
+
+        return $this->renderVisaAccountEntries($request, $account);
+    }
+
+    /**
+     * Open a rider/employee Visa Expense page using the same rider-profile layout
+     * and Visa / License tabs as generatentries().
+     *
+     * Lists one logical "Visa Account" per person; category accounts (New Visa,
+     * 1st Renewal, …) are switched via the Switch pills while staying on this URL.
+     *
+     * Route: GET VisaExpense/rider/{riderId}?type=rider|employee&account_id=
+     */
+    public function showForRider(Request $request, $company_slug, $riderId)
+    {
+        if (!auth()->check()) {
+            return redirect()->to(CompanyAuthRedirect::url($request))
+                ->with('error', 'Please log in to access this page.');
+        }
+
+        if (!user_can('visaexpense_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $type       = $request->query('type', 'rider');
+        $isEmployee = $type === 'employee';
+
+        $accounts = ExpenseAccount::query()
+            ->visa()
+            ->with(['rider', 'employee', 'renewalCategory'])
+            ->when($isEmployee, fn ($q) => $q->where('employee_id', (int) $riderId))
+            ->when(!$isEmployee, fn ($q) => $q->where('rider_id', (int) $riderId))
+            ->orderBy('id')
+            ->get();
+
+        if ($accounts->isEmpty()) {
+            abort(404, 'No visa accounts found for this person.');
+        }
+
+        // Optional account_id picks which renewal category is active
+        $selectedId = (int) $request->query('account_id', 0);
+        $account = $selectedId
+            ? ($accounts->firstWhere('id', $selectedId) ?? $accounts->first())
+            : $accounts->first();
+
+        // Reuse the exact same detail page as generatentries (rider profile + tabs)
+        $request->merge([]); // keep filters from query string
+        return $this->renderVisaAccountEntries($request, $account, $accounts);
+    }
+
+    /**
+     * Shared renderer for the Visa Expense detail page (profile sidebar + tabs).
+     *
+     * @param  \Illuminate\Support\Collection<int, ExpenseAccount>|null  $allPersonAccounts
+     */
+    protected function renderVisaAccountEntries(Request $request, ExpenseAccount $account, $allPersonAccounts = null)
+    {
         $riderId = $account->rider_id ? (int) $account->rider_id : null;
         $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($account);
         $activeCategoryId = (int) $activeRenewalCategory->id;
 
         $this->checkAndAutoMarkInstallments($account);
 
-        $siblingAccounts = VisaRenewalCategoryService::siblingAccountsForPerson($account, (int) $account->id);
-        $canAddExpense = true;
+        // All categories for this person (for Switch tabs); exclude current for sibling list
+        if ($allPersonAccounts !== null) {
+            $siblingAccounts = $allPersonAccounts->where('id', '!=', $account->id)->values();
+            $visaCategoryAccounts = $allPersonAccounts;
+        } else {
+            $siblingAccounts = VisaRenewalCategoryService::siblingAccountsForPerson($account, (int) $account->id);
+            $visaCategoryAccounts = collect([$account])->merge($siblingAccounts)->sortBy('id')->values();
+        }
 
-        // Use global pagination traits
+        $canAddExpense = true;
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = VisaRenewalCategoryService::expensesForAccountQuery((int) $account->id, $riderId, $activeCategoryId)
             ->with('vouchers')
             ->orderBy('id', 'asc');
+
         if ($request->has('trans_date') && !empty($request->trans_date)) {
-            $fromDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->trans_date);
-            $query->where('trans_date', $fromDate);
+            $query->where('trans_date', \Carbon\Carbon::createFromFormat('Y-m-d', $request->trans_date));
         }
         if ($request->has('trans_code') && !empty($request->trans_code)) {
             $query->where('trans_code', $request->trans_code);
         }
         if ($request->filled('date')) {
-            $toDate = \Carbon\Carbon::createFromFormat('Y-m-d', $request->date);
-            $query->where('date', '<=', $toDate);
+            $query->where('date', '<=', \Carbon\Carbon::createFromFormat('Y-m-d', $request->date));
         }
         if ($request->has('visa_status') && !empty($request->visa_status)) {
             $query->where('visa_status', $request->visa_status);
@@ -748,7 +812,7 @@ class VisaexpenseController extends AppBaseController
         if ($request->has('payment_status') && !empty($request->payment_status)) {
             $query->where('payment_status', $request->payment_status);
         }
-        // Apply pagination using the trait
+
         $data = $this->applyPagination($query, $paginationParams);
 
         $installmentQuery = visa_installment_plan::query()
@@ -763,22 +827,30 @@ class VisaexpenseController extends AppBaseController
                 'data' => $data,
                 'account' => $account,
             ])->render();
-            $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
                 'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
+                'paginationLinks' => $data->links('components.global-pagination')->render(),
             ]);
         }
-        $visaStatuses = VisaRenewalCategoryService::activeStatusesForCategory($activeCategoryId);
+
+        $overviewPersonId = $account->isEmployeeAccount()
+            ? (int) $account->employee_id
+            : (int) $account->rider_id;
+        $overviewType = $account->isEmployeeAccount() ? 'employee' : 'rider';
+
         $viewData = [
             'data' => $data,
             'installmentData' => $installmentData,
             'installmentStats' => $installmentStats,
             'account' => $account,
-            'visaStatuses' => $visaStatuses,
+            'visaStatuses' => VisaRenewalCategoryService::activeStatusesForCategory($activeCategoryId),
             'activeRenewalCategory' => $activeRenewalCategory,
             'siblingAccounts' => $siblingAccounts,
+            'visaCategoryAccounts' => $visaCategoryAccounts,
             'canAddExpense' => $canAddExpense,
+            'visaRiderOverview' => true,
+            'visaOverviewPersonId' => $overviewPersonId,
+            'visaOverviewType' => $overviewType,
         ];
 
         $viewData = array_merge($viewData, $this->licenseExpenseSectionDataForRider($request, $riderId));
@@ -811,6 +883,9 @@ class VisaexpenseController extends AppBaseController
             ],
             'activeLicenseCategory' => null,
             'licenseSiblingAccounts' => collect(),
+            'licenseCategoryAccounts' => collect(),
+            'licInstallmentData'  => collect(),
+            'licInstallmentStats' => ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0],
         ];
 
         if (! $riderId
@@ -836,7 +911,7 @@ class VisaexpenseController extends AppBaseController
         }
 
         if (! $licenseAccount) {
-            return array_merge($empty, ['showLicenseExpenseSection' => true]);
+            return $empty;
         }
 
         $activeLicenseCategory = LicenseCategoryService::resolveCategoryForAccount($licenseAccount);
@@ -854,6 +929,18 @@ class VisaexpenseController extends AppBaseController
             $categoryId
         );
 
+        $licInstallmentBase = license_installment_plan::query()->where('rider_id', (int) $licenseAccount->id);
+        $licInstallmentData = (clone $licInstallmentBase)
+            ->with(['vouchers', 'installmentTransactions'])
+            ->orderBy('date', 'asc')
+            ->get();
+        $licInstallmentStats = [
+            'unpaid_amount' => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->sum('amount'),
+            'paid_amount'   => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->sum('amount'),
+            'paid_count'    => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->count(),
+            'unpaid_count'  => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->count(),
+        ];
+
         return [
             'showLicenseExpenseSection' => true,
             'licenseAccount' => $licenseAccount,
@@ -866,6 +953,9 @@ class VisaexpenseController extends AppBaseController
             ],
             'activeLicenseCategory' => $activeLicenseCategory,
             'licenseSiblingAccounts' => $licenseAccounts->where('id', '!=', $licenseAccount->id)->values(),
+            'licenseCategoryAccounts' => $licenseAccounts,
+            'licInstallmentData'  => $licInstallmentData,
+            'licInstallmentStats' => $licInstallmentStats,
         ];
     }
 

@@ -74,7 +74,7 @@ class GlobalAccountsSeeder extends Seeder
                 'data' => $data,
                 'timestamp' => (int) (microtime(true) * 1000),
             ], JSON_UNESCAPED_SLASHES);
-            @file_put_contents(base_path('debug-921d95.log'), $payload.PHP_EOL, FILE_APPEND);
+            @file_put_contents(base_path('debug-921d95.log'), $payload . PHP_EOL, FILE_APPEND);
         };
         // #endregion
 

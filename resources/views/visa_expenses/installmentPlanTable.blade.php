@@ -16,11 +16,11 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
                 <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
                 <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
                 <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
                 <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
-                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
+                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
                 <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
                 <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
+                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
                 <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
             </tr>
         </thead>
@@ -77,6 +77,22 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
                         onblur="saveBillingMonth({{ $installment->id }})"
                         onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
                 </td>
+                <td class="text-start" style="min-width: 260px;">
+                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
+                    @if($canEditInstallment)
+                    @if(!$rowPendingDeletion)
+                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
+                        <i class="fa fa-edit text-primary"></i>
+                    </a>
+                    @endif
+                    @endif
+                    <textarea
+                        id="inst_narration_input_{{ $installment->id }}"
+                        rows="2"
+                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
+                        class="form-control form-control-sm d-none"
+                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
+                </td>
                 <td>
                     <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
                     @if($canEditInstallment)
@@ -94,29 +110,13 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
                         onblur="saveAmount({{ $installment->id }})"
                         onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
                 </td>
-                <td class="text-start" style="min-width: 260px;">
-                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
-                    <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
-                        <i class="fa fa-edit text-primary"></i>
-                    </a>
-                    @endif
-                    @endif
-                    <textarea
-                        id="inst_narration_input_{{ $installment->id }}"
-                        rows="2"
-                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
-                        class="form-control form-control-sm d-none"
-                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
-                </td>
-                <td>{!! $installment->status_badge !!}</td>
                 <td>
                     <span id="inst_created_by_display_{{ $installment->id }}">{{ $installment->created_by ? \App\Models\User::find($installment->created_by)->name :''}}</span>
                 </td>
                 <td>
                     <span id="inst_updated_by_display_{{ $installment->id }}">{{ $installment->updated_by ? \App\Models\User::find($installment->updated_by)->name :''}}</span>
                 </td>
+                <td>{!! $installment->status_badge !!}</td>
                 <td>
                     @if($installmentPendingDeletion)
                     @include('delete_requests._locked_cell', ['model' => $installment])

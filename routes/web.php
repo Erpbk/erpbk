@@ -388,6 +388,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers'])->name('attendance.users');
 
     // Visa expense custom routes (register before resource to avoid {VisaExpense} shadowing)
+    Route::get('VisaExpense/rider/{riderId}', [VisaexpenseController::class, 'showForRider'])->name('VisaExpense.showForRider');
     Route::get('VisaExpense/generatentries/{id}', [VisaexpenseController::class, 'generatentries'])->name('VisaExpense.generatentries');
     Route::get('VisaExpense/create/{id}', [VisaexpenseController::class, 'create'])->name('VisaExpense.create');
     Route::get('VisaExpense/edit/{id}', [VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');

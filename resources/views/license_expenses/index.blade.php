@@ -183,47 +183,52 @@ if (!in_array($activeTab, ['license','visa'])) { $activeTab = 'license'; }
 <div class="content">
   @include('flash::message')
 
-  {{-- ── Sibling accounts ──────────────────────────────────────── --}}
-  @if(isset($siblingAccounts) && $siblingAccounts->count() > 0)
-  <div class="alert alert-light border mb-3 py-2">
-    <span class="text-muted me-2 small fw-semibold">Other license accounts:</span>
-    @foreach($siblingAccounts as $sibling)
-    <a href="{{ route('LicenseExpense.generatentries', $sibling->id) }}"
-      class="btn btn-sm btn-outline-secondary me-1 mb-1">
-      {{ $sibling->licenseCategory->name ?? 'Account #'.$sibling->id }}
-    </a>
-    @endforeach
-  </div>
-  @endif
+  {{-- ── Tab navigation + sibling account quick-links (right-aligned) ── --}}
+  <div class="d-flex align-items-center exp-tab-nav" id="expenseTabs" role="tablist">
+    {{-- left: module tabs --}}
+    <ul class="nav mb-0 border-0 flex-grow-1" style="border-bottom:none;">
+      <li class="nav-item">
+        <a class="nav-link {{ $activeTab==='license' ? 'active':'' }}"
+          href="{{ request()->fullUrlWithQuery(['tab'=>'license']) }}"
+          id="tab-license">
+          <i class="fa fa-id-card me-1"></i>
+          License Expense
+          @if($unpaidCount > 0)
+          <span class="badge rounded-pill tab-badge-license ms-1">{{ $unpaidCount }}</span>
+          @endif
+        </a>
+      </li>
+      @if($showVisaSection)
+      <li class="nav-item">
+        <a class="nav-link {{ $activeTab==='visa' ? 'active':'' }}"
+          href="{{ request()->fullUrlWithQuery(['tab'=>'visa']) }}"
+          id="tab-visa">
+          <i class="fa fa-passport me-1"></i>
+          Visa Expense
+          @php $visaUnpaidCount = (int)($visaExpenseTotals['unpaid_count'] ?? 0); @endphp
+          @if($visaUnpaidCount > 0)
+          <span class="badge rounded-pill tab-badge-visa ms-1">{{ $visaUnpaidCount }}</span>
+          @endif
+        </a>
+      </li>
+      @endif
+    </ul>
 
-  {{-- ── Tab navigation ──────────────────────────────────────── --}}
-  <ul class="nav exp-tab-nav" id="expenseTabs" role="tablist">
-    <li class="nav-item">
-      <a class="nav-link {{ $activeTab==='license' ? 'active':'' }}"
-        href="{{ request()->fullUrlWithQuery(['tab'=>'license']) }}"
-        id="tab-license">
-        <i class="fa fa-id-card me-1"></i>
-        License Expense
-        @if($unpaidCount > 0)
-        <span class="badge rounded-pill tab-badge-license ms-1">{{ $unpaidCount }}</span>
-        @endif
+    {{-- right: sibling license account quick-links --}}
+    @if(isset($siblingAccounts) && $siblingAccounts->count() > 0)
+    <div class="d-flex align-items-center gap-1 ms-3 flex-shrink-0 pb-1">
+      <span class="text-muted small fw-semibold me-1" style="white-space:nowrap;">
+        <i class="fa fa-exchange-alt fa-xs me-1"></i>Switch:
+      </span>
+      @foreach($siblingAccounts as $sibling)
+      <a href="{{ route('LicenseExpense.generatentries', $sibling->id) }}"
+        class="btn btn-sm btn-outline-secondary py-0 px-2" style="font-size:.75rem;line-height:1.7;">
+        {{ $sibling->licenseCategory->name ?? 'Account #'.$sibling->id }}
       </a>
-    </li>
-    @if($showVisaSection)
-    <li class="nav-item">
-      <a class="nav-link {{ $activeTab==='visa' ? 'active':'' }}"
-        href="{{ request()->fullUrlWithQuery(['tab'=>'visa']) }}"
-        id="tab-visa">
-        <i class="fa fa-passport me-1"></i>
-        Visa Expense
-        @php $visaUnpaidCount = (int)($visaExpenseTotals['unpaid_count'] ?? 0); @endphp
-        @if($visaUnpaidCount > 0)
-        <span class="badge rounded-pill tab-badge-visa ms-1">{{ $visaUnpaidCount }}</span>
-        @endif
-      </a>
-    </li>
+      @endforeach
+    </div>
     @endif
-  </ul>
+  </div>
 
   {{-- ════════════════════════════════════════════════════════════
        LICENSE TAB
@@ -238,9 +243,9 @@ if (!in_array($activeTab, ['license','visa'])) { $activeTab = 'license'; }
         </div>
         <div class="flex-grow-1">
           <h5 class="text-white">
-            License Expense &mdash; {{ $account->name }}
+            <i class="fa fa-file-invoice-dollar me-1 opacity-75"></i> License Expense
             @if(!empty($activeLicenseCategory))
-            <span class="section-badge text-white-50 fw-normal">({{ $activeLicenseCategory->name }})</span>
+            <span class="section-badge text-white-50 fw-normal ms-1">({{ $activeLicenseCategory->name }})</span>
             @endif
           </h5>
         </div>

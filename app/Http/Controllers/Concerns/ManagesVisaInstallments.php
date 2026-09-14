@@ -1767,7 +1767,10 @@ trait ManagesVisaInstallments
                 return redirect()->back();
             }
 
-            $rider->loadMissing(['vendor', 'sim']);
+            // loadMissing is only available on Eloquent models, not stdClass fallbacks
+            if ($rider instanceof \Illuminate\Database\Eloquent\Model) {
+                $rider->loadMissing(['vendor', 'sim']);
+            }
 
             if (request()->ajax()) {
                 return view($this->installmentViewInvoiceAjax(), compact('rider', 'installments', 'account'));

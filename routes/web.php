@@ -431,6 +431,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('Installments/generateInstallmentInvoice/{riderId}', [InstallmentsController::class, 'generateInstallmentInvoice'])->name('Installments.generateInstallmentInvoice');
     Route::get('Installments/autoMarkInstallments/{riderId?}', [InstallmentsController::class, 'autoMarkInstallmentsAsPaid'])->name('Installments.autoMarkInstallments');
     Route::post('Installments/recalculateInstallments', [InstallmentsController::class, 'recalculateInstallments'])->name('Installments.recalculateInstallments');
+    Route::get('Installments/paymentReceivingModal/{riderId}', [InstallmentsController::class, 'paymentReceivingModal'])->name('Installments.paymentReceivingModal');
+    Route::post('Installments/processPaymentReceiving', [InstallmentsController::class, 'processPaymentReceiving'])->name('Installments.processPaymentReceiving');
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
@@ -455,6 +457,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('LicenseExpense/generateInstallmentInvoice/{riderId}', [LicenseexpenseController::class, 'generateInstallmentInvoice'])->name('LicenseExpense.generateInstallmentInvoice');
     Route::get('LicenseExpense/autoMarkInstallments/{riderId?}', [LicenseexpenseController::class, 'autoMarkInstallmentsAsPaid'])->name('LicenseExpense.autoMarkInstallments');
     Route::post('LicenseExpense/recalculateInstallments', [LicenseexpenseController::class, 'recalculateInstallments'])->name('LicenseExpense.recalculateInstallments');
+    Route::get('LicenseExpense/paymentReceivingModal/{riderId}', [LicenseexpenseController::class, 'paymentReceivingModal'])->name('LicenseExpense.paymentReceivingModal');
+    Route::post('LicenseExpense/processPaymentReceiving', [LicenseexpenseController::class, 'processPaymentReceiving'])->name('LicenseExpense.processPaymentReceiving');
 
     Route::get('LicenseExpense/generatentries/{id}', [LicenseexpenseController::class, 'generatentries'])->name('LicenseExpense.generatentries');
     Route::get('LicenseExpense/create/{id}', [LicenseexpenseController::class, 'create'])->name('LicenseExpense.create');

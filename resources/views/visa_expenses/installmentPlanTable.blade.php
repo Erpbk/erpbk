@@ -1,12 +1,13 @@
 @push('third_party_stylesheets')
 @endpush
 @php
-    $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
-    $installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
-    $installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
-    $canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
-    $canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
-    $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
+$installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
+$installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
+$installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
+$installmentPaymentReceivingRoute = $installmentPaymentReceivingRoute ?? 'Installments.paymentReceivingModal';
+$canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
+$canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
+$installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
 @endphp
 <div id="visa-installments-inline-edit-scope">
     <table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
@@ -128,7 +129,18 @@
                         </button>
                         <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $installment->id }}">
                             @if($canEditInstallment)
-                            @if($installment->status === 'pending')
+                            {{-- Payment Receiving --}}
+                            @if($installment->status !== 'paid')
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect show-modal action-btn"
+                                data-action="{{ route($installmentPaymentReceivingRoute, $installment->rider_id) }}"
+                                data-size="xl"
+                                data-title="Payment Receiving — {{ optional($installment->expenseAccount)->name ?? 'Installments' }}">
+                                <i class="fa fa-money-bill-wave me-2 text-primary"></i> Payment Receiving
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            @endif
+                            @if($installment->status === 'pending' || $installment->status === 'partial')
                             <a href="javascript:void(0);"
                                 onclick="markAsPaid({{ $installment->id }})"
                                 class='dropdown-item waves-effect'>
@@ -558,10 +570,10 @@
     // Soft delete with cascade tracking confirmation — provided by shared partial below
 </script>
 @include('delete_requests._confirm_delete_script', [
-    'entityName' => 'Installment Plan',
-    'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
-    'method' => 'GET',
-    'functionName' => 'confirmDeleteProtected',
+'entityName' => 'Installment Plan',
+'confirmText' => 'This will submit a delete request for the installment plan (and related vouchers/transactions). Until approved, records stay visible and locked.',
+'method' => 'GET',
+'functionName' => 'confirmDeleteProtected',
 ])
 <script>
     // Store original values when page loads

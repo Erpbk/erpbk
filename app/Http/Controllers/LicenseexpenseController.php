@@ -109,13 +109,15 @@ class LicenseexpenseController extends AppBaseController
     protected function installmentRouteNames(): array
     {
         return [
-            'create' => 'LicenseExpense.createInstallmentPlan',
-            'create_form' => 'LicenseExpense.createInstallmentPlanForm',
-            'pay' => 'LicenseExpense.payInstallment',
-            'update_field' => 'LicenseExpense.updateInstallmentField',
-            'delete' => 'LicenseExpense.deleteInstallment',
-            'invoice' => 'LicenseExpense.generateInstallmentInvoice',
-            'plan' => 'LicenseExpense.installmentPlan',
+            'create'                    => 'LicenseExpense.createInstallmentPlan',
+            'create_form'               => 'LicenseExpense.createInstallmentPlanForm',
+            'pay'                       => 'LicenseExpense.payInstallment',
+            'update_field'              => 'LicenseExpense.updateInstallmentField',
+            'delete'                    => 'LicenseExpense.deleteInstallment',
+            'invoice'                   => 'LicenseExpense.generateInstallmentInvoice',
+            'plan'                      => 'LicenseExpense.installmentPlan',
+            'payment_receiving'         => 'LicenseExpense.paymentReceivingModal',
+            'process_payment_receiving' => 'LicenseExpense.processPaymentReceiving',
         ];
     }
 

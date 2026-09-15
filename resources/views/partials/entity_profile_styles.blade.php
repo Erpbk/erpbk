@@ -31,7 +31,8 @@
   .entity-view-card-edit {
     position: absolute;
     top: 0.85rem;
-    left: 0.9rem;
+    right: 0.9rem;
+    left: auto;
     width: 34px;
     height: 34px;
     border: 0;
@@ -55,29 +56,43 @@
   .entity-view-card-status {
     position: absolute;
     top: 0.75rem;
-    right: 0.75rem;
+    left: 0.75rem;
+    right: auto;
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: flex-start;
     gap: 0.15rem;
     z-index: 1;
   }
 
   .entity-view-card-active {
-    background: #22c55e;
-    color: #fff;
+    background: #eef4ff;
+    color: #2563eb;
     font-weight: 600;
     font-size: 0.72rem;
-    padding: 0.28rem 0.6rem;
-    border-radius: 999px;
+    padding: 0.32rem 0.65rem;
+    border-radius: 0.35rem;
+    border: 1px solid #dbe7ff;
   }
 
   .entity-view-card-active.is-inactive {
-    background: #64748b;
+    background: #f1f5f9;
+    color: #64748b;
+    border-color: #e2e8f0;
   }
 
   .entity-view-card-active.is-vacation {
-    background: #f59e0b;
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+  }
+
+  .entity-view-card-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 0.85rem;
+    letter-spacing: -.01em;
   }
 
   .entity-view-card-photo {
@@ -162,24 +177,27 @@
   }
 
   .entity-view-card .user_list .icons {
-    flex: 0 0 1.25rem;
-    width: 1.25rem;
-    color: #5b6472;
+    flex: 0 0 2.35rem;
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #64748b;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .entity-view-card .user_list .icons i {
-    font-size: 1.05rem;
+    font-size: 1rem;
     line-height: 1;
   }
 
   .entity-view-card .user_list_content {
     display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.4rem;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    row-gap: 0.12rem;
     flex: 1;
     min-width: 0;
   }
@@ -213,8 +231,8 @@
     }
 
     .entity-view-card .user_list .icons {
-      align-items: flex-start;
-      padding-top: 0.12rem;
+      align-items: center;
+      padding-top: 0;
     }
 
     .entity-view-card .user_list_content {

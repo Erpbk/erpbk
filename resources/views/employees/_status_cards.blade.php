@@ -16,7 +16,7 @@ return $category;
 $cardIndex = 0;
 $icons = ['ti ti-bell', 'ti ti-star', 'ti ti-flag', 'ti ti-briefcase'];
 @endphp
-<div class="d-flex flex-wrap justify-content-start gap-2 gap-md-3 mt-3" id="employee-status-cards" data-employee-id="{{ $employee->id }}">
+<div class="mt-3" id="employee-status-cards" data-employee-id="{{ $employee->id }}">
   <div class="status-card {{ $currentStatus === 'active' ? 'active-success' : '' }}" id="employee-status-active-card">
     <div class="d-flex justify-content-between align-items-start">
       <div class="status-icon"><i class="ti ti-user-check"></i></div>

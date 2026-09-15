@@ -7,16 +7,24 @@
     'subtitle' => null,
     'photo' => null,
     'editUrl' => null,
+    'editHref' => null,
     'editTitle' => 'Edit',
     'editSize' => 'lg',
     'nameId' => null,
     'statusId' => null,
+    'sectionTitle' => 'Basic Information',
 ])
 
 <div class="card entity-view-card mb-6">
     <div class="user-avatar-section">
         <div class="entity-view-card-hero">
-            @if($editUrl)
+            @if($editHref)
+                <a href="{{ $editHref }}"
+                   class="entity-view-card-edit"
+                   title="{{ $editTitle }}">
+                    <i class="ti ti-pencil"></i>
+                </a>
+            @elseif($editUrl)
                 <a href="javascript:void(0);"
                    class="entity-view-card-edit show-modal"
                    data-action="{{ $editUrl }}"
@@ -29,6 +37,7 @@
             {{ $heroStart ?? '' }}
             <div class="entity-view-card-status">
                 <span @if($statusId) id="{{ $statusId }}" @endif class="entity-view-card-active {{ $isActive ? '' : 'is-inactive' }} {{ $statusClass }}">{{ $statusLabel }}</span>
+                {{ $statusExtra ?? '' }}
             </div>
             <div class="entity-view-card-photo-wrap">
                 @if($photo)
@@ -43,10 +52,10 @@
         </div>
         <div class="card-body pt-3">
             <div class="user-info text-center mb-3">
-                <h6 class="mb-0"><b @if($nameId) id="{{ $nameId }}" @endif>{{ $name ?: 'not-set' }}</b></h6>
                 @if($subtitle)
-                    <div class="entity-view-card-id">{{ $subtitle }}</div>
+                    <div class="entity-view-card-id mb-1">{{ $subtitle }}</div>
                 @endif
+                <h6 class="mb-0"><b @if($nameId) id="{{ $nameId }}" @endif>{{ $name ?: 'not-set' }}</b></h6>
                 {{ $meta ?? '' }}
             </div>
             {{ $afterHero ?? '' }}
@@ -54,6 +63,9 @@
     </div>
     <div class="card-body pt-0">
         <div class="info-container">
+            @if($sectionTitle)
+                <h6 class="entity-view-card-section-title">{{ $sectionTitle }}</h6>
+            @endif
             <ul class="p-0 mb-3 entity-view-card-list">
                 {{ $slot }}
             </ul>

@@ -16,103 +16,83 @@
     }
   }
 
-  /* Status Cards Styling */
-  .status-card {
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border: 2px solid #dee2e6;
-    border-radius: 12px;
-    padding: 16px;
-    min-width: 180px;
-    flex: 1;
-    max-width: 220px;
-    transition: all 0.3s ease;
+  /* Status cards — soft outline (matches rider profile) */
+  .entity-view-card #employee-status-cards {
+    margin-top: 0.35rem;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .entity-view-card #employee-status-cards .status-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: unset;
+    padding: 0.85rem 0.9rem;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    box-shadow: none;
+    color: #1e293b;
+    transition: border-color .15s, box-shadow .15s;
     position: relative;
     overflow: hidden;
   }
 
-  .status-card.active-success {
-    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-    border-color: #28a745;
-    color: white;
+  .entity-view-card #employee-status-cards .status-card:hover {
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    border-color: #cbd5e1;
   }
 
-  .status-card.active-info {
-    background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
-    border-color: #17a2b8;
-    color: white;
+  .entity-view-card #employee-status-cards .status-card.active-success,
+  .entity-view-card #employee-status-cards .status-card.active-info,
+  .entity-view-card #employee-status-cards .status-card.active-danger {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
   }
 
-  .status-card.active-danger {
-    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
-    border-color: #dc3545;
-    color: white;
-  }
-
-  .status-card .status-icon {
+  .entity-view-card #employee-status-cards .status-icon {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 1.75rem;
+    height: 1.75rem;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2);
-    font-size: 20px;
+    background: #f1f5f9;
+    color: #64748b;
+    font-size: 0.85rem;
+    margin-bottom: 0;
   }
 
-  .status-card.active-success .status-icon,
-  .status-card.active-info .status-icon,
-  .status-card.active-danger .status-icon {
-    background: rgba(255, 255, 255, 0.3);
+  .entity-view-card #employee-status-cards .status-card.active-success .status-icon,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-icon,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-icon {
+    background: #e2e8f0;
+    color: #334155;
   }
 
-  .status-card .status-content {
-    flex: 1;
-  }
-
-  .status-card .status-title {
-    font-size: 16px;
+  .entity-view-card #employee-status-cards .status-title {
+    font-size: 0.82rem;
     font-weight: 600;
-    margin-bottom: 4px;
-    color: #495057;
+    margin-bottom: 2px;
+    color: #1e293b;
   }
 
-  .status-card.active-success .status-title,
-  .status-card.active-info .status-title,
-  .status-card.active-danger .status-title {
-    color: white;
+  .entity-view-card #employee-status-cards .status-card.active-success .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-success .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-subtitle {
+    color: #334155;
   }
 
-  .status-card .status-subtitle {
-    font-size: 12px;
-    color: #6c757d;
+  .entity-view-card #employee-status-cards .status-subtitle {
+    font-size: 0.65rem;
+    color: #94a3b8;
     font-weight: 500;
-  }
-
-  .status-card.active-success .status-subtitle,
-  .status-card.active-info .status-subtitle,
-  .status-card.active-danger .status-subtitle {
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  .status-options {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-  }
-
-  .status-option {
-    padding: 4px 0;
-  }
-
-  .status-option span {
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .status-card.active-success .status-option span,
-  .status-card.active-info .status-option span,
-  .status-card.active-danger .status-option span {
-    color: white;
   }
 
   .status-toggle {
@@ -120,7 +100,8 @@
     align-items: center;
   }
 
-  .status-radio {
+  .status-radio,
+  .employee-top-option-checkbox {
     display: none;
   }
 
@@ -128,7 +109,7 @@
     position: relative;
     width: 40px;
     height: 20px;
-    background: #ccc;
+    background: #e2e8f0;
     border-radius: 10px;
     cursor: pointer;
     transition: background 0.3s ease;
@@ -148,20 +129,16 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  .status-radio:checked+.toggle-switch::after {
+  .status-radio:checked+.toggle-switch::after,
+  .employee-top-option-checkbox:checked+.toggle-switch::after {
     transform: translateX(20px);
   }
 
-  .status-radio-active:checked+.toggle-switch {
-    background: #28a745;
-  }
-
-  .status-radio-leave:checked+.toggle-switch {
-    background: #17a2b8;
-  }
-
-  .status-radio-inactive:checked+.toggle-switch {
-    background: #dc3545;
+  .status-radio-active:checked+.toggle-switch,
+  .status-radio-leave:checked+.toggle-switch,
+  .status-radio-inactive:checked+.toggle-switch,
+  .employee-top-option-checkbox:checked+.toggle-switch {
+    background: #64748b;
   }
 
   .status-card.loading {
@@ -174,78 +151,14 @@
   }
 
   @keyframes pulse {
-    0% {
-      opacity: 1;
-    }
-
-    50% {
-      opacity: 0.5;
-    }
-
-    100% {
-      opacity: 1;
-    }
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
   }
 
-  /* Responsive design */
-  @media (max-width: 768px) {
-    .status-card {
-      min-width: 150px;
-      max-width: 180px;
-      padding: 12px;
-      flex: 1;
-    }
-
-    .status-title {
-      font-size: 14px;
-    }
-
-    .status-subtitle {
-      font-size: 11px;
-    }
-  }
-
-  @media (max-width: 576px) {
-    .status-card {
-      min-width: 140px;
-      max-width: 160px;
-      padding: 10px;
-    }
-
-    .status-title {
-      font-size: 13px;
-    }
-
-    .status-subtitle {
-      font-size: 10px;
-    }
-
-    .status-icon {
-      width: 35px;
-      height: 35px;
-      font-size: 18px;
-    }
-  }
-
-  .info-container .user_list {
-    align-items: flex-start;
-  }
-
-  .info-container .user_list .icons {
-    flex-shrink: 0;
-  }
-
-  .info-container .user_list_content {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-  }
-
-  .info-container .user_list_content b {
-    display: block;
-    float: none;
-    margin-top: 2px;
+  .entity-view-card .user_list_content .is-whatsapp,
+  .entity-view-card .user_list_content .is-whatsapp a {
+    color: #16a34a;
   }
 </style>
 @include('partials.entity_profile_styles')
@@ -318,6 +231,14 @@ if ($employee?->company_contact) {
 
 <div class="row">
   <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
+    @php
+      $employeeBalance = (isset($account) && $account)
+        ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code())
+        : ('0.00 ' . \App\Helpers\Currency::code());
+      $employeeBalanceHtml = isset($employee)
+        ? '<a href="' . e(route('employee.ledger', $employee->id)) . '">' . e($employeeBalance) . '</a>'
+        : e($employeeBalance);
+    @endphp
     <x-entity-profile-card
       icon="ti ti-user"
       :photo="$image_name"
@@ -328,7 +249,9 @@ if ($employee?->company_contact) {
       name-id="employee-profile-name"
       :name="$employee?->name ?? 'New Employee'"
       :subtitle="$employee?->employee_id ?? ($empId ?? 'not-set')"
+      :edit-href="isset($employee) && user_can('employees_employee_edit') ? route('employees.edit', $employee->id) : null"
       edit-title="Edit Employee Details"
+      section-title="Basic Information"
     >
       <x-slot name="photoAction">
         @if(isset($employee))
@@ -359,11 +282,11 @@ if ($employee?->company_contact) {
         @endif
       </x-slot>
       <x-entity-profile-info-row icon="ti ti-mail" label="Company Email" :value="$employee?->company_email" field-key="company_email" />
-      <x-entity-profile-info-row icon="ti ti-phone" label="WhatsApp" :value="$whatsappHtml" :html="true" field-key="company_contact_html" />
+      <x-entity-profile-info-row icon="ti ti-phone" label="WhatsApp" :value="$whatsappHtml" :html="true" field-key="company_contact_html" value-class="is-whatsapp" />
       <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$employee?->nationality?->name" field-key="nationality" />
       <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$employee?->dob ? \Carbon\Carbon::parse($employee->dob)->age : null" field-key="age" />
       <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$employee?->doj ? \Carbon\Carbon::parse($employee->doj)->format('d M Y') : null" field-key="doj" />
-      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="(isset($account) && $account) ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code()) : ('0.00 ' . \App\Helpers\Currency::code())" />
+      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Ledger Balance" :value="$employeeBalanceHtml" :html="true" />
       <x-entity-profile-info-row icon="ti ti-cash" label="Salary" :value="number_format($employee?->salary ?? 0, 2) . ' ' . \App\Helpers\Currency::code()" field-key="salary" />
       <x-entity-profile-info-row icon="ti ti-id" label="Emirates ID" :value="$employee?->emirate_id" field-key="emirate_id" />
       <x-entity-profile-info-row icon="ti ti-building" label="Department" :value="$employee?->department?->name ?? $employee?->department_id" field-key="department" />

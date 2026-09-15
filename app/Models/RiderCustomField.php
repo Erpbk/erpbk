@@ -440,6 +440,11 @@ class RiderCustomField extends BaseModel
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
+        if (Schema::hasColumn('riders', 'personal_contact')) {
+            $customFieldsAll = $customFieldsAll
+                ->reject(fn ($cf) => strcasecmp(trim((string) ($cf->label ?? '')), 'personal contact') === 0)
+                ->values();
+        }
         $specs = self::fixedFieldInputSpecs();
 
         $result = [];

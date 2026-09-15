@@ -221,18 +221,19 @@ class RidersController extends AppBaseController
       ->all();
 
     // Always expose list columns that are useful in column control even when they are
-    // hidden from Rider Settings forms (project/designation) or removed from the riders schema (company contact / SIM).
-    $alwaysInclude = ['status', 'customer_id', 'company_contact', 'designation'];
+    // hidden from Rider Settings forms (project/designation) or SIM-managed (company contact).
+    $alwaysInclude = ['status', 'customer_id', 'personal_contact', 'company_contact', 'designation'];
 
     $dbColumns = array_values(array_unique(array_merge(
       $assignedFixedColumns,
       array_values(array_filter($alwaysInclude, function ($key) {
-        return $key === 'company_contact' || Schema::hasColumn('riders', $key);
+        return Schema::hasColumn('riders', $key);
       }))
     )));
 
     $assignedCustomFields = RiderCustomField::query()
       ->whereNotNull('category_id')
+      ->whereRaw("LOWER(TRIM(label)) != ?", ['personal contact'])
       ->orderBy('display_order')
       ->orderBy('id')
       ->get(['id', 'label']);
@@ -240,6 +241,7 @@ class RidersController extends AppBaseController
     $preferredOrder = [
       'rider_id',
       'name',
+      'personal_contact',
       'company_contact',
       'fleet_supervisor',
       'customer_id',
@@ -255,6 +257,7 @@ class RidersController extends AppBaseController
         'dob' => 'Date of Birth',
         'doj' => 'Date of Joining',
         'customer_id' => 'Project',
+        'personal_contact' => 'Personal Contact',
         'company_contact' => 'Company Contact',
         'designation' => 'Designation',
         'recruiter_id' => 'Recruiter',

@@ -114,7 +114,7 @@ return new class extends Migration
                     'is_visible' => (bool) ($customField->is_visible ?? true),
                     'is_required' => (bool) ($customField->is_mandatory ?? false),
                     'input_type' => $this->mapCustomFieldInputType((string) ($customField->data_type ?? 'text')),
-                    'input_config' => $this->decodeJsonColumn($customField->config ?? null),
+                    'input_config' => $this->encodeJsonColumn($customField->config ?? null),
                     'updated_at' => now(),
                 ];
 
@@ -160,6 +160,7 @@ return new class extends Migration
             DB::table('rider_custom_fields')
                 ->where('id', $fieldId)
                 ->update([
+                    'category_id' => null,
                     'is_visible' => false,
                     'updated_at' => now(),
                 ]);
@@ -185,6 +186,36 @@ return new class extends Migration
         return is_scalar($value) ? (string) $value : null;
     }
 
+    /**
+     * Query Builder does not cast arrays — store JSON columns as encoded strings.
+     */
+    private function encodeJsonColumn(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+            // Already JSON text from the custom field row.
+            json_decode($trimmed, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $trimmed;
+            }
+
+            return json_encode($trimmed, JSON_UNESCAPED_UNICODE);
+        }
+
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+
+        return null;
+    }
+
     private function mapCustomFieldInputType(string $dataType): string
     {
         return match ($dataType) {
@@ -198,23 +229,5 @@ return new class extends Migration
             'url' => 'url',
             default => 'text',
         };
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function decodeJsonColumn(mixed $value): ?array
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if (is_array($value)) {
-            return $value;
-        }
-
-        $decoded = json_decode((string) $value, true);
-
-        return is_array($decoded) ? $decoded : null;
     }
 };

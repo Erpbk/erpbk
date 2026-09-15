@@ -40,7 +40,7 @@
          @case('contact_number')
          @case('company_contact')
          @php
-         $phone = preg_replace('/[^0-9]/', '', $r->sim?->number ?? '');
+         $phone = preg_replace('/[^0-9]/', '', (string) ($r->company_contact ?? ''));
          if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
          else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
          @endphp

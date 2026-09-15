@@ -57,6 +57,7 @@ use App\Services\Permissions\TopBarPermissionSync;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
+use App\Support\CompanyScope;
 use App\Support\RiderDocumentReplacement;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
@@ -71,7 +72,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Models\FuelCards;
@@ -444,46 +444,41 @@ class RidersController extends AppBaseController
       $rules[$fieldKey] = $normalizePresenceRule($baseRule, $isRequired);
     }
 
-    if ($ignoreRiderId !== null) {
-      // Keep unique constraints on update, but do not force required — Field Permissions decide that.
-      $riderIdRule = $rules['rider_id'] ?? 'nullable';
-      $riderIdTokens = is_array($riderIdRule) ? $riderIdRule : explode('|', (string) $riderIdRule);
-      $riderIdTokens = array_values(array_filter($riderIdTokens, function ($token) {
-        return ! (is_string($token) && (str_starts_with($token, 'unique:') || $token === 'required' || $token === 'nullable'));
-      }));
-      $riderIdRequired = \App\Support\RoleFieldAccess::isRequired('rider', 'rider_id')
-        && \App\Support\RoleFieldAccess::canEdit('rider', 'rider_id');
-      array_unshift($riderIdTokens, $riderIdRequired ? 'required' : 'nullable');
-      $riderIdTokens[] = Rule::unique('riders', 'rider_id')->ignore($ignoreRiderId);
-      $rules['rider_id'] = $riderIdTokens;
-
-      $nameRule = $rules['name'] ?? 'nullable|string|max:191';
-      $nameTokens = is_array($nameRule) ? $nameRule : explode('|', (string) $nameRule);
-      $nameTokens = array_values(array_filter($nameTokens, function ($token) {
-        return ! (is_string($token) && (str_starts_with($token, 'unique:') || $token === 'required' || $token === 'nullable'));
-      }));
-      $nameRequired = \App\Support\RoleFieldAccess::isRequired('rider', 'name')
-        && \App\Support\RoleFieldAccess::canEdit('rider', 'name');
-      array_unshift($nameTokens, $nameRequired ? 'required' : 'nullable');
-      if (! in_array('string', $nameTokens, true)) {
-        $nameTokens[] = 'string';
+    // Replace string unique:* rules so soft-deleted riders are excluded on create and update.
+    foreach ($this->riderUniqueFieldKeys() as $uniqueKey) {
+      if (! isset($riderColumns[$uniqueKey])) {
+        continue;
       }
-      if (! in_array('max:191', $nameTokens, true)) {
-        $nameTokens[] = 'max:191';
-      }
-      $nameTokens[] = Rule::unique('riders', 'name')->ignore($ignoreRiderId);
-      $rules['name'] = $nameTokens;
-
-      $passportRule = $rules['passport'] ?? 'nullable|string|max:191';
-      $passportTokens = is_array($passportRule) ? $passportRule : explode('|', (string) $passportRule);
-      $passportTokens = array_values(array_filter($passportTokens, function ($token) {
+      $baseRule = $rules[$uniqueKey] ?? 'nullable|string|max:191';
+      $tokens = is_array($baseRule) ? $baseRule : explode('|', (string) $baseRule);
+      $tokens = array_values(array_filter($tokens, function ($token) {
         return ! (is_string($token) && str_starts_with($token, 'unique:'));
       }));
-      $passportTokens[] = Rule::unique('riders', 'passport')->ignore($ignoreRiderId);
-      $rules['passport'] = $passportTokens;
+      $uniqueRule = $this->riderUniqueFieldRule($uniqueKey, $ignoreRiderId);
+      if ($uniqueRule !== null) {
+        $tokens[] = $uniqueRule;
+      }
+      $rules[$uniqueKey] = $tokens;
     }
 
     return array_merge($rules, $this->dynamicFieldRules());
+  }
+
+  /**
+   * @return list<string>
+   */
+  private function riderUniqueFieldKeys(): array
+  {
+    return ['rider_id', 'name', 'passport'];
+  }
+
+  private function riderUniqueFieldRule(string $column, ?int $ignoreRiderId = null): ?\Illuminate\Validation\Rules\Unique
+  {
+    if (! Schema::hasColumn('riders', $column)) {
+      return null;
+    }
+
+    return CompanyScope::unique('riders', $column, $ignoreRiderId);
   }
 
   public function __construct(RidersRepository $ridersRepo)
@@ -526,7 +521,7 @@ class RidersController extends AppBaseController
       )
       ->select($indexSelect)
       ->orderBy('days_count', 'asc')
-      ->with(['branch', 'customer', 'sim', 'bikes']);
+      ->with(['branch', 'customer', 'bikes']);
     if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
     }
@@ -632,7 +627,7 @@ class RidersController extends AppBaseController
       ->select($indexSelect)
       ->orderBy('days_count', 'desc')
       ->orderBy('riders.id', 'desc')
-      ->with(['branch', 'customer', 'sim', 'bikes']);
+      ->with(['branch', 'customer', 'bikes']);
 
     if ($request->filled('rider_id')) {
       $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
@@ -868,7 +863,9 @@ class RidersController extends AppBaseController
     // $rider_items = $rider->items;
     $result = $rider->toArray();
     $job_status = JobStatus::where('RID', $id)->orderByDesc('id')->get();
-    $fieldsByCategory = RiderCustomField::fieldsByCategoryForForm();
+    $fieldsByCategory = RiderCustomField::appendCompanyContactProfileField(
+      RiderCustomField::fieldsByCategoryForForm()
+    );
 
     // Get dropdown data for edit forms
     $countries = Countries::pluck('name', 'id')->prepend('Select', '');

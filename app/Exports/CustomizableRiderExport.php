@@ -244,7 +244,7 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
             case 'company_contact':
             case 'contact_number':
-                $phone = preg_replace('/[^0-9]/', '', (string) ($rider->sim?->number ?? $rider->company_contact ?? ''));
+                $phone = preg_replace('/[^0-9]/', '', (string) ($rider->company_contact ?? ''));
                 if ($phone === '') {
                     return '-';
                 }

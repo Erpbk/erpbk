@@ -29,8 +29,6 @@ class RiderCustomField extends BaseModel
             'company_id',
             'account_id',
             'courier_id',
-            'personal_contact',
-            'company_contact',
             'NFDID',
             'cdm_deposit_id',
             'emirate_hub',
@@ -97,6 +95,19 @@ class RiderCustomField extends BaseModel
     }
 
     /**
+     * Fixed rider columns kept on records but excluded from Rider Field Settings UI.
+     * company_contact is SIM-managed and read-only on rider profile/list.
+     *
+     * @return list<string>
+     */
+    public static function hiddenFromRiderFieldSettings(): array
+    {
+        return [
+            'company_contact',
+        ];
+    }
+
+    /**
      * @return list<string>
      */
     public static function excludedFromFieldSettings(): array
@@ -105,6 +116,7 @@ class RiderCustomField extends BaseModel
             ['id', 'created_at', 'updated_at', 'deleted_at'],
             self::removedRiderColumns(),
             self::hiddenRiderColumns(),
+            self::hiddenFromRiderFieldSettings(),
         )));
     }
     protected $table = 'rider_custom_fields';
@@ -224,6 +236,7 @@ class RiderCustomField extends BaseModel
                 'rider_id',
                 'name',
                 'doj',
+                'personal_contact',
                 'email',
                 'nationality',
                 'passport',
@@ -478,5 +491,51 @@ class RiderCustomField extends BaseModel
             ];
         }
         return $result;
+    }
+
+    /**
+     * Append SIM-managed company contact to rider profile field groups when the column exists.
+     *
+     * @param  list<object>  $fieldsByCategory
+     * @return list<object>
+     */
+    public static function appendCompanyContactProfileField(array $fieldsByCategory): array
+    {
+        if (! Schema::hasColumn('riders', 'company_contact')) {
+            return $fieldsByCategory;
+        }
+
+        $item = (object) [
+            'kind' => 'fixed',
+            'field_key' => 'company_contact',
+            'label' => 'Company Contact',
+            'spec' => [
+                'type' => 'tel',
+                'readonly' => true,
+            ],
+        ];
+
+        foreach ($fieldsByCategory as $group) {
+            $fields = $group->fields ?? [];
+            foreach ($fields as $index => $field) {
+                if (($field->kind ?? null) === 'fixed' && ($field->field_key ?? null) === 'personal_contact') {
+                    array_splice($fields, $index + 1, 0, [$item]);
+                    $group->fields = $fields;
+
+                    return $fieldsByCategory;
+                }
+            }
+        }
+
+        if ($fieldsByCategory !== []) {
+            $fieldsByCategory[0]->fields = array_merge([$item], $fieldsByCategory[0]->fields ?? []);
+
+            return $fieldsByCategory;
+        }
+
+        return [(object) [
+            'category' => (object) ['label' => 'Contact'],
+            'fields' => [$item],
+        ]];
     }
 }

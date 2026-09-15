@@ -253,11 +253,7 @@
 
         if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
           var balanceDue = parseFloat($row.data('balance')) || 0;
-          var maxAllowed = parseFloat($paymentInput.data('max')) || balanceDue || 0;
           var fillAmount = balanceDue;
-          if (maxAllowed > 0 && fillAmount > maxAllowed) {
-            fillAmount = maxAllowed;
-          }
 
           if (!isRiderPayment && fillAmount > difference && difference > 0) {
             $paymentInput.val(difference.toFixed(2));
@@ -317,18 +313,9 @@
         return;
       }
 
-      var maxAmount = parseFloat($(this).data('max')) || 0;
       var enteredAmount = parseFloat($(this).val()) || 0;
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
       var total = updateTotalPayment();
-
-      if (enteredAmount > maxAmount) {
-        $(this).val(maxAmount);
-        enteredAmount = maxAmount;
-        if (typeof toastr !== 'undefined') {
-          toastr.warning('Payment amount cannot exceed invoice amount');
-        }
-      }
 
       if (total > paymentAmount && paymentAmount > 0) {
         var excess = total - paymentAmount;
@@ -368,17 +355,8 @@
         if ($activeAmounts.length === 1) {
           var $line = $activeAmounts.first();
           var rowBalance = parseFloat($line.closest('tr').data('balance')) || 0;
-          var maxAllowed = parseFloat($line.data('max')) || 0;
-          if (rowBalance > 0) {
-            var capped = amount;
-            if (maxAllowed > 0 && capped > maxAllowed) {
-              capped = maxAllowed;
-              $(this).val(capped.toFixed(2));
-              if (typeof toastr !== 'undefined') {
-                toastr.warning('Payment amount cannot exceed invoice amount');
-              }
-            }
-            $line.val(capped.toFixed(2));
+          if (Math.abs(rowBalance) >= 0.01 || amount > 0) {
+            $line.val(amount.toFixed(2));
           }
         }
         updateTotalPayment();

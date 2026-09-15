@@ -934,9 +934,9 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                 <div class="user_list_content">
                   <span>WhatsApp</span>
                   <b class="is-whatsapp">
-                    @if($rider?->sim?->number)
+                    @if(!empty($rider?->company_contact))
                     @php
-                    $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
+                    $phone = preg_replace('/[^0-9]/', '', (string) $rider->company_contact);
                     if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
                     else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
                     @endphp

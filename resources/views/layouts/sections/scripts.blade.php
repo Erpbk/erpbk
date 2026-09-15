@@ -46,7 +46,7 @@
 <script src="{{ asset('assets/js/main.js') }}"></script>
 @include('layouts.datatables_js')
 <script src="{{ asset('js/custom.js') }}?v=20260905-dropdown-fixed"></script>
-<script src="{{ asset('js/payment-fields.js') }}?v=20260902-zero-balance-pay"></script>
+<script src="{{ asset('js/payment-fields.js') }}?v=20260915-allow-overpay"></script>
 <script src="{{ asset('js/application.js?id=1') }}"></script>
 <script>
   window.__rfpDefaultEntity = @json($rfpDefaultEntity ?? null);

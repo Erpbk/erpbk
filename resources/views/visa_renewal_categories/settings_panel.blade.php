@@ -64,7 +64,7 @@ $hideTable = $hideTable ?? false;
 <div class="modal fade" id="editVisaRenewalCategoryModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST" id="editVisaRenewalCategoryForm" action="">
+            <form method="POST" id="editVisaRenewalCategoryForm" action="#" data-update-base="{{ url('app/' . $companySlug . '/settings-panel/visa-renewal-categories') }}">
                 @csrf
                 @method('PUT')
                 @if($returnTo)

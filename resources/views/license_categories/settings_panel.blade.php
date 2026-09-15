@@ -64,7 +64,7 @@ $hideTable = $hideTable ?? false;
 <div class="modal fade" id="editLicenseCategoryModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="POST" id="editLicenseCategoryForm" action="">
+            <form method="POST" id="editLicenseCategoryForm" action="#" data-update-base="{{ url('app/' . $companySlug . '/settings-panel/license-categories') }}">
                 @csrf
                 @method('PUT')
                 @if($returnTo)

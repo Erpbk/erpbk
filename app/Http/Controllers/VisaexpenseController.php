@@ -1589,6 +1589,71 @@ class VisaexpenseController extends AppBaseController
 
 
     /**
+     * Upload / replace the payment document for a visa expense voucher.
+     */
+    public function fileUpload(Request $request, $company_slug, $id)
+    {
+        if (! user_can('visaexpense_edit')) {
+            return response()->json(['message' => 'Unauthorized action.'], 403);
+        }
+
+        $expense = visa_expenses::with('vouchers')->find($id);
+        if (! $expense) {
+            return response()->json(['message' => 'Visa Expense not found'], 404);
+        }
+
+        $voucher = $expense->vouchers->first();
+        if (! $voucher) {
+            return response()->json(['message' => 'No payment voucher found for this expense. Pay the expense first.'], 422);
+        }
+
+        if ($request->isMethod('POST')) {
+            if (! $request->hasFile('attach_file')) {
+                return response()->json(['message' => 'Please select a file to upload'], 422);
+            }
+
+            $request->validate([
+                'attach_file' => 'required|file|max:10240',
+            ]);
+
+            try {
+                $photo = $request->file('attach_file');
+                $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $photo->getClientOriginalName()) ?: 'document';
+                $fileName = time() . '_' . $safeBase;
+
+                $oldPath = $voucher->attach_file ? (string) $voucher->attach_file : null;
+                $oldFile = $oldPath ? basename($oldPath) : null;
+
+                \App\Support\PublicStorageDisk::storeUploadedFile($photo, 'vouchers', $fileName);
+
+                if ($oldFile && $oldFile !== $fileName) {
+                    \App\Support\PublicStorageDisk::delete('vouchers/' . $oldFile);
+                }
+
+                // Keep LV path style used by payfine / voucher show modal.
+                $voucher->attach_file = 'vouchers/' . $fileName;
+                $voucher->updated_by = auth()->id();
+                $voucher->save();
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'message' => 'File upload failed. Please try again or contact support if this persists.',
+                ], 500);
+            }
+
+            return response()->json(['message' => 'File uploaded successfully', 'reload' => true], 200);
+        }
+
+        return view('visa_expenses.attach_file', [
+            'id' => $id,
+            'expense' => $expense,
+            'voucher' => $voucher,
+            'company_slug' => $company_slug,
+        ]);
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy($company_slug, string $id)

@@ -34,6 +34,8 @@ $routePrefix = $routePrefix ?? 'settings-panel.visa-renewal-categories';
         });
     }
 
+    // Capture phase so this still runs when edit/delete buttons call stopPropagation()
+    // (needed so category-row clicks don't also fire).
     document.addEventListener('click', function(e) {
         var renewalDeleteBtn = e.target.closest('.js-visa-renewal-delete-btn');
         if (renewalDeleteBtn) {
@@ -65,15 +67,18 @@ $routePrefix = $routePrefix ?? 'settings-panel.visa-renewal-categories';
         if (!renewalEditBtn) return;
         var editForm = document.getElementById('editVisaRenewalCategoryForm');
         if (!editForm) return;
-        var baseUrl = "{{ url('app/' . $companySlug . '/settings-panel/visa-renewal-categories') }}";
-        editForm.action = baseUrl + '/' + String(renewalEditBtn.dataset.id || '');
+        var categoryId = String(renewalEditBtn.dataset.id || '');
+        if (!categoryId) return;
+        var updateBase = editForm.getAttribute('data-update-base')
+            || "{{ url('app/' . $companySlug . '/settings-panel/visa-renewal-categories') }}";
+        editForm.action = updateBase.replace(/\/$/, '') + '/' + categoryId;
         document.getElementById('edit_visa_renewal_name').value = renewalEditBtn.dataset.name || '';
         document.getElementById('edit_visa_renewal_display_order').value = renewalEditBtn.dataset.displayOrder || '';
         var isDefault = String(renewalEditBtn.dataset.isDefault || '0') === '1';
         var activeWrap = document.getElementById('edit_visa_renewal_active_wrap');
         if (activeWrap) activeWrap.style.display = isDefault ? 'none' : 'block';
         document.getElementById('edit_visa_renewal_is_active').checked = String(renewalEditBtn.dataset.isActive || '0') === '1';
-    });
+    }, true);
 
     var visaRenewalTabBtn = document.querySelector('[data-bs-target="#tab-visa-renewal-categories"]');
     if (visaRenewalTabBtn) {

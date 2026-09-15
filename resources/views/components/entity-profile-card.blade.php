@@ -52,10 +52,10 @@
         </div>
         <div class="card-body pt-3">
             <div class="user-info text-center mb-3">
-                @if($subtitle)
-                    <div class="entity-view-card-id mb-1">{{ $subtitle }}</div>
-                @endif
                 <h6 class="mb-0"><b @if($nameId) id="{{ $nameId }}" @endif>{{ $name ?: 'not-set' }}</b></h6>
+                @if($subtitle)
+                    <div class="entity-view-card-id mt-1">{{ $subtitle }}</div>
+                @endif
                 {{ $meta ?? '' }}
             </div>
             {{ $afterHero ?? '' }}

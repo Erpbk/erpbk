@@ -411,19 +411,24 @@
 
   .entity-view-card .rider-view-card-star {
     position: absolute;
-    top: 3.15rem;
+    top: 0.85rem;
     left: 0.9rem;
-    color: #fff;
-    font-size: 1.15rem;
-    opacity: 0.95;
+    color: #cbd5e1;
+    font-size: 1.2rem;
+    opacity: 1;
     cursor: pointer;
     transition: all 0.2s ease;
-    z-index: 2;
+    z-index: 3;
+  }
+
+  .entity-view-card .entity-view-card-edit {
+    top: 2.85rem;
+    left: 0.85rem;
   }
 
   .entity-view-card .rider-view-card-star:hover {
-    opacity: 1;
-    transform: scale(1.15);
+    color: #f59e0b;
+    transform: scale(1.12);
   }
 
   .entity-view-card .rider-view-card-star.is-favorited {
@@ -432,11 +437,10 @@
   }
 
   .entity-view-card .rider-view-card-days {
-    color: rgba(255, 255, 255, 0.92);
-    font-size: 0.68rem;
+    color: #94a3b8;
+    font-size: 0.7rem;
     font-weight: 600;
     line-height: 1.2;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   }
 
   .entity-view-card .user_list_content .is-whatsapp,
@@ -809,228 +813,50 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
               <div class="status-icon">
                 <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
               </div>
-              </form>
-              @endisset
+              <div class="status-content">
+                <div class="status-title">{{ $option->name }}</div>
+                <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : $category->name }}</div>
+              </div>
             </div>
-          </div>
-        </div>
-        <div class="card-body pt-0">
-          <div class="info-container">
-            <ul class="list-unstyled mb-6">
-              <script>
-                var loadFile = function(event) {
-                  var image = document.getElementById("output");
-                  image.src = URL.createObjectURL(event.target.files[0]);
-                };
-              </script>
-              {{-- <div class="text-center">
-                         <img class="profile-user-img img-fluid" src="https://placehold.co/400X400" alt="User profile picture">
-                      </div> --}}
-
-
-              @isset($result)
-              <ul class="p-0 mb-3 rider-view-card-list">
-                @php
-                $cardPhone = $result['personal_contact'] ?? $result['company_contact'] ?? 'not-set';
-                $cardEmail = $result['email'] ?? 'not-set';
-                $cardNationality = $rider?->country?->name
-                ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? 'not-set') : 'not-set');
-                $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : 'not-set';
-                $cardAge = !empty($result['dob'] ?? null) ? (\Carbon\Carbon::parse($result['dob'])->age . ' Years') : 'not-set';
-                $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : 'not-set';
-                $cardProject = $rider?->customer?->name ?? 'not-set';
-                $cardAddress = $result['address']
-                ?? $rider?->address
-                ?? $rider?->emirate_hub
-                ?? $rider?->customer?->address
-                ?? 'not-set';
-                if ($cardAddress === '' || $cardAddress === null) {
-                $cardAddress = 'not-set';
-                }
-                @endphp
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-phone"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Phone</span>
-                    <b class="is-phone">{{ $cardPhone }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-mail"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Email</span>
-                    <b>{{ $cardEmail }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-brand-whatsapp"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>WhatsApp</span>
-                    <b class="is-whatsapp">
-                      @if(!empty($rider?->company_contact))
-                      @php
-                      $phone = preg_replace('/[^0-9]/', '', (string) $rider->company_contact);
-                      if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
-                      else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
-                      @endphp
-                      <a href="https://wa.me/{{ $whatsappNumber }}" target="_blank">{{ $displayNumber }}</a>
-                      @else
-                      N/A
-                      @endif
-                    </b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-flag"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Nationality</span>
-                    <b>{{ $cardNationality }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-calendar"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Date of Birth</span>
-                    <b>{{ $cardDob }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-user"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Age</span>
-                    <b>{{ $cardAge }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-calendar"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Date of Joining</span>
-                    <b>{{ $cardDoj }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-briefcase"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Project / Client</span>
-                    <b>{{ $cardProject }}</b>
-                  </div>
-                </li>
-                <li class="list-group-item user_list">
-                  <div class="icons">
-                    <i class="ti ti-map-pin"></i>
-                  </div>
-                  <div class="user_list_content">
-                    <span>Address</span>
-                    <b>{{ $cardAddress }}</b>
-                  </div>
-                </li>
-              </ul>
-              @endisset
-            </ul>
-            @isset($result)
-            <div id="rider-status-cards">
-              @php $cardIndex = 0; @endphp
-              @foreach($riderTopViewCategories as $category)
-              @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
-              @if($riderTopColumn === 'status')
-              @continue
-              @endif
-              @foreach($category->options as $option)
-              @php
-              $isSelected = $riderTopColumn !== ''
-              && array_key_exists($riderTopColumn, $result)
-              && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
-              $cardKey = 'rider_top_option_' . $option->id;
-              $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
-              $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
-              @endphp
-              <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
+            <div class="status-toggle mt-2">
+              <input type="checkbox"
+                class="status-checkbox rider-top-option-checkbox"
+                id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
                 data-rider-id="{{ $result['id'] ?? '' }}"
                 data-option-id="{{ $option->id }}"
                 data-column="{{ $riderTopColumn }}"
                 data-value="{{ $option->name }}"
-                data-category="{{ $category->name }}"
-                data-type="{{ $cardKey }}"
-                @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
-                <div class="d-flex justify-content-between">
-                  <div class="status-icon">
-                    <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
-                  </div>
-                  <div class="status-content">
-                    <div class="status-title">{{ $option->name }}</div>
-                    <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : $category->name }}</div>
-                  </div>
-                </div>
-                <div class="status-toggle">
-                  <input type="checkbox"
-                    class="status-checkbox rider-top-option-checkbox"
-                    id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
-                    data-rider-id="{{ $result['id'] ?? '' }}"
-                    data-option-id="{{ $option->id }}"
-                    data-column="{{ $riderTopColumn }}"
-                    data-value="{{ $option->name }}"
-                    {{ $isSelected ? 'checked' : '' }}
-                    {{ $statusChangeLocked ? 'disabled' : '' }}>
-                  <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                    <span class="toggle-slider"></span>
-                  </label>
-                </div>
-              </div>
-              <div class="status-toggle mt-2">
-                <input type="checkbox"
-                  class="status-checkbox rider-top-option-checkbox"
-                  id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-option-id="{{ $option->id }}"
-                  data-column="{{ $riderTopColumn }}"
-                  data-value="{{ $option->name }}"
-                  {{ $isSelected ? 'checked' : '' }}
-                  {{ $statusChangeLocked ? 'disabled' : '' }}>
-                <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
+                {{ $isSelected ? 'checked' : '' }}
+                {{ $statusChangeLocked ? 'disabled' : '' }}>
+              <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
+                <span class="toggle-slider"></span>
+              </label>
             </div>
-            @php $cardIndex++; @endphp
-            @endforeach
-            @endforeach
           </div>
+          @php $cardIndex++; @endphp
+          @endforeach
+          @endforeach
+        </div>
 
-          <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
-                  <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
-                  <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
-                </div>
+        <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
+                <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
               </div>
             </div>
           </div>
+        </div>
       </x-slot>
     </x-entity-profile-card>
     @endisset

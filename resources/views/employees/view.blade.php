@@ -3,6 +3,7 @@
 @section('title', 'Employee Profile')
 
 @section('content')
+@include('partials.entity_profile_styles')
 <style>
   .myform .required:after {
     content: " *";
@@ -16,12 +17,36 @@
     }
   }
 
-  /* Status cards — soft outline (matches rider profile) */
+  /* Status cards — matches rider profile (after shared styles so these win) */
   .entity-view-card #employee-status-cards {
-    margin-top: 0.35rem;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #eef0f3;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.85rem;
+    grid-template-columns: none !important;
+  }
+
+  .entity-view-card #employee-status-cards .employee-status-group {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .entity-view-card #employee-status-cards .employee-status-group-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    padding-left: 0.1rem;
+  }
+
+  .entity-view-card #employee-status-cards .employee-status-group-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
   }
 
   .entity-view-card #employee-status-cards .status-card {
@@ -29,140 +54,199 @@
     max-width: none;
     width: 100%;
     flex: unset;
-    padding: 0.85rem 0.9rem;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.75rem;
+    padding: 0 !important;
+    background: #f8fafc;
+    border: 1px solid #e8edf3;
+    border-radius: 0.65rem;
     box-shadow: none;
     color: #1e293b;
-    transition: border-color .15s, box-shadow .15s;
-    position: relative;
     overflow: hidden;
+    cursor: pointer;
+  }
+
+  .entity-view-card #employee-status-cards .status-card-main {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 0.7rem;
+    min-height: 2.75rem;
   }
 
   .entity-view-card #employee-status-cards .status-card:hover {
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-    border-color: #cbd5e1;
+    background: #fff;
+    border-color: #c5d0de;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
+  .entity-view-card #employee-status-cards .status-card.active,
   .entity-view-card #employee-status-cards .status-card.active-success,
   .entity-view-card #employee-status-cards .status-card.active-info,
   .entity-view-card #employee-status-cards .status-card.active-danger {
-    background: #f8fafc;
-    border-color: #94a3b8;
-    color: #1e293b;
+    background: linear-gradient(135deg, #1e4b8e 0%, #2a5fa8 100%);
+    border-color: #1e4b8e;
+    box-shadow: 0 4px 12px rgba(30, 75, 142, 0.22);
+    color: #fff;
   }
 
   .entity-view-card #employee-status-cards .status-icon {
+    flex: 0 0 1.85rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 50%;
-    background: #f1f5f9;
-    color: #64748b;
-    font-size: 0.85rem;
+    width: 1.85rem;
+    height: 1.85rem;
+    font-size: 0.9rem;
     margin-bottom: 0;
+    border-radius: 0.45rem;
+    background: #fff;
+    color: #64748b;
+    border: 1px solid #e8edf3;
   }
 
+  .entity-view-card #employee-status-cards .status-card.active .status-icon,
   .entity-view-card #employee-status-cards .status-card.active-success .status-icon,
   .entity-view-card #employee-status-cards .status-card.active-info .status-icon,
   .entity-view-card #employee-status-cards .status-card.active-danger .status-icon {
-    background: #e2e8f0;
-    color: #334155;
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
+  }
+
+  .entity-view-card #employee-status-cards .status-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
   }
 
   .entity-view-card #employee-status-cards .status-title {
-    font-size: 0.82rem;
-    font-weight: 600;
-    margin-bottom: 2px;
+    font-size: 0.78rem;
+    font-weight: 650;
+    line-height: 1.25;
     color: #1e293b;
-  }
-
-  .entity-view-card #employee-status-cards .status-card.active-success .status-title,
-  .entity-view-card #employee-status-cards .status-card.active-info .status-title,
-  .entity-view-card #employee-status-cards .status-card.active-danger .status-title,
-  .entity-view-card #employee-status-cards .status-card.active-success .status-subtitle,
-  .entity-view-card #employee-status-cards .status-card.active-info .status-subtitle,
-  .entity-view-card #employee-status-cards .status-card.active-danger .status-subtitle {
-    color: #334155;
+    margin-bottom: 0.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .entity-view-card #employee-status-cards .status-subtitle {
     font-size: 0.65rem;
-    color: #94a3b8;
     font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .status-toggle {
+  .entity-view-card #employee-status-cards .status-card.active .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-success .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-title,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-title {
+    color: #fff;
+  }
+
+  .entity-view-card #employee-status-cards .status-card.active .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-success .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-info .status-subtitle,
+  .entity-view-card #employee-status-cards .status-card.active-danger .status-subtitle {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .entity-view-card #employee-status-cards .status-toggle {
+    flex: 0 0 auto;
+    margin: 0;
     display: flex;
     align-items: center;
   }
 
-  .status-radio,
-  .employee-top-option-checkbox {
+  .entity-view-card #employee-status-cards .status-radio,
+  .entity-view-card #employee-status-cards .employee-top-option-checkbox {
     display: none;
   }
 
-  .toggle-switch {
+  .entity-view-card #employee-status-cards .toggle-switch {
     position: relative;
-    width: 40px;
-    height: 20px;
-    background: #e2e8f0;
-    border-radius: 10px;
+    width: 34px;
+    height: 18px;
+    background: #dbe3ee;
+    border-radius: 999px;
     cursor: pointer;
-    transition: background 0.3s ease;
     display: inline-block;
+    transition: background 0.2s ease;
   }
 
-  .toggle-switch::after {
-    content: '';
+  .entity-view-card #employee-status-cards .toggle-switch::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .entity-view-card #employee-status-cards .toggle-slider {
     position: absolute;
     top: 2px;
     left: 2px;
-    width: 16px;
-    height: 16px;
-    background: white;
+    width: 14px;
+    height: 14px;
+    background: #fff;
     border-radius: 50%;
-    transition: transform 0.3s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+    transition: transform 0.2s ease;
   }
 
-  .status-radio:checked+.toggle-switch::after,
-  .employee-top-option-checkbox:checked+.toggle-switch::after {
-    transform: translateX(20px);
+  .entity-view-card #employee-status-cards .status-radio:checked+.toggle-switch,
+  .entity-view-card #employee-status-cards .employee-top-option-checkbox:checked+.toggle-switch {
+    background: rgba(255, 255, 255, 0.9);
   }
 
-  .status-radio-active:checked+.toggle-switch,
-  .status-radio-leave:checked+.toggle-switch,
-  .status-radio-inactive:checked+.toggle-switch,
-  .employee-top-option-checkbox:checked+.toggle-switch {
-    background: #64748b;
+  .entity-view-card #employee-status-cards .status-radio:checked+.toggle-switch .toggle-slider,
+  .entity-view-card #employee-status-cards .employee-top-option-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #1e4b8e;
+    transform: translateX(16px);
   }
 
-  .status-card.loading {
+  .entity-view-card #employee-status-cards .status-card:not(.active) .status-radio:checked+.toggle-switch,
+  .entity-view-card #employee-status-cards .status-card:not(.active) .employee-top-option-checkbox:checked+.toggle-switch {
+    background: #1e4b8e;
+  }
+
+  .entity-view-card #employee-status-cards .status-card:not(.active) .status-radio:checked+.toggle-switch .toggle-slider,
+  .entity-view-card #employee-status-cards .status-card:not(.active) .employee-top-option-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #fff;
+  }
+
+  .entity-view-card #employee-status-cards .status-card.loading {
     opacity: 0.7;
     pointer-events: none;
   }
 
-  .status-card.loading .toggle-switch {
-    animation: pulse 1s infinite;
+  .entity-view-card #employee-status-cards .status-card.loading .toggle-switch {
+    animation: emp-status-pulse 1s infinite;
   }
 
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+  @keyframes emp-status-pulse {
+    0% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.5;
+    }
+
+    100% {
+      opacity: 1;
+    }
   }
 
   .entity-view-card .user_list_content .is-whatsapp,
   .entity-view-card .user_list_content .is-whatsapp a {
     color: #16a34a;
   }
-</style>
-@include('partials.entity_profile_styles')
 
+  .entity-view-card .user_list_content .is-phone,
+  .entity-view-card .user_list_content .is-phone a {
+    color: #2f6fed;
+  }
+</style>
 @php
 $employee = $employee ?? null;
 if ($employee && !isset($result)) {
@@ -190,54 +274,91 @@ return $category;
 }
 $currentStatus = isset($employee) ? (string) ($employee->status ?? 'active') : 'active';
 $employeeStatusLabel = match ($currentStatus) {
-  'on_leave' => 'On Leave',
-  'inactive' => 'Inactive',
-  default => isset($employee) ? 'Active' : 'New',
+'on_leave' => 'On Leave',
+'inactive' => 'Inactive',
+default => isset($employee) ? 'Active' : 'New',
 };
 $employeeStatusClass = $currentStatus === 'on_leave' ? 'is-vacation' : ($currentStatus === 'inactive' || !isset($employee) ? 'is-inactive' : '');
 $employeeExpiry = isset($employee)
-  ? \App\Support\EntityExpiry::countsFor('employee', $employee)
-  : ['info_expired' => 0, 'info_expiring' => 0, 'files_expired' => 0, 'files_expiring' => 0];
+? \App\Support\EntityExpiry::countsFor('employee', $employee)
+: ['info_expired' => 0, 'info_expiring' => 0, 'files_expired' => 0, 'files_expiring' => 0];
 if (isset($employee)) {
-  $profile = company_table('files')
-    ->where('type', 'employee')
-    ->where('type_id', $employee->id)
-    ->where(function ($query) {
-      $query->where('name', 'LIKE', '%photo%')
-        ->orWhere('name', 'LIKE', '%Photo%')
-        ->orWhere('name', 'LIKE', '%picture%')
-        ->orWhere('name', 'LIKE', '%Picture%')
-        ->orWhere('name', 'LIKE', '%profile%')
-        ->orWhere('name', 'LIKE', '%Profile%');
-    })
-    ->first();
-  if ($employee->profile_image) {
-    $image_name = $employee->profile_image_url;
-  } elseif (isset($profile)) {
-    $image_name = storage_url($profile->type . '/' . $profile->type_id . '/' . $profile->file_name);
-  } else {
-    $image_name = asset('uploads/default.png');
-  }
+$profile = company_table('files')
+->where('type', 'employee')
+->where('type_id', $employee->id)
+->where(function ($query) {
+$query->where('name', 'LIKE', '%photo%')
+->orWhere('name', 'LIKE', '%Photo%')
+->orWhere('name', 'LIKE', '%picture%')
+->orWhere('name', 'LIKE', '%Picture%')
+->orWhere('name', 'LIKE', '%profile%')
+->orWhere('name', 'LIKE', '%Profile%');
+})
+->first();
+if ($employee->profile_image) {
+$image_name = $employee->profile_image_url;
+} elseif (isset($profile)) {
+$image_name = storage_url($profile->type . '/' . $profile->type_id . '/' . $profile->file_name);
 } else {
-  $image_name = asset('uploads/default.png');
+$image_name = asset('uploads/default.png');
+}
+} else {
+$image_name = asset('uploads/default.png');
 }
 $whatsappHtml = 'N/A';
 if ($employee?->company_contact) {
-  $phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
-  $whatsappNumber = '+971' . ltrim($phone, '0');
-  $whatsappHtml = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank" class="text-success">' . e($employee->company_contact) . '</a>';
+$phone = preg_replace('/[^0-9]/', '', $employee->company_contact);
+$whatsappNumber = '+971' . ltrim($phone, '0');
+$whatsappHtml = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank">' . e($employee->company_contact) . '</a>';
+}
+$cardPhone = $employee?->personal_contact ?? $employee?->company_contact ?? null;
+$cardEmail = $employee?->company_email ?? $employee?->personal_email ?? null;
+$cardNationality = $employee?->nationality?->name ?? null;
+$cardDob = !empty($employee?->dob) ? \App\Helpers\General::DateFormat($employee->dob) : null;
+$cardAge = null;
+if (!empty($employee?->dob)) {
+try {
+$dobDate = $employee->dob instanceof \Carbon\CarbonInterface
+? $employee->dob->copy()->startOfDay()
+: null;
+if (! $dobDate) {
+$dobRaw = trim((string) $employee->dob);
+if ($dobRaw !== '' && $dobRaw !== '0000-00-00') {
+if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dobRaw)) {
+$dobDate = \Carbon\Carbon::createFromFormat('Y-m-d', substr($dobRaw, 0, 10))->startOfDay();
+} elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dobRaw)) {
+$dobDate = \Carbon\Carbon::createFromFormat('d-m-Y', $dobRaw)->startOfDay();
+} elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dobRaw)) {
+$dobDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dobRaw)->startOfDay();
+} else {
+$dobDate = \Carbon\Carbon::parse($dobRaw)->startOfDay();
+}
+}
+}
+if ($dobDate && $dobDate->isValid() && ! $dobDate->isFuture()) {
+$years = (int) $dobDate->age;
+$cardAge = $years . ($years === 1 ? ' Year' : ' Years');
+}
+} catch (\Throwable $e) {
+$cardAge = null;
+}
+}
+$cardDoj = !empty($employee?->doj) ? \App\Helpers\General::DateFormat($employee->doj) : null;
+$cardAddress = trim((string) ($employee?->address ?? ''));
+if ($cardAddress === '') {
+$cardAddress = null;
 }
 @endphp
 
-<div class="row">
+<div class="row mb-5" style="">
   <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
     @php
-      $employeeBalance = (isset($account) && $account)
-        ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code())
-        : ('0.00 ' . \App\Helpers\Currency::code());
-      $employeeBalanceHtml = isset($employee)
-        ? '<a href="' . e(route('employee.ledger', $employee->id)) . '">' . e($employeeBalance) . '</a>'
-        : e($employeeBalance);
+    $employeeBalance = (isset($account) && $account)
+    ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code())
+    : ('0.00 ' . \App\Helpers\Currency::code());
+    $employeeBalanceHtml = isset($employee)
+    ? '<a href="' . e(route('employee.ledger', $employee->id)) . '">' . e($employeeBalance) . '</a>'
+    : e($employeeBalance);
     @endphp
     <x-entity-profile-card
       icon="ti ti-user"
@@ -251,8 +372,7 @@ if ($employee?->company_contact) {
       :subtitle="$employee?->employee_id ?? ($empId ?? 'not-set')"
       :edit-href="isset($employee) && user_can('employees_employee_edit') ? route('employees.edit', $employee->id) : null"
       edit-title="Edit Employee Details"
-      section-title="Basic Information"
-    >
+      section-title="Basic Information">
       <x-slot name="photoAction">
         @if(isset($employee))
         <button type="button" class="entity-view-card-camera" id="employee-photo-edit-btn" title="Change photo" aria-label="Change photo">
@@ -281,16 +401,18 @@ if ($employee?->company_contact) {
         </div>
         @endif
       </x-slot>
-      <x-entity-profile-info-row icon="ti ti-mail" label="Company Email" :value="$employee?->company_email" field-key="company_email" />
-      <x-entity-profile-info-row icon="ti ti-phone" label="WhatsApp" :value="$whatsappHtml" :html="true" field-key="company_contact_html" value-class="is-whatsapp" />
-      <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$employee?->nationality?->name" field-key="nationality" />
-      <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$employee?->dob ? \Carbon\Carbon::parse($employee->dob)->age : null" field-key="age" />
-      <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$employee?->doj ? \Carbon\Carbon::parse($employee->doj)->format('d M Y') : null" field-key="doj" />
-      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Ledger Balance" :value="$employeeBalanceHtml" :html="true" />
+      <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone" field-key="personal_contact" value-class="is-phone" />
+      <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml" :html="true" field-key="company_contact_html" value-class="is-whatsapp" />
+      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail" field-key="company_email" />
+      <x-entity-profile-info-row icon="ti ti-briefcase" label="Department" :value="$employee?->department?->name ?? $employee?->department_id" field-key="department" />
+      <x-entity-profile-info-row icon="ti ti-building" label="Branch" :value="$employee?->branch?->name" field-key="branch" />
+      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$employeeBalanceHtml" :html="true" />
       <x-entity-profile-info-row icon="ti ti-cash" label="Salary" :value="number_format($employee?->salary ?? 0, 2) . ' ' . \App\Helpers\Currency::code()" field-key="salary" />
+      <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$cardNationality" field-key="nationality" />
+      <x-entity-profile-info-row icon="ti ti-calendar" label="Date of Birth" :value="$cardDob" field-key="dob" />
+      <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$cardAge" field-key="age" />
+      <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$cardDoj" field-key="doj" />
       <x-entity-profile-info-row icon="ti ti-id" label="Emirates ID" :value="$employee?->emirate_id" field-key="emirate_id" />
-      <x-entity-profile-info-row icon="ti ti-building" label="Department" :value="$employee?->department?->name ?? $employee?->department_id" field-key="department" />
-      <x-entity-profile-info-row icon="ti ti-briefcase" label="Branch" :value="$employee?->branch?->name" field-key="branch" />
       <x-slot name="footer">
         @if(isset($employee))
         @include('employees._status_cards', ['employee' => $employee, 'employeeTopViewCategories' => $employeeTopViewCategories])
@@ -379,6 +501,7 @@ if ($employee?->company_contact) {
         image.src = URL.createObjectURL(event.target.files[0]);
       }
     };
+
     function refreshEmployeeSidebar(emp) {
       if (!emp) return;
       const nameEl = document.getElementById('employee-profile-name');
@@ -533,12 +656,13 @@ if ($employee?->company_contact) {
         Object.keys(map).forEach((key) => {
           const card = document.getElementById(map[key]);
           const radio = card ? card.querySelector('input[name="employee_status_toggle"]') : null;
+          const subtitle = card ? card.querySelector('.status-subtitle') : null;
           if (!card) return;
           const isActive = activeStatus === key;
-          card.classList.toggle('active-success', key === 'active' && isActive);
-          card.classList.toggle('active-info', key === 'on_leave' && isActive);
-          card.classList.toggle('active-danger', key === 'inactive' && isActive);
+          card.classList.toggle('active', isActive);
+          card.classList.remove('active-success', 'active-info', 'active-danger');
           if (radio) radio.checked = isActive;
+          if (subtitle) subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         });
         const badge = document.getElementById('employee-status-value-badge');
         if (badge) {
@@ -554,7 +678,11 @@ if ($employee?->company_contact) {
       function syncEmployeeTopOptionCards(column) {
         employeeStatusCards.querySelectorAll('.employee-top-option-card[data-column="' + column + '"]').forEach((c) => {
           const cb = c.querySelector('.employee-top-option-checkbox');
-          c.classList.toggle('active-success', !!(cb && cb.checked));
+          const subtitle = c.querySelector('.status-subtitle');
+          const isActive = !!(cb && cb.checked);
+          c.classList.toggle('active', isActive);
+          c.classList.remove('active-success', 'active-info', 'active-danger');
+          if (subtitle) subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         });
       }
 

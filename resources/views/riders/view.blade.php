@@ -449,10 +449,28 @@
   }
 
   .entity-view-card #rider-status-cards {
-    margin-top: 0.35rem;
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #eef0f3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    padding-left: 0.1rem;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
+    gap: 0.45rem;
   }
 
   .entity-view-card #rider-status-cards .status-card {
@@ -460,24 +478,35 @@
     max-width: none;
     width: 100%;
     flex: unset;
-    padding: 0.85rem 0.9rem;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 0.75rem;
+    padding: 0;
+    background: #f8fafc;
+    border: 1px solid #e8edf3;
+    border-radius: 0.65rem;
     box-shadow: none;
     color: #1e293b;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .entity-view-card #rider-status-cards .status-card-main {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.55rem 0.55rem 0.5rem;
   }
 
   .entity-view-card #rider-status-cards .status-card:hover {
     transform: none;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
-    border-color: #cbd5e1;
+    background: #fff;
+    border-color: #c5d0de;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
   .entity-view-card #rider-status-cards .status-card.active {
-    background: #f8fafc;
-    border-color: #94a3b8;
-    color: #1e293b;
+    background: linear-gradient(135deg, #1e4b8e 0%, #2a5fa8 100%);
+    border-color: #1e4b8e;
+    box-shadow: 0 4px 12px rgba(30, 75, 142, 0.22);
+    color: #fff;
   }
 
   .entity-view-card #rider-status-cards .status-card::before {
@@ -485,36 +514,97 @@
   }
 
   .entity-view-card #rider-status-cards .status-icon {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 0.85rem;
+    flex: 0 0 1.7rem;
+    width: 1.7rem;
+    height: 1.7rem;
+    font-size: 0.8rem;
     margin-bottom: 0;
-    background: #f1f5f9;
+    border-radius: 0.45rem;
+    background: #fff;
     color: #64748b;
+    border: 1px solid #e8edf3;
   }
 
   .entity-view-card #rider-status-cards .status-card.active .status-icon {
-    background: #e2e8f0;
-    color: #334155;
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-content {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
   }
 
   .entity-view-card #rider-status-cards .status-title {
-    font-size: 0.82rem;
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1.2;
     color: #1e293b;
-  }
-
-  .entity-view-card #rider-status-cards .status-card.active .status-title,
-  .entity-view-card #rider-status-cards .status-card.active .status-subtitle {
-    color: #334155;
+    margin-bottom: 0.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .entity-view-card #rider-status-cards .status-subtitle {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
+    font-weight: 500;
     color: #94a3b8;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-title {
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-subtitle {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .entity-view-card #rider-status-cards .status-toggle {
+    flex: 0 0 auto;
+    margin: 0;
   }
 
   .entity-view-card #rider-status-cards .toggle-switch {
-    background: #e2e8f0;
+    width: 34px;
+    height: 18px;
+    background: #dbe3ee;
+    border-radius: 999px;
+  }
+
+  .entity-view-card #rider-status-cards .toggle-slider {
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+  }
+
+  .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch {
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #1e4b8e;
+    transform: translateX(16px);
+  }
+
+  .entity-view-card #rider-status-cards .status-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
+  }
+
+  @media (max-width: 575.98px) {
+    .entity-view-card #rider-status-cards .rider-status-group-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .rider-profile-tabs .nav-pills .nav-link {
@@ -623,7 +713,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
 }
 
 @endphp
-<div class="row" style="">
+<div class="row mb-5" style="">
   <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
     @isset($result)
     @php
@@ -692,7 +782,27 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
     $cardNationality = $rider?->country?->name
     ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? null) : null);
     $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : null;
-    $cardAge = !empty($result['dob'] ?? null) ? (\Carbon\Carbon::parse($result['dob'])->age . ' Years') : null;
+    $cardAge = null;
+    $dobRaw = trim((string) ($result['dob'] ?? $rider?->dob ?? ''));
+    if ($dobRaw !== '' && $dobRaw !== '0000-00-00') {
+    try {
+    if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('Y-m-d', substr($dobRaw, 0, 10))->startOfDay();
+    } elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('d-m-Y', $dobRaw)->startOfDay();
+    } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dobRaw)->startOfDay();
+    } else {
+    $dobDate = \Carbon\Carbon::parse($dobRaw)->startOfDay();
+    }
+    if ($dobDate->isValid() && ! $dobDate->isFuture()) {
+    $years = (int) $dobDate->age;
+    $cardAge = $years . ($years === 1 ? ' Year' : ' Years');
+    }
+    } catch (\Throwable $e) {
+    $cardAge = null;
+    }
+    }
     $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : null;
     $cardProject = $rider?->customer?->name ?? null;
     $cardAddress = $result['address']
@@ -706,6 +816,15 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
     $cardBalance = !empty($result['account_id'])
     ? (App\Helpers\Accounts::getBalance($result['account_id']) . ' ' . \App\Helpers\Currency::code())
     : ('0.00 ' . \App\Helpers\Currency::code());
+    $assignedBike = $rider?->bikes ?? null;
+    $cardBike = $assignedBike
+    ? (method_exists($assignedBike, 'emiratesPlateLabel')
+    ? $assignedBike->emiratesPlateLabel()
+    : ($assignedBike->plate ?? null))
+    : null;
+    if ($cardBike === '') {
+    $cardBike = null;
+    }
     $whatsappHtml = 'N/A';
     if ($rider?->sim?->number) {
     $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
@@ -774,67 +893,74 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       </x-slot>
 
       <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone" value-class="is-phone" />
-      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail" />
       <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml" :html="true" value-class="is-whatsapp" />
+      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail" />
+      <x-entity-profile-info-row icon="ti ti-motorbike" label="Bike Number" :value="$cardBike" />
+      <x-entity-profile-info-row icon="ti ti-briefcase" label="Project / Client" :value="$cardProject" />
+      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$cardBalance" />
       <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$cardNationality" />
       <x-entity-profile-info-row icon="ti ti-calendar" label="Date of Birth" :value="$cardDob" />
       <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$cardAge" />
       <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$cardDoj" />
-      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$cardBalance" />
-      <x-entity-profile-info-row icon="ti ti-briefcase" label="Project / Client" :value="$cardProject" />
-      <x-entity-profile-info-row icon="ti ti-map-pin" label="Address" :value="$cardAddress" />
 
       <x-slot name="footer">
         <div id="rider-status-cards">
-          @php $cardIndex = 0; @endphp
+          @php
+          $cardIndex = 0;
+          $statusIcons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag', 'ti ti-shield-check', 'ti ti-briefcase'];
+          @endphp
           @foreach($riderTopViewCategories as $category)
           @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
           @if($riderTopColumn === 'status')
           @continue
           @endif
-          @foreach($category->options as $option)
-          @php
-          $isSelected = $riderTopColumn !== ''
-          && array_key_exists($riderTopColumn, $result)
-          && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
-          $cardKey = 'rider_top_option_' . $option->id;
-          $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
-          $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
-          @endphp
-          <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
-            data-rider-id="{{ $result['id'] ?? '' }}"
-            data-option-id="{{ $option->id }}"
-            data-column="{{ $riderTopColumn }}"
-            data-value="{{ $option->name }}"
-            data-category="{{ $category->name }}"
-            data-type="{{ $cardKey }}"
-            @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
-            <div class="d-flex justify-content-between align-items-start">
-              <div class="status-icon">
-                <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
-              </div>
-              <div class="status-content">
-                <div class="status-title">{{ $option->name }}</div>
-                <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : $category->name }}</div>
-              </div>
-            </div>
-            <div class="status-toggle mt-2">
-              <input type="checkbox"
-                class="status-checkbox rider-top-option-checkbox"
-                id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
+          <div class="rider-status-group">
+            <div class="rider-status-group-label">{{ $category->name }}</div>
+            <div class="rider-status-group-grid">
+              @foreach($category->options as $option)
+              @php
+              $isSelected = $riderTopColumn !== ''
+              && array_key_exists($riderTopColumn, $result)
+              && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
+              $cardKey = 'rider_top_option_' . $option->id;
+              $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
+              @endphp
+              <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
                 data-rider-id="{{ $result['id'] ?? '' }}"
                 data-option-id="{{ $option->id }}"
                 data-column="{{ $riderTopColumn }}"
                 data-value="{{ $option->name }}"
-                {{ $isSelected ? 'checked' : '' }}
-                {{ $statusChangeLocked ? 'disabled' : '' }}>
-              <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                <span class="toggle-slider"></span>
-              </label>
+                data-category="{{ $category->name }}"
+                data-type="{{ $cardKey }}"
+                @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
+                <div class="status-card-main">
+                  <div class="status-icon">
+                    <i class="{{ $statusIcons[$cardIndex % count($statusIcons)] }}"></i>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-title">{{ $option->name }}</div>
+                    <div class="status-subtitle">{{ $isSelected ? 'Assigned' : 'Tap to set' }}</div>
+                  </div>
+                  <div class="status-toggle">
+                    <input type="checkbox"
+                      class="status-checkbox rider-top-option-checkbox"
+                      id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
+                      data-rider-id="{{ $result['id'] ?? '' }}"
+                      data-option-id="{{ $option->id }}"
+                      data-column="{{ $riderTopColumn }}"
+                      data-value="{{ $option->name }}"
+                      {{ $isSelected ? 'checked' : '' }}
+                      {{ $statusChangeLocked ? 'disabled' : '' }}>
+                    <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              @php $cardIndex++; @endphp
+              @endforeach
             </div>
           </div>
-          @php $cardIndex++; @endphp
-          @endforeach
           @endforeach
         </div>
 
@@ -1309,8 +1435,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         const isActive = !!(checkbox && checkbox.checked);
         card.classList.toggle('active', isActive);
         if (subtitle) {
-          const categoryName = card.getAttribute('data-category') || 'Not assigned';
-          subtitle.textContent = isActive ? 'Assigned to rider' : categoryName;
+          subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         }
       });
     }

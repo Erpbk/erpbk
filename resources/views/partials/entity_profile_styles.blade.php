@@ -12,11 +12,11 @@
   .entity-view-card-hero {
     position: relative;
     background: #fff;
-    min-height: 168px;
+    min-height: 200px;
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding: 2.75rem 1rem 0;
+    padding: 2.85rem 1rem 0;
     overflow: visible;
     border-bottom: 1px solid #eef0f3;
   }
@@ -105,7 +105,7 @@
   }
 
   .entity-view-card-photo {
-    object-fit: cover;
+    object-fit: fill;
     display: block;
   }
 
@@ -133,17 +133,17 @@
 
   .entity-view-card-photo-wrap {
     position: relative;
-    width: 168px;
-    height: 168px;
+    width: 280px;
+    height: 280px;
     z-index: 1;
-    margin-bottom: -2.65rem;
+    margin-bottom: -3.1rem;
   }
 
   .entity-view-card-photo,
   .entity-view-card-photo-icon {
-    width: 168px;
-    height: 168px;
-    border-radius: 1rem;
+    width: 280px;
+    height: 280px;
+    border-radius: 1.05rem;
     border: 3px solid #fff;
     background: #f8fafc;
     display: flex;
@@ -154,7 +154,7 @@
 
   .entity-view-card-photo-icon {
     color: #94a3b8;
-    font-size: 5.5rem;
+    font-size: 7rem;
   }
 
   .entity-view-card-photo-icon i {
@@ -162,8 +162,8 @@
     line-height: 1;
   }
 
-  .entity-view-card .user-avatar-section > .card-body {
-    padding-top: 3.35rem !important;
+  .entity-view-card .user-avatar-section>.card-body {
+    padding-top: 3.85rem !important;
   }
 
   .entity-view-card .user-info h6 {
@@ -355,19 +355,10 @@
     margin-bottom: 0.35rem;
   }
 
+  /* Employee status cards layout is owned by employees/view.blade.php
+     (grouped flex + inner 2-col grid). Do not force a grid on the root. */
   .entity-view-card #employee-status-cards {
-    margin-top: 0.75rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-  }
-
-  .entity-view-card #employee-status-cards .status-card {
-    min-width: 0;
-    max-width: none;
-    width: 100%;
-    flex: unset;
-    padding: 0.7rem 0.75rem;
+    margin-top: 0.9rem;
   }
 
   .entity-profile-tabs .card {

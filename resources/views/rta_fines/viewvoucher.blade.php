@@ -130,8 +130,14 @@
                 <input type="text" name="reference_number" class="form-control" value="{{ $referenceNumberValue }}" maxlength="255" placeholder="Reference No">
             </div>
             <div class="form-group col-md-3">
-                <label>Attachment</label>
-                <input class="form-control" type="file" name="attachment" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png">
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment',
+                  'label' => 'Attachment',
+                  'required' => false,
+                  'accept' => '.jpg,.jpeg,.png,.pdf,image/jpeg,image/png',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
         </div>
 

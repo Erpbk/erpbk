@@ -29,11 +29,14 @@
 
     {{-- Attachment --}}
     <div class="form-group col-md-3">
-        {!! Form::label('attachment', 'Attachment') !!}
-        {!! Form::file('attachment', [
-        'class' => 'form-control',
-        'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
-        ]) !!}
+        @include('partials.universal_document_upload', [
+          'name' => 'attachment',
+          'label' => 'Attachment',
+          'required' => false,
+          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+          'inputClass' => 'form-control',
+          'showHint' => true,
+        ])
         <small class="text-muted">Max: 5MB</small>
         @if(!empty($invoice?->attachment))
             <div class="mt-1">

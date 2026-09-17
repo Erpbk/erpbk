@@ -190,5 +190,6 @@ $expiryBadge = ($docFieldMeta && ($docFieldMeta['role'] ?? '') === 'expiry' && i
   @endswitch
   @error($name)<span class="text-danger">{{ $message }}</span>@enderror
   @endif
+  @include('riders._document_replacement_upload')
 </div>
 @endif

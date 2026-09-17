@@ -67,8 +67,14 @@
                         <small class="text-muted">One row = one SIM. Item columns are quantity.</small>
                     </div>
                     <div class="col-md-3 form-group">
-                        <label>Attachment</label>
-                        <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+                        @include('partials.universal_document_upload', [
+                          'name' => 'attachment',
+                          'label' => 'Attachment',
+                          'required' => false,
+                          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+                          'inputClass' => 'form-control',
+                          'showHint' => true,
+                        ])
                     </div>
                     <div class="col-md-4 form-group">
                         <label>Description</label>

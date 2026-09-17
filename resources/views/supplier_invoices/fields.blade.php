@@ -31,8 +31,14 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
         {!! Form::month('billing_month', isset($invoice) ? $invoice->billing_month?->format('Y-m') : null, ['class' => 'form-control', 'required' => true]) !!}
     </div>
     <div class="col-md-3 form-group">
-        <label>Attachment</label>
-        {!! Form::file('attachment', ['class' => 'form-control', 'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx']) !!}
+        @include('partials.universal_document_upload', [
+          'name' => 'attachment',
+          'label' => 'Attachment',
+          'required' => false,
+          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+          'inputClass' => 'form-control',
+          'showHint' => true,
+        ])
         <small class="text-muted">Max: 5MB</small>
     </div>
     <div class="col-md-2 form-group">

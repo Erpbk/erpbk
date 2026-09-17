@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\Riders;
 use App\Models\liveactivities;
 use App\Services\RiderActivities\RiderActivityImportMappingService;
+use App\Support\ExcelDate;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -17,8 +18,15 @@ class ImportLiveActivities implements ToCollection
   private array $missingRecords = [];
   private int $successCount = 0;
   private int $skippedCount = 0;
+  private ?string $importedDateFrom = null;
+  private ?string $importedDateTo = null;
   private int $headerRowsToSkip;
+  /** @var array<string, int> */
   private array $columnMappings;
+  /** @var array<string, bool> */
+  private array $requiredFields;
+  /** @var array<string, string> */
+  private array $fieldLabels;
 
   public function __construct(
     private readonly int $customerId = RiderActivityImportMappingService::DEFAULT_CUSTOMER_ID,
@@ -28,6 +36,8 @@ class ImportLiveActivities implements ToCollection
     $resolved = $mappingService->resolve($this->customerId, RiderActivityImportMappingService::TYPE_LIVE);
     $this->headerRowsToSkip = $resolved['header_rows_to_skip'];
     $this->columnMappings = $resolved['column_mappings'];
+    $this->requiredFields = $resolved['required_fields'] ?? RiderActivityImportMappingService::requiredFields();
+    $this->fieldLabels = RiderActivityImportMappingService::fieldLabels();
   }
 
   public function collection(Collection $rows)
@@ -217,6 +227,8 @@ class ImportLiveActivities implements ToCollection
         'missing_records' => $this->missingRecords,
         'customer_id' => $this->customerId,
         'import_type' => RiderActivityImportMappingService::TYPE_LIVE,
+        'date_from' => $this->importedDateFrom,
+        'date_to' => $this->importedDateTo,
       ]
     ]);
     session()->save();
@@ -245,13 +257,35 @@ class ImportLiveActivities implements ToCollection
     }
 
     $dateValue = $this->columnValue($row, 'date');
-    if ($dateValue === null || $dateValue === '' || strtotime((string) $dateValue) === false) {
+    $parsedDate = $this->parseDateValue($dateValue);
+    if ($parsedDate === null) {
       return [
         'row'        => $rowNumber,
         'error_type' => 'Invalid Date',
         'message'    => 'Invalid or empty date',
         'rider_id'   => $riderIdValue,
       ];
+    }
+
+    foreach ($this->requiredFields as $field => $isRequired) {
+      if (! $isRequired || ! $this->isMapped($field)) {
+        continue;
+      }
+      if (in_array($field, ['date', 'rider_id'], true)) {
+        continue;
+      }
+
+      $value = $this->columnValue($row, $field);
+      if ($value === null || $value === '') {
+        $label = $this->fieldLabels[$field] ?? $field;
+
+        return [
+          'row'        => $rowNumber,
+          'error_type' => 'Required Field Missing',
+          'message'    => $label . ' is required for this project but the mapped Excel cell is empty',
+          'rider_id'   => $riderIdValue,
+        ];
+      }
     }
 
     return null;
@@ -275,25 +309,38 @@ class ImportLiveActivities implements ToCollection
       return null;
     }
 
-    $date = date('Y-m-d', strtotime((string) $this->columnValue($row, 'date')));
+    $date = $this->parseDateValue($this->columnValue($row, 'date'));
 
-    if (!$date || $date == '1970-01-01') {
+    if ($date === null) {
       throw new \Exception('Invalid date format: ' . $this->columnValue($row, 'date'));
     }
 
-    $ontimePercentage = $this->columnValue($row, 'ontime_orders_percentage');
-
+    // Only write fields configured for this project's Live Activity mappings.
     $data = [
-      'rider_id'                    => $rider->id,
-      'd_rider_id'                  => $riderIdValue,
-      'date'                        => $date,
-      'payout_type'                 => $this->columnValue($row, 'payout_type'),
-      'delivered_orders'            => (int) ($this->columnValue($row, 'delivered_orders') ?? 0),
-      'ontime_orders_percentage'    => (float) str_replace('%', '', (string) ($ontimePercentage ?? 0)),
-      'rejected_orders'             => (int) ($this->columnValue($row, 'rejected_orders') ?? 0),
-      'login_hr'                    => (float) ($this->columnValue($row, 'login_hr') ?? 0),
-      'delivery_rating'             => $this->columnValue($row, 'delivery_rating') ?? '-',
+      'rider_id'   => $rider->id,
+      'd_rider_id' => $riderIdValue,
+      'date'       => $date,
     ];
+
+    if ($this->isMapped('payout_type')) {
+      $data['payout_type'] = $this->columnValue($row, 'payout_type');
+    }
+    if ($this->isMapped('delivered_orders')) {
+      $data['delivered_orders'] = (int) ($this->columnValue($row, 'delivered_orders') ?? 0);
+    }
+    if ($this->isMapped('ontime_orders_percentage')) {
+      $ontimePercentage = $this->columnValue($row, 'ontime_orders_percentage');
+      $data['ontime_orders_percentage'] = (float) str_replace('%', '', (string) ($ontimePercentage ?? 0));
+    }
+    if ($this->isMapped('rejected_orders')) {
+      $data['rejected_orders'] = (int) ($this->columnValue($row, 'rejected_orders') ?? 0);
+    }
+    if ($this->isMapped('login_hr')) {
+      $data['login_hr'] = (float) ($this->columnValue($row, 'login_hr') ?? 0);
+    }
+    if ($this->isMapped('delivery_rating')) {
+      $data['delivery_rating'] = $this->columnValue($row, 'delivery_rating') ?? '-';
+    }
 
     $result = liveactivities::updateOrCreate(
       [
@@ -306,17 +353,37 @@ class ImportLiveActivities implements ToCollection
       throw new \Exception('Failed to save live activity for Rider ID: ' . $riderIdValue . ', Date: ' . $date);
     }
 
+    if ($this->importedDateFrom === null || $date < $this->importedDateFrom) {
+      $this->importedDateFrom = $date;
+    }
+    if ($this->importedDateTo === null || $date > $this->importedDateTo) {
+      $this->importedDateTo = $date;
+    }
+
     return $result;
+  }
+
+  private function isMapped(string $field): bool
+  {
+    return array_key_exists($field, $this->columnMappings);
+  }
+
+  /**
+   * Normalize Excel date cells (serial numbers, DateTime, strings) to Y-m-d.
+   */
+  private function parseDateValue($value): ?string
+  {
+    return ExcelDate::format($value, 'Y-m-d');
   }
 
   private function columnValue($row, string $field)
   {
-    $index = $this->columnMappings[$field] ?? null;
-    if ($index === null) {
+    if (! $this->isMapped($field)) {
       return null;
     }
 
-    $value = $row[$index] ?? null;
+    $index = (int) $this->columnMappings[$field];
+    $value = data_get($row, $index);
 
     if ($value === null || $value === '') {
       return null;

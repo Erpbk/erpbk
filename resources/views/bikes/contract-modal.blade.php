@@ -10,8 +10,13 @@
                     <div class="row mt-3">
                         <div class="col-md-12">
                             <div class="form-group">
-                                <label><b>Upload Signed Contract File</b></label>
-                                <input name="contract" class="form-control" type="file">
+                                @include('partials.universal_document_upload', [
+                                  'name' => 'contract',
+                                  'label' => 'Upload Signed Contract File',
+                                  'required' => false,
+                                  'inputClass' => 'form-control',
+                                  'showHint' => true,
+                                ])
                             </div>
                         </div>
                         <!--col-->

@@ -67,12 +67,14 @@
 
         <div class="row mb-2">
             <div class="form-group col-md-4">
-                <label for="br_pay_attach_file">Document</label>
-                <input type="file"
-                       name="attach_file"
-                       id="br_pay_attach_file"
-                       class="form-control"
-                       accept=".pdf,.jpg,.jpeg,.png">
+                @include('partials.universal_document_upload', [
+                  'name' => 'attach_file',
+                  'label' => 'Document',
+                  'required' => false,
+                  'accept' => '.pdf,.jpg,.jpeg,.png',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
 
             <div class="form-group col-md-3">

@@ -65,8 +65,13 @@ $legalCaseStatuses = company_table('legal_case_statuses')->where('is_active', 1)
     </select>
 </div>
 <div class="form-group col-sm-6">
-    <label class="required">Attachment</label>
-    <input type="file" name="attach_file" class="form-control" required>
+    @include('partials.universal_document_upload', [
+      'name' => 'attach_file',
+      'label' => 'Attachment',
+      'required' => true,
+      'inputClass' => 'form-control',
+      'showHint' => true,
+    ])
 </div>
 <div class="form-group col-sm-6">
     <label class="required">Document Expiry Date:</label>

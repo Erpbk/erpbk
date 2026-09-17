@@ -157,8 +157,14 @@
     </div>
 
     <div class="col-md-3 form-group">
-        <label>Attachment</label>
-        <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+        @include('partials.universal_document_upload', [
+          'name' => 'attachment',
+          'label' => 'Attachment',
+          'required' => false,
+          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+          'inputClass' => 'form-control',
+          'showHint' => true,
+        ])
         @isset($invoice->attachment)
             <small class="text-muted">Current file:
                 <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">{{ basename($invoice->attachment) }}</a>

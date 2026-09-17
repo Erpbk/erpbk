@@ -37,7 +37,13 @@
 
     <div class="alert alert-danger">Rider has been assigned a new bike. Please update bike for this fuelCard on fuel portal</div>
     <span class="alert alert-warning">Upload Screenshot of updated bike assignment from Fuel portal</span>
-    <input type="file" name="attachment" class="form-control mt-5" required>
+    @include('partials.universal_document_upload', [
+      'name' => 'attachment',
+      'label' => null,
+      'required' => true,
+      'inputClass' => 'form-control mt-5',
+      'showHint' => true,
+    ])
 
     <div class="action-btn pt-3">
         <button type="button" class="btn btn-default" data-bs-dismiss="modal">Cancel</button>

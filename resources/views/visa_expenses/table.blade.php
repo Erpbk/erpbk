@@ -10,6 +10,7 @@
             @if($vf('visa_status'))<th title="Visa Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Visa Status: activate to sort column ascending" aria-sort="descending">Visa Status</th>@endif
             @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>@endif
             @if($vf('expiry_date'))<th title="expiry date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="expiry date: activate to sort column ascending">Expiry Date</th>@endif
+            <th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>
             <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
             @if($vf('payment_status'))<th title="Payment Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Payment Status: activate to sort column ascending" aria-sort="descending">Payment Status</th>@endif
             <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
@@ -93,6 +94,37 @@
                @endif
             </td>@endif
             <td>
+               @php
+               $attachedVouchers = $r->vouchers->filter(fn ($v) => filled($v->attach_file));
+               @endphp
+               @if($attachedVouchers->isNotEmpty())
+               <div class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
+                  @foreach($attachedVouchers as $attachedVoucher)
+                  @php
+                  $attachPath = ltrim((string) $attachedVoucher->attach_file, '/');
+                  $attachUrl = str_contains($attachPath, '/')
+                  ? url('storage/' . $attachPath)
+                  : url('storage/vouchers/' . $attachPath);
+                  $attachName = basename($attachPath);
+                  $attachExt = strtolower(pathinfo($attachName, PATHINFO_EXTENSION));
+                  $isImage = in_array($attachExt, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true);
+                  @endphp
+                  <a href="{{ $attachUrl }}"
+                     class="btn btn-sm btn-outline-primary"
+                     target="_blank"
+                     title="{{ $attachName }}">
+                     <i class="fa {{ $isImage ? 'fa-file-image' : 'fa-file' }}"></i>
+                     @if($attachedVouchers->count() === 1)
+                     View
+                     @endif
+                  </a>
+                  @endforeach
+               </div>
+               @else
+               <span class="text-muted">-</span>
+               @endif
+            </td>
+            <td>
                <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
                   @if($r->payment_status === 'paid')
                   @if($r->vouchers->isNotEmpty())
@@ -144,15 +176,19 @@
                   </button>
                   <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}">
                      @include('layouts.partials.module_contract_action', [
-                        'module' => 'visa_expense',
-                        'recordId' => $r->id,
+                     'module' => 'visa_expense',
+                     'recordId' => $r->id,
                      ])
-                     @can('visa_expense_view')
-                     <a href="{{ route('VisaExpense.viewvoucher', $r->id) }}" class='dropdown-item waves-effect'>
-                        View Expense Detail
-                     </a>
-                     @endcan
                      @can('visa_expense_edit')
+                     @if($r->vouchers->isNotEmpty() && !$rowPendingDeletion)
+                     <a href="javascript:void(0);"
+                        data-size="md"
+                        data-title="Upload Document"
+                        data-action="{{ route('VisaExpense.fileupload', $r->id) }}"
+                        class="dropdown-item waves-effect show-modal">
+                        <i class="fa fa-file me-1"></i> {{ $r->vouchers->contains(fn ($v) => filled($v->attach_file)) ? 'Update Document' : 'Upload Document' }}
+                     </a>
+                     @endif
                      @if($r->payment_status !== 'paid' && !$rowPendingDeletion)
                      <a href="javascript:void(0);"
                         data-action="{{ route('VisaExpense.payForm', $r->id) }}"

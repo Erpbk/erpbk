@@ -146,6 +146,40 @@ $riderUnpaidTotal = company_table('visa_expenses')
                                     <th>Amount</th>
                                     <td class="text-end">{{ \App\Helpers\Currency::format($data->amount , 2) }}</td>
                                 </tr>
+                                <tr>
+                                    <th>Attached File</th>
+                                    <td class="text-end">
+                                        @php
+                                            $data->loadMissing('vouchers');
+                                            $attachedVouchers = $data->vouchers->filter(fn ($v) => filled($v->attach_file));
+                                        @endphp
+                                        @forelse($attachedVouchers as $attachedVoucher)
+                                            @php
+                                                $attachPath = ltrim((string) $attachedVoucher->attach_file, '/');
+                                                $attachUrl = str_contains($attachPath, '/')
+                                                    ? url('storage/' . $attachPath)
+                                                    : url('storage/vouchers/' . $attachPath);
+                                                $attachName = basename($attachPath);
+                                            @endphp
+                                            <a href="{{ $attachUrl }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                <i class="fa fa-file me-1"></i>{{ $attachName }}
+                                            </a>
+                                        @empty
+                                            <span class="text-muted">No file attached</span>
+                                            @can('visa_expense_edit')
+                                            @if($data->vouchers->isNotEmpty())
+                                            <a href="javascript:void(0);"
+                                               class="btn btn-sm btn-outline-secondary show-modal ms-1"
+                                               data-size="md"
+                                               data-title="Upload Document"
+                                               data-action="{{ route('VisaExpense.fileupload', $data->id) }}">
+                                                Upload
+                                            </a>
+                                            @endif
+                                            @endcan
+                                        @endforelse
+                                    </td>
+                                </tr>
                                 @if($data->payment_status == 'paid')
                                 <tr>
                                     <th>Paid By</th>

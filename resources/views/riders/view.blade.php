@@ -2,6 +2,7 @@
 @section('title', 'Rider Profile')
 
 @section('content')
+@include('partials.entity_profile_styles')
 <style>
   .myform .required:after {
     content: " *";
@@ -408,224 +409,202 @@
     }
   }
 
-  .rider-view-card {
-    border-radius: 1rem;
-    overflow: hidden;
-    border: 1px solid #e9ecef;
-  }
-
-  .rider-view-card-hero {
-    position: relative;
-    background: linear-gradient(180deg, #1e4b8e 0%, #163a6e 100%);
-    min-height: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2.75rem 1rem 2rem;
-    overflow: hidden;
-  }
-
-  .rider-view-card-hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.2;
-    background-image:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.35) 25%, transparent 25%),
-      linear-gradient(225deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%);
-    background-size: 42px 42px;
-  }
-
-  .rider-view-card-star {
+  .entity-view-card .rider-view-card-star {
     position: absolute;
     top: 0.85rem;
     left: 0.9rem;
-    color: #fff;
-    font-size: 1.15rem;
-    opacity: 0.95;
+    color: #cbd5e1;
+    font-size: 1.2rem;
+    opacity: 1;
     cursor: pointer;
     transition: all 0.2s ease;
-    z-index: 2;
+    z-index: 3;
   }
 
-  .rider-view-card-star:hover {
-    opacity: 1;
-    transform: scale(1.15);
+  .entity-view-card .entity-view-card-edit {
+    top: 2.85rem;
+    left: 0.85rem;
   }
 
-  .rider-view-card-star.is-favorited {
+  .entity-view-card .rider-view-card-star:hover {
+    color: #f59e0b;
+    transform: scale(1.12);
+  }
+
+  .entity-view-card .rider-view-card-star.is-favorited {
     color: #fbbf24;
     opacity: 1;
   }
 
-  .rider-view-card-status {
-    position: absolute;
-    top: 0.75rem;
-    right: 0.75rem;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.15rem;
-    z-index: 1;
-  }
-
-  .rider-view-card-active {
-    background: #22c55e;
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.72rem;
-    padding: 0.28rem 0.6rem;
-    border-radius: 999px;
-  }
-
-  .rider-view-card-days {
-    color: #fff;
-    font-size: 0.68rem;
+  .entity-view-card .rider-view-card-days {
+    color: #94a3b8;
+    font-size: 0.7rem;
     font-weight: 600;
     line-height: 1.2;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   }
 
-  .rider-view-card-photo-wrap {
-    position: relative;
-    width: 240px;
-    height: 240px;
+  .entity-view-card .user_list_content .is-whatsapp,
+  .entity-view-card .user_list_content .is-whatsapp a {
+    color: #16a34a;
   }
 
-  .rider-view-card-photo {
-    width: 240px;
-    height: 240px;
-    object-fit: inherit;
-    border-radius: 0.75rem;
-    border: 5px solid #fff;
-    background: #fff;
-    display: block;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.2);
+  .entity-view-card #rider-status-cards {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px solid #eef0f3;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
   }
 
-  .rider-view-card-camera {
-    position: absolute;
-    right: -4px;
-    bottom: -4px;
-    width: 40px;
-    height: 40px;
-    border: 0;
-    border-radius: 50%;
-    background: #fff;
-    color: #1e4b8e;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
-    cursor: pointer;
+  .entity-view-card #rider-status-cards .rider-status-group-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-bottom: 0.4rem;
+    padding-left: 0.1rem;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+
+  .entity-view-card #rider-status-cards .status-card {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+    flex: unset;
     padding: 0;
+    background: #f8fafc;
+    border: 1px solid #e8edf3;
+    border-radius: 0.65rem;
+    box-shadow: none;
+    color: #1e293b;
+    overflow: hidden;
+    cursor: pointer;
   }
 
-  .rider-view-card-camera i {
-    font-size: 1.1rem;
-  }
-
-  @media (max-width: 576px) {
-    .rider-view-card-hero {
-      min-height: 260px;
-      padding: 2.25rem 0.85rem 1.5rem;
-    }
-
-    .rider-view-card-photo-wrap,
-    .rider-view-card-photo {
-      width: 200px;
-      height: 200px;
-    }
-
-    .rider-view-card-camera {
-      width: 36px;
-      height: 36px;
-      right: -2px;
-      bottom: -2px;
-    }
-  }
-
-  .rider-view-card .user-info h6 {
-    font-size: 1.05rem;
-    margin-bottom: 0.15rem;
-  }
-
-  .rider-view-card-id {
-    color: #6c757d;
-    font-size: 0.9rem;
-  }
-
-  .rider-view-card-active.is-inactive {
-    background: #64748b;
-  }
-
-  .rider-view-card-active.is-vacation {
-    background: #f59e0b;
-  }
-
-  .rider-view-card .user_list {
+  .entity-view-card #rider-status-cards .status-card-main {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    border: 0;
-    background: transparent;
-    padding: 0.7rem 0;
+    gap: 0.45rem;
+    padding: 0.55rem 0.55rem 0.55rem 0.5rem;
+  }
+
+  .entity-view-card #rider-status-cards .status-card:hover {
+    transform: none;
+    background: #fff;
+    border-color: #c5d0de;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active {
+    background: linear-gradient(135deg, #1e4b8e 0%, #2a5fa8 100%);
+    border-color: #1e4b8e;
+    box-shadow: 0 4px 12px rgba(30, 75, 142, 0.22);
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-card::before {
+    display: none;
+  }
+
+  .entity-view-card #rider-status-cards .status-icon {
+    flex: 0 0 1.7rem;
+    width: 1.7rem;
+    height: 1.7rem;
+    font-size: 0.8rem;
+    margin-bottom: 0;
+    border-radius: 0.45rem;
+    background: #fff;
+    color: #64748b;
+    border: 1px solid #e8edf3;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-icon {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-content {
+    flex: 1;
+    min-width: 0;
+    margin-bottom: 0;
+  }
+
+  .entity-view-card #rider-status-cards .status-title {
+    font-size: 0.72rem;
+    font-weight: 650;
+    line-height: 1.2;
+    color: #1e293b;
+    margin-bottom: 0.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entity-view-card #rider-status-cards .status-subtitle {
+    font-size: 0.6rem;
+    font-weight: 500;
+    color: #94a3b8;
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-title {
+    color: #fff;
+  }
+
+  .entity-view-card #rider-status-cards .status-card.active .status-subtitle {
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .entity-view-card #rider-status-cards .status-toggle {
+    flex: 0 0 auto;
     margin: 0;
   }
 
-  .rider-view-card .user_list+.user_list {
-    margin-top: 0;
+  .entity-view-card #rider-status-cards .toggle-switch {
+    width: 34px;
+    height: 18px;
+    background: #dbe3ee;
+    border-radius: 999px;
   }
 
-  .rider-view-card .user_list .icons {
-    flex: 0 0 1.25rem;
-    width: 1.25rem;
-    color: #5b6472;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .entity-view-card #rider-status-cards .toggle-slider {
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
   }
 
-  .rider-view-card .user_list .icons i {
-    font-size: 1.05rem;
-    line-height: 1;
+  .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch {
+    background: rgba(255, 255, 255, 0.9);
   }
 
-  .rider-view-card .user_list_content {
-    display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.4rem;
-    flex: 1;
-    min-width: 0;
+  .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #1e4b8e;
+    transform: translateX(16px);
   }
 
-  .rider-view-card .user_list_content span {
-    color: #8b8d97;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    line-height: 1.3;
+  .entity-view-card #rider-status-cards .status-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
   }
 
-  .rider-view-card .user_list_content b,
-  .rider-view-card .user_list_content a {
-    color: #1f2937;
-    font-weight: 700;
-    font-size: 0.875rem;
-    line-height: 1.3;
-    text-decoration: none;
-    word-break: break-word;
-  }
-
-  .rider-view-card .user_list_content .is-phone,
-  .rider-view-card .user_list_content .is-phone a {
-    color: #2f6fed;
-  }
-
-  .rider-view-card .user_list_content .is-whatsapp,
-  .rider-view-card .user_list_content .is-whatsapp a {
-    color: #22c55e;
+  @media (max-width: 575.98px) {
+    .entity-view-card #rider-status-cards .rider-status-group-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   .rider-profile-tabs .nav-pills .nav-link {
@@ -688,36 +667,6 @@
     color: #2c3345;
     margin-bottom: 0.85rem;
   }
-
-  .rider-view-card #rider-status-cards {
-    margin-top: 0.75rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-card {
-    min-width: 0;
-    max-width: none;
-    width: 100%;
-    flex: unset;
-    padding: 0.7rem 0.75rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 14px;
-    margin-bottom: 0.4rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-title {
-    font-size: 0.78rem;
-  }
-
-  .rider-view-card #rider-status-cards .status-subtitle {
-    font-size: 0.65rem;
-  }
 </style>
 @php
 $rider = $riders ?? $rider ?? null;
@@ -764,323 +713,279 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
 }
 
 @endphp
-<div class="row" style="">
+<div class="row mb-5" style="">
   <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
-    <!-- User Card -->
-    <div class="card rider-view-card mb-6">
-      @isset($result)
-      @php
-      $profile = company_table('files')
-      ->where('type', 'rider')
-      ->where('type_id', $result['id'])
-      ->where(function($query) {
-      $query->where('name', 'LIKE', '%photo%')
-      ->orWhere('name', 'LIKE', '%Photo%')
-      ->orWhere('name', 'LIKE', '%picture%')
-      ->orWhere('name', 'LIKE', '%Picture%')
-      ->orWhere('name', 'LIKE', '%profile%')
-      ->orWhere('name', 'LIKE', '%Profile%');
-      })
-      ->first();
-      if (@$result['image_name']) {
-      $image_name = storage_url('profile/'.$result['image_name']);
-      } elseif (isset($profile)) {
-      $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
-      } else {
-      $image_name = asset('uploads/default.png');
-      }
-      $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function($q){
-      $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
-      }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
-      ->filter(function ($category) {
-      if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
-      return true;
-      }
-      if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
-      return true;
-      }
-      $column = trim((string) ($category->rider_column ?? ''));
-      return $column === 'rider_status'
-      && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
-      })->map(function ($category) {
-      $column = trim((string) ($category->rider_column ?? ''));
-      if ($column === 'rider_status') {
-      $category->setRelation(
-      'options',
-      \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
-      );
-      } else {
-      $category->setRelation(
-      'options',
-      \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
-      );
-      }
-      return $category;
-      })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
-      $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
-      $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
-      $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
-      $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
-      $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
-      ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
-      : 'Days in current status';
-      if (isset($rider) && auth()->check()) {
-      $isFavorited = in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true);
-      } @endphp
-      @endisset
-      <div class="user-avatar-section">
-        <div class="rider-view-card-hero">
-          @isset($result)
-          <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
-            id="rider-favorite-star"
-            data-rider-id="{{ $result['id'] ?? '' }}"
-            title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
-          <div class="rider-view-card-status">
-            <span class="rider-view-card-active {{ strtolower($employmentBadge['label'] ?? '') === 'active' ? '' : (strtolower($employmentBadge['label'] ?? '') === 'vacation' ? 'is-vacation' : 'is-inactive') }}" id="rider-hero-status-badge">{{ $employmentBadge['label'] ?? 'Inactive' }}</span>
-            <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null)===null) style="display:none" @endif>
-              @if(($statusDaysInfo['days'] ?? null) !== null)
-              {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
-              @endif
-            </small>
-          </div>
-          <div class="rider-view-card-photo-wrap">
-            <img src="{{ $image_name }}" id="output" class="rider-view-card-photo" alt="{{ $result['name'] ?? 'Rider' }}" />
-            @can('riders_rider_edit')
-            <button type="button" class="rider-view-card-camera" id="edit-icon" title="Change photo">
-              <i class="ti ti-camera"></i>
-            </button>
-            @endcan
-          </div>
-          @endisset
+    @isset($result)
+    @php
+    $profile = company_table('files')
+    ->where('type', 'rider')
+    ->where('type_id', $result['id'])
+    ->where(function ($query) {
+    $query->where('name', 'LIKE', '%photo%')
+    ->orWhere('name', 'LIKE', '%Photo%')
+    ->orWhere('name', 'LIKE', '%picture%')
+    ->orWhere('name', 'LIKE', '%Picture%')
+    ->orWhere('name', 'LIKE', '%profile%')
+    ->orWhere('name', 'LIKE', '%Profile%');
+    })
+    ->first();
+    if (@$result['image_name']) {
+    $image_name = storage_url('profile/'.$result['image_name']);
+    } elseif (isset($profile)) {
+    $image_name = storage_url($profile->type .'/'. $profile->type_id .'/'. $profile->file_name);
+    } else {
+    $image_name = asset('uploads/default.png');
+    }
+    $riderTopViewCategories = \App\Models\RiderTopCategory::with(['options' => function ($q) {
+    $q->where('is_active', 1)->orderBy('display_order')->orderBy('id');
+    }])->where('show_in_view_cards', 1)->orderBy('display_order')->orderBy('id')->get()
+    ->filter(function ($category) {
+    if (\App\Support\RoleFieldAccess::isAdmin() || ! \App\Services\Permissions\TopBarPermissionSync::isEnforced()) {
+    return true;
+    }
+    if (\App\Services\Permissions\TopBarPermissionSync::canAccessCategory('riders', $category)) {
+    return true;
+    }
+    $column = trim((string) ($category->rider_column ?? ''));
+    return $column === 'rider_status'
+    && \App\Services\Permissions\RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($category->options);
+    })->map(function ($category) {
+    $column = trim((string) ($category->rider_column ?? ''));
+    if ($column === 'rider_status') {
+    $category->setRelation(
+    'options',
+    \App\Services\Permissions\RiderStatusPermissionSync::filterOptionsForTopBar($category->options)
+    );
+    } else {
+    $category->setRelation(
+    'options',
+    \App\Services\Permissions\TopBarOptionPermissionSync::filterOptions('riders', $category->options)
+    );
+    }
+    return $category;
+    })->filter(fn ($cat) => $cat->options->isNotEmpty())->values();
+    $canChangeRiderStatus = \App\Services\Permissions\RiderStatusPermissionSync::canChangeRiderStatus();
+    $employmentBadge = \App\Models\Riders::employmentStatusDisplay($result['status'] ?? null);
+    $currentStatusBadge = \App\Models\Riders::currentStatusDisplay($result['status'] ?? null, $result['rider_status'] ?? null);
+    $statusDaysInfo = \App\Models\Riders::resolveEmploymentStatusDays(isset($rider) ? $rider : ($result ?? null));
+    $statusDaysTitle = !empty($statusDaysInfo['changed_at'])
+    ? 'Status changed on ' . \Carbon\Carbon::parse($statusDaysInfo['changed_at'])->format('d M Y')
+    : 'Days in current status';
+    $isFavorited = isset($rider) && auth()->check()
+    ? in_array($rider->id, auth()->user()->favorite_rider_ids ?? [], true)
+    : false;
+    $employmentLabel = $employmentBadge['label'] ?? 'Inactive';
+    $employmentLower = strtolower($employmentLabel);
+    $employmentStatusClass = $employmentLower === 'active' ? '' : ($employmentLower === 'vacation' ? 'is-vacation' : 'is-inactive');
+    $cardPhone = $result['personal_contact'] ?? $result['company_contact'] ?? null;
+    $cardEmail = $result['email'] ?? null;
+    $cardNationality = $rider?->country?->name
+    ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? null) : null);
+    $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : null;
+    $cardAge = null;
+    $dobRaw = trim((string) ($result['dob'] ?? $rider?->dob ?? ''));
+    if ($dobRaw !== '' && $dobRaw !== '0000-00-00') {
+    try {
+    if (preg_match('/^\d{4}-\d{2}-\d{2}/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('Y-m-d', substr($dobRaw, 0, 10))->startOfDay();
+    } elseif (preg_match('/^\d{2}-\d{2}-\d{4}$/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('d-m-Y', $dobRaw)->startOfDay();
+    } elseif (preg_match('/^\d{2}\/\d{2}\/\d{4}$/', $dobRaw)) {
+    $dobDate = \Carbon\Carbon::createFromFormat('d/m/Y', $dobRaw)->startOfDay();
+    } else {
+    $dobDate = \Carbon\Carbon::parse($dobRaw)->startOfDay();
+    }
+    if ($dobDate->isValid() && ! $dobDate->isFuture()) {
+    $years = (int) $dobDate->age;
+    $cardAge = $years . ($years === 1 ? ' Year' : ' Years');
+    }
+    } catch (\Throwable $e) {
+    $cardAge = null;
+    }
+    }
+    $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : null;
+    $cardProject = $rider?->customer?->name ?? null;
+    $cardAddress = $result['address']
+    ?? $rider?->address
+    ?? $rider?->emirate_hub
+    ?? $rider?->customer?->address
+    ?? null;
+    if ($cardAddress === '') {
+    $cardAddress = null;
+    }
+    $cardBalance = !empty($result['account_id'])
+    ? (App\Helpers\Accounts::getBalance($result['account_id']) . ' ' . \App\Helpers\Currency::code())
+    : ('0.00 ' . \App\Helpers\Currency::code());
+    $assignedBike = $rider?->bikes ?? null;
+    $cardBike = $assignedBike
+    ? (method_exists($assignedBike, 'emiratesPlateLabel')
+    ? $assignedBike->emiratesPlateLabel()
+    : ($assignedBike->plate ?? null))
+    : null;
+    if ($cardBike === '') {
+    $cardBike = null;
+    }
+    $whatsappHtml = 'N/A';
+    if ($rider?->sim?->number) {
+    $phone = preg_replace('/[^0-9]/', '', $rider->sim->number);
+    if (strpos($phone, '971') === 0) {
+    $whatsappNumber = '+' . $phone;
+    $displayNumber = '0' . substr($phone, 3);
+    } else {
+    $whatsappNumber = '+971' . ltrim($phone, '0');
+    $displayNumber = '0' . ltrim($phone, '0');
+    }
+    $whatsappHtml = '<a href="https://wa.me/' . $whatsappNumber . '" target="_blank">' . e($displayNumber) . '</a>';
+    }
+    @endphp
+    <script>
+      var loadFile = function(event) {
+        var image = document.getElementById("output");
+        if (image) image.src = URL.createObjectURL(event.target.files[0]);
+      };
+    </script>
+    <x-entity-profile-card
+      icon="ti ti-motorbike"
+      :photo="$image_name"
+      :is-active="$employmentLower === 'active'"
+      :status-label="$employmentLabel"
+      :status-class="$employmentStatusClass"
+      status-id="rider-hero-status-badge"
+      :name="$result['name'] ?? 'not-set'"
+      :subtitle="$result['rider_id'] ?? 'not-set'"
+      :edit-href="user_can('riders_rider_edit') ? route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) : null"
+      edit-title="Edit Rider Details"
+      section-title="Basic Information">
+      <x-slot name="heroStart">
+        <i class="ti ti-star-filled rider-view-card-star {{ $isFavorited ? 'is-favorited' : '' }}"
+          id="rider-favorite-star"
+          data-rider-id="{{ $result['id'] ?? '' }}"
+          title="{{ $isFavorited ? 'Remove from favorites' : 'Add to favorites' }}"></i>
+      </x-slot>
+      <x-slot name="statusExtra">
+        <small class="rider-view-card-days" id="rider-status-days" title="{{ $statusDaysTitle }}" @if(($statusDaysInfo['days'] ?? null)===null) style="display:none" @endif>
+          @if(($statusDaysInfo['days'] ?? null) !== null)
+          {{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}
+          @endif
+        </small>
+      </x-slot>
+      <x-slot name="photoAction">
+        @can('riders_rider_edit')
+        <button type="button" class="entity-view-card-camera" id="edit-icon" title="Change photo" aria-label="Change photo">
+          <i class="ti ti-camera"></i>
+        </button>
+        @endcan
+      </x-slot>
+      <x-slot name="afterHero">
+        <div id="photo-upload-form" class="mt-2 text-center" style="display: none;">
+          <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
+            @csrf
+            <div class="button-wrapper">
+              <label for="upload" class="btn btn-sm btn-outline-primary me-2 mb-2" tabindex="0">
+                <span class="d-none d-sm-inline">Change Photo</span>
+                <i class="ti ti-upload d-sm-none"></i>
+                <input type="file" id="upload" name="image_name" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
+              </label>
+              <button type="submit" class="btn btn-sm btn-primary mb-2">Upload</button>
+            </div>
+          </form>
         </div>
-        <div class="card-body pt-3">
-          <div class="user-info text-center mb-3">
-            <h6 class="mb-0"><b>@isset($result){{ $result['name'] ?? 'not-set' }}@endisset</b></h6>
-            <div class="rider-view-card-id">@isset($result){{ $result['rider_id'] ?? 'not-set' }}@endisset</div>
-          </div>
-          <div id="photo-upload-form" class="mt-2" style="display: none;">
-            @isset($result)
-            <form action="{{ route('rider_picture_upload', ['company_slug' => request()->route('company_slug'), 'id' => $result['id']]) }}" method="POST" enctype="multipart/form-data" id="formajax2">
-              @csrf
-              <div class="button-wrapper text-center">
-                <label for="upload" class="btn btn-default me-2 mb-2" tabindex="0">
-                  <span class="d-none d-sm-block">Change Photo</span>
-                  <i class="ti ti-upload d-block d-sm-none"></i>
-                  <input type="file" id="upload" name="image_name" class="account-file-input" hidden accept="image/png, image/jpeg" onchange="loadFile(event)" />
-                </label>
-                <button type="submit" class="btn btn-primary mb-2">Upload</button>
-              </div>
-            </form>
-            @endisset
-          </div>
-        </div>
-      </div>
-      <div class="card-body pt-0">
-        <div class="info-container">
-          <ul class="list-unstyled mb-6">
-            <script>
-              var loadFile = function(event) {
-                var image = document.getElementById("output");
-                image.src = URL.createObjectURL(event.target.files[0]);
-              };
-            </script>
-            {{-- <div class="text-center">
-                         <img class="profile-user-img img-fluid" src="https://placehold.co/400X400" alt="User profile picture">
-                      </div> --}}
+      </x-slot>
 
+      <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone" value-class="is-phone" />
+      <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml" :html="true" value-class="is-whatsapp" />
+      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail" />
+      <x-entity-profile-info-row icon="ti ti-motorbike" label="Bike Number" :value="$cardBike" />
+      <x-entity-profile-info-row icon="ti ti-briefcase" label="Project / Client" :value="$cardProject" />
+      <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$cardBalance" />
+      <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$cardNationality" />
+      <x-entity-profile-info-row icon="ti ti-calendar" label="Date of Birth" :value="$cardDob" />
+      <x-entity-profile-info-row icon="ti ti-cake" label="Age" :value="$cardAge" />
+      <x-entity-profile-info-row icon="ti ti-calendar-due" label="Date of Joining" :value="$cardDoj" />
 
-            @isset($result)
-            <ul class="p-0 mb-3 rider-view-card-list">
+      <x-slot name="footer">
+        <div id="rider-status-cards">
+          @php
+          $cardIndex = 0;
+          $statusIcons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag', 'ti ti-shield-check', 'ti ti-briefcase'];
+          @endphp
+          @foreach($riderTopViewCategories as $category)
+          @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
+          @if($riderTopColumn === 'status')
+          @continue
+          @endif
+          <div class="rider-status-group">
+            <div class="rider-status-group-label">{{ $category->name }}</div>
+            <div class="rider-status-group-grid">
+              @foreach($category->options as $option)
               @php
-              $cardPhone = $result['personal_contact'] ?? $result['company_contact'] ?? 'not-set';
-              $cardEmail = $result['email'] ?? 'not-set';
-              $cardNationality = $rider?->country?->name
-              ?? (isset($result['nationality']) ? (company_table('countries')->where('id', $result['nationality'])->first()->name ?? 'not-set') : 'not-set');
-              $cardDob = !empty($result['dob'] ?? null) ? \App\Helpers\General::DateFormat($result['dob']) : 'not-set';
-              $cardAge = !empty($result['dob'] ?? null) ? (\Carbon\Carbon::parse($result['dob'])->age . ' Years') : 'not-set';
-              $cardDoj = !empty($result['doj'] ?? null) ? \App\Helpers\General::DateFormat($result['doj']) : 'not-set';
-              $cardProject = $rider?->customer?->name ?? 'not-set';
-              $cardAddress = $result['address']
-              ?? $rider?->address
-              ?? $rider?->emirate_hub
-              ?? $rider?->customer?->address
-              ?? 'not-set';
-              if ($cardAddress === '' || $cardAddress === null) {
-              $cardAddress = 'not-set';
-              }
+              $isSelected = $riderTopColumn !== ''
+              && array_key_exists($riderTopColumn, $result)
+              && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
+              $cardKey = 'rider_top_option_' . $option->id;
+              $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
               @endphp
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-phone"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Phone</span>
-                  <b class="is-phone">{{ $cardPhone }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-mail"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Email</span>
-                  <b>{{ $cardEmail }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-brand-whatsapp"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>WhatsApp</span>
-                  <b class="is-whatsapp">
-                    @if(!empty($rider?->company_contact))
-                    @php
-                    $phone = preg_replace('/[^0-9]/', '', (string) $rider->company_contact);
-                    if (strpos($phone, '971') === 0) { $whatsappNumber = '+' . $phone; $displayNumber = '0' . substr($phone, 3); }
-                    else { $whatsappNumber = '+971' . ltrim($phone, '0'); $displayNumber = '0' . ltrim($phone, '0'); }
-                    @endphp
-                    <a href="https://wa.me/{{ $whatsappNumber }}" target="_blank">{{ $displayNumber }}</a>
-                    @else
-                    N/A
-                    @endif
-                  </b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-flag"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Nationality</span>
-                  <b>{{ $cardNationality }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-calendar"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Date of Birth</span>
-                  <b>{{ $cardDob }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-user"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Age</span>
-                  <b>{{ $cardAge }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-calendar"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Date of Joining</span>
-                  <b>{{ $cardDoj }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-briefcase"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Project / Client</span>
-                  <b>{{ $cardProject }}</b>
-                </div>
-              </li>
-              <li class="list-group-item user_list">
-                <div class="icons">
-                  <i class="ti ti-map-pin"></i>
-                </div>
-                <div class="user_list_content">
-                  <span>Address</span>
-                  <b>{{ $cardAddress }}</b>
-                </div>
-              </li>
-            </ul>
-            @endisset
-          </ul>
-          @isset($result)
-          <div id="rider-status-cards">
-            @php $cardIndex = 0; @endphp
-            @foreach($riderTopViewCategories as $category)
-            @php $riderTopColumn = trim((string)($category->rider_column ?? '')); @endphp
-            @if($riderTopColumn === 'status')
-            @continue
-            @endif
-            @foreach($category->options as $option)
-            @php
-            $isSelected = $riderTopColumn !== ''
-            && array_key_exists($riderTopColumn, $result)
-            && (string)($result[$riderTopColumn] ?? '') === (string)$option->name;
-            $cardKey = 'rider_top_option_' . $option->id;
-            $icons = ['ti ti-bell', 'ti ti-user-check', 'ti ti-star', 'ti ti-flag'];
-            $statusChangeLocked = $riderTopColumn === 'rider_status' && empty($canChangeRiderStatus);
-            @endphp
-            <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
-              data-rider-id="{{ $result['id'] ?? '' }}"
-              data-option-id="{{ $option->id }}"
-              data-column="{{ $riderTopColumn }}"
-              data-value="{{ $option->name }}"
-              data-category="{{ $category->name }}"
-              data-type="{{ $cardKey }}"
-              @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
-              <div class="d-flex justify-content-between">
-                <div class="status-icon">
-                  <i class="{{ $icons[$cardIndex % count($icons)] }}"></i>
-                </div>
-                <div class="status-content">
-                  <div class="status-title">{{ $option->name }}</div>
-                  <div class="status-subtitle">{{ $isSelected ? 'Assigned to rider' : $category->name }}</div>
+              <div class="status-card rider-top-option-card {{ $isSelected ? 'active' : '' }} {{ $statusChangeLocked ? 'disabled' : '' }}"
+                data-rider-id="{{ $result['id'] ?? '' }}"
+                data-option-id="{{ $option->id }}"
+                data-column="{{ $riderTopColumn }}"
+                data-value="{{ $option->name }}"
+                data-category="{{ $category->name }}"
+                data-type="{{ $cardKey }}"
+                @if($statusChangeLocked) title="You do not have permission to change Rider Status" @endif>
+                <div class="status-card-main">
+                  <div class="status-icon">
+                    <i class="{{ $statusIcons[$cardIndex % count($statusIcons)] }}"></i>
+                  </div>
+                  <div class="status-content">
+                    <div class="status-title">{{ $option->name }}</div>
+                    <div class="status-subtitle">{{ $isSelected ? 'Assigned' : 'Tap to set' }}</div>
+                  </div>
+                  <div class="status-toggle">
+                    <input type="checkbox"
+                      class="status-checkbox rider-top-option-checkbox"
+                      id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
+                      data-rider-id="{{ $result['id'] ?? '' }}"
+                      data-option-id="{{ $option->id }}"
+                      data-column="{{ $riderTopColumn }}"
+                      data-value="{{ $option->name }}"
+                      {{ $isSelected ? 'checked' : '' }}
+                      {{ $statusChangeLocked ? 'disabled' : '' }}>
+                    <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
+                      <span class="toggle-slider"></span>
+                    </label>
+                  </div>
                 </div>
               </div>
-              <div class="status-toggle">
-                <input type="checkbox"
-                  class="status-checkbox rider-top-option-checkbox"
-                  id="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}"
-                  data-rider-id="{{ $result['id'] ?? '' }}"
-                  data-option-id="{{ $option->id }}"
-                  data-column="{{ $riderTopColumn }}"
-                  data-value="{{ $option->name }}"
-                  {{ $isSelected ? 'checked' : '' }}
-                  {{ $statusChangeLocked ? 'disabled' : '' }}>
-                <label for="rider-top-option-{{ $option->id }}-{{ $result['id'] ?? '' }}" class="toggle-switch">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-            </div>
-            @php $cardIndex++; @endphp
-            @endforeach
-            @endforeach
-          </div>
-
-          <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-              <div class="modal-content">
-                <div class="modal-header">
-                  <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                  <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
-                  <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
-                  <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
-                </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
-                </div>
-              </div>
+              @php $cardIndex++; @endphp
+              @endforeach
             </div>
           </div>
-          @endisset
+          @endforeach
         </div>
-      </div>
-    </div>
+
+        <div class="modal fade" id="riderTopOptionDateModal" tabindex="-1" aria-labelledby="riderTopOptionDateModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="riderTopOptionDateModalLabel">Confirm status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="mb-3">Choose the effective date for <strong id="riderTopOptionModalStatusName">—</strong>. Dates after today are not allowed.</p>
+                <label for="riderTopOptionEffectiveDate" class="form-label">Effective date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="riderTopOptionEffectiveDate" required autocomplete="off">
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="riderTopOptionDateSave">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </x-slot>
+    </x-entity-profile-card>
+    @endisset
   </div>
   <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
     <div class="nav-align-top rider-profile-tabs mb-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
@@ -1183,28 +1088,6 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                 @endif
                 @endif
 
-
-                @if(\App\Support\CompanyModuleVisibility::enabled('license_expense'))
-                @can('license_expense_view')
-                @if(!empty($riders))
-                @php
-                $licenseExpenseAccount = company_table('expense_accounts')
-                ->where('rider_id', $result['id'])
-                ->where('module', 'license')
-                ->orderByDesc('id')
-                ->first();
-                @endphp
-                @if($licenseExpenseAccount)
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('LicenseExpense.generatentries')) active @endif"
-                    href="{{ route('LicenseExpense.generatentries', $licenseExpenseAccount->id) }}">
-                    <i class="ti ti-steering-wheel ti-sm me-1_5"></i>License Expense
-                  </a>
-                </li>
-                @endif
-                @endif
-                @endcan
-                @endif
 
                 @can('legal_case_view')
                 @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
@@ -1552,8 +1435,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         const isActive = !!(checkbox && checkbox.checked);
         card.classList.toggle('active', isActive);
         if (subtitle) {
-          const categoryName = card.getAttribute('data-category') || 'Not assigned';
-          subtitle.textContent = isActive ? 'Assigned to rider' : categoryName;
+          subtitle.textContent = isActive ? 'Assigned' : 'Tap to set';
         }
       });
     }

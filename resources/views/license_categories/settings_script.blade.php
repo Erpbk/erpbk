@@ -34,6 +34,8 @@ $routePrefix = $routePrefix ?? 'settings-panel.license-categories';
         });
     }
 
+    // Capture phase so this still runs when edit/delete buttons call stopPropagation()
+    // (needed so category-row clicks don't also fire).
     document.addEventListener('click', function(e) {
         var categoryDeleteBtn = e.target.closest('.js-license-category-delete-btn');
         if (categoryDeleteBtn) {
@@ -65,15 +67,18 @@ $routePrefix = $routePrefix ?? 'settings-panel.license-categories';
         if (!categoryEditBtn) return;
         var editForm = document.getElementById('editLicenseCategoryForm');
         if (!editForm) return;
-        var baseUrl = "{{ url('app/' . $companySlug . '/settings-panel/license-categories') }}";
-        editForm.action = baseUrl + '/' + String(categoryEditBtn.dataset.id || '');
+        var categoryId = String(categoryEditBtn.dataset.id || '');
+        if (!categoryId) return;
+        var updateBase = editForm.getAttribute('data-update-base')
+            || "{{ url('app/' . $companySlug . '/settings-panel/license-categories') }}";
+        editForm.action = updateBase.replace(/\/$/, '') + '/' + categoryId;
         document.getElementById('edit_license_category_name').value = categoryEditBtn.dataset.name || '';
         document.getElementById('edit_license_category_display_order').value = categoryEditBtn.dataset.displayOrder || '';
         var isDefault = String(categoryEditBtn.dataset.isDefault || '0') === '1';
         var activeWrap = document.getElementById('edit_license_category_active_wrap');
         if (activeWrap) activeWrap.style.display = isDefault ? 'none' : 'block';
         document.getElementById('edit_license_category_is_active').checked = String(categoryEditBtn.dataset.isActive || '0') === '1';
-    });
+    }, true);
 
     var licenseCategoryTabBtn = document.querySelector('[data-bs-target="#tab-license-categories"]');
     if (licenseCategoryTabBtn) {

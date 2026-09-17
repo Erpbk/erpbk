@@ -37,164 +37,9 @@ if (request()->filled('visa_account_id') && $showVisaSection) {
 $activeLicenseName = $activeLicenseCategory->name ?? 'License';
 @endphp
 
-<style>
-  /* ── Tab pills ─────────────────────────────────────────────── */
-  .exp-tab-nav {
-    border-bottom: 2px solid #dee2e6;
-    margin-bottom: 1.25rem;
-  }
+@include('partials.expense_panel_styles')
 
-  .exp-tab-nav .nav-link {
-    border: none;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
-    padding: .55rem 1.2rem;
-    font-weight: 600;
-    color: #6c757d;
-    transition: color .15s, border-color .15s;
-  }
-
-  .exp-tab-nav .nav-link:hover {
-    color: #0d6efd;
-  }
-
-  .exp-tab-nav .nav-link.active {
-    color: #0d6efd;
-    border-bottom-color: #0d6efd;
-    background: none;
-  }
-
-  .exp-tab-nav .nav-link .badge {
-    font-size: .7rem;
-    vertical-align: middle;
-  }
-
-  /* ── Module badge in tab ───────────────────────────────────── */
-  .tab-badge-license {
-    background: #0d6efd;
-  }
-
-  .tab-badge-visa {
-    background: #6f42c1;
-  }
-
-  /* ── Section header ───────────────────────────────────────── */
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    padding: .75rem 1.25rem;
-    border-radius: .5rem .5rem 0 0;
-  }
-
-  .section-header .section-icon {
-    width: 2rem;
-    height: 2rem;
-    border-radius: .35rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: .85rem;
-    color: #fff;
-    flex-shrink: 0;
-  }
-
-  .section-header h5 {
-    margin: 0;
-    font-size: 1rem;
-    font-weight: 700;
-  }
-
-  .section-header .section-badge {
-    font-size: .75rem;
-    opacity: .85;
-  }
-
-  /* ── Stat strip ───────────────────────────────────────────── */
-  .stat-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .85rem;
-    padding: 1rem 1.25rem;
-    background: #f8f9fb;
-    border-top: 1px solid rgba(0, 0, 0, .06);
-  }
-
-  .stat-pill {
-    display: flex;
-    align-items: center;
-    gap: .85rem;
-    background: #fff;
-    border-radius: .55rem;
-    padding: .7rem 1rem;
-    min-width: 160px;
-    flex: 1;
-    border: 1px solid #e9ecef;
-    border-left: 4px solid #dee2e6;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, .05);
-    transition: box-shadow .15s, transform .15s;
-  }
-
-  .stat-pill:hover {
-    box-shadow: 0 3px 10px rgba(0, 0, 0, .09);
-    transform: translateY(-1px);
-  }
-
-  .stat-pill.danger {
-    border-left-color: #dc3545;
-  }
-
-  .stat-pill.success {
-    border-left-color: #198754;
-  }
-
-  .stat-pill .sp-icon {
-    font-size: .95rem;
-    width: 2.4rem;
-    height: 2.4rem;
-    flex-shrink: 0;
-    border-radius: .45rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-  }
-
-  .stat-pill.danger .sp-icon {
-    background: linear-gradient(135deg, #dc3545 0%, #e8596a 100%);
-  }
-
-  .stat-pill.success .sp-icon {
-    background: linear-gradient(135deg, #198754 0%, #28a76a 100%);
-  }
-
-  .stat-pill .sp-body {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-
-  .stat-pill .sp-label {
-    font-size: .63rem;
-    text-transform: uppercase;
-    letter-spacing: .06em;
-    color: #9aa0ac;
-    line-height: 1.2;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .stat-pill .sp-value {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: #1a1e2d;
-    line-height: 1.25;
-    margin-top: .15rem;
-    white-space: nowrap;
-  }
-</style>
-
-<div class="content">
+<div class="content exp-panel">
   @include('flash::message')
 
   {{-- ── Dynamic category tabs (only accounts that exist for this rider) ── --}}
@@ -214,7 +59,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
           <i class="fa fa-id-card me-1"></i>
           {{ $licLabel }}
           @if($licUnpaid > 0)
-          <span class="badge rounded-pill tab-badge-license ms-1">{{ $licUnpaid }}</span>
+          <span class="badge rounded-pill ms-1">{{ $licUnpaid }}</span>
           @endif
         </a>
       </li>
@@ -237,7 +82,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
           <i class="fa fa-passport me-1"></i>
           {{ $visaLabel }}
           @if($visaCatUnpaid > 0)
-          <span class="badge rounded-pill tab-badge-visa ms-1">{{ $visaCatUnpaid }}</span>
+          <span class="badge rounded-pill ms-1">{{ $visaCatUnpaid }}</span>
           @endif
         </a>
       </li>
@@ -251,21 +96,18 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
   <div id="pane-license" class="{{ $activeTab==='license' ? '' : 'd-none' }}">
 
     {{-- ── License Expenses card ── --}}
-    <div class="card shadow-sm mb-4 border-0">
-      <div class="section-header" style="background:linear-gradient(135deg,#0d6efd 0%,#1d8cf8 100%);">
-        <div class="section-icon" style="background:rgba(255,255,255,.2);">
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
           <i class="fa fa-file-invoice-dollar"></i>
         </div>
         <div class="flex-grow-1">
-          <h5 class="text-white">
-            <i class="fa fa-file-invoice-dollar me-1 opacity-75"></i> License Expense
-            @if(!empty($activeLicenseCategory))
-            <span class="section-badge text-white-50 fw-normal ms-1">({{ $activeLicenseCategory->name }})</span>
-            @endif
+          <h5>
+            {{ $activeLicenseCategory->name ?? 'License Expense' }}
           </h5>
         </div>
         @can('license_expense_create')
-        <a class="btn btn-sm btn-light fw-semibold action-btn show-modal"
+        <a class="btn btn-sm btn-exp-primary action-btn show-modal"
           href="javascript:void(0);"
           data-action="{{ route('LicenseExpense.create', $account->id) }}"
           data-size="lg"
@@ -312,17 +154,17 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
     </div>
 
     {{-- ── License Installments card ── --}}
-    <div class="card shadow-sm mb-4 border-0">
-      <div class="section-header" style="background:linear-gradient(135deg,#0f5132 0%,#198754 100%);">
-        <div class="section-icon" style="background:rgba(255,255,255,.2);">
+    <div class="card exp-card mb-4">
+      <div class="section-header">
+        <div class="section-icon">
           <i class="fa fa-calendar-check"></i>
         </div>
         <div class="flex-grow-1">
-          <h5 class="text-white">License Installments</h5>
+          <h5>License Installments</h5>
         </div>
         <div class="d-flex gap-2">
           @can('license_expense_create')
-          <a class="btn btn-sm btn-light fw-semibold action-btn show-modal"
+          <a class="btn btn-sm btn-exp-primary action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.createInstallmentPlanForm', $account->id) }}"
             data-size="lg"
@@ -331,7 +173,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
           </a>
           @endcan
           @if($licInstallmentData->count() > 0)
-          <a class="btn btn-sm btn-outline-light fw-semibold action-btn show-modal"
+          <a class="btn btn-sm btn-exp-ghost action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
             data-size="xl"

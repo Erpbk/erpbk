@@ -1,19 +1,24 @@
 <style>
   .entity-view-card {
     border-radius: 1rem;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid #e9ecef;
+  }
+
+  .entity-view-card .user-avatar-section {
+    overflow: visible;
   }
 
   .entity-view-card-hero {
     position: relative;
-    background: linear-gradient(180deg, #1e4b8e 0%, #163a6e 100%);
-    min-height: 248px;
+    background: #fff;
+    min-height: 200px;
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: center;
-    padding: 2.35rem 1rem 1.6rem;
-    overflow: hidden;
+    padding: 2.85rem 1rem 0;
+    overflow: visible;
+    border-bottom: 1px solid #eef0f3;
   }
 
   .entity-view-card-hero::before {
@@ -21,115 +26,135 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    opacity: 0.2;
+    opacity: 0.55;
     background-image:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.35) 25%, transparent 25%),
-      linear-gradient(225deg, rgba(255, 255, 255, 0.2) 25%, transparent 25%);
-    background-size: 42px 42px;
+      linear-gradient(135deg, rgba(15, 23, 42, 0.035) 25%, transparent 25%),
+      linear-gradient(225deg, rgba(15, 23, 42, 0.025) 25%, transparent 25%);
+    background-size: 28px 28px;
   }
 
   .entity-view-card-edit {
     position: absolute;
     top: 0.85rem;
-    left: 0.9rem;
-    width: 34px;
-    height: 34px;
-    border: 0;
+    left: 0.85rem;
+    right: auto;
+    width: 32px;
+    height: 32px;
+    border: 1px solid #e5e7eb;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    background: #fff;
+    color: #64748b;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     z-index: 2;
     text-decoration: none;
     cursor: pointer;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
     transition: all 0.2s ease;
   }
 
   .entity-view-card-edit:hover {
-    background: #fff;
+    background: #f8fafc;
     color: #1e4b8e;
+    border-color: #cbd5e1;
   }
 
   .entity-view-card-status {
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
+    left: auto;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.15rem;
-    z-index: 1;
+    gap: 0.2rem;
+    z-index: 2;
   }
 
   .entity-view-card-active {
     background: #22c55e;
     color: #fff;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 0.72rem;
-    padding: 0.28rem 0.6rem;
+    letter-spacing: 0.01em;
+    padding: 0.28rem 0.7rem;
     border-radius: 999px;
+    border: 0;
+    box-shadow: 0 1px 3px rgba(34, 197, 94, 0.28);
   }
 
   .entity-view-card-active.is-inactive {
-    background: #64748b;
+    background: #94a3b8;
+    color: #fff;
+    box-shadow: none;
   }
 
   .entity-view-card-active.is-vacation {
     background: #f59e0b;
+    color: #fff;
+    box-shadow: 0 1px 3px rgba(245, 158, 11, 0.28);
+  }
+
+  .entity-view-card-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 0.85rem;
+    letter-spacing: -.01em;
   }
 
   .entity-view-card-photo {
-    object-fit: cover;
+    object-fit: fill;
     display: block;
   }
 
   .entity-view-card-camera {
     position: absolute;
-    right: 6px;
-    bottom: 6px;
-    width: 40px;
-    height: 40px;
-    border: 0;
+    right: 8px;
+    bottom: 8px;
+    width: 34px;
+    height: 34px;
+    border: 1px solid #e5e7eb;
     border-radius: 50%;
     background: #fff;
-    color: #1e4b8e;
+    color: #475569;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
     cursor: pointer;
     padding: 0;
   }
 
   .entity-view-card-camera i {
-    font-size: 1.2rem;
+    font-size: 1rem;
   }
 
   .entity-view-card-photo-wrap {
     position: relative;
-    width: 188px;
-    height: 188px;
+    width: 280px;
+    height: 280px;
     z-index: 1;
+    margin-bottom: -3.1rem;
   }
 
   .entity-view-card-photo,
   .entity-view-card-photo-icon {
-    width: 188px;
-    height: 188px;
-    border-radius: 50%;
-    border: 5px solid #fff;
-    background: #fff;
+    width: 280px;
+    height: 280px;
+    border-radius: 1.05rem;
+    border: 3px solid #fff;
+    background: #f8fafc;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
   }
 
   .entity-view-card-photo-icon {
-    color: #1e4b8e;
-    font-size: 6.75rem;
+    color: #94a3b8;
+    font-size: 7rem;
   }
 
   .entity-view-card-photo-icon i {
@@ -137,14 +162,20 @@
     line-height: 1;
   }
 
+  .entity-view-card .user-avatar-section>.card-body {
+    padding-top: 3.85rem !important;
+  }
+
   .entity-view-card .user-info h6 {
     font-size: 1.05rem;
-    margin-bottom: 0.15rem;
+    margin-bottom: 0.2rem;
+    color: #1f2937;
   }
 
   .entity-view-card-id {
-    color: #6c757d;
-    font-size: 0.9rem;
+    color: #94a3b8;
+    font-size: 0.82rem;
+    font-weight: 500;
   }
 
   .entity-view-card .user_list {
@@ -157,29 +188,32 @@
     margin: 0;
   }
 
-  .entity-view-card .user_list + .user_list {
+  .entity-view-card .user_list+.user_list {
     margin-top: 0;
   }
 
   .entity-view-card .user_list .icons {
-    flex: 0 0 1.25rem;
-    width: 1.25rem;
-    color: #5b6472;
+    flex: 0 0 2.35rem;
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #64748b;
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .entity-view-card .user_list .icons i {
-    font-size: 1.05rem;
+    font-size: 1rem;
     line-height: 1;
   }
 
   .entity-view-card .user_list_content {
     display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.4rem;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    row-gap: 0.12rem;
     flex: 1;
     min-width: 0;
   }
@@ -213,8 +247,8 @@
     }
 
     .entity-view-card .user_list .icons {
-      align-items: flex-start;
-      padding-top: 0.12rem;
+      align-items: center;
+      padding-top: 0;
     }
 
     .entity-view-card .user_list_content {
@@ -263,7 +297,7 @@
     box-shadow: none;
   }
 
-  .entity-info-section > .card {
+  .entity-info-section>.card {
     background: #fff;
     border: 1px solid #e9ecef;
     border-radius: 0.9rem;
@@ -272,7 +306,7 @@
     overflow: hidden;
   }
 
-  .entity-info-section > .card > .card-header {
+  .entity-info-section>.card>.card-header {
     background: transparent;
     border-bottom: 0;
     padding: 1.1rem 1.25rem 0.25rem;
@@ -321,19 +355,10 @@
     margin-bottom: 0.35rem;
   }
 
+  /* Employee status cards layout is owned by employees/view.blade.php
+     (grouped flex + inner 2-col grid). Do not force a grid on the root. */
   .entity-view-card #employee-status-cards {
-    margin-top: 0.75rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-  }
-
-  .entity-view-card #employee-status-cards .status-card {
-    min-width: 0;
-    max-width: none;
-    width: 100%;
-    flex: unset;
-    padding: 0.7rem 0.75rem;
+    margin-top: 0.9rem;
   }
 
   .entity-profile-tabs .card {

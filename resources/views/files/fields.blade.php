@@ -23,9 +23,15 @@ $suggest = request('suggested_name') ?? false ;
 </div>
 @endif
 
-<div class="col-12">
-  <label class=" pl-2">Select file</label>
-  <input type="file" name="file_name" class="form-control mb-3" style="height: 40px;" required />
+<div class="col-12 mb-3">
+  @include('partials.universal_document_upload', [
+    'name' => 'file_name',
+    'label' => 'Document',
+    'required' => true,
+    'inputClass' => 'form-control',
+    'labelClass' => 'pl-2',
+    'showHint' => true,
+  ])
 </div>
 
 <div class="col-12">

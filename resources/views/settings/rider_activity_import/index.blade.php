@@ -384,20 +384,26 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
               <th style="width: 120px;">Required</th>
               <th>System Field</th>
               <th style="width: 180px;">Excel Column</th>
-              <th style="width: 120px;">Noon Default</th>
+              <th style="width: 120px;">Column Index</th>
               <th style="width: 110px;" class="text-center">Actions</th>
             </tr>
           </thead>
           <tbody id="ais-mapping-tbody">
-            @foreach($fieldLabels as $fieldKey => $fieldLabel)
             @php
-            $currentValue = (int) old('column_mappings.' . $fieldKey, $columnMappings[$fieldKey] ?? $defaultMappings[$fieldKey]);
+              $orderedFieldKeys = $orderedFieldKeys ?? array_keys($fieldLabels);
+            @endphp
+            @foreach($orderedFieldKeys as $fieldKey)
+            @php
+            $fieldLabel = $fieldLabels[$fieldKey] ?? $fieldKey;
+            $currentValue = (int) old('column_mappings.' . $fieldKey, $columnMappings[$fieldKey] ?? $defaultMappings[$fieldKey] ?? 0);
             $isRequired = !empty($requiredFields[$fieldKey]);
             $isLocked = in_array($fieldKey, ['date', 'rider_id'], true);
+            $noonDefault = $defaultMappings[$fieldKey] ?? null;
             @endphp
             <tr class="ais-map-row" data-field="{{ $fieldKey }}" data-label="{{ $fieldLabel }}" data-locked="{{ $isLocked ? '1' : '0' }}">
               <td class="text-center">
                 <span class="ais-drag-handle" title="Drag to reorder"><i class="ti ti-grip-vertical"></i></span>
+                <input type="hidden" name="field_order[]" class="ais-field-order-input" value="{{ $fieldKey }}">
               </td>
               <td>
                 <div class="ais-required-wrap {{ $isRequired ? 'is-yes' : '' }}">
@@ -417,17 +423,22 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
               </td>
               <td>
                 <span class="fw-medium">{{ $fieldLabel }}</span>
-                <i class="ti ti-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="Maps this system field to an Excel column in the uploaded file."></i>
+                <i class="ti ti-info-circle text-muted ms-1" data-bs-toggle="tooltip" title="Maps this system field to an Excel column in the uploaded file. Noon default: {{ $noonDefault !== null ? \App\Services\RiderActivities\RiderActivityImportMappingService::columnIndexToLetter((int) $noonDefault) . ' (' . $noonDefault . ')' : '—' }}."></i>
               </td>
               <td>
-                <input type="hidden" name="column_mappings[{{ $fieldKey }}]" class="column-index-input" value="{{ $currentValue }}" data-field="{{ $fieldKey }}" @if($isLocked) required @endif>
-                <select class="form-select form-select-sm excel-column-select" data-field="{{ $fieldKey }}">
+                <select
+                  name="column_mappings[{{ $fieldKey }}]"
+                  class="form-select form-select-sm excel-column-select"
+                  data-field="{{ $fieldKey }}"
+                  @if($isLocked) required @endif>
                   @foreach($excelColumnChoices as $colIndex => $colLetter)
-                  <option value="{{ $colIndex }}" @selected($currentValue===(int) $colIndex)>{{ $colLetter }}</option>
+                  <option value="{{ $colIndex }}" @selected($currentValue === (int) $colIndex)>{{ $colLetter }}</option>
                   @endforeach
                 </select>
               </td>
-              <td class="text-muted">{{ $defaultMappings[$fieldKey] ?? '—' }}</td>
+              <td>
+                <span class="ais-current-index text-muted" data-field="{{ $fieldKey }}">{{ $currentValue }}</span>
+              </td>
               <td class="text-center">
                 <button type="button" class="btn btn-sm btn-icon text-primary ais-edit-row" title="Edit mapping">
                   <i class="ti ti-pencil"></i>
@@ -453,7 +464,7 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
 
       <div class="ais-info-banner mb-4">
         <i class="ti ti-info-circle me-1"></i>
-        Drag and drop rows using the handle to reorder system fields.
+        Drag rows to reorder, change Excel columns, or remove optional fields — then click <strong>Save Import Settings</strong> so this project keeps those changes.
       </div>
 
       <div class="d-flex gap-2">
@@ -479,10 +490,12 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
         <p class="mb-2">Each <strong>system field</strong> is mapped to an Excel column letter (A, B, C, …).</p>
         <ul class="mb-2">
           <li><strong>Header rows to skip</strong> ignores title rows at the top of the file before data starts. Noon files skip 2 rows.</li>
-          <li>In the preview, mapped columns are highlighted and labeled with the system field name.</li>
-          <li>Date and Rider ID are required. Other fields can be mapped or removed from this table.</li>
+          <li>Change the <strong>Excel Column</strong> dropdown for this project, then save.</li>
+          <li>Drag rows to reorder fields for this project, then save.</li>
+          <li>Remove optional fields with the trash icon — they will not appear again for this project until you add them back.</li>
+          <li>Date and Rider ID cannot be removed.</li>
         </ul>
-        <p class="mb-0 text-muted small">Column A = index 0, B = 1, C = 2, and so on. Import uses the saved mapping for the selected project.</p>
+        <p class="mb-0 text-muted small">Column A = index 0, B = 1, C = 2, and so on. Import uses only the saved mappings for the selected project.</p>
       </div>
     </div>
   </div>
@@ -516,13 +529,13 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
 @endsection
 
 @push('third_party_scripts')
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="{{ asset('assets/vendor/libs/sortablejs/sortable.js') }}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function() {
     const defaultMappings = @json($defaultMappings);
     const fieldLabels = @json($fieldLabels);
-    const requiredFields = @json($requiredFields);
     const staticRequiredFields = @json(\App\Services\RiderActivities\RiderActivityImportMappingService::requiredFields());
+    const lockedFields = @json(\App\Services\RiderActivities\RiderActivityImportMappingService::alwaysRequiredFieldKeys());
     const defaultHeaderRows = {{ (int) \App\Services\RiderActivities\RiderActivityImportMappingService::defaultHeaderRowsToSkip() }};
     const previewUrl = @json($previewUrl);
     const exportUrl = @json($exportUrl);
@@ -561,6 +574,14 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
       return last ? parseInt(last.value, 10) : 25;
     };
 
+    const syncIndexLabel = (select) => {
+      const field = select.dataset.field;
+      const label = document.querySelector('.ais-current-index[data-field="' + field + '"]');
+      if (label) {
+        label.textContent = String(select.value);
+      }
+    };
+
     const rebuildColumnSelects = (maxIndex) => {
       document.querySelectorAll('.excel-column-select').forEach((select) => {
         const current = select.value;
@@ -574,25 +595,37 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
           }
           select.appendChild(option);
         }
+        syncIndexLabel(select);
       });
     };
 
-    const syncSelectToHidden = (select) => {
-      const field = select.dataset.field;
-      const hidden = document.querySelector('.column-index-input[data-field="' + field + '"]');
-      if (hidden) {
-        hidden.value = select.value;
+    const syncFieldOrderInputs = () => {
+      if (!tbody) {
+        return;
       }
+      tbody.querySelectorAll('.ais-map-row').forEach((row) => {
+        let orderInput = row.querySelector('.ais-field-order-input');
+        if (!orderInput) {
+          orderInput = document.createElement('input');
+          orderInput.type = 'hidden';
+          orderInput.name = 'field_order[]';
+          orderInput.className = 'ais-field-order-input';
+          const handleCell = row.querySelector('td');
+          if (handleCell) {
+            handleCell.appendChild(orderInput);
+          } else {
+            row.appendChild(orderInput);
+          }
+        }
+        orderInput.value = row.dataset.field || '';
+      });
     };
 
-    document.querySelectorAll('.excel-column-select').forEach((select) => {
-      select.addEventListener('change', function() {
-        syncSelectToHidden(this);
-        refreshPreviewMappingRow();
-      });
-    });
+    const usedFieldKeys = () => Array.from(document.querySelectorAll('.ais-map-row'))
+      .map((row) => row.dataset.field)
+      .filter(Boolean);
 
-    document.querySelectorAll('.ais-required-toggle').forEach((toggle) => {
+    const bindRequiredToggle = (toggle) => {
       toggle.addEventListener('change', function() {
         const wrap = this.closest('.ais-required-wrap');
         const label = wrap?.querySelector('.ais-required-label');
@@ -604,41 +637,96 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
           if (label) label.textContent = 'No';
         }
       });
-    });
+    };
+
+    const bindColumnSelect = (select) => {
+      select.addEventListener('change', function() {
+        syncIndexLabel(this);
+        refreshPreviewMappingRow();
+      });
+      syncIndexLabel(select);
+    };
+
+    document.querySelectorAll('.excel-column-select').forEach(bindColumnSelect);
+    document.querySelectorAll('.ais-required-toggle').forEach(bindRequiredToggle);
 
     if (tbody && typeof Sortable !== 'undefined') {
-      new Sortable(tbody, {
+      const makeSortable = typeof Sortable.create === 'function'
+        ? (el, opts) => Sortable.create(el, opts)
+        : (el, opts) => new Sortable(el, opts);
+      makeSortable(tbody, {
         handle: '.ais-drag-handle',
         animation: 150,
-        ghostClass: 'ais-sortable-ghost'
+        ghostClass: 'ais-sortable-ghost',
+        onEnd: function() {
+          syncFieldOrderInputs();
+        }
       });
     }
 
+    const buildColumnOptionsHtml = (selectedValue) => {
+      const maxIndex = currentMaxIndex();
+      let html = '';
+      for (let i = 0; i <= maxIndex; i++) {
+        html += '<option value="' + i + '"' + (String(i) === String(selectedValue) ? ' selected' : '') + '>' +
+          indexToLetter(i) + '</option>';
+      }
+      return html;
+    };
+
+    const createMappingRow = (fieldKey) => {
+      const isLocked = lockedFields.includes(fieldKey);
+      const fieldLabel = fieldLabels[fieldKey] || fieldKey;
+      const defaultIndex = defaultMappings[fieldKey] ?? 0;
+      const isRequired = !!staticRequiredFields[fieldKey];
+      const tr = document.createElement('tr');
+      tr.className = 'ais-map-row';
+      tr.dataset.field = fieldKey;
+      tr.dataset.label = fieldLabel;
+      tr.dataset.locked = isLocked ? '1' : '0';
+      tr.innerHTML =
+        '<td class="text-center">' +
+          '<span class="ais-drag-handle" title="Drag to reorder"><i class="ti ti-grip-vertical"></i></span>' +
+          '<input type="hidden" name="field_order[]" class="ais-field-order-input" value="' + fieldKey + '">' +
+        '</td>' +
+        '<td>' +
+          '<div class="ais-required-wrap ' + (isRequired ? 'is-yes' : '') + '">' +
+            '<div class="form-check form-switch mb-0">' +
+              '<input class="form-check-input ais-required-toggle" type="checkbox" role="switch" name="required_fields[]" value="' + fieldKey + '"' +
+                (isRequired ? ' checked' : '') + (isLocked ? ' disabled' : '') + ' data-field="' + fieldKey + '">' +
+            '</div>' +
+            '<span class="ais-required-label">' + (isRequired ? 'Yes' : 'No') + '</span>' +
+          '</div>' +
+        '</td>' +
+        '<td><span class="fw-medium">' + fieldLabel + '</span></td>' +
+        '<td>' +
+          '<select name="column_mappings[' + fieldKey + ']" class="form-select form-select-sm excel-column-select" data-field="' + fieldKey + '"' +
+            (isLocked ? ' required' : '') + '>' + buildColumnOptionsHtml(defaultIndex) + '</select>' +
+        '</td>' +
+        '<td><span class="ais-current-index text-muted" data-field="' + fieldKey + '">' + defaultIndex + '</span></td>' +
+        '<td class="text-center">' +
+          '<button type="button" class="btn btn-sm btn-icon text-primary ais-edit-row" title="Edit mapping"><i class="ti ti-pencil"></i></button>' +
+          '<button type="button" class="btn btn-sm btn-icon text-danger ais-delete-row" title="Remove field"' +
+            (isLocked ? ' disabled' : '') + '><i class="ti ti-trash"></i></button>' +
+        '</td>';
+
+      const select = tr.querySelector('.excel-column-select');
+      const toggle = tr.querySelector('.ais-required-toggle');
+      if (select) bindColumnSelect(select);
+      if (toggle) bindRequiredToggle(toggle);
+      return tr;
+    };
+
     document.getElementById('reset-defaults-btn')?.addEventListener('click', function() {
       headerSkip.value = String(defaultHeaderRows);
+      if (!tbody) {
+        return;
+      }
+      tbody.innerHTML = '';
       Object.keys(defaultMappings).forEach((field) => {
-        const hidden = document.querySelector('.column-index-input[data-field="' + field + '"]');
-        const select = document.querySelector('.excel-column-select[data-field="' + field + '"]');
-        if (hidden) hidden.value = defaultMappings[field];
-        if (select) select.value = String(defaultMappings[field]);
-        const row = document.querySelector('.ais-map-row[data-field="' + field + '"]');
-        if (row) row.classList.remove('d-none');
-
-        const toggle = document.querySelector('.ais-required-toggle[data-field="' + field + '"]');
-        if (toggle && !toggle.disabled) {
-          const isRequired = !!staticRequiredFields[field];
-          toggle.checked = isRequired;
-          const wrap = toggle.closest('.ais-required-wrap');
-          const label = wrap?.querySelector('.ais-required-label');
-          if (isRequired) {
-            wrap?.classList.add('is-yes');
-            if (label) label.textContent = 'Yes';
-          } else {
-            wrap?.classList.remove('is-yes');
-            if (label) label.textContent = 'No';
-          }
-        }
+        tbody.appendChild(createMappingRow(field));
       });
+      syncFieldOrderInputs();
       refreshPreviewMappingRow();
     });
 
@@ -647,8 +735,9 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
     });
 
     document.getElementById('ais-add-row-btn')?.addEventListener('click', function() {
-      const hiddenRows = Array.from(document.querySelectorAll('.ais-map-row.d-none'));
-      if (!hiddenRows.length) {
+      const used = new Set(usedFieldKeys());
+      const available = Object.keys(fieldLabels).filter((key) => !used.has(key));
+      if (!available.length) {
         if (window.Swal) {
           Swal.fire({
             icon: 'info',
@@ -658,9 +747,35 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
         }
         return;
       }
-      hiddenRows[0].classList.remove('d-none');
-      const restoredHidden = hiddenRows[0].querySelector('.column-index-input');
-      if (restoredHidden) restoredHidden.disabled = false;
+
+      if (available.length === 1) {
+        tbody.appendChild(createMappingRow(available[0]));
+        syncFieldOrderInputs();
+        return;
+      }
+
+      if (window.Swal) {
+        const inputOptions = {};
+        available.forEach((key) => {
+          inputOptions[key] = fieldLabels[key] || key;
+        });
+        Swal.fire({
+          title: 'Add system field',
+          input: 'select',
+          inputOptions,
+          inputPlaceholder: 'Select a field',
+          showCancelButton: true,
+          confirmButtonText: 'Add'
+        }).then((result) => {
+          if (result.isConfirmed && result.value) {
+            tbody.appendChild(createMappingRow(result.value));
+            syncFieldOrderInputs();
+          }
+        });
+      } else {
+        tbody.appendChild(createMappingRow(available[0]));
+        syncFieldOrderInputs();
+      }
     });
 
     tbody?.addEventListener('click', function(event) {
@@ -670,9 +785,8 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
         if (!row || row.dataset.locked === '1') {
           return;
         }
-        row.classList.add('d-none');
-        const hidden = row.querySelector('.column-index-input');
-        if (hidden) hidden.disabled = true;
+        row.remove();
+        syncFieldOrderInputs();
         refreshPreviewMappingRow();
         return;
       }
@@ -700,7 +814,7 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
       const select = document.querySelector('.excel-column-select[data-field="' + field + '"]');
       if (select) {
         select.value = value;
-        syncSelectToHidden(select);
+        syncIndexLabel(select);
       }
       editModal?.hide();
       refreshPreviewMappingRow();
@@ -708,11 +822,11 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
 
     const collectMappings = () => {
       const mappings = {};
-      document.querySelectorAll('.ais-map-row:not(.d-none)').forEach((row) => {
+      document.querySelectorAll('.ais-map-row').forEach((row) => {
         const field = row.dataset.field;
-        const hidden = row.querySelector('.column-index-input');
-        if (field && hidden) {
-          mappings[field] = parseInt(hidden.value, 10);
+        const select = row.querySelector('.excel-column-select');
+        if (field && select) {
+          mappings[field] = parseInt(select.value, 10);
         }
       });
       return mappings;
@@ -745,6 +859,7 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
       const mappings = collectMappings();
       Object.keys(mappings).forEach((field) => {
         addHidden('column_mappings[' + field + ']', mappings[field]);
+        addHidden('field_order[]', field);
       });
 
       document.body.appendChild(form);
@@ -877,6 +992,8 @@ $backUrl = route('settings-panel.index', ['company_slug' => $companySlug]);
           }
         });
     });
+
+    syncFieldOrderInputs();
 
     if (window.bootstrap) {
       document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach((el) => {

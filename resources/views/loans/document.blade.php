@@ -51,7 +51,15 @@
             <input type="hidden" name="type" value="loan">
             <input type="hidden" name="type_id" value="{{ $loan->id }}">
             <div class="modal-header"><h5 class="modal-title">Upload Document</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-            <div class="modal-body"><input type="file" name="file" class="form-control" required></div>
+            <div class="modal-body">
+                @include('partials.universal_document_upload', [
+                  'name' => 'file',
+                  'label' => 'Document',
+                  'required' => true,
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
+            </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="submit" class="btn btn-primary">Upload</button>

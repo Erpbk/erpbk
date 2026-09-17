@@ -85,23 +85,16 @@
     </div>
     <div class="col-md-1"></div>
     <div class="col-md-2">
-        <!-- Attachment Field - Square Box with Image Preview -->
+        <!-- Attachment Field -->
         <div class="form-group col-sm-6">
-            <div class="attachment-preview-container d-flex flex-column align-items-center justify-content-center">
-                <!-- Square preview box -->
-                <div class="square-preview-box" id="squarePreviewBox" onclick="document.getElementById('attachmentInput').click()">
-                    <div class="preview-content" id="previewContent">
-                        <i class="fa fa-image upload-icon"></i>
-                        <span class="upload-text">Click to upload</span>
-                    </div>
-                    <img id="imagePreview" class="preview-image" style="display: none;" alt="Preview">
-                    <div id="pdfPreview" class="preview-pdf" style="display: none;">
-                        <i class="fa fa-file-pdf-o pdf-icon"></i>
-                        <span class="pdf-text">PDF File</span>
-                    </div>
-                </div>
-                {!! Form::file('attachment_path', ['class' => 'form-control d-none', 'id' => 'attachmentInput', 'accept' => 'image/*,.pdf,application/pdf']) !!}
-            </div>
+            @include('partials.universal_document_upload', [
+              'name' => 'attachment_path',
+              'label' => 'Attachment',
+              'required' => false,
+              'accept' => 'image/*,.pdf,application/pdf',
+              'inputClass' => 'form-control',
+              'showHint' => true,
+            ])
         </div>
     </div>
 </div>

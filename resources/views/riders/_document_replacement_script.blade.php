@@ -202,6 +202,15 @@
     }
 
     function fileInputHtml(name, label) {
+      if (window.DocumentScanField && typeof window.DocumentScanField.markup === 'function') {
+        return window.DocumentScanField.markup({
+          name: name,
+          label: label,
+          required: true,
+          accept: ACCEPT,
+          inputClass: 'rider-document-file'
+        });
+      }
       return ''
         + '<div class="mb-3">'
         +   '<label class="form-label required fw-bold">' + escapeHtml(label) + '</label>'

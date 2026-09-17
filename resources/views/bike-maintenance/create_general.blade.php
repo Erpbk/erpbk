@@ -40,11 +40,14 @@
 
             {{-- Attachment --}}
             <div class="form-group col-md-3">
-                {!! Form::label('attachment', 'Attachment:') !!}
-                {!! Form::file('attachment', [
-                    'class' => 'form-control',
-                    'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx'
-                ]) !!}
+                @include('partials.universal_document_upload', [
+                  'name' => 'attachment',
+                  'label' => 'Attachment:',
+                  'required' => false,
+                  'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+                  'inputClass' => 'form-control',
+                  'showHint' => true,
+                ])
             </div>
 
             {{-- Billing Month --}}

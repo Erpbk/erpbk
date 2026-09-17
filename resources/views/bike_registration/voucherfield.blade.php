@@ -61,8 +61,13 @@ $registrationStatusesList = company_table('bike_registration_statuses')->where('
     </select>
 </div>
 <div class="form-group col-sm-6">
-    <label class="required">Attachment</label>
-    <input type="file" name="attach_file" class="form-control" required>
+    @include('partials.universal_document_upload', [
+      'name' => 'attach_file',
+      'label' => 'Attachment',
+      'required' => true,
+      'inputClass' => 'form-control',
+      'showHint' => true,
+    ])
 </div>
 <div class="form-group col-sm-6">
     <label class="required">Document Expiry Date:</label>

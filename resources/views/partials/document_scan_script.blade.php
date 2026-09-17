@@ -213,7 +213,20 @@
         </p>
 
         <div id="documentScanNoDeviceAlert" class="document-scan-no-device mb-3" hidden>
-          No scanner device is connected. Please connect a scanner device and try again.
+          <div class="fw-semibold mb-1" id="documentScanNoDeviceTitle">
+            No scanner device is connected. Please connect a scanner device and try again.
+          </div>
+          <div class="small mb-2" id="documentScanNoDeviceDetail">
+            Windows scanners (Canon, HP, Brother, etc.) need the local Scanner Bridge so the browser can use them.
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-dark" id="documentScanBridgeDownload" href="{{ asset('scanner-bridge/ERP-Scanner-Bridge.zip') }}" download>
+              <i class="ti ti-download me-1"></i>Download Scanner Bridge
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-dark" id="documentScanBridgeRetryBtn">
+              <i class="ti ti-refresh me-1"></i>Retry detection
+            </button>
+          </div>
         </div>
 
         <!-- Scanner-only UI (never opens camera) -->
@@ -322,6 +335,8 @@
     var jsPdfLoader = null;
     var isMobile = false;
     var SCANNER_LABEL_RE = /scan|scanner|document|twain|wia|epson|brother|canon|fujitsu|kodak|plustek|mustek|hp\s*scan|adf|flatbed|pixma|g\d{4}/i;
+    var SCANNER_BRIDGE_BASE = 'http://127.0.0.1:39201';
+    var scannerBridgeOnline = false;
 
     function $(id) {
       return document.getElementById(id);
@@ -679,13 +694,157 @@
       if (previewBtn) previewBtn.disabled = !enabled;
     }
 
-    function showNoScannerMessage(show) {
+    function showNoScannerMessage(show, reason) {
       var alertEl = $('documentScanNoDeviceAlert');
+      var titleEl = $('documentScanNoDeviceTitle');
+      var detailEl = $('documentScanNoDeviceDetail');
       if (alertEl) alertEl.hidden = !show;
-      if (show) {
-        setStatus('No scanner device is connected. Please connect a scanner device and try again.', true);
-        setScannerControlsEnabled(false);
+      if (!show) {
+        setScannerControlsEnabled(scannerDevices.length > 0);
+        return;
       }
+
+      reason = reason || (scannerBridgeOnline ? 'no-device' : 'bridge-offline');
+      if (titleEl && detailEl) {
+        if (reason === 'bridge-offline') {
+          titleEl.textContent = 'Scanner Bridge is not running on this PC.';
+          detailEl.textContent = 'Your Canon/Windows scanner is not visible to the browser until the local Scanner Bridge is started. Download it, unzip, run Start-ScannerBridge.bat, then click Retry detection.';
+        } else {
+          titleEl.textContent = 'No scanner device is connected. Please connect a scanner device and try again.';
+          detailEl.textContent = 'Scanner Bridge is running, but Windows did not report any WIA scanner. Power on the scanner, install its drivers, then click Retry detection.';
+        }
+      }
+
+      setStatus(
+        reason === 'bridge-offline'
+          ? 'Start the Scanner Bridge on this PC to use your Windows scanner.'
+          : 'No scanner device is connected. Please connect a scanner device and try again.',
+        true
+      );
+      setScannerControlsEnabled(false);
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs) {
+      options = options || {};
+      timeoutMs = timeoutMs || 2500;
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = null;
+      if (controller) {
+        options.signal = controller.signal;
+        timer = setTimeout(function() {
+          try { controller.abort(); } catch (e) {}
+        }, timeoutMs);
+      }
+      try {
+        return await fetch(url, options);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    }
+
+    async function checkScannerBridge() {
+      try {
+        var res = await fetchWithTimeout(SCANNER_BRIDGE_BASE + '/health', {
+          method: 'GET',
+          cache: 'no-store',
+          mode: 'cors'
+        }, 1800);
+        if (!res.ok) {
+          scannerBridgeOnline = false;
+          return false;
+        }
+        var data = await res.json();
+        scannerBridgeOnline = !!(data && data.ok);
+        return scannerBridgeOnline;
+      } catch (e) {
+        scannerBridgeOnline = false;
+        return false;
+      }
+    }
+
+    async function listBridgeScanners() {
+      var online = await checkScannerBridge();
+      if (!online) return [];
+      try {
+        var res = await fetchWithTimeout(SCANNER_BRIDGE_BASE + '/api/scanners', {
+          method: 'GET',
+          cache: 'no-store',
+          mode: 'cors'
+        }, 4000);
+        if (!res.ok) return [];
+        var data = await res.json();
+        var list = (data && data.scanners) ? data.scanners : [];
+        return (Array.isArray(list) ? list : []).map(function(s, idx) {
+          return {
+            id: String(s.id || ('bridge-' + idx)),
+            label: s.name || s.label || ('Scanner ' + (idx + 1)),
+            kind: 'bridge',
+            raw: s
+          };
+        });
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function scanWithBridge(device, autoUpload) {
+      if (!device || device.kind !== 'bridge') return false;
+      setStatus(autoUpload ? 'Scanning with Windows scanner…' : 'Generating scanner preview…');
+      var fileType = selectedScanFileType();
+      var sourceEl = $('documentScanSourceType');
+      var source = sourceEl && sourceEl.value ? sourceEl.value : 'flatbed';
+      var format = fileType === 'png' ? 'png' : 'jpeg';
+
+      var res = await fetchWithTimeout(SCANNER_BRIDGE_BASE + '/api/scan', {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: device.id,
+          format: format,
+          source: source
+        })
+      }, 120000);
+
+      if (!res.ok) {
+        var message = 'Scanner failed.';
+        try {
+          var errData = await res.json();
+          if (errData && errData.message) message = errData.message;
+        } catch (e) {}
+        throw new Error(message);
+      }
+
+      var blob = await res.blob();
+      if (!blob || !blob.size) {
+        throw new Error('Scanner returned an empty image.');
+      }
+
+      setScannerPreviewFromBlob(blob);
+      if (!autoUpload) {
+        setStatus('Preview ready. Click Scan to attach the document.');
+        setScannerControlsEnabled(true);
+        return true;
+      }
+
+      clearPages();
+      await addPageFromBlob(blob);
+      var built;
+      if (fileType === 'jpeg' || fileType === 'png') {
+        var ext = fileType === 'png' ? 'png' : 'jpg';
+        var stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        built = new File([blob], 'scanner-document-' + stamp + '.' + ext, {
+          type: blob.type || (fileType === 'png' ? 'image/png' : 'image/jpeg')
+        });
+      } else {
+        built = await pagesToFile();
+      }
+      assignFileToInput(activeFileInputId ? $(activeFileInputId) : null, built);
+      clearPages();
+      setStatus('Document scanned and attached.');
+      hideModal();
+      return true;
     }
 
     function clearScannerPreview() {
@@ -776,14 +935,15 @@
       select.innerHTML = '<option value="">Looking for scanners…</option>';
       setStatus('Looking for scanner devices…');
 
+      var bridgeScanners = await listBridgeScanners();
       var apiScanners = await listDocumentScanApiScanners();
       var mediaScanners = await listScannerishMediaDevices();
-      scannerDevices = apiScanners.concat(mediaScanners);
+      scannerDevices = bridgeScanners.concat(apiScanners).concat(mediaScanners);
 
       select.innerHTML = '';
       if (!scannerDevices.length) {
         select.innerHTML = '<option value="">No scanner connected</option>';
-        showNoScannerMessage(true);
+        showNoScannerMessage(true, scannerBridgeOnline ? 'no-device' : 'bridge-offline');
         clearScannerPreview();
         return [];
       }
@@ -792,12 +952,16 @@
       scannerDevices.forEach(function(device) {
         var opt = document.createElement('option');
         opt.value = device.id;
-        opt.textContent = device.label;
+        opt.textContent = device.kind === 'bridge' ? device.label : device.label;
         select.appendChild(opt);
       });
       select.value = scannerDevices[0].id;
       setScannerControlsEnabled(true);
-      setStatus('Scanner ready. Place the document and click Scan.');
+      setStatus(
+        scannerBridgeOnline
+          ? 'Windows scanner ready. Place the document and click Scan.'
+          : 'Scanner ready. Place the document and click Scan.'
+      );
       return scannerDevices;
     }
 
@@ -1089,6 +1253,18 @@
       setScannerControlsEnabled(false);
       setStatus(autoUpload ? 'Scanning…' : 'Generating preview…');
 
+      // Local Windows WIA bridge (Canon / HP / Brother flatbed scanners)
+      if (selected.kind === 'bridge') {
+        try {
+          var usedBridge = await scanWithBridge(selected, autoUpload);
+          if (usedBridge) return;
+        } catch (bridgeErr) {
+          setStatus('Scanner failed: ' + ((bridgeErr && bridgeErr.message) ? bridgeErr.message : 'Unable to complete scan.'), true);
+          setScannerControlsEnabled(true);
+          return;
+        }
+      }
+
       // Prefer system document-scan API (never uses camera)
       if (selected.kind === 'api' || getDocumentScanApi()) {
         var usedApi = await tryChromeDocumentScanApi({ autoUpload: autoUpload });
@@ -1187,7 +1363,7 @@
       if (currentSource === 'scanner') {
         if (title) title.innerHTML = '<i class="ti ti-scanner me-1"></i>Document Scanner';
         if (help) {
-          help.textContent = 'Select a connected scanner device and click Scan. The camera is not used in this mode.';
+          help.textContent = 'Select your Windows scanner and click Scan. Start the Scanner Bridge on this PC if the device list is empty. The camera is not used.';
         }
         if (scannerPanel) scannerPanel.hidden = false;
         if (cameraPanel) cameraPanel.hidden = true;
@@ -1422,8 +1598,17 @@
             showNoScannerMessage(false);
             setStatus('Scanner selected: ' + selected.label + '. Click Scan when ready.');
           } else {
-            showNoScannerMessage(true);
+            showNoScannerMessage(true, scannerBridgeOnline ? 'no-device' : 'bridge-offline');
           }
+        });
+      }
+      var bridgeRetryBtn = $('documentScanBridgeRetryBtn');
+      if (bridgeRetryBtn && !bridgeRetryBtn.__docScanBound) {
+        bridgeRetryBtn.__docScanBound = true;
+        bridgeRetryBtn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          setStatus('Looking for scanners…');
+          await refreshScannerDevices();
         });
       }
       if (cameraDeviceSelect && !cameraDeviceSelect.__docScanBound) {

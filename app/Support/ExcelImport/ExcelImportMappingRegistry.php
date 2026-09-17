@@ -55,7 +55,7 @@ class ExcelImportMappingRegistry
                 ],
                 dynamic: [
                     'enabled' => true,
-                    'label' => 'Item Columns',
+                    'label' => 'Charge Columns',
                     'source' => 'sim_items',
                 ],
                 importType: 'default',

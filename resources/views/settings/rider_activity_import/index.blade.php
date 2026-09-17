@@ -93,8 +93,8 @@
   }
 
   .ais-map-table thead th {
-    background: #1e293b;
-    color: #fff;
+    background: #1e293b !important;
+    color: #fff !important;
     font-weight: 600;
     font-size: .8rem;
     letter-spacing: .02em;
@@ -218,8 +218,8 @@
   }
 
   .excel-preview-table thead th {
-    background: #1e293b;
-    color: #fff;
+    background: #1e293b !important;
+    color: #fff !important;
     position: sticky;
     top: 0;
     z-index: 2;

@@ -106,7 +106,6 @@
                         </div>
                     </div>
                     <div class="col-lg-5 mb-3">
-                        <h5 class="mb-3">Required Columns</h5>
                         <div class="form-group map-field" data-field="sim_number" data-required="1">
                             <label for="col_sim_number">SIM Number</label>
                             <select name="col_sim_number" id="col_sim_number" class="form-control map-select" required disabled>
@@ -114,8 +113,8 @@
                             </select>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mt-3 mb-2">
-                            <h5 class="mb-0">Item Columns</h5>
-                            <button type="button" class="btn btn-sm btn-success" id="addItemMapRow" disabled><i class="fas fa-plus"></i> Add Item Column</button>
+                            <h5 class="mb-0"></h5>
+                            <button type="button" class="btn btn-sm btn-success" id="addItemMapRow" disabled><i class="fas fa-plus"></i> Add Charge Column</button>
                         </div>
                         <div id="itemMapRows"></div>
                         <small class="text-muted d-block mb-2">Sheet value = quantity. Rate applies to every imported row for that item. VAT % comes from the form field above.</small>

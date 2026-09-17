@@ -61,7 +61,7 @@
       data-camera-input="{{ $scanId }}"
       data-scanner-input="{{ $scannerId }}"
       data-scan-source="scanner">
-      <i class="ti ti-scanner me-1"></i>Scan with Scanner
+      <i class="ti ti-scanner me-1"></i>Document Scanner
     </button>
   </div>
 

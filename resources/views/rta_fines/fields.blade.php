@@ -85,16 +85,71 @@
     </div>
     <div class="col-md-1"></div>
     <div class="col-md-2">
-        <!-- Attachment Field -->
-        <div class="form-group col-sm-6">
-            @include('partials.universal_document_upload', [
-              'name' => 'attachment_path',
-              'label' => 'Attachment',
-              'required' => false,
-              'accept' => 'image/*,.pdf,application/pdf',
-              'inputClass' => 'form-control',
-              'showHint' => true,
-            ])
+        <!-- Attachment Field - Square Box with Image Preview + Scan -->
+        <div class="form-group">
+            <div class="document-scan-field attachment-preview-container d-flex flex-column align-items-center justify-content-center"
+                 data-document-scan-root
+                 data-universal-document-upload>
+                <input
+                    type="file"
+                    name="attachment_path"
+                    id="attachmentInput"
+                    class="document-scan-native-file document-scan-file-input form-control"
+                    accept="image/*,.pdf,application/pdf">
+                <input
+                    type="file"
+                    id="attachmentInput_camera"
+                    class="document-scan-camera-input document-scan-native-file"
+                    accept="image/*"
+                    capture="environment"
+                    tabindex="-1"
+                    aria-hidden="true">
+                <input
+                    type="file"
+                    id="attachmentInput_scanner"
+                    class="document-scan-scanner-input document-scan-native-file"
+                    accept="image/*,application/pdf,.jpg,.jpeg,.png,.tif,.tiff,.pdf"
+                    multiple
+                    tabindex="-1"
+                    aria-hidden="true">
+
+                <div class="square-preview-box" id="squarePreviewBox" role="button" tabindex="0" title="Click to upload">
+                    <div class="preview-content" id="previewContent">
+                        <i class="fa fa-image upload-icon"></i>
+                        <span class="upload-text">Click to upload</span>
+                    </div>
+                    <img id="imagePreview" class="preview-image" style="display: none;" alt="Preview">
+                    <div id="pdfPreview" class="preview-pdf" style="display: none;">
+                        <i class="fa fa-file-pdf-o pdf-icon"></i>
+                        <span class="pdf-text">PDF File</span>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-1 justify-content-center mt-2">
+                    <button type="button"
+                        class="btn btn-outline-primary btn-sm document-scan-upload-btn"
+                        data-file-input="attachmentInput">
+                        <i class="ti ti-upload me-1"></i>Upload
+                    </button>
+                    <button type="button"
+                        class="btn btn-outline-secondary btn-sm document-scan-camera-btn document-scan-mobile-only"
+                        data-file-input="attachmentInput"
+                        data-camera-input="attachmentInput_camera"
+                        data-scanner-input="attachmentInput_scanner"
+                        data-scan-source="camera">
+                        <i class="ti ti-camera me-1"></i>Camera
+                    </button>
+                    <button type="button"
+                        class="btn btn-outline-secondary btn-sm document-scan-scanner-btn document-scan-desktop-only"
+                        data-file-input="attachmentInput"
+                        data-camera-input="attachmentInput_camera"
+                        data-scanner-input="attachmentInput_scanner"
+                        data-scan-source="scanner">
+                        <i class="ti ti-scanner me-1"></i>Document Scanner
+                    </button>
+                </div>
+                <div class="document-scan-selected small text-muted mt-1 text-center d-none" data-selected-for="attachmentInput">No file selected</div>
+            </div>
         </div>
     </div>
 </div>
@@ -339,44 +394,53 @@
         const squarePreviewBox = document.getElementById('squarePreviewBox');
 
         function isPdfFile(file) {
-            return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            if (!file) return false;
+            return file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf');
         }
 
         function isPdfUrl(url) {
-            return url.toLowerCase().split('?')[0].endsWith('.pdf');
+            return String(url || '').toLowerCase().split('?')[0].endsWith('.pdf');
         }
 
         function showUploadPlaceholder() {
-            imagePreview.style.display = 'none';
-            imagePreview.src = '';
-            pdfPreview.style.display = 'none';
-            previewContent.style.display = 'flex';
+            if (imagePreview) {
+                imagePreview.style.display = 'none';
+                imagePreview.removeAttribute('src');
+            }
+            if (pdfPreview) pdfPreview.style.display = 'none';
+            if (previewContent) previewContent.style.display = 'flex';
         }
 
         function showImagePreview(src) {
+            if (!imagePreview) return;
             imagePreview.src = src;
             imagePreview.style.display = 'block';
-            pdfPreview.style.display = 'none';
-            previewContent.style.display = 'none';
+            if (pdfPreview) pdfPreview.style.display = 'none';
+            if (previewContent) previewContent.style.display = 'none';
         }
 
         function showPdfPreview() {
-            imagePreview.style.display = 'none';
-            imagePreview.src = '';
-            pdfPreview.style.display = 'flex';
-            previewContent.style.display = 'none';
+            if (imagePreview) {
+                imagePreview.style.display = 'none';
+                imagePreview.removeAttribute('src');
+            }
+            if (pdfPreview) pdfPreview.style.display = 'flex';
+            if (previewContent) previewContent.style.display = 'none';
         }
 
         function hasActivePreview() {
-            return imagePreview.style.display === 'block' || pdfPreview.style.display === 'flex';
+            return (imagePreview && imagePreview.style.display === 'block')
+                || (pdfPreview && pdfPreview.style.display === 'flex');
         }
-        
-        // Function to display preview from file or existing attachment
+
         function displayPreview(fileOrUrl, isFile = true) {
+            if (!imagePreview || !pdfPreview || !previewContent) {
+                return;
+            }
             if (isFile && fileOrUrl) {
                 if (isPdfFile(fileOrUrl)) {
                     showPdfPreview();
-                } else if (fileOrUrl.type.startsWith('image/')) {
+                } else if (fileOrUrl.type && fileOrUrl.type.startsWith('image/')) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         showImagePreview(e.target.result);
@@ -395,8 +459,7 @@
                 showUploadPlaceholder();
             }
         }
-        
-        // Handle file selection
+
         if (attachmentInput) {
             attachmentInput.addEventListener('change', function(event) {
                 const file = event.target.files[0];
@@ -411,8 +474,7 @@
                 }
             });
         }
-        
-        // Load existing attachment in edit mode
+
         @isset($rtaFines)
             @if($rtaFines->attachment_path)
                 let existingAttachmentPath = '{{ storage_url($rtaFines->attachment_path) }}';
@@ -428,10 +490,19 @@
                 }
             @endif
         @endisset
-        
-        // Make the square box clickable to trigger file input
+
         if (squarePreviewBox) {
             squarePreviewBox.style.cursor = 'pointer';
+            squarePreviewBox.addEventListener('click', function(e) {
+                if (e.target.closest('.remove-image-btn')) return;
+                if (attachmentInput) attachmentInput.click();
+            });
+            squarePreviewBox.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    if (attachmentInput) attachmentInput.click();
+                }
+            });
         }
         
         // Add CSS styles
@@ -597,7 +668,12 @@
                 const removeBtn = $('<button type="button" class="remove-image-btn" title="Remove image"><i class="fa fa-times"></i></button>');
                 removeBtn.on('click', function(e) {
                     e.stopPropagation();
-                    attachmentInput.value = '';
+                    if (attachmentInput) {
+                        attachmentInput.value = '';
+                        if (window.DocumentScanField && typeof window.DocumentScanField.updateSelectedLabel === 'function') {
+                            window.DocumentScanField.updateSelectedLabel(attachmentInput);
+                        }
+                    }
                     showUploadPlaceholder();
                     $(this).remove();
                 });

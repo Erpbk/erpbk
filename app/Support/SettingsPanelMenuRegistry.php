@@ -123,6 +123,7 @@ class SettingsPanelMenuRegistry
             'rider_invoice_templates' => ['settings-panel/rider-invoice-templates*'],
             'activities' => ['settings-panel/rider-activity-import-settings*', 'settings-panel/module-settings/activities*'],
             'live_activities' => ['settings-panel/rider-activity-import-settings*', 'settings-panel/module-settings/live_activities*'],
+            'sim_invoices' => ['settings-panel/module-settings/sim_invoices*', 'settings-panel/excel-import-mappings/sim_invoices*'],
             'bike_registration' => ['settings-panel/bike-registration-statuses*', 'settings-panel/module-settings/bike_registration*'],
             'bike_list' => ['settings-panel/module-settings/bike_list*'],
             'dashboard' => ['settings-panel/module-settings/dashboard*'],

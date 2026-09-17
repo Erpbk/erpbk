@@ -926,6 +926,10 @@ class SimsController extends AppBaseController
             return $this->respondSimDeleteError('Cannot delete SIM because it has usage history. Please keep the record or clear history before deleting.');
         }
 
+        if (SimInvoiceItem::where('sim_id', $sims->id)->exists()) {
+            return $this->respondSimDeleteError('Cannot delete SIM because it is included on a SIM invoice.');
+        }
+
         if ((int) $sims->status === Sims::STATUS_ASSIGNED) {
             return $this->respondSimDeleteError('Assigned SIMs cannot be deleted. Please return the SIM before deleting.');
         }

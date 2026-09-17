@@ -53,7 +53,8 @@
 @php
 $activeCategoryId = (int) (request()->query('active_category_id', 0));
 $showAssignFieldsTab = request()->query('tab') === 'assign-fields';
-$showBikeFieldsMainTab = request()->query->has('active_category_id') && !$showAssignFieldsTab;
+$showImportMappingsTab = request()->query('tab') === 'import-mappings';
+$showBikeFieldsMainTab = request()->query->has('active_category_id') && !$showAssignFieldsTab && !$showImportMappingsTab;
 $settingsRoutePrefix = $settingsRoutePrefix ?? 'settings-panel.bike-settings';
 $settingsRouteParams = $settingsRouteParams ?? [];
 $settingsHeading = $settingsHeading ?? 'Bike Settings';
@@ -126,7 +127,7 @@ $attendanceRefType = $attendanceRefType ?? null;
       <div class="card-body">
         <ul class="nav nav-tabs mb-3" id="bikeSettingsMainTabs" role="tablist">
           <li class="nav-item" role="presentation">
-            <button class="nav-link {{ ($showBikeFieldsMainTab || $showAssignFieldsTab || !empty($activateModuleTopBarTab)) ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
+            <button class="nav-link {{ ($showBikeFieldsMainTab || $showAssignFieldsTab || $showImportMappingsTab || !empty($activateModuleTopBarTab)) ? '' : 'active' }}" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab">
               General
             </button>
           </li>
@@ -208,6 +209,13 @@ $attendanceRefType = $attendanceRefType ?? null;
             </button>
           </li>
           @endif
+          @if(($moduleKey ?? '') === 'sim_invoices')
+          <li class="nav-item" role="presentation">
+            <button class="nav-link {{ $showImportMappingsTab ? 'active' : '' }}" data-bs-toggle="tab" data-bs-target="#tab-sim-invoice-import-mappings" type="button" role="tab" id="tab-sim-invoice-import-mappings-btn">
+              Import Mappings
+            </button>
+          </li>
+          @endif
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
@@ -231,7 +239,7 @@ $attendanceRefType = $attendanceRefType ?? null;
 
         <div class="tab-content">
           {{-- Tab: General --}}
-          <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab || !empty($activateModuleTopBarTab)) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
+          <div class="tab-pane fade {{ ($showBikeFieldsMainTab || $showAssignFieldsTab || $showImportMappingsTab || !empty($activateModuleTopBarTab)) ? '' : 'show active' }}" id="tab-general" role="tabpanel">
             @include('settings.partials._module_general_label_form', [
             'settingsRoutePrefix' => $settingsRoutePrefix,
             'settingsRouteParams' => $settingsRouteParams,
@@ -1089,6 +1097,10 @@ $attendanceRefType = $attendanceRefType ?? null;
 
           @if(($moduleKey ?? '') === 'sims')
           @include('settings.sim_settings._assign_fields_tab')
+          @endif
+
+          @if(($moduleKey ?? '') === 'sim_invoices')
+          @include('settings.sim_settings._import_mappings_tab')
           @endif
 
           {{-- Edit Bike Fixed Field Modal --}}

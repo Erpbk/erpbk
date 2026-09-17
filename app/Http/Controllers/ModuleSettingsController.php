@@ -533,6 +533,46 @@ class ModuleSettingsController extends Controller
                 ->get();
         }
 
+        $excelImportMappingProfile = null;
+        $excelImportMappingScopes = collect();
+        $excelImportMappingSelectedScopeId = 0;
+        $excelImportMappingResolved = [];
+        $excelImportMappingConfiguredScopeIds = [];
+        $excelImportMappingDynamicItems = [];
+        $excelImportMappingColumnChoices = [];
+        if ($module === 'sim_invoices' && \App\Support\ExcelImport\ExcelImportMappingRegistry::has('sim_invoices')) {
+            $mappingService = app(\App\Services\ExcelImport\ExcelImportMappingService::class);
+            $excelImportMappingProfile = $mappingService->profile('sim_invoices');
+            $excelImportMappingScopes = $mappingService->scopeOptions($excelImportMappingProfile);
+            $excelImportMappingSelectedScopeId = (int) request()->get('scope_id', 0);
+            if ($excelImportMappingScopes->isNotEmpty()) {
+                if (! $excelImportMappingScopes->contains('id', $excelImportMappingSelectedScopeId)) {
+                    $excelImportMappingSelectedScopeId = (int) $excelImportMappingScopes->first()->id;
+                }
+                $excelImportMappingResolved = $mappingService->resolve(
+                    'sim_invoices',
+                    $excelImportMappingSelectedScopeId
+                );
+                foreach ($excelImportMappingScopes as $scope) {
+                    if ($mappingService->resolve('sim_invoices', (int) $scope->id)['configured']) {
+                        $excelImportMappingConfiguredScopeIds[] = (int) $scope->id;
+                    }
+                }
+            } else {
+                $excelImportMappingResolved = [
+                    'configured' => false,
+                    'header_rows_to_skip' => $excelImportMappingProfile->defaultHeaderRowsToSkip,
+                    'column_mappings' => [],
+                    'dynamic_mappings' => [],
+                    'options' => [],
+                ];
+            }
+            $excelImportMappingDynamicItems = $mappingService->dynamicItemOptions($excelImportMappingProfile);
+            $excelImportMappingColumnChoices = $mappingService->excelColumnChoices(
+                $excelImportMappingProfile->maxColumnIndex
+            );
+        }
+
         $topBarCategories = collect();
         $topBarSelectableColumns = [];
         if (ErpModuleRegistry::showTopBarTabInModuleSettings($topBarModuleKey)) {
@@ -601,6 +641,13 @@ class ModuleSettingsController extends Controller
             'defaultCategory' => $defaultCategory,
             'attendanceRefType' => $attendanceRefType,
             'showAttendanceRiderOnlyHint' => $module === AttendanceFieldScope::MODULE_KEY,
+            'excelImportMappingProfile' => $excelImportMappingProfile,
+            'excelImportMappingScopes' => $excelImportMappingScopes,
+            'excelImportMappingSelectedScopeId' => $excelImportMappingSelectedScopeId,
+            'excelImportMappingResolved' => $excelImportMappingResolved,
+            'excelImportMappingConfiguredScopeIds' => $excelImportMappingConfiguredScopeIds,
+            'excelImportMappingDynamicItems' => $excelImportMappingDynamicItems,
+            'excelImportMappingColumnChoices' => $excelImportMappingColumnChoices,
         ]);
     }
 

@@ -203,7 +203,10 @@ class SimInvoicesController extends AppBaseController
             ];
         })->values();
 
-        return view('sim_invoices.import', compact('companies', 'defaultVat', 'items'));
+        $importMappingsByCompany = app(\App\Services\ExcelImport\ExcelImportMappingService::class)
+            ->formPayloadBySimCompany();
+
+        return view('sim_invoices.import', compact('companies', 'defaultVat', 'items', 'importMappingsByCompany'));
     }
 
     public function import(Request $request, $company_slug)
@@ -222,12 +225,15 @@ class SimInvoicesController extends AppBaseController
             'descriptions' => 'nullable|string',
             'notes' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
+            'header_rows_to_skip' => 'required|integer|min:0|max:20',
             'col_sim_number' => 'required|integer|min:1',
             'item_map' => 'required|array|min:1',
             'item_map.*.item_id' => 'required|integer|exists:items,id',
             'item_map.*.col' => 'required|integer|min:1',
             'item_map.*.rate' => 'required|numeric',
         ]);
+
+        $headerRowsToSkip = (int) $request->input('header_rows_to_skip', 1);
 
         $columnMap = [
             'sim_number' => (int) $request->col_sim_number,
@@ -312,7 +318,8 @@ class SimInvoicesController extends AppBaseController
                 (int) $request->company_id,
                 $columnMap,
                 $itemDefs,
-                $vatPercent
+                $vatPercent,
+                $headerRowsToSkip
             );
             Excel::import($import, $request->file('file'));
 
@@ -465,9 +472,9 @@ class SimInvoicesController extends AppBaseController
         if (empty($invoice)) {
             return delete_error_response('Invoice not found', route('simInvoices.index'), 404);
         }
-        if ($invoice->status == 1) {
+        if (in_array((int) $invoice->status, [1, 3], true)) {
             return delete_error_response(
-                'Cannot delete paid invoice. Only unpaid invoices can be deleted.',
+                'Cannot delete a paid or partially paid invoice. Only unpaid invoices can be deleted.',
                 route('simInvoices.index')
             );
         }

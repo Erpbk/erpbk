@@ -56,6 +56,11 @@
                         <input type="number" name="vat_percent" id="vat_percent" class="form-control" step="any" min="0" value="{{ $defaultVat }}" required>
                         <small class="text-muted">Applied to all imported item lines.</small>
                     </div>
+                    <div class="col-md-2 form-group">
+                        <label>Header rows to skip <span class="text-danger">*</span></label>
+                        <input type="number" name="header_rows_to_skip" id="header_rows_to_skip" class="form-control" min="0" max="20" value="1" required>
+                        <small class="text-muted">Top rows to ignore before data.</small>
+                    </div>
                     <div class="col-md-3 form-group">
                         <label>Import File <span class="text-danger">*</span></label>
                         <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv,.xls" required>
@@ -77,8 +82,9 @@
                 <div class="mb-3"><a href="javascript:void(0);" id="toggleMappingHelp" class="small"><i class="fas fa-question-circle"></i> How does column mapping work?</a></div>
                 <div id="mappingHelpBox" class="alert alert-info mb-4" style="display:none;">
                     <ul class="mb-0 pl-3">
-                        <li>Company, billing month, invoice date, reference, VAT %, description, notes, and attachment come from this form.</li>
+                        <li>Company, billing month, invoice date, reference, VAT %, header rows to skip, description, notes, and attachment come from this form.</li>
                         <li>Map <strong>SIM Number</strong>, then add item columns from the SIM catalog. Sheet cells are <strong>quantity</strong>.</li>
+                        <li>If import mappings are saved for the selected company in Settings, they (including header rows to skip) are applied to these form fields automatically. Import still uses whatever is on this form.</li>
                         <li>The form VAT % is applied to every imported line when calculating tax and totals.</li>
                     </ul>
                 </div>
@@ -141,7 +147,9 @@
 window.SIM_INVOICE_IMPORT = {
     items: @json($items ?? []),
     defaultVat: @json((float) ($defaultVat ?? 0)),
-    indexUrl: @json(route('simInvoices.index'))
+    defaultHeaderRowsToSkip: 1,
+    indexUrl: @json(route('simInvoices.index')),
+    mappingsByCompany: @json((object) ($importMappingsByCompany ?? []))
 };
 </script>
 <script src="{{ asset('js/sim_invoice_import.js') }}"></script>

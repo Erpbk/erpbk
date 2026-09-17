@@ -23,6 +23,8 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
 
     protected float $vatPercent;
 
+    protected int $headerRowsToSkip;
+
     /** @var array<string, Sims> */
     protected array $simsByNumber = [];
 
@@ -38,12 +40,18 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
      * @param  array{sim_number:int}  $columnMap
      * @param  array<int, array{item_id:int,col:int,rate:float}>  $itemDefs
      */
-    public function __construct(int $companyId, array $columnMap, array $itemDefs, float $vatPercent = 0.0)
-    {
+    public function __construct(
+        int $companyId,
+        array $columnMap,
+        array $itemDefs,
+        float $vatPercent = 0.0,
+        int $headerRowsToSkip = 1
+    ) {
         $this->companyId = $companyId;
         $this->columnMap = $columnMap;
         $this->itemDefs = $itemDefs;
         $this->vatPercent = max(0.0, $vatPercent);
+        $this->headerRowsToSkip = max(0, $headerRowsToSkip);
     }
 
     public function bindValue(Cell $cell, $value)
@@ -67,7 +75,7 @@ class SimInvoiceImport extends DefaultValueBinder implements ToCollection, WithC
         $consecutiveEmpty = 0;
 
         foreach ($rows as $index => $row) {
-            if ($index === 0) {
+            if ($index < $this->headerRowsToSkip) {
                 continue;
             }
 

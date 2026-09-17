@@ -96,6 +96,15 @@
 
 (function () {
     var SIM_ITEMS = (window.SIM_INVOICE_IMPORT && window.SIM_INVOICE_IMPORT.items) ? window.SIM_INVOICE_IMPORT.items : [];
+    var MAPPINGS_BY_COMPANY = (window.SIM_INVOICE_IMPORT && window.SIM_INVOICE_IMPORT.mappingsByCompany)
+        ? window.SIM_INVOICE_IMPORT.mappingsByCompany
+        : {};
+    var DEFAULT_HEADER_ROWS_TO_SKIP = (window.SIM_INVOICE_IMPORT && window.SIM_INVOICE_IMPORT.defaultHeaderRowsToSkip != null)
+        ? parseInt(window.SIM_INVOICE_IMPORT.defaultHeaderRowsToSkip, 10)
+        : 1;
+    if (isNaN(DEFAULT_HEADER_ROWS_TO_SKIP) || DEFAULT_HEADER_ROWS_TO_SKIP < 0) {
+        DEFAULT_HEADER_ROWS_TO_SKIP = 1;
+    }
     var FIELDS = [
         { key: 'sim_number', label: 'SIM Number', required: true, match: [/sim/, /msisdn/, /mobile/, /\bnumber\b/] }
     ];
@@ -107,6 +116,73 @@
     var previewActive = false;
     var headers = [];
     var colCount = 0;
+
+    function savedMappingForCompany() {
+        var companyId = $('#sim_invoice_import_company_id').val();
+        if (!companyId) return null;
+        var mapping = MAPPINGS_BY_COMPANY[companyId] || MAPPINGS_BY_COMPANY[String(companyId)];
+        if (!mapping || !mapping.configured) return null;
+        return mapping;
+    }
+
+    function applyHeaderRowsToSkip(saved) {
+        var value = DEFAULT_HEADER_ROWS_TO_SKIP;
+        if (saved && saved.header_rows_to_skip != null && saved.header_rows_to_skip !== '') {
+            value = parseInt(saved.header_rows_to_skip, 10);
+            if (isNaN(value) || value < 0) {
+                value = DEFAULT_HEADER_ROWS_TO_SKIP;
+            }
+        }
+        $('#header_rows_to_skip').val(value);
+    }
+
+    function applyConfiguredMapping(saved) {
+        if (!previewActive || !saved) return false;
+
+        applyHeaderRowsToSkip(saved);
+
+        var mapping = { sim_number: null };
+        if (saved.sim_number && saved.sim_number >= 1 && saved.sim_number <= colCount) {
+            mapping.sim_number = saved.sim_number;
+        }
+        buildSelects(mapping);
+
+        $('#itemMapRows').empty();
+        itemRowIndex = 0;
+        var items = Array.isArray(saved.items) ? saved.items : [];
+        items.forEach(function (row) {
+            if (!row || !row.item_id || !row.col) return;
+            if (row.col < 1 || row.col > colCount) return;
+            if (!findItemById(row.item_id)) return;
+            addItemMapRow({
+                item_id: row.item_id,
+                col: row.col,
+                rate: row.rate != null ? row.rate : (findItemById(row.item_id) || {}).price
+            });
+        });
+        if (!$('#itemMapRows .item-map-row').length) {
+            addItemMapRow();
+        }
+        updateUi();
+        return true;
+    }
+
+    function applyMappingForCurrentCompany() {
+        var saved = savedMappingForCompany();
+        applyHeaderRowsToSkip(saved);
+        if (!previewActive) return;
+        if (saved && applyConfiguredMapping(saved)) {
+            return;
+        }
+        var mapping = autoMap();
+        buildSelects(mapping);
+        var assigned = {};
+        Object.keys(mapping).forEach(function (k) {
+            if (mapping[k]) assigned[mapping[k]] = k;
+        });
+        autoAddItemRows(assigned);
+        updateUi();
+    }
 
     function colLetter(n) {
         var s = '';
@@ -441,15 +517,8 @@
         $('#previewEmpty').hide();
         $('#previewTableWrap').show();
         renderPreview(rows);
-        var mapping = autoMap();
-        buildSelects(mapping);
-        var assigned = {};
-        Object.keys(mapping).forEach(function (k) {
-            if (mapping[k]) assigned[mapping[k]] = k;
-        });
-        autoAddItemRows(assigned);
         $('#addItemMapRow').prop('disabled', false);
-        updateUi();
+        applyMappingForCurrentCompany();
     }
 
     function resetMappingUi(showError) {
@@ -492,6 +561,13 @@
     $('#toggleMappingHelp').on('click', function () {
         $('#mappingHelpBox').slideToggle(150);
     });
+
+    $('#sim_invoice_import_company_id').on('change', function () {
+        applyMappingForCurrentCompany();
+    });
+
+    // Prefill header rows to skip from the initially selected company.
+    applyHeaderRowsToSkip(savedMappingForCompany());
 
     $('#file').on('change', function () {
         var file = this.files && this.files[0];

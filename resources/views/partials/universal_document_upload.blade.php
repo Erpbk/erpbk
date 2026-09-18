@@ -1,7 +1,7 @@
 {{--
   UniversalDocumentUpload — reusable document upload with scan support.
 
-  Desktop/laptop: Upload File | Scan with Scanner
+  Desktop/laptop: Upload File | Document Scanner
   Mobile/tablet:  Upload File | Scan with Camera
 
   Usage:

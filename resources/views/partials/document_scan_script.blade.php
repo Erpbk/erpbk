@@ -22,17 +22,27 @@
     font-weight: 600;
   }
 
-  #documentScanModal .document-scan-video-wrap {
+  #documentScanModal .modal-dialog {
+    max-width: min(1200px, 96vw);
+    width: 96vw;
+  }
+
+  #documentScanModal .modal-body {
+    max-height: calc(100vh - 10rem);
+    overflow-y: auto;
+  }
+
+  .document-scan-video-wrap {
     position: relative;
     background: #0f172a;
     border-radius: 0.75rem;
     overflow: hidden;
-    min-height: 280px;
+    min-height: 420px;
   }
 
   #documentScanModal video {
     width: 100%;
-    max-height: 420px;
+    max-height: 62vh;
     display: block;
     object-fit: contain;
     background: #0f172a;
@@ -100,9 +110,65 @@
     border-radius: 0.25rem;
   }
 
+  #documentScanModal .document-scan-scanner-layout {
+    display: flex;
+    gap: 1.25rem;
+    min-height: 520px;
+  }
+
+  #documentScanModal .document-scan-scanner-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+  }
+
+  #documentScanModal .document-scan-scanner-preview {
+    flex: 1;
+    background: #1a1a1a;
+    border-radius: 0.5rem;
+    min-height: 520px;
+    height: min(62vh, 640px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #documentScanModal .document-scan-scanner-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  #documentScanModal .document-scan-scanner-empty {
+    color: #94a3b8;
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  #documentScanModal .document-scan-no-device {
+    border: 1px solid #f5c2c7;
+    background: #f8d7da;
+    color: #842029;
+    border-radius: 0.5rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 767.98px) {
+    #documentScanModal .document-scan-scanner-layout {
+      flex-direction: column;
+    }
+    #documentScanModal .document-scan-scanner-sidebar {
+      width: 100%;
+    }
+  }
+
   /* Sit above nested upload modals (#modalTop / Bootstrap defaults ~1050/1055) */
   #documentScanModal {
-    z-index: 11060 !important;
+    z-index: 11060000 !important;
   }
 
   .modal-backdrop.document-scan-backdrop {
@@ -121,7 +187,7 @@
 </style>
 
 <div class="modal fade" id="documentScanModal" tabindex="-1" aria-labelledby="documentScanModalLabel" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
+  <div class="modal-dialog modal-dialog-centered modal-xl document-scan-modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="documentScanModalLabel">
@@ -135,7 +201,7 @@
             <i class="ti ti-camera me-1"></i>Scan with Camera
           </button>
           <button type="button" class="btn btn-outline-primary btn-sm document-scan-desktop-only" id="documentScanSourceScanner" data-source="scanner">
-            <i class="ti ti-scanner me-1"></i>Scan with Scanner
+            <i class="ti ti-scanner me-1"></i>Document Scanner
           </button>
           <button type="button" class="btn btn-outline-primary btn-sm" id="documentScanSourceFile" data-source="file">
             <i class="ti ti-upload me-1"></i>Upload File
@@ -146,17 +212,81 @@
           Align the document inside the frame, then capture. You can add multiple pages.
         </p>
 
-        <div class="mb-2" id="documentScanDeviceWrap" hidden>
-          <label class="form-label small mb-1" for="documentScanDeviceSelect">Scanner / capture device</label>
-          <select id="documentScanDeviceSelect" class="form-select form-select-sm">
-            <option value="">Detecting devices…</option>
-          </select>
+        <div id="documentScanNoDeviceAlert" class="document-scan-no-device mb-3" hidden>
+          <div class="fw-semibold mb-1" id="documentScanNoDeviceTitle">
+            No scanner device is connected. Please connect a scanner device and try again.
+          </div>
+          <div class="small mb-2" id="documentScanNoDeviceDetail">
+            Windows scanners (Canon, HP, Brother, etc.) need the local Scanner Bridge so the browser can use them.
+          </div>
+          <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-sm btn-dark" id="documentScanBridgeDownload" href="{{ asset('scanner-bridge/ERP-Scanner-Bridge.zip') }}" download>
+              <i class="ti ti-download me-1"></i>Download Scanner Bridge
+            </a>
+            <button type="button" class="btn btn-sm btn-outline-dark" id="documentScanBridgeRetryBtn">
+              <i class="ti ti-refresh me-1"></i>Retry detection
+            </button>
+          </div>
         </div>
 
-        <div class="document-scan-video-wrap mb-2" id="documentScanVideoWrap">
-          <video id="documentScanVideo" autoplay playsinline muted></video>
-          <div class="document-scan-overlay" aria-hidden="true"></div>
+        <!-- Scanner-only UI (never opens camera) -->
+        <div id="documentScanScannerPanel" hidden>
+          <div class="document-scan-scanner-layout">
+            <div class="document-scan-scanner-sidebar">
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="documentScanDeviceSelect">Scanner</label>
+                <select id="documentScanDeviceSelect" class="form-select form-select-sm">
+                  <option value="">Detecting devices…</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="documentScanSourceType">Source</label>
+                <select id="documentScanSourceType" class="form-select form-select-sm">
+                  <option value="flatbed" selected>Flatbed</option>
+                  <option value="adf">Feeder (ADF)</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label small mb-1" for="documentScanFileType">File type</label>
+                <select id="documentScanFileType" class="form-select form-select-sm">
+                  <option value="pdf" selected>PDF</option>
+                  <option value="jpeg">JPEG</option>
+                  <option value="png">PNG</option>
+                </select>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" id="documentScanPreviewBtn" disabled>
+                  <i class="ti ti-zoom-scan me-1"></i>Preview
+                </button>
+                <button type="button" class="btn btn-primary btn-sm flex-fill" id="documentScanAcquireBtn" disabled>
+                  <i class="ti ti-scanner me-1"></i>Scan
+                </button>
+              </div>
+            </div>
+            <div class="document-scan-scanner-preview" id="documentScanScannerPreview">
+              <div class="document-scan-scanner-empty" id="documentScanScannerEmpty">
+                Place the document on the scanner, then click Scan.
+              </div>
+              <img id="documentScanScannerPreviewImg" alt="Scan preview" hidden>
+            </div>
+          </div>
         </div>
+
+        <!-- Camera-only UI -->
+        <div id="documentScanCameraPanel">
+          <div class="mb-2" id="documentScanCameraDeviceWrap" hidden>
+            <label class="form-label small mb-1" for="documentScanCameraDeviceSelect">Camera</label>
+            <select id="documentScanCameraDeviceSelect" class="form-select form-select-sm">
+              <option value="">Detecting devices…</option>
+            </select>
+          </div>
+
+          <div class="document-scan-video-wrap mb-2" id="documentScanVideoWrap">
+            <video id="documentScanVideo" autoplay playsinline muted></video>
+            <div class="document-scan-overlay" aria-hidden="true"></div>
+          </div>
+        </div>
+
         <canvas id="documentScanCanvas" class="d-none"></canvas>
 
         <div class="mb-2" id="documentScanPagesWrap" hidden>
@@ -173,9 +303,6 @@
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-outline-primary" id="documentScanFallbackBtn">
           <i class="ti ti-camera me-1"></i>Use phone camera
-        </button>
-        <button type="button" class="btn btn-outline-primary" id="documentScanAcquireBtn" hidden>
-          <i class="ti ti-scanner me-1"></i>Acquire from scanner
         </button>
         <button type="button" class="btn btn-outline-primary" id="documentScanCaptureBtn" disabled>
           <i class="ti ti-camera-check me-1"></i>Capture page
@@ -203,62 +330,65 @@
     var modalInstance = null;
     var currentSource = 'scanner';
     var videoDevices = [];
-  var scannedPages = [];
-  var jsPdfLoader = null;
-  var isMobile = false;
-  var SCANNER_LABEL_RE = /scan|scanner|document|twain|wia|epson|brother|canon|fujitsu|kodak|plustek|mustek|hp\s*scan|adf|flatbed/i;
+    var scannerDevices = [];
+    var scannedPages = [];
+    var jsPdfLoader = null;
+    var isMobile = false;
+    var SCANNER_LABEL_RE = /scan|scanner|document|twain|wia|epson|brother|canon|fujitsu|kodak|plustek|mustek|hp\s*scan|adf|flatbed|pixma|g\d{4}/i;
+    var SCANNER_BRIDGE_BASE = 'http://127.0.0.1:39201';
+    var scannerBridgeOnline = false;
 
-  function $(id) {
-    return document.getElementById(id);
-  }
-
-  function detectMobileDevice() {
-    try {
-      var ua = navigator.userAgent || navigator.vendor || '';
-      if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) {
-        return true;
-      }
-      // iPadOS 13+ reports as Macintosh but is touch-first
-      if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) {
-        return true;
-      }
-      if (window.matchMedia) {
-        var coarse = window.matchMedia('(pointer: coarse)').matches;
-        var noHover = window.matchMedia('(hover: none)').matches;
-        var narrow = window.matchMedia('(max-width: 991.98px)').matches;
-        if (coarse && noHover) {
-          return true;
-        }
-        if (narrow && (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0)) {
-          return true;
-        }
-      }
-    } catch (e) {}
-    return false;
-  }
-
-  function applyDeviceMode() {
-    isMobile = detectMobileDevice();
-    document.documentElement.setAttribute('data-doc-scan-device', isMobile ? 'mobile' : 'desktop');
-    return isMobile;
-  }
-
-  applyDeviceMode();
-  currentSource = defaultScanSource();
-  if (window.matchMedia) {
-    try {
-      window.matchMedia('(max-width: 991.98px)').addEventListener('change', applyDeviceMode);
-    } catch (e) {
-      // Older Safari
-      try {
-        window.matchMedia('(max-width: 991.98px)').addListener(applyDeviceMode);
-      } catch (e2) {}
+    function $(id) {
+      return document.getElementById(id);
     }
-  }
 
-  function defaultScanSource() {
-    return isMobile ? 'camera' : 'scanner';
-  }
+    function detectMobileDevice() {
+      try {
+        var ua = navigator.userAgent || navigator.vendor || '';
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua)) {
+          return true;
+        }
+        // iPadOS 13+ reports as Macintosh but is touch-first
+        if (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) {
+          return true;
+        }
+        if (window.matchMedia) {
+          var coarse = window.matchMedia('(pointer: coarse)').matches;
+          var noHover = window.matchMedia('(hover: none)').matches;
+          var narrow = window.matchMedia('(max-width: 991.98px)').matches;
+          if (coarse && noHover) {
+            return true;
+          }
+          if (narrow && (('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0)) {
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function applyDeviceMode() {
+      isMobile = detectMobileDevice();
+      document.documentElement.setAttribute('data-doc-scan-device', isMobile ? 'mobile' : 'desktop');
+      return isMobile;
+    }
+
+    applyDeviceMode();
+    currentSource = defaultScanSource();
+    if (window.matchMedia) {
+      try {
+        window.matchMedia('(max-width: 991.98px)').addEventListener('change', applyDeviceMode);
+      } catch (e) {
+        // Older Safari
+        try {
+          window.matchMedia('(max-width: 991.98px)').addListener(applyDeviceMode);
+        } catch (e2) {}
+      }
+    }
+
+    function defaultScanSource() {
+      return isMobile ? 'camera' : 'scanner';
+    }
 
     function elevateAboveParentModals() {
       if (!modalEl) return;
@@ -531,15 +661,6 @@
       }
     }
 
-    function openNativeScannerAcquire() {
-      var scannerInput = activeScannerInputId ? $(activeScannerInputId) : null;
-      if (scannerInput) {
-        scannerInput.click();
-        return;
-      }
-      openNativeCameraFallback();
-    }
-
     function openNativeFilePicker() {
       var fileInput = activeFileInputId ? $(activeFileInputId) : null;
       if (fileInput) {
@@ -551,14 +672,297 @@
       return !!(device && device.label && SCANNER_LABEL_RE.test(device.label));
     }
 
+    function isWebcamDevice(device) {
+      var label = (device && device.label) || '';
+      return /webcam|facetime|integrated camera|front camera|user camera|hd camera|usb.?camera|laptop.?camera/i.test(label);
+    }
+
     function scoreDevice(device, preferScanner) {
       var label = (device && device.label) || '';
       var score = 0;
       if (preferScanner && isScannerishDevice(device)) score += 100;
       if (!preferScanner && /back|rear|environment/i.test(label)) score += 40;
       if (!preferScanner && /front|user|facetime|integrated/i.test(label)) score -= 20;
-      if (preferScanner && /webcam|facetime|integrated camera/i.test(label)) score -= 30;
+      if (preferScanner && isWebcamDevice(device)) score -= 100;
       return score;
+    }
+
+    function setScannerControlsEnabled(enabled) {
+      var acquireBtn = $('documentScanAcquireBtn');
+      var previewBtn = $('documentScanPreviewBtn');
+      if (acquireBtn) acquireBtn.disabled = !enabled;
+      if (previewBtn) previewBtn.disabled = !enabled;
+    }
+
+    function showNoScannerMessage(show, reason) {
+      var alertEl = $('documentScanNoDeviceAlert');
+      var titleEl = $('documentScanNoDeviceTitle');
+      var detailEl = $('documentScanNoDeviceDetail');
+      if (alertEl) alertEl.hidden = !show;
+      if (!show) {
+        setScannerControlsEnabled(scannerDevices.length > 0);
+        return;
+      }
+
+      reason = reason || (scannerBridgeOnline ? 'no-device' : 'bridge-offline');
+      if (titleEl && detailEl) {
+        if (reason === 'bridge-offline') {
+          titleEl.textContent = 'Scanner Bridge is not running on this PC.';
+          detailEl.textContent = 'Your Canon/Windows scanner is not visible to the browser until the local Scanner Bridge is started. Download it, unzip, run Start-ScannerBridge.bat, then click Retry detection.';
+        } else {
+          titleEl.textContent = 'No scanner device is connected. Please connect a scanner device and try again.';
+          detailEl.textContent = 'Scanner Bridge is running, but Windows did not report any WIA scanner. Power on the scanner, install its drivers, then click Retry detection.';
+        }
+      }
+
+      setStatus(
+        reason === 'bridge-offline'
+          ? 'Start the Scanner Bridge on this PC to use your Windows scanner.'
+          : 'No scanner device is connected. Please connect a scanner device and try again.',
+        true
+      );
+      setScannerControlsEnabled(false);
+    }
+
+    async function fetchWithTimeout(url, options, timeoutMs) {
+      options = options || {};
+      timeoutMs = timeoutMs || 2500;
+      var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      var timer = null;
+      if (controller) {
+        options.signal = controller.signal;
+        timer = setTimeout(function() {
+          try { controller.abort(); } catch (e) {}
+        }, timeoutMs);
+      }
+      try {
+        return await fetch(url, options);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    }
+
+    async function checkScannerBridge() {
+      try {
+        var res = await fetchWithTimeout(SCANNER_BRIDGE_BASE + '/health', {
+          method: 'GET',
+          cache: 'no-store',
+          mode: 'cors'
+        }, 1800);
+        if (!res.ok) {
+          scannerBridgeOnline = false;
+          return false;
+        }
+        var data = await res.json();
+        scannerBridgeOnline = !!(data && data.ok);
+        return scannerBridgeOnline;
+      } catch (e) {
+        scannerBridgeOnline = false;
+        return false;
+      }
+    }
+
+    async function listBridgeScanners() {
+      var online = await checkScannerBridge();
+      if (!online) return [];
+      try {
+        var res = await fetchWithTimeout(SCANNER_BRIDGE_BASE + '/api/scanners', {
+          method: 'GET',
+          cache: 'no-store',
+          mode: 'cors'
+        }, 4000);
+        if (!res.ok) return [];
+        var data = await res.json();
+        var list = (data && data.scanners) ? data.scanners : [];
+        return (Array.isArray(list) ? list : []).map(function(s, idx) {
+          return {
+            id: String(s.id || ('bridge-' + idx)),
+            label: s.name || s.label || ('Scanner ' + (idx + 1)),
+            kind: 'bridge',
+            raw: s
+          };
+        });
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function scanWithBridge(device, autoUpload) {
+      if (!device || device.kind !== 'bridge') return false;
+      setStatus(autoUpload ? 'Scanning with Windows scanner…' : 'Generating scanner preview…');
+      var fileType = selectedScanFileType();
+      var sourceEl = $('documentScanSourceType');
+      var source = sourceEl && sourceEl.value ? sourceEl.value : 'flatbed';
+      var format = fileType === 'png' ? 'png' : 'jpeg';
+
+      var res = await fetchWithTimeout(SCANNER_BRIDGE_BASE + '/api/scan', {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: device.id,
+          format: format,
+          source: source
+        })
+      }, 120000);
+
+      if (!res.ok) {
+        var message = 'Scanner failed.';
+        try {
+          var errData = await res.json();
+          if (errData && errData.message) message = errData.message;
+        } catch (e) {}
+        throw new Error(message);
+      }
+
+      var blob = await res.blob();
+      if (!blob || !blob.size) {
+        throw new Error('Scanner returned an empty image.');
+      }
+
+      setScannerPreviewFromBlob(blob);
+      if (!autoUpload) {
+        setStatus('Preview ready. Click Scan to attach the document.');
+        setScannerControlsEnabled(true);
+        return true;
+      }
+
+      clearPages();
+      await addPageFromBlob(blob);
+      var built;
+      if (fileType === 'jpeg' || fileType === 'png') {
+        var ext = fileType === 'png' ? 'png' : 'jpg';
+        var stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        built = new File([blob], 'scanner-document-' + stamp + '.' + ext, {
+          type: blob.type || (fileType === 'png' ? 'image/png' : 'image/jpeg')
+        });
+      } else {
+        built = await pagesToFile();
+      }
+      assignFileToInput(activeFileInputId ? $(activeFileInputId) : null, built);
+      clearPages();
+      setStatus('Document scanned and attached.');
+      hideModal();
+      return true;
+    }
+
+    function clearScannerPreview() {
+      var img = $('documentScanScannerPreviewImg');
+      var empty = $('documentScanScannerEmpty');
+      if (img) {
+        img.hidden = true;
+        img.removeAttribute('src');
+      }
+      if (empty) empty.hidden = false;
+    }
+
+    function setScannerPreviewFromBlob(blob) {
+      var img = $('documentScanScannerPreviewImg');
+      var empty = $('documentScanScannerEmpty');
+      if (!img || !blob) return;
+      var url = URL.createObjectURL(blob);
+      img.onload = function() {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+      };
+      img.src = url;
+      img.hidden = false;
+      if (empty) empty.hidden = true;
+    }
+
+    function getDocumentScanApi() {
+      return navigator.documentScan || navigator.documentscan || window.documentScan || null;
+    }
+
+    async function listDocumentScanApiScanners() {
+      var api = getDocumentScanApi();
+      if (!api) return [];
+      try {
+        if (typeof api.getScannerList === 'function') {
+          var list = await api.getScannerList();
+          var scanners = (list && (list.scanners || list)) || [];
+          return (Array.isArray(scanners) ? scanners : []).map(function(s, idx) {
+            return {
+              id: String(s.scannerId || s.id || s.deviceId || ('api-' + idx)),
+              label: s.name || s.label || s.model || ('Scanner ' + (idx + 1)),
+              kind: 'api',
+              raw: s
+            };
+          });
+        }
+        // Some implementations only expose scan() — treat as one virtual scanner
+        if (typeof api.scan === 'function') {
+          return [{
+            id: 'document-scan-api',
+            label: 'System document scanner',
+            kind: 'api',
+            raw: null
+          }];
+        }
+      } catch (e) {}
+      return [];
+    }
+
+    async function listScannerishMediaDevices() {
+      // Never call getUserMedia here — that would open the camera.
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        return [];
+      }
+      try {
+        var devices = await navigator.mediaDevices.enumerateDevices();
+        return devices
+          .filter(function(d) {
+            return d.kind === 'videoinput' && isScannerishDevice(d) && !isWebcamDevice(d);
+          })
+          .map(function(d) {
+            return {
+              id: d.deviceId,
+              label: d.label || 'Scanner device',
+              kind: 'media',
+              raw: d
+            };
+          });
+      } catch (e) {
+        return [];
+      }
+    }
+
+    async function refreshScannerDevices() {
+      var select = $('documentScanDeviceSelect');
+      scannerDevices = [];
+      if (!select) return [];
+
+      select.innerHTML = '<option value="">Looking for scanners…</option>';
+      setStatus('Looking for scanner devices…');
+
+      var bridgeScanners = await listBridgeScanners();
+      var apiScanners = await listDocumentScanApiScanners();
+      var mediaScanners = await listScannerishMediaDevices();
+      scannerDevices = bridgeScanners.concat(apiScanners).concat(mediaScanners);
+
+      select.innerHTML = '';
+      if (!scannerDevices.length) {
+        select.innerHTML = '<option value="">No scanner connected</option>';
+        showNoScannerMessage(true, scannerBridgeOnline ? 'no-device' : 'bridge-offline');
+        clearScannerPreview();
+        return [];
+      }
+
+      showNoScannerMessage(false);
+      scannerDevices.forEach(function(device) {
+        var opt = document.createElement('option');
+        opt.value = device.id;
+        opt.textContent = device.kind === 'bridge' ? device.label : device.label;
+        select.appendChild(opt);
+      });
+      select.value = scannerDevices[0].id;
+      setScannerControlsEnabled(true);
+      setStatus(
+        scannerBridgeOnline
+          ? 'Windows scanner ready. Place the document and click Scan.'
+          : 'Scanner ready. Place the document and click Scan.'
+      );
+      return scannerDevices;
     }
 
     async function ensureDevicePermission() {
@@ -579,14 +983,14 @@
       }
     }
 
-    async function refreshDevices() {
-      var select = $('documentScanDeviceSelect');
+    async function refreshCameraDevices() {
+      var select = $('documentScanCameraDeviceSelect');
       videoDevices = [];
       if (!select) return;
-      select.innerHTML = '';
 
+      select.innerHTML = '';
       if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        select.innerHTML = '<option value="">No device API available</option>';
+        select.innerHTML = '<option value="">No camera API available</option>';
         return;
       }
 
@@ -597,23 +1001,18 @@
       });
 
       if (!videoDevices.length) {
-        select.innerHTML = '<option value="">No camera/scanner devices found</option>';
+        select.innerHTML = '<option value="">No camera devices found</option>';
         return;
       }
 
-      var preferScanner = currentSource === 'scanner';
       var ranked = videoDevices.slice().sort(function(a, b) {
-        return scoreDevice(b, preferScanner) - scoreDevice(a, preferScanner);
+        return scoreDevice(b, false) - scoreDevice(a, false);
       });
 
       ranked.forEach(function(device, idx) {
         var opt = document.createElement('option');
         opt.value = device.deviceId;
-        var name = device.label || ('Camera ' + (idx + 1));
-        if (isScannerishDevice(device)) {
-          name = 'Scanner: ' + name;
-        }
-        opt.textContent = name;
+        opt.textContent = device.label || ('Camera ' + (idx + 1));
         select.appendChild(opt);
       });
 
@@ -622,54 +1021,44 @@
       }
     }
 
-    function selectedDeviceId() {
-      var select = $('documentScanDeviceSelect');
+    function selectedCameraDeviceId() {
+      var select = $('documentScanCameraDeviceSelect');
       return select && select.value ? select.value : null;
     }
 
-    function buildVideoConstraints(preferScanner) {
-      var deviceId = selectedDeviceId();
+    function selectedScannerDevice() {
+      var select = $('documentScanDeviceSelect');
+      var id = select && select.value ? select.value : null;
+      if (!id) return null;
+      for (var i = 0; i < scannerDevices.length; i++) {
+        if (scannerDevices[i].id === id) return scannerDevices[i];
+      }
+      return null;
+    }
+
+    function selectedScanFileType() {
+      var el = $('documentScanFileType');
+      return (el && el.value) ? el.value : 'pdf';
+    }
+
+    function buildVideoConstraints() {
+      var deviceId = selectedCameraDeviceId();
       if (deviceId) {
         return {
           audio: false,
           video: {
-            deviceId: {
-              exact: deviceId
-            },
-            width: {
-              ideal: 1920
-            },
-            height: {
-              ideal: 1080
-            }
-          }
-        };
-      }
-      if (preferScanner) {
-        return {
-          audio: false,
-          video: {
-            width: {
-              ideal: 1920
-            },
-            height: {
-              ideal: 1080
-            }
+            deviceId: { exact: deviceId },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
           }
         };
       }
       return {
         audio: false,
         video: {
-          facingMode: {
-            ideal: 'environment'
-          },
-          width: {
-            ideal: 1920
-          },
-          height: {
-            ideal: 1080
-          }
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         }
       };
     }
@@ -680,9 +1069,9 @@
       var videoWrap = $('documentScanVideoWrap');
       if (!video) return;
 
-      if (currentSource === 'file') {
+      // Camera mode only — Document Scanner must never open the camera.
+      if (currentSource !== 'camera') {
         stopStream();
-        if (videoWrap) videoWrap.hidden = true;
         if (captureBtn) captureBtn.disabled = true;
         return;
       }
@@ -690,30 +1079,23 @@
       if (videoWrap) videoWrap.hidden = false;
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setStatus('Live capture is not available in this browser. Use Acquire from scanner or Select/Upload File.', true);
+        setStatus('Live capture is not available in this browser. Use phone camera instead.', true);
         if (captureBtn) captureBtn.disabled = true;
         return;
       }
 
       stopStream();
-      setStatus(currentSource === 'scanner' ? 'Connecting to scanner…' : 'Starting camera…');
+      setStatus('Starting camera…');
       if (captureBtn) captureBtn.disabled = true;
 
       try {
-        mediaStream = await navigator.mediaDevices.getUserMedia(buildVideoConstraints(currentSource === 'scanner'));
+        mediaStream = await navigator.mediaDevices.getUserMedia(buildVideoConstraints());
         video.srcObject = mediaStream;
         await video.play();
-        setStatus(currentSource === 'scanner' ?
-          'Scanner ready. Place the document and capture each page.' :
-          'Camera ready. Align the document and capture each page.');
+        setStatus('Camera ready. Align the document and capture each page.');
         if (captureBtn) captureBtn.disabled = false;
       } catch (err) {
-        setStatus(
-          currentSource === 'scanner' ?
-          'Could not open scanner device. Try another device, or use Acquire from scanner.' :
-          'Camera permission denied or unavailable. Use phone camera instead.',
-          true
-        );
+        setStatus('Camera permission denied or unavailable. Use phone camera instead.', true);
         if (captureBtn) captureBtn.disabled = true;
       }
     }
@@ -741,67 +1123,214 @@
       }, 'image/jpeg', 0.92);
     }
 
-    async function tryChromeDocumentScanApi() {
-      var api = navigator.documentScan || navigator.documentscan || window.documentScan;
-      if (!api || (typeof api.getScannerList !== 'function' && typeof api.scan !== 'function')) {
+    async function tryChromeDocumentScanApi(options) {
+      options = options || {};
+      var autoUpload = options.autoUpload !== false;
+      var api = getDocumentScanApi();
+      if (!api || typeof api.scan !== 'function') {
         return false;
       }
 
       try {
-        setStatus('Looking for scanner devices…');
-        if (typeof api.scan === 'function') {
-          var result = await api.scan({
-            maxPages: 20,
-            mimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
-          });
-          if (result && result.scans && result.scans.length) {
-            var first = result.scans[0];
-            if (result.scans.length === 1 && first && (first.mimeType || '').indexOf('pdf') !== -1) {
-              var pdfBlob = null;
-              if (first.dataUrl) {
-                pdfBlob = await (await fetch(first.dataUrl)).blob();
-              } else if (first.data) {
-                pdfBlob = new Blob([first.data], {
-                  type: first.mimeType || 'application/pdf'
-                });
-              }
-              if (pdfBlob) {
-                var stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                var file = new File([pdfBlob], 'scanner-document-' + stamp + '.pdf', {
-                  type: 'application/pdf'
-                });
-                var fileInput = activeFileInputId ? $(activeFileInputId) : null;
-                assignFileToInput(fileInput, file);
-                clearPages();
-                hideModal();
-                return true;
-              }
-            }
+        setStatus(autoUpload ? 'Scanning with connected scanner…' : 'Generating scanner preview…');
+        var mimeTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+        var fileType = selectedScanFileType();
+        if (fileType === 'jpeg') mimeTypes = ['image/jpeg', 'application/pdf', 'image/png'];
+        if (fileType === 'png') mimeTypes = ['image/png', 'application/pdf', 'image/jpeg'];
 
-            for (var i = 0; i < result.scans.length; i++) {
-              var scan = result.scans[i];
-              var blob = null;
-              if (scan.dataUrl) {
-                blob = await (await fetch(scan.dataUrl)).blob();
-              } else if (scan.data) {
-                blob = new Blob([scan.data], {
-                  type: scan.mimeType || 'image/jpeg'
-                });
-              }
-              if (blob && (blob.type || '').indexOf('pdf') === -1) {
-                await addPageFromBlob(blob);
-              }
-            }
-            if (scannedPages.length) {
-              setStatus(scannedPages.length + ' page(s) acquired. Review and confirm.');
-              return true;
-            }
-          }
+        var scanOptions = {
+          maxPages: autoUpload ? 20 : 1,
+          mimeTypes: mimeTypes
+        };
+        var selected = selectedScannerDevice();
+        if (selected && selected.kind === 'api' && selected.id && selected.id !== 'document-scan-api') {
+          scanOptions.scannerId = selected.id;
         }
+
+        var result = await api.scan(scanOptions);
+        return await ingestScanResultAndUpload(result, { autoUpload: autoUpload });
       } catch (e) {
-        setStatus('System scanner API failed. Try selecting a device or Acquire from scanner.', true);
+        setStatus('Scanner failed: ' + ((e && e.message) ? e.message : 'Unable to complete scan.'), true);
       }
       return false;
+    }
+
+    async function ingestScanResultAndUpload(result, options) {
+      options = options || {};
+      var autoUpload = options.autoUpload !== false;
+      if (!result || !result.scans || !result.scans.length) {
+        return false;
+      }
+
+      var first = result.scans[0];
+      if (result.scans.length === 1 && first && (first.mimeType || '').indexOf('pdf') !== -1) {
+        var pdfBlob = null;
+        if (first.dataUrl) {
+          pdfBlob = await (await fetch(first.dataUrl)).blob();
+        } else if (first.data) {
+          pdfBlob = new Blob([first.data], { type: first.mimeType || 'application/pdf' });
+        }
+        if (pdfBlob) {
+          setScannerPreviewFromBlob(pdfBlob);
+          if (!autoUpload) {
+            setStatus('Preview ready. Click Scan to attach the document.');
+            return true;
+          }
+          var stamp = new Date().toISOString().replace(/[:.]/g, '-');
+          var file = new File([pdfBlob], 'scanner-document-' + stamp + '.pdf', {
+            type: 'application/pdf'
+          });
+          var fileInput = activeFileInputId ? $(activeFileInputId) : null;
+          assignFileToInput(fileInput, file);
+          clearPages();
+          setStatus('Document scanned and attached.');
+          hideModal();
+          return true;
+        }
+      }
+
+      clearPages();
+      for (var i = 0; i < result.scans.length; i++) {
+        var scan = result.scans[i];
+        var blob = null;
+        if (scan.dataUrl) {
+          blob = await (await fetch(scan.dataUrl)).blob();
+        } else if (scan.data) {
+          blob = new Blob([scan.data], { type: scan.mimeType || 'image/jpeg' });
+        }
+        if (blob && (blob.type || '').indexOf('pdf') === -1) {
+          if (i === 0) setScannerPreviewFromBlob(blob);
+          if (autoUpload) {
+            await addPageFromBlob(blob);
+          }
+        }
+      }
+
+      if (!autoUpload) {
+        setStatus('Preview ready. Click Scan to attach the document.');
+        return true;
+      }
+
+      if (!scannedPages.length) {
+        return false;
+      }
+
+      try {
+        var built = await pagesToFile();
+        var target = activeFileInputId ? $(activeFileInputId) : null;
+        assignFileToInput(target, built);
+        clearPages();
+        setStatus('Document scanned and attached.');
+        hideModal();
+        return true;
+      } catch (err) {
+        setStatus(scannedPages.length + ' page(s) acquired. Review and confirm.', false);
+        var confirmBtn = $('documentScanConfirmBtn');
+        if (confirmBtn) {
+          confirmBtn.hidden = false;
+          confirmBtn.disabled = false;
+        }
+        return true;
+      }
+    }
+
+    async function acquireFromSelectedScanner(options) {
+      options = options || {};
+      var autoUpload = options.autoUpload !== false;
+
+      var devices = scannerDevices.length ? scannerDevices : await refreshScannerDevices();
+      if (!devices.length) {
+        showNoScannerMessage(true);
+        return;
+      }
+
+      var selected = selectedScannerDevice();
+      if (!selected) {
+        showNoScannerMessage(true);
+        return;
+      }
+
+      setScannerControlsEnabled(false);
+      setStatus(autoUpload ? 'Scanning…' : 'Generating preview…');
+
+      // Local Windows WIA bridge (Canon / HP / Brother flatbed scanners)
+      if (selected.kind === 'bridge') {
+        try {
+          var usedBridge = await scanWithBridge(selected, autoUpload);
+          if (usedBridge) return;
+        } catch (bridgeErr) {
+          setStatus('Scanner failed: ' + ((bridgeErr && bridgeErr.message) ? bridgeErr.message : 'Unable to complete scan.'), true);
+          setScannerControlsEnabled(true);
+          return;
+        }
+      }
+
+      // Prefer system document-scan API (never uses camera)
+      if (selected.kind === 'api' || getDocumentScanApi()) {
+        var usedApi = await tryChromeDocumentScanApi({ autoUpload: autoUpload });
+        if (usedApi) {
+          if (!autoUpload) setScannerControlsEnabled(true);
+          return;
+        }
+      }
+
+      // Media "scanner" devices only (document cameras labeled as scanners) — never webcams
+      if (selected.kind === 'media' && selected.id) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          setStatus('This browser cannot capture from the selected scanner device.', true);
+          setScannerControlsEnabled(true);
+          return;
+        }
+        try {
+          stopStream();
+          mediaStream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              deviceId: { exact: selected.id },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 }
+            }
+          });
+          var video = $('documentScanVideo');
+          var canvas = $('documentScanCanvas');
+          if (!video || !canvas) throw new Error('Preview surface unavailable');
+          video.srcObject = mediaStream;
+          await video.play();
+          await new Promise(function(resolve) { setTimeout(resolve, 350); });
+          if (!video.videoWidth || !video.videoHeight) {
+            throw new Error('Scanner did not return an image frame');
+          }
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+          stopStream();
+          var blob = await new Promise(function(resolve) {
+            canvas.toBlob(function(b) { resolve(b); }, 'image/jpeg', 0.92);
+          });
+          if (!blob) throw new Error('Failed to capture scan');
+          setScannerPreviewFromBlob(blob);
+          if (!autoUpload) {
+            setStatus('Preview ready. Click Scan to attach the document.');
+            setScannerControlsEnabled(true);
+            return;
+          }
+          await addPageFromBlob(blob);
+          var file = await pagesToFile();
+          assignFileToInput(activeFileInputId ? $(activeFileInputId) : null, file);
+          clearPages();
+          setStatus('Document scanned and attached.');
+          hideModal();
+          return;
+        } catch (err) {
+          stopStream();
+          setStatus('Could not acquire image from scanner device.', true);
+          setScannerControlsEnabled(true);
+          return;
+        }
+      }
+
+      showNoScannerMessage(true);
+      setScannerControlsEnabled(false);
     }
 
     function updateSourceUi() {
@@ -810,12 +1339,14 @@
       var scanBtn = $('documentScanSourceScanner');
       var fileBtn = $('documentScanSourceFile');
       var help = $('documentScanHelp');
-      var deviceWrap = $('documentScanDeviceWrap');
-      var acquireBtn = $('documentScanAcquireBtn');
       var fallbackBtn = $('documentScanFallbackBtn');
       var captureBtn = $('documentScanCaptureBtn');
+      var confirmBtn = $('documentScanConfirmBtn');
       var title = $('documentScanModalLabel');
-      var videoWrap = $('documentScanVideoWrap');
+      var cameraPanel = $('documentScanCameraPanel');
+      var scannerPanel = $('documentScanScannerPanel');
+      var cameraDeviceWrap = $('documentScanCameraDeviceWrap');
+      var noDeviceAlert = $('documentScanNoDeviceAlert');
 
       // Enforce device rules: desktop = scanner only, mobile = camera only
       if (!isMobile && currentSource === 'camera') {
@@ -830,25 +1361,28 @@
       if (fileBtn) fileBtn.classList.toggle('active', currentSource === 'file');
 
       if (currentSource === 'scanner') {
-        if (title) title.innerHTML = '<i class="ti ti-scanner me-1"></i>Scan with Scanner';
+        if (title) title.innerHTML = '<i class="ti ti-scanner me-1"></i>Document Scanner';
         if (help) {
-          help.textContent = 'Select a connected scanner, capture each page, then confirm. For Windows flatbed/ADF scanners, use Acquire from scanner.';
+          help.textContent = 'Select your Windows scanner and click Scan. Start the Scanner Bridge on this PC if the device list is empty. The camera is not used.';
         }
-        if (deviceWrap) deviceWrap.hidden = false;
-        if (acquireBtn) acquireBtn.hidden = false;
+        if (scannerPanel) scannerPanel.hidden = false;
+        if (cameraPanel) cameraPanel.hidden = true;
+        if (cameraDeviceWrap) cameraDeviceWrap.hidden = true;
         if (fallbackBtn) fallbackBtn.hidden = true;
-        if (videoWrap) videoWrap.hidden = false;
-        if (captureBtn) captureBtn.hidden = false;
+        if (captureBtn) captureBtn.hidden = true;
+        if (confirmBtn) confirmBtn.hidden = true;
+        stopStream();
       } else if (currentSource === 'file') {
         if (title) title.innerHTML = '<i class="ti ti-upload me-1"></i>Upload File';
         if (help) {
           help.textContent = 'Choose an existing document from your device. The file will use the same upload/save process.';
         }
-        if (deviceWrap) deviceWrap.hidden = true;
-        if (acquireBtn) acquireBtn.hidden = true;
+        if (scannerPanel) scannerPanel.hidden = true;
+        if (cameraPanel) cameraPanel.hidden = true;
+        if (noDeviceAlert) noDeviceAlert.hidden = true;
         if (fallbackBtn) fallbackBtn.hidden = true;
-        if (videoWrap) videoWrap.hidden = true;
         if (captureBtn) captureBtn.hidden = true;
+        if (confirmBtn) confirmBtn.hidden = true;
         stopStream();
         setStatus('Click Upload File to browse, or cancel to go back.');
         openNativeFilePicker();
@@ -857,11 +1391,16 @@
         if (help) {
           help.textContent = 'Align the document inside the frame, capture each page, then confirm. You can also use the device camera picker.';
         }
-        if (deviceWrap) deviceWrap.hidden = false;
-        if (acquireBtn) acquireBtn.hidden = true;
+        if (scannerPanel) scannerPanel.hidden = true;
+        if (cameraPanel) cameraPanel.hidden = false;
+        if (cameraDeviceWrap) cameraDeviceWrap.hidden = false;
+        if (noDeviceAlert) noDeviceAlert.hidden = true;
         if (fallbackBtn) fallbackBtn.hidden = false;
-        if (videoWrap) videoWrap.hidden = false;
-        if (captureBtn) captureBtn.hidden = false;
+        if (captureBtn) {
+          captureBtn.hidden = false;
+          captureBtn.disabled = true;
+        }
+        if (confirmBtn) confirmBtn.hidden = false;
       }
     }
 
@@ -879,7 +1418,14 @@
       }
       currentSource = source === 'scanner' ? 'scanner' : 'camera';
       updateSourceUi();
-      await refreshDevices();
+
+      if (currentSource === 'scanner') {
+        clearScannerPreview();
+        await refreshScannerDevices();
+        return;
+      }
+
+      await refreshCameraDevices();
       await startCaptureStream();
     }
 
@@ -887,6 +1433,7 @@
       applyDeviceMode();
       ensureModal();
       clearPages();
+      clearScannerPreview();
       if (preferredSource === 'file') {
         currentSource = 'file';
       } else if (preferredSource === 'scanner' || preferredSource === 'camera') {
@@ -942,21 +1489,8 @@
         preferredSource = defaultScanSource();
       }
 
-      if (preferredSource === 'scanner' && !(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
-        openNativeScannerAcquire();
-        return;
-      }
-
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        showModal(preferredSource);
-        return;
-      }
-
-      if (preferredSource === 'scanner') {
-        openNativeScannerAcquire();
-        return;
-      }
-      openNativeCameraFallback();
+      // Document Scanner always opens the scanner modal — never the camera stream.
+      showModal(preferredSource);
     }
 
     function bindModalControls() {
@@ -964,6 +1498,7 @@
       var captureBtn = $('documentScanCaptureBtn');
       var fallbackBtn = $('documentScanFallbackBtn');
       var acquireBtn = $('documentScanAcquireBtn');
+      var previewBtn = $('documentScanPreviewBtn');
       var confirmBtn = $('documentScanConfirmBtn');
       var clearBtn = $('documentScanClearPagesBtn');
       var pagesEl = $('documentScanPages');
@@ -971,6 +1506,7 @@
       var scanSourceBtn = $('documentScanSourceScanner');
       var fileSourceBtn = $('documentScanSourceFile');
       var deviceSelect = $('documentScanDeviceSelect');
+      var cameraDeviceSelect = $('documentScanCameraDeviceSelect');
 
       if (captureBtn && !captureBtn.__docScanBound) {
         captureBtn.__docScanBound = true;
@@ -991,7 +1527,8 @@
         clearBtn.addEventListener('click', function(e) {
           e.preventDefault();
           clearPages();
-          setStatus('Pages cleared. Capture again.');
+          clearScannerPreview();
+          setStatus('Pages cleared. Scan again.');
         });
       }
       if (pagesEl && !pagesEl.__docScanBound) {
@@ -1020,10 +1557,14 @@
         acquireBtn.__docScanBound = true;
         acquireBtn.addEventListener('click', async function(e) {
           e.preventDefault();
-          var usedApi = await tryChromeDocumentScanApi();
-          if (!usedApi) {
-            openNativeScannerAcquire();
-          }
+          await acquireFromSelectedScanner();
+        });
+      }
+      if (previewBtn && !previewBtn.__docScanBound) {
+        previewBtn.__docScanBound = true;
+        previewBtn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          await acquireFromSelectedScanner({ autoUpload: false });
         });
       }
       if (camSourceBtn && !camSourceBtn.__docScanBound) {
@@ -1050,7 +1591,32 @@
       if (deviceSelect && !deviceSelect.__docScanBound) {
         deviceSelect.__docScanBound = true;
         deviceSelect.addEventListener('change', function() {
-          startCaptureStream();
+          // Selecting a scanner must never start the camera stream
+          var selected = selectedScannerDevice();
+          setScannerControlsEnabled(!!selected);
+          if (selected) {
+            showNoScannerMessage(false);
+            setStatus('Scanner selected: ' + selected.label + '. Click Scan when ready.');
+          } else {
+            showNoScannerMessage(true, scannerBridgeOnline ? 'no-device' : 'bridge-offline');
+          }
+        });
+      }
+      var bridgeRetryBtn = $('documentScanBridgeRetryBtn');
+      if (bridgeRetryBtn && !bridgeRetryBtn.__docScanBound) {
+        bridgeRetryBtn.__docScanBound = true;
+        bridgeRetryBtn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          setStatus('Looking for scanners…');
+          await refreshScannerDevices();
+        });
+      }
+      if (cameraDeviceSelect && !cameraDeviceSelect.__docScanBound) {
+        cameraDeviceSelect.__docScanBound = true;
+        cameraDeviceSelect.addEventListener('change', function() {
+          if (currentSource === 'camera') {
+            startCaptureStream();
+          }
         });
       }
       if (modalEl && !modalEl.__docScanBound) {
@@ -1060,6 +1626,7 @@
         modalEl.addEventListener('hidden.bs.modal', function() {
           stopStream();
           clearPages();
+          clearScannerPreview();
         });
       }
     }
@@ -1197,7 +1764,10 @@
     window.DocumentScanField = {
       updateSelectedLabel: updateSelectedLabel,
       openScanFor: openScanFor,
-      isMobile: function () { applyDeviceMode(); return isMobile; },
+      isMobile: function() {
+        applyDeviceMode();
+        return isMobile;
+      },
       markup: function(opts) {
         opts = opts || {};
         var name = opts.name || 'file';
@@ -1228,7 +1798,7 @@
           '<i class="ti ti-camera me-1"></i>Scan with Camera' +
           '</button>' +
           '<button type="button" class="btn btn-outline-secondary btn-sm document-scan-scanner-btn document-scan-desktop-only" data-file-input="' + id + '" data-camera-input="' + scanId + '" data-scanner-input="' + scannerId + '" data-scan-source="scanner">' +
-          '<i class="ti ti-scanner me-1"></i>Scan with Scanner' +
+          '<i class="ti ti-scanner me-1"></i>Document Scanner' +
           '</button>' +
           '</div>' +
           '<div class="document-scan-selected small text-muted" data-selected-for="' + id + '">No file selected</div>' +

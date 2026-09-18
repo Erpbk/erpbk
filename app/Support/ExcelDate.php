@@ -8,8 +8,9 @@ use PhpOffice\PhpSpreadsheet\Shared\Date as PhpSpreadsheetDate;
 /**
  * Parse Excel cell values into Carbon dates consistently across imports.
  *
- * Handles Excel serial numbers, DateTime/Carbon cells, slash/dash dates
- * (via ExcelSlashDateFormat), and common string formats.
+ * Handles Excel serial numbers, compact YYYYMMDD (e.g. 20260917),
+ * DateTime/Carbon cells, slash/dash dates (via ExcelSlashDateFormat),
+ * and common string formats.
  */
 class ExcelDate
 {
@@ -39,11 +40,22 @@ class ExcelDate
                 }
             }
 
+            // Compact YYYYMMDD (e.g. 20260917) before Excel serial —
+            // otherwise is_numeric() treats it as a day-count and Carbon corrupts the year.
+            $compact = self::tryParseCompactYmd($value);
+            if ($compact) {
+                return $compact;
+            }
+
             // Excel serial number (real date cell, or numeric string serial)
             if (is_numeric($value)) {
-                return Carbon::instance(
-                    PhpSpreadsheetDate::excelToDateTimeObject((float) $value)
-                );
+                $dateTime = PhpSpreadsheetDate::excelToDateTimeObject((float) $value);
+                $year = (int) $dateTime->format('Y');
+                if (! self::isPlausibleCalendarYear($year)) {
+                    return null;
+                }
+
+                return Carbon::instance($dateTime);
             }
 
             if (! is_string($value)) {
@@ -181,6 +193,37 @@ class ExcelDate
     }
 
     /**
+     * Parse compact YYYYMMDD integers/strings (common in export sheets).
+     * Only accepts whole 8-digit values with a plausible year — never fractional serials.
+     */
+    private static function tryParseCompactYmd($value): ?Carbon
+    {
+        if (is_int($value)) {
+            $raw = (string) $value;
+        } elseif (is_float($value)) {
+            if ($value != floor($value)) {
+                return null;
+            }
+            $raw = (string) (int) $value;
+        } elseif (is_string($value) && preg_match('/^\d{8}$/', $value)) {
+            $raw = $value;
+        } else {
+            return null;
+        }
+
+        if (strlen($raw) !== 8) {
+            return null;
+        }
+
+        $year = (int) substr($raw, 0, 4);
+        if (! self::isPlausibleCalendarYear($year)) {
+            return null;
+        }
+
+        return self::tryParseWithFormat($raw, 'Ymd');
+    }
+
+    /**
      * @return list<string>
      */
     private static function stringDateFormats(): array
@@ -189,6 +232,7 @@ class ExcelDate
             'Y-m-d H:i:s',
             'Y-m-d H:i',
             'Y-m-d',
+            'Ymd',
             'd M Y H:i:s',
             'd M Y',
             'd M y',
@@ -253,6 +297,11 @@ class ExcelDate
     private static function isPlausibleBillingYear(int $year): bool
     {
         return $year >= 2000 && $year <= 2100;
+    }
+
+    private static function isPlausibleCalendarYear(int $year): bool
+    {
+        return $year >= 1900 && $year <= 2100;
     }
 
     private static function tryParseWithFormat(string $value, string $format): ?Carbon

@@ -162,6 +162,8 @@ class ModuleFieldSource
             'rejected_orders' => 'Rejected Orders',
             'dob' => 'Date of Birth',
             'doj' => 'Date of Joining',
+            'customer_note' => 'Customer Notes',
+            'terms_and_conditions' => 'Terms & Conditions',
             default => ucwords(str_replace('_', ' ', $column)),
         };
     }
@@ -177,6 +179,8 @@ class ModuleFieldSource
             'company_contact' => 'Company Contact',
             'dob' => 'Date of Birth',
             'doj' => 'Date of Joining',
+            'customer_note' => 'Customer Notes',
+            'terms_and_conditions' => 'Terms & Conditions',
             default => ucwords(str_replace(['_', '-'], ' ', $key)),
         };
     }

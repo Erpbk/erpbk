@@ -8,7 +8,13 @@
             @endphp
             <option value="" selected>Select</option>
             @foreach($customers as $customer)
-            <option value="{{ $customer->id }}" {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }} {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}>
+            <option
+                value="{{ $customer->id }}"
+                data-customer-note="{{ json_encode($customer->customer_note ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
+                data-terms-and-conditions="{{ json_encode($customer->terms_and_conditions ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
+                {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }}
+                {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}
+            >
                 {{ $customer->name }} ({{ company_table('branches')->where('id', $customer->branch_id)->value('code') }})
             </option>
             @endforeach
@@ -207,33 +213,63 @@ $items = \App\Models\Items::dropdown('customer');
     </button>
 </div>
 
+@php
+    $invoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
+    $defaultCustomerNotes = old('customer_note', isset($invoice) ? ($invoice->customer_note ?? '') : $invoiceDefaults['customer_notes']);
+    $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_and_conditions ?? '') : $invoiceDefaults['terms_and_conditions']);
+@endphp
 
-{{-- Notes --}}
-<div class="form-group col-md-6">
-    {!! Form::label('notes', 'Notes') !!}
-    {!! Form::textarea('notes', null, [
-    'class' => 'form-control',
-    'rows' => 3,
-    'placeholder' => 'Additional notes or payment instructions...'
-    ]) !!}
-</div>
-{{-- Buttons Section --}}
-<div class="d-flex justify-content-between align-items-center gap-3 mt-3">
-    <div>
+<div class="row mt-3 align-items-start">
+    <div class="col-md-7">
+        {{-- Customer Notes (shown on invoice) --}}
+        <div class="form-group mb-3">
+            {!! Form::label('customer_note', 'Customer Notes') !!}
+            {!! Form::textarea('customer_note', $defaultCustomerNotes, [
+                'class' => 'form-control',
+                'rows' => 3,
+                'id' => 'customer_note',
+                'placeholder' => 'Thanks for your business.',
+            ]) !!}
+            <small class="text-muted">Will be displayed on the invoice</small>
+        </div>
 
+        {{-- Terms & Conditions --}}
+        <div class="form-group mb-3">
+            {!! Form::label('terms_and_conditions', 'Terms & Conditions') !!}
+            {!! Form::textarea('terms_and_conditions', $defaultTerms, [
+                'class' => 'form-control',
+                'rows' => 4,
+                'id' => 'terms_and_conditions',
+                'placeholder' => 'Enter terms & conditions...',
+            ]) !!}
+        </div>
+
+        {{-- Internal notes --}}
+        <div class="form-group mb-3">
+            {!! Form::label('notes', 'Internal Notes') !!}
+            {!! Form::textarea('notes', isset($invoice) ? $invoice->notes : null, [
+                'class' => 'form-control',
+                'rows' => 2,
+                'placeholder' => 'Internal notes (not shown as Customer Notes)...'
+            ]) !!}
+        </div>
     </div>
-    <div class="d-flex align-items-center gap-3">
-        <div class="input-group">
-            <span class="input-group-text bg-light">Subtotal</span>
-            <input type="number" name="subtotal" class="form-control" id="subtotal" readonly style="min-width: 150px;">
-        </div>
-        <div class="input-group">
-            <span class="input-group-text bg-light">VAT Amount</span>
-            <input type="number" name="vat_total" class="form-control" id="vat_total" readonly style="min-width: 150px;">
-        </div>
-        <div class="input-group">
-            <span class="input-group-text bg-primary text-white">Total</span>
-            <input type="number" name="total" class="form-control" id="total" readonly style="min-width: 150px; font-weight: bold;">
+
+    <div class="col-md-5">
+        <div class="border rounded p-3 bg-light">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted">Sub Total</span>
+                <input type="number" name="subtotal" class="form-control form-control-sm text-end" id="subtotal" readonly style="max-width: 160px;">
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="text-muted">VAT Amount</span>
+                <input type="number" name="vat_total" class="form-control form-control-sm text-end" id="vat_total" readonly style="max-width: 160px;">
+            </div>
+            <hr class="my-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <strong>Total ( {{ \App\Helpers\Currency::code() }} )</strong>
+                <input type="number" name="total" class="form-control form-control-sm text-end fw-bold" id="total" readonly style="max-width: 160px;">
+            </div>
         </div>
     </div>
 </div>
@@ -257,5 +293,49 @@ $items = \App\Models\Items::dropdown('customer');
             setItemTotal($(this));
         });
         setTotal();
+
+        var settingsNotes = @json($invoiceDefaults['customer_notes']);
+        var settingsTerms = @json($invoiceDefaults['terms_and_conditions']);
+
+        function fillCustomerNoteAndTermsFromSelected() {
+            var $opt = $('#customer_id').find('option:selected');
+            if (!$opt.length || !$opt.val()) {
+                @if(!isset($invoice))
+                if (!$('#customer_note').val()) {
+                    $('#customer_note').val(settingsNotes || '');
+                }
+                if (!$('#terms_and_conditions').val()) {
+                    $('#terms_and_conditions').val(settingsTerms || '');
+                }
+                @endif
+                return;
+            }
+            var noteRaw = $opt.attr('data-customer-note') || '""';
+            var termsRaw = $opt.attr('data-terms-and-conditions') || '""';
+            var note = '';
+            var terms = '';
+            try { note = JSON.parse(noteRaw); } catch (e) { note = noteRaw; }
+            try { terms = JSON.parse(termsRaw); } catch (e) { terms = termsRaw; }
+
+            note = note || settingsNotes || '';
+            terms = terms || settingsTerms || '';
+
+            @if(!isset($invoice))
+            $('#customer_note').val(note);
+            $('#terms_and_conditions').val(terms);
+            @else
+            if (!$('#customer_note').val()) {
+                $('#customer_note').val(note);
+            }
+            if (!$('#terms_and_conditions').val()) {
+                $('#terms_and_conditions').val(terms);
+            }
+            @endif
+        }
+
+        $('#customer_id').on('change', fillCustomerNoteAndTermsFromSelected);
+        @if(!isset($invoice))
+        fillCustomerNoteAndTermsFromSelected();
+        @endif
     });
 </script>

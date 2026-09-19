@@ -651,6 +651,29 @@ class ModuleSettingsController extends Controller
         ]);
     }
 
+    public function updateInvoiceDefaults(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless($module === 'customer_invoices', 404);
+
+        $validated = $request->validate([
+            'terms_and_conditions' => ['nullable', 'string'],
+            'customer_notes' => ['nullable', 'string'],
+        ]);
+
+        \App\Support\CustomerInvoiceDefaults::save(
+            (string) ($validated['terms_and_conditions'] ?? ''),
+            (string) ($validated['customer_notes'] ?? '')
+        );
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Customer invoice defaults saved.');
+    }
+
     public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);

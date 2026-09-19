@@ -23,7 +23,9 @@ class Customers extends BaseModel
     'address',
     'tax_number',
     'status',
-    'tax_percentage'
+    'tax_percentage',
+    'customer_note',
+    'terms_and_conditions',
   ];
 
   protected $casts = [
@@ -33,7 +35,9 @@ class Customers extends BaseModel
     'contact_number' => 'string',
     'address' => 'string',
     'tax_number' => 'string',
-    'tax_percentage' => 'decimal:2'
+    'tax_percentage' => 'decimal:2',
+    'customer_note' => 'string',
+    'terms_and_conditions' => 'string',
   ];
 
   protected $dates = ['deleted_at'];
@@ -48,7 +52,9 @@ class Customers extends BaseModel
 
     'created_at' => 'nullable',
     'updated_at' => 'nullable',
-    'tax_percentage' => 'required|numeric'
+    'tax_percentage' => 'required|numeric',
+    'customer_note' => 'nullable|string',
+    'terms_and_conditions' => 'nullable|string',
   ];
 
 

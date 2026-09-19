@@ -80,3 +80,26 @@
     </div>
 </div>
 @endfieldVisible
+
+@php
+    $customerInvoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
+    $customerTermsDefault = old('terms_and_conditions', isset($customers) ? ($customers->terms_and_conditions ?? '') : $customerInvoiceDefaults['terms_and_conditions']);
+    $customerNotesDefault = old('customer_note', isset($customers) ? ($customers->customer_note ?? '') : $customerInvoiceDefaults['customer_notes']);
+@endphp
+
+<!-- Terms & Conditions Field -->
+@fieldVisible('customer', 'terms_and_conditions')
+<div class="form-group col-sm-12">
+    {!! Form::label('terms_and_conditions', 'Terms & Conditions:', ['class' => 'fw-bold']) !!}
+    {!! Form::textarea('terms_and_conditions', $customerTermsDefault, ['class' => 'form-control', 'rows' => 4, 'placeholder' => 'Terms & conditions shown on customer invoices...'] + field_lock('customer', 'terms_and_conditions')) !!}
+</div>
+@endfieldVisible
+
+<!-- Customer Notes Field -->
+@fieldVisible('customer', 'customer_note')
+<div class="form-group col-sm-12">
+    {!! Form::label('customer_note', 'Customer Notes:', ['class' => 'fw-bold']) !!}
+    {!! Form::textarea('customer_note', $customerNotesDefault, ['class' => 'form-control', 'rows' => 3, 'placeholder' => 'Thanks for your business.'] + field_lock('customer', 'customer_note')) !!}
+    <small class="text-muted">Will be displayed on the invoice</small>
+</div>
+@endfieldVisible

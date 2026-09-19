@@ -26,6 +26,8 @@ class CustomerInvoices extends BaseModel
         'reference',
         'description',
         'notes',
+        'customer_note',
+        'terms_and_conditions',
         'subtotal',
         'vat',
         'total',

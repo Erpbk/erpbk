@@ -18,7 +18,7 @@ class FuelCardHistory extends BaseModel
         'assign_date',
         'return_date',
         'note',
-    ] ;
+    ];
 
     protected $casts = [
         'card_id'=> 'integer',

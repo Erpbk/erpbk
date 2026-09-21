@@ -9,6 +9,7 @@ use App\Models\SimHistory;
 use App\Models\Sims;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Services\AssignmentClipboardNote;
 use App\Support\GlobalAccounts;
 use Carbon\Carbon;
 
@@ -164,9 +165,11 @@ class SimLossService
 
         $openHistory->return_date = $transDate;
         $openHistory->returned_by = $lostById;
-        $openHistory->notes = trim((string) $openHistory->notes) !== ''
-            ? $openHistory->notes . ' | ' . $note
-            : $note;
+        $openHistory->notes = AssignmentClipboardNote::withReturn(
+            $openHistory->notes,
+            $transDate,
+            $note
+        );
         $openHistory->save();
     }
 

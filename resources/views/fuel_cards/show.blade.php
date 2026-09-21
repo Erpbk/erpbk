@@ -212,7 +212,37 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        vertical-align: bottom;
+        vertical-align: middle;
+    }
+
+    .fc-page .fc-notes-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .fc-page .wa-forward {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background-color: #e4e6eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .fc-page .wa-forward i {
+        color: #6b7280;
+        font-size: 16px;
+    }
+
+    .fc-page .wa-forward:hover {
+        background-color: #d1d5db;
+        transform: scale(1.05);
     }
 </style>
 @endpush
@@ -531,13 +561,27 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if($history->note)
-                                            <span class="fc-note" title="{{ $history->note }}">{{ $history->note }}</span>
-                                            @elseif(!$history->return_date)
+                                            @php
+                                                $copyNotes = (string) $history->note;
+                                                $manualNote = \App\Services\AssignmentClipboardNote::displayNote($copyNotes);
+                                                $canCopy = \App\Services\AssignmentClipboardNote::isStructured($copyNotes);
+                                            @endphp
+                                            <div class="fc-notes-cell">
+                                            @if($manualNote)
+                                            <span class="fc-note" title="{{ $manualNote }}">{{ $manualNote }}</span>
+                                            @elseif(!$history->return_date && !$canCopy)
                                             <span class="text-muted">Currently assigned</span>
-                                            @else
+                                            @endif
+                                            @if($canCopy)
+                                            <span class="notes-cell wa-forward"
+                                                data-notes="{{ e($copyNotes) }}"
+                                                title="Click to copy assignment details">
+                                                <i class="fab fa-whatsapp"></i>
+                                            </span>
+                                            @elseif(!$manualNote && $history->return_date)
                                             —
                                             @endif
+                                            </div>
                                         </td>
                                     </tr>
                                     @endforeach
@@ -664,6 +708,20 @@
                 }
             }, true);
         }
+
+        document.querySelectorAll('.notes-cell').forEach(function(cell) {
+            const notes = cell.dataset.notes;
+            if (!notes) return;
+
+            cell.style.cursor = 'pointer';
+            cell.addEventListener('click', function() {
+                navigator.clipboard.writeText(notes).then(() => {
+                    toastr.success('Notes copied to clipboard');
+                }).catch(() => {
+                    toastr.error('Failed to copy');
+                });
+            });
+        });
     });
 </script>
 @endsection

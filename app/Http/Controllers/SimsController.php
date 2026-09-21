@@ -13,6 +13,7 @@ use App\Repositories\SimsRepository;
 use App\Models\Sims;
 use App\Models\Riders;
 use App\Models\Employee;
+use App\Services\AssignmentClipboardNote;
 use App\Services\EmployeeHistoryLogger;
 use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
@@ -188,6 +189,7 @@ class SimsController extends AppBaseController
     {
         $computedColumns = [
             'rider_name' => 'Name',
+            'emi' => 'IMEI',
         ];
 
         // Get all columns from sims table
@@ -543,7 +545,12 @@ class SimsController extends AppBaseController
                     $sims->histories()->create([
                         'note_date' => $request->note_date,
                         'assigned_by' => auth()->id(),
-                        'notes' => $request->notes ?? '',
+                        'notes' => AssignmentClipboardNote::forSim(
+                            $sims->fresh(['telecomCompany']),
+                            $employee,
+                            $request->note_date,
+                            $request->notes ?? null
+                        ),
                         'employee_id' => $assignTo,
                         'rider_id' => null,
                     ]);
@@ -567,10 +574,16 @@ class SimsController extends AppBaseController
                         'branch_id' => $assignBranchId,
                     ]);
 
+                    $rider->loadMissing('customer');
                     $sims->histories()->create([
                         'note_date' => $request->note_date,
                         'assigned_by' => auth()->id(),
-                        'notes' => $request->notes ?? '',
+                        'notes' => AssignmentClipboardNote::forSim(
+                            $sims->fresh(['telecomCompany']),
+                            $rider,
+                            $request->note_date,
+                            $request->notes ?? null
+                        ),
                         'rider_id' => $assignTo,
                         'employee_id' => null,
                     ]);
@@ -688,7 +701,11 @@ class SimsController extends AppBaseController
                 $history->update([
                     'return_date' => $request->return_date,
                     'returned_by' => auth()->id(),
-                    'notes' => $request->notes ?? '',
+                    'notes' => AssignmentClipboardNote::withReturn(
+                        $history->notes,
+                        $request->return_date,
+                        $request->notes ?? null
+                    ),
                 ]);
             }
 

@@ -8,6 +8,7 @@ use App\Models\FuelCards;
 use App\Models\Riders;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Services\AssignmentClipboardNote;
 use App\Support\GlobalAccounts;
 use Carbon\Carbon;
 
@@ -153,9 +154,11 @@ class FuelCardLossService
 
         $openHistory->return_date = $transDate;
         $openHistory->returned_by = $lostById;
-        $openHistory->note = trim((string) $openHistory->note) !== ''
-            ? $openHistory->note . ' | ' . $note
-            : $note;
+        $openHistory->note = AssignmentClipboardNote::withReturn(
+            $openHistory->note,
+            $transDate,
+            $note
+        );
         $openHistory->save();
     }
 

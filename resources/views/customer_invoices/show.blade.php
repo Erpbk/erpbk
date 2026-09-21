@@ -416,6 +416,30 @@
         </div>
         @endif
 
+        @php
+            $defaults = \App\Support\CustomerInvoiceDefaults::all();
+            $customerNote = $invoice->customer_note
+                ?: ($invoice->customer->customer_note ?? null)
+                ?: ($defaults['customer_notes'] ?: null);
+            $termsAndConditions = $invoice->terms_and_conditions
+                ?: ($invoice->customer->terms_and_conditions ?? null)
+                ?: ($defaults['terms_and_conditions'] ?: null);
+        @endphp
+
+        @if($customerNote)
+        <div class="notes-section">
+            <strong>Customer Notes:</strong><br>
+            {!! nl2br(e($customerNote)) !!}
+        </div>
+        @endif
+
+        @if($termsAndConditions)
+        <div class="notes-section">
+            <strong>Terms &amp; Conditions:</strong><br>
+            {!! nl2br(e($termsAndConditions)) !!}
+        </div>
+        @endif
+
         @else
         <div style="text-align: center; padding: 40px; background: #f9f9fc; border-radius: 12px;">
             <p>No items found for this invoice.</p>

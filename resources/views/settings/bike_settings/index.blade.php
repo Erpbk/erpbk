@@ -254,6 +254,9 @@ $attendanceRefType = $attendanceRefType ?? null;
             'moduleMenuKey' => $moduleKey ?? 'bike_list',
             'defaultLabel' => $moduleLabel ?? $settingsHeading,
             ])
+            @if(($moduleKey ?? '') === 'customer_invoices')
+              @include('settings.partials.customer_invoice_defaults')
+            @endif
           </div>
 
           @include('settings.partials.top_bar._settings_tab_content')

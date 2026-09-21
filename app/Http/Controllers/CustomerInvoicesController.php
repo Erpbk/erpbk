@@ -64,6 +64,8 @@ class CustomerInvoicesController extends Controller
             'date_to' => 'required|date|after_or_equal:date_from',
             'description' => 'required|string',
             'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'exists:items,id',
@@ -117,6 +119,9 @@ class CustomerInvoicesController extends Controller
                 ];
             }
 
+            $customer = Customers::find($request->customer_id);
+            $defaults = \App\Support\CustomerInvoiceDefaults::all();
+
             // Create invoice
             $invoice = CustomerInvoices::create([
                 'customer_id' => $request->customer_id, // Assuming company_id maps to customer_id
@@ -126,11 +131,17 @@ class CustomerInvoicesController extends Controller
                 'date_to' => $request->date_to,
                 'description' => $request->description,
                 'notes' => $request->notes,
+                'customer_note' => $request->customer_note
+                    ?: ($customer->customer_note ?? null)
+                    ?: ($defaults['customer_notes'] ?: null),
+                'terms_and_conditions' => $request->terms_and_conditions
+                    ?: ($customer->terms_and_conditions ?? null)
+                    ?: ($defaults['terms_and_conditions'] ?: null),
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,
                 'attachment' => $attachmentPath,
-                'branch_id' => Customers::where('id', $request->customer_id)->value('branch_id'),
+                'branch_id' => $customer?->branch_id,
             ]);
 
             // Create invoice items
@@ -261,6 +272,8 @@ class CustomerInvoicesController extends Controller
             'date_to' => 'required|date|after_or_equal:date_from',
             'description' => 'required|string',
             'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'exists:items,id',
@@ -331,6 +344,8 @@ class CustomerInvoicesController extends Controller
                 'date_to' => $request->date_to,
                 'description' => $request->description,
                 'notes' => $request->notes,
+                'customer_note' => $request->customer_note,
+                'terms_and_conditions' => $request->terms_and_conditions,
                 'subtotal' => $subtotal,
                 'vat' => $vatTotal,
                 'total' => $grandTotal,

@@ -22,6 +22,101 @@
     font-weight: 600;
   }
 
+  /* Dropzone variant (customer invoice, etc.) */
+  .document-scan-field--dropzone .document-scan-dropzone-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone {
+    width: 168px;
+    height: 168px;
+    background: #fff;
+    border: 2px dashed #004aad;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone:hover,
+  .document-scan-field--dropzone .document-scan-dropzone:focus {
+    background: #f5f8fd;
+    border-color: #1a5fc4;
+    outline: none;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #8b95a5;
+    text-align: center;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-icon {
+    font-size: 40px;
+    color: #a0a8b4;
+    line-height: 1;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-text {
+    font-size: 13px;
+    font-weight: 500;
+    color: #8b95a5;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-pdf {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #dc3545;
+    text-align: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-pdf i {
+    font-size: 48px;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-pdf span {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6c757d;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 168px;
+  }
+
+  .document-scan-field--dropzone .document-scan-dropzone-actions .btn {
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
   #documentScanModal .modal-dialog {
     max-width: min(1200px, 96vw);
     width: 96vw;
@@ -454,20 +549,141 @@
       }
     }
 
+    function updateDropzonePreview(fileInput) {
+      if (!fileInput || !fileInput.id) return;
+      var zone = document.querySelector('[data-dropzone-for="' + fileInput.id + '"]');
+      if (!zone) return;
+
+      var placeholder = zone.querySelector('.document-scan-dropzone-placeholder');
+      var imageEl = zone.querySelector('.document-scan-dropzone-image');
+      var pdfEl = zone.querySelector('.document-scan-dropzone-pdf');
+      var file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+      function showPlaceholder() {
+        if (placeholder) placeholder.hidden = false;
+        if (imageEl) {
+          imageEl.hidden = true;
+          imageEl.removeAttribute('src');
+        }
+        if (pdfEl) pdfEl.hidden = true;
+      }
+
+      function showImage(src) {
+        if (placeholder) placeholder.hidden = true;
+        if (pdfEl) pdfEl.hidden = true;
+        if (imageEl) {
+          imageEl.hidden = false;
+          imageEl.src = src;
+        }
+      }
+
+      function showPdf() {
+        if (placeholder) placeholder.hidden = true;
+        if (imageEl) {
+          imageEl.hidden = true;
+          imageEl.removeAttribute('src');
+        }
+        if (pdfEl) pdfEl.hidden = false;
+      }
+
+      if (file) {
+        if (file.type && file.type.indexOf('image/') === 0) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            showImage(e.target.result);
+          };
+          reader.readAsDataURL(file);
+          return;
+        }
+        if ((file.type && file.type === 'application/pdf') || /\.pdf$/i.test(file.name || '')) {
+          showPdf();
+          return;
+        }
+        showPlaceholder();
+        return;
+      }
+
+      var existingUrl = zone.getAttribute('data-existing-url') || '';
+      var existingPdf = zone.getAttribute('data-existing-pdf') === '1';
+      if (existingUrl) {
+        if (existingPdf) {
+          showPdf();
+        } else {
+          showImage(existingUrl);
+        }
+        return;
+      }
+
+      showPlaceholder();
+    }
+
     function updateSelectedLabel(fileInput) {
       if (!fileInput) return;
       var label = document.querySelector('[data-selected-for="' + fileInput.id + '"]');
-      if (!label) return;
-      var file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
-      if (file) {
-        label.textContent = file.name;
-        label.classList.add('is-set');
-        label.title = file.name;
-      } else {
-        label.textContent = 'No file selected';
-        label.classList.remove('is-set');
-        label.removeAttribute('title');
+      if (label) {
+        var file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+        if (file) {
+          label.textContent = file.name;
+          label.classList.add('is-set');
+          label.title = file.name;
+        } else {
+          var emptyText = label.getAttribute('data-empty-text') || 'No file selected';
+          label.textContent = emptyText;
+          label.classList.remove('is-set');
+          label.removeAttribute('title');
+        }
       }
+      updateDropzonePreview(fileInput);
+    }
+
+    function bindDropzoneTriggers() {
+      if (document.__docScanDropzoneDelegated) {
+        refreshDropzonePreviews();
+        return;
+      }
+      document.__docScanDropzoneDelegated = true;
+
+      document.addEventListener('click', function(e) {
+        var zone = e.target.closest('[data-dropzone-for]');
+        if (!zone) return;
+        var fileInput = document.getElementById(zone.getAttribute('data-dropzone-for'));
+        if (fileInput) fileInput.click();
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        var zone = e.target.closest('[data-dropzone-for]');
+        if (!zone || e.target !== zone) return;
+        e.preventDefault();
+        var fileInput = document.getElementById(zone.getAttribute('data-dropzone-for'));
+        if (fileInput) fileInput.click();
+      });
+
+      refreshDropzonePreviews();
+
+      if (window.jQuery) {
+        window.jQuery(document).on('shown.bs.modal', refreshDropzonePreviews);
+      }
+
+      if (typeof MutationObserver !== 'undefined' && document.body) {
+        var scheduled = null;
+        var observer = new MutationObserver(function() {
+          if (scheduled) return;
+          scheduled = setTimeout(function() {
+            scheduled = null;
+            refreshDropzonePreviews();
+          }, 60);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+      }
+    }
+
+    function refreshDropzonePreviews() {
+      document.querySelectorAll('[data-dropzone-for]').forEach(function(zone) {
+        var inputId = zone.getAttribute('data-dropzone-for');
+        var fileInput = inputId ? document.getElementById(inputId) : null;
+        if (fileInput) updateDropzonePreview(fileInput);
+      });
     }
 
     function assignFileToInput(fileInput, file) {
@@ -1756,13 +1972,18 @@
       }
     });
 
-    document.addEventListener('DOMContentLoaded', bindModalControls);
+    document.addEventListener('DOMContentLoaded', function() {
+      bindModalControls();
+      bindDropzoneTriggers();
+    });
     if (document.readyState !== 'loading') {
       bindModalControls();
+      bindDropzoneTriggers();
     }
 
     window.DocumentScanField = {
       updateSelectedLabel: updateSelectedLabel,
+      refreshDropzonePreviews: refreshDropzonePreviews,
       openScanFor: openScanFor,
       isMobile: function() {
         applyDeviceMode();

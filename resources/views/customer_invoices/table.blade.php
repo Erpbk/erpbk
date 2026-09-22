@@ -84,23 +84,3 @@
 @if(method_exists($invoices, 'links'))
 {!! $invoices->links('components.global-pagination') !!}
 @endif
-@section('page-script')
-<script>
-    $('#dataTableBuilder').DataTable({
-        "paging": true, // Enable DataTables pagination
-        "pageLength": 50, // Items per page
-        "searching": true, // Enable search
-        "ordering": false, // Enable column sorting
-        "info": true, // Show "Showing X of Y entries"
-        "autoWidth": true, // Better column width handling
-        "dom": "<'row'<'col-md-12'tr>>" +
-            "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
-        "language": {
-            "emptyTable": "No invoices found."
-        }
-    });
-    $('#quickSearch').on('keyup change', function() {
-        $('#dataTableBuilder').DataTable().search(this.value).draw();
-    });
-</script>
-@endsection

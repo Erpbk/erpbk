@@ -1,82 +1,92 @@
 <div class="row">
-    {{-- Company Information (Read-only) --}}
-    <div class="form-group col-md-3">
-        {!! Form::label('company_info', 'Customer') !!}
-        <select class="form-control select2" id="customer_id" name="customer_id" required>
-            @php
-            $customers = \App\Models\Customers::all();
-            @endphp
-            <option value="" selected>Select</option>
-            @foreach($customers as $customer)
-            <option
-                value="{{ $customer->id }}"
-                data-customer-note="{{ json_encode($customer->customer_note ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
-                data-terms-and-conditions="{{ json_encode($customer->terms_and_conditions ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
-                {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }}
-                {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}
-            >
-                {{ $customer->name }} ({{ company_table('branches')->where('id', $customer->branch_id)->value('code') }})
-            </option>
-            @endforeach
-        </select>
-    </div>
-
-    {{-- Invoice Date --}}
-    <div class="form-group col-md-2">
-        {!! Form::label('inv_date', 'Invoice Date') !!}
-        {!! Form::date('inv_date', isset($invoice)? $invoice->inv_date->format('Y-m-d') :null, ['class' => 'form-control', 'required' => true]) !!}
-    </div>
-
-    {{-- Billing Month --}}
-    <div class="form-group col-md-2">
-        {!! Form::label('billing_month', 'Billing Month') !!}
-        {!! Form::month('billing_month', isset($invoice)? $invoice->billing_month->format('Y-m') :null, ['class' => 'form-control', 'required' => true]) !!}
-    </div>
-
-    {{-- Attachment --}}
-    <div class="form-group col-md-3">
-        @include('partials.universal_document_upload', [
-          'name' => 'attachment',
-          'label' => 'Attachment',
-          'required' => false,
-          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
-          'inputClass' => 'form-control',
-          'showHint' => true,
-        ])
-        <small class="text-muted">Max: 5MB</small>
-        @if(!empty($invoice?->attachment))
-            <div class="mt-1">
-                <small class="text-muted">Current file:</small>
-                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="d-inline-block text-primary">
-                    <i class="fa fa-paperclip"></i> {{ basename($invoice->attachment) }}
-                </a>
-                <small class="text-muted d-block">Leave empty to keep the existing attachment.</small>
+    <div class="col-md-9">
+        <div class="row">
+            {{-- Customer --}}
+            <div class="form-group col-md-4">
+                {!! Form::label('company_info', 'Customer') !!}
+                <select class="form-control select2" id="customer_id" name="customer_id" required>
+                    @php
+                    $customers = \App\Models\Customers::all();
+                    @endphp
+                    <option value="" selected>Select</option>
+                    @foreach($customers as $customer)
+                    <option
+                        value="{{ $customer->id }}"
+                        data-customer-note="{{ json_encode($customer->customer_note ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
+                        data-terms-and-conditions="{{ json_encode($customer->terms_and_conditions ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
+                        {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }}
+                        {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}
+                    >
+                        {{ $customer->name }} ({{ company_table('branches')->where('id', $customer->branch_id)->value('code') }})
+                    </option>
+                    @endforeach
+                </select>
             </div>
-        @endif
+
+            {{-- Invoice Date --}}
+            <div class="form-group col-md-4">
+                {!! Form::label('inv_date', 'Invoice Date') !!}
+                {!! Form::date('inv_date', isset($invoice)? $invoice->inv_date->format('Y-m-d') :null, ['class' => 'form-control', 'required' => true]) !!}
+            </div>
+
+            {{-- Billing Month --}}
+            <div class="form-group col-md-4">
+                {!! Form::label('billing_month', 'Billing Month') !!}
+                {!! Form::month('billing_month', isset($invoice)? $invoice->billing_month->format('Y-m') :null, ['class' => 'form-control', 'required' => true]) !!}
+            </div>
+
+            {{-- Period From --}}
+            <div class="form-group col-md-4">
+                {!! Form::label('date_from', 'Period From') !!}
+                {!! Form::date('date_from', isset($invoice)? $invoice->date_from->format('Y-m-d') :null, ['class' => 'form-control', 'required' => true]) !!}
+            </div>
+
+            {{-- Period To --}}
+            <div class="form-group col-md-4">
+                {!! Form::label('date_to', 'Period To') !!}
+                {!! Form::date('date_to', isset($invoice)? $invoice->date_to->format('Y-m-d') :null, ['class' => 'form-control', 'required' => true]) !!}
+            </div>
+        </div>
+
+        <div class="row">
+            {{-- Description --}}
+            <div class="form-group col-md-12">
+                {!! Form::label('description', 'Description') !!}
+                {!! Form::textarea('description', null, [
+                'class' => 'form-control',
+                'rows' => 3,
+                'placeholder' => 'Enter invoice description...'
+                ]) !!}
+            </div>
+        </div>
     </div>
 
-    {{-- Period From --}}
-    <div class="form-group col-md-3">
-        {!! Form::label('date_from', 'Period From') !!}
-        {!! Form::date('date_from', isset($invoice)? $invoice->date_from->format('Y-m-d') :null, ['class' => 'form-control', 'required' => true]) !!}
-    </div>
-
-    {{-- Period To --}}
-    <div class="form-group col-md-3">
-        {!! Form::label('date_to', 'Period To') !!}
-        {!! Form::date('date_to', isset($invoice)? $invoice->date_to->format('Y-m-d') :null, ['class' => 'form-control', 'required' => true]) !!}
-    </div>
-</div>
-
-<div class="row">
-    {{-- Description --}}
-    <div class="form-group col-md-6">
-        {!! Form::label('description', 'Description') !!}
-        {!! Form::textarea('description', null, [
-        'class' => 'form-control',
-        'rows' => 3,
-        'placeholder' => 'Enter invoice description...'
-        ]) !!}
+    <div class="col-md-3">
+        {{-- Attachment (right column, aligned like New Fine) --}}
+        <div class="form-group">
+            @include('partials.universal_document_upload', [
+              'name' => 'attachment',
+              'label' => 'Attachment',
+              'required' => false,
+              'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+              'inputClass' => 'form-control',
+              'showHint' => false,
+              'variant' => 'dropzone',
+              'uploadLabel' => 'Upload',
+              'existingUrl' => !empty($invoice?->attachment) ? asset('storage/' . $invoice->attachment) : null,
+              'existingName' => !empty($invoice?->attachment) ? basename($invoice->attachment) : null,
+              'existingIsPdf' => !empty($invoice?->attachment) && \Illuminate\Support\Str::endsWith(strtolower($invoice->attachment), '.pdf'),
+            ])
+            <small class="text-muted d-block text-center mt-1">Max: 5MB</small>
+            @if(!empty($invoice?->attachment))
+                <div class="mt-1 text-center">
+                    <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="d-inline-block text-primary small">
+                        <i class="fa fa-paperclip"></i> {{ basename($invoice->attachment) }}
+                    </a>
+                    <small class="text-muted d-block">Leave empty to keep the existing attachment.</small>
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 @php

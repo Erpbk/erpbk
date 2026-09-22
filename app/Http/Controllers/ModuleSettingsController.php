@@ -657,13 +657,16 @@ class ModuleSettingsController extends Controller
         abort_unless($module === 'customer_invoices', 404);
 
         $validated = $request->validate([
+            'invoice_title' => ['nullable', 'string', 'max:100'],
             'terms_and_conditions' => ['nullable', 'string'],
             'customer_notes' => ['nullable', 'string'],
         ]);
 
         \App\Support\CustomerInvoiceDefaults::save(
             (string) ($validated['terms_and_conditions'] ?? ''),
-            (string) ($validated['customer_notes'] ?? '')
+            (string) ($validated['customer_notes'] ?? ''),
+            null,
+            (string) ($validated['invoice_title'] ?? '')
         );
 
         return redirect()

@@ -6,13 +6,24 @@ use App\Models\Settings;
 use Illuminate\Support\Facades\Cache;
 
 /**
- * Company-level default Customer Notes / Terms & Conditions for customer invoices.
+ * Company-level defaults for customer invoice print/form text.
  */
 class CustomerInvoiceDefaults
 {
+    public const TITLE_KEY = 'customer_invoice_title';
+
     public const TERMS_KEY = 'customer_invoice_terms_and_conditions';
 
     public const NOTES_KEY = 'customer_invoice_customer_notes';
+
+    public const DEFAULT_TITLE = 'CUSTOMER INVOICE';
+
+    public static function title(?int $companyId = null): string
+    {
+        $value = trim((string) (self::get(self::TITLE_KEY, $companyId) ?? ''));
+
+        return $value !== '' ? $value : self::DEFAULT_TITLE;
+    }
 
     public static function terms(?int $companyId = null): string
     {
@@ -25,20 +36,24 @@ class CustomerInvoiceDefaults
     }
 
     /**
-     * @return array{terms_and_conditions: string, customer_notes: string}
+     * @return array{title: string, terms_and_conditions: string, customer_notes: string}
      */
     public static function all(?int $companyId = null): array
     {
         return [
+            'title' => self::title($companyId),
             'terms_and_conditions' => self::terms($companyId),
             'customer_notes' => self::notes($companyId),
         ];
     }
 
-    public static function save(string $terms, string $notes, ?int $companyId = null): void
+    public static function save(string $terms, string $notes, ?int $companyId = null, ?string $title = null): void
     {
         $companyId = $companyId ?? CompanyContext::id() ?? auth()->user()?->company_id;
 
+        if ($title !== null) {
+            self::put(self::TITLE_KEY, trim($title), $companyId);
+        }
         self::put(self::TERMS_KEY, $terms, $companyId);
         self::put(self::NOTES_KEY, $notes, $companyId);
 

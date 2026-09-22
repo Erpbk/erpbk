@@ -6,10 +6,14 @@ use App\Models\CustomerInvoices;
 use App\Models\Customers;
 use App\Models\Transactions;
 use App\Models\Branch;
-use Illuminate\Http\Request;
-use \Illuminate\Support\Facades\DB;
-use \Illuminate\Support\Facades\Storage;
+use App\Services\Email\CompanyEmailBrandingService;
+use App\Services\Email\UserEmailService;
 use App\Support\GlobalAccounts;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CustomerInvoicesController extends Controller
 {
@@ -499,5 +503,70 @@ class CustomerInvoicesController extends Controller
 
             return back()->with('error', 'Failed to delete invoice: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Show email form / send customer invoice PDF by email.
+     */
+    public function sendEmail($company_slug, $id, Request $request)
+    {
+        $invoice = CustomerInvoices::with(['customer', 'items'])->findOrFail($id);
+
+        if ($request->isMethod('post')) {
+            $user = Auth::user();
+            $emailService = app(UserEmailService::class);
+            $smtpPrep = $emailService->prepareCompanySmtp($user);
+            if (! $smtpPrep['ready']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $smtpPrep['message'],
+                ], $smtpPrep['status'] ?? 422);
+            }
+
+            $toEmail = $request->input('email_to');
+            if (! is_string($toEmail) || trim($toEmail) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Customer email address is missing.',
+                ], 422);
+            }
+            $toEmail = trim($toEmail);
+
+            $invoiceNumber = $invoice->invoice_number
+                ?? ('CI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+            $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+                ? trim($request->input('email_subject'))
+                : 'Customer Invoice #' . $invoiceNumber;
+
+            $brandingService = app(CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
+                'html' => $request->input('email_message'),
+            ]);
+
+            $pdf = Pdf::loadView('customer_invoices.show', [
+                'invoice' => $invoice,
+                'isPdf' => true,
+            ])->setPaper('a4', 'portrait');
+
+            $fromEmail = $smtpPrep['from_email'];
+            $fromName = $smtpPrep['from_name'];
+
+            $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
+                $message->to([$toEmail]);
+                $message->from($fromEmail, $fromName);
+                $message->replyTo($fromEmail, $fromName);
+                $message->subject($subject);
+                $message->attachData($pdf->output(), 'Customer-Invoice-' . $invoiceNumber . '.pdf');
+                $message->priority(3);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully.',
+            ]);
+        }
+
+        return view('customer_invoices.send_email', compact('invoice'));
     }
 }

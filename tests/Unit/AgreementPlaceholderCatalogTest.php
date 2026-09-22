@@ -45,6 +45,27 @@ class AgreementPlaceholderCatalogTest extends TestCase
         ], $options);
     }
 
+    public function test_general_source_options_are_system_only(): void
+    {
+        $options = $this->app->make(AgreementPlaceholderCatalog::class)->sourceFieldOptions('general');
+
+        $this->assertSame([
+            'company_name' => 'Company name',
+            'current_date' => 'Current date',
+        ], $options);
+    }
+
+    public function test_general_placeholders_are_system_only(): void
+    {
+        $grouped = $this->app->make(AgreementPlaceholderCatalog::class)->groupedForModule('general');
+        $tokens = collect($grouped)->flatten()->pluck('placeholder')->filter()->all();
+
+        $this->assertContains('{current_date}', $tokens);
+        $this->assertContains('{company_name}', $tokens);
+        $this->assertNotContains('{rider_name}', $tokens);
+        $this->assertNotContains('{plate_number}', $tokens);
+    }
+
     public function test_group_labels_are_predefined(): void
     {
         $labels = $this->app->make(AgreementPlaceholderCatalog::class)->groupLabels();
@@ -102,6 +123,28 @@ class AgreementPlaceholderCatalogTest extends TestCase
         $this->assertNotEmpty($tokens);
         $this->assertContains('{current_date}', $tokens);
         $this->assertNotContains('{agreement_date}', $tokens);
+    }
+
+    public function test_code_placeholders_are_wrapped_as_left_to_right_values(): void
+    {
+        $resolver = new AgreementPlaceholderResolver();
+
+        $html = $resolver->replace(
+            '<p dir="rtl">رقم اللوحة : {plate_number}<br>{rider_name}<br><span dir="ltr" class="field-value">{chassis_number}</span></p>',
+            [
+                '{plate_number}' => '2/30178',
+                '{chassis_number}' => 'MD2A11CX3RCG00469',
+                '{rider_name}' => 'رضوان',
+            ]
+        );
+
+        $this->assertSame(2, substr_count($html, 'class="field-value"'));
+        $this->assertStringContainsString('<span dir="ltr" class="field-value">2/30178</span>', $html);
+        $this->assertStringContainsString('<span dir="ltr" class="field-value">MD2A11CX3RCG00469</span>', $html);
+        $this->assertStringContainsString('رضوان', $html);
+        $this->assertStringNotContainsString('field-value">رضوان', $html);
+        $this->assertStringNotContainsString('{plate_number}', $html);
+        $this->assertStringNotContainsString('{chassis_number}', $html);
     }
 
     public function test_resolver_reads_dotted_relation_source(): void

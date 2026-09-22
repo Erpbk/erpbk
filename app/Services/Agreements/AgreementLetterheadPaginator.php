@@ -13,28 +13,28 @@ class AgreementLetterheadPaginator
     private const HEADING_FONT_PT = 14.0;
 
     /**
-     * Dompdf/Chrome-era defaults. Live mPDF path uses tighter metrics via
+     * HTML preview defaults. Live mPDF path uses tighter metrics via
      * estimateScaleFactor() / defaultLineHeightRatio() / paragraphMarginEm().
      */
-    private const ESTIMATE_TO_CHROME = 1.08;
+    private const ESTIMATE_TO_PREVIEW = 1.08;
 
     private const ESTIMATE_TO_MPDF = 1.03;
 
-    private const LINE_HEIGHT_RATIO_CHROME = 1.5;
+    private const LINE_HEIGHT_RATIO_PREVIEW = 1.5;
 
     /** Matches AgreementPdfService mPDF lineHeight * 0.9 when config is 1.5. */
     private const LINE_HEIGHT_RATIO_MPDF = 1.35;
 
-    private const PARAGRAPH_MARGIN_EM_CHROME = 0.5;
+    private const PARAGRAPH_MARGIN_EM_PREVIEW = 0.5;
 
     /** Matches letterhead.blade.php mPDF .content p { margin: 0 0 0.32em }. */
     private const PARAGRAPH_MARGIN_EM_MPDF = 0.32;
 
     /** @deprecated Prefer estimateScaleFactor(). */
-    private const ESTIMATE_TO_DOMPDF = self::ESTIMATE_TO_CHROME;
+    private const ESTIMATE_TO_DOMPDF = self::ESTIMATE_TO_PREVIEW;
 
     /** @deprecated Prefer defaultLineHeightRatio(). */
-    private const LINE_HEIGHT_RATIO = self::LINE_HEIGHT_RATIO_CHROME;
+    private const LINE_HEIGHT_RATIO = self::LINE_HEIGHT_RATIO_PREVIEW;
 
     private const CHARS_PER_LINE = 92;
 
@@ -44,7 +44,7 @@ class AgreementLetterheadPaginator
 
     private int $appendDepth = 0;
 
-    /** chrome | mpdf | html (preview). Drives height-estimate calibration. */
+    /** mpdf | html (preview). Drives height-estimate calibration. */
     private string $pdfEngine = 'mpdf';
 
     /**
@@ -2669,11 +2669,10 @@ class AgreementLetterheadPaginator
     private function normalizePdfEngine(?string $pdfEngine): string
     {
         $engine = strtolower(trim((string) $pdfEngine));
-        if (in_array($engine, ['mpdf', 'chrome', 'html'], true)) {
+        if (in_array($engine, ['mpdf', 'html'], true)) {
             return $engine;
         }
 
-        // Prefer mPDF calibration: live forced-mPDF path and Chrome-unavailable fallback.
         return 'mpdf';
     }
 
@@ -2684,25 +2683,25 @@ class AgreementLetterheadPaginator
 
     /**
      * Scale raw PHP estimates toward the active PDF engine's paint height.
-     * mPDF paints tighter than Dompdf/Chrome for the same HTML.
+     * mPDF paints tighter than the HTML preview for the same markup.
      */
     private function estimateScaleFactor(): float
     {
-        return $this->usesMpdfMetrics() ? self::ESTIMATE_TO_MPDF : self::ESTIMATE_TO_CHROME;
+        return $this->usesMpdfMetrics() ? self::ESTIMATE_TO_MPDF : self::ESTIMATE_TO_PREVIEW;
     }
 
     private function defaultLineHeightRatio(): float
     {
         return $this->usesMpdfMetrics()
             ? self::LINE_HEIGHT_RATIO_MPDF
-            : self::LINE_HEIGHT_RATIO_CHROME;
+            : self::LINE_HEIGHT_RATIO_PREVIEW;
     }
 
     private function paragraphMarginEm(): float
     {
         return $this->usesMpdfMetrics()
             ? self::PARAGRAPH_MARGIN_EM_MPDF
-            : self::PARAGRAPH_MARGIN_EM_CHROME;
+            : self::PARAGRAPH_MARGIN_EM_PREVIEW;
     }
 
     /** Extra padding on text/list blocks beyond line metrics. */
@@ -3002,7 +3001,7 @@ class AgreementLetterheadPaginator
             return $total + ($text === '' ? 0.0 : 4.0);
         }
 
-        // Match engine CSS: mPDF .content p { margin: 0 0 0.32em }; Chrome 0.5em.
+        // Match engine CSS: mPDF .content p { margin: 0 0 0.32em }; preview 0.5em.
         return $textHeight + $imageHeight + ($fontPt * $this->paragraphMarginEm());
     }
 
@@ -3023,7 +3022,7 @@ class AgreementLetterheadPaginator
     private function charsPerLineForFont(float $fontSizePt): int
     {
         $base = self::CHARS_PER_LINE;
-        // mPDF wraps a touch earlier than the Dompdf/Chrome char budget.
+        // mPDF wraps a touch earlier than the preview char budget.
         if ($this->usesMpdfMetrics()) {
             $base = (int) floor($base * 0.94);
         }

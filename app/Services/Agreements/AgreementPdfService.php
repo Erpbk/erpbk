@@ -3,6 +3,7 @@
 namespace App\Services\Agreements;
 
 use App\Models\AgreementTemplate;
+use App\Models\AgreementCategory;
 use App\Models\Riders;
 use App\Services\Agreements\AgreementLetterheadLayout;
 use App\Services\Agreements\AgreementModuleService;
@@ -23,8 +24,7 @@ class AgreementPdfService
         protected AgreementLetterheadPaginator $letterheadPaginator,
         protected AgreementFontSettings $fonts,
         protected AgreementLetterheadPdfPainter $letterheadPainter,
-        protected AgreementRtlTextShaper $rtlTextShaper,
-        protected AgreementChromePdfPrinter $chromePdfPrinter
+        protected AgreementRtlTextShaper $rtlTextShaper
     ) {}
 
     /**
@@ -56,39 +56,30 @@ class AgreementPdfService
         ?string $agreementDate = null,
         bool $useSampleData = false,
         bool $forPdf = false,
-        bool $withLetterhead = true,
-        ?string $pdfEngine = null
+        bool $withLetterhead = true
     ): string {
+        $template->loadMissing(['category.letterhead', 'category.watermark']);
+        $placeholderModule = $template->category?->isGeneral()
+            ? AgreementCategory::GENERAL_MODULE
+            : $module;
         $content = (string) ($template->description ?? '');
-        $map = $useSampleData
+        $map = $useSampleData && ! ($template->category?->isGeneral() ?? false)
             ? $this->sampleMap()
-            : $this->resolver->resolveForModule($module, $record, $agreementDate);
+            : $this->resolver->resolveForModule($placeholderModule, $record, $agreementDate);
 
         $body = $this->pdfBranding->inlineHtmlImages(
             $this->fonts->normalizeHtml($this->resolver->replace($content, $map))
         );
 
-        $template->loadMissing(['category.letterhead', 'category.watermark']);
         $category = $template->category;
 
-        // PDF engines:
-        // - chrome: logical Unicode HTML (no Ar-PHP shaping); Chrome shapes Arabic.
-        // - mpdf: logical Unicode + OpenType; mark Arabic blocks for RTL CSS.
-        // Never run Dompdf-era utf8Glyphs / bdo / LRO on either path.
+        // mPDF: logical Unicode + OpenType. Never run Dompdf-era utf8Glyphs / bdo / LRO.
         $agreementHasArabic = false;
         if ($forPdf) {
-            $pdfEngine = $pdfEngine ?: $this->resolvePdfEngine();
-            $agreementHasArabic = $this->rtlTextShaper->containsArabicScript($body);
-            if ($pdfEngine === 'mpdf') {
-                $prepared = $this->rtlTextShaper->prepareLogicalHtmlForMpdf($body);
-                $body = $prepared['html'];
-                $agreementHasArabic = ! empty($prepared['has_arabic']);
-            } elseif ($pdfEngine === 'chrome') {
-                // Logical Unicode + <bdi dir="ltr"> around phones/IDs/chassis/plates.
-                $prepared = $this->rtlTextShaper->prepareLogicalHtmlForChrome($body);
-                $body = $prepared['html'];
-                $agreementHasArabic = ! empty($prepared['has_arabic']);
-            }
+            $pdfEngine = 'mpdf';
+            $prepared = $this->rtlTextShaper->prepareLogicalHtmlForMpdf($body);
+            $body = $prepared['html'];
+            $agreementHasArabic = ! empty($prepared['has_arabic']);
         } else {
             $pdfEngine = 'html';
         }
@@ -102,10 +93,10 @@ class AgreementPdfService
         $contentZoneMm = $this->letterheadLayout->contentZoneHeightMm($category, $withLetterhead);
         $margins = $this->letterheadLayout->resolvedMarginsMm($category);
         $contentPadding = $this->letterheadLayout->contentPaddingMm($category, $withLetterhead);
-        // mPDF + Chrome PDF: continuous native flow (no pre-split .agreement-page
-        // boxes). Engine/@page margins fill to the bottom when bottom margin is 0.
-        // HTML preview still uses the paginator for on-screen page chrome.
-        $mpdfNativeFlow = $forPdf && in_array($pdfEngine, ['mpdf', 'chrome'], true);
+        // mPDF: continuous native flow (no pre-split .agreement-page boxes).
+        // @page margins fill to the bottom when bottom margin is 0.
+        // HTML preview still uses the paginator for on-screen letterhead.
+        $mpdfNativeFlow = $forPdf && $pdfEngine === 'mpdf';
         $pages = $mpdfNativeFlow
             ? [$body]
             : $this->letterheadPaginator->paginate($body, $contentZoneMm, $pdfEngine);
@@ -139,7 +130,7 @@ class AgreementPdfService
                 ? $this->mpdfRtlFamilyStackCss()
                 : $this->fonts->rtlFamilyStackCss(),
             'agreementFontSizePt' => $this->fonts->sizePt(),
-            // mPDF Arabic metrics wrap a bit looser than Chrome/Noto; tighten slightly for page parity.
+            // mPDF Arabic metrics wrap a bit loose; tighten slightly for page fit.
             'agreementLineHeight' => ($forPdf && $pdfEngine === 'mpdf')
                 ? max(1.2, round($this->fonts->lineHeight() * 0.9, 2))
                 : $this->fonts->lineHeight(),
@@ -165,10 +156,9 @@ class AgreementPdfService
         bool $withLetterhead = true
     ) {
         $template->loadMissing(['category.letterhead', 'category.watermark']);
-        $engine = $this->resolvePdfEngine();
-        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead, $engine);
+        $html = $this->renderHtmlForModule($template, $module, $record, $agreementDate, false, true, $withLetterhead);
 
-        return $this->buildPdf($html, $template->category, $withLetterhead, $engine);
+        return $this->buildMpdf($html, $template->category, $withLetterhead);
     }
 
     public function previewPdf(
@@ -179,7 +169,6 @@ class AgreementPdfService
     ) {
         $rider = $rider ?? new Riders(['name' => 'Sample Rider', 'rider_id' => 'R-0001']);
         $template->loadMissing(['category.letterhead', 'category.watermark']);
-        $engine = $this->resolvePdfEngine();
         $html = $this->renderHtmlForModule(
             $template,
             'riders',
@@ -187,44 +176,10 @@ class AgreementPdfService
             $agreementDate,
             $rider->exists === false,
             true,
-            $withLetterhead,
-            $engine
+            $withLetterhead
         );
 
-        return $this->buildPdf($html, $template->category, $withLetterhead, $engine);
-    }
-
-    /**
-     * Prefer Chrome/Edge headless when available; fall back to mPDF (English-ok).
-     */
-    private function resolvePdfEngine(): string
-    {
-        return $this->chromePdfPrinter->isAvailable() ? 'chrome' : 'mpdf';
-    }
-
-    /**
-     * Build agreement PDFs via Chrome headless or mPDF.
-     */
-    private function buildPdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true, ?string $engine = null)
-    {
-        $engine = $engine ?: $this->resolvePdfEngine();
-        if ($engine === 'chrome') {
-            return $this->buildChromePdf($html, $category, $withLetterhead);
-        }
-
-        return $this->buildMpdf($html, $category, $withLetterhead);
-    }
-
-    private function buildChromePdf(string $html, ?\App\Models\AgreementCategory $category = null, bool $withLetterhead = true): AgreementChromePdfDocument
-    {
-        $bytes = $this->chromePdfPrinter->htmlToPdf($html);
-
-        // Content-only Chrome PDF + full-page letterhead stamp (mirrors mPDF SetWatermarkImage).
-        if ($withLetterhead) {
-            $bytes = $this->letterheadPainter->applyToChromePdf($bytes, $category);
-        }
-
-        return new AgreementChromePdfDocument($bytes);
+        return $this->buildMpdf($html, $template->category, $withLetterhead);
     }
 
     /**
@@ -238,7 +193,7 @@ class AgreementPdfService
 
         if ($hasArabic) {
             $html = $this->fonts->forceRtlFontFamiliesInHtml($html);
-            // Prefer Noto Naskh Arabic (Chrome parity) when registered with useOTL; Lateef fallback.
+            // Prefer Noto Naskh Arabic when registered with useOTL; Lateef fallback.
             // GPOS Type 5 Format 3 is skipped via scripts/patch-mpdf-gpos.php so Noto/Amiri can load.
             $html = $this->forceLateefFontsForMpdfHtml($html);
         }
@@ -301,6 +256,7 @@ class AgreementPdfService
 
         $mpdf->SetDisplayMode('fullpage');
         $mpdf->SetTitle('Agreement');
+        $this->disableMpdfHeadingPageBreaks($mpdf);
 
         // Dompdf-era model: paint design letterhead BEHIND content (watermark image),
         // not as a full-page HTML <img> (which double-draws / splits pages).
@@ -309,9 +265,10 @@ class AgreementPdfService
         }
 
         // Large letterhead/logo data-URIs exceed default pcre.backtrack_limit in mPDF.
-        $html = $this->materializeDataUrisForMpdf($html, $tempDir);
         $previousLimit = ini_get('pcre.backtrack_limit');
         @ini_set('pcre.backtrack_limit', (string) max(10000000, (int) $previousLimit));
+        $html = $this->materializeDataUrisForMpdf($html, $tempDir);
+        $html = $this->demoteHeadingsForMpdf($html);
         // Some Arabic TTFs trip undefined-offset notices inside mPDF GSUB/GPOS readers;
         // Laravel promotes those to ErrorException — ignore only those font metrics notices.
         $previousReporting = error_reporting(E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR);
@@ -331,6 +288,47 @@ class AgreementPdfService
         }
 
         return new AgreementMpdfDocument($mpdf);
+    }
+
+    /**
+     * mPDF default CSS sets PAGE-BREAK-AFTER: avoid on H1–H6. Setting
+     * PAGE-BREAK-BEFORE: auto is also unsafe: mPDF treats any truthy
+     * PAGE-BREAK-BEFORE as a forced break when @page boxes are in use.
+     */
+    private function disableMpdfHeadingPageBreaks(Mpdf $mpdf): void
+    {
+        foreach (['H1', 'H2', 'H3', 'H4', 'H5', 'H6'] as $tag) {
+            if (! isset($mpdf->defaultCSS[$tag]) || ! is_array($mpdf->defaultCSS[$tag])) {
+                $mpdf->defaultCSS[$tag] = [];
+            }
+            unset($mpdf->defaultCSS[$tag]['PAGE-BREAK-BEFORE'], $mpdf->defaultCSS[$tag]['PAGE-BREAK-INSIDE']);
+            $mpdf->defaultCSS[$tag]['PAGE-BREAK-AFTER'] = 'auto';
+        }
+    }
+
+    /**
+     * Render editor H1–H6 as paragraphs so mPDF heading page-break rules never run.
+     */
+    private function demoteHeadingsForMpdf(string $html): string
+    {
+        $replaced = preg_replace_callback(
+            '/<(h[1-6])(\s[^>]*)?>(.*?)<\/\1>/is',
+            static function (array $m): string {
+                $level = strtolower($m[1]);
+                $attrs = $m[2] ?? '';
+                $inner = $m[3];
+                $class = 'agreement-heading agreement-'.$level;
+                if (preg_match('/\sclass\s*=\s*(["\'])(.*?)\1/i', $attrs, $cm)) {
+                    $class .= ' '.$cm[2];
+                    $attrs = preg_replace('/\sclass\s*=\s*(["\']).*?\1/i', '', $attrs) ?? $attrs;
+                }
+
+                return '<p class="'.$class.'"'.$attrs.'>'.$inner.'</p>';
+            },
+            $html
+        );
+
+        return is_string($replaced) ? $replaced : $html;
     }
 
     private function isMpdfGposFailure(\Throwable $e): bool
@@ -368,7 +366,7 @@ class AgreementPdfService
             );
         }
 
-        // Prefer Noto Naskh Arabic (matches Chrome @font-face). Amiri/Scheherazade also OK
+        // Prefer Noto Naskh Arabic. Amiri/Scheherazade also OK
         // after scripts/patch-mpdf-gpos.php skips unsupported GPOS Type 5 Format 3.
         $arabicFaces = [
             'notonaskharabic' => [
@@ -493,7 +491,7 @@ class AgreementPdfService
     }
 
     /**
-     * mPDF fontdata key for the Arabic face that best matches Chrome (Noto), else Lateef.
+     * mPDF fontdata key for the Arabic face (Noto when present, else Lateef).
      *
      * @param  array<string, mixed>|null  $fontData
      */
@@ -648,8 +646,8 @@ class AgreementPdfService
 
     /**
      * Drop trailing blank / letterhead-only mPDF pages when content barely overflowed.
-     * Chrome letterhead chrome (and design contact strings) still write Tj operators, so
-     * count only "real" body text — short chrome snippets alone must not keep a page.
+     * Letterhead contact strings still write Tj operators, so count only real body
+     * text — short header snippets alone must not keep a page.
      */
     private function suppressLeadingEmptyMpdfPage(Mpdf $mpdf): void
     {

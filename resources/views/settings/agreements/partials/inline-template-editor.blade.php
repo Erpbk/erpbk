@@ -39,7 +39,9 @@ $editorMargins = $letterheadMargins ?? (isset($category) ? $category->resolvedLe
       <div class="d-flex flex-wrap gap-1 mb-2">
         @foreach($items as $ph)
         <button type="button" class="btn btn-outline-secondary btn-sm placeholder-btn"
-          data-placeholder="{{ $ph->placeholder }}" title="{{ $ph->description }}">
+          data-placeholder="{{ $ph->placeholder }}"
+          @if(app(\App\Services\Agreements\AgreementPlaceholderResolver::class)->isLeftToRightPlaceholder($ph->placeholder)) data-ltr="1" @endif
+          title="{{ $ph->description }}">
           <code>{{ $ph->placeholder }}</code>
         </button>
         @endforeach

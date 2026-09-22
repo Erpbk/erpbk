@@ -18,6 +18,21 @@ class AgreementModuleService
     /** @var array<string, list<array{id:int,name:string,index_url:string,show_url:string,preview_url:string,template_id:?int,record_preview_pattern:?string}>> */
     private static array $actionMenuItemsCache = [];
 
+    /**
+     * Keys shown on company create/edit agreement screens (General + ERP modules).
+     *
+     * @return list<string>
+     */
+    public function assignmentOptionKeys(): array
+    {
+        $keys = $this->assignableModuleKeys();
+        if (! in_array(AgreementCategory::GENERAL_MODULE, $keys, true)) {
+            array_unshift($keys, AgreementCategory::GENERAL_MODULE);
+        }
+
+        return $keys;
+    }
+
     public function isConfiguredModule(string $module): bool
     {
         return array_key_exists($module, config('agreement_modules.modules', []));
@@ -327,6 +342,9 @@ class AgreementModuleService
     public function moduleLabel(string $module): string
     {
         $module = ErpModuleRegistry::normalizeKey($module);
+        if ($module === AgreementCategory::GENERAL_MODULE) {
+            return 'General';
+        }
         $labelKeys = $this->labelKeysForModule($module);
 
         foreach ($labelKeys as $key) {

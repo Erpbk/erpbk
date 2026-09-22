@@ -73,6 +73,9 @@ class AgreementRtlTextShaper
     /** @var (callable(string, float, ?string): float)|null */
     private $widthMeasurer = null;
 
+    /** @var array<int, true> */
+    private array $presentedMpdfBlocks = [];
+
     public function containsArabicScript(string $text): bool
     {
         return (bool) preg_match(self::ARABIC_SCRIPT, $text);
@@ -389,6 +392,15 @@ class AgreementRtlTextShaper
         return $arabic > 0 && $arabic >= max(1, $latin);
     }
 
+    private function firstStrongIsArabic(string $text): bool
+    {
+        if (preg_match('/[A-Za-z\x{0600}-\x{06FF}\x{0750}-\x{077F}\x{08A0}-\x{08FF}]/u', $text, $match) !== 1) {
+            return false;
+        }
+
+        return $this->containsArabicScript($match[0]);
+    }
+
     private function addClass(DOMElement $element, string $class): void
     {
         $existing = trim($element->getAttribute('class'));
@@ -651,9 +663,12 @@ class AgreementRtlTextShaper
     }
 
     /**
-     * Prepare logical Unicode HTML for mPDF (no Ar-PHP glyphs, no bdo/LRO).
-     * Marks Arabic-heavy / dir=rtl blocks so letterhead CSS can apply
-     * direction:rtl; text-align:right and the Arabic font stack.
+     * Prepare agreement HTML for mPDF.
+     * Field order and LTR tokens are fixed while the text is still logical,
+     * then Arabic letters are replaced with connected presentation forms.
+     * mPDF does not join Noto, Amiri, or Lateef, so the glyphs must already
+     * be the initial/medial/final shapes. Blocks are painted left-to-right
+     * in that visual order (no dir=rtl) or the letters reverse a second time.
      *
      * @return array{html: string, rtl: bool, has_arabic: bool}
      */
@@ -666,8 +681,6 @@ class AgreementRtlTextShaper
 
         $wrapped = $html;
 
-        // Same logical prep as Chrome: Arabic block marks, field-label reorder, LTR isolates.
-        // mPDF shapes OpenType under direction:rtl; <bdi dir="ltr"> keeps phones/IDs ordered.
         if ($hasArabic) {
             try {
                 $wrapped = $this->markLogicalArabicBlocks($wrapped);
@@ -686,6 +699,14 @@ class AgreementRtlTextShaper
             $wrapped = $this->wrapLtrTokensForChrome($wrapped);
         } catch (Throwable) {
             // Keep marked HTML even if LTR wrapping fails.
+        }
+
+        if ($hasArabic) {
+            try {
+                $wrapped = $this->applyMpdfPresentationForms($wrapped);
+            } catch (Throwable) {
+                // Keep logical HTML if glyph conversion fails.
+            }
         }
 
         return [
@@ -727,7 +748,10 @@ class AgreementRtlTextShaper
             $dir = strtolower(trim($node->getAttribute('dir')));
             $text = $node->textContent ?? '';
 
-            if ($dir === 'rtl' || ($dir === '' && $this->isMostlyArabic($text))) {
+            // A line that starts with English stays left-to-right, even when the
+            // Arabic half is longer. Only a paragraph that starts with Arabic,
+            // or was already marked dir=rtl, becomes a right-to-left block.
+            if ($dir === 'rtl' || ($dir === '' && $this->firstStrongIsArabic($text))) {
                 $this->addClass($node, 'agreement-ar-block');
                 $this->addClass($node, 'agreement-ar');
                 if ($dir === '') {
@@ -745,55 +769,6 @@ class AgreementRtlTextShaper
 
         return $out !== '' ? $out : $html;
     }
-
-    /**
-     * Prepare logical Unicode HTML for Chrome/Edge headless PDF.
-     * No Ar-PHP glyph shaping — Chrome shapes Arabic natively under direction:rtl.
-     * Wrap strong LTR tokens (phones, IDs, codes, plates) in <bdi dir="ltr"> so
-     * hyphen/slash neutrals keep editor order instead of BiDi-reversing to
-     * e.g. 4-6268395-1988-784.
-     *
-     * @return array{html: string, rtl: bool, has_arabic: bool}
-     */
-    public function prepareLogicalHtmlForChrome(string $html): array
-    {
-        $hasArabic = $html !== '' && $this->containsArabicScript($html);
-        if ($html === '') {
-            return ['html' => $html, 'rtl' => false, 'has_arabic' => false];
-        }
-
-        $wrapped = $html;
-
-        // Mark Arabic-heavy / dir=rtl blocks for letterhead Chrome CSS helpers first,
-        // then normalize TinyMCE-reversed field lines (LTR value + colon + Arabic label),
-        // then wrap LTR tokens so a second DOM parse cannot drop <bdi> isolates.
-        if ($hasArabic) {
-            try {
-                $wrapped = $this->markLogicalArabicBlocks($wrapped);
-            } catch (Throwable) {
-                $wrapped = $html;
-            }
-
-            try {
-                $wrapped = $this->normalizeChromeRtlFieldLabelOrder($wrapped);
-            } catch (Throwable) {
-                // Keep marked HTML even if field-order normalization fails.
-            }
-        }
-
-        try {
-            $wrapped = $this->wrapLtrTokensForChrome($wrapped);
-        } catch (Throwable) {
-            // Keep marked HTML even if LTR wrapping fails.
-        }
-
-        return [
-            'html' => $wrapped,
-            'rtl' => false,
-            'has_arabic' => $hasArabic,
-        ];
-    }
-
 
     /**
      * TinyMCE RTL sometimes stores field lines as LTR_VALUE + colon + Arabic_label
@@ -937,8 +912,8 @@ class AgreementRtlTextShaper
             return null;
         }
 
-        // Reject if the "label" still embeds another LTR field token (not a plain heading).
-        if (preg_match(self::LTR_TOKEN, $label) === 1 && preg_match('/[0-9]/', $label) === 1) {
+        // A Latin word in the remainder is a real English label (To:, Subject:), not a reversed field.
+        if (preg_match('/[A-Za-z]/', $label) === 1) {
             return null;
         }
 
@@ -1255,5 +1230,215 @@ class AgreementRtlTextShaper
         return preg_match('/[\-\/:._+%@]/', $token) === 1
             || preg_match('/[A-Za-z]/', $token) === 1
             || preg_match('/\d{2,}/', $token) === 1;
+    }
+
+    /**
+     * Replace Arabic letters with connected presentation forms and lay the
+     * line out in visual order for mPDF (LTR bidi-override).
+     */
+    private function applyMpdfPresentationForms(string $html): string
+    {
+        $dom = new DOMDocument('1.0', 'UTF-8');
+        $dom->preserveWhiteSpace = true;
+        @$dom->loadHTML(
+            '<?xml encoding="UTF-8"><html><body><div id="rtl-root">'.$html.'</div></body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_PARSEHUGE
+        );
+
+        $root = $dom->getElementById('rtl-root');
+        if (! $root instanceof DOMElement) {
+            return $html;
+        }
+
+        try {
+            $arabic = new Arabic();
+        } catch (Throwable) {
+            return $html;
+        }
+
+        $this->presentedMpdfBlocks = [];
+        $xpath = new \DOMXPath($dom);
+        $blocks = [];
+        foreach ($xpath->query('.//*', $root) ?: [] as $node) {
+            if (! $node instanceof DOMElement) {
+                continue;
+            }
+            $this->stripDirectionFromInlineStyle($node);
+            $tag = strtolower($node->tagName);
+            if (! in_array($tag, self::BLOCK_TAGS, true)) {
+                continue;
+            }
+            $class = $node->getAttribute('class');
+            $dir = strtolower(trim($node->getAttribute('dir')));
+            if ($dir === 'rtl' || str_contains($class, 'agreement-ar-block')) {
+                $blocks[] = $node;
+            }
+        }
+
+        foreach ($blocks as $block) {
+            $this->presentMpdfRtlBlock($block, $arabic);
+        }
+        $this->shapeLooseMpdfArabic($root, $arabic);
+
+        $out = '';
+        foreach ($root->childNodes as $child) {
+            $out .= $dom->saveHTML($child) ?: '';
+        }
+
+        return $out !== '' ? $out : $html;
+    }
+
+    private function presentMpdfRtlBlock(DOMElement $block, Arabic $arabic): void
+    {
+        $id = spl_object_id($block);
+        if (isset($this->presentedMpdfBlocks[$id])) {
+            return;
+        }
+        $this->presentedMpdfBlocks[$id] = true;
+
+        $nested = [];
+        foreach ($block->childNodes as $child) {
+            if ($child instanceof DOMElement && in_array(strtolower($child->tagName), self::BLOCK_TAGS, true)) {
+                $nested[] = $child;
+            }
+        }
+        if ($nested !== []) {
+            foreach ($nested as $child) {
+                $this->presentMpdfRtlBlock($child, $arabic);
+            }
+            $block->removeAttribute('dir');
+
+            return;
+        }
+
+        $this->shapeMpdfTextNodes($block, $arabic);
+        if (strtolower(trim($block->getAttribute('dir'))) === '') {
+            $block->setAttribute('dir', 'rtl');
+        }
+    }
+
+    /**
+     * Join Arabic words only. Leave the surrounding English, colon, and digits
+     * in the order they were typed. utf8Glyphs on the whole line moves those.
+     */
+    private function shapeArabicRunsLogically(Arabic $arabic, string $text): string
+    {
+        $shaped = preg_replace_callback(
+            '/[\x{0600}-\x{06FF}\x{0750}-\x{077F}\x{08A0}-\x{08FF}]+(?:\s+[\x{0600}-\x{06FF}\x{0750}-\x{077F}\x{08A0}-\x{08FF}]+)*/u',
+            function (array $match) use ($arabic): string {
+                $glyphs = $this->utf8GlyphsSafe($arabic, $match[0]);
+                if ($glyphs === null || $glyphs === '') {
+                    return $match[0];
+                }
+
+                return $this->mbStrRev($glyphs);
+            },
+            $text
+        );
+
+        return $shaped ?? $text;
+    }
+
+    private function mbStrRev(string $value): string
+    {
+        $chars = preg_split('//u', $value, -1, PREG_SPLIT_NO_EMPTY);
+        if ($chars === false) {
+            return $value;
+        }
+
+        return implode('', array_reverse($chars));
+    }
+
+    private function shapeMpdfTextNodes(DOMNode $node, Arabic $arabic): void
+    {
+        if ($this->insideFieldValue($node)) {
+            return;
+        }
+
+        if ($node instanceof DOMText) {
+            $text = $node->nodeValue ?? '';
+            if ($text === '' || ! $this->containsArabicScript($text)) {
+                return;
+            }
+            $node->nodeValue = $this->shapeArabicRunsLogically($arabic, $text);
+
+            return;
+        }
+
+        if (! $node instanceof DOMElement) {
+            return;
+        }
+
+        $tag = strtolower($node->tagName);
+        if (in_array($tag, ['script', 'style', 'code', 'pre'], true)) {
+            return;
+        }
+
+        foreach (iterator_to_array($node->childNodes) as $child) {
+            $this->shapeMpdfTextNodes($child, $arabic);
+        }
+    }
+
+    private function shapeLooseMpdfArabic(DOMNode $node, Arabic $arabic): void
+    {
+        if ($this->insideFieldValue($node)) {
+            return;
+        }
+
+        if ($node instanceof DOMText) {
+            $text = $node->nodeValue ?? '';
+            if ($text === '' || ! $this->containsArabicScript($text)) {
+                return;
+            }
+            if ($this->insidePresentedMpdfBlock($node)) {
+                return;
+            }
+            $node->nodeValue = $this->shapeArabicRunsLogically($arabic, $text);
+
+            return;
+        }
+
+        if (! $node instanceof DOMElement) {
+            return;
+        }
+
+        if (isset($this->presentedMpdfBlocks[spl_object_id($node)])) {
+            return;
+        }
+
+        $tag = strtolower($node->tagName);
+        if (in_array($tag, ['script', 'style', 'code', 'pre', 'bdo', 'bdi'], true)) {
+            return;
+        }
+
+        foreach (iterator_to_array($node->childNodes) as $child) {
+            $this->shapeLooseMpdfArabic($child, $arabic);
+        }
+    }
+
+    private function insidePresentedMpdfBlock(DOMNode $node): bool
+    {
+        $current = $node->parentNode;
+        while ($current instanceof DOMElement) {
+            if (isset($this->presentedMpdfBlocks[spl_object_id($current)])) {
+                return true;
+            }
+            $current = $current->parentNode;
+        }
+
+        return false;
+    }
+
+    private function insideFieldValue(DOMNode $node): bool
+    {
+        $current = $node instanceof DOMElement ? $node : $node->parentNode;
+        while ($current instanceof DOMElement) {
+            if (str_contains($current->getAttribute('class'), 'field-value')) {
+                return true;
+            }
+            $current = $current->parentNode;
+        }
+
+        return false;
     }
 }

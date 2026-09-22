@@ -58,20 +58,26 @@
 }
 
 .page-header-logo {
-  width: 55%;
-  padding-right: 6mm;
+  width: 1%;
+  white-space: nowrap;
+  padding-right: 1.5mm;
+  vertical-align: middle;
 }
 
 .page-header-logo .company-logo-img {
-  max-height: 22mm;
-  max-width: 58mm;
+  width: auto;
+  height: 24mm;
+  max-width: 40mm;
+  max-height: 24mm;
+  object-fit: contain;
+  object-position: left center;
   display: block;
 }
 
 .page-header-logo .company-logo-fallback {
-  width: 18mm;
-  height: 18mm;
-  line-height: 18mm;
+  width: 24mm;
+  height: 24mm;
+  line-height: 24mm;
   text-align: center;
   font-size: 12pt;
   font-weight: bold;
@@ -79,9 +85,18 @@
 }
 
 .page-header-info {
-  width: 45%;
-  text-align: right;
-  padding-top: 1mm;
+  text-align: left;
+  vertical-align: middle;
+  padding-top: 0;
+}
+
+.page-header-name {
+  margin: 0 0 1pt;
+  font-size: 11pt;
+  color: #0f172a;
+  line-height: 1.3;
+  text-align: left;
+  font-weight: bold;
 }
 
 .page-header-meta {

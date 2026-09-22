@@ -82,16 +82,20 @@ class AgreementFontSettings
             static function (array $m) use ($quoted): string {
                 $tag = $m[1];
                 $attrs = $m[2].$m[4];
-                if (preg_match('/\bstyle\s*=\s*(["\'])(.*?)/i', $attrs, $styleMatch)) {
-                    $style = $styleMatch[2];
+                if (preg_match('/\bstyle\s*=\s*(["\'])(.*?)\1/is', $attrs, $styleMatch)) {
+                    $style = trim($styleMatch[2], " \t;");
+                    $familyDecl = 'font-family: '.$quoted;
                     if (preg_match('/font-family\s*:\s*[^;]+/i', $style)) {
-                        $style = preg_replace('/font-family\s*:\s*[^;]+/i', 'font-family: '.$quoted, $style) ?? $style;
+                        $style = preg_replace('/font-family\s*:\s*[^;]+/i', $familyDecl, $style) ?? $style;
+                    } elseif ($style === '') {
+                        $style = $familyDecl;
                     } else {
-                        $style = rtrim($style, '; ').'; font-family: '.$quoted;
+                        $style .= '; '.$familyDecl;
                     }
+                    $quote = $styleMatch[1];
                     $attrs = preg_replace(
-                        '/\bstyle\s*=\s*(["\'])(.*?)/i',
-                        'style='.$style.'',
+                        '/\bstyle\s*=\s*(["\']).*?\1/is',
+                        'style='.$quote.$style.$quote,
                         $attrs,
                         1
                     ) ?? $attrs;
@@ -625,8 +629,9 @@ class AgreementFontSettings
             'Noto Naskh Arabic' => [
                 'normal' => [$bundle . 'NotoNaskhArabic-Regular.ttf'],
                 'bold' => [$bundle . 'NotoNaskhArabic-Bold.ttf', $bundle . 'NotoNaskhArabic-Regular.ttf'],
-                'italic' => [$bundle . 'NotoNaskhArabic-Regular.ttf'],
-                'bold_italic' => [$bundle . 'NotoNaskhArabic-Bold.ttf', $bundle . 'NotoNaskhArabic-Regular.ttf'],
+                // Noto Naskh has no italic file. Amiri italic is the real slanted Arabic face.
+                'italic' => [$bundle . 'Amiri-Italic.ttf', $bundle . 'NotoNaskhArabic-Regular.ttf'],
+                'bold_italic' => [$bundle . 'Amiri-BoldItalic.ttf', $bundle . 'NotoNaskhArabic-Bold.ttf'],
             ],
             'Amiri' => [
                 'normal' => [$bundle . 'Amiri-Regular.ttf'],
@@ -637,8 +642,8 @@ class AgreementFontSettings
             'Scheherazade New' => [
                 'normal' => [$bundle . 'ScheherazadeNew-Regular.ttf'],
                 'bold' => [$bundle . 'ScheherazadeNew-Bold.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
-                'italic' => [$bundle . 'ScheherazadeNew-Regular.ttf'],
-                'bold_italic' => [$bundle . 'ScheherazadeNew-Bold.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
+                'italic' => [$bundle . 'Amiri-Italic.ttf', $bundle . 'ScheherazadeNew-Regular.ttf'],
+                'bold_italic' => [$bundle . 'Amiri-BoldItalic.ttf', $bundle . 'ScheherazadeNew-Bold.ttf'],
             ],
         ] as $family => $styles) {
             $variants = [

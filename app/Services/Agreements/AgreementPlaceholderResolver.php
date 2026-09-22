@@ -151,9 +151,43 @@ class AgreementPlaceholderResolver
         return is_scalar($attr) ? (string) $attr : '';
     }
 
+    public function isLeftToRightPlaceholder(string $token): bool
+    {
+        $key = strtolower(trim($token, "{} \t\n\r"));
+
+        return $key !== '' && preg_match(
+            '/(phone|mobile|plate|chassis|vin|cnic|emirates|passport|email|iban|licen[cs]e|regist|code|number|_id|^id$)/',
+            $key
+        ) === 1;
+    }
+
     public function replace(string $html, array $map): string
     {
-        return str_replace(array_keys($map), array_values($map), $html);
+        foreach ($map as $token => $value) {
+            $token = (string) $token;
+            if ($token === '') {
+                continue;
+            }
+            $text = (string) $value;
+            if ($this->isLeftToRightPlaceholder($token) && $text !== '') {
+                $escaped = htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                $quoted = preg_quote($token, '/');
+                $html = preg_replace(
+                    '/(<span\b[^>]*\bclass="[^"]*\bfield-value\b[^"]*"[^>]*>)\s*'.$quoted.'\s*(<\/span>)/i',
+                    '$1'.$escaped.'$2',
+                    $html
+                ) ?? $html;
+                $html = str_replace(
+                    $token,
+                    '<span dir="ltr" class="field-value">'.$escaped.'</span>',
+                    $html
+                );
+                continue;
+            }
+            $html = str_replace($token, $text, $html);
+        }
+
+        return $html;
     }
 
     private function formatDate(mixed $value): string

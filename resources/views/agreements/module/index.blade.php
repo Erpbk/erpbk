@@ -15,7 +15,7 @@
       <div class="card-header">
         <h4 class="card-title mb-0">{{ $moduleLabel }} — Agreements</h4>
         <p class="text-muted small mb-0 mt-1">
-          Agreements assigned to this module. Management is available in the Agreements module.
+          Agreements assigned to this module, including General agreements. Management is available in the Agreements module.
         </p>
       </div>
 

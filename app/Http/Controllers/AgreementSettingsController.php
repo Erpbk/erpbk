@@ -40,7 +40,7 @@ class AgreementSettingsController extends Controller
 
         $query = AgreementCategory::query()->orderBy('sort_order')->orderBy('name');
 
-        if ($filters['module'] !== '' && in_array($filters['module'], $this->assignableModuleKeys(), true)) {
+        if ($filters['module'] !== '' && in_array($filters['module'], $this->assignmentOptionKeys(), true)) {
             $query->assignedToModule($filters['module']);
         }
 
@@ -82,7 +82,7 @@ class AgreementSettingsController extends Controller
         $this->authorizeAgreement('agreements_create');
 
         $companyId = CompanyContext::id();
-        $assignableModuleKeys = $this->assignableModuleKeys();
+        $assignableModuleKeys = $this->assignmentOptionKeys();
 
         $data = $request->validate([
             'agreement_name' => 'required|string|max:191',
@@ -190,7 +190,7 @@ class AgreementSettingsController extends Controller
 
         $category = AgreementCategory::with('templates')->findOrFail($category);
         $companyId = CompanyContext::id();
-        $assignableModuleKeys = $this->assignableModuleKeys();
+        $assignableModuleKeys = $this->assignmentOptionKeys();
 
         $data = $request->validate([
             'agreement_name' => 'required|string|max:191',
@@ -626,10 +626,17 @@ class AgreementSettingsController extends Controller
     }
 
     /**
-     * @return array<string, string>
+     * Module keys that may be assigned to agreements, including General.
+     *
+     * @return list<string>
      */
+    private function assignmentOptionKeys(): array
+    {
+        return app(AgreementModuleService::class)->assignmentOptionKeys();
+    }
+
     /**
-     * Module keys that may be assigned to agreements (all ERP modules except system entries).
+     * Module keys that may be assigned to agreements (ERP modules except system entries).
      *
      * @return list<string>
      */
@@ -645,7 +652,7 @@ class AgreementSettingsController extends Controller
     {
         $modules = app(AgreementModuleService::class);
 
-        return collect($this->assignableModuleKeys())
+        return collect($this->assignmentOptionKeys())
             ->mapWithKeys(fn (string $moduleKey) => [
                 $moduleKey => $modules->moduleLabel($moduleKey),
             ])

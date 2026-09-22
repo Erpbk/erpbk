@@ -40,6 +40,15 @@ return [
     /** Gap between header and content, as a fraction of page height. */
     'content_top_gap_pct' => 0.02,
 
+    /**
+     * Default letterhead logo plate (mm). Source images are fitted into this
+     * box so a 20px icon and a 5000px photo both print as a logo, not a photo.
+     */
+    'logo_display_mm' => [
+        'width' => 40,
+        'height' => 24,
+    ],
+
     /** Space reserved above the footer decoration (mm). */
     'footer_reserve_mm' => 8,
 

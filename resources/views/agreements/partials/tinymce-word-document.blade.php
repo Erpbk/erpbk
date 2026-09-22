@@ -397,6 +397,13 @@
   }
 @endphp
 <script>
+  window.erpbkAgreementPlaceholderHtml = function (btn) {
+    var ph = btn.getAttribute('data-placeholder') || '';
+    if (btn.getAttribute('data-ltr') === '1') {
+      return '<span dir="ltr" class="field-value">' + ph + '</span>';
+    }
+    return ph;
+  };
   window.erpbkAgreementWordEditor = {
     fonts: {
       family: @json($agreementFonts->familyStackCss()),
@@ -518,7 +525,7 @@
         this.letterhead.fontFacesCss,
         'html{background:' + canvas + ';min-height:100%;overflow-x:auto;',
         '--word-page-width:' + size.width + 'mm;--word-page-height:' + size.height + 'mm;}',
-        'body{direction:ltr;unicode-bidi:plaintext;position:relative;--word-margin-right:' + pad.right + 'mm;--word-margin-left:' + pad.left + 'mm;',
+        'body{direction:ltr;position:relative;--word-margin-right:' + pad.right + 'mm;--word-margin-left:' + pad.left + 'mm;',
         '--word-page-width:' + size.width + 'mm;--word-page-height:' + size.height + 'mm;',
         'font-family:' + this.fonts.family + ';font-size:' + this.fonts.sizePt + 'pt;line-height:' + this.fonts.lineHeight + ';color:' + this.fonts.color + ';',
         'background:#ffffff;width:var(--word-page-width);min-width:var(--word-page-width);max-width:none;min-height:var(--word-page-height);height:auto;',
@@ -528,8 +535,8 @@
         'table{border-collapse:collapse;width:100%;max-width:100%;margin:4pt 0;}',
         'table td,table th{border:1px solid #94a3b8;padding:4px 8px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;}',
         'p,h1,h2,h3,h4,li,div{max-width:100%;box-sizing:border-box;}',
-        '[dir=rtl]{direction:rtl;text-align:right;unicode-bidi:embed;}',
-        '[dir=ltr]{direction:ltr;text-align:left;unicode-bidi:embed;}',
+        '[dir=rtl]{direction:rtl;unicode-bidi:embed;}',
+        '[dir=ltr]{direction:ltr;unicode-bidi:embed;}',
         'p{margin:0 0 .5em;}',
         'h1,h2,h3,h4{margin:0 0 .55em;line-height:1.25;}',
         'h1{font-size:' + this.fonts.headings.h1 + 'pt;}',
@@ -901,11 +908,6 @@
               return;
             }
             block.setAttribute('dir', dir);
-            if (dir === 'rtl') {
-              editor.dom.setStyle(block, 'text-align', 'right');
-            } else {
-              editor.dom.setStyle(block, 'text-align', 'left');
-            }
           });
           editor.nodeChanged();
           editor.fire('change');

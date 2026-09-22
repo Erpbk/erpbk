@@ -4,6 +4,7 @@ namespace App\Services\Agreements;
 
 use App\Models\AdminAgreementAssignableModule;
 use App\Models\AdminAgreementPlaceholder;
+use App\Models\AgreementCategory;
 use App\Models\AgreementPlaceholder;
 use App\Support\CompanyModuleVisibility;
 use App\Support\ModuleFieldSource;
@@ -55,6 +56,15 @@ class AgreementPlaceholderCatalog
         ));
     }
 
+    public function isSystemOnlyModule(?string $moduleKey): bool
+    {
+        $moduleKey = $moduleKey !== null ? trim($moduleKey) : '';
+
+        return $moduleKey === ''
+            || $moduleKey === 'system'
+            || $moduleKey === AgreementCategory::GENERAL_MODULE;
+    }
+
     /**
      * Placeholders grouped for the editor sidebar.
      *
@@ -67,10 +77,10 @@ class AgreementPlaceholderCatalog
         try {
             if (Schema::connection('mysql_admin')->hasTable('admin_agreement_placeholders')) {
                 $query = AdminAgreementPlaceholder::query()->orderBy('sort_order');
-                if ($moduleKey !== '') {
-                    $query->whereIn('module_key', [$moduleKey, 'system']);
-                } else {
+                if ($this->isSystemOnlyModule($moduleKey)) {
                     $query->where('module_key', 'system');
+                } else {
+                    $query->whereIn('module_key', [$moduleKey, 'system']);
                 }
 
                 $items = $query->get();
@@ -97,8 +107,11 @@ class AgreementPlaceholderCatalog
                 return [];
             }
 
+            $moduleKey = trim($moduleKey);
+            $keys = $this->isSystemOnlyModule($moduleKey) ? ['system'] : [$moduleKey, 'system'];
+
             return AdminAgreementPlaceholder::query()
-                ->whereIn('module_key', [trim($moduleKey), 'system'])
+                ->whereIn('module_key', $keys)
                 ->orderBy('sort_order')
                 ->get()
                 ->all();
@@ -155,7 +168,7 @@ class AgreementPlaceholderCatalog
             ],
         ];
 
-        if ($moduleKey === '' || $moduleKey === 'system') {
+        if ($this->isSystemOnlyModule($moduleKey)) {
             return [$system];
         }
 

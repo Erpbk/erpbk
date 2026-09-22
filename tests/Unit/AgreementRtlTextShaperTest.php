@@ -374,18 +374,15 @@ class AgreementRtlTextShaperTest extends TestCase
         $blade = file_get_contents(resource_path('views/agreements/pdf/letterhead.blade.php'));
         $this->assertNotFalse($blade);
 
-        // mPDF path: logical Unicode + direction:rtl (no Dompdf bidi-override / bdo hacks).
+        // mPDF paints pre-joined presentation forms with bidi-override, right aligned.
         $this->assertStringContainsString("pdfEngine === 'mpdf'", $blade);
-        $this->assertMatchesRegularExpression(
-            '/direction\s*:\s*rtl/',
+        $this->assertStringContainsString('unicode-bidi: bidi-override', $blade);
+        $this->assertStringContainsString('font-weight: bold', $blade);
+        $this->assertStringNotContainsString('font-weight: 700', $blade);
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.agreement-ar-block,\s*\[dir="rtl"\]\s*\{[^}]*text-align\s*:\s*right/',
             $blade
         );
-        $this->assertMatchesRegularExpression(
-            '/text-align\s*:\s*right/',
-            $blade
-        );
-        $this->assertStringNotContainsString('unicode-bidi: bidi-override', $blade);
-        $this->assertStringNotContainsString('bdo.agreement-ar', $blade);
     }
 
     public function test_shaped_html_uses_bdo_and_unicode_lro_pdf(): void
@@ -422,15 +419,17 @@ class AgreementRtlTextShaperTest extends TestCase
 
         $this->assertTrue($result['has_arabic']);
         $this->assertFalse($result['rtl']);
-        $this->assertStringContainsString('نؤكد', $result['html']);
         $this->assertStringContainsString('agreement-ar-block', $result['html']);
         $this->assertStringContainsString('dir="rtl"', $result['html']);
-        $this->assertStringNotContainsString('<bdo', $result['html']);
         $this->assertStringNotContainsString("\u{202D}", $result['html']);
         $this->assertStringNotContainsString("\u{202C}", $result['html']);
-        $this->assertTrue($shaper->containsArabicScript($result['html']));
+        $this->assertMatchesRegularExpression(
+            '/[\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}]/u',
+            $result['html'],
+            'Arabic letters must be presentation forms so mPDF can draw them joined'
+        );
     }
-    public function test_prepare_logical_html_for_chrome_wraps_phone_chassis_plate(): void
+    public function test_prepare_logical_html_for_mpdf_wraps_phone_chassis_plate(): void
     {
         $shaper = new AgreementRtlTextShaper();
         $phone = '784-1988-6268395-4';
@@ -438,33 +437,23 @@ class AgreementRtlTextShaperTest extends TestCase
         $plate = '2/30178';
         $html = '<p dir="rtl">رقم الهاتف '.$phone.'<br>رقم الشاصي : '.$chassis.'<br>رقم اللوحة :'.$plate.'</p>';
 
-        $result = $shaper->prepareLogicalHtmlForChrome($html);
+        $result = $shaper->prepareLogicalHtmlForMpdf($html);
 
         $this->assertTrue($result['has_arabic']);
         $this->assertFalse($result['rtl']);
         $this->assertStringContainsString($phone, $result['html']);
+        $this->assertStringContainsString($chassis, $result['html']);
+        $this->assertStringContainsString($plate, $result['html']);
         $this->assertStringNotContainsString('4-6268395-1988-784', $result['html']);
-        $this->assertMatchesRegularExpression(
-            '/<(bdi|span)\b[^>]*\bdir="ltr"[^>]*>\s*'.preg_quote($phone, '/').'\s*<\/\1>/i',
-            $result['html'],
-            'Phone must sit inside dir=ltr isolate'
-        );
-        $this->assertMatchesRegularExpression(
-            '/<(bdi|span)\b[^>]*\bdir="ltr"[^>]*>\s*'.preg_quote($chassis, '/').'\s*<\/\1>/i',
-            $result['html']
-        );
-        $this->assertMatchesRegularExpression(
-            '/<(bdi|span)\b[^>]*\bdir="ltr"[^>]*>\s*'.preg_quote($plate, '/').'\s*<\/\1>/i',
-            $result['html']
-        );
-        $this->assertStringNotContainsString('<bdo', $result['html']);
         $this->assertStringNotContainsString("\u{202D}", $result['html']);
-        $this->assertTrue($shaper->containsArabicScript($result['html']));
-        $this->assertStringContainsString('dir="rtl"', $result['html']);
+        $this->assertMatchesRegularExpression(
+            '/[\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}]/u',
+            $result['html']
+        );
     }
 
 
-    public function test_chrome_chassis_reversed_label_normalized_plate_unchanged(): void
+    public function test_mpdf_chassis_reversed_label_normalized_plate_unchanged(): void
     {
         $shaper = new AgreementRtlTextShaper();
         $chassis = 'MD2A11CX3RCG00469';
@@ -482,47 +471,18 @@ class AgreementRtlTextShaperTest extends TestCase
             .'<br>نؤكد التواصل على رقم هاتف الشركة '.$phone.' للمزيد'
             .'</p>';
 
-        $result = $shaper->prepareLogicalHtmlForChrome($html);
+        $result = $shaper->prepareLogicalHtmlForMpdf($html);
         $out = $result['html'];
 
         $this->assertTrue($result['has_arabic']);
-
-        $chassisLabelPos = mb_strpos($out, 'رقم الشاصي');
-        $chassisValuePos = mb_strpos($out, $chassis);
-        $this->assertNotFalse($chassisLabelPos, 'Chassis Arabic label must remain');
-        $this->assertNotFalse($chassisValuePos, 'Chassis value must remain');
-        $this->assertLessThan(
-            $chassisValuePos,
-            $chassisLabelPos,
-            'Logical HTML must put رقم الشاصي before chassis value'
-        );
-
-        $plateLabelPos = mb_strpos($out, 'رقم اللوحة');
-        $plateValuePos = mb_strpos($out, $plate);
-        $this->assertNotFalse($plateLabelPos);
-        $this->assertNotFalse($plateValuePos);
-        $this->assertLessThan(
-            $plateValuePos,
-            $plateLabelPos,
-            'Already-correct plate order must stay label-before-value'
-        );
-
-        $this->assertStringContainsString(
-            '<bdi dir="ltr">'.$chassis.'</bdi>',
-            $out,
-            'Chassis value must still be LTR-isolated'
-        );
-        $this->assertStringContainsString(
-            '<bdi dir="ltr">'.$plate.'</bdi>',
-            $out
-        );
-        $this->assertStringContainsString(
-            '<bdi dir="ltr">'.$phone.'</bdi>',
-            $out,
-            'Body phone must remain wrapped and not scrambled'
-        );
+        $this->assertStringContainsString($chassis, $out);
+        $this->assertStringContainsString($plate, $out);
         $this->assertStringContainsString($phone, $out);
         $this->assertStringNotContainsString('4-6268395-1988-784', $out);
+        $this->assertMatchesRegularExpression(
+            '/[\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}]/u',
+            $out
+        );
 
         // Rebuilt reversed field line must keep TinyMCE body font-size from the Noto source span.
         $this->assertMatchesRegularExpression(
@@ -532,5 +492,57 @@ class AgreementRtlTextShaperTest extends TestCase
         );
         // Plate line styles were never rebuilt away — still present.
         $this->assertStringContainsString('Noto Naskh Arabic', $out);
+    }
+
+    public function test_english_colon_line_is_not_treated_as_reversed_arabic_field(): void
+    {
+        $shaper = new AgreementRtlTextShaper();
+        $html = '<p dir="rtl">To: Dubai Police / الجهة المختصة</p>';
+
+        $result = $shaper->prepareLogicalHtmlForMpdf($html);
+
+        $this->assertStringContainsString('To', $result['html']);
+        $to = mb_strpos($result['html'], 'To');
+        $police = mb_strpos($result['html'], 'Dubai');
+        $this->assertNotFalse($to);
+        $this->assertNotFalse($police);
+        $this->assertLessThan($police, $to);
+    }
+
+    public function test_mixed_plate_line_keeps_colon_and_digits_after_arabic(): void
+    {
+        $shaper = new AgreementRtlTextShaper();
+        $html = '<p style="text-align: left;">Plate number / رقم اللوحة : 2676</p>'
+            .'<p style="text-align: left;">Chassis number / رقم الشاصي : MD2A11CX3RCG00469</p>';
+
+        $out = $shaper->prepareLogicalHtmlForMpdf($html)['html'];
+
+        $this->assertMatchesRegularExpression('/Plate number \/ .+ : <bdi dir="ltr">2676<\/bdi>/u', $out);
+        $this->assertMatchesRegularExpression('/Chassis number \/ .+ : <bdi dir="ltr">MD2A11CX3RCG00469<\/bdi>/u', $out);
+        $this->assertStringNotContainsString('Plate number /  :', $out);
+        $this->assertStringNotContainsString('Plate number / :', $out);
+        $this->assertStringNotContainsString('Chassis number /  :', $out);
+        $this->assertStringNotContainsString('Chassis number / :', $out);
+    }
+
+    public function test_english_led_line_keeps_arabic_after_the_slash(): void
+    {
+        $shaper = new AgreementRtlTextShaper();
+        $html = '<p style="text-align: left;">Subject: Authorization / تفويض لإتمام إجراءات الإفراج عن الدراجة النارية</p>'
+            .'<p style="text-align: left;">Thank you for your cooperation. / نشكر لكم تعاونكم ومساعدتكم في حل هذه المشكلة.</p>';
+
+        $out = $shaper->prepareLogicalHtmlForMpdf($html)['html'];
+
+        $this->assertStringNotContainsString('dir="rtl"', $out);
+        $this->assertStringContainsString('Subject: Authorization /', $out);
+        $this->assertStringContainsString('Thank you for your cooperation. /', $out);
+
+        $subject = mb_strpos($out, 'Subject: Authorization /');
+        $thanks = mb_strpos($out, 'Thank you for your cooperation. /');
+        preg_match('/[\x{FB50}-\x{FDFF}\x{FE70}-\x{FEFF}]/u', $out, $forms, PREG_OFFSET_CAPTURE);
+        $this->assertNotFalse($subject);
+        $this->assertNotFalse($thanks);
+        $this->assertNotSame([], $forms);
+        $this->assertLessThan($forms[0][1], $subject);
     }
 }

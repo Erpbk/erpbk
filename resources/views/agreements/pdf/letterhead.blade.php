@@ -27,30 +27,37 @@
   $agreementHasArabic = ! empty($agreementHasArabic);
   $agreementRtlFontFamily = $agreementRtlFontFamily ?? $fonts->rtlFamilyStackCss();
   $pdfEngine = $pdfEngine ?? 'html';
-  $isChromePdf = $pdfEngine === 'chrome';
   $isMpdf = $pdfEngine === 'mpdf';
-  // Continuous native flow for mPDF + Chrome PDF (same model). Preview still paginates.
-  $mpdfNativeFlow = $forPdf && ($isMpdf || $isChromePdf) && ! empty($mpdfNativeFlow);
+  // Continuous native flow for mPDF. Preview still paginates.
+  $mpdfNativeFlow = $forPdf && $isMpdf && ! empty($mpdfNativeFlow);
   // Dompdf/A4 rounding: a full-height box can overflow by a fraction of a mm and split a blank page.
-  // Chrome uses full page height; mPDF fixed-box path needs a tiny shrink to avoid blank trailing pages.
-  // Native-flow PDF uses engine/@page margins instead of fixed .agreement-page boxes.
+  // mPDF fixed-box path needs a tiny shrink to avoid blank trailing pages.
+  // Native-flow PDF uses @page margins instead of fixed .agreement-page boxes.
   $pageBoxH = ($forPdf && $isMpdf && ! $mpdfNativeFlow) ? round($pageH - 0.4, 1) : $pageH;
+  $letterheadModeEarly = $branding['letterhead_mode'] ?? 'default';
+  $hasDesignEarly = ! empty($branding['letterhead_src']);
+  $showMpdfHtmlHeader = $mpdfNativeFlow && $withLetterhead && $letterheadModeEarly === 'default' && ! $hasDesignEarly;
   @endphp
   <style>
     @page {
       size: {{ $pageW }}mm {{ $pageH }}mm;
-      /* Native flow (mPDF + Chrome): @page margins = content zone every printed page. */
+      /* Native flow (mPDF): @page margins = content zone every printed page. */
       margin: {{ $mpdfNativeFlow ? ($contentPadTopMm . 'mm ' . $mr . 'mm ' . $contentPadBottomMm . 'mm ' . $ml . 'mm') : '0' }};
+      @if ($showMpdfHtmlHeader)
+      odd-header-name: html_agreementDefaultHeader;
+      even-header-name: html_agreementDefaultHeader;
+      header: html_agreementDefaultHeader;
+      @endif
     }
 
-    @if (! $forPdf || $isChromePdf)
+    @if (! $forPdf)
     @foreach ($pdfFontFaces as $face)
     @font-face {
       font-family: '{{ $face['family'] }}';
       font-weight: {{ $face['weight'] }};
       font-style: {{ $face['style'] }};
       font-display: swap;
-      src: url('{{ $isChromePdf ? ($face['uri'] ?? $face['url']) : $face['url'] }}') format('truetype');
+      src: url('{{ $face['url'] }}') format('truetype');
     }
     @endforeach
     @endif
@@ -62,8 +69,8 @@
       padding: 0;
       /* Native flow: 100% inside engine content box (@page margins). Preview/fixed boxes: full paper width. */
       width: {{ $mpdfNativeFlow ? '100%' : ($pageW . 'mm') }};
-      /* Transparent for PDF engines so letterhead underlay (mPDF watermark / Chrome stamp) shows through. */
-      background: {{ ($forPdf && ($isMpdf || ($isChromePdf && $mpdfNativeFlow))) ? 'transparent' : '#fff' }};
+      /* Transparent for mPDF so the letterhead watermark shows through. */
+      background: {{ ($forPdf && $isMpdf) ? 'transparent' : '#fff' }};
       --word-page-width: {{ $pageW }}mm;
       --word-page-height: {{ $pageBoxH }}mm;
     }
@@ -76,7 +83,7 @@
     }
 
     @if ($mpdfNativeFlow)
-    /* Native flow (mPDF + Chrome): page margins reserve letterhead/footer; content fills the zone. */
+    /* Native flow (mPDF): page margins reserve letterhead/footer; content fills the zone. */
     .agreement-flow {
       position: relative;
       width: 100%;
@@ -144,69 +151,29 @@
     @if ($isMpdf)
     /*
      * mPDF: design letterhead is painted behind via applyToMpdf (SetWatermarkImage).
-     * Fixed chrome is only for company header / watermark when there is NO design image.
-     * Constrain company logos explicitly so mPDF cannot blow them up.
+     * Default company header is SetHTMLHeader (not a body overlay) so it cannot
+     * consume page 1. Constrain logos so mPDF cannot blow them up.
      */
-    .letterhead-overlay--fixed {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: {{ $pageW }}mm;
-      height: 0;
-      overflow: visible;
-      pointer-events: none;
-      z-index: 10;
-    }
     .page-header-logo .company-logo-img {
-      width: 45mm;
-      height: 18mm;
-      max-width: 58mm;
-      max-height: 22mm;
+      width: auto;
+      height: 24mm;
+      max-width: 40mm;
+      max-height: 24mm;
+      object-fit: contain;
+      object-position: left center;
     }
-    /* Tighten body spacing vs Chrome so Noto + OTL more often fits on one page. */
+    /* Tighten body spacing so Noto + OTL more often fits on one page. */
     body, .content {
       line-height: {{ $agreementLineHeight }};
     }
     .content p { margin: 0 0 0.22em; }
-    .content h1, .content h2, .content h3, .content h4 { margin: 0 0 0.28em; }
+    .content h1, .content h2, .content h3, .content h4,
+    .content p.agreement-h1, .content p.agreement-h2, .content p.agreement-h3, .content p.agreement-h4 { margin: 0 0 0.28em; }
     .content table { margin: 2pt 0; }
     .content table th, .content table td { padding: 3px 6px; }
     .content ul, .content ol { margin: 1pt 0 3pt 16pt; }
     .content li { margin: 0 0 1pt; }
     .content hr { margin: 5pt 0; }
-    @endif
-
-    @if ($isChromePdf && $mpdfNativeFlow)
-    /*
-     * Chrome native flow: @page margins inset content every page (same as mPDF).
-     * Design letterhead is stamped full-bleed after print (applyToChromePdf), not via
-     * negative-offset fixed HTML. Fixed overlay here is only company header / watermark.
-     */
-    .letterhead-overlay--fixed {
-      position: fixed;
-      top: -{{ $contentPadTopMm }}mm;
-      left: -{{ $ml }}mm;
-      width: {{ $pageW }}mm;
-      height: 0;
-      overflow: visible;
-      pointer-events: none;
-      z-index: 0;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .agreement-flow .content {
-      position: relative;
-      z-index: 3;
-      background: transparent;
-      /* Margins come from @page now — do not duplicate as content padding. */
-      padding: 0;
-      box-sizing: border-box;
-    }
-    html, body, .agreement-flow {
-      background: transparent !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
     @endif
 
     .agreement-page-header {
@@ -241,55 +208,38 @@
       font-size: {{ $agreementFontSizePt }}pt;
       line-height: {{ $agreementLineHeight }};
       color: {{ $agreementFontColor }};
+      text-align: left;
     }
 
     /*
-     * Logical Unicode Arabic for chrome + mPDF + HTML preview.
-     * Chrome/browser: direction:rtl; text-align:right (no bidi-override / bdo / LRO).
-     * mPDF: same RTL CSS; OpenType shapes glyphs.
+     * mPDF cannot join Arabic OpenType fonts. Text is already presentation
+     * forms in logical order, so direction:rtl places and wraps them.
+     * bdo.agreement-ar is a visual-order word inside an LTR sentence.
      */
-    @if ($isChromePdf)
-    .agreement-ar,
+    @if ($isMpdf || $forPdf)
     .agreement-ar-block,
     [dir="rtl"] {
       font-family: {{ $agreementRtlFontFamily }} !important;
       direction: rtl;
-      text-align: right;
       unicode-bidi: isolate;
     }
+    bdo.agreement-ar {
+      font-family: {{ $agreementRtlFontFamily }} !important;
+      direction: ltr;
+      unicode-bidi: bidi-override;
+    }
     .agreement-ar-block ul,
-    .agreement-ar-block ol,
-    [dir="rtl"] ul,
-    [dir="rtl"] ol {
+    .agreement-ar-block ol {
       padding-right: 1.4em;
       padding-left: 0;
     }
     .agreement-ltr-block,
     [dir="ltr"] {
       direction: ltr;
-      text-align: left !important;
-    }
-    @elseif ($isMpdf || $forPdf)
-    .agreement-ar,
-    .agreement-ar-block,
-    [dir="rtl"] {
-      font-family: {{ $agreementRtlFontFamily }} !important;
-      direction: rtl;
-      text-align: right;
       unicode-bidi: isolate;
     }
-    .agreement-ar-block ul,
-    .agreement-ar-block ol,
-    [dir="rtl"] ul,
-    [dir="rtl"] ol {
-      padding-right: 1.4em;
-      padding-left: 0;
-    }
-    .agreement-ltr-block,
-    [dir="ltr"],
     bdi[dir="ltr"] {
       direction: ltr;
-      text-align: left !important;
       unicode-bidi: isolate;
     }
     @else
@@ -298,7 +248,6 @@
     .agreement-ar-block {
       font-family: {{ $agreementRtlFontFamily }} !important;
       direction: rtl;
-      text-align: right;
     }
     .agreement-ar-block ul,
     .agreement-ar-block ol {
@@ -307,25 +256,21 @@
     }
     .agreement-ltr-block {
       direction: ltr;
-      text-align: left !important;
     }
     @endif
 
     .content p { margin: 0 0 0.5em; }
-    .content h1, .content h2, .content h3, .content h4 {
+    .content h1, .content h2, .content h3, .content h4,
+    .content p.agreement-h1, .content p.agreement-h2, .content p.agreement-h3, .content p.agreement-h4,
+    .content p.agreement-h5, .content p.agreement-h6 {
       margin: 0 0 0.55em;
       line-height: 1.25;
-      page-break-before: auto;
-      break-before: auto;
-      page-break-after: auto;
-      break-after: auto;
-      page-break-inside: auto;
-      break-inside: auto;
+      font-weight: bold;
     }
-    .content h1 { font-size: {{ $agreementHeadingSizesPt['h1'] ?? 16 }}pt; }
-    .content h2 { font-size: {{ $agreementHeadingSizesPt['h2'] ?? 14 }}pt; }
-    .content h3 { font-size: {{ $agreementHeadingSizesPt['h3'] ?? 12 }}pt; }
-    .content h4 { font-size: {{ $agreementHeadingSizesPt['h4'] ?? 11 }}pt; }
+    .content h1, .content p.agreement-h1 { font-size: {{ $agreementHeadingSizesPt['h1'] ?? 16 }}pt; }
+    .content h2, .content p.agreement-h2 { font-size: {{ $agreementHeadingSizesPt['h2'] ?? 14 }}pt; }
+    .content h3, .content p.agreement-h3 { font-size: {{ $agreementHeadingSizesPt['h3'] ?? 12 }}pt; }
+    .content h4, .content p.agreement-h4 { font-size: {{ $agreementHeadingSizesPt['h4'] ?? 11 }}pt; }
     .content table {
       width: 100%;
       border-collapse: collapse;
@@ -341,8 +286,15 @@
     .content thead { display: table-row-group; }
     .content ul, .content ol { margin: 2pt 0 4pt 16pt; padding: 0; }
     .content li { margin: 0 0 2pt; }
-    .content strong, .content b { font-weight: 700; }
+    .content strong, .content b { font-weight: bold; }
     .content em, .content i { font-style: italic; }
+    .agreement-ar-block em,
+    .agreement-ar-block i,
+    [dir="rtl"] em,
+    [dir="rtl"] i {
+      font-family: amiri !important;
+      font-style: italic;
+    }
     .content u { text-decoration: underline; }
     .content s, .content strike, .content del { text-decoration: line-through; }
     .content sub { vertical-align: sub; font-size: smaller; }
@@ -408,43 +360,21 @@
     $letterheadMode = $branding['letterhead_mode'] ?? 'default';
     $hasDesign = ! empty($branding['letterhead_src']);
     $hasWatermark = ! empty($branding['watermark_src']);
-    $showCompanyHeader = $withLetterhead && $letterheadMode !== 'none' && ! $hasDesign;
-    // Preview (and any non-native Chrome path): per-page HTML chrome.
-    // Chrome native flow + design: applyToChromePdf stamps letterhead; no HTML design img.
-    // Chrome native flow without design: fixed chrome for company header/watermark.
-    // mPDF PDF + design: applyToMpdf paints letterhead behind; no HTML design img.
-    // mPDF PDF without design: fixed chrome for company header/watermark (Dompdf-era).
-    $showPerPageChrome = $withLetterhead && (! $forPdf || ($isChromePdf && ! $mpdfNativeFlow));
-    $showChromeFixedLetterhead = $forPdf && $isChromePdf && $mpdfNativeFlow && $withLetterhead
-      && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
-    $showPdfDesignWatermark = $forPdf && ($isMpdf || $isChromePdf) && $withLetterhead && $hasDesign && $hasWatermark;
-    $showFixedChrome = $forPdf && $isMpdf && $withLetterhead && ! $hasDesign && ($showCompanyHeader || $hasWatermark);
+    // Preview: per-page HTML letterhead.
+    // mPDF + design: applyToMpdf paints letterhead behind; no HTML design img.
+    // mPDF default company header: htmlpageheader in this document (not a body overlay).
+    $showPerPageChrome = $withLetterhead && ! $forPdf;
+    $showMpdfFlowWatermark = $forPdf && $isMpdf && $withLetterhead && $hasWatermark;
   @endphp
-  @if ($showFixedChrome)
-  <div class="letterhead-overlay letterhead-overlay--fixed">
-      @include('agreements.pdf.partials.page-chrome', [
-        'pageWidthMm' => $pageW,
-        'pageHeightMm' => $pageH,
-        'paperHeightMm' => $pageH,
-        'branding' => $branding,
-        'pdfEngine' => $pdfEngine,
-      ])
-  </div>
+  @if ($showMpdfHtmlHeader)
+  <htmlpageheader name="agreementDefaultHeader">
+    {!! app(\App\Services\Agreements\AgreementLetterheadPdfPainter::class)->defaultHtmlHeader($category ?? null) !!}
+  </htmlpageheader>
   @endif
   <div class="preview-pages" id="agreement-preview-pages" @if(! $forPdf) aria-live="polite" @endif>
     @if ($mpdfNativeFlow)
     <div class="agreement-flow">
-      @if($showChromeFixedLetterhead)
-      <div class="letterhead-overlay letterhead-overlay--fixed{{ $hasDesign ? ' letterhead-overlay--design' : '' }}">
-        @include('agreements.pdf.partials.page-chrome', [
-          'pageWidthMm' => $pageW,
-          'pageHeightMm' => $pageH,
-          'paperHeightMm' => $pageH,
-          'branding' => $branding,
-          'pdfEngine' => $pdfEngine,
-        ])
-      </div>
-      @elseif($showPdfDesignWatermark)
+      @if($showMpdfFlowWatermark)
       <div class="letterhead-overlay letterhead-overlay--design">
         @include('agreements.pdf.partials.page-chrome', [
           'pageWidthMm' => $pageW,
@@ -472,7 +402,7 @@
           'pdfEngine' => $pdfEngine,
         ])
       </div>
-      @elseif($showPdfDesignWatermark)
+      @elseif($showMpdfFlowWatermark)
       <div class="letterhead-overlay letterhead-overlay--design">
         @include('agreements.pdf.partials.page-chrome', [
           'pageWidthMm' => $pageW,

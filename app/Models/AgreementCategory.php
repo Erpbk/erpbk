@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
 
 class AgreementCategory extends BaseModel
 {
+    public const GENERAL_MODULE = 'general';
+
     protected $table = 'agreement_categories';
 
     protected $fillable = [
@@ -183,15 +185,33 @@ class AgreementCategory extends BaseModel
             return $query;
         }
 
-        return $query->whereJsonContains('assigned_modules', $moduleKey);
+        if ($moduleKey === self::GENERAL_MODULE) {
+            return $query->whereJsonContains('assigned_modules', self::GENERAL_MODULE);
+        }
+
+        return $query->where(function (Builder $inner) use ($moduleKey) {
+            $inner->whereJsonContains('assigned_modules', $moduleKey)
+                ->orWhereJsonContains('assigned_modules', self::GENERAL_MODULE);
+        });
     }
 
     /**
      * Whether this agreement is assigned to a given ERP module key.
+     * General agreements are available from every module.
      */
     public function assignedToModule(string $moduleKey): bool
     {
-        return in_array($moduleKey, $this->normalizedAssignedModules(), true);
+        $assigned = $this->normalizedAssignedModules();
+        if (in_array($moduleKey, $assigned, true)) {
+            return true;
+        }
+
+        return $moduleKey !== self::GENERAL_MODULE && in_array(self::GENERAL_MODULE, $assigned, true);
+    }
+
+    public function isGeneral(): bool
+    {
+        return in_array(self::GENERAL_MODULE, $this->normalizedAssignedModules(), true);
     }
 
     /**

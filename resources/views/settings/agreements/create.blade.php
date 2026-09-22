@@ -58,7 +58,7 @@ $preselectedModule = old('assigned_modules', $assignModule !== '' ? $assignModul
 
           <div class="mb-3">
             <label class="form-label">Module <span class="text-danger">*</span></label>
-            <p class="text-muted small mb-2">Each agreement is assigned to exactly one module.</p>
+            <p class="text-muted small mb-2">Each agreement is assigned to one module. Choose <strong>General</strong> to make it available in every module. General templates only offer system placeholders (company name and current date).</p>
             <div class="row g-2">
               @foreach($modules as $moduleKey => $label)
               <div class="col-md-4 col-lg-3">

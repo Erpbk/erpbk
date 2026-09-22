@@ -357,6 +357,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::get('/customer_invoices/{id}/edit', [CustomerInvoicesController::class, 'edit'])->name('customer_invoice.edit');
     Route::get('/customer_invoices/{id}/clone', [CustomerInvoicesController::class, 'clone'])->name('customer_invoice.clone');
+    Route::any('/customer_invoices/sendemail/{id}', [CustomerInvoicesController::class, 'sendEmail'])->name('customer_invoices.sendEmail');
     Route::resource('customer_invoices', CustomerInvoicesController::class);
 
     Route::get('employees/payments', [EmployeeController::class, 'payment'])->name('employee.payment');

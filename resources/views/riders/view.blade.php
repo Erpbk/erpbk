@@ -289,6 +289,124 @@
     overflow: visible;
   }
 
+  /* Full-width view nav sits above profile + content on all breakpoints */
+  .rider-view-nav-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    width: 100%;
+  }
+
+  .rider-view-nav-card {
+    z-index: 1;
+    border: 1px solid #e8ecf1;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+    background: #fff;
+  }
+
+  .rider-view-nav-inner {
+    align-items: center !important;
+  }
+
+  .rider-view-nav-scroll {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .rider-view-nav-scroll::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .rider-view-nav-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  /* Mobile + tablet: polished top bar above rider card/form */
+  @media (max-width: 1199.98px) {
+    .rider-view-layout {
+      row-gap: 0.75rem;
+    }
+
+    .rider-view-nav-wrap {
+      margin-bottom: 0.25rem;
+    }
+
+    .rider-view-nav-card {
+      border-radius: 0.85rem;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+      border-color: #e2e8f0;
+    }
+
+    .rider-view-nav-card .card-body {
+      padding: 0.55rem 0.75rem !important;
+      padding-top: 1.4rem !important;
+    }
+
+    .rider-profile-tabs #mainNavigation {
+      gap: 0.3rem !important;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link,
+    .rider-profile-tabs #mainNavigation .nav-link {
+      padding: 0.4rem 0.75rem !important;
+      font-size: 0.82rem !important;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      border-radius: 0.5rem !important;
+      color: #64748b !important;
+      background: #f8fafc !important;
+      border: 1px solid transparent !important;
+      border-bottom: 1px solid transparent !important;
+      box-shadow: none !important;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link:hover,
+    .rider-profile-tabs #mainNavigation .nav-link:hover {
+      color: #1e4b8e !important;
+      background: #eff4fb !important;
+      border-color: #dbe5f3 !important;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link.active,
+    .rider-profile-tabs #mainNavigation .nav-link.active {
+      color: #fff !important;
+      background: #1e4b8e !important;
+      border-color: #1e4b8e !important;
+      border-bottom-color: #1e4b8e !important;
+      box-shadow: 0 2px 8px rgba(30, 75, 142, 0.28) !important;
+    }
+
+    .rider-profile-tabs #mainNavigation .nav-link i {
+      opacity: 0.9;
+    }
+
+    #actiondropdown {
+      border-radius: 0.5rem !important;
+      padding: 0.4rem 0.65rem !important;
+      border-color: #e2e8f0;
+      background: #fff;
+      flex-shrink: 0;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1199.98px) {
+    .rider-view-nav-card .card-body {
+      padding: 0.65rem 1rem !important;
+      padding-top: 1.45rem !important;
+    }
+
+    .rider-profile-tabs .nav-pills .nav-link,
+    .rider-profile-tabs #mainNavigation .nav-link {
+      padding: 0.45rem 0.9rem !important;
+      font-size: 0.9rem !important;
+    }
+  }
+
   /* Reserve vertical room so floating badges sit above tabs without clipping. */
   .rider-profile-tabs .card-body {
     padding-top: 1.55rem !important;
@@ -713,8 +831,8 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
 }
 
 @endphp
-<div class="row mb-5" style="">
-  <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
+<div class="row mb-5 rider-view-layout">
+  <div class="col-xl-3 col-md-5 col-lg-5 order-1">
     @isset($result)
     @php
     $profile = company_table('files')
@@ -987,181 +1105,185 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
     </x-entity-profile-card>
     @endisset
   </div>
-  <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
-    <div class="nav-align-top rider-profile-tabs mb-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif" style="position: sticky; top: 0; z-index: 1000; width: 100%;">
-      <div class="card" style="z-index: 1;">
-        <div class="card-body p-2">
-          <div class="d-flex justify-content-between align-items-center flex-wrap" style="gap: 0.5rem;">
-            <div class="flex-grow-1" style="min-width: 0;">
-              <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation" style="gap: 0.25rem;">
-                <!-- Priority navigation items (always visible when possible) -->
-                <li class="nav-item nav-priority-1">
-                  <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
-                    href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
-                    <i class="ti ti-user-check ti-sm me-1_5"></i>Information
-                    @include('riders._document_status_badges', ['expiredCount' => $riderInfoExpiredCount ?? 0, 'expiringCount' => $riderInfoExpiringCount ?? 0])
-                  </a>
-                </li>
+  {{-- Full-width view tabs: always first (top) on mobile/tablet; desktop keeps them above the content column via order --}}
 
-                @isset($result)
-                @can('riders_timeline_view')
-                <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
-                    href="{{route('rider.timeline',$result['id'])}}">
-                    <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
-                  </a>
-                </li>
-                <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.history')) active @endif"
-                    href="{{route('rider.history',$result['id'])}}">
-                    <i class="ti ti-history ti-sm me-1_5"></i>History
-                  </a>
-                </li>
-                @endcan
+  <div class="col-xl-9 col-md-7 col-lg-7 order-2 position-relative">
+    <div class="col-12 order-0 rider-view-nav-wrap">
+      <div class="nav-align-top rider-profile-tabs mb-3 mb-md-4 @if(($riderExpiredDocumentCount ?? 0) > 0) has-expired-docs @endif">
+        <div class="card rider-view-nav-card">
+          <div class="card-body p-2">
+            <div class="d-flex justify-content-between align-items-center flex-wrap rider-view-nav-inner" style="gap: 0.5rem;">
+              <div class="flex-grow-1 rider-view-nav-scroll" style="min-width: 0;">
+                <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation" style="gap: 0.25rem;">
+                  <!-- Priority navigation items (always visible when possible) -->
+                  <li class="nav-item nav-priority-1">
+                    <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
+                      href="@isset($result['id']){{route('riders.show',$result['id'])}}@else#@endif">
+                      <i class="ti ti-user-check ti-sm me-1_5"></i>Information
+                      @include('riders._document_status_badges', ['expiredCount' => $riderInfoExpiredCount ?? 0, 'expiringCount' => $riderInfoExpiringCount ?? 0])
+                    </a>
+                  </li>
 
-                @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
-                <li class="nav-item nav-priority-2">
-                  <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
-                    href="{{ route('rider.inventory', $result['id']) }}">
-                    <i class="ti ti-package ti-sm me-1_5"></i>
-                    Inventory
-                    @if($riderAssignedItemCount > 0)
-                    <span class="badge rounded-pill bg-danger rider-inventory-count-badge"
-                      title="Rider Inventory {{ $riderAssignedItemCount }}">
-                      {{ $riderAssignedItemCount }}
-                    </span>
-                    @endif
-                  </a>
-                </li>
-                @endif
+                  @isset($result)
+                  @can('riders_timeline_view')
+                  <li class="nav-item nav-priority-2">
+                    <a class="nav-link @if(Route::is('rider.timeline')) active @endif"
+                      href="{{route('rider.timeline',$result['id'])}}">
+                      <i class="ti ti-timeline ti-sm me-1_5"></i>Timeline
+                    </a>
+                  </li>
+                  <li class="nav-item nav-priority-2">
+                    <a class="nav-link @if(Route::is('rider.history')) active @endif"
+                      href="{{route('rider.history',$result['id'])}}">
+                      <i class="ti ti-history ti-sm me-1_5"></i>History
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_documents_view')
-                <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0)> 0) style="z-index: 5;" @endif>
-                  <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
-                    href="{{route('rider.files',$result['id'])}}">
-                    <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
-                    @include('riders._document_status_badges', ['expiredCount' => $riderFilesExpiredCount ?? 0, 'expiringCount' => $riderFilesExpiringCount ?? 0])
-                  </a>
-                </li>
-                @endcan
+                  @if(\App\Support\CompanyModuleVisibility::enabled('rider_inventory'))
+                  <li class="nav-item nav-priority-2">
+                    <a class="nav-link @if(Route::is('rider.inventory')) active @endif"
+                      href="{{ route('rider.inventory', $result['id']) }}">
+                      <i class="ti ti-package ti-sm me-1_5"></i>
+                      Inventory
+                      @if($riderAssignedItemCount > 0)
+                      <span class="badge rounded-pill bg-danger rider-inventory-count-badge"
+                        title="Rider Inventory {{ $riderAssignedItemCount }}">
+                        {{ $riderAssignedItemCount }}
+                      </span>
+                      @endif
+                    </a>
+                  </li>
+                  @endif
 
-                @can('riders_invoices_view')
-                <li class="nav-item nav-priority-4">
-                  <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
-                    href="{{route('rider.invoices',$result['id'])}}">
-                    <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_documents_view')
+                  <li class="nav-item nav-priority-3" @if(($riderExpiredDocumentCount ?? 0)> 0) style="z-index: 5;" @endif>
+                    <a class="nav-link rider-expired-count-link @if(Route::is('rider.files')) active @endif"
+                      href="{{route('rider.files',$result['id'])}}">
+                      <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
+                      @include('riders._document_status_badges', ['expiredCount' => $riderFilesExpiredCount ?? 0, 'expiringCount' => $riderFilesExpiringCount ?? 0])
+                    </a>
+                  </li>
+                  @endcan
 
-                @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
-                @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
-                @isset($result)
-                @can('visa_expense_view')
-                @php
-                // Prefer a dedicated visa expense account (module=visa / renewal category).
-                $visaExpenseAccount = ($account ?? null) && (($account->module ?? 'visa') === 'visa')
-                ? $account
-                : null;
-                $visaExpenseAccount = $visaExpenseAccount
-                ?? company_table('expense_accounts')
-                ->where('rider_id', $result['id'])
-                ->where('module', 'visa')
-                ->orderByDesc('id')
-                ->first()
-                ?? company_table('expense_accounts')
-                ->where('rider_id', $result['id'])
-                ->whereNotNull('renewal_category_id')
-                ->orderByDesc('id')
-                ->first();
-                @endphp
-                @if($visaExpenseAccount)
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
-                    href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($visaExpenseAccount->id, $visaExpenseAccount->rider_id ?? $result['id']) }}">
-                    <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
-                  </a>
-                </li>
-                @endif
-                @endcan
-                @endif
-                @endif
-                @endif
+                  @can('riders_invoices_view')
+                  <li class="nav-item nav-priority-4">
+                    <a class="nav-link @if(Route::is('rider.invoices')) active @endif"
+                      href="{{route('rider.invoices',$result['id'])}}">
+                      <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
+                    </a>
+                  </li>
+                  @endcan
+
+                  @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
+                  @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
+                  @isset($result)
+                  @can('visa_expense_view')
+                  @php
+                  // Prefer a dedicated visa expense account (module=visa / renewal category).
+                  $visaExpenseAccount = ($account ?? null) && (($account->module ?? 'visa') === 'visa')
+                  ? $account
+                  : null;
+                  $visaExpenseAccount = $visaExpenseAccount
+                  ?? company_table('expense_accounts')
+                  ->where('rider_id', $result['id'])
+                  ->where('module', 'visa')
+                  ->orderByDesc('id')
+                  ->first()
+                  ?? company_table('expense_accounts')
+                  ->where('rider_id', $result['id'])
+                  ->whereNotNull('renewal_category_id')
+                  ->orderByDesc('id')
+                  ->first();
+                  @endphp
+                  @if($visaExpenseAccount)
+                  <li class="nav-item nav-priority-5">
+                    <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
+                      href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($visaExpenseAccount->id, $visaExpenseAccount->rider_id ?? $result['id']) }}">
+                      <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
+                    </a>
+                  </li>
+                  @endif
+                  @endcan
+                  @endif
+                  @endif
+                  @endif
 
 
-                @can('legal_case_view')
-                @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
-                @php
-                $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
-                @endphp
-                @if($legalCaseAccount)
-                <li class="nav-item nav-priority-5">
-                  <a class="nav-link @if(Route::is('LegalCase.generatentries')) active @endif"
-                    href="{{ route('LegalCase.generatentries', $legalCaseAccount->id) }}">
-                    <i class="ti ti-scale ti-sm me-1_5"></i>Legal Case
-                  </a>
-                </li>
-                @endif
-                @endif
-                @endcan
+                  @can('legal_case_view')
+                  @if(\App\Support\CompanyModuleVisibility::enabled('legal_case'))
+                  @php
+                  $legalCaseAccount = company_table('legal_case_accounts')->where('rider_id', $result['id'])->first();
+                  @endphp
+                  @if($legalCaseAccount)
+                  <li class="nav-item nav-priority-5">
+                    <a class="nav-link @if(Route::is('LegalCase.generatentries')) active @endif"
+                      href="{{ route('LegalCase.generatentries', $legalCaseAccount->id) }}">
+                      <i class="ti ti-scale ti-sm me-1_5"></i>Legal Case
+                    </a>
+                  </li>
+                  @endif
+                  @endif
+                  @endcan
 
-                @can('riders_rider_view')
-                <li class="nav-item nav-priority-6">
-                  <a class="nav-link @if(Route::is('rider.items')) active @endif"
-                    href="{{route('rider.items',$result['id'])}}">
-                    <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_rider_view')
+                  <li class="nav-item nav-priority-6">
+                    <a class="nav-link @if(Route::is('rider.items')) active @endif"
+                      href="{{route('rider.items',$result['id'])}}">
+                      <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_ledger_view')
-                <li class="nav-item nav-priority-7">
-                  <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
-                    href="{{route('rider.ledger',$result['id'])}}">
-                    <i class="ti ti-file ti-sm me-1_5"></i>Ledger
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_ledger_view')
+                  <li class="nav-item nav-priority-7">
+                    <a class="nav-link @if(Route::is('rider.ledger')) active @endif"
+                      href="{{route('rider.ledger',$result['id'])}}">
+                      <i class="ti ti-file ti-sm me-1_5"></i>Ledger
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('riders_activities_view')
-                <li class="nav-item nav-priority-8">
-                  <a class="nav-link @if(Route::is('rider.activities')) active @endif"
-                    href="{{route('rider.activities',$result['id'])}}">
-                    <i class="ti ti-motorbike ti-sm me-1_5"></i>Activities
-                  </a>
-                </li>
-                @endcan
+                  @can('riders_activities_view')
+                  <li class="nav-item nav-priority-8">
+                    <a class="nav-link @if(Route::is('rider.activities')) active @endif"
+                      href="{{route('rider.activities',$result['id'])}}">
+                      <i class="ti ti-motorbike ti-sm me-1_5"></i>Activities
+                    </a>
+                  </li>
+                  @endcan
 
-                @can('email_view')
-                <li class="nav-item nav-priority-9">
-                  <a class="nav-link @if(Route::is('rider.emails')) active @endif"
-                    href="{{route('rider.emails',$result['id'])}}">
-                    <i class="ti ti-mail ti-sm me-1_5"></i>Emails
-                  </a>
-                </li>
-                @endcan
+                  @can('email_view')
+                  <li class="nav-item nav-priority-9">
+                    <a class="nav-link @if(Route::is('rider.emails')) active @endif"
+                      href="{{route('rider.emails',$result['id'])}}">
+                      <i class="ti ti-mail ti-sm me-1_5"></i>Emails
+                    </a>
+                  </li>
+                  @endcan
 
-                @endisset
-              </ul>
-            </div>
+                  @endisset
+                </ul>
+              </div>
 
-            <!-- Dropdown for overflow items and actions -->
-            <div class="dropdown">
-              <button class="btn btn-outline-secondary rounded-pill p-2 waves-effect"
-                type="button" id="actiondropdown" data-bs-toggle="dropdown"
-                aria-haspopup="true" aria-expanded="false">
-                <i class="ti ti-dots icon-md"></i>
-              </button>
-              <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" id="dropdownMenu">
-                <!-- Overflow navigation and action items will be moved here -->
-                <div id="overflowItems"></div>
+              <!-- Dropdown for overflow items and actions -->
+              <div class="dropdown">
+                <button class="btn btn-outline-secondary rounded-pill p-2 waves-effect"
+                  type="button" id="actiondropdown" data-bs-toggle="dropdown"
+                  aria-haspopup="true" aria-expanded="false">
+                  <i class="ti ti-dots icon-md"></i>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" id="dropdownMenu">
+                  <!-- Overflow navigation and action items will be moved here -->
+                  <div id="overflowItems"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="card rider-info-section mb-5" id="cardBody" style="margin-top: 12px; position: relative;">
+    <div class="card rider-info-section mb-5" id="cardBody" style="margin-top: 0; position: relative;">
       @yield('page_content')
     </div>
   </div>

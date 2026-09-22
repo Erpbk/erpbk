@@ -56,22 +56,22 @@
                 @if(auth()->user()->hasMultiplebranches())
                 <div class="form-group col-md-12">
                     <label for="branch_id">Filter by Branch</label>
-                    <select class="form-control " id="branch_id" name="branch_id">
+                    <select class="form-control select2" id="branch_id" name="branch_id">
                         @foreach(auth()->user()->branchDropdown() as $id => $name)
-                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                        <option value="{{ $id }}" {{ (string) request('branch_id') === (string) $id ? 'selected' : '' }}>{{ $name }}</option>
                         @endforeach
                     </select>
                 </div>
                 @endif
                 <div class="form-group col-md-12">
-                    <label for="company_name">Filter by Customer</label>
-                    <select class="form-control" id="name" name="customer_id">
+                    <label for="customer_id">Filter by Customer</label>
+                    <select class="form-control select2" id="customer_id" name="customer_id">
                         @php
                         $customers = \App\Models\Customers::all();
                         @endphp
-                        <option value="" selected>Select</option>
+                        <option value="">Select</option>
                         @foreach($customers as $company)
-                        <option value="{{ $company->id }}" {{ request('name') == $company->name ? 'selected' : '' }}>{{ $company->name }}</option>
+                        <option value="{{ $company->id }}" {{ (string) request('customer_id') === (string) $company->id ? 'selected' : '' }}>{{ $company->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -120,4 +120,33 @@
 @endcan
 @endsection
 @section('page-script')
+<script>
+$(document).ready(function () {
+    $('#filterSidebar .select2').select2({
+        dropdownParent: $('#searchTopbody'),
+        width: '100%',
+        allowClear: true,
+        placeholder: 'Select'
+    });
+
+    if ($.fn.DataTable && $('#dataTableBuilder').length && !$.fn.DataTable.isDataTable('#dataTableBuilder')) {
+        $('#dataTableBuilder').DataTable({
+            paging: true,
+            pageLength: 50,
+            searching: true,
+            ordering: false,
+            info: true,
+            autoWidth: true,
+            dom: "<'row'<'col-md-12'tr>>" +
+                "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
+            language: {
+                emptyTable: 'No invoices found.'
+            }
+        });
+        $('#quickSearch').on('keyup change', function () {
+            $('#dataTableBuilder').DataTable().search(this.value).draw();
+        });
+    }
+});
+</script>
 @endsection

@@ -5,478 +5,1160 @@
     <meta charset="UTF-8">
     <title>Customer Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
     <style>
-        /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
         .invoice-box,
         .invoice-box * {
             box-sizing: border-box;
         }
-        /* Standalone full-page only */
+
         body:has(> .invoice-box),
         body:has(> .controls) {
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #eef2f5;
+            font-family: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
+            font-size: 12.5px;
+            color: #0f172a;
+            background: #edf1f7;
             margin: 0;
-            padding: 20px;
+            padding: 24px 16px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
         }
+
         #rightSideModalBody:has(.invoice-box) {
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-            background: #eef2f5;
-            padding: 20px;
+            font-family: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
+            font-size: 12.5px;
+            color: #0f172a;
+            background: #edf1f7;
+            padding: 20px 12px;
+            line-height: 1.5;
         }
+
         .invoice-box {
-            max-width: 1200px;
+            --blue: #004aad;
+            --blue-2: #1a5fc4;
+            --blue-soft: #eef4fc;
+            --blue-line: #c5d8f0;
+            --ink: #0f172a;
+            --muted: #64748b;
+            --line: #e2e8f0;
+            --paper: #ffffff;
+            max-width: 920px;
             width: 100%;
             margin: 0 auto;
-            background: white;
-            padding: 20px 25px;
-            border-radius: 12px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-            display: flex;
-            flex-direction: column;
+            background: var(--paper);
+            border-radius: 4px;
+            box-shadow:
+                0 1px 2px rgba(15, 23, 42, 0.04),
+                0 12px 40px rgba(0, 74, 173, 0.1);
+            overflow: hidden;
+            position: relative;
         }
 
-        /* ----- TABLES CLEAN BORDER ----- */
-        .invoice-box table {
-            width: 100%;
-            border-collapse: collapse;
+        /* Top brand strip */
+        .invoice-box .band {
+            height: 2px;
+            background: var(--blue);
+        }
+
+        .invoice-box .sheet {
+            padding: 36px 40px 28px;
+            position: relative;
+        }
+
+        /* ========== HEADER ========== */
+        .invoice-box .hdr {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 28px;
+            align-items: start;
+            margin-bottom: 28px;
+            padding-bottom: 24px;
+            border-bottom: 2px solid var(--blue);
+        }
+
+        .invoice-box .brand {
+            display: flex;
+            gap: 18px;
+            align-items: flex-start;
+        }
+
+        .invoice-box .brand-logo {
+            flex-shrink: 0;
+            width: 88px;
+            height: 72px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .invoice-box .brand-logo img {
+            max-width: 88px;
+            max-height: 72px;
+            object-fit: contain;
+        }
+
+        .invoice-box .brand-logo.placeholder {
+            background: var(--blue-soft);
+            border: 1px dashed var(--blue-line);
+            border-radius: 6px;
+            color: var(--blue);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .invoice-box .brand-text h1 {
+            margin: 0 0 6px;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--ink);
+            letter-spacing: -0.02em;
+            line-height: 1.25;
+        }
+
+        .invoice-box .brand-text .meta {
+            margin: 0;
+            font-size: 11.5px;
+            color: var(--muted);
+            line-height: 1.55;
+        }
+
+        .invoice-box .doc-stamp {
+            text-align: right;
+            min-width: 200px;
+        }
+
+        .invoice-box .doc-stamp .label {
+            display: inline-block;
+            background: var(--blue);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.2px;
+            text-transform: uppercase;
+            padding: 7px 14px;
+            border-radius: 2px;
             margin-bottom: 12px;
         }
-        .invoice-box th,
-        .invoice-box td {
-            border: 1px solid #ddd;
-            padding: 8px 10px;
+
+        .invoice-box .doc-stamp .kv {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 4px 14px;
+            justify-content: end;
             font-size: 12px;
-            vertical-align: top;
         }
-        .invoice-box th {
-            background: #004aad;
-            color: white;
-            font-weight: 600;
-            text-align: center;
-        }
-        .invoice-box td {
-            text-align: left;
-        }
-        .invoice-box td.num {
+
+        .invoice-box .doc-stamp .kv span:nth-child(odd) {
+            color: var(--muted);
+            font-weight: 500;
             text-align: right;
         }
-        .invoice-box .no-border td {
-            border: none;
-            padding: 4px 6px;
-        }
 
-        /* ----- HEADER STYLES (premium palette) ----- */
-        .invoice-box .primary-header { background: #211c1d; color: white; font-weight: bold; }
-        .invoice-box .secondary-header { background: #004aad; color: white; font-weight: bold; }
-        .invoice-box .accent-total { background: #5271ff; color: white; font-weight: bold; }
-        .invoice-box .light-header { background: #e6f1ff; color: #004aad; font-weight: bold; }
-        .invoice-box .amount-highlight { background: #2A62FF; color: white; font-weight: bold; }
-        .invoice-box .success-highlight { background: #004aad; color: white; font-weight: bold; }
-        .invoice-box .yellow { background: #ffff00; font-weight: bold; padding: 3px 6px; display: inline-block; }
-
-        /* ----- CARD LAYOUT ----- */
-        .invoice-box .customer-card, .invoice-box .details-card {
-            padding: 16px 18px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 14px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        }
-        .invoice-box .card-header {
-            margin-bottom: 14px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #004aad;
-            background-color: white !important;
-        }
-        .invoice-box .card-header strong {
-            color: #004aad;
-            font-size: 15px;
-            letter-spacing: 0.3px;
-        }
-        .details-grid {
-            display: grid;
-            grid-template-columns: 140px 1fr;
-            gap: 12px 8px;
-            align-items: baseline;
-        }
-        .detail-label {
+        .invoice-box .doc-stamp .kv span:nth-child(even) {
+            color: var(--ink);
             font-weight: 700;
-            color: #2c3e66;
+            text-align: left;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ========== PARTIES ========== */
+        .invoice-box .parties {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 20px;
+            margin-bottom: 26px;
+        }
+
+        .invoice-box .party {
+            background: var(--blue-soft);
+            border: 1px solid var(--blue-line);
+            border-radius: 6px;
+            padding: 16px 18px;
+            min-height: 100%;
+        }
+
+        .invoice-box .party.alt {
+            background: #f8fafc;
+            border-color: var(--line);
+        }
+
+        .invoice-box .party-title {
+            margin: 0 0 12px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.1px;
+            text-transform: uppercase;
+            color: var(--blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .invoice-box .party-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--blue-line);
+        }
+
+        .invoice-box .party.alt .party-title {
+            color: #475569;
+        }
+
+        .invoice-box .party.alt .party-title::after {
+            background: var(--line);
+        }
+
+        .invoice-box .party-name {
+            margin: 0 0 10px;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--ink);
+            line-height: 1.3;
+        }
+
+        .invoice-box .party-grid {
+            display: grid;
+            gap: 6px;
+        }
+
+        .invoice-box .party-line {
+            display: grid;
+            grid-template-columns: 92px 1fr;
+            gap: 8px;
             font-size: 12px;
         }
-        .detail-value {
-            color: #1e293b;
+
+        .invoice-box .party-line .k {
+            color: var(--muted);
             font-weight: 500;
         }
-        .flex-row-cards {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-        }
-        .flex-row-cards > div {
-            flex: 1;
-            min-width: 280px;
+
+        .invoice-box .party-line .v {
+            color: var(--ink);
+            font-weight: 600;
+            word-break: break-word;
         }
 
-        /* description block */
-        .description-block {
-            background: #f8fafc;
-            border-left: 4px solid #004aad;
-            padding: 12px 18px;
-            margin: 16px 0;
-            border-radius: 10px;
-        }
-        .notes-section {
-            margin: 20px 0;
+        /* ========== DESCRIPTION ========== */
+        .invoice-box .desc {
+            margin-bottom: 22px;
             padding: 12px 16px;
-            background: #fef9e6;
-            border-left: 4px solid #ffb347;
-            border-radius: 8px;
+            border-left: 3px solid var(--blue);
+            background: #f8fafc;
+            border-radius: 0 6px 6px 0;
         }
 
-        /* financial summary & grand total */
-        .financial-summary {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 10px;
-            margin-bottom: 15px;
-        }
-        .financial-summary table {
-            width: 45%;
-            min-width: 270px;
-            border: 1px solid #e2e8f0;
-        }
-        .grand-total-wrapper {
-            margin-top: 24px;
-            text-align: right;
-        }
-        .grand-total-card {
-            display: inline-block;
-            padding: 12px 28px;
-            background: #004aad;
-            color: white;
-            border-radius: 30px;
-            text-align: center;
-            box-shadow: 0 4px 12px rgba(0,74,173,0.2);
-        }
-        .grand-total-card div:first-child {
-            font-size: 14px;
-            letter-spacing: 1px;
+        .invoice-box .desc .t {
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--blue);
             margin-bottom: 4px;
         }
-        .grand-total-card div:last-child {
-            font-size: 26px;
-            font-weight: 800;
+
+        .invoice-box .desc p {
+            margin: 0;
+            color: #334155;
+            font-size: 12.5px;
         }
 
-        /* ----- PRINT BUTTONS & CONTROLS (supplier style) ----- */
-        #rightSideModalBody .print-btn,        body > .controls .print-btn {
-            background: #004aad;
-            color: #fff;
-            border: none;
-            padding: 8px 16px;
-            font-size: 13px;
-            cursor: pointer;
+        /* ========== ITEMS TABLE ========== */
+        .invoice-box .tbl-wrap {
+            border: 1px solid var(--line);
             border-radius: 6px;
-            text-decoration: none;
-            display: inline-block;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .invoice-box table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+        }
+
+        .invoice-box table.items thead th {
+            background: var(--blue);
+            color: #fff;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            padding: 11px 12px;
+            border: none;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .invoice-box table.items thead th.col-desc,
+        .invoice-box table.items thead th.col-sr {
+            text-align: left;
+        }
+
+        .invoice-box table.items thead th.col-sr {
+            text-align: center;
+            width: 44px;
+        }
+
+        .invoice-box table.items tbody td {
+            padding: 11px 12px;
+            border: none;
+            border-bottom: 1px solid var(--line);
+            font-size: 12.5px;
+            color: var(--ink);
+            vertical-align: middle;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .invoice-box table.items tbody td.col-desc {
+            text-align: left;
             font-weight: 500;
-            transition: 0.2s;
         }
-        #rightSideModalBody .print-btn:hover,        body > .controls .print-btn:hover {
-            background: #2A62FF;
+
+        .invoice-box table.items tbody td.col-sr {
+            text-align: center;
+            color: var(--muted);
+            font-weight: 600;
+            width: 44px;
         }
-        #rightSideModalBody > .controls,        body > .controls {
+
+        .invoice-box table.items tbody tr:nth-child(even) td {
+            background: #f8fafc;
+        }
+
+        .invoice-box table.items tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .invoice-box table.items tbody td.total-cell {
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        /* ========== TOTALS ========== */
+        .invoice-box .totals-area {
+            display: flex;
+            justify-content: flex-end;
+            margin: 18px 0 8px;
+        }
+
+        .invoice-box .totals {
+            width: 300px;
+        }
+
+        .invoice-box .totals .line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+            font-size: 12.5px;
+        }
+
+        .invoice-box .totals .line .k {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .invoice-box .totals .line .v {
+            color: var(--ink);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .invoice-box .totals .grand {
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 16px;
+            background: var(--blue);
+            color: #fff;
+            border-radius: 6px;
+        }
+
+        .invoice-box .totals .grand .k {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            opacity: 0.92;
+        }
+
+        .invoice-box .totals .grand .v {
+            font-size: 18px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.02em;
+        }
+
+        /* ========== NOTES / TERMS ========== */
+        .invoice-box .footnotes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 28px;
+            padding-top: 22px;
+            border-top: 1px solid var(--line);
+        }
+
+        .invoice-box .footnotes.one {
+            grid-template-columns: 1fr;
+        }
+
+        .invoice-box .footnotes.three {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .invoice-box .note-card {
+            padding: 14px 16px;
+            background: #f8fafc;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+        }
+
+        .invoice-box .note-card h4 {
+            margin: 0 0 8px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            color: var(--blue);
+        }
+
+        .invoice-box .note-card .body {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.55;
+            white-space: pre-wrap;
+        }
+
+        .invoice-box .empty {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--muted);
+            background: #f8fafc;
+            border: 1px dashed var(--line);
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        /* ========== FOOTER ========== */
+        .invoice-box .foot {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .invoice-box .foot strong {
+            color: var(--ink);
+            font-weight: 600;
+        }
+
+        .invoice-box .foot .thanks {
+            color: var(--blue);
+            font-weight: 600;
+            font-style: italic;
+        }
+
+        /* ========== CONTROLS ========== */
+        #rightSideModalBody>.controls,
+        body>.controls {
             position: sticky;
             top: 10px;
             z-index: 100;
             display: flex;
-            gap: 12px;
-            background: white;
-            padding: 10px 20px;
-            border-radius: 40px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            width: 95%;
-            justify-self: center;
-            margin-left: auto;
-            margin-right: auto;
-            justify-content: flex-end;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            /* background: #fff; */
+            /* padding: 10px 14px; */
+            border-radius: 10px;
+            /* box-shadow: 0 2px 12px rgba(15, 23, 42, 0.1); */
+            margin: auto 8px 18px auto;
+            width: fit-content;
+            max-width: 920px;
+            justify-content: center;
         }
 
-        .footer-note {
-            margin-top: 28px;
-            text-align: center;
-            font-size: 11px;
-            color: #5b6e8c;
-            border-top: 1px solid #e2e8f0;
-            padding-top: 16px;
-            margin-top: auto;
+        #rightSideModalBody>.controls .action-btn,
+        body>.controls .action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #fff;
+            color: #004aad;
+            border: 1px solid #004aad;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.3;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: background 0.15s, color 0.15s;
+            font-family: inherit;
+        }
+
+        #rightSideModalBody>.controls .action-btn i,
+        body>.controls .action-btn i {
+            font-size: 15px;
+            line-height: 1;
+        }
+
+        #rightSideModalBody>.controls .action-btn:hover,
+        body>.controls .action-btn:hover {
+            background: #eef4fc;
+            color: #004aad;
+            text-decoration: none;
+        }
+
+        #rightSideModalBody>.controls .action-btn.danger,
+        body>.controls .action-btn.danger {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+
+        #rightSideModalBody>.controls .action-btn.danger:hover,
+        body>.controls .action-btn.danger:hover {
+            background: #fff5f5;
+            color: #dc3545;
+        }
+
+        #rightSideModalBody>.controls form,
+        body>.controls form {
+            display: inline;
+            margin: 0;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 10mm 12mm;
         }
 
         @media print {
+
+            html,
             body {
-                background: white;
-                padding: 0;
-                margin: 0;
+                background: #fff !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                max-width: none !important;
+                height: auto !important;
+                font-size: 11px !important;
+                line-height: 1.4 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
             }
-            .invoice-box {
-                box-shadow: none;
-                padding: 12px;
-                border-radius: 0;
-            }
-            .action-buttons, .no-print {
+
+            .controls,
+            .no-print {
                 display: none !important;
             }
-            .customer-card, .details-card {
-                box-shadow: none;
-                border: 1px solid #ccc;
-                break-inside: avoid;
+
+            /* Full A4 width — do NOT use break-inside:avoid on the whole box
+               (browsers shrink-to-fit and leave large empty margins). */
+            .invoice-box {
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                max-width: none !important;
+                width: 100% !important;
+                min-width: 100% !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                page-break-inside: auto !important;
+                break-inside: auto !important;
             }
-            th, .secondary-header, .card-header strong, .grand-total-card {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+
+            .invoice-box .band {
+                height: 3px !important;
+            }
+
+            .invoice-box .sheet {
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            /* Header */
+            .invoice-box .hdr {
+                display: grid !important;
+                grid-template-columns: 1fr auto !important;
+                gap: 16px !important;
+                margin-bottom: 14px !important;
+                padding-bottom: 12px !important;
+                border-bottom-width: 2px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .brand {
+                flex-direction: row !important;
+                gap: 12px !important;
+            }
+
+            .invoice-box .brand-logo {
+                width: 64px !important;
+                height: 52px !important;
+            }
+
+            .invoice-box .brand-logo img {
+                max-width: 64px !important;
+                max-height: 52px !important;
+            }
+
+            .invoice-box .brand-text h1 {
+                font-size: 15px !important;
+                margin-bottom: 4px !important;
+            }
+
+            .invoice-box .brand-text .meta {
+                font-size: 10px !important;
+                line-height: 1.4 !important;
+            }
+
+            .invoice-box .doc-stamp {
+                min-width: 168px !important;
+                text-align: right !important;
+            }
+
+            .invoice-box .doc-stamp .label {
+                font-size: 11px !important;
+                letter-spacing: 1px !important;
+                padding: 6px 12px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .invoice-box .doc-stamp .kv {
+                gap: 3px 10px !important;
+                font-size: 10.5px !important;
+                justify-content: end !important;
+            }
+
+            /* Parties — keep two columns on A4 */
+            .invoice-box .parties {
+                display: grid !important;
+                grid-template-columns: 1.15fr 0.85fr !important;
+                gap: 12px !important;
+                margin-bottom: 14px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .party {
+                padding: 10px 12px !important;
+            }
+
+            .invoice-box .party-title {
+                margin-bottom: 8px !important;
+                font-size: 9.5px !important;
+            }
+
+            .invoice-box .party-name {
+                font-size: 12px !important;
+                margin-bottom: 5px !important;
+            }
+
+            .invoice-box .party-grid {
+                gap: 4px !important;
+            }
+
+            .invoice-box .party-line {
+                grid-template-columns: 78px 1fr !important;
+                gap: 6px !important;
+                font-size: 10.5px !important;
+            }
+
+            /* Description */
+            .invoice-box .desc {
+                margin-bottom: 12px !important;
+                padding: 8px 12px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .desc .t {
+                font-size: 9px !important;
+                margin-bottom: 3px !important;
+            }
+
+            .invoice-box .desc p {
+                font-size: 11px !important;
+            }
+
+            /* Table — stretch full sheet width */
+            .invoice-box .tbl-wrap {
+                margin-bottom: 8px !important;
+                border-radius: 4px !important;
+                width: 100% !important;
+                overflow: visible !important;
+            }
+
+            .invoice-box table.items {
+                width: 100% !important;
+                table-layout: auto !important;
+            }
+
+            .invoice-box table.items thead th {
+                font-size: 9.5px !important;
+                padding: 8px 8px !important;
+                letter-spacing: 0.35px !important;
+            }
+
+            .invoice-box table.items thead th.col-desc,
+            .invoice-box table.items tbody td.col-desc {
+                width: auto !important;
+            }
+
+            .invoice-box table.items tbody td {
+                font-size: 10.5px !important;
+                padding: 7px 8px !important;
+            }
+
+            .invoice-box table.items tbody tr:nth-child(even) td {
+                background: #f8fafc !important;
+            }
+
+            /* Totals */
+            .invoice-box .totals-area {
+                display: flex !important;
+                justify-content: flex-end !important;
+                margin: 12px 0 8px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .totals {
+                width: 280px !important;
+                max-width: 42% !important;
+            }
+
+            .invoice-box .totals .line {
+                padding: 5px 0 !important;
+                font-size: 10.5px !important;
+            }
+
+            .invoice-box .totals .grand {
+                margin-top: 6px !important;
+                padding: 10px 12px !important;
+                border-radius: 4px !important;
+            }
+
+            .invoice-box .totals .grand .k {
+                font-size: 10px !important;
+            }
+
+            .invoice-box .totals .grand .v {
+                font-size: 14px !important;
+            }
+
+            /* Notes */
+            .invoice-box .footnotes {
+                display: grid !important;
+                gap: 10px !important;
+                margin-top: 12px !important;
+                padding-top: 10px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .footnotes:not(.three) {
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            .invoice-box .footnotes.three {
+                grid-template-columns: 1fr 1fr 1fr !important;
+            }
+
+            .invoice-box .note-card {
+                padding: 8px 10px !important;
+            }
+
+            .invoice-box .note-card h4 {
+                font-size: 9px !important;
+                margin-bottom: 4px !important;
+            }
+
+            .invoice-box .note-card .body {
+                font-size: 9.5px !important;
+                line-height: 1.4 !important;
+                max-height: none !important;
+                overflow: visible !important;
+            }
+
+            .invoice-box .empty {
+                padding: 16px !important;
+                font-size: 11px !important;
+            }
+
+            /* Footer */
+            .invoice-box .foot {
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                margin-top: 14px !important;
+                padding-top: 8px !important;
+                font-size: 9.5px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .band,
+            .invoice-box .doc-stamp .label,
+            .invoice-box table.items thead th,
+            .invoice-box .totals .grand,
+            .invoice-box .party {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+
+            /* Keep small blocks together; allow the sheet/table to flow across pages */
+            .invoice-box .hdr,
+            .invoice-box .parties,
+            .invoice-box .desc,
+            .invoice-box .totals-area,
+            .invoice-box .footnotes,
+            .invoice-box .foot,
+            .invoice-box table.items thead,
+            .invoice-box table.items tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            .invoice-box .tbl-wrap {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
             }
         }
 
-        @media (max-width: 700px) {
-            .flex-row-cards {
+        @media screen and (max-width: 720px) {
+            .invoice-box .sheet {
+                padding: 22px 18px;
+            }
+
+            .invoice-box .hdr,
+            .invoice-box .parties,
+            .invoice-box .footnotes,
+            .invoice-box .footnotes.three {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-box .doc-stamp {
+                text-align: left;
+                min-width: 0;
+            }
+
+            .invoice-box .doc-stamp .kv {
+                justify-content: start;
+            }
+
+            .invoice-box .brand {
                 flex-direction: column;
             }
-            .invoice-box {
-                padding: 15px;
-            }
-            .financial-summary table {
+
+            .invoice-box .totals {
                 width: 100%;
+            }
+
+            .invoice-box .foot {
+                flex-direction: column;
+                align-items: flex-start;
             }
         }
     </style>
 </head>
 
 <body>
+    @php
+    $settings = company_table('settings')->pluck('value', 'name')->toArray();
+    $running_total = 0;
+    $subtotal_from_items = 0;
+    $currency = \App\Helpers\Currency::code();
+    $defaults = \App\Support\CustomerInvoiceDefaults::all();
+    $invoiceTitle = $defaults['title'] ?: 'CUSTOMER INVOICE';
+    $customerNote = $invoice->customer_note
+    ?: ($invoice->customer->customer_note ?? null)
+    ?: ($defaults['customer_notes'] ?: null);
+    $termsAndConditions = $invoice->terms_and_conditions
+    ?: ($invoice->customer->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
+    $invoiceNumber = $invoice->invoice_number ?? ('CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT));
+    $customerDisplay = $invoice->customer->company_name
+    ?: ($invoice->customer->name ?? 'N/A');
+    $projectName = $invoice->customer->name ?? 'N/A';
+    $noteCards = collect([
+    $customerNote ? ['title' => 'Customer Notes', 'body' => $customerNote] : null,
+    $termsAndConditions ? ['title' => 'Terms & Conditions', 'body' => $termsAndConditions] : null,
+    $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
+    ])->filter()->values();
+    $noteGridClass = match ($noteCards->count()) {
+    1 => 'one',
+    3 => 'three',
+    default => '',
+    };
+    @endphp
 
+    @if(empty($isPdf))
     <div class="controls no-print">
-        <button type="button" class="print-btn js-print-modal-content">Print Invoice</button>
+        @canany(['customers_invoices_edit', 'bike_on_rent_invoices_edit'])
+        <a href="javascript:void(0);"
+            class="action-btn show-modal"
+            data-size="xl"
+            data-title="Edit Invoice"
+            data-close-right-modal="1"
+            data-action="{{ route('customer_invoice.edit', $invoice->id) }}">
+            <i class="ti ti-edit"></i><span>Edit</span>
+        </a>
+        @endcanany
+
+        @canany(['customers_invoices_create', 'bike_on_rent_invoices_create'])
+        <a href="javascript:void(0);"
+            class="action-btn show-modal"
+            data-size="xl"
+            data-title="Clone Invoice"
+            data-close-right-modal="1"
+            data-action="{{ route('customer_invoice.clone', $invoice) }}">
+            <i class="ti ti-copy"></i><span>Clone</span>
+        </a>
+        @endcanany
+
+        @canany(['customers_invoices_delete', 'bike_on_rent_invoices_delete'])
+        {!! Form::open(['route' => ['customer_invoices.destroy', $invoice], 'method' => 'DELETE', 'id' => 'formajax']) !!}
+        <button type="submit"
+            class="action-btn danger"
+            onclick="return confirm('Are you sure you want to delete this invoice?');">
+            <i class="ti ti-trash"></i><span>Delete</span>
+        </button>
+        {!! Form::close() !!}
+        @endcanany
+
+        <button type="button" class="action-btn js-print-modal-content">
+            <i class="ti ti-file-description"></i><span>PDF/Print</span>
+        </button>
+
+        @can('email_create')
+        <a href="javascript:void(0);"
+            class="action-btn show-modal"
+            data-size="md"
+            data-title="Email Invoice"
+            data-action="{{ route('customer_invoices.sendEmail', $invoice->id) }}">
+            <i class="ti ti-arrow-right"></i><span>Email</span>
+        </a>
+        @endcan
     </div>
+    @endif
 
     <div class="invoice-box">
-        @php
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        $running_total = 0;
-        $subtotal_from_items = 0;
-        @endphp
+        <div class="band"></div>
+        <div class="sheet">
 
-        <!-- HEADER: Logo + Company + Title -->
-        <table style="margin-bottom: 20px; border: none; background: transparent;">
-            <tr style="border: none;">
-                <td style="width: 33%; border: none !important; vertical-align: middle;">
-                    @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                        <img src="{{ storage_url($settings['company_logo']) }}" width="150" alt="logo" />
+            {{-- Header --}}
+            <header class="hdr">
+                <div class="brand">
+                    <div class="brand-logo {{ empty($settings['company_logo']) ? 'placeholder' : '' }}">
+                        @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
+                        <img src="{{ storage_url($settings['company_logo']) }}" alt="{{ $settings['company_name'] ?? 'Logo' }}">
+                        @else
+                        Logo
+                        @endif
+                    </div>
+                    <div class="brand-text">
+                        <h1>{{ ucwords($settings['company_name'] ?? '') }}</h1>
+                        <p class="meta">
+                            @if(!empty($settings['company_address']))
+                            {{ ucwords($settings['company_address']) }}<br>
+                            @endif
+                            @if(!empty($settings['company_phone']))
+                            Tel: {{ $settings['company_phone'] }}
+                            @endif
+                            @if(!empty($settings['company_phone']) && !empty($settings['vat_number']))
+                            &nbsp;·&nbsp;
+                            @endif
+                            @if(!empty($settings['vat_number']))
+                            TRN: {{ $settings['vat_number'] }}
+                            @endif
+                            @if(!empty($settings['company_email']))
+                            <br>{{ $settings['company_email'] }}
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                <div class="doc-stamp">
+                    <div class="label">{{ $invoiceTitle }}</div>
+                    <div class="kv">
+                        <span>Invoice No</span><span>{{ $invoiceNumber }}</span>
+                        <span>Date</span><span>{{ date('d M Y', strtotime($invoice->inv_date)) }}</span>
+                        <span>Billing</span><span>{{ date('M Y', strtotime($invoice->billing_month)) }}</span>
+                    </div>
+                </div>
+            </header>
+
+            {{-- Parties --}}
+            <div class="parties">
+                <div class="party">
+                    <h3 class="party-title">Bill To</h3>
+                    <p class="party-name">{{ $customerDisplay }}</p>
+                    <div class="party-grid">
+                        <div class="party-line">
+                            <span class="k">Project</span>
+                            <span class="v">{{ $projectName }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">TRN</span>
+                            <span class="v">{{ $invoice->customer->tax_number ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Contact</span>
+                            <span class="v">{{ $invoice->customer->contact_number ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Email</span>
+                            <span class="v">{{ $invoice->customer->company_email ?? '—' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="party alt">
+                    <h3 class="party-title">Service Period</h3>
+                    <div class="party-grid" style="margin-top: 4px;">
+                        <div class="party-line">
+                            <span class="k">From</span>
+                            <span class="v">{{ date('d M Y', strtotime($invoice->date_from)) }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">To</span>
+                            <span class="v">{{ date('d M Y', strtotime($invoice->date_to)) }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Month</span>
+                            <span class="v">{{ date('F Y', strtotime($invoice->billing_month)) }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Currency</span>
+                            <span class="v">{{ $currency }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @if($invoice->description)
+            <div class="desc">
+                <span class="t">Description</span>
+                <p>{{ $invoice->description }}</p>
+            </div>
+            @endif
+
+            {{-- Line items --}}
+            @if($invoice->items && $invoice->items->count() > 0)
+            <div class="tbl-wrap">
+                <table class="items">
+                    <thead>
+                        <tr>
+                            <th class="col-sr">#</th>
+                            <th class="col-desc">Description</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                            <th>VAT %</th>
+                            <th>VAT</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($invoice->items as $key => $item)
+                        @php
+                        $quantity = $item->quantity ?? 1;
+                        $rate = $item->rate ?? 0;
+                        $vatPercent = $item->vat ?? 0;
+                        $subtotal = $quantity * $rate;
+                        $vatAmount = $subtotal * ($vatPercent / 100);
+                        $rowTotal = $subtotal + $vatAmount;
+                        $running_total += $rowTotal;
+                        $subtotal_from_items += $subtotal;
+                        @endphp
+                        <tr>
+                            <td class="col-sr">{{ $key + 1 }}</td>
+                            <td class="col-desc">{{ $item->item_name ?? 'N/A' }}</td>
+                            <td>{{ number_format($quantity, 2) }}</td>
+                            <td>{{ number_format($rate, 2) }}</td>
+                            <td>{{ number_format($subtotal, 2) }}</td>
+                            <td>{{ number_format($vatPercent, 2) }}%</td>
+                            <td>{{ number_format($vatAmount, 2) }}</td>
+                            <td class="total-cell">{{ number_format($rowTotal, 2) }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="totals-area">
+                <div class="totals">
+                    <div class="line">
+                        <span class="k">Subtotal (excl. VAT)</span>
+                        <span class="v">{{ number_format($invoice->subtotal ?? $subtotal_from_items, 2) }}</span>
+                    </div>
+                    @if(($invoice->vat ?? 0) != 0)
+                    <div class="line">
+                        <span class="k">VAT Amount</span>
+                        <span class="v">{{ number_format($invoice->vat ?? 0, 2) }}</span>
+                    </div>
                     @endif
-                </td>
-                <td style="width: 34%; text-align: center; align-content: center; border: none !important;">
-                    <h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight:700;">{{ ucwords($settings['company_name']) ?? '' }}</h4>
-                    <p style="margin: 3px 0; font-size: 12px;">{{ ucwords($settings['company_address']) ?? '' }}</p>
-                    <p style="margin: 3px 0; font-size: 12px;">TEL: {{ $settings['company_phone'] ?? '' }}</p>
-                    <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? '' }}</p>
-                </td>
-                <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
-                    <h3 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">CUSTOMER INVOICE</h3>
-                </td>
-            </table>
-        </table>
-
-        <!-- Two card layout: Customer Details + Invoice Info -->
-        <div class="flex-row-cards">
-            <!-- Customer Details Card -->
-            <div class="customer-card">
-                <div class="card-header">
-                    <strong>👤 Customer Details</strong>
-                </div>
-                <div class="details-grid">
-                    <span class="detail-label">Customer Name:</span>
-                    <span class="detail-value">{{ $invoice->customer->name ?? 'N/A' }}</span>
-                    <span class="detail-label">TRN Number:</span>
-                    <span class="detail-value">{{ $invoice->customer->tax_number ?? 'N/A' }}</span>
-                    <span class="detail-label">Contact Number:</span>
-                    <span class="detail-value">{{ $invoice->customer->contact_number ?? 'N/A' }}</span>
-                    <span class="detail-label">Email:</span>
-                    <span class="detail-value">{{ $invoice->customer->email ?? 'N/A' }}</span>
+                    <div class="grand">
+                        <span class="k">Total Due</span>
+                        <span class="v">{{ number_format($invoice->total ?? $running_total, 2) }} {{ $currency }}</span>
+                    </div>
                 </div>
             </div>
+            @else
+            <div class="empty">No line items on this invoice.</div>
+            @endif
 
-            <!-- Invoice Details Card -->
-            <div class="details-card">
-                <div class="card-header">
-                    <strong>📄 Invoice Details</strong>
+            @if($noteCards->isNotEmpty())
+            <div class="footnotes {{ $noteGridClass }}">
+                @foreach($noteCards as $card)
+                <div class="note-card">
+                    <h4>{{ $card['title'] }}</h4>
+                    <div class="body">{!! nl2br(e($card['body'])) !!}</div>
                 </div>
-                <div class="details-grid">
-                    <span class="detail-label">Invoice No:</span>
-                    <span class="detail-value">{{ $invoice->invoice_number ?? 'CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT) }}</span>
-                    <span class="detail-label">Invoice Date:</span>
-                    <span class="detail-value">{{ date('d M Y', strtotime($invoice->inv_date)) }}</span>
-                    <span class="detail-label">Billing Month:</span>
-                    <span class="detail-value">{{ date('F Y', strtotime($invoice->billing_month)) }}</span>
-                    <span class="detail-label">Service Period:</span>
-                    <span class="detail-value">{{ date('d M Y', strtotime($invoice->date_from)) }} - {{ date('d M Y', strtotime($invoice->date_to)) }}</span>
-                </div>
+                @endforeach
             </div>
-        </div>
+            @endif
 
-        <!-- Description Section (if any) -->
-        @if($invoice->description)
-        <div class="description-block">
-            <strong>📝 Description</strong><br>
-            <span style="color: #334155;">{{ $invoice->description }}</span>
-        </div>
-        @endif
-
-        <!-- Main Items Table (modern clean table) -->
-        @if($invoice->items && $invoice->items->count() > 0)
-        <div style="overflow-x: auto;">
-            <table class="items-table" style="width: 100%;">
-                <thead>
-                    <tr>
-                        <th style="width: 5%;">Sr.</th>
-                        <th style="width: 35%;">Product / Service Description</th>
-                        <th style="width: 8%;">Qty</th>
-                        <th style="width: 12%;">Rate ({{ \App\Helpers\Currency::code() }})</th>
-                        <th style="width: 12%;">Amount</th>
-                        <th style="width: 10%;">VAT (%)</th>
-                        <th style="width: 12%;">VAT Amount</th>
-                        <th style="width: 13%;">Total ({{ \App\Helpers\Currency::code() }})</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($invoice->items as $key => $item)
-                    @php
-                    $quantity = $item->quantity ?? 1;
-                    $rate = $item->rate ?? 0;
-                    $vatPercent = $item->vat ?? 0;
-                    $subtotal = $quantity * $rate;
-                    $vatAmount = $subtotal * ($vatPercent / 100);
-                    $rowTotal = $subtotal + $vatAmount;
-                    $running_total += $rowTotal;
-                    $subtotal_from_items += $subtotal;
-                    @endphp
-                    <tr>
-                        <td class="num">{{ $key + 1 }}</td>
-                        <td>{{ $item->item_name ?? 'N/A' }}</td>
-                        <td class="num">{{ number_format($quantity, 2) }}</td>
-                        <td class="num">{{ number_format($rate, 2) }}</td>
-                        <td class="num">{{ number_format($subtotal, 2) }}</td>
-                        <td class="num">{{ number_format($vatPercent, 2) }}%</td>
-                        <td class="num">{{ number_format($vatAmount, 2) }}</td>
-                        <td class="num">{{ number_format($rowTotal, 2) }}</td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Financial Summary (compact card on right) -->
-        <div class="financial-summary">
-            <table>
-                <thead>
-                    <tr><th colspan="2" class="secondary-header">Financial Summary</th></tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="font-weight: 600;">Subtotal (excl. VAT):</td>
-                        <td class="num">{{ number_format($invoice->subtotal ?? $subtotal_from_items, 2) }}</td>
-                    </tr>
-                    @if(($invoice->vat ?? 0) > 0)
-                    <tr>
-                        <td style="font-weight: 600;">VAT Amount ({{ $invoice->vat_percent ?? 5 }}%):</td>
-                        <td class="num">{{ number_format($invoice->vat ?? 0, 2) }}</td>
-                    </tr>
+            <footer class="foot">
+                <span class="thanks">Thank you for your business.</span>
+                <span>
+                    Queries:
+                    <strong>{{ $settings['company_phone'] ?? '—' }}</strong>
+                    @if(!empty($settings['company_email']))
+                    &nbsp;·&nbsp; <strong>{{ $settings['company_email'] }}</strong>
                     @endif
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Grand Total Card (modern badge) -->
-        <div class="grand-total-wrapper">
-            <div class="grand-total-card">
-                <div>TOTAL AMOUNT</div>
-                <div>{{ number_format($invoice->total ?? $running_total, 2) }} {{ \App\Helpers\Currency::code() }}</div>
-            </div>
-        </div>
-
-        <!-- Notes Section -->
-        @if($invoice->notes)
-        <div class="notes-section">
-            <strong>📌 Notes:</strong><br>
-            {{ $invoice->notes }}
-        </div>
-        @endif
-
-        @php
-            $defaults = \App\Support\CustomerInvoiceDefaults::all();
-            $customerNote = $invoice->customer_note
-                ?: ($invoice->customer->customer_note ?? null)
-                ?: ($defaults['customer_notes'] ?: null);
-            $termsAndConditions = $invoice->terms_and_conditions
-                ?: ($invoice->customer->terms_and_conditions ?? null)
-                ?: ($defaults['terms_and_conditions'] ?: null);
-        @endphp
-
-        @if($customerNote)
-        <div class="notes-section">
-            <strong>Customer Notes:</strong><br>
-            {!! nl2br(e($customerNote)) !!}
-        </div>
-        @endif
-
-        @if($termsAndConditions)
-        <div class="notes-section">
-            <strong>Terms &amp; Conditions:</strong><br>
-            {!! nl2br(e($termsAndConditions)) !!}
-        </div>
-        @endif
-
-        @else
-        <div style="text-align: center; padding: 40px; background: #f9f9fc; border-radius: 12px;">
-            <p>No items found for this invoice.</p>
-        </div>
-        @endif
-
-        <!-- Footer -->
-        <div style="height: 20px;"></div>
-        <div style="position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 11px; color: #5b6e8c; border-top: 1px solid #e2e8f0; padding-top: 16px; padding-bottom: 0px; background: white; width: 100%; z-index: 1000;">
-            <p style="margin-top: 5px; font-size: 10px;">For queries contact: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}</p>
+                </span>
+            </footer>
         </div>
     </div>
 
+    @if(empty($isPdf))
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.num').forEach(function(el) {
-                let raw = el.innerText.trim();
-                let num = parseFloat(raw.replace(/,/g, ''));
-                if (!isNaN(num) && raw !== '') {
-                    let formatted = num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    if (el.innerText !== formatted) el.innerText = formatted;
-                }
-            });
-        });
-
-        (function () {
+        (function() {
             if (typeof window.printModalContent === 'function') {
                 return;
             }
-            window.printModalContent = function () {
+            window.printModalContent = function() {
                 var box = document.querySelector('.invoice-box');
                 if (!box) {
                     window.print();
                     return;
                 }
                 var styles = '';
-                document.querySelectorAll('style').forEach(function (node) {
+                document.querySelectorAll('style').forEach(function(node) {
                     styles += node.outerHTML;
                 });
                 var title = (document.title || 'Customer Invoice').replace(/</g, '');
@@ -487,26 +1169,45 @@
                 }
                 win.document.open();
                 win.document.write(
-                    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + title + '</title></head><body>' +
-                    styles + box.outerHTML + '</body></html>'
+                    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+                    '<meta name="viewport" content="width=794">' +
+                    '<title>' + title + '</title>' +
+                    styles +
+                    '<style>' +
+                    '@page{size:A4 portrait;margin:10mm 12mm;}' +
+                    'html,body{margin:0!important;padding:0!important;background:#fff!important;' +
+                    'width:100%!important;min-width:100%!important;max-width:none!important;}' +
+                    '.invoice-box{max-width:none!important;width:100%!important;min-width:100%!important;' +
+                    'margin:0!important;box-shadow:none!important;border-radius:0!important;' +
+                    'page-break-inside:auto!important;break-inside:auto!important;}' +
+                    '.invoice-box .sheet{padding:0!important;width:100%!important;}' +
+                    '@media print{' +
+                    'html,body,.invoice-box{width:100%!important;max-width:none!important;}' +
+                    '.invoice-box{page-break-inside:auto!important;break-inside:auto!important;}' +
+                    '}' +
+                    '</style>' +
+                    '</head><body>' + box.outerHTML + '</body></html>'
                 );
                 win.document.close();
-                setTimeout(function () {
+                setTimeout(function() {
                     try {
                         win.focus();
                         win.print();
                     } catch (e) {}
-                    win.onafterprint = function () { win.close(); };
+                    win.onafterprint = function() {
+                        win.close();
+                    };
                 }, 400);
             };
-            document.querySelectorAll('.js-print-modal-content').forEach(function (btn) {
-                btn.addEventListener('click', function (e) {
+            document.querySelectorAll('.js-print-modal-content').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
                     e.preventDefault();
                     window.printModalContent();
                 });
             });
         })();
     </script>
+    @endif
 </body>
 
 </html>

@@ -1,4 +1,4 @@
-{{-- Company defaults for Customer Invoice notes / terms (shown on create + printed invoice). --}}
+{{-- Company defaults for Customer Invoice title / notes / terms. --}}
 @php
   $invoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
 @endphp
@@ -6,11 +6,24 @@
 <div class="mb-2">
   <h5 class="mb-1">Invoice defaults</h5>
   <p class="text-muted small mb-3">
-    Default text for new customer invoices. You can still edit them per customer or per invoice.
+    Default text for customer invoices. Title appears on the printed invoice header.
   </p>
 </div>
 <form method="POST" action="{{ route('settings-panel.module-settings.update-invoice-defaults', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'module' => 'customer_invoices']) }}">
   @csrf
+  <div class="mb-3">
+    <label class="form-label" for="customer_invoice_title">Invoice Title</label>
+    <input
+      type="text"
+      name="invoice_title"
+      id="customer_invoice_title"
+      class="form-control"
+      maxlength="100"
+      placeholder="CUSTOMER INVOICE"
+      value="{{ old('invoice_title', $invoiceDefaults['title']) }}"
+    >
+    <div class="form-text">Shown as the heading on the invoice (e.g. CUSTOMER INVOICE).</div>
+  </div>
   <div class="mb-3">
     <label class="form-label" for="customer_invoice_terms_and_conditions">Terms &amp; Conditions</label>
     <textarea

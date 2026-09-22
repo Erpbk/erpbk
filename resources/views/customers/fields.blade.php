@@ -1,3 +1,10 @@
+<!-- Company Name Field -->
+@fieldVisible('customer', 'company_name')
+<div class="form-group col-sm-6">
+    {!! Form::label('company_name', 'Company Name:',['class'=>'fw-bold']) !!}
+    {!! Form::text('company_name', null, ['class' => 'form-control', 'maxlength' => 255] + field_lock('customer', 'company_name')) !!}
+</div>
+@endfieldVisible
 <!-- Name Field -->
 @fieldVisible('customer', 'name')
 <div class="form-group col-sm-6">
@@ -14,13 +21,6 @@
 </div>
 @endfieldVisible
 
-<!-- Company Name Field -->
-@fieldVisible('customer', 'company_name')
-<div class="form-group col-sm-6">
-    {!! Form::label('company_name', 'Company Name:',['class'=>'fw-bold']) !!}
-    {!! Form::text('company_name', null, ['class' => 'form-control', 'maxlength' => 255] + field_lock('customer', 'company_name')) !!}
-</div>
-@endfieldVisible
 
 <!-- Company Email Field -->
 @fieldVisible('customer', 'company_email')
@@ -82,9 +82,9 @@
 @endfieldVisible
 
 @php
-    $customerInvoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
-    $customerTermsDefault = old('terms_and_conditions', isset($customers) ? ($customers->terms_and_conditions ?? '') : $customerInvoiceDefaults['terms_and_conditions']);
-    $customerNotesDefault = old('customer_note', isset($customers) ? ($customers->customer_note ?? '') : $customerInvoiceDefaults['customer_notes']);
+$customerInvoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
+$customerTermsDefault = old('terms_and_conditions', isset($customers) ? ($customers->terms_and_conditions ?? '') : $customerInvoiceDefaults['terms_and_conditions']);
+$customerNotesDefault = old('customer_note', isset($customers) ? ($customers->customer_note ?? '') : $customerInvoiceDefaults['customer_notes']);
 @endphp
 
 <!-- Terms & Conditions Field -->

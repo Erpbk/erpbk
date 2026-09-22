@@ -54,7 +54,7 @@
 
         /* Top brand strip */
         .invoice-box .band {
-            height: 6px;
+            height: 2px;
             background: var(--blue);
         }
 
@@ -472,8 +472,8 @@
         }
 
         /* ========== CONTROLS ========== */
-        #rightSideModalBody > .controls,
-        body > .controls {
+        #rightSideModalBody>.controls,
+        body>.controls {
             position: sticky;
             top: 10px;
             z-index: 100;
@@ -481,18 +481,18 @@
             flex-wrap: wrap;
             align-items: center;
             gap: 8px;
-            background: #fff;
-            padding: 10px 14px;
+            /* background: #fff; */
+            /* padding: 10px 14px; */
             border-radius: 10px;
-            box-shadow: 0 2px 12px rgba(15, 23, 42, 0.1);
-            margin: 0 auto 18px;
+            /* box-shadow: 0 2px 12px rgba(15, 23, 42, 0.1); */
+            margin: auto 8px 18px auto;
             width: fit-content;
             max-width: 920px;
             justify-content: center;
         }
 
-        #rightSideModalBody > .controls .action-btn,
-        body > .controls .action-btn {
+        #rightSideModalBody>.controls .action-btn,
+        body>.controls .action-btn {
             display: inline-flex;
             align-items: center;
             gap: 6px;
@@ -511,54 +511,58 @@
             font-family: inherit;
         }
 
-        #rightSideModalBody > .controls .action-btn i,
-        body > .controls .action-btn i {
+        #rightSideModalBody>.controls .action-btn i,
+        body>.controls .action-btn i {
             font-size: 15px;
             line-height: 1;
         }
 
-        #rightSideModalBody > .controls .action-btn:hover,
-        body > .controls .action-btn:hover {
+        #rightSideModalBody>.controls .action-btn:hover,
+        body>.controls .action-btn:hover {
             background: #eef4fc;
             color: #004aad;
             text-decoration: none;
         }
 
-        #rightSideModalBody > .controls .action-btn.danger,
-        body > .controls .action-btn.danger {
+        #rightSideModalBody>.controls .action-btn.danger,
+        body>.controls .action-btn.danger {
             color: #dc3545;
             border-color: #dc3545;
         }
 
-        #rightSideModalBody > .controls .action-btn.danger:hover,
-        body > .controls .action-btn.danger:hover {
+        #rightSideModalBody>.controls .action-btn.danger:hover,
+        body>.controls .action-btn.danger:hover {
             background: #fff5f5;
             color: #dc3545;
         }
 
-        #rightSideModalBody > .controls form,
-        body > .controls form {
+        #rightSideModalBody>.controls form,
+        body>.controls form {
             display: inline;
             margin: 0;
         }
 
         @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 10mm 12mm;
         }
 
         @media print {
+
             html,
             body {
                 background: #fff !important;
                 padding: 0 !important;
                 margin: 0 !important;
                 width: 100% !important;
+                min-width: 100% !important;
+                max-width: none !important;
                 height: auto !important;
-                font-size: 10px !important;
-                line-height: 1.3 !important;
+                font-size: 11px !important;
+                line-height: 1.4 !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                color-adjust: exact !important;
             }
 
             .controls,
@@ -566,15 +570,18 @@
                 display: none !important;
             }
 
+            /* Full A4 width — do NOT use break-inside:avoid on the whole box
+               (browsers shrink-to-fit and leave large empty margins). */
             .invoice-box {
                 box-shadow: none !important;
                 border-radius: 0 !important;
-                max-width: 100% !important;
+                max-width: none !important;
                 width: 100% !important;
+                min-width: 100% !important;
                 margin: 0 !important;
                 overflow: visible !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
+                page-break-inside: auto !important;
+                break-inside: auto !important;
             }
 
             .invoice-box .band {
@@ -582,117 +589,140 @@
             }
 
             .invoice-box .sheet {
-                padding: 8px 6px 6px !important;
+                padding: 0 !important;
+                width: 100% !important;
             }
 
-            /* Header — compact */
+            /* Header */
             .invoice-box .hdr {
-                gap: 12px !important;
-                margin-bottom: 10px !important;
-                padding-bottom: 8px !important;
-                border-bottom-width: 1.5px !important;
+                display: grid !important;
+                grid-template-columns: 1fr auto !important;
+                gap: 16px !important;
+                margin-bottom: 14px !important;
+                padding-bottom: 12px !important;
+                border-bottom-width: 2px !important;
+                width: 100% !important;
             }
 
             .invoice-box .brand {
-                gap: 10px !important;
+                flex-direction: row !important;
+                gap: 12px !important;
             }
 
             .invoice-box .brand-logo {
-                width: 56px !important;
-                height: 46px !important;
+                width: 64px !important;
+                height: 52px !important;
             }
 
             .invoice-box .brand-logo img {
-                max-width: 56px !important;
-                max-height: 46px !important;
+                max-width: 64px !important;
+                max-height: 52px !important;
             }
 
             .invoice-box .brand-text h1 {
-                font-size: 13px !important;
-                margin-bottom: 2px !important;
-            }
-
-            .invoice-box .brand-text .meta {
-                font-size: 9px !important;
-                line-height: 1.35 !important;
-            }
-
-            .invoice-box .doc-stamp {
-                min-width: 140px !important;
-            }
-
-            .invoice-box .doc-stamp .label {
-                font-size: 9px !important;
-                letter-spacing: 0.8px !important;
-                padding: 4px 8px !important;
-                margin-bottom: 6px !important;
-            }
-
-            .invoice-box .doc-stamp .kv {
-                gap: 2px 8px !important;
-                font-size: 9.5px !important;
-            }
-
-            /* Parties */
-            .invoice-box .parties {
-                gap: 8px !important;
-                margin-bottom: 10px !important;
-            }
-
-            .invoice-box .party {
-                padding: 8px 10px !important;
-            }
-
-            .invoice-box .party-title {
-                margin-bottom: 6px !important;
-                font-size: 8.5px !important;
-            }
-
-            .invoice-box .party-name {
-                font-size: 11px !important;
+                font-size: 15px !important;
                 margin-bottom: 4px !important;
             }
 
+            .invoice-box .brand-text .meta {
+                font-size: 10px !important;
+                line-height: 1.4 !important;
+            }
+
+            .invoice-box .doc-stamp {
+                min-width: 168px !important;
+                text-align: right !important;
+            }
+
+            .invoice-box .doc-stamp .label {
+                font-size: 11px !important;
+                letter-spacing: 1px !important;
+                padding: 6px 12px !important;
+                margin-bottom: 8px !important;
+            }
+
+            .invoice-box .doc-stamp .kv {
+                gap: 3px 10px !important;
+                font-size: 10.5px !important;
+                justify-content: end !important;
+            }
+
+            /* Parties — keep two columns on A4 */
+            .invoice-box .parties {
+                display: grid !important;
+                grid-template-columns: 1.15fr 0.85fr !important;
+                gap: 12px !important;
+                margin-bottom: 14px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .party {
+                padding: 10px 12px !important;
+            }
+
+            .invoice-box .party-title {
+                margin-bottom: 8px !important;
+                font-size: 9.5px !important;
+            }
+
+            .invoice-box .party-name {
+                font-size: 12px !important;
+                margin-bottom: 5px !important;
+            }
+
             .invoice-box .party-grid {
-                gap: 3px !important;
+                gap: 4px !important;
             }
 
             .invoice-box .party-line {
-                grid-template-columns: 70px 1fr !important;
-                gap: 4px !important;
-                font-size: 9.5px !important;
+                grid-template-columns: 78px 1fr !important;
+                gap: 6px !important;
+                font-size: 10.5px !important;
             }
 
             /* Description */
             .invoice-box .desc {
-                margin-bottom: 8px !important;
-                padding: 6px 10px !important;
+                margin-bottom: 12px !important;
+                padding: 8px 12px !important;
+                width: 100% !important;
             }
 
             .invoice-box .desc .t {
-                font-size: 8px !important;
-                margin-bottom: 2px !important;
+                font-size: 9px !important;
+                margin-bottom: 3px !important;
             }
 
             .invoice-box .desc p {
-                font-size: 9.5px !important;
+                font-size: 11px !important;
             }
 
-            /* Table */
+            /* Table — stretch full sheet width */
             .invoice-box .tbl-wrap {
-                margin-bottom: 4px !important;
-                border-radius: 3px !important;
+                margin-bottom: 8px !important;
+                border-radius: 4px !important;
+                width: 100% !important;
+                overflow: visible !important;
+            }
+
+            .invoice-box table.items {
+                width: 100% !important;
+                table-layout: auto !important;
             }
 
             .invoice-box table.items thead th {
-                font-size: 8.5px !important;
-                padding: 5px 6px !important;
-                letter-spacing: 0.3px !important;
+                font-size: 9.5px !important;
+                padding: 8px 8px !important;
+                letter-spacing: 0.35px !important;
+            }
+
+            .invoice-box table.items thead th.col-desc,
+            .invoice-box table.items tbody td.col-desc {
+                width: auto !important;
             }
 
             .invoice-box table.items tbody td {
-                font-size: 9.5px !important;
-                padding: 4px 6px !important;
+                font-size: 10.5px !important;
+                padding: 7px 8px !important;
             }
 
             .invoice-box table.items tbody tr:nth-child(even) td {
@@ -701,65 +731,84 @@
 
             /* Totals */
             .invoice-box .totals-area {
-                margin: 8px 0 4px !important;
+                display: flex !important;
+                justify-content: flex-end !important;
+                margin: 12px 0 8px !important;
+                width: 100% !important;
             }
 
             .invoice-box .totals {
-                width: 240px !important;
+                width: 280px !important;
+                max-width: 42% !important;
             }
 
             .invoice-box .totals .line {
-                padding: 4px 0 !important;
-                font-size: 9.5px !important;
+                padding: 5px 0 !important;
+                font-size: 10.5px !important;
             }
 
             .invoice-box .totals .grand {
-                margin-top: 4px !important;
-                padding: 8px 10px !important;
-                border-radius: 3px !important;
+                margin-top: 6px !important;
+                padding: 10px 12px !important;
+                border-radius: 4px !important;
             }
 
             .invoice-box .totals .grand .k {
-                font-size: 9px !important;
+                font-size: 10px !important;
             }
 
             .invoice-box .totals .grand .v {
-                font-size: 13px !important;
+                font-size: 14px !important;
             }
 
-            /* Notes — keep short on one page */
+            /* Notes */
             .invoice-box .footnotes {
-                gap: 8px !important;
-                margin-top: 10px !important;
-                padding-top: 8px !important;
+                display: grid !important;
+                gap: 10px !important;
+                margin-top: 12px !important;
+                padding-top: 10px !important;
+                width: 100% !important;
+            }
+
+            .invoice-box .footnotes:not(.three) {
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            .invoice-box .footnotes.three {
+                grid-template-columns: 1fr 1fr 1fr !important;
             }
 
             .invoice-box .note-card {
-                padding: 6px 8px !important;
+                padding: 8px 10px !important;
             }
 
             .invoice-box .note-card h4 {
-                font-size: 8px !important;
-                margin-bottom: 3px !important;
+                font-size: 9px !important;
+                margin-bottom: 4px !important;
             }
 
             .invoice-box .note-card .body {
-                font-size: 8.5px !important;
-                line-height: 1.35 !important;
-                max-height: 4.2em;
-                overflow: hidden;
+                font-size: 9.5px !important;
+                line-height: 1.4 !important;
+                max-height: none !important;
+                overflow: visible !important;
             }
 
             .invoice-box .empty {
                 padding: 16px !important;
-                font-size: 10px !important;
+                font-size: 11px !important;
             }
 
             /* Footer */
             .invoice-box .foot {
-                margin-top: 10px !important;
-                padding-top: 6px !important;
-                font-size: 8.5px !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                margin-top: 14px !important;
+                padding-top: 8px !important;
+                font-size: 9.5px !important;
+                width: 100% !important;
             }
 
             .invoice-box .band,
@@ -769,22 +818,29 @@
             .invoice-box .party {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+                color-adjust: exact !important;
             }
 
-            /* Force single page — avoid splitting sections */
+            /* Keep small blocks together; allow the sheet/table to flow across pages */
             .invoice-box .hdr,
             .invoice-box .parties,
             .invoice-box .desc,
-            .invoice-box .tbl-wrap,
             .invoice-box .totals-area,
             .invoice-box .footnotes,
-            .invoice-box .foot {
+            .invoice-box .foot,
+            .invoice-box table.items thead,
+            .invoice-box table.items tr {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
+
+            .invoice-box .tbl-wrap {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+            }
         }
 
-        @media (max-width: 720px) {
+        @media screen and (max-width: 720px) {
             .invoice-box .sheet {
                 padding: 22px 18px;
             }
@@ -822,7 +878,7 @@
 </head>
 
 <body>
-@php
+    @php
     $settings = company_table('settings')->pluck('value', 'name')->toArray();
     $running_total = 0;
     $subtotal_from_items = 0;
@@ -830,47 +886,47 @@
     $defaults = \App\Support\CustomerInvoiceDefaults::all();
     $invoiceTitle = $defaults['title'] ?: 'CUSTOMER INVOICE';
     $customerNote = $invoice->customer_note
-        ?: ($invoice->customer->customer_note ?? null)
-        ?: ($defaults['customer_notes'] ?: null);
+    ?: ($invoice->customer->customer_note ?? null)
+    ?: ($defaults['customer_notes'] ?: null);
     $termsAndConditions = $invoice->terms_and_conditions
-        ?: ($invoice->customer->terms_and_conditions ?? null)
-        ?: ($defaults['terms_and_conditions'] ?: null);
+    ?: ($invoice->customer->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
     $invoiceNumber = $invoice->invoice_number ?? ('CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT));
     $customerDisplay = $invoice->customer->company_name
-        ?: ($invoice->customer->name ?? 'N/A');
+    ?: ($invoice->customer->name ?? 'N/A');
     $projectName = $invoice->customer->name ?? 'N/A';
     $noteCards = collect([
-        $customerNote ? ['title' => 'Customer Notes', 'body' => $customerNote] : null,
-        $termsAndConditions ? ['title' => 'Terms & Conditions', 'body' => $termsAndConditions] : null,
-        $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
+    $customerNote ? ['title' => 'Customer Notes', 'body' => $customerNote] : null,
+    $termsAndConditions ? ['title' => 'Terms & Conditions', 'body' => $termsAndConditions] : null,
+    $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
     ])->filter()->values();
     $noteGridClass = match ($noteCards->count()) {
-        1 => 'one',
-        3 => 'three',
-        default => '',
+    1 => 'one',
+    3 => 'three',
+    default => '',
     };
-@endphp
+    @endphp
 
     @if(empty($isPdf))
     <div class="controls no-print">
         @canany(['customers_invoices_edit', 'bike_on_rent_invoices_edit'])
         <a href="javascript:void(0);"
-           class="action-btn show-modal"
-           data-size="xl"
-           data-title="Edit Invoice"
-           data-close-right-modal="1"
-           data-action="{{ route('customer_invoice.edit', $invoice->id) }}">
+            class="action-btn show-modal"
+            data-size="xl"
+            data-title="Edit Invoice"
+            data-close-right-modal="1"
+            data-action="{{ route('customer_invoice.edit', $invoice->id) }}">
             <i class="ti ti-edit"></i><span>Edit</span>
         </a>
         @endcanany
 
         @canany(['customers_invoices_create', 'bike_on_rent_invoices_create'])
         <a href="javascript:void(0);"
-           class="action-btn show-modal"
-           data-size="xl"
-           data-title="Clone Invoice"
-           data-close-right-modal="1"
-           data-action="{{ route('customer_invoice.clone', $invoice) }}">
+            class="action-btn show-modal"
+            data-size="xl"
+            data-title="Clone Invoice"
+            data-close-right-modal="1"
+            data-action="{{ route('customer_invoice.clone', $invoice) }}">
             <i class="ti ti-copy"></i><span>Clone</span>
         </a>
         @endcanany
@@ -878,8 +934,8 @@
         @canany(['customers_invoices_delete', 'bike_on_rent_invoices_delete'])
         {!! Form::open(['route' => ['customer_invoices.destroy', $invoice], 'method' => 'DELETE', 'id' => 'formajax']) !!}
         <button type="submit"
-                class="action-btn danger"
-                onclick="return confirm('Are you sure you want to delete this invoice?');">
+            class="action-btn danger"
+            onclick="return confirm('Are you sure you want to delete this invoice?');">
             <i class="ti ti-trash"></i><span>Delete</span>
         </button>
         {!! Form::close() !!}
@@ -891,10 +947,10 @@
 
         @can('email_create')
         <a href="javascript:void(0);"
-           class="action-btn show-modal"
-           data-size="md"
-           data-title="Email Invoice"
-           data-action="{{ route('customer_invoices.sendEmail', $invoice->id) }}">
+            class="action-btn show-modal"
+            data-size="md"
+            data-title="Email Invoice"
+            data-action="{{ route('customer_invoices.sendEmail', $invoice->id) }}">
             <i class="ti ti-arrow-right"></i><span>Email</span>
         </a>
         @endcan
@@ -910,28 +966,28 @@
                 <div class="brand">
                     <div class="brand-logo {{ empty($settings['company_logo']) ? 'placeholder' : '' }}">
                         @if(!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo']))
-                            <img src="{{ storage_url($settings['company_logo']) }}" alt="{{ $settings['company_name'] ?? 'Logo' }}">
+                        <img src="{{ storage_url($settings['company_logo']) }}" alt="{{ $settings['company_name'] ?? 'Logo' }}">
                         @else
-                            Logo
+                        Logo
                         @endif
                     </div>
                     <div class="brand-text">
                         <h1>{{ ucwords($settings['company_name'] ?? '') }}</h1>
                         <p class="meta">
                             @if(!empty($settings['company_address']))
-                                {{ ucwords($settings['company_address']) }}<br>
+                            {{ ucwords($settings['company_address']) }}<br>
                             @endif
                             @if(!empty($settings['company_phone']))
-                                Tel: {{ $settings['company_phone'] }}
+                            Tel: {{ $settings['company_phone'] }}
                             @endif
                             @if(!empty($settings['company_phone']) && !empty($settings['vat_number']))
-                                &nbsp;·&nbsp;
+                            &nbsp;·&nbsp;
                             @endif
                             @if(!empty($settings['vat_number']))
-                                TRN: {{ $settings['vat_number'] }}
+                            TRN: {{ $settings['vat_number'] }}
                             @endif
                             @if(!empty($settings['company_email']))
-                                <br>{{ $settings['company_email'] }}
+                            <br>{{ $settings['company_email'] }}
                             @endif
                         </p>
                     </div>
@@ -994,86 +1050,86 @@
             </div>
 
             @if($invoice->description)
-                <div class="desc">
-                    <span class="t">Description</span>
-                    <p>{{ $invoice->description }}</p>
-                </div>
+            <div class="desc">
+                <span class="t">Description</span>
+                <p>{{ $invoice->description }}</p>
+            </div>
             @endif
 
             {{-- Line items --}}
             @if($invoice->items && $invoice->items->count() > 0)
-                <div class="tbl-wrap">
-                    <table class="items">
-                        <thead>
-                            <tr>
-                                <th class="col-sr">#</th>
-                                <th class="col-desc">Description</th>
-                                <th>Qty</th>
-                                <th>Rate</th>
-                                <th>Amount</th>
-                                <th>VAT %</th>
-                                <th>VAT</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($invoice->items as $key => $item)
-                                @php
-                                    $quantity = $item->quantity ?? 1;
-                                    $rate = $item->rate ?? 0;
-                                    $vatPercent = $item->vat ?? 0;
-                                    $subtotal = $quantity * $rate;
-                                    $vatAmount = $subtotal * ($vatPercent / 100);
-                                    $rowTotal = $subtotal + $vatAmount;
-                                    $running_total += $rowTotal;
-                                    $subtotal_from_items += $subtotal;
-                                @endphp
-                                <tr>
-                                    <td class="col-sr">{{ $key + 1 }}</td>
-                                    <td class="col-desc">{{ $item->item_name ?? 'N/A' }}</td>
-                                    <td>{{ number_format($quantity, 2) }}</td>
-                                    <td>{{ number_format($rate, 2) }}</td>
-                                    <td>{{ number_format($subtotal, 2) }}</td>
-                                    <td>{{ number_format($vatPercent, 2) }}%</td>
-                                    <td>{{ number_format($vatAmount, 2) }}</td>
-                                    <td class="total-cell">{{ number_format($rowTotal, 2) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+            <div class="tbl-wrap">
+                <table class="items">
+                    <thead>
+                        <tr>
+                            <th class="col-sr">#</th>
+                            <th class="col-desc">Description</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                            <th>VAT %</th>
+                            <th>VAT</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($invoice->items as $key => $item)
+                        @php
+                        $quantity = $item->quantity ?? 1;
+                        $rate = $item->rate ?? 0;
+                        $vatPercent = $item->vat ?? 0;
+                        $subtotal = $quantity * $rate;
+                        $vatAmount = $subtotal * ($vatPercent / 100);
+                        $rowTotal = $subtotal + $vatAmount;
+                        $running_total += $rowTotal;
+                        $subtotal_from_items += $subtotal;
+                        @endphp
+                        <tr>
+                            <td class="col-sr">{{ $key + 1 }}</td>
+                            <td class="col-desc">{{ $item->item_name ?? 'N/A' }}</td>
+                            <td>{{ number_format($quantity, 2) }}</td>
+                            <td>{{ number_format($rate, 2) }}</td>
+                            <td>{{ number_format($subtotal, 2) }}</td>
+                            <td>{{ number_format($vatPercent, 2) }}%</td>
+                            <td>{{ number_format($vatAmount, 2) }}</td>
+                            <td class="total-cell">{{ number_format($rowTotal, 2) }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
-                <div class="totals-area">
-                    <div class="totals">
-                        <div class="line">
-                            <span class="k">Subtotal (excl. VAT)</span>
-                            <span class="v">{{ number_format($invoice->subtotal ?? $subtotal_from_items, 2) }}</span>
-                        </div>
-                        @if(($invoice->vat ?? 0) != 0)
-                            <div class="line">
-                                <span class="k">VAT Amount</span>
-                                <span class="v">{{ number_format($invoice->vat ?? 0, 2) }}</span>
-                            </div>
-                        @endif
-                        <div class="grand">
-                            <span class="k">Total Due</span>
-                            <span class="v">{{ number_format($invoice->total ?? $running_total, 2) }} {{ $currency }}</span>
-                        </div>
+            <div class="totals-area">
+                <div class="totals">
+                    <div class="line">
+                        <span class="k">Subtotal (excl. VAT)</span>
+                        <span class="v">{{ number_format($invoice->subtotal ?? $subtotal_from_items, 2) }}</span>
+                    </div>
+                    @if(($invoice->vat ?? 0) != 0)
+                    <div class="line">
+                        <span class="k">VAT Amount</span>
+                        <span class="v">{{ number_format($invoice->vat ?? 0, 2) }}</span>
+                    </div>
+                    @endif
+                    <div class="grand">
+                        <span class="k">Total Due</span>
+                        <span class="v">{{ number_format($invoice->total ?? $running_total, 2) }} {{ $currency }}</span>
                     </div>
                 </div>
+            </div>
             @else
-                <div class="empty">No line items on this invoice.</div>
+            <div class="empty">No line items on this invoice.</div>
             @endif
 
             @if($noteCards->isNotEmpty())
-                <div class="footnotes {{ $noteGridClass }}">
-                    @foreach($noteCards as $card)
-                        <div class="note-card">
-                            <h4>{{ $card['title'] }}</h4>
-                            <div class="body">{!! nl2br(e($card['body'])) !!}</div>
-                        </div>
-                    @endforeach
+            <div class="footnotes {{ $noteGridClass }}">
+                @foreach($noteCards as $card)
+                <div class="note-card">
+                    <h4>{{ $card['title'] }}</h4>
+                    <div class="body">{!! nl2br(e($card['body'])) !!}</div>
                 </div>
+                @endforeach
+            </div>
             @endif
 
             <footer class="foot">
@@ -1082,7 +1138,7 @@
                     Queries:
                     <strong>{{ $settings['company_phone'] ?? '—' }}</strong>
                     @if(!empty($settings['company_email']))
-                        &nbsp;·&nbsp; <strong>{{ $settings['company_email'] }}</strong>
+                    &nbsp;·&nbsp; <strong>{{ $settings['company_email'] }}</strong>
                     @endif
                 </span>
             </footer>
@@ -1113,9 +1169,23 @@
                 }
                 win.document.open();
                 win.document.write(
-                    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + title + '</title>' +
+                    '<!DOCTYPE html><html><head><meta charset="utf-8">' +
+                    '<meta name="viewport" content="width=794">' +
+                    '<title>' + title + '</title>' +
                     styles +
-                    '<style>@page{size:A4 portrait;margin:8mm 10mm;}html,body{margin:0!important;padding:0!important;background:#fff!important;}</style>' +
+                    '<style>' +
+                    '@page{size:A4 portrait;margin:10mm 12mm;}' +
+                    'html,body{margin:0!important;padding:0!important;background:#fff!important;' +
+                    'width:100%!important;min-width:100%!important;max-width:none!important;}' +
+                    '.invoice-box{max-width:none!important;width:100%!important;min-width:100%!important;' +
+                    'margin:0!important;box-shadow:none!important;border-radius:0!important;' +
+                    'page-break-inside:auto!important;break-inside:auto!important;}' +
+                    '.invoice-box .sheet{padding:0!important;width:100%!important;}' +
+                    '@media print{' +
+                    'html,body,.invoice-box{width:100%!important;max-width:none!important;}' +
+                    '.invoice-box{page-break-inside:auto!important;break-inside:auto!important;}' +
+                    '}' +
+                    '</style>' +
                     '</head><body>' + box.outerHTML + '</body></html>'
                 );
                 win.document.close();

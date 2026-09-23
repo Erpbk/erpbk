@@ -110,6 +110,12 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
         @php
         $fieldLabel = $row->resolvedLabel();
         $keyLabel = $row->field_key ?? '—';
+        // Disambiguate the two "Assign to" built-ins in settings (form still shows one at a time).
+        if ($keyLabel === 'assign_to_rider') {
+            $fieldLabel = 'Assign to (Rider)';
+        } elseif ($keyLabel === 'assign_to_employee') {
+            $fieldLabel = 'Assign to (Employee)';
+        }
         $builtinConfigOptions = '';
         if (is_array($row->input_config ?? null) && isset($row->input_config['options'])) {
             $builtinConfigOptions = (string) $row->input_config['options'];
@@ -119,7 +125,7 @@ $assignCustomFields = $assignFields->where('kind', 'custom');
             'kind' => 'built-in',
             'update_url' => $updateAssignUrl,
             'field_key' => $row->field_key,
-            'display_label' => $row->display_label ?: $fieldLabel,
+            'display_label' => $row->display_label ?: $row->resolvedLabel(),
             'input_type' => $row->input_type ?? 'text',
             'is_visible' => (bool) ($row->is_visible ?? true),
             'is_required' => (bool) ($row->is_required ?? false),

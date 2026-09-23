@@ -424,12 +424,12 @@
                     <div class="d-grid gap-2 mt-3">
                     @canany(['sims_assign_create', 'sims_assign_edit'])
                     @if($sims->assign_to)
-                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="lg"
+                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="md"
                        data-title="Return SIM" data-action="{{ route('sims.return', $sims->id) }}">
                         <i class="ti ti-arrow-back-up me-1"></i> Return SIM
                     </a>
                     @elseif($sims->isAssignable())
-                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="lg"
+                    <a href="javascript:void(0);" class="btn btn-primary show-modal" data-size="md"
                        data-title="Assign SIM" data-action="{{ route('sims.assign', $sims->id) }}">
                         <i class="ti ti-user-plus me-1"></i> Assign
                     </a>

@@ -11,7 +11,7 @@ $colClass = in_array($inputType, ['textarea'], true) ? 'col-md-12' : 'col-sm-6';
 if ($fieldKey === 'notes' && $inputType === 'textarea') {
     $colClass = 'col-md-8';
 }
-$groupClass = $assignGroup ? ' d-none assignee-field assignee-field-' . $assignGroup : '';
+$groupClass = $assignGroup ? ' hidden-field assignee-field assignee-field-' . $assignGroup : '';
 $wrapperId = $fieldKey ? 'assign-field-' . $fieldKey : 'assign-custom-' . ($field->custom_field_id ?? $field->id);
 $branchOpts = $branchScopedOptions ?? [];
 $simsModel = $sims ?? null;

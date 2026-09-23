@@ -88,6 +88,13 @@ $wideFields = $assignFields->filter(function ($f) {
 
 {!! Form::close() !!}
 
+<style>
+    /* Match bike assign modals: don't rely on Bootstrap d-none alone (Select2 / fragment loads). */
+    #formajax .hidden-field {
+        display: none !important;
+    }
+</style>
+
 <script>
 (function() {
     function initAssigneeSelect2(selectEl) {
@@ -100,34 +107,61 @@ $wideFields = $assignFields->filter(function ($f) {
             $select.select2('destroy');
         }
 
+        const $parent = $('#modalTopbody');
         $select.select2({
-            dropdownParent: $('#modalTopbody'),
+            dropdownParent: $parent.length ? $parent : $(document.body),
             placeholder: 'Search...',
             allowClear: true,
             width: '100%'
         });
     }
 
+    function destroyAssigneeSelect2(selectEl) {
+        if (!selectEl || typeof $ === 'undefined' || !$.fn.select2) {
+            return;
+        }
+        const $select = $(selectEl);
+        if ($select.hasClass('select2-hidden-accessible')) {
+            $select.select2('destroy');
+        }
+    }
+
+    function setAssigneeWrapVisible(wrap, visible) {
+        if (!wrap) {
+            return;
+        }
+        wrap.classList.toggle('hidden-field', !visible);
+        wrap.classList.toggle('d-none', !visible);
+        if (visible) {
+            wrap.removeAttribute('hidden');
+            wrap.removeAttribute('aria-hidden');
+        } else {
+            wrap.setAttribute('hidden', 'hidden');
+            wrap.setAttribute('aria-hidden', 'true');
+        }
+    }
+
     function currentAssigneeType() {
-        const checked = document.querySelector('input[name="assignee_type"]:checked');
+        const checked = document.querySelector('#formajax input[name="assignee_type"]:checked');
         if (checked) {
             return checked.value;
         }
 
-        return document.querySelector('input[name="assignee_type"]')?.value || 'rider';
+        return document.querySelector('#formajax input[name="assignee_type"]')?.value || 'rider';
     }
 
     function syncAssigneeFields() {
         const type = currentAssigneeType();
-        const riderWrap = document.querySelector('.assignee-field-rider');
-        const employeeWrap = document.querySelector('.assignee-field-employee');
+        const riderWrap = document.querySelector('#formajax .assignee-field-rider');
+        const employeeWrap = document.querySelector('#formajax .assignee-field-employee');
         const riderSelect = document.getElementById('assign_to_rider');
         const employeeSelect = document.getElementById('assign_to_employee');
 
         if (type === 'employee') {
-            riderWrap?.classList.add('d-none');
-            employeeWrap?.classList.remove('d-none');
+            setAssigneeWrapVisible(riderWrap, false);
+            setAssigneeWrapVisible(employeeWrap, true);
             if (riderSelect) {
+                destroyAssigneeSelect2(riderSelect);
                 riderSelect.removeAttribute('name');
                 riderSelect.disabled = true;
                 riderSelect.removeAttribute('required');
@@ -139,9 +173,10 @@ $wideFields = $assignFields->filter(function ($f) {
                 initAssigneeSelect2(employeeSelect);
             }
         } else {
-            employeeWrap?.classList.add('d-none');
-            riderWrap?.classList.remove('d-none');
+            setAssigneeWrapVisible(employeeWrap, false);
+            setAssigneeWrapVisible(riderWrap, true);
             if (employeeSelect) {
+                destroyAssigneeSelect2(employeeSelect);
                 employeeSelect.removeAttribute('name');
                 employeeSelect.disabled = true;
                 employeeSelect.removeAttribute('required');
@@ -155,7 +190,7 @@ $wideFields = $assignFields->filter(function ($f) {
         }
     }
 
-    document.querySelectorAll('input[name="assignee_type"]').forEach(function(el) {
+    document.querySelectorAll('#formajax input[name="assignee_type"]').forEach(function(el) {
         el.addEventListener('change', syncAssigneeFields);
     });
 

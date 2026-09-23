@@ -155,24 +155,24 @@
               @if(!$r->assign_to)
               @if((int) $r->status === \App\Models\Sims::STATUS_LOST)
               <span class="dropdown-item text-muted" title="A lost SIM cannot be assigned.">
-                <i class="ti ti-alert-triangle my-1"></i>Lost
+                <i class="ti ti-alert-triangle my-1"></i> Lost
               </span>
               @elseif((int) $r->status === \App\Models\Sims::STATUS_DEACTIVATED)
               <span class="dropdown-item text-muted" title="Activate this SIM before assigning it.">
-                <i class="fa fa-ban my-1"></i>Deactivated
+                <i class="fa fa-ban my-1"></i> Deactivated
               </span>
               @else
-              <a href="javascript:void(0);" data-size="lg" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
-                <i class="fa fa-motorcycle my-1"></i>Assign
+              <a href="javascript:void(0);" data-size="md" data-title="Assign Sim" data-action="{{ route('sims.assign', $r->id) }}" class='show-modal dropdown-item waves-effect'>
+                <i class="fa fa-motorcycle my-1"></i> Assign
               </a>
               @endif
               @else
-              <a href="javascript:void(0);" data-size="lg" data-title="Return Sim" data-action="{{ route('sims.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
-                <i class="fa fa-undo my-1"></i>Return
+              <a href="javascript:void(0);" data-size="md" data-title="Return Sim" data-action="{{ route('sims.return', $r->id) }}" class='dropdown-item waves-effect show-modal'>
+                <i class="fa fa-undo my-1"></i> Return
               </a>
               @can('sims_sim_edit')
               <a href="javascript:void(0);" data-size="xl" data-title="Charge Holder For Lost SIM" data-action="{{ route('sims.chargeLost', $r->id) }}" class='dropdown-item waves-effect show-modal text-danger'>
-                <i class="ti ti-alert-triangle my-1"></i>Charge Lost
+                <i class="ti ti-alert-triangle my-1"></i> Charge Lost
               </a>
               @endcan
               @endif
@@ -180,7 +180,7 @@
               @can('sims_sim_edit')
               @if(!$r->isLost() && !$r->assign_to)
               <a href="javascript:void(0);" data-size="xl" data-title="Charge Holder For Lost SIM" data-action="{{ route('sims.chargeLost', $r->id) }}" class='dropdown-item waves-effect show-modal text-danger'>
-                <i class="ti ti-alert-triangle my-1"></i>Charge Lost
+                <i class="ti ti-alert-triangle my-1"></i> Charge Lost
               </a>
               @endif
               @endcan

@@ -92,8 +92,16 @@ class SimAssignFields
 
         $query = SimAssignFieldAssignment::query()
             ->with('customField')
+            ->where('is_visible', true)
             ->orderBy('display_order')
             ->orderBy('id');
+
+        // Defense in depth: BelongsToCompany should already scope, but never render
+        // cross-company duplicates if scope is off (console / admin guard / missing context).
+        $companyId = CompanyContext::id();
+        if ($companyId !== null && Schema::hasColumn((new SimAssignFieldAssignment())->getTable(), 'company_id')) {
+            $query->where('company_id', $companyId);
+        }
 
         if ($context === 'return' || $context === 'change') {
             $query->where('show_on_change', true);
@@ -101,7 +109,8 @@ class SimAssignFields
             $query->where('show_on_active', true);
         }
 
-        return $query->get();
+        // One row per field_key (prefer lowest id) so assign/return never doubles labels.
+        return $query->get()->unique(fn ($row) => (string) ($row->field_key ?: 'id:' . $row->id))->values();
     }
 
     /**

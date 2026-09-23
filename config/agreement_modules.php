@@ -339,6 +339,17 @@ return [
             'table' => 'riders',
             'model' => Riders::class,
         ],
+        'assigned_to' => [
+            'by_module' => [
+                'fuel_cards' => [
+                    'relation' => 'rider',
+                    'label' => 'Assigned To',
+                    'module' => 'riders',
+                    'table' => 'riders',
+                    'model' => Riders::class,
+                ],
+            ],
+        ],
         'assign_to' => [
             'relation' => 'assignee',
             'label' => 'Assignee',
@@ -400,5 +411,112 @@ return [
         'parent_branch_id',
         'category_id',
         'status_id',
+    ],
+
+    /**
+     * Custom "Related: Other" source options per module (computed / cross-table values).
+     * Keys use the `other.` prefix so they never collide with DB columns or FK relations.
+     *
+     * @var array<string, array<string, string>>
+     */
+    'related_other_sources' => [
+        'riders' => [
+            'other.vehicle_plate' => 'Vehicle plate (bike_code-plate (emirates))',
+            'other.vehicle_chassis' => 'Vehicle chassis',
+            'other.vehicle_engine' => 'Vehicle engine',
+            'other.vehicle_color' => 'Vehicle color',
+            'other.fuelCard_no' => 'Fuel card number',
+            'other.fuelCard_monthly_charges' => 'Fuel card monthly charges',
+            'other.fuelCard_monthly_limit' => 'Fuel card monthly limit',
+        ],
+        'bike_on_rent' => [
+            'other.assigned_vehicle_list' => 'Assigned vehicle list',
+        ],
+        'garages_customers' => [
+            'other.assigned_vehicle_list' => 'Assigned vehicle list',
+        ],
+        'leasing_companies' => [
+            'other.assigned_vehicle_list' => 'Assigned vehicle list',
+        ],
+    ],
+
+    /**
+     * FK columns that must not expand into separate Related:* groups for a module.
+     * Used when a unified group (e.g. Assigned To) replaces Rider + Rental Company.
+     *
+     * @var array<string, list<string>>
+     */
+    'suppress_related_fks' => [
+        'bikes' => ['rider_id', 'rental_company_id'],
+        'sims' => ['assign_to', 'lost_rider_id'],
+        'fuel_cards' => ['lost_rider_id', 'assigned_to'],
+    ],
+
+    /**
+     * Unified "Assigned To" source options (bike assignee / fuel-card holder).
+     *
+     * @var array<string, array<string, string>>
+     */
+    'assigned_to_sources' => [
+        'bikes' => [
+            'assignedTo.name' => 'Name',
+            'assignedTo.id' => 'ID',
+            'assignedTo.email' => 'Email',
+            'assignedTo.address' => 'Address',
+            'assignedTo.emirates_id' => 'Emirates ID',
+            'assignedTo.contact_no' => 'Contact No',
+        ],
+        'fuel_cards' => [
+            'assignedTo.id' => 'ID',
+            'assignedTo.name' => 'Name',
+            'assignedTo.emirates_id' => 'Emirates ID',
+            'assignedTo.contact_no' => 'Contact No',
+            'assignedTo.address' => 'Address',
+            'assignedTo.designation' => 'Designation',
+            'assignedTo.joining_date' => 'Joining Date',
+        ],
+    ],
+
+    /**
+     * Fixed "Related: Assignee" source options (e.g. SIM → assigned rider or employee).
+     *
+     * @var array<string, array<string, string>>
+     */
+    'assignee_sources' => [
+        'sims' => [
+            'assignee.id' => 'ID',
+            'assignee.name' => 'Name',
+            'assignee.emirates_id' => 'Emirates ID',
+            'assignee.contact_no' => 'Contact No',
+            'assignee.address' => 'Address',
+            'assignee.designation' => 'Designation',
+            'assignee.joining_date' => 'Joining Date',
+        ],
+    ],
+
+    /**
+     * Fixed "Related: Lost By" source options (fuel card / SIM → person charged for loss).
+     *
+     * @var array<string, array<string, string>>
+     */
+    'lost_by_sources' => [
+        'fuel_cards' => [
+            'lostBy.id' => 'ID',
+            'lostBy.name' => 'Name',
+            'lostBy.emirates_id' => 'Emirates ID',
+            'lostBy.contact_no' => 'Contact No',
+            'lostBy.address' => 'Address',
+            'lostBy.designation' => 'Designation',
+            'lostBy.joining_date' => 'Joining Date',
+        ],
+        'sims' => [
+            'lostBy.id' => 'ID',
+            'lostBy.name' => 'Name',
+            'lostBy.emirates_id' => 'Emirates ID',
+            'lostBy.contact_no' => 'Contact No',
+            'lostBy.address' => 'Address',
+            'lostBy.designation' => 'Designation',
+            'lostBy.joining_date' => 'Joining Date',
+        ],
     ],
 ];

@@ -2,7 +2,13 @@
 
 namespace App\Services\Agreements;
 
+use App\Models\BikeRentCompany;
+use App\Models\Bikes;
 use App\Models\Company;
+use App\Models\Employee;
+use App\Models\FuelCards;
+use App\Models\Riders;
+use App\Models\Sims;
 use App\Support\CompanyContext;
 use App\Support\ModuleFieldSource;
 use Carbon\Carbon;
@@ -40,6 +46,8 @@ class AgreementPlaceholderResolver
     {
         return [
             '{company_name}' => $this->companyName(),
+            '{company_contact}' => $this->companyContact(),
+            '{company_address}' => $this->companyAddress(),
             '{current_date}' => now()->format('d-M-Y'),
         ];
     }
@@ -52,6 +60,30 @@ class AgreementPlaceholderResolver
 
         if ($sourceKey === 'company_name') {
             return $this->companyName();
+        }
+
+        if ($sourceKey === 'company_contact') {
+            return $this->companyContact();
+        }
+
+        if ($sourceKey === 'company_address') {
+            return $this->companyAddress();
+        }
+
+        if (str_starts_with($sourceKey, 'other.')) {
+            return $this->resolveOtherSourceKey($module, $record, substr($sourceKey, strlen('other.')));
+        }
+
+        if (str_starts_with($sourceKey, 'assignedTo.')) {
+            return $this->resolveAssignedToSourceKey($module, $record, substr($sourceKey, strlen('assignedTo.')));
+        }
+
+        if (str_starts_with($sourceKey, 'assignee.')) {
+            return $this->resolveAssigneeSourceKey($module, $record, substr($sourceKey, strlen('assignee.')));
+        }
+
+        if (str_starts_with($sourceKey, 'lostBy.')) {
+            return $this->resolveLostBySourceKey($module, $record, substr($sourceKey, strlen('lostBy.')));
         }
 
         if (str_contains($sourceKey, '.')) {
@@ -131,11 +163,476 @@ class AgreementPlaceholderResolver
         }
     }
 
+    /**
+     * Resolve custom "Related: Other" sources (module-specific computed values).
+     */
+    private function resolveOtherSourceKey(string $module, Model $record, string $leaf): string
+    {
+        $leaf = trim($leaf);
+        if ($leaf === '') {
+            return '';
+        }
+
+        $allowed = app(AgreementPlaceholderCatalog::class)->relatedOtherSourceOptions($module);
+        if (! array_key_exists('other.'.$leaf, $allowed)) {
+            return '';
+        }
+
+        return match ($module) {
+            'riders' => $this->resolveRiderOtherSource($record, $leaf),
+            'bike_on_rent', 'garages_customers' => $this->resolveAssignedVehicleListOtherSource($record, $leaf, 'rental_company_id'),
+            'leasing_companies' => $this->resolveAssignedVehicleListOtherSource($record, $leaf, 'company'),
+            default => '',
+        };
+    }
+
+    private function resolveAssignedVehicleListOtherSource(Model $record, string $leaf, string $bikeFkColumn): string
+    {
+        return match ($leaf) {
+            'assigned_vehicle_list' => $this->formatAssignedVehicleList($record, $bikeFkColumn),
+            default => '',
+        };
+    }
+
+    /**
+     * Displayable list of bikes linked to a company/customer record.
+     * Each item is bike_code + emirates + plate (e.g. 2DXB21652), space-separated.
+     */
+    private function formatAssignedVehicleList(Model $record, string $bikeFkColumn): string
+    {
+        $labels = [];
+        foreach ($this->bikesAssignedWhere($record, $bikeFkColumn) as $bike) {
+            if (! $bike instanceof Bikes) {
+                continue;
+            }
+            $label = $this->formatBikeCodeEmiratesPlateConcat($bike);
+            if ($label !== '') {
+                $labels[] = $label;
+            }
+        }
+
+        if ($labels === []) {
+            return '';
+        }
+
+        return implode(' ', array_map(
+            static fn (string $label): string => htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+            $labels
+        ));
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Bikes>
+     */
+    protected function bikesAssignedWhere(Model $record, string $bikeFkColumn): \Illuminate\Support\Collection
+    {
+        $ownerId = $record->getKey();
+        if ($ownerId === null || $ownerId === '' || $bikeFkColumn === '') {
+            return collect();
+        }
+
+        try {
+            return Bikes::query()
+                ->where($bikeFkColumn, $ownerId)
+                ->orderBy('bike_code')
+                ->orderBy('emirates')
+                ->orderBy('plate')
+                ->get(['bike_code', 'emirates', 'plate']);
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
+
+    /**
+     * Format: bike_codeemiratesplate (e.g. 2DXB21652).
+     */
+    private function formatBikeCodeEmiratesPlateConcat(Bikes $bike): string
+    {
+        return trim((string) ($bike->bike_code ?? ''))
+            .trim((string) ($bike->emirates ?? ''))
+            .trim((string) ($bike->plate ?? ''));
+    }
+
+    /**
+     * Resolve unified "Assigned To:" sources (bike → rider or rental/garage customer).
+     */
+    private function resolveAssignedToSourceKey(string $module, Model $record, string $leaf): string
+    {
+        $leaf = trim($leaf);
+        if ($leaf === '') {
+            return '';
+        }
+
+        $allowed = app(AgreementPlaceholderCatalog::class)->assignedToSourceOptions($module);
+        if (! array_key_exists('assignedTo.'.$leaf, $allowed)) {
+            return '';
+        }
+
+        return match ($module) {
+            'bikes' => $this->resolveBikeAssignedToSource($record, $leaf),
+            'fuel_cards' => $this->resolveFuelCardAssignedToSource($record, $leaf),
+            default => '',
+        };
+    }
+
+    private function resolveFuelCardAssignedToSource(Model $record, string $leaf): string
+    {
+        $rider = $this->relatedModel($record, 'rider');
+        if (! $rider instanceof Riders) {
+            return '';
+        }
+
+        return $this->resolvePersonAgreementFields($rider, $leaf);
+    }
+
+    /**
+     * Resolve fixed "Related: Assignee" sources (SIM → rider or employee).
+     */
+    private function resolveAssigneeSourceKey(string $module, Model $record, string $leaf): string
+    {
+        $leaf = trim($leaf);
+        if ($leaf === '') {
+            return '';
+        }
+
+        $allowed = app(AgreementPlaceholderCatalog::class)->assigneeSourceOptions($module);
+        if (! array_key_exists('assignee.'.$leaf, $allowed)) {
+            return '';
+        }
+
+        return match ($module) {
+            'sims' => $this->resolveSimAssigneeSource($record, $leaf),
+            default => '',
+        };
+    }
+
+    private function resolveSimAssigneeSource(Model $record, string $leaf): string
+    {
+        $person = $this->simAssignedPerson($record);
+        if (! $person) {
+            return '';
+        }
+
+        return $this->resolvePersonAgreementFields($person, $leaf);
+    }
+
+    /**
+     * Resolve fixed "Related: Lost By" sources (fuel card / SIM → person charged for loss).
+     */
+    private function resolveLostBySourceKey(string $module, Model $record, string $leaf): string
+    {
+        $leaf = trim($leaf);
+        if ($leaf === '') {
+            return '';
+        }
+
+        $allowed = app(AgreementPlaceholderCatalog::class)->lostBySourceOptions($module);
+        if (! array_key_exists('lostBy.'.$leaf, $allowed)) {
+            return '';
+        }
+
+        return match ($module) {
+            'fuel_cards', 'sims' => $this->resolveLostByPersonSource($record, $leaf),
+            default => '',
+        };
+    }
+
+    private function resolveLostByPersonSource(Model $record, string $leaf): string
+    {
+        $person = $this->lostByPerson($record);
+        if (! $person) {
+            return '';
+        }
+
+        return $this->resolvePersonAgreementFields($person, $leaf);
+    }
+
+    /**
+     * Person charged for a lost SIM/fuel card (employee preferred on SIMs, else rider).
+     */
+    protected function lostByPerson(Model $record): ?Model
+    {
+        $employee = $this->relatedModel($record, 'lostEmployee');
+        if ($employee instanceof Employee) {
+            return $employee;
+        }
+
+        $rider = $this->relatedModel($record, 'lostRider');
+
+        return $rider instanceof Riders ? $rider : null;
+    }
+
+    /**
+     * Shared rider/employee field mapping for assignee / lost-by placeholders.
+     */
+    private function resolvePersonAgreementFields(Model $person, string $leaf): string
+    {
+        if ($person instanceof Riders) {
+            return match ($leaf) {
+                'id' => $this->formatAttribute($person->getAttribute('rider_id') ?: $person->getKey()),
+                'name' => $this->formatAttribute($person->getAttribute('name')),
+                'emirates_id' => $this->formatAttribute($person->getAttribute('emirate_id')),
+                'contact_no' => $this->formatAttribute(
+                    $person->getAttribute('personal_contact')
+                        ?: $person->getAttribute('company_contact')
+                ),
+                'address' => $this->formatAttribute($person->getAttribute('address')),
+                'designation' => $this->formatAttribute($person->getAttribute('designation')),
+                'joining_date' => $this->formatDate($person->getAttribute('doj')),
+                default => '',
+            };
+        }
+
+        if ($person instanceof Employee) {
+            return match ($leaf) {
+                'id' => $this->formatAttribute($person->getAttribute('employee_id') ?: $person->getKey()),
+                'name' => $this->formatAttribute($person->getAttribute('name')),
+                'emirates_id' => $this->formatAttribute($person->getAttribute('emirate_id')),
+                'contact_no' => $this->formatAttribute(
+                    $person->getAttribute('personal_contact')
+                        ?: $person->getAttribute('company_contact')
+                ),
+                'address' => $this->formatAttribute($person->getAttribute('address')),
+                'designation' => $this->formatAttribute($person->getAttribute('designation')),
+                'joining_date' => $this->formatDate($person->getAttribute('doj')),
+                default => '',
+            };
+        }
+
+        return '';
+    }
+
+    protected function simAssignedPerson(Model $record): ?Model
+    {
+        if ($record instanceof Sims && method_exists($record, 'assignedPerson')) {
+            try {
+                $person = $record->assignedPerson();
+
+                return $person instanceof Model ? $person : null;
+            } catch (\Throwable) {
+                // Fall through.
+            }
+        }
+
+        $assignType = (string) ($record->getAttribute('assign_type') ?? '');
+        if ($assignType === 'employee') {
+            return $this->relatedModel($record, 'employee');
+        }
+
+        return $this->relatedModel($record, 'riders');
+    }
+
+    private function resolveBikeAssignedToSource(Model $record, string $leaf): string
+    {
+        $assignee = $this->bikeAssignee($record);
+        if (! $assignee) {
+            return '';
+        }
+
+        if ($assignee instanceof Riders) {
+            return match ($leaf) {
+                'name' => $this->formatAttribute($assignee->getAttribute('name')),
+                'id' => $this->formatAttribute($assignee->getAttribute('rider_id') ?: $assignee->getKey()),
+                'email' => $this->formatAttribute($assignee->getAttribute('email')),
+                'address' => $this->formatAttribute($assignee->getAttribute('address')),
+                'emirates_id' => $this->formatAttribute($assignee->getAttribute('emirate_id')),
+                'contact_no' => $this->formatAttribute(
+                    $assignee->getAttribute('personal_contact')
+                        ?: $assignee->getAttribute('company_contact')
+                ),
+                default => '',
+            };
+        }
+
+        if ($assignee instanceof BikeRentCompany) {
+            return match ($leaf) {
+                'name' => $this->formatAttribute($assignee->getAttribute('name')),
+                'id' => $this->formatAttribute($assignee->getKey()),
+                'email' => $this->formatAttribute($assignee->getAttribute('email')),
+                'address' => $this->formatAttribute($assignee->getAttribute('address')),
+                'emirates_id' => $this->formatAttribute($assignee->getAttribute('emirates_id')),
+                'contact_no' => $this->formatAttribute($assignee->getAttribute('company_contact')),
+                default => '',
+            };
+        }
+
+        return '';
+    }
+
+    /**
+     * Prefer the assigned rider; otherwise the rental/garage customer (same as bike UI).
+     */
+    protected function bikeAssignee(Model $record): ?Model
+    {
+        $rider = $this->relatedModel($record, 'rider');
+        if ($rider instanceof Riders) {
+            return $rider;
+        }
+
+        $company = $this->relatedModel($record, 'rentalCompany');
+
+        return $company instanceof BikeRentCompany ? $company : null;
+    }
+
+    protected function relatedModel(Model $record, string $relation): ?Model
+    {
+        try {
+            if ($record->relationLoaded($relation)) {
+                $loaded = $record->getRelation($relation);
+
+                return $loaded instanceof Model ? $loaded : null;
+            }
+
+            if (method_exists($record, $relation)) {
+                $value = $record->{$relation}();
+                if ($value instanceof Relation) {
+                    $related = $value->getResults();
+
+                    return $related instanceof Model ? $related : null;
+                }
+            }
+        } catch (\Throwable) {
+            // Fall through.
+        }
+
+        return null;
+    }
+
+    private function resolveRiderOtherSource(Model $record, string $leaf): string
+    {
+        if (str_starts_with($leaf, 'vehicle_')) {
+            $bike = $this->assignedBikeForRider($record);
+            if (! $bike) {
+                return '';
+            }
+
+            return match ($leaf) {
+                'vehicle_plate' => $this->formatBikeCodePlateEmirates($bike),
+                'vehicle_chassis' => $this->formatAttribute($bike->getAttribute('chassis_number')),
+                'vehicle_engine' => $this->formatAttribute($bike->getAttribute('engine')),
+                'vehicle_color' => $this->formatAttribute($bike->getAttribute('color')),
+                default => '',
+            };
+        }
+
+        if (str_starts_with($leaf, 'fuelCard_')) {
+            $card = $this->assignedFuelCardForRider($record);
+            if (! $card) {
+                return '';
+            }
+
+            return match ($leaf) {
+                'fuelCard_no' => $this->formatAttribute($card->getAttribute('card_number')),
+                'fuelCard_monthly_charges' => $this->formatAttribute($card->getAttribute('service_charges')),
+                'fuelCard_monthly_limit' => $this->formatAttribute($card->getAttribute('monthly_limit')),
+                default => '',
+            };
+        }
+
+        return '';
+    }
+
+    protected function assignedBikeForRider(Model $record): ?Bikes
+    {
+        try {
+            if ($record->relationLoaded('bikes')) {
+                $loaded = $record->getRelation('bikes');
+
+                return $loaded instanceof Bikes ? $loaded : null;
+            }
+
+            if (method_exists($record, 'bikes')) {
+                $bike = $record->bikes;
+
+                return $bike instanceof Bikes ? $bike : null;
+            }
+        } catch (\Throwable) {
+            // Fall through.
+        }
+
+        return null;
+    }
+
+    protected function assignedFuelCardForRider(Model $record): ?FuelCards
+    {
+        $riderId = $record->getAttribute('id');
+        if ($riderId === null || $riderId === '') {
+            return null;
+        }
+
+        try {
+            $card = FuelCards::query()
+                ->where('assigned_to', $riderId)
+                ->orderByDesc('id')
+                ->first();
+
+            return $card instanceof FuelCards ? $card : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Format: bike_code-plate (emirates)
+     */
+    private function formatBikeCodePlateEmirates(Bikes $bike): string
+    {
+        $code = trim((string) ($bike->bike_code ?? ''));
+        $plate = trim((string) ($bike->plate ?? ''));
+        $emirates = trim((string) ($bike->emirates ?? ''));
+
+        $base = match (true) {
+            $code !== '' && $plate !== '' => $code.'-'.$plate,
+            $code !== '' => $code,
+            $plate !== '' => $plate,
+            default => '',
+        };
+
+        if ($emirates === '') {
+            return $base;
+        }
+
+        return $base !== '' ? $base.' ('.$emirates.')' : $emirates;
+    }
+
     private function companyName(): string
+    {
+        $company = $this->resolveCompany();
+
+        return (string) ($company?->name ?? config('app.name'));
+    }
+
+    private function companyContact(): string
+    {
+        $company = $this->resolveCompany();
+        if (! $company) {
+            return '';
+        }
+
+        return $this->formatAttribute($company->phone ?: $company->email);
+    }
+
+    private function companyAddress(): string
+    {
+        $company = $this->resolveCompany();
+        if (! $company) {
+            return '';
+        }
+
+        $parts = array_filter([
+            trim((string) ($company->address ?? '')),
+            trim((string) ($company->city ?? '')),
+            trim((string) ($company->country ?? '')),
+        ], static fn (string $part): bool => $part !== '');
+
+        return implode(', ', $parts);
+    }
+
+    private function resolveCompany(): ?Company
     {
         $company = request()?->attributes->get('company') ?? Company::find(CompanyContext::id());
 
-        return (string) ($company->name ?? config('app.name'));
+        return $company instanceof Company ? $company : null;
     }
 
     private function formatAttribute(mixed $attr): string

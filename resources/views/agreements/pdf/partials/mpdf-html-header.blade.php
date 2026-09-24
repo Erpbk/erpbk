@@ -35,13 +35,13 @@
       </td>
       <td style="vertical-align: middle; text-align: left; border: 0; padding: 0 0 0 1.5mm;">
         @if($name !== '')
-        <p style="margin: 0 0 1pt; font-size: 18pt; color: #0f172a; line-height: 1.3; text-align: left; font-weight: bold;">{{ $name }}</p>
+        <p style="margin: 0 0 1pt; font-size: 14pt; color: #0f172a; line-height: 1.3; text-align: left; font-weight: bold;">{{ $name }}</p>
         @endif
         @if($phone !== '')
-        <p style="margin: 0 0 1pt; font-size: 12pt; color: #1e293b; line-height: 1.35; text-align: left; font-weight: bold;">{{ $phone }}</p>
+        <p style="margin: 0 0 1pt; font-size: 11pt; color: #1e293b; line-height: 1.35; text-align: left; font-weight: bold;">{{ $phone }}</p>
         @endif
         @if($addressLine !== '')
-        <p style="margin: 0 0 1pt; font-size: 12pt; color: #1e293b; line-height: 1.35; text-align: left; font-weight: bold;">{{ $addressLine }}</p>
+        <p style="margin: 0 0 1pt; font-size: 11pt; color: #1e293b; line-height: 1.35; text-align: left; font-weight: bold;">{{ $addressLine }}</p>
         @endif
       </td>
     </tr>

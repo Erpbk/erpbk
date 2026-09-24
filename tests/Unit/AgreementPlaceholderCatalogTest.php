@@ -192,6 +192,22 @@ class AgreementPlaceholderCatalogTest extends TestCase
         $this->assertStringNotContainsString('{chassis_number}', $html);
     }
 
+    public function test_digit_leading_plate_in_existing_field_value_span_keeps_first_digit(): void
+    {
+        $resolver = new AgreementPlaceholderResolver();
+
+        // Templates often already wrap LTR tokens in field-value spans. Digits after
+        // $1 must not be parsed as a backreference ($12…) or the first digit is dropped.
+        $html = $resolver->replace(
+            '<p dir="rtl">رقم اللوحة : <span dir="ltr" class="field-value">{plate}</span></p>',
+            ['{plate}' => '21652']
+        );
+
+        $this->assertStringContainsString('<span dir="ltr" class="field-value">21652</span>', $html);
+        $this->assertStringNotContainsString('>1652<', $html);
+        $this->assertStringNotContainsString('{plate}', $html);
+    }
+
     public function test_resolver_reads_dotted_relation_source(): void
     {
         $branch = new Branch(['name' => 'Downtown']);

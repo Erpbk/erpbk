@@ -669,9 +669,11 @@ class AgreementPlaceholderResolver
             if ($this->isLeftToRightPlaceholder($token) && $text !== '') {
                 $escaped = htmlspecialchars($text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
                 $quoted = preg_quote($token, '/');
+                // Use ${1}/${2} so digit-leading values (e.g. plate 21652) are not
+                // parsed as backrefs like $12 (which drops the first digit).
                 $html = preg_replace(
                     '/(<span\b[^>]*\bclass="[^"]*\bfield-value\b[^"]*"[^>]*>)\s*'.$quoted.'\s*(<\/span>)/i',
-                    '$1'.$escaped.'$2',
+                    '${1}'.$escaped.'${2}',
                     $html
                 ) ?? $html;
                 $html = str_replace(

@@ -350,9 +350,9 @@ class LedgerDataTable extends DataTable
             } elseif ($row->reference_type == 'LV') {
                 $visaex = CompanyQuery::table('visa_expenses')->where('id', $row->reference_id)->first();
                 if ($visaex) {
-                    $rider = CompanyQuery::table('accounts')->where('id', $visaex->rider_id)->first();
-                    if ($rider) {
-                        $naration = 'Paid to <b>' . $rider->name . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $view_file;
+                    $personName = $this->resolveVisaOrLicensePersonName($visaex);
+                    if ($personName) {
+                        $naration = 'Paid to <b>' . $personName . ' </b>' . $visaex->visa_status . ' Charges ' . $visaex->date . $view_file;
                     } else {
                         $naration = $row->narration . ' (Rider not found) ' . $view_file;
                     }
@@ -362,9 +362,9 @@ class LedgerDataTable extends DataTable
             } elseif ($row->reference_type == 'LE') {
                 $licenseex = CompanyQuery::table('license_expenses')->where('id', $row->reference_id)->first();
                 if ($licenseex) {
-                    $rider = CompanyQuery::table('accounts')->where('id', $licenseex->rider_id)->first();
-                    if ($rider) {
-                        $naration = 'Paid to <b>' . $rider->name . ' </b>' . $licenseex->license_status . ' Charges ' . $licenseex->date . $view_file;
+                    $personName = $this->resolveVisaOrLicensePersonName($licenseex);
+                    if ($personName) {
+                        $naration = 'Paid to <b>' . $personName . ' </b>' . $licenseex->license_status . ' Charges ' . $licenseex->date . $view_file;
                     } else {
                         $naration = $row->narration . ' (Rider not found) ' . $view_file;
                     }
@@ -569,6 +569,66 @@ class LedgerDataTable extends DataTable
               'processing' => '<div class="loading-overlay"><div class="spinner-border text-primary" role="status"></div></div>'
             ], */
             ]);
+    }
+
+    /**
+     * Resolve rider/employee display name for visa/license expense ledger rows.
+     *
+     * Current rows store riders.id (or employees.id) on rider_id/employee_id.
+     * Legacy rows may still store accounts.id on rider_id.
+     */
+    protected function resolveVisaOrLicensePersonName(?object $expense): ?string
+    {
+        if (!$expense) {
+            return null;
+        }
+
+        if (!empty($expense->employee_id)) {
+            $employee = CompanyQuery::table('employees')->where('id', $expense->employee_id)->first();
+            if ($employee) {
+                $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+
+                return trim($code . ' - ' . $employee->name);
+            }
+        }
+
+        if (!empty($expense->expense_account_id)) {
+            $ea = CompanyQuery::table('expense_accounts')->where('id', $expense->expense_account_id)->first();
+            if ($ea) {
+                if (!empty($ea->employee_id)) {
+                    $employee = CompanyQuery::table('employees')->where('id', $ea->employee_id)->first();
+                    if ($employee) {
+                        $code = $employee->employee_id ?: ('EMP-' . $employee->id);
+
+                        return trim($code . ' - ' . $employee->name);
+                    }
+                }
+                if (!empty($ea->rider_id)) {
+                    $rider = CompanyQuery::table('riders')->where('id', $ea->rider_id)->first();
+                    if ($rider) {
+                        return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+                    }
+                }
+                if (!empty($ea->name)) {
+                    return (string) $ea->name;
+                }
+            }
+        }
+
+        if (!empty($expense->rider_id)) {
+            $rider = CompanyQuery::table('riders')->where('id', $expense->rider_id)->first();
+            if ($rider) {
+                return trim(($rider->rider_id ? $rider->rider_id . ' - ' : '') . $rider->name);
+            }
+
+            // Legacy: rider_id was accounts.id
+            $account = CompanyQuery::table('accounts')->where('id', $expense->rider_id)->first();
+            if ($account) {
+                return (string) $account->name;
+            }
+        }
+
+        return null;
     }
 
     /**

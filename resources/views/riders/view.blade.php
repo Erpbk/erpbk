@@ -314,6 +314,9 @@
     overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
+    /* Keep top-notification badges inside the scroll box (overflow-x forces clip). */
+    padding-top: 0.85rem;
+    margin-top: -0.15rem;
   }
 
   .rider-view-nav-scroll::-webkit-scrollbar {
@@ -343,7 +346,7 @@
 
     .rider-view-nav-card .card-body {
       padding: 0.55rem 0.75rem !important;
-      padding-top: 1.4rem !important;
+      padding-top: 1.25rem !important;
     }
 
     .rider-profile-tabs #mainNavigation {
@@ -397,7 +400,7 @@
   @media (min-width: 768px) and (max-width: 1199.98px) {
     .rider-view-nav-card .card-body {
       padding: 0.65rem 1rem !important;
-      padding-top: 1.45rem !important;
+      padding-top: 1.3rem !important;
     }
 
     .rider-profile-tabs .nav-pills .nav-link,
@@ -407,9 +410,9 @@
     }
   }
 
-  /* Reserve vertical room so floating badges sit above tabs without clipping. */
+  /* Room for notification badges sitting on top of tabs. */
   .rider-profile-tabs .card-body {
-    padding-top: 1.55rem !important;
+    padding-top: 1.35rem !important;
   }
 
   .rider-profile-tabs #mainNavigation .nav-link {
@@ -421,34 +424,33 @@
     z-index: 8;
   }
 
-  /* All Rider View tab badges: float above the tab, never inside/overlapping the label. */
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-badges,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-inventory-count-badge,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-count-dot,
-  .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-docs-bubble {
-    position: absolute;
-    left: 90%;
-    bottom: calc(100% + 0.12rem);
-    top: auto;
-    right: auto;
-    transform: translateX(-50%);
+  /* Notification-style badges: float on top-right of each tab. */
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
+  .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+    position: absolute !important;
+    top: -0.55rem !important;
+    right: -0.15rem !important;
+    left: auto !important;
+    bottom: auto !important;
+    transform: none !important;
     margin: 0 !important;
     z-index: 6;
     pointer-events: auto;
+    flex-shrink: 0;
   }
 
   .rider-profile-tabs #mainNavigation .nav-link .rider-tab-badges {
     display: inline-flex;
     flex-wrap: nowrap;
-    justify-content: center;
+    justify-content: flex-end;
     align-items: center;
-    gap: 0.12rem;
+    gap: 0.15rem;
     overflow: visible;
     white-space: nowrap;
   }
-
-  /* Compact count labels removed — badges show numbers only. */
 
   /* Overflow dropdown: keep badges inline next to the menu label. */
   #overflowItems .rider-tab-badges,
@@ -456,10 +458,12 @@
   #overflowItems .rider-inventory-count-badge,
   #overflowItems .rider-expired-count-dot,
   #overflowItems .rider-expired-docs-bubble {
-    position: static;
-    transform: none;
-    left: auto;
-    bottom: auto;
+    position: static !important;
+    transform: none !important;
+    top: auto !important;
+    right: auto !important;
+    left: auto !important;
+    bottom: auto !important;
     display: inline-flex;
     vertical-align: middle;
     margin-left: 0.35rem !important;
@@ -502,7 +506,7 @@
 
   @media (max-width: 768px) {
     .rider-profile-tabs .card-body {
-      padding-top: 1.35rem !important;
+      padding-top: 1.2rem !important;
     }
 
     .rider-tab-count-badge,
@@ -511,19 +515,20 @@
       padding: 0.12rem 0.32rem;
       min-width: 1rem;
     }
+
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-badges,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-tab-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-inventory-count-badge,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-count-dot,
+    .rider-profile-tabs #mainNavigation .nav-link > .rider-expired-docs-bubble {
+      top: -0.45rem !important;
+      right: -0.1rem !important;
+    }
   }
 
   @media (max-width: 480px) {
     .rider-profile-tabs .card-body {
-      padding-top: 1.2rem !important;
-    }
-
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-badges,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-tab-count-badge,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-inventory-count-badge,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-count-dot,
-    .rider-profile-tabs #mainNavigation .nav-link>.rider-expired-docs-bubble {
-      bottom: calc(100% + 0.06rem);
+      padding-top: 1.1rem !important;
     }
   }
 
@@ -816,6 +821,8 @@ $riderInfoExpiredCount = 0;
 $riderInfoExpiringCount = 0;
 $riderFilesExpiredCount = 0;
 $riderFilesExpiringCount = 0;
+$riderVisaExpiredCount = 0;
+$riderVisaExpiringCount = 0;
 $riderTopViewCategories = collect();
 if ($inventoryTabRider instanceof \App\Models\Riders) {
 $riderDocumentFrontend = \App\Support\RiderDocumentReplacement::frontendConfig($inventoryTabRider);
@@ -828,6 +835,9 @@ $riderInfoExpiredCount = \App\Support\RiderDocumentReplacement::expiredCountForR
 $riderInfoExpiringCount = \App\Support\RiderDocumentReplacement::expiringCountForRider($inventoryTabRider, 30);
 $riderFilesExpiredCount = \App\Support\RiderDocumentReplacement::expiredFilesCountForRider($inventoryTabRider);
 $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesCountForRider($inventoryTabRider, 30);
+$visaExpiryCounts = \App\Support\EntityExpiry::visaExpenseCounts((int) $inventoryTabRider->id, null, 30);
+$riderVisaExpiredCount = $visaExpiryCounts['expired'];
+$riderVisaExpiringCount = $visaExpiryCounts['expiring'];
 }
 
 @endphp
@@ -1197,10 +1207,14 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
                   ->first();
                   @endphp
                   @if($visaExpenseAccount)
-                  <li class="nav-item nav-priority-5">
-                    <a class="nav-link @if(Route::is('VisaExpense.generatentries')) active @endif"
+                  <li class="nav-item nav-priority-5" @if(($riderVisaExpiredCount ?? 0) > 0 || ($riderVisaExpiringCount ?? 0) > 0) style="z-index: 5;" @endif>
+                    <a class="nav-link rider-expired-count-link @if(Route::is('VisaExpense.generatentries')) active @endif"
                       href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($visaExpenseAccount->id, $visaExpenseAccount->rider_id ?? $result['id']) }}">
                       <i class="ti ti-file-invoice ti-sm me-1_5"></i>Visa Expense
+                      @include('riders._document_status_badges', [
+                        'expiredCount' => $riderVisaExpiredCount ?? 0,
+                        'expiringCount' => $riderVisaExpiringCount ?? 0,
+                      ])
                     </a>
                   </li>
                   @endif
@@ -1917,7 +1931,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
       }
 
       .nav-align-top.rider-profile-tabs .card-body {
-        padding-top: 1.55rem !important;
+        padding-top: 1.35rem !important;
       }
       
       #mainNavigation {
@@ -2055,7 +2069,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         }
 
         .nav-align-top.rider-profile-tabs .card-body {
-          padding-top: 1.35rem !important;
+          padding-top: 1.2rem !important;
         }
         
         #mainNavigation .nav-link {
@@ -2085,7 +2099,7 @@ $riderFilesExpiringCount = \App\Support\RiderDocumentReplacement::expiringFilesC
         }
 
         .nav-align-top.rider-profile-tabs .card-body {
-          padding-top: 1.2rem !important;
+          padding-top: 1.1rem !important;
         }
         
         #mainNavigation .nav-link {

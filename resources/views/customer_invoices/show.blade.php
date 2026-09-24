@@ -66,32 +66,31 @@
         /* ========== HEADER ========== */
         .invoice-box .hdr {
             display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 28px;
-            align-items: start;
+            grid-template-columns: auto 1fr auto;
+            gap: 20px;
+            align-items: center;
             margin-bottom: 28px;
             padding-bottom: 24px;
             border-bottom: 2px solid var(--blue);
         }
 
         .invoice-box .brand {
-            display: flex;
-            gap: 18px;
-            align-items: flex-start;
+            display: contents;
         }
 
         .invoice-box .brand-logo {
             flex-shrink: 0;
-            width: 88px;
-            height: 72px;
+            width: 100px;
+            height: 80px;
             display: flex;
             align-items: center;
             justify-content: center;
+            grid-column: 1;
         }
 
         .invoice-box .brand-logo img {
-            max-width: 88px;
-            max-height: 72px;
+            max-width: 100px;
+            max-height: 80px;
             object-fit: contain;
         }
 
@@ -104,6 +103,13 @@
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+        }
+
+        .invoice-box .brand-text {
+            grid-column: 2;
+            text-align: center;
+            padding: 0 8px;
+            min-width: 0;
         }
 
         .invoice-box .brand-text h1 {
@@ -125,6 +131,7 @@
         .invoice-box .doc-stamp {
             text-align: right;
             min-width: 200px;
+            grid-column: 3;
         }
 
         .invoice-box .doc-stamp .label {
@@ -341,12 +348,42 @@
         /* ========== TOTALS ========== */
         .invoice-box .totals-area {
             display: flex;
-            justify-content: flex-end;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 24px;
             margin: 18px 0 8px;
+        }
+
+        .invoice-box .totals-notes {
+            flex: 1;
+            min-width: 0;
+            max-width: calc(100% - 324px);
+            padding: 14px 16px;
+            background: #f8fafc;
+            border: 1px solid var(--line);
+            border-top: 2px solid var(--blue);
+            border-radius: 6px;
+        }
+
+        .invoice-box .totals-notes h4 {
+            margin: 0 0 8px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.9px;
+            text-transform: uppercase;
+            color: var(--blue);
+        }
+
+        .invoice-box .totals-notes .body {
+            font-size: 12px;
+            color: #334155;
+            line-height: 1.25;
         }
 
         .invoice-box .totals {
             width: 300px;
+            flex-shrink: 0;
+            margin-left: auto;
         }
 
         .invoice-box .totals .line {
@@ -432,8 +469,7 @@
         .invoice-box .note-card .body {
             font-size: 12px;
             color: #334155;
-            line-height: 1.55;
-            white-space: pre-wrap;
+            line-height: 1.25;
         }
 
         .invoice-box .empty {
@@ -585,7 +621,8 @@
             }
 
             .invoice-box .band {
-                height: 3px !important;
+                display: none !important;
+                height: 0 !important;
             }
 
             .invoice-box .sheet {
@@ -596,8 +633,9 @@
             /* Header */
             .invoice-box .hdr {
                 display: grid !important;
-                grid-template-columns: 1fr auto !important;
-                gap: 16px !important;
+                grid-template-columns: auto 1fr auto !important;
+                gap: 12px !important;
+                align-items: center !important;
                 margin-bottom: 14px !important;
                 padding-bottom: 12px !important;
                 border-bottom-width: 2px !important;
@@ -605,18 +643,22 @@
             }
 
             .invoice-box .brand {
-                flex-direction: row !important;
-                gap: 12px !important;
+                display: contents !important;
             }
 
             .invoice-box .brand-logo {
-                width: 64px !important;
-                height: 52px !important;
+                width: 72px !important;
+                height: 58px !important;
             }
 
             .invoice-box .brand-logo img {
-                max-width: 64px !important;
-                max-height: 52px !important;
+                max-width: 72px !important;
+                max-height: 58px !important;
+            }
+
+            .invoice-box .brand-text {
+                text-align: center !important;
+                padding: 0 6px !important;
             }
 
             .invoice-box .brand-text h1 {
@@ -732,14 +774,34 @@
             /* Totals */
             .invoice-box .totals-area {
                 display: flex !important;
-                justify-content: flex-end !important;
+                justify-content: space-between !important;
+                align-items: flex-start !important;
+                gap: 16px !important;
                 margin: 12px 0 8px !important;
                 width: 100% !important;
+            }
+
+            .invoice-box .totals-notes {
+                flex: 1 !important;
+                max-width: calc(100% - 300px) !important;
+                padding: 8px 10px !important;
+            }
+
+            .invoice-box .totals-notes h4 {
+                font-size: 9px !important;
+                margin-bottom: 4px !important;
+            }
+
+            .invoice-box .totals-notes .body {
+                font-size: 9.5px !important;
+                line-height: 1.2 !important;
             }
 
             .invoice-box .totals {
                 width: 280px !important;
                 max-width: 42% !important;
+                flex-shrink: 0 !important;
+                margin-left: auto !important;
             }
 
             .invoice-box .totals .line {
@@ -789,7 +851,7 @@
 
             .invoice-box .note-card .body {
                 font-size: 9.5px !important;
-                line-height: 1.4 !important;
+                line-height: 1.2 !important;
                 max-height: none !important;
                 overflow: visible !important;
             }
@@ -852,6 +914,28 @@
                 grid-template-columns: 1fr;
             }
 
+            .invoice-box .hdr {
+                gap: 16px;
+            }
+
+            .invoice-box .brand {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .invoice-box .brand-logo,
+            .invoice-box .brand-text,
+            .invoice-box .doc-stamp {
+                grid-column: auto;
+            }
+
+            .invoice-box .brand-text {
+                text-align: center;
+                padding: 0;
+            }
+
             .invoice-box .doc-stamp {
                 text-align: left;
                 min-width: 0;
@@ -861,8 +945,12 @@
                 justify-content: start;
             }
 
-            .invoice-box .brand {
+            .invoice-box .totals-area {
                 flex-direction: column;
+            }
+
+            .invoice-box .totals-notes {
+                max-width: 100%;
             }
 
             .invoice-box .totals {
@@ -896,7 +984,6 @@
     ?: ($invoice->customer->name ?? 'N/A');
     $projectName = $invoice->customer->name ?? 'N/A';
     $noteCards = collect([
-    $customerNote ? ['title' => 'Customer Notes', 'body' => $customerNote] : null,
     $termsAndConditions ? ['title' => 'Terms & Conditions', 'body' => $termsAndConditions] : null,
     $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
     ])->filter()->values();
@@ -1100,6 +1187,12 @@
             </div>
 
             <div class="totals-area">
+                @if($customerNote)
+                <div class="totals-notes">
+                    <h4>Customer Notes</h4>
+                    <div class="body">{!! nl2br(e($customerNote)) !!}</div>
+                </div>
+                @endif
                 <div class="totals">
                     <div class="line">
                         <span class="k">Subtotal (excl. VAT)</span>

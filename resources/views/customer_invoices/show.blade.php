@@ -648,13 +648,13 @@
             }
 
             .invoice-box .brand-logo {
-                width: 72px !important;
-                height: 58px !important;
+                width: 165px !important;
+                height: 80px !important;
             }
 
             .invoice-box .brand-logo img {
-                max-width: 72px !important;
-                max-height: 58px !important;
+                max-width: 200px !important;
+                max-height: 80px !important;
             }
 
             .invoice-box .brand-text {

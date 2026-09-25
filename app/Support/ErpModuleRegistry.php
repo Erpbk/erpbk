@@ -129,6 +129,18 @@ class ErpModuleRegistry
     }
 
     /**
+     * Module-settings pages that should not show the shared "{Module} Top" tab.
+     *
+     * @return list<string>
+     */
+    public static function modulesWithoutSettingsTopBarTab(): array
+    {
+        return [
+            'customer_invoices',
+        ];
+    }
+
+    /**
      * Show "{Module} Top" tab on module-settings (bike_settings) pages.
      */
     public static function showTopBarTabInModuleSettings(string $moduleKey): bool
@@ -136,6 +148,10 @@ class ErpModuleRegistry
         $moduleKey = self::normalizeKey($moduleKey);
 
         if (in_array($moduleKey, self::moduleSettingsWithAlternateTopBarTab(), true)) {
+            return false;
+        }
+
+        if (in_array($moduleKey, self::modulesWithoutSettingsTopBarTab(), true)) {
             return false;
         }
 

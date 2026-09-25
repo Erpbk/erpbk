@@ -14,9 +14,10 @@
                         value="{{ $customer->id }}"
                         data-customer-note="{{ json_encode($customer->customer_note ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
                         data-terms-and-conditions="{{ json_encode($customer->terms_and_conditions ?? '', JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
+                        data-customer-note-label="{{ json_encode($customer->resolvedCustomerNoteLabel(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
+                        data-terms-and-conditions-label="{{ json_encode($customer->resolvedTermsAndConditionsLabel(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"
                         {{ isset($invoice) ? $invoice->customer_id == $customer->id ? 'selected' : '' : '' }}
-                        {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}
-                    >
+                        {{ isset($customer_id) ? $customer_id == $customer->id ? 'selected' : '' : '' }}>
                         {{ $customer->name }} ({{ company_table('branches')->where('id', $customer->branch_id)->value('code') }})
                     </option>
                     @endforeach
@@ -65,26 +66,26 @@
         {{-- Attachment (right column, aligned like New Fine) --}}
         <div class="form-group">
             @include('partials.universal_document_upload', [
-              'name' => 'attachment',
-              'label' => 'Attachment',
-              'required' => false,
-              'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
-              'inputClass' => 'form-control',
-              'showHint' => false,
-              'variant' => 'dropzone',
-              'uploadLabel' => 'Upload',
-              'existingUrl' => !empty($invoice?->attachment) ? asset('storage/' . $invoice->attachment) : null,
-              'existingName' => !empty($invoice?->attachment) ? basename($invoice->attachment) : null,
-              'existingIsPdf' => !empty($invoice?->attachment) && \Illuminate\Support\Str::endsWith(strtolower($invoice->attachment), '.pdf'),
+            'name' => 'attachment',
+            'label' => 'Attachment',
+            'required' => false,
+            'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+            'inputClass' => 'form-control',
+            'showHint' => false,
+            'variant' => 'dropzone',
+            'uploadLabel' => 'Upload',
+            'existingUrl' => !empty($invoice?->attachment) ? asset('storage/' . $invoice->attachment) : null,
+            'existingName' => !empty($invoice?->attachment) ? basename($invoice->attachment) : null,
+            'existingIsPdf' => !empty($invoice?->attachment) && \Illuminate\Support\Str::endsWith(strtolower($invoice->attachment), '.pdf'),
             ])
             <small class="text-muted d-block text-center mt-1">Max: 5MB</small>
             @if(!empty($invoice?->attachment))
-                <div class="mt-1 text-center">
-                    <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="d-inline-block text-primary small">
-                        <i class="fa fa-paperclip"></i> {{ basename($invoice->attachment) }}
-                    </a>
-                    <small class="text-muted d-block">Leave empty to keep the existing attachment.</small>
-                </div>
+            <div class="mt-1 text-center">
+                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="d-inline-block text-primary small">
+                    <i class="fa fa-paperclip"></i> {{ basename($invoice->attachment) }}
+                </a>
+                <small class="text-muted d-block">Leave empty to keep the existing attachment.</small>
+            </div>
             @endif
         </div>
     </div>
@@ -224,45 +225,53 @@ $items = \App\Models\Items::dropdown('customer');
 </div>
 
 @php
-    $invoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
-    $defaultCustomerNotes = old('customer_note', isset($invoice) ? ($invoice->customer_note ?? '') : $invoiceDefaults['customer_notes']);
-    $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_and_conditions ?? '') : $invoiceDefaults['terms_and_conditions']);
+$invoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
+$defaultCustomerNotes = old('customer_note', isset($invoice) ? ($invoice->customer_note ?? '') : $invoiceDefaults['customer_notes']);
+$defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_and_conditions ?? '') : $invoiceDefaults['terms_and_conditions']);
+$defaultCustomerNoteLabel = \App\Models\Customers::DEFAULT_CUSTOMER_NOTE_LABEL;
+$defaultTermsLabel = \App\Models\Customers::DEFAULT_TERMS_AND_CONDITIONS_LABEL;
+$invoiceCustomerNoteLabel = isset($invoice) && $invoice->customer
+? $invoice->customer->resolvedCustomerNoteLabel()
+: $defaultCustomerNoteLabel;
+$invoiceTermsLabel = isset($invoice) && $invoice->customer
+? $invoice->customer->resolvedTermsAndConditionsLabel()
+: $defaultTermsLabel;
 @endphp
 
 <div class="row mt-3 align-items-start">
     <div class="col-md-7">
         {{-- Customer Notes (shown on invoice) --}}
-        <div class="form-group mb-3">
-            {!! Form::label('customer_note', 'Customer Notes') !!}
+        <!-- <div class="form-group mb-3">
+            {!! Form::label('customer_note', $invoiceCustomerNoteLabel, ['id' => 'customer_note_field_label']) !!}
             {!! Form::textarea('customer_note', $defaultCustomerNotes, [
-                'class' => 'form-control',
-                'rows' => 3,
-                'id' => 'customer_note',
-                'placeholder' => 'Thanks for your business.',
+            'class' => 'form-control',
+            'rows' => 3,
+            'id' => 'customer_note',
+            'placeholder' => 'Thanks for your business.',
             ]) !!}
             <small class="text-muted">Will be displayed on the invoice</small>
-        </div>
+        </div> -->
 
-        {{-- Terms & Conditions --}}
-        <div class="form-group mb-3">
-            {!! Form::label('terms_and_conditions', 'Terms & Conditions') !!}
-            {!! Form::textarea('terms_and_conditions', $defaultTerms, [
-                'class' => 'form-control',
-                'rows' => 4,
-                'id' => 'terms_and_conditions',
-                'placeholder' => 'Enter terms & conditions...',
-            ]) !!}
-        </div>
 
         {{-- Internal notes --}}
         <div class="form-group mb-3">
             {!! Form::label('notes', 'Internal Notes') !!}
             {!! Form::textarea('notes', isset($invoice) ? $invoice->notes : null, [
-                'class' => 'form-control',
-                'rows' => 2,
-                'placeholder' => 'Internal notes (not shown as Customer Notes)...'
+            'class' => 'form-control',
+            'rows' => 2,
+            'placeholder' => 'Internal notes (not shown as customer note)...'
             ]) !!}
         </div>
+        {{-- Terms & Conditions --}}
+        <!-- <div class="form-group mb-3">
+            {!! Form::label('terms_and_conditions', $invoiceTermsLabel, ['id' => 'terms_and_conditions_field_label']) !!}
+            {!! Form::textarea('terms_and_conditions', $defaultTerms, [
+            'class' => 'form-control',
+            'rows' => 4,
+            'id' => 'terms_and_conditions',
+            'placeholder' => 'Enter terms & conditions...',
+            ]) !!}
+        </div> -->
     </div>
 
     <div class="col-md-5">
@@ -306,10 +315,27 @@ $items = \App\Models\Items::dropdown('customer');
 
         var settingsNotes = @json($invoiceDefaults['customer_notes']);
         var settingsTerms = @json($invoiceDefaults['terms_and_conditions']);
+        var defaultNoteLabel = @json($defaultCustomerNoteLabel);
+        var defaultTermsLabel = @json($defaultTermsLabel);
+
+        function parseOptionJsonAttr($opt, attr) {
+            var raw = $opt.attr(attr) || '""';
+            try {
+                return JSON.parse(raw);
+            } catch (e) {
+                return raw;
+            }
+        }
+
+        function setInvoiceFieldLabels(noteLabel, termsLabel) {
+            $('#customer_note_field_label').text(noteLabel || defaultNoteLabel);
+            $('#terms_and_conditions_field_label').text(termsLabel || defaultTermsLabel);
+        }
 
         function fillCustomerNoteAndTermsFromSelected() {
             var $opt = $('#customer_id').find('option:selected');
             if (!$opt.length || !$opt.val()) {
+                setInvoiceFieldLabels(defaultNoteLabel, defaultTermsLabel);
                 @if(!isset($invoice))
                 if (!$('#customer_note').val()) {
                     $('#customer_note').val(settingsNotes || '');
@@ -320,15 +346,16 @@ $items = \App\Models\Items::dropdown('customer');
                 @endif
                 return;
             }
-            var noteRaw = $opt.attr('data-customer-note') || '""';
-            var termsRaw = $opt.attr('data-terms-and-conditions') || '""';
-            var note = '';
-            var terms = '';
-            try { note = JSON.parse(noteRaw); } catch (e) { note = noteRaw; }
-            try { terms = JSON.parse(termsRaw); } catch (e) { terms = termsRaw; }
+
+            var note = parseOptionJsonAttr($opt, 'data-customer-note');
+            var terms = parseOptionJsonAttr($opt, 'data-terms-and-conditions');
+            var noteLabel = parseOptionJsonAttr($opt, 'data-customer-note-label') || defaultNoteLabel;
+            var termsLabel = parseOptionJsonAttr($opt, 'data-terms-and-conditions-label') || defaultTermsLabel;
 
             note = note || settingsNotes || '';
             terms = terms || settingsTerms || '';
+
+            setInvoiceFieldLabels(noteLabel, termsLabel);
 
             @if(!isset($invoice))
             $('#customer_note').val(note);
@@ -345,6 +372,8 @@ $items = \App\Models\Items::dropdown('customer');
 
         $('#customer_id').on('change', fillCustomerNoteAndTermsFromSelected);
         @if(!isset($invoice))
+        fillCustomerNoteAndTermsFromSelected();
+        @else
         fillCustomerNoteAndTermsFromSelected();
         @endif
     });

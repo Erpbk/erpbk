@@ -454,6 +454,7 @@
             padding: 14px 16px;
             background: #f8fafc;
             border: 1px solid var(--line);
+            border-left: 2px solid var(--blue);
             border-radius: 6px;
         }
 
@@ -469,7 +470,7 @@
         .invoice-box .note-card .body {
             font-size: 12px;
             color: #334155;
-            line-height: 1.25;
+            line-height: 1.75;
         }
 
         .invoice-box .empty {
@@ -832,16 +833,26 @@
                 width: 100% !important;
             }
 
-            .invoice-box .footnotes:not(.three) {
+            .invoice-box .footnotes:not(.three):not(.one) {
                 grid-template-columns: 1fr 1fr !important;
+            }
+
+            .invoice-box .footnotes.one {
+                grid-template-columns: 1fr !important;
             }
 
             .invoice-box .footnotes.three {
                 grid-template-columns: 1fr 1fr 1fr !important;
             }
 
+            .invoice-box .footnotes.one .note-card {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+
             .invoice-box .note-card {
                 padding: 8px 10px !important;
+                border-left: 2px solid var(--blue) !important;
             }
 
             .invoice-box .note-card h4 {
@@ -851,7 +862,7 @@
 
             .invoice-box .note-card .body {
                 font-size: 9.5px !important;
-                line-height: 1.2 !important;
+                line-height: 1.75 !important;
                 max-height: none !important;
                 overflow: visible !important;
             }
@@ -877,7 +888,9 @@
             .invoice-box .doc-stamp .label,
             .invoice-box table.items thead th,
             .invoice-box .totals .grand,
-            .invoice-box .party {
+            .invoice-box .party,
+            .invoice-box .note-card,
+            .invoice-box .totals-notes {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
                 color-adjust: exact !important;
@@ -979,12 +992,18 @@
     $termsAndConditions = $invoice->terms_and_conditions
     ?: ($invoice->customer->terms_and_conditions ?? null)
     ?: ($defaults['terms_and_conditions'] ?: null);
+    $customerNoteLabel = $invoice->customer
+    ? $invoice->customer->resolvedCustomerNoteLabel()
+    : \App\Models\Customers::DEFAULT_CUSTOMER_NOTE_LABEL;
+    $termsAndConditionsLabel = $invoice->customer
+    ? $invoice->customer->resolvedTermsAndConditionsLabel()
+    : \App\Models\Customers::DEFAULT_TERMS_AND_CONDITIONS_LABEL;
     $invoiceNumber = $invoice->invoice_number ?? ('CI-' . str_pad($invoice->id, 6, '0', STR_PAD_LEFT));
     $customerDisplay = $invoice->customer->company_name
     ?: ($invoice->customer->name ?? 'N/A');
     $projectName = $invoice->customer->name ?? 'N/A';
     $noteCards = collect([
-    $termsAndConditions ? ['title' => 'Terms & Conditions', 'body' => $termsAndConditions] : null,
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
     $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
     ])->filter()->values();
     $noteGridClass = match ($noteCards->count()) {
@@ -1191,7 +1210,7 @@
             <div class="totals-area">
                 @if($customerNote)
                 <div class="totals-notes">
-                    <h4>Customer Notes</h4>
+                    <h4>{{ $customerNoteLabel }}</h4>
                     <div class="body">{!! nl2br(e($customerNote)) !!}</div>
                 </div>
                 @endif

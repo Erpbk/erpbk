@@ -63,6 +63,8 @@ $settingsEntityName = $settingsEntityName ?? 'bike';
 $fixedFieldSourceTable = $fixedFieldSourceTable ?? 'bike_field_category_assignments';
 $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
 $isRiderInvoicesModule = in_array(($moduleKey ?? ''), ['invoices', 'customer_invoices'], true);
+$isCustomerInvoicesModule = ($moduleKey ?? '') === 'customer_invoices';
+$showModuleStructureTabs = !$isCustomerInvoicesModule;
 $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
@@ -111,6 +113,8 @@ $attendanceRefType = $attendanceRefType ?? null;
             Configure registration statuses, top bar cards, fixed/custom fields on <code>bike_registrations</code>, categories, and document types.
             @elseif(($moduleKey ?? '') === 'bike_list')
             Configure Vehicle Top cards for the Vehicles module, fixed/custom fields, categories, and document types.
+            @elseif($isCustomerInvoicesModule)
+            Configure default invoice title, customer notes, and terms &amp; conditions.
             @else
             Configure fixed/custom fields and document types.
             @endif
@@ -184,6 +188,7 @@ $attendanceRefType = $attendanceRefType ?? null;
             </button>
           </li>
           @endif
+          @if($showModuleStructureTabs)
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-categories" type="button" role="tab">
               Categories
@@ -194,6 +199,7 @@ $attendanceRefType = $attendanceRefType ?? null;
               {{ $settingsFieldsTabLabel }}
             </button>
           </li>
+          @endif
           @include('settings.partials.top_bar._settings_tab')
           @if(($moduleKey ?? '') === 'bike_list')
           <li class="nav-item" role="presentation">
@@ -216,11 +222,13 @@ $attendanceRefType = $attendanceRefType ?? null;
             </button>
           </li>
           @endif
+          @if($showModuleStructureTabs)
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-docs" type="button" role="tab">
               Documents
             </button>
           </li>
+          @endif
           @if(($moduleKey ?? '') === 'bike_list')
           <li class="nav-item" role="presentation">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-vehicle-top" type="button" role="tab" id="tab-vehicle-top-btn">

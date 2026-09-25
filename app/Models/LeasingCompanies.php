@@ -59,6 +59,18 @@ class LeasingCompanies extends BaseModel
    */
   public static function dropdownWithOwnOption(): array
   {
+    $opts = self::select('id', 'name')->pluck('name', 'id')->toArray();
+
+    return ['' => 'Select', self::OWN_OPTION_VALUE => self::ownOptionLabel()] + $opts;
+  }
+
+  public const OWN_OPTION_VALUE = 'own';
+
+  /**
+   * Display label for the top-bar / form "own vehicles" option (tenant company name).
+   */
+  public static function ownOptionLabel(): string
+  {
     $currentCompany = view()->shared('currentCompany');
     $companyName = trim((string) (
       \App\Helpers\Common::getSetting('company_name')
@@ -66,13 +78,12 @@ class LeasingCompanies extends BaseModel
       ?: 'Own'
     ));
 
-    if ($companyName === '') {
-      $companyName = 'Own';
-    }
+    return $companyName !== '' ? $companyName : 'Own';
+  }
 
-    $opts = self::select('id', 'name')->pluck('name', 'id')->toArray();
-
-    return ['' => 'Select', 'own' => $companyName] + $opts;
+  public static function isOwnOptionValue(mixed $value): bool
+  {
+    return strtolower(trim((string) $value)) === self::OWN_OPTION_VALUE;
   }
 
   function account()

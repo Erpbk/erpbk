@@ -566,6 +566,14 @@ class TopBarFilterService
 
         $columnForSchema = $rawColumn ?? $qualifiedColumn;
 
+        if ($table === 'bikes' && $columnForSchema === 'company'
+            && \App\Models\LeasingCompanies::isOwnOptionValue($value)
+        ) {
+            $query->where('bikes.bike_owner', 'Owned');
+
+            return;
+        }
+
         if ($table !== null && $columnForSchema === 'customer_id' && Schema::hasTable('customers')) {
             if (is_numeric($value)) {
                 $query->where($qualifiedColumn, (int) $value);

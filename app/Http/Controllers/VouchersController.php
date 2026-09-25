@@ -206,8 +206,7 @@ class VouchersController extends Controller
 
       /** @var Vouchers $vouchers */
       if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
-        if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
-
+        if (!$this->debitEqualsCredit($request)) {
           return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
         }
         $result = $voucherService->JournalVoucher($request);
@@ -358,14 +357,13 @@ class VouchersController extends Controller
     }
 
     if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
-      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
-
+      if (!$this->debitEqualsCredit($request)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
       }
       $voucherService->JournalVoucher($request);
     }
     if ($request->voucher_type === 'RFV') {
-      if (array_sum($request->dr_amount) != array_sum($request->cr_amount)) {
+      if (!$this->debitEqualsCredit($request)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal']], 422);
       }
 
@@ -675,6 +673,18 @@ class VouchersController extends Controller
       \Log::error("Error deleting Voucher trans_code: {$id} - " . $e->getMessage());
       return response()->json(['errors' => ['error' => 'Error deleting voucher: ' . $e->getMessage()]], 500);
     }
+  }
+
+  /**
+   * Compare JV/TRF debit and credit totals using money precision (2 dp).
+   * Raw float array_sum can disagree even when the UI shows equal toFixed(2) totals.
+   */
+  private function debitEqualsCredit(Request $request): bool
+  {
+    $dr = round(array_sum(array_map('floatval', (array) $request->input('dr_amount', []))), 2);
+    $cr = round(array_sum(array_map('floatval', (array) $request->input('cr_amount', []))), 2);
+
+    return $dr === $cr;
   }
 
   /**

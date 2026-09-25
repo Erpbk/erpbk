@@ -143,7 +143,7 @@
             letter-spacing: 1.2px;
             text-transform: uppercase;
             padding: 7px 14px;
-            border-radius: 2px;
+            border-radius: 6px;
             margin-bottom: 12px;
         }
 
@@ -253,7 +253,7 @@
             padding: 12px 16px;
             border-left: 3px solid var(--blue);
             background: #f8fafc;
-            border-radius: 0 6px 6px 0;
+            border-radius: 6px;
         }
 
         .invoice-box .desc .t {
@@ -377,7 +377,7 @@
         .invoice-box .totals-notes .body {
             font-size: 12px;
             color: #334155;
-            line-height: 1.25;
+            line-height: 1.75;
         }
 
         .invoice-box .totals {
@@ -794,7 +794,7 @@
 
             .invoice-box .totals-notes .body {
                 font-size: 9.5px !important;
-                line-height: 1.2 !important;
+                line-height: 1.75 !important;
             }
 
             .invoice-box .totals {
@@ -1061,20 +1061,22 @@
                     <div class="brand-text">
                         <h1>{{ ucwords($settings['company_name'] ?? '') }}</h1>
                         <p class="meta">
-                            @if(!empty($settings['company_address']))
-                            {{ ucwords($settings['company_address']) }}<br>
-                            @endif
-                            @if(!empty($settings['company_phone']))
-                            Tel: {{ $settings['company_phone'] }}
+                            @if(!empty($settings['vat_number']))
+                            TRN: {{ $settings['vat_number'] }}
                             @endif
                             @if(!empty($settings['company_phone']) && !empty($settings['vat_number']))
                             &nbsp;·&nbsp;
                             @endif
-                            @if(!empty($settings['vat_number']))
-                            TRN: {{ $settings['vat_number'] }}
+                            <br>
+                            @if(!empty($settings['company_phone']))
+                            Tel: {{ $settings['company_phone'] }}
                             @endif
                             @if(!empty($settings['company_email']))
-                            <br>{{ $settings['company_email'] }}
+                            {{ $settings['company_email'] }}
+                            @endif
+                            <br>
+                            @if(!empty($settings['company_address']))
+                            {{ ucwords($settings['company_address']) }}<br>
                             @endif
                         </p>
                     </div>

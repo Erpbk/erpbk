@@ -31,7 +31,7 @@ class EmployeeInvoicesController extends AppBaseController
         $this->employeeInvoicesRepository = $employeeInvoicesRepo;
         $this->middleware('permission:employees_invoice_view')->only('index', 'show');
         $this->middleware('permission:employees_invoice_create')->only('create', 'store', 'importForm', 'import');
-        $this->middleware('permission:employees_invoice_edit')->only('edit', 'update');
+        $this->middleware('permission:employees_invoice_edit')->only('edit', 'update', 'markAsSettled');
         $this->middleware('permission:employees_invoice_delete')->only('destroy', 'bulkDelete');
     }
 
@@ -252,6 +252,79 @@ class EmployeeInvoicesController extends AppBaseController
         })->values();
 
         return view('employee_invoices.import', compact('items'));
+    }
+
+    /**
+     * Mark invoice settled for reporting without recording a cash payment.
+     */
+    public function markAsSettled(Request $request, $company_slug, $id)
+    {
+        $invoice = EmployeeInvoices::with(['employee', 'items'])->find($id);
+        if (! $invoice) {
+            Flash::error('Employee invoice not found.');
+
+            return redirect()->route('employeeInvoices.index');
+        }
+
+        if ((int) $invoice->status === 1) {
+            Flash::error('Invoice is already marked as paid.');
+
+            return redirect()->back();
+        }
+
+        $outstanding = app(EmployeeInvoiceViewDataBuilder::class)->outstandingAmounts($invoice);
+        $balance = round((float) ($outstanding['balance'] ?? 0), 2);
+        $needsReason = $balance > 0.01;
+
+        if ($request->isMethod('post')) {
+            $this->validate($request, [
+                'reason' => ($needsReason ? 'required' : 'nullable').'|string|max:255',
+            ], [
+                'reason.required' => 'A reason is required when settling an invoice that still has a positive payable balance.',
+            ]);
+
+            $invoice->status = 1;
+            $invoice->notes = $this->appendSettlementAuditNote(
+                (string) ($invoice->notes ?? ''),
+                $balance,
+                $request->input('reason')
+            );
+            $invoice->save();
+
+            $message = 'Invoice marked as settled. No payment or bank voucher was recorded.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => $message]);
+            }
+
+            Flash::success($message);
+
+            return redirect()->route('employeeInvoices.index');
+        }
+
+        return view('employee_invoices.mark_as_settled', compact('invoice', 'outstanding', 'needsReason'));
+    }
+
+    /**
+     * Append a short settlement audit line to invoice notes (max 500 chars).
+     */
+    private function appendSettlementAuditNote(string $existingNotes, float $balance, ?string $reason): string
+    {
+        $user = Auth::user()->name ?? (string) Auth::id();
+        $ts = now()->format('Y-m-d H:i');
+        $line = sprintf(
+            '[Settled %s by %s; balance %s%s]',
+            $ts,
+            $user,
+            number_format($balance, 2, '.', ''),
+            $reason !== null && $reason !== '' ? '; reason: '.$reason : ''
+        );
+
+        $combined = trim($existingNotes === '' ? $line : $existingNotes."\n".$line);
+        if (strlen($combined) > 500) {
+            $combined = substr($combined, -500);
+        }
+
+        return $combined;
     }
 
     public function import(Request $request)

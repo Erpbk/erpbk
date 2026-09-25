@@ -133,6 +133,12 @@
 
                 <div class="row mt-4">
                     <div class="col-12">
+                        <div class="alert alert-warning">
+                            <strong>Not paying cash?</strong>
+                            If advances/penalties already cover this invoice (or you will not pay), use
+                            <a href="javascript:void(0);" class="show-modal" data-size="lg" data-title="Mark Settled (no payment)" data-action="{{ route('riderInvoices.markAsSettled', $invoice->id) }}">Mark Settled (no payment)</a>
+                            instead — this form records a bank voucher.
+                        </div>
                         <div class="alert alert-info">
                             <h6><i class="fas fa-info-circle"></i> Payment Process:</h6>
                             <ul class="mb-0">

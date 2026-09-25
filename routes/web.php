@@ -745,11 +745,13 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::any('rider/invoice-import', [RiderInvoicesController::class, 'import'])->name('rider.invoice_import');
     Route::any('rider/invoice-import-paid', [RiderInvoicesController::class, 'importPaid'])->name('riderInvoices.importPaid');
     Route::any('rider/invoice-mark-paid/{id}', [RiderInvoicesController::class, 'markAsPaid'])->name('riderInvoices.markAsPaid');
+    Route::any('rider/invoice-mark-settled/{id}', [RiderInvoicesController::class, 'markAsSettled'])->name('riderInvoices.markAsSettled');
     Route::get('search_item_price/{RID}/{itemID}', [ItemsController::class, 'search_item_price']);
     Route::get('riderInvoices/delete/{id}', [RiderInvoicesController::class, 'destroy'])->name('riderInvoices.delete');
     Route::post('riderInvoices/bulk-delete', [RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
     Route::get('employeeInvoices/import', [EmployeeInvoicesController::class, 'importForm'])->name('employeeInvoices.import.form');
     Route::post('employeeInvoices/import', [EmployeeInvoicesController::class, 'import'])->name('employeeInvoices.import');
+    Route::any('employee/invoice-mark-settled/{id}', [EmployeeInvoicesController::class, 'markAsSettled'])->name('employeeInvoices.markAsSettled');
     Route::resource('employeeInvoices', EmployeeInvoicesController::class);
     Route::get('employeeInvoices/delete/{id}', [EmployeeInvoicesController::class, 'destroy'])->name('employeeInvoices.delete');
     Route::post('employeeInvoices/bulk-delete', [EmployeeInvoicesController::class, 'bulkDelete'])->name('employeeInvoices.bulkDelete');

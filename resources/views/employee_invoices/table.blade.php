@@ -44,11 +44,18 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
+                            @if((int) $r->status !== 1)
                             @can('employees_payments_create')
                                 <a href="javascript:void(0);" data-action="{{ route('payments.create', ['employee_payment' => 1, 'invoice_id' => $r->id]) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Add Payment">
                                     <i class="fa fa-money-bill mx-1"></i> Add Payment
                                 </a>
                             @endcan
+                            @can('employees_invoice_edit')
+                                <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.markAsSettled', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Mark Settled (no payment)">
+                                    <i class="fa fa-check-double mx-1 text-primary"></i> Mark Settled (no payment)
+                                </a>
+                            @endcan
+                            @endif
                             @can('employees_invoice_edit')
                                 <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
                                     <i class="fa fa-edit mx-1"></i> Update

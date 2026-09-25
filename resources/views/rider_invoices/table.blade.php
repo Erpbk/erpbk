@@ -57,12 +57,17 @@
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
-                  @if(!$r->isPaid())
+                  @if((int) $r->status !== 1)
                   @can('riders_payments_create')
                   <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=rider&invoice_id={{ $r->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Record Rider Payment">
                      <i class="fa fa-money-bill mx-1 text-success"></i> Record Payment
                   </a>
                   @endcan
+                  @canany(['riders_invoices_edit', 'riders_invoice_edit'])
+                  <a href="javascript:void(0);" data-action="{{ route('riderInvoices.markAsSettled', $r->id) }}" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Mark Settled (no payment)">
+                     <i class="fa fa-check-double mx-1 text-primary"></i> Mark Settled (no payment)
+                  </a>
+                  @endcanany
                   @endif
                   @can('riders_invoices_delete')
                   <a href="javascript:void(0);" onclick="confirmDelete('{{route('riderInvoices.delete', $r->id)}}')" class='dropdown-item waves-effect'>

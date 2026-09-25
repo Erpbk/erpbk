@@ -1,6 +1,6 @@
 @php
 $companySlug = request()->route('company_slug');
-$isPaid = $riderInvoice->isPaid();
+$isFullyPaid = (int) $riderInvoice->status === 1;
 @endphp
 <div class="invoice-toolbar no-print">
     <div class="invoice-toolbar-inner">
@@ -24,12 +24,17 @@ $isPaid = $riderInvoice->isPaid();
         <button type="button" class="toolbar-btn" onclick="printModalContent()">
             <i class="ti ti-printer"></i><span>Print</span>
         </button>
-        @if(! $isPaid)
+        @if(! $isFullyPaid)
         @can('riders_invoice_edit')
         <a href="javascript:void(0);" class="toolbar-btn show-modal" data-size="xl" data-title="Record Rider Payment" data-action="{{ route('payments.create', ['company_slug' => $companySlug]) }}?invoice_type=rider&invoice_id={{ $riderInvoice->id }}">
             <i class="ti ti-currency-dollar"></i><span>Make Payment</span>
         </a>
         @endcan
+        @canany(['riders_invoices_edit', 'riders_invoice_edit'])
+        <a href="javascript:void(0);" class="toolbar-btn show-modal" data-size="lg" data-title="Mark Settled (no payment)" data-action="{{ route('riderInvoices.markAsSettled', ['company_slug' => $companySlug, 'id' => $riderInvoice->id]) }}">
+            <i class="ti ti-checks"></i><span>Mark Settled</span>
+        </a>
+        @endcanany
         @endif
     </div>
 </div>

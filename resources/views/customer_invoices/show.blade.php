@@ -66,8 +66,8 @@
         /* ========== HEADER ========== */
         .invoice-box .hdr {
             display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 20px;
+            grid-template-columns: minmax(220px, 280px) 1fr auto;
+            gap: 16px;
             align-items: center;
             margin-bottom: 28px;
             padding-bottom: 24px;
@@ -80,18 +80,25 @@
 
         .invoice-box .brand-logo {
             flex-shrink: 0;
-            width: 165px;
-            height: 80px;
+            width: 100%;
+            max-width: 280px;
+            min-height: 72px;
+            height: auto;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             grid-column: 1;
+            overflow: visible;
         }
 
         .invoice-box .brand-logo img {
-            max-width: 200px;
-            max-height: 80px;
+            display: block;
+            width: auto;
+            height: auto;
+            max-width: 280px;
+            max-height: 100px;
             object-fit: contain;
+            object-position: left center;
         }
 
         .invoice-box .brand-logo.placeholder {
@@ -103,6 +110,8 @@
             font-weight: 700;
             letter-spacing: 0.5px;
             text-transform: uppercase;
+            justify-content: center;
+            min-height: 80px;
         }
 
         .invoice-box .brand-text {
@@ -634,7 +643,7 @@
             /* Header */
             .invoice-box .hdr {
                 display: grid !important;
-                grid-template-columns: auto 1fr auto !important;
+                grid-template-columns: minmax(220px, 280px) 1fr auto !important;
                 gap: 12px !important;
                 align-items: center !important;
                 margin-bottom: 14px !important;
@@ -648,13 +657,23 @@
             }
 
             .invoice-box .brand-logo {
-                width: 165px !important;
-                height: 80px !important;
+                width: 100% !important;
+                max-width: 280px !important;
+                min-height: 72px !important;
+                height: auto !important;
+                overflow: visible !important;
             }
 
             .invoice-box .brand-logo img {
-                max-width: 200px !important;
-                max-height: 80px !important;
+                display: block !important;
+                width: auto !important;
+                height: auto !important;
+                max-width: 280px !important;
+                max-height: 100px !important;
+                object-fit: contain !important;
+                object-position: left center !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             .invoice-box .brand-text {

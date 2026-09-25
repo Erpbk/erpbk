@@ -119,21 +119,29 @@ class DashboardCardRegistry
                     'active' => ['rider_status' => 'active'],
                     'inactive' => ['rider_status' => 'inactive'],
                 ];
+                $statLabels = [
+                    'active' => __('Active'),
+                    'inactive' => __('Inactive'),
+                ];
             } elseif ($key === 'bikes') {
                 $filterQuery = [
-                    'active' => ['bike_top_wh' => 'active'],
-                    'inactive' => ['bike_top_wh' => 'inactive'],
+                    'active' => ['bike_top_wh' => 'on_road'],
+                    'inactive' => ['bike_top_wh' => 'off_road'],
+                ];
+                $statLabels = [
+                    'active' => __('On Road'),
+                    'inactive' => __('Off Road'),
                 ];
             } else {
                 $filterQuery = [
                     'active' => ['list_status' => 'active'],
                     'inactive' => ['list_status' => 'inactive'],
                 ];
+                $statLabels = [
+                    'active' => __('Active'),
+                    'inactive' => __('Inactive'),
+                ];
             }
-            $statLabels = [
-                'active' => __('Active'),
-                'inactive' => __('Inactive'),
-            ];
         } elseif ($strategy === 'paid_unpaid_status') {
             $filterQuery = [
                 'active' => [],
@@ -637,6 +645,17 @@ class DashboardCardRegistry
     protected static function countsNumericStatus(string $table): array
     {
         $base = company_table($table);
+
+        // Bikes top-bar: On Road = Active + Absconded; Off Road = off-road warehouses + Returned.
+        if ($table === 'bikes' && self::tableHasColumn($table, 'warehouse')) {
+            $onRoad = clone $base;
+            \App\Models\Bikes::applyTopBarRoadStatusConstraint($onRoad, 'on_road');
+            $offRoad = clone $base;
+            \App\Models\Bikes::applyTopBarRoadStatusConstraint($offRoad, 'off_road');
+
+            return [(int) $onRoad->count(), (int) $offRoad->count()];
+        }
+
         $statusCol = TopBarNumericStatus::resolveNumericStatusColumn($table) ?? 'status';
         if (! self::tableHasColumn($table, $statusCol)) {
             return [(int) $base->count(), 0];

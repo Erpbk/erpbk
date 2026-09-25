@@ -91,7 +91,7 @@ $hasTopBarCards = $topBarSliderCategories->sum(fn ($c) => $c->options->count()) 
             || in_array('on_leave', $selectedStatuses, true)
             );
             }
-            $statClass = in_array($statKey, ['inactive', 'pending'], true) ? 'inactive' : 'active';
+            $statClass = in_array($statKey, ['inactive', 'pending', 'off_road'], true) ? 'inactive' : 'active';
             @endphp
             <div
               class="fleet-stat {{ $statClass }} @if($isStatSelected) active-selected @endif"

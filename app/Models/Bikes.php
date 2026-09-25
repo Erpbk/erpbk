@@ -243,6 +243,79 @@ class Bikes extends BaseModel
   }
 
   /**
+   * Warehouse values for road-status keys used by list filters, totals, and top-bar stats.
+   * Matches applyBikeRoadStatusFilter / status column On Road / Off Road mapping.
+   *
+   * @return array<string, list<string>>
+   */
+  public static function roadStatusWarehouseMap(): array
+  {
+    return [
+      'on_road' => ['Active'],
+      'off_road' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
+      'absconded' => ['Absconded'],
+      'theft' => ['Theft'],
+      'total_loss' => ['Total Loss'],
+      'impound' => ['Impound'],
+      'accident' => ['Accident'],
+    ];
+  }
+
+  /**
+   * Top-bar On Road warehouses (includes Absconded).
+   *
+   * @return list<string>
+   */
+  public static function topBarOnRoadWarehouses(): array
+  {
+    return ['Active', 'Absconded'];
+  }
+
+  /**
+   * Top-bar Off Road warehouses (Returned is handled via leased_return_date).
+   *
+   * @return list<string>
+   */
+  public static function topBarOffRoadWarehouses(): array
+  {
+    return ['Return', 'Vacation', 'Express Garage', 'Inactive'];
+  }
+
+  /**
+   * Apply top-bar On Road / Off Road constraint (counts + click filters).
+   * On Road = Active + Absconded (not returned). Off Road = off-road warehouses + Returned.
+   */
+  public static function applyTopBarRoadStatusConstraint($query, string $statusKey): void
+  {
+    $statusKey = strtolower(trim($statusKey));
+    $statusKey = match ($statusKey) {
+      'active' => 'on_road',
+      'inactive' => 'off_road',
+      default => $statusKey,
+    };
+
+    $hasReturnDate = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_date');
+
+    if ($statusKey === 'on_road') {
+      $query->whereIn('bikes.warehouse', self::topBarOnRoadWarehouses());
+      if ($hasReturnDate) {
+        $query->whereNull('bikes.leased_return_date');
+      }
+
+      return;
+    }
+
+    if ($statusKey === 'off_road') {
+      $query->whereIn('bikes.warehouse', self::topBarOffRoadWarehouses());
+      if ($hasReturnDate) {
+        $query->whereNull('bikes.leased_return_date');
+      }
+
+      return;
+    }
+  }
+
+  /**
    * Road / warehouse status badge used across bike list, detail, and leasing company bike pages.
    *
    * @return array{label: string, class: string, title: string, since: \Carbon\Carbon|string|null, days: int|null, is_returned: bool}

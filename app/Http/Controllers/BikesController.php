@@ -22,7 +22,6 @@ use App\Services\RiderHistoryLogger;
 use App\Support\CompanyModuleVisibility;
 use App\Support\PublicStorageDisk;
 use App\Support\CompanyQuery;
-use App\Support\TopBarNumericStatus;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Carbon\Carbon;
@@ -136,23 +135,12 @@ class BikesController extends AppBaseController
         }
 
         $this->applyModuleTopBarFilters($query, $request, 'bike_list');
-        $bikeStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('bike_top_wh'));
-        if ($bikeStatusKeys !== []) {
-            TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'bikes.status', $bikeStatusKeys);
-        }
+        $this->applyBikeTopWhFilter($query, $request);
 
         $statsQuery = clone $query;
         $hasLeasedReturnDate = Schema::hasColumn('bikes', 'leased_return_date');
         // Same warehouse mapping as applyBikeRoadStatusFilter() so cards match the status filter.
-        $warehouseByStatus = [
-            'on_road' => ['Active'],
-            'off_road' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
-            'absconded' => ['Absconded'],
-            'theft' => ['Theft'],
-            'total_loss' => ['Total Loss'],
-            'impound' => ['Impound'],
-            'accident' => ['Accident'],
-        ];
+        $warehouseByStatus = Bikes::roadStatusWarehouseMap();
 
         $stats = [
             'total' => $statsQuery->count(),
@@ -366,15 +354,7 @@ class BikesController extends AppBaseController
             return;
         }
 
-        $warehouseByStatus = [
-            'on_road' => ['Active'],
-            'off_road' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
-            'absconded' => ['Absconded'],
-            'theft' => ['Theft'],
-            'total_loss' => ['Total Loss'],
-            'impound' => ['Impound'],
-            'accident' => ['Accident'],
-        ];
+        $warehouseByStatus = Bikes::roadStatusWarehouseMap();
 
         if (! isset($warehouseByStatus[$status])) {
             return;
@@ -391,6 +371,58 @@ class BikesController extends AppBaseController
         if (Schema::hasColumn('bikes', 'leased_return_date')) {
             $query->whereNull('bikes.leased_return_date');
         }
+    }
+
+    /**
+     * Top-bar On Road / Off Road filter (bike_top_wh).
+     * On Road includes Absconded; Off Road includes Returned.
+     */
+    private function applyBikeTopWhFilter($query, Request $request): void
+    {
+        $raw = $request->input('bike_top_wh');
+        if ($raw === null || $raw === '') {
+            return;
+        }
+
+        $keys = is_array($raw) ? $raw : [$raw];
+        $normalizedKeys = [];
+
+        foreach ($keys as $key) {
+            if (! is_string($key) && ! is_numeric($key)) {
+                continue;
+            }
+
+            $normalized = strtolower(trim((string) $key));
+            $normalized = match ($normalized) {
+                'active' => 'on_road',
+                'inactive' => 'off_road',
+                default => $normalized,
+            };
+
+            if (in_array($normalized, ['on_road', 'off_road'], true)) {
+                $normalizedKeys[$normalized] = true;
+            }
+        }
+
+        $normalizedKeys = array_keys($normalizedKeys);
+        if ($normalizedKeys === []) {
+            return;
+        }
+
+        if (count($normalizedKeys) === 1) {
+            Bikes::applyTopBarRoadStatusConstraint($query, $normalizedKeys[0]);
+
+            return;
+        }
+
+        // Both On Road + Off Road selected (union).
+        $query->where(function ($q) use ($normalizedKeys) {
+            foreach ($normalizedKeys as $statusKey) {
+                $q->orWhere(function ($inner) use ($statusKey) {
+                    Bikes::applyTopBarRoadStatusConstraint($inner, $statusKey);
+                });
+            }
+        });
     }
 
     /**

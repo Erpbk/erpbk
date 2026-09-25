@@ -293,14 +293,18 @@ class TopBarListingService
 
         $base = $this->bikeStatsBaseQuery($option, $category);
         if ($base === null) {
-            return ['active' => 0, 'inactive' => 0];
+            return ['on_road' => 0, 'off_road' => 0];
         }
 
+        $onRoad = clone $base;
+        Bikes::applyTopBarRoadStatusConstraint($onRoad, 'on_road');
+
+        $offRoad = clone $base;
+        Bikes::applyTopBarRoadStatusConstraint($offRoad, 'off_road');
+
         return [
-            'active' => (int) (clone $base)->where('bikes.status', 1)->count(),
-            'inactive' => (int) (clone $base)
-                ->where('bikes.status', '!=', 1)
-                ->count(),
+            'on_road' => (int) $onRoad->count(),
+            'off_road' => (int) $offRoad->count(),
         ];
     }
 
@@ -459,7 +463,11 @@ class TopBarListingService
         }
 
         return match ($moduleKey) {
-            'riders', 'bike_list', 'bikes', 'employees' => TopBarNumericStatus::listingStatDefinitions(),
+            'riders', 'employees' => TopBarNumericStatus::listingStatDefinitions(),
+            'bike_list', 'bikes' => [
+                'on_road' => ['label' => 'On Road', 'icon' => 'ti-road'],
+                'off_road' => ['label' => 'Off Road', 'icon' => 'ti-ban'],
+            ],
             default => [
                 'total' => ['label' => 'Total', 'icon' => 'ti-list'],
             ],

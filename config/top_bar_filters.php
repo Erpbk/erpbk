@@ -110,7 +110,24 @@ return [
             'column_attribute' => 'bike_column',
             'filter_strategy' => 'option_fk',
             'fk_column' => 'bike_top_option_id',
-            'listing_default_statuses' => ['active', 'inactive'],
+            // Match bike status column / page totals: warehouse On Road / Off Road (not numeric status).
+            'listing_default_statuses' => ['on_road', 'off_road'],
+            'listing_stats' => [
+                'on_road' => ['label' => 'On Road', 'icon' => 'ti-road'],
+                'off_road' => ['label' => 'Off Road', 'icon' => 'ti-ban'],
+            ],
+            'status_filters' => [
+                'on_road' => [
+                    'column' => 'warehouse',
+                    'operator' => 'in',
+                    'value' => ['Active', 'Absconded'],
+                ],
+                'off_road' => [
+                    'column' => 'warehouse',
+                    'operator' => 'in',
+                    'value' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
+                ],
+            ],
             'request' => [
                 'option_id' => 'bike_top_option_id',
                 'status' => 'bike_top_wh',

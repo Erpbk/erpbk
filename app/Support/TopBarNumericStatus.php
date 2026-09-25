@@ -231,6 +231,6 @@ class TopBarNumericStatus
 
         $keys = array_keys($statusFilters);
 
-        return !array_intersect($keys, ['cleared', 'pending', 'unpaid', 'paid', 'on_leave']);
+        return !array_intersect($keys, ['cleared', 'pending', 'unpaid', 'paid', 'on_leave', 'on_road', 'off_road']);
     }
 }

@@ -80,7 +80,7 @@
 
         .invoice-box .brand-logo {
             flex-shrink: 0;
-            width: 100px;
+            width: 165px;
             height: 80px;
             display: flex;
             align-items: center;
@@ -89,7 +89,7 @@
         }
 
         .invoice-box .brand-logo img {
-            max-width: 100px;
+            max-width: 200px;
             max-height: 80px;
             object-fit: contain;
         }
@@ -158,13 +158,13 @@
         .invoice-box .doc-stamp .kv span:nth-child(odd) {
             color: var(--muted);
             font-weight: 500;
-            text-align: right;
+            text-align: left;
         }
 
         .invoice-box .doc-stamp .kv span:nth-child(even) {
             color: var(--ink);
             font-weight: 700;
-            text-align: left;
+            text-align: right;
             font-variant-numeric: tabular-nums;
         }
 

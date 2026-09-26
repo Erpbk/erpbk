@@ -4,6 +4,7 @@ namespace App\Services\RiderActivities;
 
 use App\Models\RiderActivityImportSetting;
 use Illuminate\Http\UploadedFile;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
@@ -410,8 +411,9 @@ class RiderActivityImportMappingService
         };
 
         $reader = IOFactory::createReader($readerType);
+        // Keep number formats so date cells can be detected; preview only reads a small window.
         if (method_exists($reader, 'setReadDataOnly')) {
-            $reader->setReadDataOnly(true);
+            $reader->setReadDataOnly(false);
         }
 
         $spreadsheet = $reader->load($file->getRealPath());
@@ -428,20 +430,7 @@ class RiderActivityImportMappingService
             $cells = [];
             for ($col = 1; $col <= $previewCols; $col++) {
                 $coordinate = Coordinate::stringFromColumnIndex($col) . $row;
-                $cell = $sheet->getCell($coordinate);
-                $value = $cell->getValue();
-
-                if (ExcelDate::isDateTime($cell) && is_numeric($value)) {
-                    try {
-                        $value = ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d');
-                    } catch (\Throwable $e) {
-                        $value = $cell->getFormattedValue();
-                    }
-                } else {
-                    $value = $cell->getFormattedValue();
-                }
-
-                $cells[] = is_scalar($value) || $value === null ? (string) $value : '';
+                $cells[] = $this->formatPreviewCell($sheet->getCell($coordinate));
             }
             $rows[] = $cells;
         }
@@ -457,6 +446,66 @@ class RiderActivityImportMappingService
             'row_count' => $highestRow,
             'preview_row_count' => count($rows),
         ];
+    }
+
+    /**
+     * Format a spreadsheet cell for the import file preview.
+     * Converts Excel date serials to Y-m-d and rounds fractional numbers to 2 decimals.
+     */
+    private function formatPreviewCell(Cell $cell): string
+    {
+        $value = $cell->getValue();
+
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_numeric($value)) {
+            $numeric = (float) $value;
+
+            if (ExcelDate::isDateTime($cell) || $this->looksLikeExcelDateSerial($numeric)) {
+                try {
+                    return ExcelDate::excelToDateTimeObject($numeric)->format('Y-m-d');
+                } catch (\Throwable $e) {
+                    // Fall through to numeric / formatted handling.
+                }
+            }
+
+            // Login hours, on-time %, etc. — show 2 decimal places instead of float noise.
+            if (abs($numeric - round($numeric)) > 0.0000001) {
+                return number_format($numeric, 2, '.', '');
+            }
+
+            return (string) (int) round($numeric);
+        }
+
+        $formatted = $cell->getFormattedValue();
+
+        return is_scalar($formatted) || $formatted === null ? (string) $formatted : '';
+    }
+
+    /**
+     * Detect Excel day-serial values that lack a date number format (common in exports).
+     * Range covers calendar years ~2000–2100 so order counts / hours are not treated as dates.
+     */
+    private function looksLikeExcelDateSerial(float $value): bool
+    {
+        // 2000-01-01 ≈ 36526, 2100-12-31 ≈ 73415
+        if ($value < 36526 || $value > 73415) {
+            return false;
+        }
+
+        try {
+            $year = (int) ExcelDate::excelToDateTimeObject($value)->format('Y');
+
+            return $year >= 2000 && $year <= 2100;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     private function findStoredSetting(int $customerId, string $importType): ?RiderActivityImportSetting

@@ -195,8 +195,14 @@
                 'vatAmount' => $vatAmt,
                 'totalAmount' => $totalAmt,
                 'currency' => $currency,
+                'showPaidBalance' => true,
                 'paidAmount' => $paid_amount ?? 0,
                 'balanceAmount' => $rider_balance_final ?? 0,
+            ])
+
+            @include('rider_invoices.partials.payment_vouchers', [
+                'payment_vouchers' => $payment_vouchers ?? collect(),
+                'isPdf' => true,
             ])
 
             @include('invoices.partials.tax_invoice_footnotes', [

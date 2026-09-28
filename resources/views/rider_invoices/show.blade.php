@@ -7,18 +7,33 @@
     @include('invoices.partials.tax_invoice_styles')
     <style>
         /* Rider template item tables (legacy class names inside items area) */
+        .invoice-box .rider-template-items {
+            width: 100%;
+        }
+        .invoice-box .rider-template-items .tbl-wrap {
+            width: 100%;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
         .invoice-box table.items-table,
         .invoice-box table.invoice-description-summary,
         .invoice-box table.summary-table,
+        .invoice-box .rider-template-items table,
         .invoice-box .tbl-wrap + table,
         .invoice-box .sheet > table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 12px;
         }
+        .invoice-box .rider-template-items .tbl-wrap > table {
+            margin-bottom: 0;
+        }
         .invoice-box table.items-table th,
         .invoice-box table.items-table td,
         .invoice-box table.summary-table td,
+        .invoice-box .rider-template-items table th,
+        .invoice-box .rider-template-items table td,
         .invoice-box .sheet > table th,
         .invoice-box .sheet > table td {
             border: 1px solid var(--line, #e2e8f0);

@@ -8,6 +8,7 @@ $qtyText = static fn ($qty) => (float) $qty == 0
 : rtrim(rtrim(number_format((float) $qty, 2), '0'), '.');
 @endphp
 
+<div class="tbl-wrap">
 <table class="items-table">
     <tr>
         <th rowspan="2" class="secondary-header">Sr.</th>
@@ -48,8 +49,10 @@ $qtyText = static fn ($qty) => (float) $qty == 0
         <td class="num" style="padding: 8px; font-size: 14px; text-align: center;">{{ number_format($items_total, 2) }}</td>
     </tr>
 </table>
+</div>
 
-<table>
+<div class="tbl-wrap">
+<table class="items-table">
     <tr>
         <th colspan="5" class="secondary-header">Deductions</th>
     </tr>
@@ -76,9 +79,11 @@ $qtyText = static fn ($qty) => (float) $qty == 0
             <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">-{{ number_format($total_deductions, 2) }}</td>
         </tr>
 </table>
+</div>
 
 @if(($rider_balance < 0) || count($ledger_additions)> 0)
-    <table>
+    <div class="tbl-wrap">
+    <table class="items-table">
         <tr>
             <th colspan="5" class="secondary-header">Additions</th>
         </tr>
@@ -99,4 +104,5 @@ $qtyText = static fn ($qty) => (float) $qty == 0
                 <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">+{{ number_format($total_additions, 2) }}</td>
             </tr>
     </table>
+    </div>
 @endif

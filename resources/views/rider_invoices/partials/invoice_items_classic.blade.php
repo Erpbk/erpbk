@@ -5,6 +5,7 @@
         : rtrim(rtrim(number_format((float) $qty, 2), '0'), '.');
 @endphp
 
+<div class="tbl-wrap">
 <table class="items-table" style="margin-bottom: 0;">
     <thead>
         <tr>
@@ -36,9 +37,11 @@
         @endforeach
     </tbody>
 </table>
+</div>
 
 @if(($total_deductions ?? 0) > 0 || ($total_additions ?? 0) > 0)
-<table style="margin-top: 8px;">
+<div class="tbl-wrap">
+<table class="items-table" style="margin-top: 0; margin-bottom: 0;">
     <tr>
         <td style="border: none; padding-left: 0;">
             @if(($total_deductions ?? 0) > 0)
@@ -50,4 +53,5 @@
         </td>
     </tr>
 </table>
+</div>
 @endif

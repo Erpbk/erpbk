@@ -8,14 +8,29 @@
     <style>
         body { background: #fff !important; padding: 0 !important; }
         .invoice-box { box-shadow: none !important; max-width: 100% !important; }
+        .invoice-box .rider-template-items {
+            width: 100%;
+        }
+        .invoice-box .rider-template-items .tbl-wrap {
+            width: 100%;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
         .invoice-box table.items-table,
+        .invoice-box .rider-template-items table,
         .invoice-box .sheet > table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 12px;
         }
+        .invoice-box .rider-template-items .tbl-wrap > table {
+            margin-bottom: 0;
+        }
         .invoice-box table.items-table th,
         .invoice-box table.items-table td,
+        .invoice-box .rider-template-items table th,
+        .invoice-box .rider-template-items table td,
         .invoice-box .sheet > table th,
         .invoice-box .sheet > table td {
             border: 1px solid #e2e8f0;

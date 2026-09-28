@@ -90,6 +90,66 @@
             font-weight: 600;
         }
 
+        .invoice-box .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+            border: 1px solid transparent;
+            animation: status-blink 1.2s ease-in-out infinite;
+        }
+
+        .invoice-box .status-badge.status-green {
+            color: #15803d;
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+
+        .invoice-box .status-badge.red {
+            color: #b91c1c;
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        @keyframes status-blink {
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+            }
+            50% {
+                opacity: 0.55;
+                box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+            }
+        }
+
+        .invoice-box .status-badge.red {
+            animation-name: status-blink-red;
+        }
+
+        @keyframes status-blink-red {
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+            }
+            50% {
+                opacity: 0.55;
+                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+            }
+        }
+
+        @media print {
+            .invoice-box .status-badge {
+                animation: none !important;
+                opacity: 1 !important;
+                box-shadow: none !important;
+            }
+        }
+
         .invoice-box .footer-note,
         .invoice-box .inv-footer-note {
             display: none;
@@ -189,23 +249,19 @@
                         </div>
                         <div class="party-line">
                             <span class="k">Status</span>
-                            <span class="v @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @endif">{{ $riderStatusLabel ?? '—' }}</span>
+                            <span class="v">
+                                <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
+                                    {{ $riderStatusLabel ?? '—' }}
+                                </span>
+                            </span>
                         </div>
                         <div class="party-line">
                             <span class="k">Mobile</span>
                             <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
                         </div>
                         <div class="party-line">
-                            <span class="k">Client</span>
+                            <span class="k">Project</span>
                             <span class="v">{{ $party?->vendor?->name ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Branch</span>
-                            <span class="v">{{ $branchLabel }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Bike</span>
-                            <span class="v">{{ $bikePlate }}</span>
                         </div>
                     </div>
                 </div>
@@ -229,8 +285,8 @@
                             <span class="v">{{ $riderInvoice->zone ?? '—' }}</span>
                         </div>
                         <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
+                            <span class="k">Bike</span>
+                            <span class="v">{{ $bikePlate }}</span>
                         </div>
                     </div>
                 </div>
@@ -264,8 +320,10 @@
             ])
 
             @include('rider_invoices.partials.payment_vouchers', [
-                'paymentVouchers' => $paymentVouchers ?? collect(),
-                'isPdf' => $isPdf ?? null,
+            'paymentVouchers' => $paymentVouchers ?? collect(),
+            'finalAmount' => $finalAmount ?? $totalAmt ?? 0,
+            'rider_balance_final' => $rider_balance_final ?? 0,
+            'isPdf' => $isPdf ?? null,
             ])
             @else
             <div class="empty">No line items on this invoice.</div>

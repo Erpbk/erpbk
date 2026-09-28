@@ -440,9 +440,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 14px;
-            margin-top: 28px;
             padding-top: 22px;
-            border-top: 1px solid var(--line);
         }
 
         .invoice-box .footnotes.one {

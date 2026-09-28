@@ -37,37 +37,17 @@
     </tbody>
 </table>
 
-@php
-    $balanceDue = max(0, $rider_balance_final);
-@endphp
-
-<table style="margin-top: 0;">
+@if(($total_deductions ?? 0) > 0 || ($total_additions ?? 0) > 0)
+<table style="margin-top: 8px;">
     <tr>
-        <td style="width: 55%; vertical-align: top; border: none; padding-left: 0;">
-            @if($total_deductions > 0)
-            <p style="margin: 8px 0 4px;"><span class="inv-label">Deductions:</span> -{{ number_format($total_deductions, 2) }}</p>
+        <td style="border: none; padding-left: 0;">
+            @if(($total_deductions ?? 0) > 0)
+            <p style="margin: 8px 0 4px;"><strong>Deductions:</strong> -{{ number_format($total_deductions, 2) }}</p>
             @endif
-            @if($total_additions > 0)
-            <p style="margin: 4px 0;"><span class="inv-label">Additions:</span> +{{ number_format($total_additions, 2) }}</p>
+            @if(($total_additions ?? 0) > 0)
+            <p style="margin: 4px 0;"><strong>Additions:</strong> +{{ number_format($total_additions, 2) }}</p>
             @endif
-            @if($riderInvoice->notes)
-            <p style="margin-top: 12px; font-size: 11px; color: var(--inv-text-muted);">{{ $riderInvoice->notes }}</p>
-            @endif
-        </td>
-        <td style="width: 45%; vertical-align: top; border: none; padding-right: 0;">
-            <table style="margin: 0;">
-                <tr><td>Taxable Amount</td><td class="num">{{ \App\Helpers\Currency::format($totalBeforeTax, 2) }}</td></tr>
-                @if($invoice_applies_vat)
-                <tr><td>Total VAT</td><td class="num">{{ \App\Helpers\Currency::format($vatAmount, 2) }}</td></tr>
-                @endif
-                <tr class="inv-total-row"><td><strong>Total</strong></td><td class="num"><strong>{{ \App\Helpers\Currency::format($finalAmount, 2) }}</strong></td></tr>
-                <tr><td>Received Amount</td><td class="num">{{ \App\Helpers\Currency::format($paid_amount, 2) }}</td></tr>
-                <tr class="inv-grand-total"><td><strong>Balance Due</strong></td><td class="num"><strong>{{ \App\Helpers\Currency::format($balanceDue, 2) }}</strong></td></tr>
-            </table>
         </td>
     </tr>
 </table>
-
-<div class="inv-footer-note">
-    Thank you for your partnership! For queries reach: {{ $settings['company_phone'] ?? 'Company Phone' }} | {{ $settings['company_email'] ?? 'Company Email' }}
-</div>
+@endif

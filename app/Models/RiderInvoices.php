@@ -35,6 +35,8 @@ class RiderInvoices extends BaseModel
         'billing_month',
         'gaurantee',
         'notes',
+        'terms_and_conditions',
+        'customer_note',
         'status',
         'template_id',
         'deleted_by',

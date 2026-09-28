@@ -4,322 +4,257 @@
 <head>
     <meta charset="UTF-8">
     <title>RiderID: {{ $riderInvoice->rider?->rider_id ?? $riderInvoice->id }} Month: {{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</title>
+    @include('invoices.partials.tax_invoice_styles')
+    <style>
+        /* Rider template item tables (legacy class names inside items area) */
+        .invoice-box table.items-table,
+        .invoice-box table.invoice-description-summary,
+        .invoice-box table.summary-table,
+        .invoice-box .tbl-wrap + table,
+        .invoice-box .sheet > table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+        }
+        .invoice-box table.items-table th,
+        .invoice-box table.items-table td,
+        .invoice-box table.summary-table td,
+        .invoice-box .sheet > table th,
+        .invoice-box .sheet > table td {
+            border: 1px solid var(--line, #e2e8f0);
+            padding: 8px 10px;
+            font-size: 12px;
+            vertical-align: top;
+        }
+        .invoice-box table.items-table th,
+        .invoice-box .secondary-header,
+        .invoice-box .accent-total,
+        .invoice-box .light-header,
+        .invoice-box .success-highlight,
+        .invoice-box .amount-highlight,
+        .invoice-box .primary-header {
+            background: var(--blue, #004aad);
+            color: #fff;
+            font-weight: 700;
+            text-align: center;
+        }
+        .invoice-box .light-header {
+            background: var(--blue-soft, #eef4fc);
+            color: var(--blue, #004aad);
+        }
+        .invoice-box td.num { text-align: right; font-variant-numeric: tabular-nums; }
+        .invoice-box .label-cell { font-weight: 600; background: #f8fafc; width: 20%; }
+        .invoice-box .value-cell { width: 30%; }
+        .invoice-box .red { color: #c00; font-weight: 600; }
+        .invoice-box .footer-note,
+        .invoice-box .inv-footer-note { display: none; }
+        .invoice-box .balance-lines {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin: 8px 0 16px;
+            align-items: flex-end;
+            font-size: 12.5px;
+        }
+        .invoice-box .balance-lines .line {
+            display: flex;
+            gap: 24px;
+            min-width: 260px;
+            justify-content: space-between;
+        }
+        .invoice-box .balance-lines .k { color: #64748b; font-weight: 500; }
+        .invoice-box .balance-lines .v { font-weight: 700; color: #0f172a; }
+        .invoice-box.invoice-layout-modern table.items-table th,
+        .invoice-box.invoice-layout-modern .secondary-header,
+        .invoice-box.invoice-layout-modern .accent-total,
+        .invoice-box.invoice-layout-modern .light-header,
+        .invoice-box.invoice-layout-modern .success-highlight,
+        .invoice-box.invoice-layout-modern .amount-highlight,
+        .invoice-box.invoice-layout-modern .primary-header {
+            background: #c6d9f1;
+            color: #000;
+        }
+    </style>
 </head>
 
 <body>
-    <style>
-        @include('rider_invoices.partials.invoice_brand_styles')
+    @php
+        $settings = $settings ?? company_table('settings')->pluck('value', 'name')->toArray();
+        $currency = \App\Helpers\Currency::code();
+        $defaults = \App\Support\InvoiceModuleDefaults::all('rider_invoices');
+        $party = $riderInvoice->rider;
+        $invoiceTitle = $defaults['title'] ?: 'RIDER INVOICE';
+        $partyNote = $riderInvoice->customer_note
+            ?: ($party->invoice_note ?? null)
+            ?: ($defaults['notes'] ?: null);
+        $termsAndConditions = $riderInvoice->terms_and_conditions
+            ?: ($party->terms_and_conditions ?? null)
+            ?: ($defaults['terms_and_conditions'] ?: null);
+        $partyNoteLabel = $party
+            ? $party->resolvedInvoiceNoteLabel()
+            : 'Invoice Note';
+        $termsAndConditionsLabel = $party
+            ? $party->resolvedTermsAndConditionsLabel()
+            : 'Terms & Conditions';
+        $invoiceNumber = $invoiceNumber
+            ?? \App\Helpers\General::inv_sch($riderInvoice->id, $riderInvoice->created_at);
+        $subtotalAmount = $totalBeforeTax ?? $riderInvoice->subtotal ?? 0;
+        $vatAmt = $vatAmount ?? $riderInvoice->vat ?? 0;
+        $totalAmt = $finalAmount ?? $riderInvoice->total_amount ?? 0;
+        $noteCards = collect([
+            $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+            $riderInvoice->notes ? ['title' => 'Internal Notes', 'body' => $riderInvoice->notes] : null,
+        ])->filter()->values();
+        $noteGridClass = match ($noteCards->count()) {
+            1 => 'one',
+            3 => 'three',
+            default => '',
+        };
+        $serviceFrom = $riderInvoice->service_period_from
+            ? $riderInvoice->service_period_from->format('d M Y')
+            : date('d M Y', strtotime($riderInvoice->billing_month));
+        $serviceTo = $riderInvoice->service_period_to
+            ? $riderInvoice->service_period_to->format('d M Y')
+            : date('t M Y', strtotime($riderInvoice->billing_month));
+        $branch = $party->branch ?? null;
+        $branchLabel = $branch
+            ? trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''))
+            : '—';
+        $bikePlate = $party->bikes?->plate ?? $riderInvoice->bike?->plate ?? '—';
+        $invoiceDateLabel = optional($riderInvoice->inv_date)->format('d M Y')
+            ?? optional($riderInvoice->created_at)->format('d M Y')
+            ?? '';
+        $billingLabel = date('M Y', strtotime($riderInvoice->billing_month));
+        $hasTemplateItems = View::exists($templateView ?? '')
+            || ($riderInvoice->items && $riderInvoice->items->count() > 0);
+    @endphp
 
-        /* Scope resets to invoice content only — never leak into center modals */
-        .rider-invoice-layout,
-        .rider-invoice-layout * {
-            box-sizing: border-box;
-        }
+    @if(empty($isPdf))
+    <div class="controls no-print">
+        @include('rider_invoices.partials.action_buttons')
+    </div>
+    @endif
 
-        .rider-invoice-layout {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-height: 0;
-            background: #eef2f5;
-            font-family: Calibri, Arial, sans-serif;
-            font-size: 12px;
-            color: #000;
-        }
+    <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">
+        <div class="band"></div>
+        <div class="sheet">
+            @include('invoices.partials.tax_invoice_header', [
+                'settings' => $settings,
+                'invoiceTitle' => $invoiceTitle,
+                'invoiceNumber' => $invoiceNumber,
+                'invoiceDateLabel' => $invoiceDateLabel,
+                'billingLabel' => $billingLabel,
+            ])
 
-        body>.rider-invoice-layout {
-            height: 100vh;
-            height: 100dvh;
-        }
-
-        #modalTopbody:has(.rider-invoice-layout) {
-            overflow: hidden;
-            padding: 0 !important;
-        }
-
-        #modalTopbody .rider-invoice-layout {
-            height: calc(100vh - 160px);
-            max-height: 80vh;
-        }
-
-        #rightSideModalBody:has(.rider-invoice-layout) {
-            overflow: hidden !important;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-        }
-
-        #rightSideModalBody .rider-invoice-layout {
-            height: 100%;
-            flex: 1;
-            min-height: 0;
-        }
-
-        .right-side-modal:has(.rider-invoice-layout) .modal-body {
-            overflow: hidden !important;
-        }
-
-        .invoice-action-bar {
-            flex-shrink: 0;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background: #fff;
-            border-bottom: 1px solid var(--inv-border);
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-        }
-
-        .invoice-action-bar-inner {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 10px 20px;
-        }
-
-        .invoice-scroll-area {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 20px;
-        }
-
-        .invoice-box .primary-header,
-        .invoice-box .secondary-header,
-        .invoice-box .success-highlight {
-            background: var(--inv-primary);
-            color: var(--inv-on-primary);
-            font-weight: 600;
-        }
-
-        .invoice-box .accent-total,
-        .invoice-box .amount-highlight {
-            background: var(--inv-secondary);
-            color: var(--inv-on-primary);
-            font-weight: 600;
-        }
-
-        .invoice-box .light-header {
-            background: var(--inv-surface-soft);
-            color: var(--inv-primary);
-            font-weight: 600;
-        }
-
-        .invoice-box .label-cell {
-            font-weight: 600;
-            background: var(--inv-surface);
-            color: var(--inv-text);
-            width: 20%;
-        }
-
-        .invoice-box .value-cell {
-            width: 30%;
-        }
-
-        .invoice-box.invoice-layout-modern .primary-header,
-        .invoice-box.invoice-layout-modern .secondary-header,
-        .invoice-box.invoice-layout-modern .light-header,
-        .invoice-box.invoice-layout-modern .accent-total,
-        .invoice-box.invoice-layout-modern .success-highlight,
-        .invoice-box.invoice-layout-modern .amount-highlight,
-        .invoice-box.invoice-layout-modern .items-table th {
-            background: #c6d9f1;
-            color: #000;
-            font-weight: 700;
-        }
-
-        .invoice-box.invoice-layout-modern .label-cell {
-            font-weight: 700;
-            background: #fff;
-            color: #000;
-        }
-
-        .invoice-box.invoice-layout-modern .value-cell {
-            background: #fff;
-            color: #000;
-        }
-
-        .invoice-box.invoice-layout-modern .items-table tbody tr:nth-child(even) {
-            background: #fff;
-        }
-
-        .invoice-box.invoice-layout-modern th,
-        .invoice-box.invoice-layout-modern td {
-            border-color: #b8c4d4;
-        }
-
-        .invoice-box .yellow {
-            background: var(--inv-surface-soft);
-            color: var(--inv-primary);
-            font-weight: 600;
-            padding: 3px 8px;
-            display: inline-block;
-            border: 1px solid var(--inv-border);
-        }
-
-        .invoice-box .red {
-            color: #c00;
-            font-weight: 600;
-        }
-
-        .invoice-box .footer-note {
-            font-size: 11px;
-            margin-top: 10px;
-            color: var(--inv-text-muted);
-            font-weight: normal;
-            text-align: center;
-        }
-
-        .invoice-box .sign-box {
-            margin-top: 25px;
-            text-align: right;
-            font-weight: 600;
-            color: var(--inv-text);
-        }
-
-        .invoice-box .sign-box span {
-            display: block;
-            margin-top: 8px;
-        }
-
-        .invoice-box .summary-table {
-            margin-bottom: 8px;
-        }
-
-        .summary-table tr {
-            background-color: #fff !important;
-        }
-
-        .summary-table tr td {
-            text-align: left !important;
-        }
-
-        .invoice-toolbar {
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            padding: 0;
-            margin: 0;
-            max-width: none;
-        }
-
-        .invoice-toolbar-inner {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .toolbar-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            background: #fff;
-            border: 1px solid var(--inv-border);
-            border-radius: 6px;
-            color: var(--inv-text);
-            font-size: 13px;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .toolbar-btn:hover {
-            background: var(--inv-surface);
-            color: var(--inv-primary);
-            border-color: var(--inv-primary);
-        }
-
-        .template-selector {
-            max-width: none;
-            margin: 8px 0 0;
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            padding: 0;
-        }
-
-        @media print {
-
-            html,
-            body {
-                height: auto;
-                overflow: visible;
-            }
-
-            body:has(.rider-invoice-layout) {
-                display: block;
-                background: white;
-            }
-
-            .rider-invoice-layout {
-                height: auto;
-                max-height: none;
-            }
-
-            .invoice-action-bar,
-            .no-print {
-                display: none !important;
-            }
-
-            .invoice-scroll-area {
-                overflow: visible;
-                padding: 0;
-            }
-
-            .invoice-box {
-                width: 100%;
-                border: none;
-            }
-
-            body,
-            *,
-            .primary-header,
-            .secondary-header,
-            .accent-total,
-            .light-header,
-            .amount-highlight,
-            .success-highlight,
-            .inv-total-row td,
-            .inv-grand-total td,
-            .yellow {
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-        }
-
-        @media (max-width: 700px) {
-            .invoice-scroll-area {
-                padding: 10px;
-            }
-
-            .invoice-action-bar-inner {
-                padding: 8px 12px;
-            }
-
-            .invoice-box {
-                width: 100%;
-            }
-        }
-    </style>
-
-    <div class="rider-invoice-layout">
-        <div class="invoice-action-bar no-print">
-            <div class="invoice-action-bar-inner">
-                @include('rider_invoices.partials.action_buttons')
+            <div class="parties">
+                <div class="party">
+                    <h3 class="party-title">Bill To</h3>
+                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                    <div class="party-grid">
+                        <div class="party-line">
+                            <span class="k">Rider ID</span>
+                            <span class="v">{{ $party->rider_id ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Status</span>
+                            <span class="v @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @endif">{{ $riderStatusLabel ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Mobile</span>
+                            <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Client</span>
+                            <span class="v">{{ $party?->vendor?->name ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Branch</span>
+                            <span class="v">{{ $branchLabel }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Bike</span>
+                            <span class="v">{{ $bikePlate }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="party alt">
+                    <h3 class="party-title">Service Period</h3>
+                    <div class="party-grid" style="margin-top: 4px;">
+                        <div class="party-line">
+                            <span class="k">From</span>
+                            <span class="v">{{ $serviceFrom }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">To</span>
+                            <span class="v">{{ $serviceTo }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Working</span>
+                            <span class="v">{{ $riderInvoice->working_days ?? '—' }} | Off: {{ $riderInvoice->off ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Zone</span>
+                            <span class="v">{{ $riderInvoice->zone ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
+                            <span class="k">Currency</span>
+                            <span class="v">{{ $currency }}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
 
-        <div class="invoice-scroll-area">
-            <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">
-                @if(View::exists($templateView))
-                @include($templateView)
-                @else
-                <div class="p-4 text-center text-danger">Invoice template view is missing on the server.</div>
+            @if($riderInvoice->descriptions)
+            <div class="desc">
+                <span class="t">Description</span>
+                <p>{{ $riderInvoice->descriptions }}</p>
+            </div>
+            @endif
+
+            @if($hasTemplateItems)
+            <div class="rider-template-items">
+                @if(View::exists($templateView ?? ''))
+                    @include($templateView)
+                @elseif($riderInvoice->items && $riderInvoice->items->count() > 0)
+                    @include('rider_invoices.partials.invoice_items_and_totals')
                 @endif
             </div>
+
+            @include('invoices.partials.tax_invoice_totals_notes', [
+                'partyNote' => $partyNote,
+                'partyNoteLabel' => $partyNoteLabel,
+                'subtotalAmount' => $subtotalAmount,
+                'vatAmount' => $vatAmt,
+                'totalAmount' => $totalAmt,
+                'currency' => $currency,
+            ])
+
+            <div class="balance-lines">
+                <div class="line">
+                    <span class="k">Paid Amount</span>
+                    <span class="v">{{ number_format($paid_amount ?? 0, 2) }}</span>
+                </div>
+                <div class="line">
+                    <span class="k">Balance</span>
+                    <span class="v">{{ number_format($rider_balance_final ?? 0, 2) }}</span>
+                </div>
+            </div>
+            @else
+            <div class="empty">No line items on this invoice.</div>
+            @endif
+
+            @include('invoices.partials.tax_invoice_footnotes', [
+                'noteCards' => $noteCards,
+                'noteGridClass' => $noteGridClass,
+            ])
+
+            @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])
         </div>
     </div>
 
+    @include('invoices.partials.tax_invoice_print_script', ['isPdf' => $isPdf ?? null])
+
+    @if(empty($isPdf))
     <script>
         (function() {
             document.querySelectorAll('.num').forEach(function(el) {
@@ -358,6 +293,7 @@
             }
         })();
     </script>
+    @endif
 </body>
 
 </html>

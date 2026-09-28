@@ -33,6 +33,8 @@ class SupplierInvoicesRepository extends BaseRepository
         'billing_month',
         'gaurantee',
         'notes',
+        'customer_note',
+        'terms_and_conditions',
         'garage_id',
     ];
 
@@ -52,6 +54,8 @@ class SupplierInvoicesRepository extends BaseRepository
             'supplier_id' => 'required|exists:suppliers,id',
             'descriptions' => 'required|string',
             'notes' => 'nullable|string',
+            'customer_note' => 'nullable|string',
+            'terms_and_conditions' => 'nullable|string',
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'exists:items,id',
             'item_qty' => 'required|array|min:1',

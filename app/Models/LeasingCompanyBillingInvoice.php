@@ -23,6 +23,8 @@ class LeasingCompanyBillingInvoice extends BaseModel
         'vat',
         'total_amount',
         'notes',
+        'terms_and_conditions',
+        'customer_note',
         'attachment',
         'status',
         'partial_paid_amount'

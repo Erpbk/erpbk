@@ -654,27 +654,39 @@ class ModuleSettingsController extends Controller
     public function updateInvoiceDefaults(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);
-        abort_unless($module === 'customer_invoices', 404);
+        abort_unless(in_array($module, \App\Support\InvoiceModuleDefaults::settingsModules(), true), 404);
 
         $validated = $request->validate([
             'invoice_title' => ['nullable', 'string', 'max:100'],
             'terms_and_conditions' => ['nullable', 'string'],
             'customer_notes' => ['nullable', 'string'],
+            'invoice_notes' => ['nullable', 'string'],
         ]);
 
-        \App\Support\CustomerInvoiceDefaults::save(
+        $notes = (string) ($validated['customer_notes'] ?? $validated['invoice_notes'] ?? '');
+
+        \App\Support\InvoiceModuleDefaults::save(
+            $module,
             (string) ($validated['terms_and_conditions'] ?? ''),
-            (string) ($validated['customer_notes'] ?? ''),
+            $notes,
             null,
             (string) ($validated['invoice_title'] ?? '')
         );
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Invoice defaults saved.',
+                'reload' => true,
+            ]);
+        }
 
         return redirect()
             ->route('settings-panel.module-settings.index', [
                 'company_slug' => $company_slug,
                 'module' => $module,
             ])
-            ->with('success', 'Customer invoice defaults saved.');
+            ->with('success', 'Invoice defaults saved.');
     }
 
     public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)

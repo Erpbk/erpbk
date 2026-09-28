@@ -137,6 +137,15 @@ class ErpModuleRegistry
     {
         return [
             'customer_invoices',
+            'rider_invoices',
+            'invoices',
+            'employee_invoices',
+            'supplier_invoices',
+            'sim_invoices',
+            'leasing_company_invoices',
+            'leasing_invoices',
+            'leasing_company_billing_invoices',
+            'leasing_billing_invoice',
         ];
     }
 

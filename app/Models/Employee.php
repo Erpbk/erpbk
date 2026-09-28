@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\BranchScope;
+use App\Traits\HasInvoiceNoteLabels;
 
 class Employee extends BaseModel
 {
-    use HasFactory, SoftDeletes, BranchScope;
+    use HasFactory, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
 
     /**
      * The attributes that are mass assignable.
@@ -37,6 +38,10 @@ class Employee extends BaseModel
         'doj',
         'status',
         'address',
+        'terms_and_conditions_label',
+        'terms_and_conditions',
+        'invoice_note_label',
+        'invoice_note',
         'dob',
         'visa_sponsor',
         'visa_occupation',

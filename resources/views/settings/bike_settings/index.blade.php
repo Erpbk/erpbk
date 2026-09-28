@@ -64,7 +64,8 @@ $fixedFieldSourceTable = $fixedFieldSourceTable ?? 'bike_field_category_assignme
 $customFieldSourceTable = $customFieldSourceTable ?? 'bike_custom_fields';
 $isRiderInvoicesModule = in_array(($moduleKey ?? ''), ['invoices', 'customer_invoices'], true);
 $isCustomerInvoicesModule = ($moduleKey ?? '') === 'customer_invoices';
-$showModuleStructureTabs = !$isCustomerInvoicesModule;
+$isInvoiceDefaultsModule = in_array(($moduleKey ?? ''), \App\Support\InvoiceModuleDefaults::settingsModules(), true);
+$showModuleStructureTabs = !$isInvoiceDefaultsModule;
 $riderInvoiceAccountTree = $riderInvoiceAccountTree ?? [];
 $riderInvoiceAssignments = $riderInvoiceAssignments ?? ['debit' => [], 'credit' => []];
 $canManageAccountAssigning = auth()->check() && auth()->user()->hasAnyRole(['admin', 'Administrator', 'Super Admin']);
@@ -113,8 +114,8 @@ $attendanceRefType = $attendanceRefType ?? null;
             Configure registration statuses, top bar cards, fixed/custom fields on <code>bike_registrations</code>, categories, and document types.
             @elseif(($moduleKey ?? '') === 'bike_list')
             Configure Vehicle Top cards for the Vehicles module, fixed/custom fields, categories, and document types.
-            @elseif($isCustomerInvoicesModule)
-            Configure default invoice title, customer notes, and terms &amp; conditions.
+            @elseif($isInvoiceDefaultsModule)
+            Configure default invoice title, notes, and terms &amp; conditions.
             @else
             Configure fixed/custom fields and document types.
             @endif
@@ -262,8 +263,8 @@ $attendanceRefType = $attendanceRefType ?? null;
             'moduleMenuKey' => $moduleKey ?? 'bike_list',
             'defaultLabel' => $moduleLabel ?? $settingsHeading,
             ])
-            @if(($moduleKey ?? '') === 'customer_invoices')
-              @include('settings.partials.customer_invoice_defaults')
+            @if($isInvoiceDefaultsModule)
+              @include('settings.partials.invoice_module_defaults', ['defaultsModule' => $moduleKey])
             @endif
           </div>
 

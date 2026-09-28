@@ -184,8 +184,9 @@
 
     <div class="row mt-2">
         <div class="col-md-12 form-group">
-            <label>Notes</label>
-            {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'placeholder' => 'Notes', 'rows' => 2]) !!}
+            <label>Internal Notes</label>
+            {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'placeholder' => 'Internal notes', 'rows' => 2]) !!}
+            @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'leasing_company_invoices', 'invoice' => $invoice ?? $cloneFromInvoice ?? null])
         </div>
     </div>
 

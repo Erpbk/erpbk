@@ -5,13 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 use App\Helpers\IConstants;
 
 class Supplier extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
 
     public $table = 'suppliers';
 
@@ -23,6 +24,10 @@ class Supplier extends BaseModel
         'address',
         'tax_number',
         'status',
+        'terms_and_conditions_label',
+        'terms_and_conditions',
+        'invoice_note_label',
+        'invoice_note',
     ];
 
     public static $rules = [

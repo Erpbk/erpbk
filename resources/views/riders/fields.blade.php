@@ -32,3 +32,6 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
     No fields assigned in Rider Settings. Configure categories and fields under Settings Panel → Rider Settings.
 </div>
 @endif
+
+@include('invoices.partials.party_invoice_note_fields', ['party' => $riders ?? null, 'defaultsModule' => 'rider_invoices'])
+

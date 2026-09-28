@@ -65,8 +65,9 @@ $garages = \App\Models\Garages::where('status',1)->where('garage_type' , 'intern
         {!! Form::textarea('descriptions', null, ['class' => 'form-control', 'rows' => 2, 'placeholder' => 'Descriptions']) !!}
     </div>
     <div class="col-md-6 form-group">
-        <label>Notes</label>
-        {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 2, 'placeholder' => 'Notes']) !!}
+        <label>Internal Notes</label>
+        {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 2, 'placeholder' => 'Internal notes']) !!}
+        @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'supplier_invoices', 'invoice' => $supplierInvoice ?? $invoice ?? null])
     </div>
 </div>
 

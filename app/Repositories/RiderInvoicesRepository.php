@@ -32,6 +32,8 @@ class RiderInvoicesRepository extends BaseRepository
         'billing_month',
         'gaurantee',
         'notes',
+        'customer_note',
+        'terms_and_conditions',
     ];
 
     public function getFieldsSearchable(): array

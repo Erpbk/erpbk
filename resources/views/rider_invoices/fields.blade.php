@@ -230,9 +230,9 @@
     </div>
     
     <div class="col-md-6 form-group">
-        <label>Notes</label>
-        {!! Form::textarea('notes', null, ['class' => 'form-control form-control','placeholder'=>'Notes','rows'=>2]) !!}
-
+        <label>Internal Notes</label>
+        {!! Form::textarea('notes', null, ['class' => 'form-control form-control','placeholder'=>'Internal notes','rows'=>2]) !!}
+        @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'rider_invoices', 'invoice' => $riderInvoice ?? $invoice ?? null])
     </div>
     <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
         <div>

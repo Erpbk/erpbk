@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
+use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\BranchScope;
 
 class LeasingCompanies extends BaseModel
 {
-  use LogsActivity, SoftDeletes, BranchScope;
+  use LogsActivity, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
 
   public $table = 'leasing_companies';
 
@@ -21,7 +22,11 @@ class LeasingCompanies extends BaseModel
     'trn_number',
     'detail',
     'account_id',
-    'status'
+    'status',
+    'invoice_note',
+    'invoice_note_label',
+    'terms_and_conditions',
+    'terms_and_conditions_label',
   ];
 
   protected $casts = [
@@ -41,7 +46,11 @@ class LeasingCompanies extends BaseModel
     'contact_number' => 'nullable|string|max:100',
     'trn_number' => 'nullable|string|max:100',
     'detail' => 'nullable|string|max:65535',
-
+    'invoice_note' => 'nullable|string',
+    'invoice_note_label' => 'nullable|string|max:100',
+    'terms_and_conditions' => 'nullable|string',
+    'terms_and_conditions_label' => 'nullable|string|max:100',
+    'status' => 'nullable',
     'created_at' => 'nullable',
     'updated_at' => 'nullable'
   ];

@@ -22,6 +22,8 @@ class SupplierInvoices extends BaseModel
     'total_amount',
     'billing_month',
     'notes',
+        'terms_and_conditions',
+        'customer_note',
     'inv_id',
     'subtotal',
     'vat',

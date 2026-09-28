@@ -9,10 +9,11 @@ use Illuminate\Support\Facades\Schema;
 use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
+use App\Traits\HasInvoiceNoteLabels;
 
 class Riders extends BaseModel
 {
-  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
+  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope, HasInvoiceNoteLabels;
 
   public $table = 'riders';
 
@@ -48,6 +49,10 @@ class Riders extends BaseModel
     'fleet_supervisor',
     'wps',
     'image_name',
+        'terms_and_conditions_label',
+        'terms_and_conditions',
+        'invoice_note_label',
+        'invoice_note',
     'person_code',
     'labor_card_number',
     'labor_card_expiry',

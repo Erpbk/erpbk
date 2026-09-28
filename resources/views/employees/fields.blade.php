@@ -32,3 +32,6 @@ $useDynamicFields = is_array($fieldsByCategory) && count($fieldsByCategory) > 0;
     No fields assigned in Employee Settings. Configure categories and fields under Settings Panel → Employee Settings.
 </div>
 @endif
+
+@include('invoices.partials.party_invoice_note_fields', ['party' => $employee ?? null, 'defaultsModule' => 'employee_invoices'])
+

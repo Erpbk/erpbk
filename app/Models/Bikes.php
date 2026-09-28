@@ -415,4 +415,14 @@ class Bikes extends BaseModel
   {
     return $this->hasMany(BikeMaintenance::class, 'bike_id', 'id');
   }
+
+  public function rtaFines()
+  {
+    return $this->hasMany(RtaFines::class, 'bike_id', 'id');
+  }
+
+  public function saliks()
+  {
+    return $this->hasMany(salik::class, 'bike_id', 'id');
+  }
 }

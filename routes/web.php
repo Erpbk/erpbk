@@ -312,6 +312,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('bikes/delete/{id}', [BikesController::class, 'destroy'])->name('bikes.delete');
     Route::get('bike/files/{id}', [BikesController::class, 'files'])->name('bikes.files');
     Route::get('bike/maintenance/{id}', [BikesController::class, 'maintenance'])->name('bikes.maintenance');
+    Route::get('bike/fines/{id}', [BikesController::class, 'fines'])->name('bikes.fines');
+    Route::get('bike/saliks/{id}', [BikesController::class, 'saliks'])->name('bikes.saliks');
 
     Route::resource('bikes', BikesController::class);
 

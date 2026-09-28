@@ -2314,6 +2314,55 @@ class BikesController extends AppBaseController
     }
 
     /**
+     * View-only RTA fines recorded against this bike.
+     */
+    public function fines($company_slug, $id)
+    {
+        $this->authorizeBikeView();
+
+        $bikes = Bikes::findOrFail($id);
+        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch', 'latestHistory']);
+        $fines = $this->paginateBikeRelation(
+            $bikes->rtaFines()->with(['rider', 'rentalCompany'])->orderByDesc('trip_date')->orderByDesc('id')
+        );
+
+        return view('bikes.fines', compact('bikes', 'fines'));
+    }
+
+    /**
+     * View-only Salik trips recorded against this bike.
+     */
+    public function saliks($company_slug, $id)
+    {
+        $this->authorizeBikeView();
+
+        $bikes = Bikes::findOrFail($id);
+        $bikes->load(['rider', 'leasingCompany', 'leasedReturnCompany', 'customer', 'branch', 'latestHistory']);
+        $saliks = $this->paginateBikeRelation(
+            $bikes->saliks()->with(['rider', 'rentalCompany'])->orderByDesc('trip_date')->orderByDesc('id')
+        );
+
+        return view('bikes.saliks', compact('bikes', 'saliks'));
+    }
+
+    private function authorizeBikeView(): void
+    {
+        if (! auth()->user()?->can('bikes_bike_view')) {
+            abort(403, 'Unauthorized action.');
+        }
+    }
+
+    private function paginateBikeRelation($query)
+    {
+        $records = $this->applyPagination($query, $this->getPaginationParams(request()));
+        if (method_exists($records, 'withQueryString')) {
+            $records->withQueryString();
+        }
+
+        return $records;
+    }
+
+    /**
      * Standardized response for bike deletion errors (supports both AJAX and regular requests).
      */
     private function respondBikeDeleteError(string $message)

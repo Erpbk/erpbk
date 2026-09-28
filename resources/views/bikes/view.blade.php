@@ -839,6 +839,14 @@
                     <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
                 </li>
                 @endcan
+                @can('bikes_bike_view')
+                <li class="nav-item">
+                    <a href="{{ route('bikes.fines', $bikes->id) }}" class="nav-link @if(Route::is('bikes.fines')) active @endif"><i class="fa fa-file-invoice-dollar"></i>&nbsp;Fines</a>
+                </li>
+                <li class="nav-item">
+                    <a href="{{ route('bikes.saliks', $bikes->id) }}" class="nav-link @if(Route::is('bikes.saliks')) active @endif"><i class="fa fa-road"></i>&nbsp;Saliks</a>
+                </li>
+                @endcan
                 @can('bikes_registration_view')
                 @php
                 $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');

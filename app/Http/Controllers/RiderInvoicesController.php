@@ -229,13 +229,15 @@ class RiderInvoicesController extends AppBaseController
                 $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
             }
 
+            $builder = app(RiderInvoiceViewDataBuilder::class);
             $viewData = array_merge(
-                app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
+                $builder->build($riderInvoice),
                 [
                     'riderInvoice' => $riderInvoice,
                     'activeTemplate' => $resolver->resolveForInvoice($riderInvoice),
                     'templateView' => $templateView,
                     'templates' => $resolver->activeTemplates(),
+                    'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
                 ]
             );
 
@@ -283,12 +285,14 @@ class RiderInvoicesController extends AppBaseController
             $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
         }
 
+        $builder = app(RiderInvoiceViewDataBuilder::class);
         $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
-            app(RiderInvoiceViewDataBuilder::class)->build($riderInvoice),
+            $builder->build($riderInvoice),
             [
                 'riderInvoice' => $riderInvoice,
                 'activeTemplate' => $activeTemplate,
                 'templateView' => $templateView,
+                'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
             ]
         ))->setPaper('a4', 'portrait');
 
@@ -1158,12 +1162,14 @@ class RiderInvoicesController extends AppBaseController
                 $templateView = RiderInvoiceTemplate::FALLBACK_VIEW;
             }
 
+            $builder = app(RiderInvoiceViewDataBuilder::class);
             $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
-                app(RiderInvoiceViewDataBuilder::class)->build($invoice),
+                $builder->build($invoice),
                 [
                     'riderInvoice' => $invoice,
                     'activeTemplate' => $activeTemplate,
                     'templateView' => $templateView,
+                    'paymentVouchers' => $builder->paymentVouchersForInvoice($invoice),
                 ]
             ))->setPaper('a4', 'portrait');
 

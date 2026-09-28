@@ -1,53 +1,45 @@
 {{-- Payment vouchers linked to this rider invoice --}}
 @php
-    $payment_vouchers = collect($payment_vouchers ?? []);
-    $isPdf = $isPdf ?? false;
+    $paymentVouchers = collect($paymentVouchers ?? []);
+    $__companySlug = \App\Support\CompanyRouteContext::slug();
 @endphp
-@if($payment_vouchers->isNotEmpty())
-<div class="payment-vouchers tbl-wrap" style="margin-top: 12px; margin-bottom: 12px;">
-    <table class="items-table" style="margin-bottom: 0; width: 100%;">
+@if($paymentVouchers->isNotEmpty())
+<div class="tbl-wrap" style="margin-top: 14px;">
+    <table class="items-table">
         <tr>
-            <th colspan="4" class="secondary-header">Payment Voucher{{ $payment_vouchers->count() > 1 ? 's' : '' }}</th>
+            <th colspan="5" class="secondary-header">Payment Vouchers</th>
         </tr>
-        <tr class="light-header">
-            <th style="width: 28%;">Voucher</th>
-            <th style="width: 22%;">Date</th>
-            <th style="width: 28%;">Type</th>
-            <th style="width: 22%;" class="num">Amount</th>
-        </tr>
-        @foreach($payment_vouchers as $voucher)
-        @php
-            $voucherLabel = $voucher->formatted_id
-                ?? (($voucher->voucher_type ?: 'V').'-'.str_pad((string) $voucher->id, 4, '0', STR_PAD_LEFT));
-            $voucherDate = $voucher->trans_date
-                ? \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y')
-                : '—';
-            $voucherTypeLabel = $voucher->voucher_type ?: '—';
-            if (class_exists(\App\Helpers\General::class) && method_exists(\App\Helpers\General::class, 'VoucherType')) {
-                $voucherTypeLabel = \App\Helpers\General::VoucherType($voucher->voucher_type) ?: $voucherTypeLabel;
-            }
-        @endphp
         <tr>
+            <th class="secondary-header">Date</th>
+            <th class="secondary-header">Voucher No</th>
+            <th class="secondary-header">Type</th>
+            <th class="secondary-header">Reference / Remarks</th>
+            <th class="secondary-header">Amount</th>
+        </tr>
+        @foreach($paymentVouchers as $voucher)
+        <tr>
+            <td>{{ $voucher->trans_date ? \App\Helpers\Common::DateFormat($voucher->trans_date) : '—' }}</td>
             <td>
-                @if(empty($isPdf) && Route::has('vouchers.show'))
+                @if(empty($isPdf))
                 <a href="javascript:void(0);"
-                   class="show-modal"
-                   data-size="xl"
-                   data-title="{{ $voucherLabel }}"
-                   data-action="{{ route('vouchers.show', $voucher->id) }}"
-                   style="font-weight: 700; color: var(--blue, #004aad); text-decoration: none;">
-                    {{ $voucherLabel }}
+                    class="show-modal"
+                    data-size="xl"
+                    data-title="Voucher {{ $voucher->formatted_id }}"
+                    data-action="{{ route('vouchers.show', array_filter([
+                        'voucher' => $voucher->id,
+                        'company_slug' => $__companySlug,
+                    ])) }}">
+                    {{ $voucher->formatted_id }}
                 </a>
                 @else
-                <strong>{{ $voucherLabel }}</strong>
-                @endif
-                @if(!empty($voucher->reference_number))
-                <div style="font-size: 11px; color: #64748b;">{{ $voucher->reference_number }}</div>
+                {{ $voucher->formatted_id }}
                 @endif
             </td>
-            <td>{{ $voucherDate }}</td>
-            <td>{{ $voucherTypeLabel }}</td>
-            <td class="num">{{ number_format((float) ($voucher->amount ?? 0), 2) }}</td>
+            <td>{{ $voucher->voucher_type ?: '—' }}</td>
+            <td style="text-align: left;">
+                {{ $voucher->reference_number ?: ($voucher->remarks ?: '—') }}
+            </td>
+            <td class="num">{{ number_format((float) $voucher->amount, 2) }}</td>
         </tr>
         @endforeach
     </table>

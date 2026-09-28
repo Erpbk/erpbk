@@ -259,8 +259,6 @@ class RiderInvoiceViewDataBuilder
         // Amount still payable to the rider for this invoice.
         $rider_balance_final = round($finalAmount - $paid_amount, 2);
 
-        $payment_vouchers = $this->paymentVouchersForInvoice($riderInvoice, $accountId);
-
         $companyId = $riderInvoice->company_id ?? CompanyContext::id();
         $brand = app(AgreementPdfBranding::class)->forCompany($companyId);
 
@@ -294,11 +292,84 @@ class RiderInvoiceViewDataBuilder
             'finalAmount' => $finalAmount,
             'paid_amount' => $paid_amount,
             'rider_balance_final' => $rider_balance_final,
-            'payment_vouchers' => $payment_vouchers,
             'items_total' => $items_total,
             'invoiceNumber' => General::inv_sch($riderInvoice->id, $riderInvoice->created_at),
             'riderStatusLabel' => self::riderStatusLabel($riderInvoice->rider?->status),
         ];
+    }
+
+    /**
+     * Payment vouchers (RI / PV) recorded against this rider invoice.
+     *
+     * @return Collection<int, Vouchers>
+     */
+    public function paymentVouchersForInvoice(RiderInvoices $riderInvoice, ?int $accountId = null): Collection
+    {
+        $accountId = $accountId
+            ?? ($riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null);
+
+        $invoiceId = (int) $riderInvoice->id;
+        $patterns = array_values(array_filter([
+            $riderInvoice->invoice_number ?? null,
+            'Rider Invoice #'.$invoiceId,
+            'Invoice #'.$invoiceId,
+            'RINV-'.str_pad((string) $invoiceId, 4, '0', STR_PAD_LEFT),
+        ]));
+
+        $transCodes = Transactions::query()
+            ->where('reference_type', 'RiderInvoice')
+            ->where('reference_id', $invoiceId)
+            ->when($accountId, fn ($q) => $q->where('account_id', $accountId))
+            ->distinct()
+            ->pluck('trans_code')
+            ->filter()
+            ->values();
+
+        $voucherIdsFromPayments = collect();
+        if ($accountId && $patterns !== []) {
+            $voucherIdsFromPayments = Payment::query()
+                ->where('payee_account_id', $accountId)
+                ->whereNotNull('voucher_id')
+                ->where(function ($q) use ($patterns) {
+                    foreach ($patterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                })
+                ->pluck('voucher_id')
+                ->filter()
+                ->values();
+        }
+
+        if ($transCodes->isEmpty() && $voucherIdsFromPayments->isEmpty() && $patterns === []) {
+            return collect();
+        }
+
+        return Vouchers::query()
+            ->where(function ($q) use ($transCodes, $voucherIdsFromPayments, $patterns, $invoiceId) {
+                if ($transCodes->isNotEmpty()) {
+                    $q->orWhereIn('trans_code', $transCodes);
+                }
+                if ($voucherIdsFromPayments->isNotEmpty()) {
+                    $q->orWhereIn('id', $voucherIdsFromPayments);
+                }
+                $q->orWhere(function ($inner) use ($patterns, $invoiceId) {
+                    $inner->whereIn('voucher_type', ['RI', 'PV', 'PAY'])
+                        ->where(function ($text) use ($patterns, $invoiceId) {
+                            $text->where('remarks', 'like', '%Rider Invoice #'.$invoiceId.'%')
+                                ->orWhere('remarks', 'like', '%Invoice #'.$invoiceId.'%');
+                            foreach ($patterns as $pattern) {
+                                $text->orWhere('reference_number', 'like', '%'.$pattern.'%')
+                                    ->orWhere('remarks', 'like', '%'.$pattern.'%');
+                            }
+                        });
+                });
+            })
+            ->orderByDesc('trans_date')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('id')
+            ->values();
     }
 
     /**
@@ -448,112 +519,6 @@ class RiderInvoiceViewDataBuilder
         }
 
         return round($paid, 2);
-    }
-
-    /**
-     * Payment vouchers (RI / PV) posted against this rider invoice.
-     *
-     * @return Collection<int, Vouchers>
-     */
-    public function paymentVouchersForInvoice(RiderInvoices $riderInvoice, ?int $accountId = null): Collection
-    {
-        $accountId = $accountId
-            ?? ($riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null);
-
-        $voucherIds = collect();
-
-        // Mark-as-paid / paid-import: GL rows linked to this invoice → voucher by trans_code
-        $transCodes = Transactions::query()
-            ->where('reference_type', 'RiderInvoice')
-            ->where('reference_id', $riderInvoice->id)
-            ->when($accountId, fn ($q) => $q->where('account_id', $accountId))
-            ->distinct()
-            ->pluck('trans_code')
-            ->filter()
-            ->values();
-
-        if ($transCodes->isNotEmpty()) {
-            $voucherIds = $voucherIds->merge(
-                Vouchers::query()
-                    ->whereIn('trans_code', $transCodes)
-                    ->pluck('id')
-            );
-        }
-
-        $patterns = array_values(array_filter([
-            $riderInvoice->invoice_number ?? null,
-            'Rider Invoice #'.$riderInvoice->id,
-            'Invoice #'.$riderInvoice->id,
-            'RINV-'.str_pad((string) $riderInvoice->id, 4, '0', STR_PAD_LEFT),
-            'Manual payment for Rider Invoice #'.$riderInvoice->id,
-        ]));
-
-        // RI / PV vouchers that mention this invoice
-        if ($patterns !== []) {
-            $voucherIds = $voucherIds->merge(
-                Vouchers::query()
-                    ->whereIn('voucher_type', ['RI', 'PV', 'PAY'])
-                    ->where(function ($q) use ($patterns) {
-                        foreach ($patterns as $pattern) {
-                            $q->orWhere('remarks', 'like', '%'.$pattern.'%')
-                                ->orWhere('reference_number', 'like', '%'.$pattern.'%');
-                        }
-                    })
-                    ->pluck('id')
-            );
-        }
-
-        // Payment module rows linked to this invoice → their voucher_id
-        if ($accountId && $patterns !== []) {
-            $paymentVoucherIds = Payment::query()
-                ->where('payee_account_id', $accountId)
-                ->whereNotNull('voucher_id')
-                ->where(function ($q) use ($patterns) {
-                    foreach ($patterns as $pattern) {
-                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
-                            ->orWhere('description', 'like', '%'.$pattern.'%');
-                    }
-                })
-                ->pluck('voucher_id');
-
-            $voucherIds = $voucherIds->merge($paymentVoucherIds);
-        }
-
-        $ids = $voucherIds->filter()->unique()->values();
-
-        // Legacy fallback: paid invoice with no text-linked voucher — use billing-month payments
-        if ($ids->isEmpty() && $accountId && $riderInvoice->isPaid()) {
-            $monthStart = date('Y-m-01', strtotime((string) $riderInvoice->billing_month));
-            $ids = Payment::query()
-                ->where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->whereNotNull('voucher_id')
-                ->pluck('voucher_id')
-                ->filter()
-                ->unique()
-                ->values();
-
-            if ($ids->isEmpty() && $riderInvoice->rider_id) {
-                $ids = Vouchers::query()
-                    ->whereIn('voucher_type', ['RI', 'PV', 'PAY'])
-                    ->where('rider_id', $riderInvoice->rider_id)
-                    ->whereDate('billing_month', $monthStart)
-                    ->pluck('id')
-                    ->filter()
-                    ->unique()
-                    ->values();
-            }
-        }
-
-        if ($ids->isEmpty()) {
-            return collect();
-        }
-
-        return Vouchers::query()
-            ->whereIn('id', $ids)
-            ->orderByDesc('trans_date')
-            ->orderByDesc('id')
-            ->get();
     }
 
     private function invoiceItemsTotal(RiderInvoices $riderInvoice): float

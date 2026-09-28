@@ -1080,7 +1080,7 @@ class RiderInvoicesController extends AppBaseController
             throw new \Exception('Rider Invoice voucher type (RI) is not assigned to the Riders List module. Please assign it in Voucher Settings.');
         }
 
-        // Create voucher record
+        // Create voucher record — link to related rider so it appears under the rider
         $voucherData = [
             'trans_date' => $invoiceDate,
             'voucher_type' => 'RI', // Rider Invoice Payment Voucher
@@ -1091,6 +1091,13 @@ class RiderInvoicesController extends AppBaseController
             'trans_code' => $trans_code,
             'Created_By' => \Auth::user()->id,
             'remarks' => 'Manual payment for Rider Invoice #' . $invoice->id,
+            'reference_number' => $invoice->invoice_number
+                ?? ('RINV-'.str_pad((string) $invoice->id, 4, '0', STR_PAD_LEFT)),
+            'ref_id' => $rider->id,
+            'rider_id' => $rider->id,
+            'status' => 1,
+            'branch_id' => $rider->branch_id ?? $invoice->branch_id ?? null,
+            'company_id' => $invoice->company_id ?? $rider->company_id ?? null,
         ];
 
         CompanyQuery::insert('vouchers', $voucherData);

@@ -591,6 +591,23 @@ class PaymentController extends Controller
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
             ];
 
+            // Link PV to related rider when paying against rider invoice(s)
+            if ($request->input('invoice_type') === 'rider') {
+                $riderId = null;
+                $invoiceIds = collect($request->input('invoice_ids', []))->filter()->values();
+                if ($invoiceIds->isNotEmpty()) {
+                    $riderId = RiderInvoices::whereIn('id', $invoiceIds)->value('rider_id');
+                }
+                if (! $riderId) {
+                    $riderId = Accounts::where('id', $request->input('payee_account_id'))
+                        ->where('ref_name', 'Rider')
+                        ->value('ref_id');
+                }
+                if ($riderId) {
+                    $voucherData['rider_id'] = (int) $riderId;
+                }
+            }
+
             // Handle attachment
             if ($request->hasFile('attachment')) {
                 $file = $request->file('attachment');
@@ -1188,6 +1205,22 @@ class PaymentController extends Controller
                     'branch_id' => $payment->branch_id,
                     'Updated_By' => auth()->id(),
                 ];
+
+                if ($request->input('invoice_type') === 'rider') {
+                    $riderId = null;
+                    $invoiceIds = collect($request->input('invoice_ids', []))->filter()->values();
+                    if ($invoiceIds->isNotEmpty()) {
+                        $riderId = RiderInvoices::whereIn('id', $invoiceIds)->value('rider_id');
+                    }
+                    if (! $riderId) {
+                        $riderId = Accounts::where('id', $request->input('payee_account_id'))
+                            ->where('ref_name', 'Rider')
+                            ->value('ref_id');
+                    }
+                    if ($riderId) {
+                        $voucherData['rider_id'] = (int) $riderId;
+                    }
+                }
 
                 $payment->voucher->fill($voucherData);
 

@@ -1032,7 +1032,7 @@ class RidersController extends AppBaseController
 
       // Check if rider has any vouchers (by ref_id or rider_id)
       $vouchersCount = Vouchers::where(function ($query) use ($id) {
-        $query->where('ref_id', $id);
+        $query->where('ref_id', $id)->orWhere('rider_id', $id);
       })->count();
 
       if ($vouchersCount > 0) {

@@ -30,6 +30,8 @@ class EmployeeInvoices extends BaseModel
         'billing_month',
         'gaurantee',
         'notes',
+        'terms_and_conditions',
+        'customer_note',
         'status',
         'partial_paid_amount',
         'deleted_by',

@@ -24,8 +24,8 @@
 <x-entity-info-field label="Status" :value="((int) $customers->status === 1) ? 'Active' : 'Inactive'" />
 @endif
 @if($vf('customer_note'))
-<x-entity-info-field label="Customer Notes" :value="$customers->customer_note" />
+<x-entity-info-field :label="$customers->resolvedCustomerNoteLabel()" :value="$customers->customer_note" />
 @endif
 @if($vf('terms_and_conditions'))
-<x-entity-info-field label="Terms & Conditions" :value="$customers->terms_and_conditions" />
+<x-entity-info-field :label="$customers->resolvedTermsAndConditionsLabel()" :value="$customers->terms_and_conditions" />
 @endif

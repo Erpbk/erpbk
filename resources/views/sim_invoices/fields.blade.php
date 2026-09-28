@@ -181,12 +181,15 @@
         ]) !!}
     </div>
     <div class="col-md-6 col-lg-3 form-group">
-        <label>Notes</label>
+        <label>Internal Notes</label>
         {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? null) : null, [
             'class' => 'form-control',
-            'placeholder' => 'Notes',
+            'placeholder' => 'Internal notes',
             'rows' => 2,
         ]) !!}
+    </div>
+    <div class="col-md-12 form-group">
+        @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'sim_invoices', 'invoice' => $invoice ?? $cloneFromInvoice ?? null])
     </div>
 </div>
 

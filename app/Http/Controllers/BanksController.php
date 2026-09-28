@@ -207,7 +207,9 @@ class BanksController extends AppBaseController
 
     $banks = $this->banksRepository->update($request->all(), $id);
     if ($banks->account) {
-      $banks->account->status = $banks->status;
+      $banks->account->name = $banks->name;
+      $banks->account->status = (int) $banks->status;
+      $banks->account->branch_id = $banks->branch_id;
       $banks->account->save();
     }
 

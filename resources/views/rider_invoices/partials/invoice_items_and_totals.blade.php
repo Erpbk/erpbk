@@ -8,6 +8,7 @@ $qtyText = static fn ($qty) => (float) $qty == 0
 : rtrim(rtrim(number_format((float) $qty, 2), '0'), '.');
 @endphp
 
+<div class="tbl-wrap">
 <table class="items-table">
     <tr>
         <th rowspan="2" class="secondary-header">Sr.</th>
@@ -48,8 +49,10 @@ $qtyText = static fn ($qty) => (float) $qty == 0
         <td class="num" style="padding: 8px; font-size: 14px; text-align: center;">{{ number_format($items_total, 2) }}</td>
     </tr>
 </table>
+</div>
 
-<table>
+<div class="tbl-wrap">
+<table class="items-table">
     <tr>
         <th colspan="5" class="secondary-header">Deductions</th>
     </tr>
@@ -76,9 +79,11 @@ $qtyText = static fn ($qty) => (float) $qty == 0
             <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">-{{ number_format($total_deductions, 2) }}</td>
         </tr>
 </table>
+</div>
 
 @if(($rider_balance < 0) || count($ledger_additions)> 0)
-    <table>
+    <div class="tbl-wrap">
+    <table class="items-table">
         <tr>
             <th colspan="5" class="secondary-header">Additions</th>
         </tr>
@@ -99,33 +104,5 @@ $qtyText = static fn ($qty) => (float) $qty == 0
                 <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">+{{ number_format($total_additions, 2) }}</td>
             </tr>
     </table>
-    @endif
-
-    <table class="summary-table">
-        <tr class="light-header">
-            <td style="padding: 6px;">Total Amount before charges:</td>
-            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($totalBeforeTax, 2) }}</td>
-        </tr>
-        @if($invoice_applies_vat)
-        <tr class="light-header">
-            <td style="padding: 6px;">Add: VAT - {{ number_format($invoice_vat_rate, 0) }}%</td>
-            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($vatAmount, 2) }}</td>
-        </tr>
-        @endif
-        <tr class="success-highlight">
-            <td style="padding: 8px; font-size: 14px;">TOTAL AMOUNT AFTER CHARGES:</td>
-            <td class="num" style="padding: 8px; font-size: 14px; text-align: right !important;">{{ number_format($finalAmount, 2) }}</td>
-        </tr>
-        <tr class="amount-highlight">
-            <td style="padding: 6px;">Paid Amount:</td>
-            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($paid_amount, 2) }}</td>
-        </tr>
-        <tr class="amount-highlight">
-            <td style="padding: 6px;">Balance:</td>
-            <td class="num" style="padding: 6px; text-align: right !important;">{{ number_format($rider_balance_final, 2) }}</td>
-        </tr>
-    </table>
-
-    <div class="footer-note">
-        {{ $riderInvoice->notes ?? 'Note : If a rider\Driver\'s monthly orders are less than 400 or if they have attendance for less than 26 days or less than 10 hours of login time in a day, we will charge them half of their bike rent and mobile bill, and they will not be eligible for minimum guarantee fees.' }}
     </div>
+@endif

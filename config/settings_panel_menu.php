@@ -115,7 +115,7 @@ return [
             'children' => [
                 ['key' => 'bike_rent_companies', 'settings' => 'bike_on_rent'],
                 ['key' => 'bike_rent_individuals', 'settings' => 'bike_on_rent'],
-                ['key' => 'leasing_billing_invoice', 'permission' => 'billing_invoice_view', 'settings' => 'bike_on_rent'],
+                ['key' => 'leasing_billing_invoice', 'permission' => 'billing_invoice_view', 'settings' => 'leasing_billing_invoice', 'label' => 'Billing Invoice'],
                 ['key' => 'bike_rent_customer_receipts', 'settings' => 'bike_on_rent'],
             ],
         ],
@@ -201,7 +201,7 @@ return [
             'icon' => 'ti-building',
             'children' => [
                 ['key' => 'leasing_companies_list', 'settings' => 'leasing_companies'],
-                ['key' => 'leasing_invoices', 'permission' => 'leasing_companies_invoices_view', 'settings' => 'leasing_companies'],
+                ['key' => 'leasing_invoices', 'permission' => 'leasing_companies_invoices_view', 'settings' => 'leasing_invoices', 'label' => 'Leasing Invoices'],
                 ['key' => 'leasing_receipt', 'permission' => 'leasing_companies_payments_view', 'settings' => 'leasing_companies'],
                 ['key' => 'leasing_payment', 'permission' => 'leasing_companies_payments_view', 'settings' => 'leasing_companies'],
             ],
@@ -224,7 +224,7 @@ return [
             'children' => [
                 ['key' => 'suppliers', 'settings' => 'supplier', 'permission' => 'suppliers_supplier_view'],
                 ['key' => 'supplier_orders', 'settings' => 'supplier', 'permission' => 'suppliers_purchase_order_view'],
-                ['key' => 'supplier_invoices', 'settings' => 'supplier', 'permission' => 'suppliers_invoices_view'],
+                ['key' => 'supplier_invoices', 'settings' => 'supplier_invoices', 'permission' => 'suppliers_invoices_view', 'label' => 'Supplier Invoices'],
                 ['key' => 'supplier_payments', 'settings' => 'supplier', 'permission' => 'suppliers_payments_view'],
             ],
         ],

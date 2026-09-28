@@ -1145,6 +1145,8 @@ $(document).ready(function () {
 
     // Recalculate total after adding new row
     if (typeof getTotal === 'function') {
+      getTotal();
+    } else if (typeof setTotal === 'function') {
       setTotal();
     }
   });
@@ -1159,6 +1161,8 @@ $(document).ready(function () {
       $(this).closest('.row').remove();
       // Recalculate total after removing row
       if (typeof getTotal === 'function') {
+        getTotal();
+      } else if (typeof setTotal === 'function') {
         setTotal();
       }
     } else {

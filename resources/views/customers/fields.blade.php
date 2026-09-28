@@ -85,12 +85,32 @@
 $customerInvoiceDefaults = \App\Support\CustomerInvoiceDefaults::all();
 $customerTermsDefault = old('terms_and_conditions', isset($customers) ? ($customers->terms_and_conditions ?? '') : $customerInvoiceDefaults['terms_and_conditions']);
 $customerNotesDefault = old('customer_note', isset($customers) ? ($customers->customer_note ?? '') : $customerInvoiceDefaults['customer_notes']);
+$customerNoteLabelDefault = old(
+    'customer_note_label',
+    isset($customers) ? ($customers->customer_note_label ?? '') : ''
+);
+$customerTermsLabelDefault = old(
+    'terms_and_conditions_label',
+    isset($customers) ? ($customers->terms_and_conditions_label ?? '') : ''
+);
+$defaultCustomerNoteLabel = \App\Models\Customers::DEFAULT_CUSTOMER_NOTE_LABEL;
+$defaultTermsLabel = \App\Models\Customers::DEFAULT_TERMS_AND_CONDITIONS_LABEL;
 @endphp
 
 <!-- Terms & Conditions Field -->
 @fieldVisible('customer', 'terms_and_conditions')
 <div class="form-group col-sm-12">
-    {!! Form::label('terms_and_conditions', 'Terms & Conditions:', ['class' => 'fw-bold']) !!}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+        {!! Form::label('terms_and_conditions', 'Terms & Conditions:', ['class' => 'fw-bold mb-0']) !!}
+        <div class="d-flex align-items-center gap-2" style="min-width: 220px; max-width: 320px; flex: 1;">
+            <span class="text-muted small text-nowrap">Invoice label</span>
+            {!! Form::text('terms_and_conditions_label', $customerTermsLabelDefault, [
+                'class' => 'form-control form-control-sm',
+                'placeholder' => $defaultTermsLabel,
+                'maxlength' => 100,
+            ] + field_lock('customer', 'terms_and_conditions')) !!}
+        </div>
+    </div>
     {!! Form::textarea('terms_and_conditions', $customerTermsDefault, ['class' => 'form-control', 'rows' => 4, 'placeholder' => 'Terms & conditions shown on customer invoices...'] + field_lock('customer', 'terms_and_conditions')) !!}
 </div>
 @endfieldVisible
@@ -98,8 +118,18 @@ $customerNotesDefault = old('customer_note', isset($customers) ? ($customers->cu
 <!-- Customer Notes Field -->
 @fieldVisible('customer', 'customer_note')
 <div class="form-group col-sm-12">
-    {!! Form::label('customer_note', 'Customer Notes:', ['class' => 'fw-bold']) !!}
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-1">
+        {!! Form::label('customer_note', 'Customer Notes:', ['class' => 'fw-bold mb-0']) !!}
+        <div class="d-flex align-items-center gap-2" style="min-width: 220px; max-width: 320px; flex: 1;">
+            <span class="text-muted small text-nowrap">Invoice label</span>
+            {!! Form::text('customer_note_label', $customerNoteLabelDefault, [
+                'class' => 'form-control form-control-sm',
+                'placeholder' => $defaultCustomerNoteLabel,
+                'maxlength' => 100,
+            ] + field_lock('customer', 'customer_note')) !!}
+        </div>
+    </div>
     {!! Form::textarea('customer_note', $customerNotesDefault, ['class' => 'form-control', 'rows' => 3, 'placeholder' => 'Thanks for your business.'] + field_lock('customer', 'customer_note')) !!}
-    <small class="text-muted">Will be displayed on the invoice</small>
+    <small class="text-muted">Will be displayed on the invoice using the label above (default: {{ $defaultCustomerNoteLabel }})</small>
 </div>
 @endfieldVisible

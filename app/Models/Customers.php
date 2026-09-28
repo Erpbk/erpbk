@@ -14,6 +14,10 @@ class Customers extends BaseModel
 
   public $table = 'customers';
 
+  public const DEFAULT_CUSTOMER_NOTE_LABEL = 'Customer Note';
+
+  public const DEFAULT_TERMS_AND_CONDITIONS_LABEL = 'Terms & Conditions';
+
   public $fillable = [
     'branch_id',
     'name',
@@ -25,7 +29,9 @@ class Customers extends BaseModel
     'status',
     'tax_percentage',
     'customer_note',
+    'customer_note_label',
     'terms_and_conditions',
+    'terms_and_conditions_label',
   ];
 
   protected $casts = [
@@ -37,7 +43,9 @@ class Customers extends BaseModel
     'tax_number' => 'string',
     'tax_percentage' => 'decimal:2',
     'customer_note' => 'string',
+    'customer_note_label' => 'string',
     'terms_and_conditions' => 'string',
+    'terms_and_conditions_label' => 'string',
   ];
 
   protected $dates = ['deleted_at'];
@@ -54,8 +62,24 @@ class Customers extends BaseModel
     'updated_at' => 'nullable',
     'tax_percentage' => 'required|numeric',
     'customer_note' => 'nullable|string',
+    'customer_note_label' => 'nullable|string|max:100',
     'terms_and_conditions' => 'nullable|string',
+    'terms_and_conditions_label' => 'nullable|string|max:100',
   ];
+
+  public function resolvedCustomerNoteLabel(): string
+  {
+    $label = trim((string) ($this->customer_note_label ?? ''));
+
+    return $label !== '' ? $label : self::DEFAULT_CUSTOMER_NOTE_LABEL;
+  }
+
+  public function resolvedTermsAndConditionsLabel(): string
+  {
+    $label = trim((string) ($this->terms_and_conditions_label ?? ''));
+
+    return $label !== '' ? $label : self::DEFAULT_TERMS_AND_CONDITIONS_LABEL;
+  }
 
 
   function account()

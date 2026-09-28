@@ -156,8 +156,9 @@
         <button type="button" id="add-new-row" class="btn btn-success btn-sm mt-1 mb-3">Add New</button>
     </div>
     <div class="col-md-6 form-group mt-1">
-        <label>Notes</label>
-        {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 2, 'placeholder' => 'Notes']) !!}
+        <label>Internal Notes</label>
+        {!! Form::textarea('notes', null, ['class' => 'form-control', 'rows' => 2, 'placeholder' => 'Internal notes']) !!}
+        @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'employee_invoices', 'invoice' => $employeeInvoice ?? $invoice ?? null])
     </div>
     <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
         <div>

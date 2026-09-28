@@ -252,14 +252,14 @@ class CustomerInvoicesController extends Controller
             Flash::error('Invoice not found');
             return redirect()->back();
         }
-        $invoice->load('items');
+        $invoice->load(['items', 'customer']);
         return view('customer_invoices.edit', compact('invoice'));
     }
 
     public function clone($company_slug, $id)
     {
         $invoice = CustomerInvoices::find($id);
-        $invoice->load('items');
+        $invoice->load(['items', 'customer']);
         return view('customer_invoices.create', compact('invoice'));
     }
 

@@ -205,25 +205,29 @@ $voucherType = $vt ?? request('vt');
         }
 
         window.getTotal = function getTotal() {
+            var $scope = $('#formajax').length ? $('#formajax') : $(document);
             var cr_sum = 0;
             var dr_sum = 0;
-            $(".cr_amount").each(function() {
+            $scope.find(".cr_amount").each(function() {
                 if (!isNaN(this.value) && this.value.length != 0) {
                     cr_sum += parseFloat(this.value);
                 }
             });
-            $(".dr_amount").each(function() {
+            $scope.find(".dr_amount").each(function() {
                 if (!isNaN(this.value) && this.value.length != 0) {
                     dr_sum += parseFloat(this.value);
                 }
             });
-            $(".amount").each(function() {
+            $scope.find(".amount").each(function() {
                 if (!isNaN(this.value) && this.value.length != 0) {
                     cr_sum += parseFloat(this.value);
                 }
             });
-            $("#total_cr").val(cr_sum.toFixed(2));
-            $("#total_dr").val(dr_sum.toFixed(2));
+            // Round once so displayed totals match server money comparison.
+            cr_sum = Math.round((cr_sum + Number.EPSILON) * 100) / 100;
+            dr_sum = Math.round((dr_sum + Number.EPSILON) * 100) / 100;
+            $scope.find("#total_cr").val(cr_sum.toFixed(2));
+            $scope.find("#total_dr").val(dr_sum.toFixed(2));
         };
 
         window.fetch_invoices = function fetch_invoices(g) {

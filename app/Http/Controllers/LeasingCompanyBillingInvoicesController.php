@@ -225,6 +225,8 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 'days.*' => 'nullable|integer|min:1',
                 'descriptions' => 'nullable|string',
                 'notes' => 'nullable|string',
+                'customer_note' => 'nullable|string',
+                'terms_and_conditions' => 'nullable|string',
                 'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
             ]);
 
@@ -345,6 +347,8 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
                 'days.*' => 'nullable|integer|min:1',
                 'descriptions' => 'nullable|string',
                 'notes' => 'nullable|string',
+                'customer_note' => 'nullable|string',
+                'terms_and_conditions' => 'nullable|string',
                 'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png,doc,docx|max:10240',
             ]);
 

@@ -393,7 +393,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 0;
+            padding: 8px 16px;
             border-bottom: 1px solid var(--line);
             font-size: 12.5px;
         }
@@ -819,7 +819,7 @@
             }
 
             .invoice-box .totals .line {
-                padding: 5px 0 !important;
+                padding: 5px 16px !important;
                 font-size: 10.5px !important;
             }
 

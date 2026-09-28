@@ -39,7 +39,11 @@
             border: 1px solid var(--line, #e2e8f0);
             padding: 8px 10px;
             font-size: 12px;
-            vertical-align: top;
+            vertical-align: middle;
+        }
+        .invoice-box table.items-table tr,
+        .invoice-box .rider-template-items table tr {
+            vertical-align: middle;
         }
         .invoice-box table.items-table th,
         .invoice-box .secondary-header,
@@ -52,6 +56,7 @@
             color: #fff;
             font-weight: 700;
             text-align: center;
+            vertical-align: middle;
         }
         .invoice-box .light-header {
             background: var(--blue-soft, #eef4fc);
@@ -63,22 +68,6 @@
         .invoice-box .red { color: #c00; font-weight: 600; }
         .invoice-box .footer-note,
         .invoice-box .inv-footer-note { display: none; }
-        .invoice-box .balance-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin: 8px 0 16px;
-            align-items: flex-end;
-            font-size: 12.5px;
-        }
-        .invoice-box .balance-lines .line {
-            display: flex;
-            gap: 24px;
-            min-width: 260px;
-            justify-content: space-between;
-        }
-        .invoice-box .balance-lines .k { color: #64748b; font-weight: 500; }
-        .invoice-box .balance-lines .v { font-weight: 700; color: #0f172a; }
         .invoice-box.invoice-layout-modern table.items-table th,
         .invoice-box.invoice-layout-modern .secondary-header,
         .invoice-box.invoice-layout-modern .accent-total,
@@ -116,15 +105,16 @@
         $subtotalAmount = $totalBeforeTax ?? $riderInvoice->subtotal ?? 0;
         $vatAmt = $vatAmount ?? $riderInvoice->vat ?? 0;
         $totalAmt = $finalAmount ?? $riderInvoice->total_amount ?? 0;
+        // Note left of totals (like customer invoice); fall back to internal notes when party note empty
+        if (!$partyNote && $riderInvoice->notes) {
+            $partyNote = $riderInvoice->notes;
+            $partyNoteLabel = 'Internal Notes';
+        }
+        // Terms & Conditions only — full width under balance
         $noteCards = collect([
             $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
-            $riderInvoice->notes ? ['title' => 'Internal Notes', 'body' => $riderInvoice->notes] : null,
         ])->filter()->values();
-        $noteGridClass = match ($noteCards->count()) {
-            1 => 'one',
-            3 => 'three',
-            default => '',
-        };
+        $noteGridClass = 'one';
         $serviceFrom = $riderInvoice->service_period_from
             ? $riderInvoice->service_period_from->format('d M Y')
             : date('d M Y', strtotime($riderInvoice->billing_month));
@@ -242,18 +232,9 @@
                 'vatAmount' => $vatAmt,
                 'totalAmount' => $totalAmt,
                 'currency' => $currency,
+                'paidAmount' => $paid_amount ?? 0,
+                'balanceAmount' => $rider_balance_final ?? 0,
             ])
-
-            <div class="balance-lines">
-                <div class="line">
-                    <span class="k">Paid Amount</span>
-                    <span class="v">{{ number_format($paid_amount ?? 0, 2) }}</span>
-                </div>
-                <div class="line">
-                    <span class="k">Balance</span>
-                    <span class="v">{{ number_format($rider_balance_final ?? 0, 2) }}</span>
-                </div>
-            </div>
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif

@@ -448,11 +448,35 @@ class PaymentController extends Controller
                 } elseif ($invoiceType == 'rider') {
                     $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
 
+                    $invoiceRefs = [];
                     foreach ($invoices as $invoice) {
+                        $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                            && count($invoiceIds) === 1) {
+                            // Single-invoice payments may omit per-row amounts
+                            $invoicePaymentAmount = (float) $payment->amount;
+                        }
+                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
+                            continue;
+                        }
+
                         $invoice->update([
                             'status' => 1,
                             'updated_by' => auth()->id(),
                         ]);
+                        $invoiceRefs[] = 'Rider Invoice #'.$invoice->id;
+                    }
+
+                    if ($invoiceRefs !== []) {
+                        $tag = implode(', ', $invoiceRefs);
+                        $desc = trim((string) $payment->description);
+                        if ($desc === '') {
+                            $payment->description = 'Payment against '.$tag;
+                            $payment->save();
+                        } elseif (! str_contains($desc, 'Rider Invoice #')) {
+                            $payment->description = $desc.' | '.$tag;
+                            $payment->save();
+                        }
                     }
                 } elseif ($invoiceType == 'sim') {
                     $invoices = SimInvoice::whereIn('id', $invoiceIds)->get();

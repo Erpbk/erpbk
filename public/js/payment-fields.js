@@ -409,7 +409,6 @@
 
   window.validatePaymentForm = function () {
     var totalCredit = parseFloat($('#payment_amount').val()) || 0;
-    var bankCharges = parseFloat($('#bank_charges').val()) || 0;
     var totalInvoicePayment = parseFloat($('#total_invoice_payment').text()) || 0;
     var isRiderPayment = $('[data-salary-invoice-payment="1"]').length > 0
       || $('[data-rider-payment="1"]').length > 0
@@ -431,15 +430,6 @@
     if (isRiderPayment && !$('.invoice-checkbox:checked').length) {
       alert('Please select at least one invoice for payment');
       return false;
-    }
-
-    if (bankCharges > 0) {
-      var chargesAccount = $('select[name="bank_charges_account"]').val();
-      if (!chargesAccount) {
-        alert('Please select a bank charges account');
-        $('select[name="bank_charges_account"]').addClass('is-invalid');
-        return false;
-      }
     }
 
     $('.is-invalid').removeClass('is-invalid');

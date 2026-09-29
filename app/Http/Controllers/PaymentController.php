@@ -387,6 +387,12 @@ class PaymentController extends Controller
         try {
             DB::beginTransaction();
 
+            $bankChargesAccountId = null;
+            if ($bankCharges > 0) {
+                $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
+            }
+            $input['bank_charges_account'] = $bankChargesAccountId;
+
             // Validate invoice payments if invoices are selected
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $paymentAmounts = $request->input('payment_amounts');
@@ -535,13 +541,12 @@ class PaymentController extends Controller
 
             // 3. Handle bank charges if any
             if ($bankCharges > 0) {
-                $bankAccount = GlobalAccounts::account('BANK_CHARGES');
                 Transactions::create([
                     'trans_code' => $transCode,
                     'trans_date' => $date,
                     'reference_id' => $payment->id,
                     'reference_type' => 'PV',
-                    'account_id' => $bankAccount->id,
+                    'account_id' => $bankChargesAccountId,
                     'credit' => 0,
                     'debit' => $bankCharges,
                     'billing_month' => $billingMonth,
@@ -840,7 +845,6 @@ class PaymentController extends Controller
             'billing_month' => 'required|date',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
-            'bank_charges_account' => 'required_if:bank_charges,>0|nullable|numeric|exists:accounts,id',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'invoice_ids' => 'nullable|array',
@@ -858,7 +862,6 @@ class PaymentController extends Controller
             'date_of_payment.required' => 'Payment date is required',
             'billing_month.required' => 'Billing month is required',
             'description.required' => 'Narration for Transaction is Required',
-            'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
             'invoice_ids.*.exists' => 'One or more selected invoices are invalid.',
         ];
 
@@ -901,14 +904,37 @@ class PaymentController extends Controller
         try {
             DB::beginTransaction();
 
+            $bankChargesAccountId = null;
+            if ($bankCharges > 0) {
+                $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
+            }
+
             // Prepare data for payment update
             $input = $request->all();
             $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
             $input['amount'] = $totalAmount;
             $input['updated_by'] = auth()->id();
+            $input['bank_charges_account'] = $bankChargesAccountId;
             $pending = null;
             $partial = null;
             $paid = null;
+            $employeeInvoicesToRefresh = collect();
+            $originalReference = (string) ($payment->reference ?? '');
+
+            $payment->fill($input);
+            $paymentHasChanges = $payment->isDirty();
+            $hasNewAttachment = $request->hasFile('attachment');
+            $hasInvoiceSelection = $request->has('invoice_ids') && count((array) ($input['invoice_ids'] ?? [])) > 0;
+
+            // Leave linked invoices untouched when the form has nothing to save.
+            if (! $paymentHasChanges && ! $hasNewAttachment && ! $hasInvoiceSelection) {
+                DB::commit();
+
+                return response()->json([
+                    'message' => 'Nothing New Entered to Update',
+                    'reload' => true,
+                ], 200);
+            }
 
             // Handle existing invoice payments (remove old ones)
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
@@ -919,8 +945,8 @@ class PaymentController extends Controller
                     throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
                 }
 
-                // Get existing invoice numbers from payment reference
-                $invoice_numbers = explode(' ', $payment->reference);
+                // Use the reference from before fill(), so invoices removed on this edit are reverted.
+                $invoice_numbers = $originalReference === '' ? [] : explode(' ', $originalReference);
                 $invoiceIds = [];
                 if ($input['invoice_type'] == 'leasingCompany') {
                     foreach ($invoice_numbers as $invoice_number) {
@@ -1005,21 +1031,6 @@ class PaymentController extends Controller
                 }
             }
 
-            // Fill the model with new data and check for changes
-            $payment->fill($input);
-            $paymentHasChanges = $payment->isDirty();
-            $hasNewAttachment = $request->hasFile('attachment');
-
-            // If nothing changed, return early
-            if (! $paymentHasChanges && ! $hasNewAttachment) {
-                DB::commit();
-
-                return response()->json([
-                    'message' => 'Nothing New Entered to Update',
-                    'reload' => true,
-                ], 200);
-            }
-
             // Process new invoice payments
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $invoiceIds = $request->input('invoice_ids');
@@ -1056,15 +1067,13 @@ class PaymentController extends Controller
                         continue;
                     }
 
-                    if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
+                    if (($input['invoice_type'] ?? null) === 'employee') {
+                        // Status depends on the saved payment amount, applied after the payment row is updated.
+                        $employeeInvoicesToRefresh->push($invoice);
                         continue;
                     }
 
-                    if (($input['invoice_type'] ?? null) === 'employee') {
-                        // Payment row already updated; balance reflects remaining due after this payment.
-                        $invoice->status = ((float) $invoice->balance) <= 0.01 ? $paid : $partial;
-                        $invoice->updated_by = auth()->id();
-                        $invoice->save();
+                    if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                         continue;
                     }
 
@@ -1136,16 +1145,12 @@ class PaymentController extends Controller
 
                 // 3. Bank charges transaction (if any)
                 if ($bankCharges > 0) {
-                    if (! $request->input('bank_charges_account')) {
-                        throw new \Exception('No Account Selected for Bank Charges');
-                    }
-
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $date,
                         'reference_id' => $payment->id,
                         'reference_type' => 'PV',
-                        'account_id' => $request->input('bank_charges_account'),
+                        'account_id' => $bankChargesAccountId,
                         'credit' => 0,
                         'debit' => $bankCharges,
                         'billing_month' => $billingMonth,
@@ -1171,6 +1176,10 @@ class PaymentController extends Controller
                 if ($payment->voucher->isDirty()) {
                     $payment->voucher->save();
                 }
+            }
+
+            if ($employeeInvoicesToRefresh->isNotEmpty()) {
+                $this->refreshSelectedEmployeeInvoiceStatuses($employeeInvoicesToRefresh);
             }
 
             // Handle attachment if provided (can be updated independently)
@@ -1291,6 +1300,27 @@ class PaymentController extends Controller
     private function isNonZeroInvoiceAllocation($amount): bool
     {
         return abs((float) $amount) >= 0.01;
+    }
+
+    /**
+     * Recalculate employee invoice status after the payment row has been saved.
+     * Paid amount is the sum of payments for that employee and billing month.
+     */
+    private function refreshSelectedEmployeeInvoiceStatuses($invoices): void
+    {
+        $builder = app(EmployeeInvoiceViewDataBuilder::class);
+
+        foreach (collect($invoices)->unique('id') as $invoice) {
+            $fresh = EmployeeInvoices::with(['employee.account', 'items'])->find($invoice->id);
+            if (! $fresh) {
+                continue;
+            }
+
+            $balance = (float) $builder->outstandingAmounts($fresh)['balance'];
+            $fresh->status = $balance <= 0.01 ? 1 : 3;
+            $fresh->updated_by = auth()->id();
+            $fresh->save();
+        }
     }
 
     /**

@@ -10,41 +10,47 @@
         .invoice-box .rider-template-items {
             width: 100%;
         }
+
         .invoice-box .rider-template-items .tbl-wrap {
             width: 100%;
             border-radius: 6px;
             overflow: hidden;
             margin-bottom: 12px;
         }
+
         .invoice-box table.items-table,
         .invoice-box table.invoice-description-summary,
         .invoice-box table.summary-table,
         .invoice-box .rider-template-items table,
-        .invoice-box .tbl-wrap + table,
-        .invoice-box .sheet > table {
+        .invoice-box .tbl-wrap+table,
+        .invoice-box .sheet>table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 12px;
         }
-        .invoice-box .rider-template-items .tbl-wrap > table {
+
+        .invoice-box .rider-template-items .tbl-wrap>table {
             margin-bottom: 0;
         }
+
         .invoice-box table.items-table th,
         .invoice-box table.items-table td,
         .invoice-box table.summary-table td,
         .invoice-box .rider-template-items table th,
         .invoice-box .rider-template-items table td,
-        .invoice-box .sheet > table th,
-        .invoice-box .sheet > table td {
+        .invoice-box .sheet>table th,
+        .invoice-box .sheet>table td {
             border: 1px solid var(--line, #e2e8f0);
             padding: 8px 10px;
             font-size: 12px;
             vertical-align: middle;
         }
+
         .invoice-box table.items-table tr,
         .invoice-box .rider-template-items table tr {
             vertical-align: middle;
         }
+
         .invoice-box table.items-table th,
         .invoice-box .secondary-header,
         .invoice-box .accent-total,
@@ -58,16 +64,101 @@
             text-align: center;
             vertical-align: middle;
         }
+
         .invoice-box .light-header {
             background: var(--blue-soft, #eef4fc);
             color: var(--blue, #004aad);
         }
-        .invoice-box td.num { text-align: right; font-variant-numeric: tabular-nums; }
-        .invoice-box .label-cell { font-weight: 600; background: #f8fafc; width: 20%; }
-        .invoice-box .value-cell { width: 30%; }
-        .invoice-box .red { color: #c00; font-weight: 600; }
+
+        .invoice-box td.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .invoice-box .label-cell {
+            font-weight: 600;
+            background: #f8fafc;
+            width: 20%;
+        }
+
+        .invoice-box .value-cell {
+            width: 30%;
+        }
+
+        .invoice-box .red {
+            color: #c00;
+            font-weight: 600;
+        }
+
+        .invoice-box .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+            border: 1px solid transparent;
+            animation: status-blink 1.2s ease-in-out infinite;
+        }
+
+        .invoice-box .status-badge.status-green {
+            color: #15803d;
+            background: #dcfce7;
+            border-color: #86efac;
+        }
+
+        .invoice-box .status-badge.red {
+            color: #b91c1c;
+            background: #fee2e2;
+            border-color: #fca5a5;
+        }
+
+        @keyframes status-blink {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
+            }
+
+            50% {
+                opacity: 0.55;
+                box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+            }
+        }
+
+        .invoice-box .status-badge.red {
+            animation-name: status-blink-red;
+        }
+
+        @keyframes status-blink-red {
+
+            0%,
+            100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
+            }
+
+            50% {
+                opacity: 0.55;
+                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+            }
+        }
+
+        @media print {
+            .invoice-box .status-badge {
+                animation: none !important;
+                opacity: 1 !important;
+                box-shadow: none !important;
+            }
+        }
+
         .invoice-box .footer-note,
-        .invoice-box .inv-footer-note { display: none; }
+        .invoice-box .inv-footer-note {
+            display: none;
+        }
+
         .invoice-box.invoice-layout-modern table.items-table th,
         .invoice-box.invoice-layout-modern .secondary-header,
         .invoice-box.invoice-layout-modern .accent-total,
@@ -83,55 +174,55 @@
 
 <body>
     @php
-        $settings = $settings ?? company_table('settings')->pluck('value', 'name')->toArray();
-        $currency = \App\Helpers\Currency::code();
-        $defaults = \App\Support\InvoiceModuleDefaults::all('rider_invoices');
-        $party = $riderInvoice->rider;
-        $invoiceTitle = $defaults['title'] ?: 'RIDER INVOICE';
-        $partyNote = $riderInvoice->customer_note
-            ?: ($party->invoice_note ?? null)
-            ?: ($defaults['notes'] ?: null);
-        $termsAndConditions = $riderInvoice->terms_and_conditions
-            ?: ($party->terms_and_conditions ?? null)
-            ?: ($defaults['terms_and_conditions'] ?: null);
-        $partyNoteLabel = $party
-            ? $party->resolvedInvoiceNoteLabel()
-            : 'Invoice Note';
-        $termsAndConditionsLabel = $party
-            ? $party->resolvedTermsAndConditionsLabel()
-            : 'Terms & Conditions';
-        $invoiceNumber = $invoiceNumber
-            ?? \App\Helpers\General::inv_sch($riderInvoice->id, $riderInvoice->created_at);
-        $subtotalAmount = $totalBeforeTax ?? $riderInvoice->subtotal ?? 0;
-        $vatAmt = $vatAmount ?? $riderInvoice->vat ?? 0;
-        $totalAmt = $finalAmount ?? $riderInvoice->total_amount ?? 0;
-        // Note left of totals (like customer invoice); fall back to internal notes when party note empty
-        if (!$partyNote && $riderInvoice->notes) {
-            $partyNote = $riderInvoice->notes;
-            $partyNoteLabel = 'Internal Notes';
-        }
-        // Terms & Conditions only — full width under balance
-        $noteCards = collect([
-            $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
-        ])->filter()->values();
-        $noteGridClass = 'one';
-        $serviceFrom = $riderInvoice->service_period_from
-            ? $riderInvoice->service_period_from->format('d M Y')
-            : date('d M Y', strtotime($riderInvoice->billing_month));
-        $serviceTo = $riderInvoice->service_period_to
-            ? $riderInvoice->service_period_to->format('d M Y')
-            : date('t M Y', strtotime($riderInvoice->billing_month));
-        $branch = $party->branch ?? null;
-        $branchLabel = $branch
-            ? trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''))
-            : '—';
-        $bikePlate = $party->bikes?->plate ?? $riderInvoice->bike?->plate ?? '—';
-        $invoiceDateLabel = optional($riderInvoice->inv_date)->format('d M Y')
-            ?? optional($riderInvoice->created_at)->format('d M Y')
-            ?? '';
-        $billingLabel = date('M Y', strtotime($riderInvoice->billing_month));
-        $hasTemplateItems = View::exists($templateView ?? '')
-            || ($riderInvoice->items && $riderInvoice->items->count() > 0);
+    $settings = $settings ?? company_table('settings')->pluck('value', 'name')->toArray();
+    $currency = \App\Helpers\Currency::code();
+    $defaults = \App\Support\InvoiceModuleDefaults::all('rider_invoices');
+    $party = $riderInvoice->rider;
+    $invoiceTitle = $defaults['title'] ?: 'RIDER INVOICE';
+    $partyNote = $riderInvoice->customer_note
+    ?: ($party->invoice_note ?? null)
+    ?: ($defaults['notes'] ?: null);
+    $termsAndConditions = $riderInvoice->terms_and_conditions
+    ?: ($party->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
+    $partyNoteLabel = $party
+    ? $party->resolvedInvoiceNoteLabel()
+    : 'Invoice Note';
+    $termsAndConditionsLabel = $party
+    ? $party->resolvedTermsAndConditionsLabel()
+    : 'Terms & Conditions';
+    $invoiceNumber = $invoiceNumber
+    ?? \App\Helpers\General::inv_sch($riderInvoice->id, $riderInvoice->created_at);
+    $subtotalAmount = $totalBeforeTax ?? $riderInvoice->subtotal ?? 0;
+    $vatAmt = $vatAmount ?? $riderInvoice->vat ?? 0;
+    $totalAmt = $finalAmount ?? $riderInvoice->total_amount ?? 0;
+    // Note left of totals (like customer invoice); fall back to internal notes when party note empty
+    if (!$partyNote && $riderInvoice->notes) {
+    $partyNote = $riderInvoice->notes;
+    $partyNoteLabel = 'Internal Notes';
+    }
+    // Terms & Conditions only — full width under balance
+    $noteCards = collect([
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+    ])->filter()->values();
+    $noteGridClass = 'one';
+    $serviceFrom = $riderInvoice->service_period_from
+    ? $riderInvoice->service_period_from->format('d M Y')
+    : date('d M Y', strtotime($riderInvoice->billing_month));
+    $serviceTo = $riderInvoice->service_period_to
+    ? $riderInvoice->service_period_to->format('d M Y')
+    : date('t M Y', strtotime($riderInvoice->billing_month));
+    $branch = $party->branch ?? null;
+    $branchLabel = $branch
+    ? trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''))
+    : '—';
+    $bikePlate = $party->bikes?->plate ?? $riderInvoice->bike?->plate ?? '—';
+    $invoiceDateLabel = optional($riderInvoice->inv_date)->format('d M Y')
+    ?? optional($riderInvoice->created_at)->format('d M Y')
+    ?? '';
+    $billingLabel = date('M Y', strtotime($riderInvoice->billing_month));
+    $hasTemplateItems = View::exists($templateView ?? '')
+    || ($riderInvoice->items && $riderInvoice->items->count() > 0);
     @endphp
 
     @if(empty($isPdf))
@@ -144,41 +235,31 @@
         <div class="band"></div>
         <div class="sheet">
             @include('invoices.partials.tax_invoice_header', [
-                'settings' => $settings,
-                'invoiceTitle' => $invoiceTitle,
-                'invoiceNumber' => $invoiceNumber,
-                'invoiceDateLabel' => $invoiceDateLabel,
-                'billingLabel' => $billingLabel,
+            'settings' => $settings,
+            'invoiceTitle' => $invoiceTitle,
+            'invoiceNumber' => $invoiceNumber,
+            'invoiceDateLabel' => $invoiceDateLabel,
+            'billingLabel' => $billingLabel,
             ])
 
             <div class="parties">
                 <div class="party">
                     <h3 class="party-title">Bill To</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                    <p class="party-name">{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
+                            {{ $riderStatusLabel ?? '—' }}
+                        </span></p>
                     <div class="party-grid">
                         <div class="party-line">
                             <span class="k">Rider ID</span>
                             <span class="v">{{ $party->rider_id ?? '—' }}</span>
                         </div>
                         <div class="party-line">
-                            <span class="k">Status</span>
-                            <span class="v @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @endif">{{ $riderStatusLabel ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
                             <span class="k">Mobile</span>
                             <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
                         </div>
                         <div class="party-line">
-                            <span class="k">Client</span>
-                            <span class="v">{{ $party?->vendor?->name ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Branch</span>
-                            <span class="v">{{ $branchLabel }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Bike</span>
-                            <span class="v">{{ $bikePlate }}</span>
+                            <span class="k">Project</span>
+                            <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
                         </div>
                     </div>
                 </div>
@@ -202,8 +283,8 @@
                             <span class="v">{{ $riderInvoice->zone ?? '—' }}</span>
                         </div>
                         <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
+                            <span class="k">Bike</span>
+                            <span class="v">{{ $bikePlate }}</span>
                         </div>
                     </div>
                 </div>
@@ -219,29 +300,36 @@
             @if($hasTemplateItems)
             <div class="rider-template-items">
                 @if(View::exists($templateView ?? ''))
-                    @include($templateView)
+                @include($templateView)
                 @elseif($riderInvoice->items && $riderInvoice->items->count() > 0)
-                    @include('rider_invoices.partials.invoice_items_and_totals')
+                @include('rider_invoices.partials.invoice_items_and_totals')
                 @endif
             </div>
 
             @include('invoices.partials.tax_invoice_totals_notes', [
-                'partyNote' => $partyNote,
-                'partyNoteLabel' => $partyNoteLabel,
-                'subtotalAmount' => $subtotalAmount,
-                'vatAmount' => $vatAmt,
-                'totalAmount' => $totalAmt,
-                'currency' => $currency,
-                'paidAmount' => $paid_amount ?? 0,
-                'balanceAmount' => $rider_balance_final ?? 0,
+            'partyNote' => $partyNote,
+            'partyNoteLabel' => $partyNoteLabel,
+            'subtotalAmount' => $subtotalAmount,
+            'vatAmount' => $vatAmt,
+            'totalAmount' => $totalAmt,
+            'currency' => $currency,
+            'paidAmount' => $paid_amount ?? 0,
+            'balanceAmount' => $rider_balance_final ?? 0,
+            ])
+
+            @include('rider_invoices.partials.payment_vouchers', [
+            'paymentVouchers' => $paymentVouchers ?? collect(),
+            'finalAmount' => $finalAmount ?? $totalAmt ?? 0,
+            'rider_balance_final' => $rider_balance_final ?? 0,
+            'isPdf' => $isPdf ?? null,
             ])
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif
 
             @include('invoices.partials.tax_invoice_footnotes', [
-                'noteCards' => $noteCards,
-                'noteGridClass' => $noteGridClass,
+            'noteCards' => $noteCards,
+            'noteGridClass' => $noteGridClass,
             ])
 
             @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])

@@ -82,7 +82,8 @@ class RiderInvoices extends BaseModel
     }
 
     /**
-     * Payments already applied for this invoice's billing month.
+     * Payments already applied against this invoice
+     * (mark-as-paid GL and/or linked Payment module rows).
      */
     public function getPaidAmountAttribute()
     {

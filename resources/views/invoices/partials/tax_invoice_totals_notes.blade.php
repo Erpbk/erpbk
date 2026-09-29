@@ -3,13 +3,13 @@
   Optional: $paidAmount, $balanceAmount (when passed, shown under Total Due)
 --}}
 @php
-    $partyNote = $partyNote ?? null;
-    $partyNoteLabel = $partyNoteLabel ?? 'Invoice Note';
-    $subtotalAmount = $subtotalAmount ?? 0;
-    $vatAmount = $vatAmount ?? 0;
-    $totalAmount = $totalAmount ?? 0;
-    $currency = $currency ?? \App\Helpers\Currency::code();
-    $showPaidBalance = isset($paidAmount) || isset($balanceAmount);
+$partyNote = $partyNote ?? null;
+$partyNoteLabel = $partyNoteLabel ?? 'Invoice Note';
+$subtotalAmount = $subtotalAmount ?? 0;
+$vatAmount = $vatAmount ?? 0;
+$totalAmount = $totalAmount ?? 0;
+$currency = $currency ?? \App\Helpers\Currency::code();
+$showPaidBalance = isset($paidAmount) || isset($balanceAmount);
 @endphp
 <div class="totals-area">
     @if($partyNote)

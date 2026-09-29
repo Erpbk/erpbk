@@ -278,6 +278,7 @@ class ImportPaidRiderInvoice implements ToCollection
             'voucher_type' => 'PV',
             'remarks' => 'Payment Voucher',
             'ref_id' => $payment->id,
+            'rider_id' => $rider->id,
             'Created_By' => Auth::id(),
             'status' => 1,
             'branch_id' => $branchId,

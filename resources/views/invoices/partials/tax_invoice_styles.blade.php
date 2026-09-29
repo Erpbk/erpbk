@@ -117,7 +117,7 @@
 
         .invoice-box .brand-text h1 {
             margin: 0 0 6px;
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 700;
             color: var(--ink);
             letter-spacing: -0.02em;
@@ -440,9 +440,7 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 14px;
-            margin-top: 28px;
             padding-top: 22px;
-            border-top: 1px solid var(--line);
         }
 
         .invoice-box .footnotes.one {

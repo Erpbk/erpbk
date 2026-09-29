@@ -38,6 +38,14 @@ class RiderInvoicesDataTable extends DataTable
       ->addColumn('status', function (RiderInvoices $riderInvoices) {
         return $riderInvoices->isPaid() ? 'Paid' : 'Unpaid';
       });
+    $dataTable
+      ->addColumn('paid_amount', function (RiderInvoices $riderInvoices) {
+        return number_format((float) $riderInvoices->paid_amount, 2);
+      });
+    $dataTable
+      ->addColumn('balance', function (RiderInvoices $riderInvoices) {
+        return number_format((float) $riderInvoices->balance, 2);
+      });
 
     // Add filter for inv_date column
     $dataTable->filterColumn('inv_date', function ($query, $keyword) {
@@ -132,7 +140,9 @@ class RiderInvoicesDataTable extends DataTable
       'subtotal',
       'vat',
       'total_amount',
-      'status', // Add status column
+      'paid_amount' => ['title' => 'Paid Amount'],
+      'balance' => ['title' => 'Balance'],
+      'status',
     ];
   }
 

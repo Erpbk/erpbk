@@ -7,8 +7,10 @@ use App\Helpers\General;
 use App\Models\Payment;
 use App\Models\RiderInvoices;
 use App\Models\Transactions;
+use App\Models\Vouchers;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class RiderInvoiceViewDataBuilder
@@ -252,12 +254,7 @@ class RiderInvoiceViewDataBuilder
         $items_total = round($total + $vatAmount, 2);
         $finalAmount = round($items_total - $total_deductions + $total_additions, 2);
 
-        $paid_amount = 0.0;
-        if ($accountId) {
-            $paid_amount = round((float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount'), 2);
-        }
+        $paid_amount = $this->paidAmountAgainstInvoice($riderInvoice, $accountId, $monthStart);
 
         // Amount still payable to the rider for this invoice.
         $rider_balance_final = round($finalAmount - $paid_amount, 2);
@@ -299,6 +296,80 @@ class RiderInvoiceViewDataBuilder
             'invoiceNumber' => General::inv_sch($riderInvoice->id, $riderInvoice->created_at),
             'riderStatusLabel' => self::riderStatusLabel($riderInvoice->rider?->status),
         ];
+    }
+
+    /**
+     * Payment vouchers (RI / PV) recorded against this rider invoice.
+     *
+     * @return Collection<int, Vouchers>
+     */
+    public function paymentVouchersForInvoice(RiderInvoices $riderInvoice, ?int $accountId = null): Collection
+    {
+        $accountId = $accountId
+            ?? ($riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null);
+
+        $invoiceId = (int) $riderInvoice->id;
+        $patterns = array_values(array_filter([
+            $riderInvoice->invoice_number ?? null,
+            'Rider Invoice #'.$invoiceId,
+            'Invoice #'.$invoiceId,
+            'RINV-'.str_pad((string) $invoiceId, 4, '0', STR_PAD_LEFT),
+        ]));
+
+        $transCodes = Transactions::query()
+            ->where('reference_type', 'RiderInvoice')
+            ->where('reference_id', $invoiceId)
+            ->when($accountId, fn ($q) => $q->where('account_id', $accountId))
+            ->distinct()
+            ->pluck('trans_code')
+            ->filter()
+            ->values();
+
+        $voucherIdsFromPayments = collect();
+        if ($accountId && $patterns !== []) {
+            $voucherIdsFromPayments = Payment::query()
+                ->where('payee_account_id', $accountId)
+                ->whereNotNull('voucher_id')
+                ->where(function ($q) use ($patterns) {
+                    foreach ($patterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                })
+                ->pluck('voucher_id')
+                ->filter()
+                ->values();
+        }
+
+        if ($transCodes->isEmpty() && $voucherIdsFromPayments->isEmpty() && $patterns === []) {
+            return collect();
+        }
+
+        return Vouchers::query()
+            ->where(function ($q) use ($transCodes, $voucherIdsFromPayments, $patterns, $invoiceId) {
+                if ($transCodes->isNotEmpty()) {
+                    $q->orWhereIn('trans_code', $transCodes);
+                }
+                if ($voucherIdsFromPayments->isNotEmpty()) {
+                    $q->orWhereIn('id', $voucherIdsFromPayments);
+                }
+                $q->orWhere(function ($inner) use ($patterns, $invoiceId) {
+                    $inner->whereIn('voucher_type', ['RI', 'PV', 'PAY'])
+                        ->where(function ($text) use ($patterns, $invoiceId) {
+                            $text->where('remarks', 'like', '%Rider Invoice #'.$invoiceId.'%')
+                                ->orWhere('remarks', 'like', '%Invoice #'.$invoiceId.'%');
+                            foreach ($patterns as $pattern) {
+                                $text->orWhere('reference_number', 'like', '%'.$pattern.'%')
+                                    ->orWhere('remarks', 'like', '%'.$pattern.'%');
+                            }
+                        });
+                });
+            })
+            ->orderByDesc('trans_date')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('id')
+            ->values();
     }
 
     /**
@@ -385,18 +456,69 @@ class RiderInvoiceViewDataBuilder
         $totalAdditions = round($monthAdditions + ($carry < 0 ? abs($carry) : 0), 2);
         $finalAmount = round($itemsTotal - $totalDeductions + $totalAdditions, 2);
 
-        $paidAmount = 0.0;
-        if ($accountId) {
-            $paidAmount = round((float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount'), 2);
-        }
+        $paidAmount = $this->paidAmountAgainstInvoice($riderInvoice, $accountId, $monthStart);
 
         return [
             'final_amount' => $finalAmount,
             'paid_amount' => $paidAmount,
             'balance' => round($finalAmount - $paidAmount, 2),
         ];
+    }
+
+    /**
+     * Amount paid against this specific invoice (not all rider payments for the month).
+     *
+     * Includes mark-as-paid / paid-import GL (reference_type RiderInvoice) and Payment
+     * module rows that reference this invoice. Falls back to billing-month payments only
+     * when no invoice-linked payment exists (legacy Payment-module flow).
+     */
+    private function paidAmountAgainstInvoice(RiderInvoices $riderInvoice, ?int $accountId, string $monthStart): float
+    {
+        $paid = 0.0;
+
+        $invoiceGl = Transactions::query()
+            ->where('reference_type', 'RiderInvoice')
+            ->where('reference_id', $riderInvoice->id);
+
+        if ($accountId) {
+            $invoiceGl->where('account_id', $accountId);
+        }
+
+        $paid += (float) $invoiceGl->sum('debit');
+
+        if (! $accountId) {
+            return round($paid, 2);
+        }
+
+        $patterns = array_values(array_filter([
+            $riderInvoice->invoice_number ?? null,
+            'Rider Invoice #'.$riderInvoice->id,
+            'Invoice #'.$riderInvoice->id,
+            'RINV-'.str_pad((string) $riderInvoice->id, 4, '0', STR_PAD_LEFT),
+        ]));
+
+        $linked = 0.0;
+        if ($patterns !== []) {
+            $linked = (float) Payment::where('payee_account_id', $accountId)
+                ->where(function ($q) use ($patterns) {
+                    foreach ($patterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                })
+                ->sum('amount');
+        }
+
+        if ($linked >= 0.01) {
+            $paid += $linked;
+        } elseif ($paid < 0.01) {
+            // Legacy Payment-module payments for this billing month (no invoice text link)
+            $paid += (float) Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart)
+                ->sum('amount');
+        }
+
+        return round($paid, 2);
     }
 
     private function invoiceItemsTotal(RiderInvoices $riderInvoice): float

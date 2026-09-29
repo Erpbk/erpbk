@@ -115,11 +115,13 @@
         }
 
         @keyframes status-blink {
+
             0%,
             100% {
                 opacity: 1;
                 box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.45);
             }
+
             50% {
                 opacity: 0.55;
                 box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
@@ -131,11 +133,13 @@
         }
 
         @keyframes status-blink-red {
+
             0%,
             100% {
                 opacity: 1;
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.45);
             }
+
             50% {
                 opacity: 0.55;
                 box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
@@ -241,19 +245,13 @@
             <div class="parties">
                 <div class="party">
                     <h3 class="party-title">Bill To</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                    <p class="party-name">{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
+                            {{ $riderStatusLabel ?? '—' }}
+                        </span></p>
                     <div class="party-grid">
                         <div class="party-line">
                             <span class="k">Rider ID</span>
                             <span class="v">{{ $party->rider_id ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Status</span>
-                            <span class="v">
-                                <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
-                                    {{ $riderStatusLabel ?? '—' }}
-                                </span>
-                            </span>
                         </div>
                         <div class="party-line">
                             <span class="k">Mobile</span>
@@ -261,7 +259,7 @@
                         </div>
                         <div class="party-line">
                             <span class="k">Project</span>
-                            <span class="v">{{ $party?->vendor?->name ?? '—' }}</span>
+                            <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
                         </div>
                     </div>
                 </div>

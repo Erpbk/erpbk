@@ -144,19 +144,13 @@
             <div class="parties">
                 <div class="party">
                     <h3 class="party-title">Bill To</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                    <p class="party-name">{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
+                            {{ $riderStatusLabel ?? '—' }}
+                        </span></p>
                     <div class="party-grid">
                         <div class="party-line">
                             <span class="k">Rider ID</span>
                             <span class="v">{{ $party->rider_id ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Status</span>
-                            <span class="v">
-                                <span style="display:inline-block;padding:2px 10px;border-radius:4px;font-size:11px;font-weight:700;line-height:1.4;@if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) color:#b91c1c;background:#fee2e2;border:1px solid #fca5a5; @else color:#15803d;background:#dcfce7;border:1px solid #86efac; @endif">
-                                    {{ $riderStatusLabel ?? '—' }}
-                                </span>
-                            </span>
                         </div>
                         <div class="party-line">
                             <span class="k">Mobile</span>
@@ -164,7 +158,7 @@
                         </div>
                         <div class="party-line">
                             <span class="k">Project</span>
-                            <span class="v">{{ $party?->vendor?->name ?? '—' }}</span>
+                            <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
                         </div>
                     </div>
                 </div>
@@ -218,10 +212,10 @@
             ])
 
             @include('rider_invoices.partials.payment_vouchers', [
-                'paymentVouchers' => $paymentVouchers ?? collect(),
-                'finalAmount' => $finalAmount ?? $totalAmt ?? 0,
-                'rider_balance_final' => $rider_balance_final ?? 0,
-                'isPdf' => true,
+            'paymentVouchers' => $paymentVouchers ?? collect(),
+            'finalAmount' => $finalAmount ?? $totalAmt ?? 0,
+            'rider_balance_final' => $rider_balance_final ?? 0,
+            'isPdf' => true,
             ])
 
             @include('invoices.partials.tax_invoice_footnotes', [

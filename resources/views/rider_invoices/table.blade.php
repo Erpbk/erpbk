@@ -25,7 +25,7 @@
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
-         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->invoice_number }}</a></td>
+         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
          <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
@@ -41,9 +41,9 @@
          <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
          <td>
             @if($r->isPaid())
-            <span class="badge  bg-success">Paid</span>
+            <span class="invoice-status-badge invoice-status-paid">Paid</span>
             @else
-            <span class="badge  bg-danger">Unpaid</span>
+            <span class="invoice-status-badge invoice-status-unpaid">Unpaid</span>
             @endif
          </td>
          <td>

@@ -310,22 +310,82 @@
   }
 
   .rider-view-nav-scroll {
-    overflow-x: auto;
-    overflow-y: visible;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    /* Keep top-notification badges inside the scroll box (overflow-x forces clip). */
+    overflow: visible;
+    width: 100%;
+    min-width: 0;
+    /* Keep top-notification badges inside the tab bar. */
     padding-top: 0.85rem;
     margin-top: -0.15rem;
   }
 
-  .rider-view-nav-scroll::-webkit-scrollbar {
-    height: 4px;
+  .rider-view-nav-scroll #mainNavigation {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 100%;
+    gap: 0.15rem !important;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
 
-  .rider-view-nav-scroll::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
+  .rider-view-nav-scroll #mainNavigation .nav-item {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+    white-space: nowrap;
+  }
+
+  .rider-view-nav-scroll #mainNavigation .nav-link {
+    width: 100%;
+    justify-content: center;
+    padding: 0.35rem 0.35rem !important;
+    font-size: clamp(0.62rem, 0.85vw, 0.82rem) !important;
+    line-height: 1.2 !important;
+    white-space: nowrap;
+    overflow: visible;
+    gap: 0.2rem;
+  }
+
+  .rider-view-nav-scroll #mainNavigation .nav-link i {
+    flex-shrink: 0;
+    font-size: 0.95em !important;
+    margin-right: 0.2rem !important;
+  }
+
+  @media (max-width: 1399.98px) {
+    .rider-view-nav-scroll #mainNavigation .nav-link i.ti,
+    .rider-view-nav-scroll #mainNavigation .nav-link i[class*="ti-"] {
+      display: none !important;
+    }
+
+    .rider-view-nav-scroll #mainNavigation .nav-link {
+      padding: 0.4rem 0.25rem !important;
+      font-size: clamp(0.58rem, 1.1vw, 0.78rem) !important;
+    }
+  }
+
+  @media (max-width: 991.98px) {
+    .rider-view-nav-inner {
+      flex-wrap: nowrap !important;
+    }
+
+    .rider-view-nav-scroll #mainNavigation {
+      gap: 0.1rem !important;
+    }
+
+    .rider-view-nav-scroll #mainNavigation .nav-link {
+      padding: 0.35rem 0.15rem !important;
+      font-size: clamp(0.55rem, 1.6vw, 0.72rem) !important;
+      letter-spacing: -0.01em;
+    }
+  }
+
+  /* Dots menu only used when JS has overflow items; keep compact when shown */
+  .rider-view-nav-inner > .dropdown {
+    flex-shrink: 0;
   }
 
   /* Mobile + tablet: polished top bar above rider card/form */
@@ -350,13 +410,13 @@
     }
 
     .rider-profile-tabs #mainNavigation {
-      gap: 0.3rem !important;
+      gap: 0.15rem !important;
     }
 
     .rider-profile-tabs .nav-pills .nav-link,
     .rider-profile-tabs #mainNavigation .nav-link {
-      padding: 0.4rem 0.75rem !important;
-      font-size: 0.82rem !important;
+      padding: 0.35rem 0.2rem !important;
+      font-size: clamp(0.58rem, 1.1vw, 0.78rem) !important;
       font-weight: 600;
       letter-spacing: 0.01em;
       border-radius: 0.5rem !important;
@@ -405,8 +465,8 @@
 
     .rider-profile-tabs .nav-pills .nav-link,
     .rider-profile-tabs #mainNavigation .nav-link {
-      padding: 0.45rem 0.9rem !important;
-      font-size: 0.9rem !important;
+      padding: 0.4rem 0.3rem !important;
+      font-size: clamp(0.65rem, 0.95vw, 0.85rem) !important;
     }
   }
 
@@ -1124,7 +1184,7 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
           <div class="card-body p-2">
             <div class="d-flex justify-content-between align-items-center flex-wrap rider-view-nav-inner" style="gap: 0.5rem;">
               <div class="flex-grow-1 rider-view-nav-scroll" style="min-width: 0;">
-                <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation" style="gap: 0.25rem;">
+                <ul class="nav nav-pills flex-nowrap mb-0 w-100" id="mainNavigation">
                   <!-- Priority navigation items (always visible when possible) -->
                   <li class="nav-item nav-priority-1">
                     <a class="nav-link rider-expired-count-link @if(Route::is('riders.show') || Route::is('riders.create')) active @endif"
@@ -1280,15 +1340,14 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
                 </ul>
               </div>
 
-              <!-- Dropdown for overflow items and actions -->
-              <div class="dropdown">
+              <!-- Overflow dropdown kept for compatibility; hidden while all tabs stay visible -->
+              <div class="dropdown d-none" id="riderNavOverflowDropdown">
                 <button class="btn btn-outline-secondary rounded-pill p-2 waves-effect"
                   type="button" id="actiondropdown" data-bs-toggle="dropdown"
                   aria-haspopup="true" aria-expanded="false">
                   <i class="ti ti-dots icon-md"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" id="dropdownMenu">
-                  <!-- Overflow navigation and action items will be moved here -->
                   <div id="overflowItems"></div>
                 </div>
               </div>
@@ -1355,16 +1414,14 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
       }
 
       handleResize() {
-        // Reset all items to main navigation
+        // Always keep every tab visible on one line (CSS flex handles fit).
         this.resetNavigation();
-
-        // Wait for next frame to ensure layout is updated
-        requestAnimationFrame(() => {
-          // Wait another frame for styles to apply
-          requestAnimationFrame(() => {
-            this.redistributeItems();
-          });
-        });
+        if (this.dropdownButton) {
+          this.dropdownButton.style.display = 'none';
+        }
+        if (this.overflowContainer) {
+          this.overflowContainer.innerHTML = '';
+        }
       }
 
       resetNavigation() {
@@ -1379,64 +1436,8 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
       }
 
       redistributeItems() {
-        const container = this.mainNav.closest('.card-body');
-        if (!container) return;
-
-        const containerRect = container.getBoundingClientRect();
-        const containerWidth = containerRect.width;
-        const dropdownWidth = this.dropdownButton.offsetWidth + 10;
-
-        let currentWidth = 0;
-        const visibleItems = [];
-        const overflowItems = [];
-
-        // First, try to fit all items without dropdown
-        let totalItemsWidth = 0;
-        const itemWidths = this.allNavItems.map(item => {
-          const width = this.getItemWidth(item.element);
-          totalItemsWidth += width;
-          return {
-            item,
-            width
-          };
-        });
-
-        // Calculate container padding and margins
-        const containerStyles = window.getComputedStyle(container);
-        const containerPadding = parseFloat(containerStyles.paddingLeft) + parseFloat(containerStyles.paddingRight);
-        const safetyMargin = 20;
-        const usableWidth = containerWidth - containerPadding - safetyMargin;
-
-        // If all items can fit without dropdown, show them all
-        if (totalItemsWidth <= usableWidth) {
-          this.allNavItems.forEach(item => visibleItems.push(item));
-        } else {
-          // Otherwise, calculate what can fit with dropdown visible
-          const availableWidth = usableWidth - dropdownWidth;
-
-          for (let i = 0; i < itemWidths.length; i++) {
-            const {
-              item,
-              width
-            } = itemWidths[i];
-
-            if (currentWidth + width <= availableWidth) {
-              currentWidth += width;
-              visibleItems.push(item);
-            } else {
-              overflowItems.push(item);
-            }
-          }
-
-          // Ensure at least the first item (Information) is always visible
-          if (visibleItems.length === 0 && this.allNavItems.length > 0) {
-            visibleItems.push(this.allNavItems[0]);
-            overflowItems.unshift(...this.allNavItems.slice(1));
-          }
-        }
-
-        // Update the navigation
-        this.updateNavigation(visibleItems, overflowItems);
+        // Legacy overflow redistribution disabled — tabs stay in one row.
+        this.handleResize();
       }
 
       getItemWidth(element) {
@@ -1941,24 +1942,31 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         list-style: none;
         margin: 0;
         padding: 0;
-        gap: 0.25rem;
+        gap: 0.15rem;
+        width: 100%;
+        max-width: 100%;
+        justify-content: space-between;
       }
       
       #mainNavigation .nav-item {
-        flex-shrink: 0;
+        flex: 1 1 0;
+        min-width: 0;
         white-space: nowrap;
         display: flex;
       }
       
       #mainNavigation .nav-link {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
+        width: 100%;
+        justify-content: center;
+        padding: 0.35rem 0.35rem;
+        font-size: clamp(0.62rem, 0.85vw, 0.82rem);
         border-radius: 0.375rem;
         text-decoration: none;
         display: flex;
         align-items: center;
         position: relative;
         overflow: visible;
+        white-space: nowrap;
         transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
       }
       

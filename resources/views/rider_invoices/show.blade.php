@@ -152,6 +152,45 @@
                 opacity: 1 !important;
                 box-shadow: none !important;
             }
+
+            .invoice-box .sheet {
+                padding: 8px 10px !important;
+            }
+
+            .invoice-box .rider-template-items .tbl-wrap {
+                margin-bottom: 6px !important;
+            }
+
+            .invoice-box table.items-table,
+            .invoice-box .rider-template-items table,
+            .invoice-box .sheet>table {
+                margin-bottom: 6px !important;
+            }
+
+            .invoice-box table.items-table th,
+            .invoice-box table.items-table td,
+            .invoice-box .rider-template-items table th,
+            .invoice-box .rider-template-items table td,
+            .invoice-box .sheet>table th,
+            .invoice-box .sheet>table td {
+                padding: 3px 5px !important;
+                font-size: 9px !important;
+                line-height: 1.25 !important;
+            }
+
+            .invoice-box table.items-table th,
+            .invoice-box .secondary-header,
+            .invoice-box .accent-total {
+                padding: 4px 5px !important;
+                font-size: 8.5px !important;
+            }
+
+            .invoice-box .totals-area,
+            .invoice-box .footnotes,
+            .invoice-box .foot {
+                page-break-before: avoid !important;
+                break-before: avoid-page !important;
+            }
         }
 
         .invoice-box .footer-note,
@@ -229,6 +268,11 @@
     <div class="controls no-print">
         @include('rider_invoices.partials.action_buttons')
     </div>
+    @include('delete_requests._confirm_delete_script', [
+        'entityName' => 'Rider Invoice',
+        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+        'method' => 'GET',
+    ])
     @endif
 
     <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">

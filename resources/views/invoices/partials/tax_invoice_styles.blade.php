@@ -352,7 +352,7 @@
         .invoice-box .totals-area {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: stretch;
             gap: 24px;
             margin: 18px 0 8px;
         }
@@ -366,6 +366,10 @@
             border: 1px solid var(--line);
             border-top: 2px solid var(--blue);
             border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-self: stretch;
+            box-sizing: border-box;
         }
 
         .invoice-box .totals-notes h4 {
@@ -375,18 +379,23 @@
             letter-spacing: 0.9px;
             text-transform: uppercase;
             color: var(--blue);
+            flex-shrink: 0;
         }
 
         .invoice-box .totals-notes .body {
             font-size: 12px;
             color: #334155;
             line-height: 1.75;
+            flex: 1 1 auto;
         }
 
         .invoice-box .totals {
             width: 300px;
             flex-shrink: 0;
             margin-left: auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
         }
 
         .invoice-box .totals .line {
@@ -578,6 +587,25 @@
             50% {
                 opacity: 0.55;
                 box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+            }
+        }
+
+        #rightSideModalBody>.controls .invoice-pay-status.is-partial,
+        body>.controls .invoice-pay-status.is-partial {
+            color: #92400e;
+            background: #fef3c7;
+            border-color: #fcd34d;
+            animation-name: invoice-pay-status-blink-amber;
+        }
+
+        @keyframes invoice-pay-status-blink-amber {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+            }
+            50% {
+                opacity: 0.55;
+                box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
             }
         }
 
@@ -852,7 +880,7 @@
             .invoice-box .totals-area {
                 display: flex !important;
                 justify-content: space-between !important;
-                align-items: flex-start !important;
+                align-items: stretch !important;
                 gap: 12px !important;
                 margin: 6px 0 4px !important;
                 width: 100% !important;
@@ -862,6 +890,9 @@
                 flex: 1 !important;
                 max-width: calc(100% - 260px) !important;
                 padding: 5px 8px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-self: stretch !important;
             }
 
             .invoice-box .totals-notes h4 {
@@ -872,6 +903,7 @@
             .invoice-box .totals-notes .body {
                 font-size: 8.5px !important;
                 line-height: 1.35 !important;
+                flex: 1 1 auto !important;
             }
 
             .invoice-box .totals {

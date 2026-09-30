@@ -17,7 +17,7 @@
     <tbody>
         @foreach($data as $r)
             <tr class="text-center">
-                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" class="show-modal-right">{{ $r->invoice_number }}</a></td>
+                <td><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
                 <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
                 <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>
@@ -28,14 +28,14 @@
                 <td>{{ number_format($r->total_amount, 2) }}</td>
                 <td>
                     @if($r->status == 1)
-                        <span class="badge bg-success">Paid</span>
+                        @include('invoices.partials.status_badge', ['status' => 'paid'])
                     @elseif($r->status == 3 || ($r->paid_amount ?? 0) > 0)
-                        <span class="badge bg-warning">Partially Paid</span>
+                        @include('invoices.partials.status_badge', ['status' => 'partial'])
                         @if(($r->balance ?? 0) > 0.01)
                             <small>({{ \App\Helpers\Currency::format($r->balance) }} due)</small>
                         @endif
                     @else
-                        <span class="badge bg-danger">Unpaid</span>
+                        @include('invoices.partials.status_badge', ['status' => 'unpaid'])
                     @endif
                 </td>
                 <td>

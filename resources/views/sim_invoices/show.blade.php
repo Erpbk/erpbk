@@ -51,9 +51,30 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
-        <button type="button" class="action-btn js-print-modal-content">
-            <i class="ti ti-file-description"></i><span>PDF/Print</span>
-        </button>
+        @php
+            $companySlug = request()->route('company_slug');
+            $simStatus = (int) ($invoice->status ?? 0);
+            $simIsPaid = $simStatus === 1;
+            $simIsPartial = $simStatus === 3 || (! $simIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+        @endphp
+        @include('invoices.partials.action_toolbar', [
+            'isPaid' => $simIsPaid,
+            'isPartial' => $simIsPartial && ! $simIsPaid,
+            'editUrl' => route('simInvoices.edit', $invoice->id),
+            'editTitle' => 'Edit Invoice',
+            'editCan' => 'sims_invoices_edit',
+            'downloadUrl' => route('simInvoices.show', $invoice->id),
+            'showPayment' => ! $simIsPaid,
+            'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
+                . '?invoice_type=sim&invoice_id=' . $invoice->id,
+            'paymentTitle' => 'Record Payment',
+            'paymentCan' => 'sims_payments_create',
+            'cloneUrl' => route('simInvoices.createFromClone', $invoice->id),
+            'cloneTitle' => 'Clone Invoice',
+            'cloneCan' => 'sims_invoices_create',
+            'deleteFormRoute' => ['simInvoices.destroy', $invoice->id],
+            'deleteCan' => 'sims_invoices_delete',
+        ])
     </div>
     @endif
 
@@ -150,6 +171,8 @@
                 'vatAmount' => $vatAmt,
                 'totalAmount' => $totalAmt,
                 'currency' => $currency,
+                'paidAmount' => $invoice->paid_amount ?? 0,
+                'balanceAmount' => $invoice->balance ?? (($totalAmt ?? 0) - ($invoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>

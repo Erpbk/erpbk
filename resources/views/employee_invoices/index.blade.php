@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('title','Employee Invoices')
+@push('third_party_stylesheets')
+@include('invoices.partials.status_badge_styles')
+@endpush
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>

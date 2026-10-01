@@ -307,15 +307,18 @@
 
   .rider-view-nav-inner {
     align-items: center !important;
+    justify-content: flex-start !important;
     flex-wrap: nowrap !important;
-    gap: 0.25rem;
+    gap: 0.2rem;
     width: 100%;
   }
 
   .rider-view-nav-scroll {
-    overflow: visible;
-    flex: 1 1 auto;
+    overflow-x: hidden;
+    overflow-y: visible;
+    flex: 0 1 auto; /* grow with tabs only — don't stretch and leave a gap before ⋯ */
     width: auto;
+    max-width: calc(100% - 2.35rem);
     min-width: 0;
     /* Keep top-notification badges inside the tab bar. */
     padding-top: 0.85rem;
@@ -327,7 +330,7 @@
     flex-wrap: nowrap !important;
     align-items: stretch;
     justify-content: flex-start;
-    width: 100%;
+    width: max-content;
     max-width: 100%;
     gap: 0 !important;
     margin: 0;
@@ -350,52 +353,43 @@
 
   .rider-view-nav-scroll #mainNavigation .nav-link {
     width: auto;
+    display: inline-flex;
+    align-items: center;
     justify-content: center;
-    padding: 0.3rem 0.45rem !important;
-    font-size: 0.78rem !important;
-    line-height: 1.2 !important;
+    padding: 0.35rem 0.55rem !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25 !important;
     white-space: nowrap;
     overflow: visible;
-    gap: 0.15rem;
+    gap: 0.35rem;
   }
 
-  .rider-view-nav-scroll #mainNavigation .nav-link i {
+  /* Keep icons readable and consistent; overflow JS moves tabs to dropdown when space is tight. */
+  .rider-view-nav-scroll #mainNavigation .nav-link i,
+  .rider-view-nav-scroll #mainNavigation .nav-link i.ti,
+  .rider-view-nav-scroll #mainNavigation .nav-link i.ti-sm,
+  .rider-view-nav-scroll #mainNavigation .nav-link i[class*="ti-"] {
+    display: inline-flex !important;
     flex-shrink: 0;
-    font-size: 0.9em !important;
-    margin-right: 0.15rem !important;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 1.05rem !important;
+    line-height: 1 !important;
+    margin-right: 0 !important;
   }
 
   .rider-view-nav-scroll #mainNavigation .nav-link .me-1_5,
   .rider-view-nav-scroll #mainNavigation .nav-link .me-1 {
-    margin-right: 0.15rem !important;
+    margin-right: 0 !important;
   }
 
-  @media (max-width: 1399.98px) {
-    .rider-view-nav-scroll #mainNavigation .nav-link {
-      padding: 0.28rem 0.35rem !important;
-      font-size: 0.72rem !important;
-    }
-  }
-
-  @media (max-width: 991.98px) {
-    .rider-view-nav-inner {
-      flex-wrap: nowrap !important;
-    }
-
-    .rider-view-nav-scroll #mainNavigation {
-      gap: 0 !important;
-    }
-
-    .rider-view-nav-scroll #mainNavigation .nav-link {
-      padding: 0.25rem 0.28rem !important;
-      font-size: 0.68rem !important;
-      letter-spacing: -0.01em;
-    }
-
-    .rider-view-nav-scroll #mainNavigation .nav-link i.ti,
-    .rider-view-nav-scroll #mainNavigation .nav-link i[class*="ti-"] {
-      display: none !important;
-    }
+  .rider-nav-overflow-menu .overflow-nav-item i,
+  .rider-nav-overflow-menu .overflow-nav-item i.ti-sm {
+    font-size: 1.05rem !important;
+    width: 1.15rem;
+    line-height: 1;
   }
 
   /* Inline overflow dots — same row as tabs */
@@ -403,17 +397,24 @@
     flex: 0 0 auto;
     align-self: center;
     margin-top: 0.55rem; /* align with tab text under badge padding */
-    display: inline-flex;
+  }
+
+  .rider-view-nav-inner > .rider-nav-overflow-dropdown[hidden] {
+    display: none !important;
+  }
+
+  .rider-view-nav-inner > .rider-nav-overflow-dropdown:not([hidden]) {
+    display: inline-flex !important;
   }
 
   .rider-nav-more-btn {
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    width: 1.85rem;
-    height: 1.85rem;
+    width: 2rem;
+    height: 2rem;
     padding: 0 !important;
-    border-radius: 0.4rem !important;
+    border-radius: 0.45rem !important;
     border: 1px solid #dbe3ef !important;
     background: #fff !important;
     color: #475569 !important;
@@ -431,43 +432,65 @@
   }
 
   .rider-nav-more-btn i {
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     line-height: 1;
   }
 
   .rider-nav-overflow-menu {
-    min-width: 190px;
-    padding: 0.35rem;
+    min-width: 220px;
+    padding: 0.4rem;
     border: 1px solid #e2e8f0;
-    border-radius: 0.55rem;
+    border-radius: 0.6rem;
+    z-index: 2000 !important;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14) !important;
+  }
+
+  .rider-nav-overflow-menu #overflowItems {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
   }
 
   .rider-nav-overflow-menu .overflow-nav-item {
-    display: flex;
+    display: flex !important;
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.45rem 0.65rem;
-    border-radius: 0.4rem;
-    font-size: 0.82rem;
-    color: #334155;
-    text-decoration: none;
+    gap: 0.55rem;
+    padding: 0.55rem 0.75rem !important;
+    border-radius: 0.45rem;
+    font-size: 0.875rem !important;
+    font-weight: 500;
+    line-height: 1.3;
+    color: #1e293b !important;
+    text-decoration: none !important;
+    white-space: nowrap;
   }
 
-  .rider-nav-overflow-menu .overflow-nav-item:hover {
-    background: #f1f5f9;
-    color: #1e4b8e;
+  .rider-nav-overflow-menu .overflow-nav-item:hover,
+  .rider-nav-overflow-menu .overflow-nav-item:focus {
+    background: #f1f5f9 !important;
+    color: #1e4b8e !important;
   }
 
   .rider-nav-overflow-menu .overflow-nav-item.active {
-    background: #eff4fb;
-    color: #1e4b8e;
-    font-weight: 600;
+    background: #eff4fb !important;
+    color: #1e4b8e !important;
+    font-weight: 650;
   }
 
   .rider-nav-overflow-menu .overflow-nav-item i {
-    width: 1rem;
+    flex-shrink: 0;
+    width: 1.15rem;
+    font-size: 1.05rem !important;
     text-align: center;
-    opacity: 0.85;
+    color: inherit;
+    opacity: 1;
+  }
+
+  .rider-nav-overflow-menu .overflow-nav-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Mobile + tablet: polished top bar above rider card/form */
@@ -497,8 +520,8 @@
 
     .rider-profile-tabs .nav-pills .nav-link,
     .rider-profile-tabs #mainNavigation .nav-link {
-      padding: 0.28rem 0.35rem !important;
-      font-size: 0.72rem !important;
+      padding: 0.32rem 0.45rem !important;
+      font-size: 0.78rem !important;
       font-weight: 600;
       letter-spacing: 0.01em;
       border-radius: 0.5rem !important;
@@ -527,7 +550,8 @@
     }
 
     .rider-profile-tabs #mainNavigation .nav-link i {
-      opacity: 0.9;
+      opacity: 0.95;
+      font-size: 1rem !important;
     }
 
     .rider-nav-more-btn {
@@ -544,8 +568,12 @@
 
     .rider-profile-tabs .nav-pills .nav-link,
     .rider-profile-tabs #mainNavigation .nav-link {
-      padding: 0.28rem 0.4rem !important;
-      font-size: 0.75rem !important;
+      padding: 0.32rem 0.5rem !important;
+      font-size: 0.8rem !important;
+    }
+
+    .rider-profile-tabs #mainNavigation .nav-link i {
+      font-size: 1.05rem !important;
     }
   }
 
@@ -596,7 +624,8 @@
   #overflowItems .rider-tab-count-badge,
   #overflowItems .rider-inventory-count-badge,
   #overflowItems .rider-expired-count-dot,
-  #overflowItems .rider-expired-docs-bubble {
+  #overflowItems .rider-expired-docs-bubble,
+  #overflowItems .rider-doc-status-bubble {
     position: static !important;
     transform: none !important;
     top: auto !important;
@@ -605,6 +634,12 @@
     bottom: auto !important;
     display: inline-flex;
     vertical-align: middle;
+    margin-left: 0.15rem !important;
+    box-shadow: none;
+  }
+
+  #overflowItems .rider-tab-badges {
+    gap: 0.2rem;
     margin-left: 0.35rem !important;
   }
 
@@ -1262,7 +1297,7 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         <div class="card rider-view-nav-card">
           <div class="card-body p-2">
             <div class="d-flex align-items-center flex-nowrap rider-view-nav-inner">
-              <div class="flex-grow-1 rider-view-nav-scroll" style="min-width: 0;">
+              <div class="rider-view-nav-scroll" style="min-width: 0;">
                 <ul class="nav nav-pills flex-nowrap mb-0" id="mainNavigation">
                   <!-- Priority navigation items (always visible when possible) -->
                   <li class="nav-item nav-priority-1">
@@ -1422,8 +1457,8 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
               <!-- Dots dropdown: holds tabs that do not fit on one line -->
               <div class="dropdown rider-nav-overflow-dropdown" id="riderNavOverflowDropdown" hidden>
                 <button class="btn rider-nav-more-btn"
-                  type="button" id="actiondropdown" data-bs-toggle="dropdown"
-                  aria-haspopup="true" aria-expanded="false" title="More tabs">
+                  type="button" id="actiondropdown" data-bs-toggle="dropdown" data-bs-display="static"
+                  aria-haspopup="true" aria-expanded="false" title="More tabs" aria-label="More tabs">
                   <i class="ti ti-dots"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end shadow-sm rider-nav-overflow-menu" aria-labelledby="actiondropdown" id="dropdownMenu">
@@ -1451,6 +1486,8 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         this.dropdownButton = document.getElementById('actiondropdown');
         this.dropdownWrap = document.getElementById('riderNavOverflowDropdown');
         this.allNavItems = [];
+        this.isUpdating = false;
+        this.lastSignature = '';
         this.init();
       }
 
@@ -1463,42 +1500,68 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         this.allNavItems = Array.from(this.mainNav.querySelectorAll('.nav-item')).map((item, index) => {
           const priorityClass = Array.from(item.classList).find(cls => cls.startsWith('nav-priority-'));
           const priority = priorityClass ? parseInt(priorityClass.split('-')[2], 10) : 999;
+          const link = item.querySelector('.nav-link');
           return {
             element: item,
             priority: priority,
             order: index,
-            isActive: item.querySelector('.nav-link.active') !== null
+            isActive: link ? link.classList.contains('active') : false,
+            label: this.extractLabel(link)
           };
         });
 
         this.handleResize();
 
         let resizeTimeout;
-        window.addEventListener('resize', () => {
+        const scheduleResize = () => {
+          if (this.isUpdating) return;
           clearTimeout(resizeTimeout);
           resizeTimeout = setTimeout(() => this.handleResize(), 100);
-        });
+        };
+
+        window.addEventListener('resize', scheduleResize);
+
+        // Browser zoom changes visualViewport without always firing window.resize.
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', scheduleResize);
+        }
 
         window.addEventListener('load', () => {
           setTimeout(() => this.handleResize(), 200);
         });
 
-        window.addEventListener('focus', () => {
-          setTimeout(() => this.handleResize(), 100);
-        });
-
-        document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) {
-            setTimeout(() => this.handleResize(), 100);
+        // Observe the outer bar (stable width) — not the scroll wrap that shrinks when ⋯ appears.
+        if (typeof ResizeObserver !== 'undefined') {
+          const observeTarget = this.mainNav.closest('.rider-view-nav-inner')
+            || this.mainNav.closest('.rider-view-nav-card')
+            || this.mainNav.parentElement;
+          if (observeTarget) {
+            this.resizeObserver = new ResizeObserver(scheduleResize);
+            this.resizeObserver.observe(observeTarget);
           }
-        });
+        }
+      }
+
+      extractLabel(link) {
+        if (!link) return '';
+        const clone = link.cloneNode(true);
+        clone.querySelectorAll(
+          'i, .rider-tab-badges, .rider-tab-count-badge, .rider-inventory-count-badge, .rider-expired-count-dot, .rider-expired-docs-bubble, .badge, .rider-doc-status-bubble'
+        ).forEach((el) => el.remove());
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
       }
 
       handleResize() {
+        if (this.isUpdating) return;
+        this.isUpdating = true;
         this.resetNavigation();
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
-            this.redistributeItems();
+            try {
+              this.redistributeItems();
+            } finally {
+              this.isUpdating = false;
+            }
           });
         });
       }
@@ -1510,28 +1573,35 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
           .slice()
           .sort((a, b) => a.order - b.order)
           .forEach(item => {
-            item.isActive = !!item.element.querySelector('.nav-link.active');
+            const link = item.element.querySelector('.nav-link');
+            item.isActive = !!(link && link.classList.contains('active'));
+            item.element.hidden = false;
+            item.element.style.display = '';
             this.mainNav.appendChild(item.element);
           });
+
+        if (this.dropdownWrap) {
+          this.dropdownWrap.hidden = true;
+        }
       }
 
       redistributeItems() {
+        const navInner = this.mainNav.closest('.rider-view-nav-inner');
         const scrollWrap = this.mainNav.closest('.rider-view-nav-scroll');
-        const measureBox = scrollWrap || this.mainNav.closest('.card-body');
+        const measureBox = navInner || scrollWrap || this.mainNav.closest('.card-body');
         if (!measureBox) return;
 
-        const availableWidth = measureBox.clientWidth;
-        const dropdownReserve = 52;
+        const dropdownReserve = 44;
         const safetyMargin = 8;
+        // Use the full inner bar width so showing/hiding ⋯ does not change the budget mid-cycle.
+        const availableWidth = measureBox.clientWidth;
 
-        // Measure every item while all are in the bar.
         const itemWidths = this.allNavItems.map(item => ({
           item,
           width: this.getItemWidth(item.element)
         }));
 
         const totalWidth = itemWidths.reduce((sum, entry) => sum + entry.width, 0);
-
         const visibleItems = [];
         const overflowItems = [];
 
@@ -1541,10 +1611,9 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
             .sort((a, b) => a.item.order - b.item.order)
             .forEach(entry => visibleItems.push(entry.item));
         } else {
-          const fitWidth = availableWidth - dropdownReserve - safetyMargin;
+          const fitWidth = Math.max(64, availableWidth - dropdownReserve - safetyMargin);
           let usedWidth = 0;
 
-          // Prefer keeping the active tab visible.
           const ordered = itemWidths
             .slice()
             .sort((a, b) => {
@@ -1572,103 +1641,79 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
             this.allNavItems.slice(1).forEach(item => overflowItems.push(item));
           }
 
-          // Restore left-to-right order for visible tabs.
           visibleItems.sort((a, b) => a.order - b.order);
           overflowItems.sort((a, b) => a.order - b.order);
         }
 
+        const signature = visibleItems.map(i => i.order).join(',') + '|' + overflowItems.map(i => i.order).join(',');
+        if (signature === this.lastSignature && this.overflowContainer.childNodes.length === overflowItems.length) {
+          // Still ensure dropdown visibility matches.
+          this.setDropdownVisible(overflowItems.length > 0);
+          return;
+        }
+        this.lastSignature = signature;
         this.updateNavigation(visibleItems, overflowItems);
       }
 
       getItemWidth(element) {
-        const clone = element.cloneNode(true);
-        clone.style.cssText = `
-          visibility: hidden;
-          position: absolute;
-          white-space: nowrap;
-          top: -9999px;
-          left: -9999px;
-          pointer-events: none;
-          z-index: -1;
-        `;
+        const width = element.getBoundingClientRect().width;
+        if (width > 0) {
+          return Math.ceil(width) + 2;
+        }
+        const prevDisplay = element.style.display;
+        element.style.display = 'flex';
+        const fallback = Math.ceil(element.getBoundingClientRect().width) + 2;
+        element.style.display = prevDisplay;
+        return Math.max(fallback, 48);
+      }
 
-        const container = this.mainNav.parentNode;
-        container.appendChild(clone);
-        const width = Math.ceil(clone.getBoundingClientRect().width) + 2;
-        container.removeChild(clone);
-        return width;
+      setDropdownVisible(visible) {
+        if (!this.dropdownWrap) return;
+        this.dropdownWrap.hidden = !visible;
       }
 
       updateNavigation(visibleItems, overflowItems) {
         this.mainNav.innerHTML = '';
         visibleItems.forEach(item => {
+          item.element.hidden = false;
           this.mainNav.appendChild(item.element);
         });
 
         this.overflowContainer.innerHTML = '';
 
         if (overflowItems.length > 0) {
-          if (this.dropdownWrap) {
-            this.dropdownWrap.hidden = false;
-            this.dropdownWrap.style.display = 'inline-flex';
-          }
-          this.dropdownButton.style.display = 'inline-flex';
+          this.setDropdownVisible(true);
 
-          const navigationItems = overflowItems.filter(item => !item.element.classList.contains('nav-action-item'));
-          const actionItems = overflowItems.filter(item => item.element.classList.contains('nav-action-item'));
-
-          navigationItems.forEach(item => {
-            this.overflowContainer.appendChild(this.createDropdownItem(item));
-          });
-
-          if (navigationItems.length > 0 && actionItems.length > 0) {
-            const divider = document.createElement('div');
-            divider.className = 'dropdown-divider';
-            this.overflowContainer.appendChild(divider);
-
-            const header = document.createElement('h6');
-            header.className = 'dropdown-header';
-            header.textContent = 'Actions';
-            this.overflowContainer.appendChild(header);
-          }
-
-          actionItems.forEach(item => {
+          overflowItems.forEach(item => {
+            // Keep original tab nodes out of the bar, but retain them for later resets.
+            if (item.element.parentNode) {
+              item.element.parentNode.removeChild(item.element);
+            }
             this.overflowContainer.appendChild(this.createDropdownItem(item));
           });
         } else {
-          if (this.dropdownWrap) {
-            this.dropdownWrap.hidden = true;
-            this.dropdownWrap.style.display = 'none';
-          }
-          this.dropdownButton.style.display = 'none';
+          this.setDropdownVisible(false);
         }
       }
 
       createDropdownItem(navItem) {
         const link = navItem.element.querySelector('.nav-link');
-        const href = link.getAttribute('href');
-        const icon = link.querySelector('i');
-        const text = Array.from(link.childNodes)
-          .filter((node) => node.nodeType === Node.TEXT_NODE)
-          .map((node) => node.textContent.trim())
-          .filter(Boolean)
-          .join(' ');
-        const isActive = link.classList.contains('active');
+        const href = link ? link.getAttribute('href') : '#';
+        const icon = link ? link.querySelector('i') : null;
+        const text = navItem.label || this.extractLabel(link) || 'Tab';
+        const isActive = !!(link && link.classList.contains('active'));
         const isActionItem = navItem.element.classList.contains('nav-action-item');
 
         const dropdownItem = document.createElement('a');
-        dropdownItem.className = `dropdown-item overflow-nav-item ${isActive ? 'active' : ''}`;
-        dropdownItem.href = href;
+        dropdownItem.className = `dropdown-item overflow-nav-item${isActive ? ' active' : ''}`;
+        dropdownItem.href = href || '#';
+        dropdownItem.setAttribute('role', 'menuitem');
 
-        if (isActionItem) {
-          const dataAction = link.getAttribute('data-action');
-          const dataSize = link.getAttribute('data-size');
-          const dataTitle = link.getAttribute('data-title');
-
-          if (dataAction) dropdownItem.setAttribute('data-action', dataAction);
-          if (dataSize) dropdownItem.setAttribute('data-size', dataSize);
-          if (dataTitle) dropdownItem.setAttribute('data-title', dataTitle);
-
+        if (isActionItem && link) {
+          ['data-action', 'data-size', 'data-title'].forEach((attr) => {
+            const value = link.getAttribute(attr);
+            if (value) dropdownItem.setAttribute(attr, value);
+          });
           if (link.classList.contains('show-modal')) {
             dropdownItem.classList.add('show-modal');
           }
@@ -1676,17 +1721,23 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
 
         if (icon) {
           const iconClone = icon.cloneNode(true);
-          iconClone.className = icon.className.replace('me-1_5', 'me-2');
+          iconClone.classList.remove('me-1_5', 'me-1', 'ti-sm');
           dropdownItem.appendChild(iconClone);
         }
 
-        dropdownItem.appendChild(document.createTextNode(text ? (' ' + text) : ''));
+        const label = document.createElement('span');
+        label.className = 'overflow-nav-label';
+        label.textContent = text;
+        dropdownItem.appendChild(label);
 
-        // Keep count badges visible in the overflow menu.
-        const badges = link.querySelectorAll('.rider-tab-badges, .rider-tab-count-badge, .rider-inventory-count-badge, .rider-expired-count-dot, .rider-expired-docs-bubble');
-        badges.forEach((badge) => {
-          dropdownItem.appendChild(badge.cloneNode(true));
-        });
+        if (link) {
+          const badges = link.querySelectorAll(
+            '.rider-tab-badges, .rider-tab-count-badge, .rider-inventory-count-badge, .rider-expired-count-dot, .rider-expired-docs-bubble'
+          );
+          badges.forEach((badge) => {
+            dropdownItem.appendChild(badge.cloneNode(true));
+          });
+        }
 
         return dropdownItem;
       }
@@ -2081,7 +2132,7 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         margin: 0;
         padding: 0;
         gap: 0;
-        width: 100%;
+        width: max-content;
         max-width: 100%;
         justify-content: flex-start;
       }
@@ -2109,21 +2160,24 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
       }
       
       .overflow-nav-item {
-        display: flex;
+        display: flex !important;
         align-items: center;
+        gap: 0.55rem;
+        color: #1e293b !important;
       }
       
       .overflow-nav-item.active {
-        background-color: var(--bs-primary);
-        color: white;
+        background: #eff4fb !important;
+        color: #1e4b8e !important;
       }
       
       .overflow-nav-item i {
-        width: 16px;
-        height: 16px;
+        width: 1.15rem;
+        height: 1.15rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        font-size: 1.05rem !important;
       }
       
       .permanent-action {
@@ -2158,10 +2212,23 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         display: flex !important; /* Override any CSS hiding */
       }
       
-      /* Overflow more button stays inline with tabs */
+      /* Overflow more button stays inline with tabs (no gap) */
+      .rider-view-nav-scroll {
+        flex: 0 1 auto !important;
+        width: auto !important;
+      }
+
       .rider-nav-overflow-dropdown {
         flex-shrink: 0 !important;
-        display: inline-flex;
+        margin-left: 0.15rem;
+      }
+
+      .rider-nav-overflow-dropdown[hidden] {
+        display: none !important;
+      }
+
+      .rider-nav-overflow-dropdown:not([hidden]) {
+        display: inline-flex !important;
         align-items: center;
       }
 
@@ -2194,12 +2261,13 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
       }
       
       /* Highlight active items in dropdown */
-      .dropdown-item.active {
-        background-color: var(--bs-primary) !important;
-        color: white !important;
+      .rider-nav-overflow-menu .dropdown-item.active,
+      .rider-nav-overflow-menu .overflow-nav-item.active {
+        background: #eff4fb !important;
+        color: #1e4b8e !important;
       }
       
-      /* Make navigation more compact on smaller screens */
+      /* Make navigation more compact on smaller screens — keep icons readable; overflow JS handles fit. */
       @media (max-width: 768px) {
         .nav-align-top .card-body {
           padding: 0.5rem !important;
@@ -2210,18 +2278,20 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
         }
         
         #mainNavigation .nav-link {
-          padding: 0.25rem 0.3rem !important;
-          font-size: 0.7rem;
+          padding: 0.3rem 0.4rem !important;
+          font-size: 0.78rem !important;
         }
         
-        #mainNavigation .nav-link i {
-          font-size: 0.75rem !important;
-          margin-right: 0.12rem !important;
+        #mainNavigation .nav-link i,
+        #mainNavigation .nav-link i.ti-sm {
+          display: inline-flex !important;
+          font-size: 1rem !important;
+          margin-right: 0 !important;
         }
         
         .nav-action-item .nav-link {
-          padding: 0.25rem 0.3rem !important;
-          font-size: 0.7rem;
+          padding: 0.3rem 0.4rem !important;
+          font-size: 0.78rem !important;
         }
 
         .rider-nav-more-btn {

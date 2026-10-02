@@ -73,7 +73,7 @@
                     </button>
                     <div class="action-dropdown-menu" id="addBikeDropdown">
                         @can('riders_invoices_create')
-                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Add New Rider Invoice" data-action="{{ route('riderInvoices.create') }}">
+                        <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="xl" data-title="Create Rider Invoice" data-action="{{ route('riderInvoices.create') }}">
                             <i class="ti ti-plus"></i>
                             <div>
                                 <div class="action-dropdown-item-text">New</div>

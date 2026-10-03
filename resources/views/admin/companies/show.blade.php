@@ -54,9 +54,16 @@
             </table>
 
             @if(auth('admin')->user()->hasPermission('companies_approve'))
-                <div class="mt-3">
+                <div class="mt-3 d-flex flex-wrap gap-2">
                     <a href="{{ route('admin.companies.modules.edit', $company) }}" class="btn btn-outline-primary">{{ __('ERP modules & menu titles') }}</a>
+                    <button type="button"
+                            class="btn btn-outline-primary"
+                            data-bs-toggle="modal"
+                            data-bs-target="#channelsModal{{ $company->id }}">
+                        {{ __('Notification channels') }}
+                    </button>
                 </div>
+                @include('admin.companies._notification_channels_modal', ['company' => $company])
             @endif
 
             @if($company->status === 'pending')

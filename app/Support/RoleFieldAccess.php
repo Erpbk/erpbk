@@ -297,6 +297,39 @@ class RoleFieldAccess
     }
 
     /**
+     * Whether a specific user may access (see) a module — same rules as
+     * {@see canAccessModule()} but evaluated against $user instead of the session.
+     */
+    public static function userCanAccessModule(string $entityKey, User $user): bool
+    {
+        try {
+            if ($user->isAdmin()) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        $moduleId = self::moduleId($entityKey);
+        if ($moduleId === null) {
+            return false;
+        }
+
+        $viewLeaves = self::moduleViewPermissionNames($moduleId);
+        if ($viewLeaves === []) {
+            return false;
+        }
+
+        try {
+            $names = $user->getAllPermissions()->pluck('name')->map(fn ($n) => (string) $n)->all();
+        } catch (\Throwable $e) {
+            $names = [];
+        }
+
+        return array_intersect($viewLeaves, $names) !== [];
+    }
+
+    /**
      * All "*_{action}" permission names in a module's subtree (module + descendants).
      * Robust to the hierarchical naming scheme (e.g. "bikes_bike_view", "sims_sim_edit").
      *

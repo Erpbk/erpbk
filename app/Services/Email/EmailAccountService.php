@@ -118,6 +118,97 @@ class EmailAccountService
     return array_values(array_unique($normalized));
   }
 
+  /**
+   * Configure SMTP from a company email account for system/automated mail
+   * (no per-user assignment check). Falls back to env mail when account id is null.
+   *
+   * @return array{ready: bool, message?: string, from_email?: string, from_name?: string, account?: EmailAccount|null}
+   */
+  public function prepareSystemSender(?int $emailAccountId, ?int $companyId = null): array
+  {
+    if (! $emailAccountId) {
+      return [
+        'ready' => true,
+        'from_email' => (string) config('mail.from.address'),
+        'from_name' => (string) config('mail.from.name'),
+        'account' => null,
+      ];
+    }
+
+    $query = EmailAccount::query()->whereKey($emailAccountId);
+    if ($companyId) {
+      $query->where('company_id', $companyId);
+    }
+    $account = $query->first();
+
+    if (! $account || ! $account->isActive()) {
+      return [
+        'ready' => false,
+        'message' => 'The selected sender email account is not available.',
+      ];
+    }
+
+    if (! $this->applySmtpTransportForSystem($account)) {
+      return [
+        'ready' => false,
+        'message' => 'Failed to load SMTP credentials for the selected email account.',
+      ];
+    }
+
+    $fromName = trim((string) ($account->display_name ?? ''));
+    if ($fromName === '') {
+      $fromName = (string) config('mail.from.name', config('app.name', 'ERP'));
+    }
+
+    return [
+      'ready' => true,
+      'from_email' => strtolower(trim((string) $account->email)),
+      'from_name' => $fromName,
+      'account' => $account,
+    ];
+  }
+
+  private function applySmtpTransportForSystem(EmailAccount $account): bool
+  {
+    $appPassword = $account->getDecryptedAppPassword();
+    $appPassword = is_string($appPassword)
+      ? UserEmailService::normalizeGmailAppPassword($appPassword)
+      : '';
+
+    if ($appPassword === '') {
+      return false;
+    }
+
+    $smtpUsername = strtolower(trim((string) $account->email));
+    if ($smtpUsername === '') {
+      return false;
+    }
+
+    $host = config('mail.mailers.smtp.host') ?: env('MAIL_HOST', 'smtp.gmail.com');
+    $port = (int) (config('mail.mailers.smtp.port') ?: env('MAIL_PORT', 587));
+    $encryption = config('mail.mailers.smtp.encryption') ?: env('MAIL_ENCRYPTION', 'tls');
+    $fromName = trim((string) ($account->display_name ?? ''));
+    if ($fromName === '') {
+      $fromName = (string) config('mail.from.name', config('app.name', 'ERP'));
+    }
+
+    config([
+      'mail.default' => 'smtp',
+      'mail.mailers.smtp.host' => $host,
+      'mail.mailers.smtp.port' => $port,
+      'mail.mailers.smtp.encryption' => $encryption === 'null' ? null : $encryption,
+      'mail.mailers.smtp.username' => $smtpUsername,
+      'mail.mailers.smtp.password' => $appPassword,
+      'mail.from.address' => $smtpUsername,
+      'mail.from.name' => $fromName,
+    ]);
+
+    app('mail.manager')->purge('smtp');
+    Mail::purge('smtp');
+
+    return true;
+  }
+
   private function actorCanUseCompanyMail(User $actor): bool
   {
     return app(UserEmailService::class)->actorCanUseCompanyMail($actor);

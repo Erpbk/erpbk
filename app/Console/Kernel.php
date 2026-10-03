@@ -14,6 +14,11 @@ class Kernel extends ConsoleKernel
     {
         $schedule->command('fixed-assets:post-depreciation')->dailyAt('00:30');
 
+        $schedule->command('notifications:evaluate-scheduled')
+            ->dailyAt('07:00')
+            ->withoutOverlapping()
+            ->name('notifications-evaluate-scheduled');
+
         if (config('deploy.marker_enabled')) {
             $schedule->call(function () {
                 $marker = storage_path('framework/deploy.pending');

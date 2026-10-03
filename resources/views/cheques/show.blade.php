@@ -5,6 +5,7 @@
         <div>
             <h4 class="fw-bold mb-0">{{ $cheque->cheque_number }}</h4>
             <div class="text-muted small">{{ $cheque->reference ?? 'No reference' }}</div>
+            @include('delete_requests._pending_badge', ['model' => $cheque])
         </div>
         <div class="text-end">
             <div class="fw-bold text-success fs-4 mb-1">{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</div>

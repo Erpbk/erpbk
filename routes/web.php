@@ -146,6 +146,8 @@ Route::prefix('admin')->middleware(['web', 'admin.guard', 'admin.auth'])->name('
     Route::post('companies/{company}/reject', [AdminCompaniesController::class, 'reject'])->middleware('admin.permission:companies_reject')->name('companies.reject');
     Route::get('companies/{company}/modules', [AdminCompaniesController::class, 'editModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.edit');
     Route::put('companies/{company}/modules', [AdminCompaniesController::class, 'updateModules'])->middleware('admin.permission:companies_approve')->name('companies.modules.update');
+    Route::get('companies/{company}/notification-channels', [\App\Http\Controllers\Admin\AdminCompanyNotificationChannelsController::class, 'edit'])->middleware('admin.permission:companies_approve')->name('companies.notification-channels.edit');
+    Route::put('companies/{company}/notification-channels', [\App\Http\Controllers\Admin\AdminCompanyNotificationChannelsController::class, 'update'])->middleware('admin.permission:companies_approve')->name('companies.notification-channels.update');
 
     // Agreement Settings (assignable modules + per-module placeholders)
     Route::get('agreement-settings', [AdminAgreementSettingsController::class, 'index'])->middleware('admin.permission:agreement_settings_view')->name('agreement-settings.index');
@@ -235,6 +237,14 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/home', [HomeController::class, 'index'])->name('home-dashboard');
     Route::post('/logout', [CompanyAuthController::class, 'logout'])->name('company.logout');
+
+    // Notification center (in-app inbox)
+    Route::get('notifications', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('notifications.index');
+    Route::get('notifications/unread-count', [\App\Http\Controllers\NotificationCenterController::class, 'unreadCount'])->name('notifications.unread-count');
+    Route::get('notifications/dropdown', [\App\Http\Controllers\NotificationCenterController::class, 'dropdown'])->name('notifications.dropdown');
+    Route::post('notifications/read-all', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
+    Route::post('notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
+    Route::post('notifications/{notification}/dismiss', [\App\Http\Controllers\NotificationCenterController::class, 'dismiss'])->name('notifications.dismiss');
 
     // Agreements (main app — centralized management)
     Route::prefix('agreements')->name('agreements.')->group(function () {

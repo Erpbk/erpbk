@@ -42,6 +42,7 @@ class Company extends BaseModel
         'secondary_color',
         'branding_json',
         'modules_settings',
+        'notification_channels_settings',
         'email_verified_at',
         'approved_at',
         'approved_by',
@@ -59,6 +60,7 @@ class Company extends BaseModel
         'password' => 'hashed',
         'is_taxpayer' => 'boolean',
         'modules_settings' => 'array',
+        'notification_channels_settings' => 'array',
     ];
 
     public const STATUS_PENDING = 'pending';

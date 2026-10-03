@@ -76,6 +76,34 @@ $homeLink = $isAdminSession
 
         <ul class="navbar-nav flex-row align-items-center ms-auto">
 
+          @if(!$isAdminSession && Auth::check())
+          <li class="nav-item navbar-dropdown dropdown-notifications dropdown me-2 me-lg-3 position-relative" id="nav-notifications">
+            <a class="nav-link dropdown-toggle hide-arrow position-relative" href="javascript:void(0);" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+              <i class="ti ti-bell ti-md"></i>
+              <span class="badge rounded-pill bg-danger badge-notifications position-absolute top-0 start-100 translate-middle d-none" style="font-size:0.65rem;" id="nav-notification-badge">0</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end py-0" style="min-width: 24rem; max-width: 28rem;">
+              <li class="dropdown-header d-flex align-items-center justify-content-between">
+                <span class="fw-medium">{{ __('Notifications') }}</span>
+                <a href="{{ route('notifications.index', ['company_slug' => $companySlug]) }}" class="small">{{ __('View all') }}</a>
+              </li>
+              <li><hr class="dropdown-divider my-0"></li>
+              <li>
+                <div id="nav-notification-list" class="list-group list-group-flush" style="max-height: 26rem; overflow-y: auto;">
+                  <div class="list-group-item text-muted small">{{ __('Loading…') }}</div>
+                </div>
+              </li>
+              <li><hr class="dropdown-divider my-0"></li>
+              <li class="dropdown-footer text-center py-2">
+                <form action="{{ route('notifications.read-all', ['company_slug' => $companySlug]) }}" method="post" class="d-inline">
+                  @csrf
+                  <button type="submit" class="btn btn-sm btn-link">{{ __('Mark all as read') }}</button>
+                </form>
+              </li>
+            </ul>
+          </li>
+          @endif
+
           <li class="nav-item me-2 me-lg-3">
             @if(!$isAdminSession && Auth::check() && Auth::user()->isAdmin())
             <a
@@ -196,3 +224,121 @@ $homeLink = $isAdminSession
     @endif
   </nav>
   <!-- / Navbar -->
+@if(!$isAdminSession && Auth::check() && !empty($companySlug))
+<script>
+(function () {
+  var badge = document.getElementById('nav-notification-badge');
+  var list = document.getElementById('nav-notification-list');
+  if (!badge || !list) return;
+
+  var countUrl = @json(route('notifications.unread-count', ['company_slug' => $companySlug]));
+  var dropdownUrl = @json(route('notifications.dropdown', ['company_slug' => $companySlug]));
+  var csrf = @json(csrf_token());
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+
+  function refreshCount() {
+    fetch(countUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var n = parseInt(data.count || 0, 10);
+        if (n > 0) {
+          badge.textContent = n > 99 ? '99+' : String(n);
+          badge.classList.remove('d-none');
+        } else {
+          badge.classList.add('d-none');
+        }
+      }).catch(function () {});
+  }
+
+  function openNotificationAction(item) {
+    var action = item.action_url || '';
+    var mode = item.action_mode || 'navigate';
+    if (!action) {
+      refreshCount();
+      refreshDropdown();
+      return;
+    }
+
+    // Close the bell dropdown before opening a record.
+    var dropdownToggle = document.querySelector('#nav-notifications > a');
+    if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
+      var dd = bootstrap.Dropdown.getInstance(dropdownToggle);
+      if (dd) dd.hide();
+    }
+
+    if (mode === 'modal' && window.jQuery) {
+      var $btn = window.jQuery('<a href="javascript:void(0);" class="show-modal d-none"></a>');
+      $btn.attr('data-action', action);
+      $btn.attr('data-size', item.action_size || 'xl');
+      $btn.attr('data-title', item.action_title || item.title || 'Details');
+      window.jQuery('body').append($btn);
+      $btn.trigger('click');
+      $btn.remove();
+      refreshCount();
+      return;
+    }
+
+    window.location.href = action;
+  }
+
+  function refreshDropdown() {
+    fetch(dropdownUrl, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var items = data.items || [];
+        if (!items.length) {
+          list.innerHTML = '<div class="list-group-item text-muted small">No notifications yet.</div>';
+          return;
+        }
+        list.innerHTML = items.map(function (item) {
+          var unread = item.is_unread ? ' list-group-item-warning' : '';
+          var body = item.body
+            ? '<div class="text-muted small mt-1" style="white-space: normal; overflow-wrap: anywhere;">' + escapeHtml(item.body) + '</div>'
+            : '';
+          var openHint = item.action_url
+            ? '<div class="text-primary small mt-1">' + (item.action_mode === 'modal' ? 'Open record' : 'Open') + '</div>'
+            : '';
+          return '<button type="button" class="list-group-item list-group-item-action text-start' + unread + '" data-notification-id="' + escapeHtml(item.id) + '">' +
+            '<div class="fw-medium" style="white-space: normal; overflow-wrap: anywhere;">' + escapeHtml(item.title) + '</div>' +
+            body + openHint +
+            '</button>';
+        }).join('');
+
+        list.querySelectorAll('[data-notification-id]').forEach(function (el, idx) {
+          el.addEventListener('click', function () {
+            var item = items[idx];
+            if (!item) return;
+            var url = item.mark_read_url;
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              credentials: 'same-origin'
+            }).finally(function () {
+              openNotificationAction(item);
+            });
+          });
+        });
+      }).catch(function () {
+        list.innerHTML = '<div class="list-group-item text-muted small">Unable to load notifications.</div>';
+      });
+  }
+
+  refreshCount();
+  setInterval(refreshCount, 60000);
+
+  var toggle = document.querySelector('#nav-notifications > a');
+  if (toggle) {
+    toggle.addEventListener('show.bs.dropdown', refreshDropdown);
+  }
+})();
+</script>
+@endif

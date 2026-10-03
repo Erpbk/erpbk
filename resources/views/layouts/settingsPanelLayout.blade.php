@@ -88,6 +88,26 @@ $containerNav = 'container-fluid';
             <div>Profile</div>
           </a>
         </li>
+        <li class="menu-item {{ Request::is('settings-panel/notification-preferences*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.notification-preferences.edit', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-adjustments-alt"></i>
+            <div>My Notifications</div>
+          </a>
+        </li>
+        @if($settingsIsCompanyAdmin)
+        <li class="menu-item {{ Request::is('settings-panel/notification-rules*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.notification-rules.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-bell-ringing"></i>
+            <div>Notification Rules</div>
+          </a>
+        </li>
+        <li class="menu-item {{ Request::is('settings-panel/notification-logs*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.notification-logs.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-list-details"></i>
+            <div>Notification Logs</div>
+          </a>
+        </li>
+        @endif
         <li class="menu-item {{ Request::routeIs('settings-panel.delete-requests.mine') ? 'active' : '' }}">
           <a href="{{ route('settings-panel.delete-requests.mine', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
             <i class="menu-icon tf-icons ti ti-file-dislike"></i>

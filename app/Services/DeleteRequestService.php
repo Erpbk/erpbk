@@ -4,13 +4,11 @@ namespace App\Services;
 
 use App\Models\DeleteRequest;
 use App\Models\User;
-use App\Models\UserNotification;
 use App\Support\CompanyContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -411,11 +409,6 @@ class DeleteRequestService
             return;
         }
 
-        $admins = User::role(['Administrator', 'Super Admin'])->get();
-        if ($admins->isEmpty()) {
-            return;
-        }
-
         $requesterName = $deleteRequest->requester?->name ?? 'A user';
         $title = 'Delete request pending approval';
         $body = sprintf(
@@ -426,40 +419,44 @@ class DeleteRequestService
             $deleteRequest->deletable_id
         );
 
-        foreach ($admins as $admin) {
-            if ((int) $admin->id === (int) $deleteRequest->requested_by) {
-                continue;
-            }
+        $companySlug = null;
+        if ($deleteRequest->company_id) {
+            $companySlug = \App\Models\Company::query()->where('id', $deleteRequest->company_id)->value('slug');
+        }
 
-            UserNotification::create([
-                'company_id' => $deleteRequest->company_id,
-                'user_id' => $admin->id,
-                'type' => 'delete_request_pending',
+        $actionUrl = null;
+        if ($companySlug) {
+            $actionUrl = route('settings-panel.delete-requests.show', [
+                'company_slug' => $companySlug,
+                'deleteRequest' => $deleteRequest->id,
+            ], false);
+        }
+
+        try {
+            app(\App\Services\Notifications\NotificationEngine::class)->dispatch([
+                'type_key' => 'delete_request_pending',
+                'company_id' => (int) $deleteRequest->company_id,
+                'source' => $deleteRequest,
                 'title' => $title,
                 'body' => $body,
+                'severity' => 'warning',
+                'action_url' => $actionUrl,
                 'data' => [
                     'delete_request_id' => $deleteRequest->id,
                     'module_key' => $deleteRequest->module_key,
                     'module_name' => $deleteRequest->module_name,
                     'deletable_id' => $deleteRequest->deletable_id,
                 ],
+                'dedupe_context' => [
+                    'pending' => $deleteRequest->id,
+                ],
+                'exclude_user_ids' => [(int) $deleteRequest->requested_by],
             ]);
-
-            if (! empty($admin->email) && filter_var($admin->email, FILTER_VALIDATE_EMAIL)) {
-                try {
-                    Mail::raw(
-                        $body . "\n\nOpen Delete Requests in the Settings Panel to approve or reject.",
-                        function ($message) use ($admin, $title) {
-                            $message->to($admin->email)->subject($title);
-                        }
-                    );
-                } catch (\Throwable $mailError) {
-                    Log::warning('Delete request email notification failed', [
-                        'user_id' => $admin->id,
-                        'error' => $mailError->getMessage(),
-                    ]);
-                }
-            }
+        } catch (\Throwable $e) {
+            Log::warning('Delete request notification via engine failed', [
+                'delete_request_id' => $deleteRequest->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

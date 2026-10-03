@@ -78,6 +78,17 @@
     } else {
         run();
     }
+
+    // Re-apply after DataTables init / redraw (cheques and similar lists).
+    if (window.jQuery) {
+        window.jQuery(function ($) {
+            $(document).on('draw.dt init.dt', 'table#dataTableBuilder, table.table', function () {
+                run();
+            });
+            setTimeout(run, 0);
+            setTimeout(run, 300);
+        });
+    }
 })();
 </script>
 @endif

@@ -368,11 +368,20 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::get('/api/statistics', [ActivityLogController::class, 'statistics'])->name('statistics');
         Route::get('/{activityLog}', [ActivityLogController::class, 'show'])->name('show');
     });
+    Route::get('notification-rules', [\App\Http\Controllers\NotificationRulesSettingsController::class, 'index'])->name('settings-panel.notification-rules.index');
+    Route::get('notification-rules/available-channels', [\App\Http\Controllers\NotificationRulesSettingsController::class, 'availableChannels'])->name('settings-panel.notification-rules.available-channels');
+    Route::put('notification-rules/{notificationRule}', [\App\Http\Controllers\NotificationRulesSettingsController::class, 'update'])->name('settings-panel.notification-rules.update');
+    Route::get('notification-logs', [\App\Http\Controllers\NotificationLogsSettingsController::class, 'index'])->name('settings-panel.notification-logs.index');
+    Route::get('notification-preferences', [\App\Http\Controllers\NotificationPreferencesSettingsController::class, 'edit'])->name('settings-panel.notification-preferences.edit');
+    Route::put('notification-preferences', [\App\Http\Controllers\NotificationPreferencesSettingsController::class, 'update'])->name('settings-panel.notification-preferences.update');
+
     Route::prefix('delete-requests')->name('settings-panel.delete-requests.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeleteRequestsController::class, 'index'])->name('index');
         Route::get('/mine', [App\Http\Controllers\DeleteRequestsController::class, 'mine'])->name('mine');
-        Route::get('/notifications', [App\Http\Controllers\DeleteRequestsController::class, 'notifications'])->name('notifications');
-        Route::post('/notifications/{notification}/read', [App\Http\Controllers\DeleteRequestsController::class, 'markNotificationRead'])->name('notifications.read');
+        Route::get('/notifications', function () {
+            return redirect()->route('notifications.index');
+        })->name('notifications');
+        Route::post('/notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');
         Route::get('/{deleteRequest}', [App\Http\Controllers\DeleteRequestsController::class, 'show'])->name('show');
         Route::post('/{deleteRequest}/approve', [App\Http\Controllers\DeleteRequestsController::class, 'approve'])->name('approve');
         Route::post('/{deleteRequest}/reject', [App\Http\Controllers\DeleteRequestsController::class, 'reject'])->name('reject');

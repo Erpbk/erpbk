@@ -78,6 +78,12 @@
                                     <a href="{{ route('admin.companies.show', $company) }}" class="btn btn-sm btn-outline-primary">{{ __('View') }}</a>
                                     @if(auth('admin')->user()->hasPermission('companies_approve'))
                                         <a href="{{ route('admin.companies.modules.edit', $company) }}" class="btn btn-sm btn-outline-secondary">{{ __('Modules') }}</a>
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-secondary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#channelsModal{{ $company->id }}">
+                                            {{ __('Channels') }}
+                                        </button>
                                     @endif
                                     @if($company->status === 'pending')
                                         <form action="{{ route('admin.companies.approve', $company) }}" method="post" class="d-inline" onsubmit="return confirm('{{ __('Approve this company and create their database?') }}');">
@@ -126,5 +132,24 @@
             </div>
         </div>
     </div>
+
+    @if(auth('admin')->user()->hasPermission('companies_approve'))
+        @foreach($companies as $company)
+            @include('admin.companies._notification_channels_modal', ['company' => $company])
+        @endforeach
+    @endif
 </div>
+@endsection
+
+@section('page-script')
+@if(session('open_channels_modal'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var el = document.getElementById('channelsModal{{ (int) session('open_channels_modal') }}');
+  if (el && window.bootstrap) {
+    bootstrap.Modal.getOrCreateInstance(el).show();
+  }
+});
+</script>
+@endif
 @endsection

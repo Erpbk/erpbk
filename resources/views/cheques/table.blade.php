@@ -28,7 +28,8 @@
           };
         @endphp
         @foreach($data as $cheque)
-        <tr data-id="{{ $cheque->id }}">
+        @php $chequePendingDeletion = record_is_pending_deletion($cheque); @endphp
+        <tr data-id="{{ $cheque->id }}" @class(['table-warning' => $chequePendingDeletion])>
             @if($vf('reference'))<td>{{ $cheque->reference ?? '-' }}</td>@endif
             @if($vf('cheque_number'))<td>
                 <a href="javascript:void(0);" class="show-modal text-primary" data-size="xl"
@@ -36,6 +37,7 @@
                 data-title="Cheque Details">
                     {{ $cheque->cheque_number }}
                 </a>
+                @include('delete_requests._pending_badge', ['model' => $cheque])
             </td>@endif
             @if($vf('cheque_date'))<td>{{ $cheque->cheque_date?->format('d M Y') ?? '-' }}</td>@endif
             @if($vf('type'))<td>
@@ -99,6 +101,9 @@
                 <span class="badge bg-{{ $badge[$cheque->status] ?? 'secondary' }}">{{ $cheque->status }}</span>
             </td>@endif
             <td style="position: relative;">
+                @if($chequePendingDeletion)
+                    <span class="text-muted small pending-deletion-lock"><i class="ti ti-lock me-1"></i>Locked</span>
+                @else
                 <div class="dropdown">
                 <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $cheque->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="visibility: visible !important; display: inline-block !important;">
                     <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
@@ -128,6 +133,7 @@
                     @endcan
                 </div>
                 </div>
+                @endif
             </td>
         </tr>
         @endforeach
@@ -145,27 +151,35 @@
     'entityName' => 'Cheque',
     'confirmText' => 'This will submit a delete request or move the cheque to the Recycle Bin.',
 ])
-@section('page-script')
+@push('page-scripts')
 <script>
-    $('#dataTableBuilder').DataTable({
-        "paging": true, // Enable DataTables pagination
-        "pageLength": 50, // Items per page
-        "searching": true, // Enable search
-        "ordering": false, // Enable column sorting
-        "info": true, // Show "Showing X of Y entries"
-        "autoWidth": true, // Better column width handling
-        "dom": "<'row'<'col-md-12'tr>>" +
-            "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
-    });
-    $('#quickSearch').on('keyup change', function() {
-        $('#dataTableBuilder').DataTable().search(this.value).draw();
-    });
-    $(document).ready(function(){
+    (function () {
+        var $table = $('#dataTableBuilder');
+        if (!$table.length || !$.fn.DataTable) return;
+
+        // Avoid double-init when this partial is rendered more than once.
+        if ($.fn.DataTable.isDataTable($table)) {
+            $table.DataTable().destroy();
+        }
+
+        $table.DataTable({
+            "paging": true,
+            "pageLength": 50,
+            "searching": true,
+            "ordering": false,
+            "info": true,
+            "autoWidth": true,
+            "dom": "<'row'<'col-md-12'tr>>" +
+                "<'row mt-2'<'col-md-6'i><'col-md-6 d-flex justify-content-end'p>>",
+        });
+        $('#quickSearch').on('keyup change', function() {
+            $table.DataTable().search(this.value).draw();
+        });
         $(document).on('click', '.delete-cheque', function(e) {
             e.preventDefault();
             confirmDelete($(this).data('url'));
         });
-    })
+    })();
 </script>
-@endsection
+@endpush
 @include('delete_requests._pending_table_script', ['items' => $data])

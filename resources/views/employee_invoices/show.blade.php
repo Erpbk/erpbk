@@ -76,10 +76,35 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
-        <button type="button" class="action-btn js-print-modal-content">
-            <i class="ti ti-file-description"></i><span>PDF/Print</span>
-        </button>
+        @php
+            $companySlug = request()->route('company_slug');
+            $eiStatus = (int) ($employeeInvoice->status ?? 0);
+            $eiIsPaid = $eiStatus === 1;
+            $eiIsPartial = $eiStatus === 3 || (! $eiIsPaid && (float) ($employeeInvoice->paid_amount ?? 0) > 0);
+        @endphp
+        @include('invoices.partials.action_toolbar', [
+            'isPaid' => $eiIsPaid,
+            'isPartial' => $eiIsPartial && ! $eiIsPaid,
+            'editUrl' => route('employeeInvoices.edit', $employeeInvoice->id),
+            'editTitle' => 'Edit Invoice',
+            'editCan' => 'employees_invoice_edit',
+            'downloadUrl' => route('employeeInvoices.show', $employeeInvoice->id),
+            'showPayment' => ! $eiIsPaid,
+            'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
+                . '?employee_payment=1&invoice_id=' . $employeeInvoice->id,
+            'paymentTitle' => 'Record Payment',
+            'paymentCan' => 'employees_payments_create',
+            'markSettledUrl' => route('employeeInvoices.markAsSettled', $employeeInvoice->id),
+            'markSettledCan' => 'employees_invoice_edit',
+            'deleteUrl' => route('employeeInvoices.delete', $employeeInvoice->id),
+            'deleteCan' => 'employees_invoice_delete',
+        ])
     </div>
+    @include('delete_requests._confirm_delete_script', [
+        'entityName' => 'Employee Invoice',
+        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+        'method' => 'GET',
+    ])
     @endif
 
     <div class="invoice-box">
@@ -258,18 +283,9 @@
                 'vatAmount' => $vatAmt,
                 'totalAmount' => $totalAmt,
                 'currency' => $currency,
+                'paidAmount' => $paid_amount ?? 0,
+                'balanceAmount' => $employee_balance_final ?? 0,
             ])
-
-            <div class="balance-lines">
-                <div class="line">
-                    <span class="k">Paid Amount</span>
-                    <span class="v">{{ number_format($paid_amount ?? 0, 2) }}</span>
-                </div>
-                <div class="line">
-                    <span class="k">Balance</span>
-                    <span class="v">{{ number_format($employee_balance_final, 2) }}</span>
-                </div>
-            </div>
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif

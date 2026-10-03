@@ -51,10 +51,37 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
-        <button type="button" class="action-btn js-print-modal-content">
-            <i class="ti ti-file-description"></i><span>PDF/Print</span>
-        </button>
+        @php
+            $siStatus = (int) ($supplierInvoice->status ?? 0);
+            $siIsPaid = $siStatus === 1;
+            $siIsPartial = $siStatus === 3 || (! $siIsPaid && (float) ($supplierInvoice->paid_amount ?? 0) > 0);
+        @endphp
+        @include('invoices.partials.action_toolbar', [
+            'isPaid' => $siIsPaid,
+            'isPartial' => $siIsPartial && ! $siIsPaid,
+            'editUrl' => route('supplierInvoices.edit', $supplierInvoice->id),
+            'editTitle' => 'Edit Supplier Invoice',
+            'editCan' => ['suppliers_invoices_edit', 'suppliers_purchase_order_edit'],
+            'emailUrl' => Route::has('supplier_invoices.send_email')
+                ? route('supplier_invoices.send_email', $supplierInvoice->id)
+                : null,
+            'emailTitle' => 'Send Email',
+            'downloadUrl' => route('supplierInvoices.show', $supplierInvoice->id),
+            'showPayment' => ! $siIsPaid,
+            'paymentUrl' => route('payments.create')
+                . '?supplier_payment=1&supplier_id=' . ($supplierInvoice->supplier_id ?? '')
+                . '&invoice_id=' . $supplierInvoice->id,
+            'paymentTitle' => 'Record Payment',
+            'paymentCan' => ['suppliers_payments_create', 'suppliers_invoices_edit'],
+            'deleteUrl' => route('supplierInvoices.delete', $supplierInvoice->id),
+            'deleteCan' => ['suppliers_invoices_delete', 'suppliers_purchase_order_delete'],
+        ])
     </div>
+    @include('delete_requests._confirm_delete_script', [
+        'entityName' => 'Supplier Invoice',
+        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+        'method' => 'GET',
+    ])
     @endif
 
     <div class="invoice-box">
@@ -152,6 +179,8 @@
                 'vatAmount' => $vatAmt,
                 'totalAmount' => $totalAmt,
                 'currency' => $currency,
+                'paidAmount' => $supplierInvoice->paid_amount ?? 0,
+                'balanceAmount' => $supplierInvoice->balance ?? (($totalAmt ?? 0) - ($supplierInvoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>

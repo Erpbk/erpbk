@@ -27,7 +27,7 @@
                 '<title>' + title + '</title>' +
                 styles +
                 '<style>' +
-                '@page{size:A4 portrait;margin:10mm 12mm;}' +
+                '@page{size:A4 portrait;margin:8mm 10mm;}' +
                 'html,body{margin:0!important;padding:0!important;background:#fff!important;' +
                 'width:100%!important;min-width:100%!important;max-width:none!important;}' +
                 '.invoice-box{max-width:none!important;width:100%!important;min-width:100%!important;' +

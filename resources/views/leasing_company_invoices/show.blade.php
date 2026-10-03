@@ -70,29 +70,29 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
-        <a href="javascript:void(0);"
-            class="action-btn show-modal"
-            data-size="xl"
-            data-title="Edit Invoice"
-            data-close-right-modal="1"
-            data-action="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}">
-            <i class="ti ti-edit"></i><span>Edit</span>
-        </a>
-        <a href="{{ route('leasingCompanyInvoices.show', $invoice->id) }}" class="action-btn" target="_blank" rel="noopener">
-            <i class="ti ti-download"></i><span>Download</span>
-        </a>
-        <button type="button" class="action-btn js-print-modal-content">
-            <i class="ti ti-printer"></i><span>Print</span>
-        </button>
-        @if(! $isPaid)
-        <a href="javascript:void(0);"
-            class="action-btn show-modal"
-            data-size="xl"
-            data-title="Record Leasing Payment"
-            data-action="{{ route('payments.create', ['company_slug' => $companySlug]) }}?leasing_company_id={{ $invoice->leasing_company_id }}&invoice_id={{ $invoice->id }}">
-            <i class="ti ti-currency-dollar"></i><span>Make Payment</span>
-        </a>
-        @endif
+        @php
+            $companySlug = request()->route('company_slug');
+            $isPaid = (int) ($invoice->status ?? 0) === 1;
+            $isPartial = (int) ($invoice->status ?? 0) === 3 || (! $isPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+        @endphp
+        @include('invoices.partials.action_toolbar', [
+            'isPaid' => $isPaid,
+            'isPartial' => $isPartial && ! $isPaid,
+            'editUrl' => route('leasingCompanyInvoices.edit', $invoice->id),
+            'editTitle' => 'Edit Invoice',
+            'editCan' => 'leasing_companies_invoices_edit',
+            'downloadUrl' => route('leasingCompanyInvoices.show', $invoice->id),
+            'showPayment' => ! $isPaid,
+            'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
+                . '?leasing_company_id=' . $invoice->leasing_company_id . '&invoice_id=' . $invoice->id,
+            'paymentTitle' => 'Record Payment',
+            'paymentCan' => 'leasing_companies_payments_create',
+            'cloneUrl' => route('leasingCompanyInvoices.createFromClone', $invoice->id),
+            'cloneTitle' => 'Clone Invoice',
+            'cloneCan' => 'leasing_companies_invoices_create',
+            'deleteFormRoute' => ['leasingCompanyInvoices.destroy', $invoice->id],
+            'deleteCan' => 'leasing_companies_invoices_delete',
+        ])
     </div>
     @endif
 
@@ -216,18 +216,9 @@
                 'vatAmount' => $vatAmt ?: $taxTotal,
                 'totalAmount' => $totalAmt ?: $runningTotal,
                 'currency' => $currency,
+                'paidAmount' => $paidAmount,
+                'balanceAmount' => $balanceDue,
             ])
-
-            <div class="balance-lines">
-                <div class="line">
-                    <span class="k">Paid Amount</span>
-                    <span class="v">{{ number_format($paidAmount, 2) }}</span>
-                </div>
-                <div class="line">
-                    <span class="k">Balance Due</span>
-                    <span class="v">{{ number_format($balanceDue, 2) }}</span>
-                </div>
-            </div>
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif

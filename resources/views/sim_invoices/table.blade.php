@@ -20,7 +20,7 @@
             <tr class="text-center {{ $invoicePendingDeletion ? 'table-warning' : '' }}">
                 <td>{{ $invoice->id }}</td>
                 <td>
-                    <a href="javascript:void(0);" data-action="{{ route('simInvoices.show', $invoice->id) }}" class="show-modal-right">{{ $invoice->invoice_number ?? 'SIMI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a>
+                    <a href="javascript:void(0);" data-action="{{ route('simInvoices.show', $invoice->id) }}" data-size="xl" class="show-modal-right">{{ $invoice->invoice_number ?? 'SIMI' . str_pad($invoice->id, 8, '0', STR_PAD_LEFT) }}</a>
                     @include('delete_requests._pending_badge', ['model' => $invoice])
                 </td>
                 <td>{{ \Carbon\Carbon::parse($invoice->inv_date)->format('d M Y') }}</td>
@@ -32,11 +32,11 @@
                 <td><strong>{{ \App\Helpers\Currency::format($invoice->total_amount ?? 0, 2) }}</strong></td>
                 <td>
                     @if($invoice->status == 1)
-                        <span class="badge bg-success">Paid</span>
+                        @include('invoices.partials.status_badge', ['status' => 'paid'])
                     @elseif($invoice->status == 3)
-                        <span class="badge bg-warning">Partially Paid</span>
+                        @include('invoices.partials.status_badge', ['status' => 'partial'])
                     @else
-                        <span class="badge bg-danger">Unpaid</span>
+                        @include('invoices.partials.status_badge', ['status' => 'unpaid'])
                     @endif
                 </td>
                 <td>

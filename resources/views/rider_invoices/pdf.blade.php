@@ -9,11 +9,72 @@
         body {
             background: #fff !important;
             padding: 0 !important;
+            font-size: 10px !important;
+            line-height: 1.3 !important;
         }
 
         .invoice-box {
             box-shadow: none !important;
             max-width: 100% !important;
+        }
+
+        .invoice-box .sheet {
+            padding: 10px 12px 8px !important;
+        }
+
+        .invoice-box .hdr {
+            margin-bottom: 8px !important;
+            padding-bottom: 8px !important;
+            gap: 8px !important;
+        }
+
+        .invoice-box .brand-logo {
+            max-width: 180px !important;
+            min-height: 40px !important;
+        }
+
+        .invoice-box .brand-logo img {
+            max-width: 180px !important;
+            max-height: 48px !important;
+        }
+
+        .invoice-box .brand-text h1 {
+            font-size: 13px !important;
+            margin-bottom: 2px !important;
+        }
+
+        .invoice-box .parties {
+            gap: 8px !important;
+            margin-bottom: 8px !important;
+        }
+
+        .invoice-box .party {
+            padding: 6px 8px !important;
+        }
+
+        .invoice-box .party-title {
+            margin-bottom: 4px !important;
+            font-size: 8.5px !important;
+        }
+
+        .invoice-box .party-name {
+            font-size: 11px !important;
+            margin-bottom: 3px !important;
+        }
+
+        .invoice-box .party-line {
+            font-size: 9px !important;
+        }
+
+        .invoice-box .desc {
+            margin-bottom: 6px !important;
+            padding: 5px 8px !important;
+        }
+
+        .invoice-box .desc p {
+            font-size: 9.5px !important;
+            margin: 0 !important;
+            line-height: 1.3 !important;
         }
 
         .invoice-box .rider-template-items {
@@ -22,9 +83,9 @@
 
         .invoice-box .rider-template-items .tbl-wrap {
             width: 100%;
-            border-radius: 6px;
+            border-radius: 4px;
             overflow: hidden;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         .invoice-box table.items-table,
@@ -32,7 +93,7 @@
         .invoice-box .sheet>table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         .invoice-box .rider-template-items .tbl-wrap>table {
@@ -46,9 +107,10 @@
         .invoice-box .sheet>table th,
         .invoice-box .sheet>table td {
             border: 1px solid #e2e8f0;
-            padding: 8px 10px;
-            font-size: 11px;
+            padding: 3px 5px;
+            font-size: 9px;
             vertical-align: middle;
+            line-height: 1.25;
         }
 
         .invoice-box table.items-table tr,
@@ -63,10 +125,71 @@
             color: #fff;
             font-weight: 700;
             vertical-align: middle;
+            font-size: 8.5px;
+            padding: 4px 5px;
         }
 
         .invoice-box td.num {
             text-align: right;
+        }
+
+        .invoice-box .totals-area {
+            margin: 6px 0 4px !important;
+            gap: 10px !important;
+        }
+
+        .invoice-box .totals-notes {
+            padding: 5px 8px !important;
+        }
+
+        .invoice-box .totals-notes h4,
+        .invoice-box .note-card h4 {
+            font-size: 8px !important;
+            margin-bottom: 2px !important;
+        }
+
+        .invoice-box .totals-notes .body,
+        .invoice-box .note-card .body {
+            font-size: 8.5px !important;
+            line-height: 1.35 !important;
+        }
+
+        .invoice-box .totals {
+            width: 230px !important;
+        }
+
+        .invoice-box .totals .line {
+            padding: 3px 10px !important;
+            font-size: 9px !important;
+        }
+
+        .invoice-box .totals .grand {
+            padding: 6px 10px !important;
+            margin-top: 3px !important;
+        }
+
+        .invoice-box .totals .grand .k {
+            font-size: 8.5px !important;
+        }
+
+        .invoice-box .totals .grand .v {
+            font-size: 12px !important;
+        }
+
+        .invoice-box .footnotes {
+            margin-top: 6px !important;
+            padding-top: 6px !important;
+            gap: 6px !important;
+        }
+
+        .invoice-box .note-card {
+            padding: 5px 8px !important;
+        }
+
+        .invoice-box .foot {
+            margin-top: 6px !important;
+            padding-top: 4px !important;
+            font-size: 8.5px !important;
         }
 
         .invoice-box.invoice-layout-modern table.items-table th,

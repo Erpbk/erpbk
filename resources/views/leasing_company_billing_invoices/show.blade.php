@@ -47,9 +47,30 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
-        <button type="button" class="action-btn js-print-modal-content">
-            <i class="ti ti-file-description"></i><span>PDF/Print</span>
-        </button>
+        @php
+            $lbiStatus = (int) ($invoice->status ?? 0);
+            $lbiIsPaid = $lbiStatus === 1;
+            $lbiIsPartial = $lbiStatus === 3 || (! $lbiIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+        @endphp
+        @include('invoices.partials.action_toolbar', [
+            'isPaid' => $lbiIsPaid,
+            'isPartial' => $lbiIsPartial && ! $lbiIsPaid,
+            'editUrl' => route('leasingCompanyBillingInvoices.edit', $invoice->id),
+            'editTitle' => 'Edit Invoice',
+            'editCan' => 'bike_on_rent_invoices_edit',
+            'downloadUrl' => route('leasingCompanyBillingInvoices.show', $invoice->id),
+            'showPayment' => ! $lbiIsPaid,
+            'paymentUrl' => route('payments.create')
+                . '?customer_id=' . ($invoice->customer_id ?? '')
+                . '&invoice_id=' . $invoice->id,
+            'paymentTitle' => 'Record Payment',
+            'paymentCan' => ['customers_payments_create', 'bike_on_rent_invoices_edit'],
+            'cloneUrl' => route('leasingCompanyBillingInvoices.createFromClone', $invoice->id),
+            'cloneTitle' => 'Clone Invoice',
+            'cloneCan' => 'bike_on_rent_invoices_create',
+            'deleteFormRoute' => ['leasingCompanyBillingInvoices.destroy', $invoice->id],
+            'deleteCan' => 'bike_on_rent_invoices_delete',
+        ])
     </div>
     @endif
 
@@ -162,6 +183,8 @@
                 'vatAmount' => $vatAmt,
                 'totalAmount' => $totalAmt,
                 'currency' => $currency,
+                'paidAmount' => $invoice->paid_amount ?? 0,
+                'balanceAmount' => $invoice->balance ?? (($totalAmt ?? 0) - ($invoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>

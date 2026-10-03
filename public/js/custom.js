@@ -69,11 +69,16 @@ $(document).ready(function () {
                     right: 0;
                     bottom: 0;
                     left: auto;
-                    width: 70%;
-                    max-width: 900px;
+                    width: 50%;
+                    max-width: 960px;
                     height: 100%;
                     transform: translateX(100%);
                     transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
+                    width: 50%;
+                    max-width: 960px;
                 }
                 
                 .right-side-modal.show .modal-dialog.modal-slide-right {

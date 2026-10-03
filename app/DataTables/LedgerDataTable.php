@@ -211,7 +211,7 @@ class LedgerDataTable extends DataTable
             }
             if ($row->reference_type == 'Invoice') {
                 $invoice_ID = $row->reference_id;
-                $voucher_text = '<a href="javascript:void(0);" data-title="Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('riderInvoices.show', $invoice_ID) . '" class="no-print show-modal">RD-' . $invoice_ID . '</a>';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('riderInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">RINV-' . str_pad((string) $invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             if ($row->reference_type == 'RiderInvoice') {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
@@ -248,7 +248,7 @@ class LedgerDataTable extends DataTable
                 $invoice = CustomerInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('customer_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('customer_invoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -261,7 +261,7 @@ class LedgerDataTable extends DataTable
                 $invoice = SupplierInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('supplier_invoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('supplierInvoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -274,7 +274,7 @@ class LedgerDataTable extends DataTable
                 $invoice = CompanyQuery::table('sim_invoices')->where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="' . route('simInvoices.show', $invoice->id) . '" target="_blank" class="no-print" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('simInvoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . e($voucher_ID) . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -287,7 +287,7 @@ class LedgerDataTable extends DataTable
                 $invoice = EmployeeInvoices::where('id', $row->reference_id)->first();
                 if ($invoice) {
                     $voucher_ID = $invoice->invoice_number;
-                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('employeeInvoices.show', $invoice->id) . '" class="no-print show-modal-right">' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('employeeInvoices.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . $voucher_ID . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -300,7 +300,7 @@ class LedgerDataTable extends DataTable
                 $invoice = FuelData::find($row->reference_id);
                 if ($invoice) {
                     $voucher_ID = $invoice->inv_id;
-                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('fuel_data.show', $invoice->id) . '" class="no-print show-modal-right" >' . $voucher_ID . '</a>';
+                    $voucher_text = '<a href="javascript:void(0);" data-action="' . route('fuel_data.show', $invoice->id) . '" data-size="xl" class="no-print show-modal-right">' . $voucher_ID . '</a>';
                     if ($invoice->attachment) {
                         $view_file = '  <a href="' . storage_url($invoice->attachment) . '" class="no-print"  target="_blank">View File</a>';
                     }
@@ -335,11 +335,11 @@ class LedgerDataTable extends DataTable
             }
             if ($row->reference_type == 'LeasingCompanyInvoice') {
                 $invoice_ID = $row->reference_id;
-                $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Company Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" class="no-print show-modal">LI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('leasingCompanyInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">LI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             if ($row->reference_type == 'LeasingCompanyBillingInvoice' || $row->reference_type == 'Rental Invoice') {
                 $invoice_ID = $row->reference_id;
-                $voucher_text = '<a href="javascript:void(0);" data-title="Leasing Billing Invoice # ' . $invoice_ID . '" data-size="xl" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" class="no-print show-modal">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
+                $voucher_text = '<a href="javascript:void(0);" data-action="' . route('leasingCompanyBillingInvoices.show', $invoice_ID) . '" data-size="xl" class="no-print show-modal-right">RBI-' . str_pad($invoice_ID, 4, '0', STR_PAD_LEFT) . '</a>';
             }
             $month = $row->billing_month
                 ? "<span style='white-space: nowrap;'>" . date('M Y', strtotime((string) $row->billing_month)) . '</span>'

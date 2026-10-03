@@ -450,11 +450,20 @@ class RiderActivityImportMappingService
 
     /**
      * Format a spreadsheet cell for the import file preview.
-     * Converts Excel date serials to Y-m-d and rounds fractional numbers to 2 decimals.
+     * Uses calculated values (not formulas). Converts Excel date serials to Y-m-d
+     * and rounds fractional numbers to 2 decimals.
      */
     private function formatPreviewCell(Cell $cell): string
     {
-        $value = $cell->getValue();
+        try {
+            $value = $cell->getCalculatedValue();
+        } catch (\Throwable $e) {
+            try {
+                $value = $cell->getOldCalculatedValue();
+            } catch (\Throwable $e2) {
+                $value = $cell->getValue();
+            }
+        }
 
         if ($value === null || $value === '') {
             return '';

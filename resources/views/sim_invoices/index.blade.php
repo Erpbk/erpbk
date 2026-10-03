@@ -2,6 +2,7 @@
 
 @section('title','SIM Invoices')
 @push('third_party_stylesheets')
+@include('invoices.partials.status_badge_styles')
 <style>
     .table-responsive { max-height: calc(100vh - 280px); }
 </style>

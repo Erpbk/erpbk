@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -44,51 +44,30 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
-        @canany(['customers_invoices_edit', 'bike_on_rent_invoices_edit'])
-        <a href="javascript:void(0);"
-            class="action-btn show-modal"
-            data-size="xl"
-            data-title="Edit Invoice"
-            data-close-right-modal="1"
-            data-action="{{ route('customer_invoice.edit', $invoice->id) }}">
-            <i class="ti ti-edit"></i><span>Edit</span>
-        </a>
-        @endcanany
-
-        @canany(['customers_invoices_create', 'bike_on_rent_invoices_create'])
-        <a href="javascript:void(0);"
-            class="action-btn show-modal"
-            data-size="xl"
-            data-title="Clone Invoice"
-            data-close-right-modal="1"
-            data-action="{{ route('customer_invoice.clone', $invoice) }}">
-            <i class="ti ti-copy"></i><span>Clone</span>
-        </a>
-        @endcanany
-
-        @canany(['customers_invoices_delete', 'bike_on_rent_invoices_delete'])
-        {!! Form::open(['route' => ['customer_invoices.destroy', $invoice], 'method' => 'DELETE', 'id' => 'formajax']) !!}
-        <button type="submit"
-            class="action-btn danger"
-            onclick="return confirm('Are you sure you want to delete this invoice?');">
-            <i class="ti ti-trash"></i><span>Delete</span>
-        </button>
-        {!! Form::close() !!}
-        @endcanany
-
-        <button type="button" class="action-btn js-print-modal-content">
-            <i class="ti ti-file-description"></i><span>PDF/Print</span>
-        </button>
-
-        @can('email_create')
-        <a href="javascript:void(0);"
-            class="action-btn show-modal"
-            data-size="md"
-            data-title="Email Invoice"
-            data-action="{{ route('customer_invoices.sendEmail', $invoice->id) }}">
-            <i class="ti ti-arrow-right"></i><span>Email</span>
-        </a>
-        @endcan
+        @php
+            $ciStatus = $invoice->status ?? null;
+            $ciIsPaid = $ciStatus === 'paid' || (int) $ciStatus === 1;
+            $ciIsPartial = $ciStatus === 'partially_paid' || (int) $ciStatus === 3;
+        @endphp
+        @include('invoices.partials.action_toolbar', [
+            'isPaid' => $ciIsPaid,
+            'isPartial' => $ciIsPartial && ! $ciIsPaid,
+            'editUrl' => route('customer_invoice.edit', $invoice->id),
+            'editTitle' => 'Edit Invoice',
+            'editCan' => ['customers_invoices_edit', 'bike_on_rent_invoices_edit'],
+            'emailUrl' => route('customer_invoices.sendEmail', $invoice->id),
+            'emailTitle' => 'Send Email',
+            'downloadUrl' => route('customer_invoices.show', $invoice),
+            'showPayment' => ! $ciIsPaid,
+            'paymentUrl' => route('payments.create') . '?customer_id=' . ($invoice->customer_id ?? '') . '&invoice_id=' . $invoice->id,
+            'paymentTitle' => 'Record Payment',
+            'paymentCan' => ['customers_payments_create', 'customers_invoices_edit', 'bike_on_rent_invoices_edit'],
+            'cloneUrl' => route('customer_invoice.clone', $invoice),
+            'cloneTitle' => 'Clone Invoice',
+            'cloneCan' => ['customers_invoices_create', 'bike_on_rent_invoices_create'],
+            'deleteFormRoute' => ['customer_invoices.destroy', $invoice],
+            'deleteCan' => ['customers_invoices_delete', 'bike_on_rent_invoices_delete'],
+        ])
     </div>
     @endif
 
@@ -205,6 +184,8 @@
             'vatAmount' => $invoice->vat ?? 0,
             'totalAmount' => $invoice->total ?? $running_total,
             'currency' => $currency,
+            'paidAmount' => $invoice->paid_amount ?? 0,
+            'balanceAmount' => $invoice->balance ?? (($invoice->total ?? 0) - ($invoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>

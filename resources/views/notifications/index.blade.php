@@ -133,14 +133,30 @@
                 <a href="{{ route('settings-panel.notification-preferences.edit') }}" class="btn btn-sm btn-outline-secondary">
                     <i class="ti ti-adjustments-alt me-1"></i>{{ __('Preferences') }}
                 </a>
-                <form action="{{ route('notifications.read-all') }}" method="post">
-                    @csrf
-                    <button type="submit" class="btn btn-sm btn-outline-primary">
-                        <i class="ti ti-checks me-1"></i>{{ __('Mark all as read') }}
-                    </button>
-                </form>
+                @if($filter !== 'dismissed')
+                    <form action="{{ route('notifications.read-all') }}" method="post">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="ti ti-checks me-1"></i>{{ __('Mark all as read') }}
+                        </button>
+                    </form>
+                    <form action="{{ route('notifications.dismiss-all') }}" method="post"
+                          onsubmit="return confirm(@json(__('Dismiss all notifications from your inbox?')));">
+                        @csrf
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                            <i class="ti ti-bell-off me-1"></i>{{ __('Dismiss all') }}
+                        </button>
+                    </form>
+                @endif
             </div>
         </div>
+
+        @if(session('success'))
+            <div class="alert alert-success d-flex align-items-center mb-3" role="alert">
+                <i class="ti ti-check me-2"></i>
+                <div>{{ session('success') }}</div>
+            </div>
+        @endif
 
         <div class="ni-filters">
             <a class="ni-pill {{ $filter === '' ? 'is-active' : '' }}"

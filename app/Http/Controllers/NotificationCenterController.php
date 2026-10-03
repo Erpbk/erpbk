@@ -111,6 +111,36 @@ class NotificationCenterController extends Controller
         return back()->with('success', __('All notifications marked as read.'));
     }
 
+    public function dismissAll(string $company_slug)
+    {
+        $now = now();
+        $userId = Auth::id();
+
+        UserNotification::query()
+            ->where('user_id', $userId)
+            ->undismissed()
+            ->whereNull('read_at')
+            ->update([
+                'dismissed_at' => $now,
+                'read_at' => $now,
+            ]);
+
+        UserNotification::query()
+            ->where('user_id', $userId)
+            ->undismissed()
+            ->update([
+                'dismissed_at' => $now,
+            ]);
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()
+            ->route('notifications.index')
+            ->with('success', __('All notifications dismissed.'));
+    }
+
     public function dismiss(string $company_slug, UserNotification $notification)
     {
         $this->authorizeNotification($notification);

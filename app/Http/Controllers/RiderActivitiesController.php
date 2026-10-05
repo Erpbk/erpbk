@@ -156,6 +156,12 @@ class RiderActivitiesController extends AppBaseController
             });
         }
 
+        if ($request->filled('customer_id')) {
+            $query->whereHas('rider', function ($q) use ($request) {
+                $q->withTrashed()->where('customer_id', $request->customer_id);
+            });
+        }
+
         if ($request->filled('payout_type')) {
             $query->where('payout_type', $request->payout_type);
         }
@@ -226,7 +232,17 @@ class RiderActivitiesController extends AppBaseController
             ->orderBy('payout_type')
             ->pluck('payout_type');
 
-        $projects = collect();
+        $customerIds = Riders::withTrashed()
+            ->whereNotNull('customer_id')
+            ->where('customer_id', '!=', '')
+            ->distinct()
+            ->pluck('customer_id');
+
+        $projects = Customers::query()
+            ->whereIn('id', $customerIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $isAllTab = false;
         $isConsolidated = false;
 

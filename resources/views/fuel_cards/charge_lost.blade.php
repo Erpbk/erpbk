@@ -97,7 +97,7 @@
         </div>
 
         <div class="form-group col-sm-6 mb-3">
-            {!! Form::label('amount', 'Amount (AED):', ['class' => 'required']) !!}
+            {!! Form::label('amount', 'Amount (' . \App\Helpers\Currency::code() . '):', ['class' => 'required']) !!}
             <input type="number" name="amount" id="lostAmountInput" class="form-control"
                    step="0.01" min="0.01" placeholder="Enter amount" required autocomplete="off">
         </div>
@@ -126,7 +126,7 @@
         <div class="col-md-5">
             <div class="fc-lost-amount">
                 <div class="label">Charge Amount</div>
-                <div class="value">AED <span id="lostAmountPreview">0.00</span></div>
+                <div class="value">{{ \App\Helpers\Currency::symbol() }} <span id="lostAmountPreview">0.00</span></div>
                 <div class="text-muted mt-1" style="font-size: 11px;">Posted to the rider account.</div>
             </div>
         </div>

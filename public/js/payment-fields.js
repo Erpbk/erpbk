@@ -14,6 +14,10 @@
     if (fromBoot) {
       return fromBoot;
     }
+    var fromHtml = document.documentElement.getAttribute('data-app-currency-code');
+    if (fromHtml) {
+      return fromHtml;
+    }
     return 'AED';
   }
 

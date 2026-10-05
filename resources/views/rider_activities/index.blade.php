@@ -153,6 +153,18 @@ $projects = $projects ?? collect();
           </div>
 
           <div class="form-group col-md-12">
+            <label for="customer_id">Filter by Project</label>
+            <select class="form-control" id="customer_id" name="customer_id">
+              <option value="" selected>Select</option>
+              @foreach($projects as $project)
+              <option value="{{ $project->id }}" {{ (string) request('customer_id') === (string) $project->id ? 'selected' : '' }}>
+                {{ $project->name }}
+              </option>
+              @endforeach
+            </select>
+          </div>
+
+          <div class="form-group col-md-12">
             <label for="valid_day">Filter by Valid Day</label>
             <select class="form-control" id="valid_day" name="valid_day">
               <option value="" selected>All</option>
@@ -363,6 +375,11 @@ $projects = $projects ?? collect();
     $('#valid_day').select2({
       dropdownParent: $('#searchTopbody'),
       placeholder: "Filter By Valid Day",
+      allowClear: true,
+    });
+    $('#customer_id').select2({
+      dropdownParent: $('#searchTopbody'),
+      placeholder: "Filter By Project",
       allowClear: true,
     });
     $('#bike_assignment_status').select2({

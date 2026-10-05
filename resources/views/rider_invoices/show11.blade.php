@@ -299,7 +299,7 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
                 <th rowspan="2" class="secondary-header">Rate</th>
                 <th rowspan="2" class="secondary-header">Amount</th>
                 <th colspan="2" class="secondary-header">VAT</th>
-                <th rowspan="2" class="accent-total">Total (In AED)</th>
+                <th rowspan="2" class="accent-total">Total (In {{ \App\Helpers\Currency::code() }})</th>
             </tr>
             <tr>
                 <th class="secondary-header">Rate</th>
@@ -477,7 +477,7 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
                 <!-- Amount in Words -->
                 <table class="no-border">
                     <tr>
-                        <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ $finalAmount }} AED</td>
+                        <td class="amount-highlight" style="padding: 8px; font-size: 13px;"><b>Total Invoice Amount in Words:</b> {{ $finalAmount }} {{ \App\Helpers\Currency::code() }}</td>
                     </tr>
                 </table>
 

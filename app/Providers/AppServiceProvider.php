@@ -182,6 +182,8 @@ class AppServiceProvider extends ServiceProvider
       $view->with('companyDisplayName', $companyName);
       $view->with('appCurrencyCode', Currency::code());
       $view->with('appCurrencySymbol', Currency::symbol());
+      $view->with('appCurrencyIconUrl', Currency::iconUrl());
+      $view->with('appCurrencyMark', Currency::mark());
     });
 
     Relation::morphMap([

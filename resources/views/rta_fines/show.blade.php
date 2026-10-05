@@ -348,16 +348,16 @@
             <div style="display: inline-block; width: 350px;">
                 <div class="total-row" style="padding: 8px; border-bottom: 1px solid #ddd;">
                     <span><strong>Subtotal:</strong></span>
-                    <span>{{ number_format($fineAmount + $serviceCharges + $adminFee, 2) }} AED</span>
+                    <span>{{ \App\Helpers\Currency::format($fineAmount + $serviceCharges + $adminFee) }}</span>
                 </div>
                 <div class="total-row" style="padding: 8px; border-bottom: 1px solid #ddd;">
                     <span><strong>VAT:</strong></span>
-                    <span>{{ number_format($vat, 2) }} AED</span>
+                    <span>{{ \App\Helpers\Currency::format($vat) }}</span>
                 </div>
                 <div style="padding: 12px; background: #004aad; color: white; border-radius: 5px; margin-top: 10px;">
-                    <div style="font-size: 22px; font-weight: bold; text-align: center;">{{ number_format($totalAmount, 2) }} AED</div>
+                    <div style="font-size: 22px; font-weight: bold; text-align: center;">{{ \App\Helpers\Currency::format($totalAmount) }}</div>
                     <div style="font-size: 11px; text-align: center; margin-top: 5px;">
-                        AED {{ ucfirst(strtolower(\App\Helpers\General::numToWordsRec($totalAmount))) }}
+                        {{ \App\Helpers\Currency::code() }} {{ ucfirst(strtolower(\App\Helpers\General::numToWordsRec($totalAmount))) }}
                     </div>
                 </div>
             </div>
@@ -419,7 +419,7 @@
                     
                     <!-- Fine Amount - Simple -->
                     <div style="margin-top: 50px; text-align: center; font-size: 18px;">
-                         AED {{ number_format($rtaFine->amount ?? 500, 2) }}
+                         {{ \App\Helpers\Currency::format($rtaFine->amount ?? 500) }}
                     </div>
                 </div>
             </div>

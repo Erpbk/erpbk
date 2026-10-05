@@ -120,12 +120,13 @@
           <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
         </div>
         <div class="col-md-2 mb-3">
-          <label>Email header color</label>
+          <label>Primary brand color</label>
           <input type="color" name="company_primary_color" class="form-control form-control-color w-100"
             value="{{ old('company_primary_color', $currentCompany->primary_color ?? '#2563eb') }}" />
+          <small class="text-muted d-block mt-1">Used across the site (UI, invoices, vouchers, emails) for this company only.</small>
         </div>
         <div class="col-md-2 mb-3">
-          <label>Email accent color</label>
+          <label>Secondary brand color</label>
           <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
             value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
         </div>

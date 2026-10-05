@@ -1,5 +1,5 @@
 @php
-    $brand = $brand ?? [];
+    $brand = !empty($brand) ? $brand : ($companyBrand ?? []);
     $invPrimary = $brand['primary_color'] ?? '#2563eb';
     $invSecondary = $brand['secondary_color'] ?? '#1e3a8a';
     $invOnPrimary = $brand['text_on_primary'] ?? '#ffffff';
@@ -138,22 +138,22 @@
 .invoice-box.invoice-layout-modern .success-highlight,
 .invoice-box.invoice-layout-modern .amount-highlight,
 .invoice-box.invoice-layout-modern .items-table th {
-    background: #c6d9f1;
-    color: #000;
+    background: var(--inv-surface-soft);
+    color: var(--inv-text);
     font-weight: 700;
 }
 
 .invoice-box.invoice-layout-modern .label-cell {
     font-weight: 700;
     background: #fff;
-    color: #000;
+    color: var(--inv-text);
     width: 20%;
 }
 
 .invoice-box.invoice-layout-modern .value-cell {
     width: 30%;
     background: #fff;
-    color: #000;
+    color: var(--inv-text);
 }
 
 .invoice-box.invoice-layout-modern .items-table tbody tr:nth-child(even) {
@@ -162,5 +162,5 @@
 
 .invoice-box.invoice-layout-modern th,
 .invoice-box.invoice-layout-modern td {
-    border-color: #b8c4d4;
+    border-color: var(--inv-border);
 }

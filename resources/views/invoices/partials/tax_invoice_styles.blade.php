@@ -4,6 +4,15 @@
             box-sizing: border-box;
         }
 
+        @php
+            $invoiceBrand = $brand ?? ($companyBrand ?? []);
+            $invBlue = $invoiceBrand['primary_color'] ?? '#004aad';
+            $invBlue2 = $invoiceBrand['secondary_color'] ?? ($invoiceBrand['primary_dark'] ?? '#1a5fc4');
+            $invBlueSoft = $invoiceBrand['primary_soft'] ?? ($invoiceBrand['primary_light'] ?? '#eef4fc');
+            $invBlueLine = $invoiceBrand['border_color'] ?? '#c5d8f0';
+            $invBlueRgb = $invoiceBrand['primary_rgb'] ?? '0, 74, 173';
+        @endphp
+
         body:has(> .invoice-box),
         body:has(> .controls) {
             font-family: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
@@ -26,10 +35,11 @@
         }
 
         .invoice-box {
-            --blue: #004aad;
-            --blue-2: #1a5fc4;
-            --blue-soft: #eef4fc;
-            --blue-line: #c5d8f0;
+            --blue: {{ $invBlue }};
+            --blue-2: {{ $invBlue2 }};
+            --blue-soft: {{ $invBlueSoft }};
+            --blue-line: {{ $invBlueLine }};
+            --blue-rgb: {{ $invBlueRgb }};
             --ink: #0f172a;
             --muted: #64748b;
             --line: #e2e8f0;
@@ -41,7 +51,7 @@
             border-radius: 4px;
             box-shadow:
                 0 1px 2px rgba(15, 23, 42, 0.04),
-                0 12px 40px rgba(0, 74, 173, 0.1);
+                0 12px 40px rgba(var(--blue-rgb), 0.1);
             overflow: hidden;
             position: relative;
         }
@@ -615,8 +625,8 @@
             align-items: center;
             gap: 6px;
             background: #fff;
-            color: #004aad;
-            border: 1px solid #004aad;
+            color: {{ $invBlue }};
+            border: 1px solid {{ $invBlue }};
             padding: 6px 14px;
             font-size: 13px;
             font-weight: 500;
@@ -637,8 +647,8 @@
 
         #rightSideModalBody>.controls .action-btn:hover,
         body>.controls .action-btn:hover {
-            background: #eef4fc;
-            color: #004aad;
+            background: {{ $invBlueSoft }};
+            color: {{ $invBlue }};
             text-decoration: none;
         }
 

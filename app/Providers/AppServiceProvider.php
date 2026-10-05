@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\View;
 use App\Models\Branch;
 use App\Models\Company;
 use App\Models\Settings;
+use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
 use App\Support\CompanyRouteContext;
 use Illuminate\Support\Facades\DB;
 use App\Support\ErpModuleRegistry;
 use App\Support\ModuleRouteResolver;
 use App\Support\PublicStorageLink;
+use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Email\CompanyEmailBrandingService;
 use App\Services\GlobalAccountResolver;
 use App\Services\Module\TopBarListingService;
@@ -169,17 +171,28 @@ class AppServiceProvider extends ServiceProvider
 
     // Make company branding available across all Blade views.
     View::composer('*', function ($view) {
-      $branding = app(\App\Services\Email\CompanyEmailBrandingService::class)->resolve();
+      $branding = app(CompanyEmailBrandingService::class)->resolve();
       $companyName = $branding['name'] ?? config('app.name');
+      $companyId = !empty($branding['company_id']) ? (int) $branding['company_id'] : null;
 
-      if (!empty($branding['company_id'])) {
+      if ($companyId !== null) {
         config([
           'variables.templateName' => $companyName,
         ]);
       }
 
+      $companyBrand = [];
+      $applyCompanyTheme = $companyId !== null && CompanyContext::shouldApplyScope();
+      if ($applyCompanyTheme) {
+        $companyBrand = app(AgreementPdfBranding::class)->colorPalette($companyId);
+      }
+
       $view->with('companyLogoUrl', $branding['logo_url'] ?? null);
       $view->with('companyDisplayName', $companyName);
+      $view->with('companyPrimaryColor', $companyBrand['primary_color'] ?? ($branding['primary_color'] ?? '#2563eb'));
+      $view->with('companySecondaryColor', $companyBrand['secondary_color'] ?? ($branding['secondary_color'] ?? '#1e3a8a'));
+      $view->with('companyBrand', $companyBrand);
+      $view->with('applyCompanyTheme', $applyCompanyTheme);
       $view->with('appCurrencyCode', Currency::code());
       $view->with('appCurrencySymbol', Currency::symbol());
       $view->with('appCurrencyIconUrl', Currency::iconUrl());

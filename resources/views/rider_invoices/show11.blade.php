@@ -6,6 +6,19 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
     <meta charset="UTF-8">
     <title>RiderID: {{$riderInvoice->rider->rider_id}} Month: {{date('M-Y',strtotime($riderInvoice->billing_month))}}</title>
     <style>
+        @php
+            $legacyBrand = $brand ?? ($companyBrand ?? []);
+            $legacyBlue = $legacyBrand['primary_color'] ?? '#004aad';
+            $legacyBlueSoft = $legacyBrand['primary_soft'] ?? '#d9e1f2';
+            $legacyBlue2 = $legacyBrand['secondary_color'] ?? '#1e3a8a';
+        @endphp
+        :root {
+            --blue: {{ $legacyBlue }};
+            --blue-soft: {{ $legacyBlueSoft }};
+            --blue-2: {{ $legacyBlue2 }};
+            --ink: #0f172a;
+        }
+
         body {
             font-family: Calibri, Arial, sans-serif;
             font-size: 12px;
@@ -42,7 +55,8 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
         }
 
         th {
-            background: #d9e1f2;
+            background: var(--blue-soft, #d9e1f2);
+            color: var(--ink, #0f172a);
             font-weight: bold;
         }
 
@@ -78,43 +92,43 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
         }
 
         .primary-header {
-            background: #211c1d;
+            background: var(--blue-2, #1e3a8a);
             color: white;
             font-weight: bold;
         }
 
         .secondary-header {
-            background: #004aad;
+            background: var(--blue, #004aad);
             color: white;
             font-weight: bold;
         }
 
         .accent-total {
-            background: #5271ff;
+            background: var(--blue, #004aad);
             color: white;
             font-weight: bold;
         }
 
         .light-header {
-            background: #e6f1ff;
-            color: #004aad;
+            background: var(--blue-soft, #e6f1ff);
+            color: var(--blue, #004aad);
             font-weight: bold;
         }
 
         .amount-highlight {
-            background: #2A62FF;
+            background: var(--blue, #004aad);
             font-weight: bold;
             color: #FFFFFF;
         }
 
         .success-highlight {
-            background: #004aad;
+            background: var(--blue, #004aad);
             color: white;
             font-weight: bold;
         }
 
         .dark-accent {
-            background: #211c1d;
+            background: var(--blue-2, #1e3a8a);
             color: white;
             font-weight: bold;
         }
@@ -142,7 +156,7 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
             position: fixed;
             top: 10px;
             right: 10px;
-            background: #004aad;
+            background: var(--blue, #004aad);
             color: #fff;
             border: none;
             padding: 8px 12px;
@@ -153,7 +167,7 @@ text/x-generic show.blade.php ( HTML document, ASCII text, with very long lines 
         }
 
         .print-btn:hover {
-            background: #2A62FF;
+            background: var(--blue-2, #1e3a8a);
         }
 
         /* Print styles to ensure background colors print without changing design */

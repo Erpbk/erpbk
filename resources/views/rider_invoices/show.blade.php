@@ -205,8 +205,21 @@
         .invoice-box.invoice-layout-modern .success-highlight,
         .invoice-box.invoice-layout-modern .amount-highlight,
         .invoice-box.invoice-layout-modern .primary-header {
-            background: #c6d9f1;
-            color: #000;
+            background: var(--blue-soft, #eef4fc);
+            color: var(--ink, #0f172a);
+        }
+
+        .invoice-box.invoice-layout-modern th,
+        .invoice-box.invoice-layout-modern td {
+            border-color: var(--blue-line, #c5d8f0);
+        }
+
+        .invoice-box.invoice-layout-modern .band {
+            background: var(--blue, #004aad);
+        }
+
+        .invoice-box.invoice-layout-modern .hdr {
+            border-bottom-color: var(--blue, #004aad);
         }
     </style>
 </head>

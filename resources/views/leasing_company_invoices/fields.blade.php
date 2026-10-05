@@ -1,231 +1,238 @@
 <script src="{{ asset('js/modal_custom.js') }}"></script>
+@php
+$currencyCode = \App\Helpers\Currency::code();
+$invItemsCols = '2.2fr .7fr .9fr .7fr .9fr 1fr .5fr';
+$selectedLeasingCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->leasing_company_id : (isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null));
+$isClone = isset($cloneFromInvoice);
+$calculatedSubtotal = 0;
+$calculatedVat = 0;
+if(isset($invoice)) {
+    foreach($invoice->items as $item) {
+        $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
+        $taxAmt = $prorated * ($item->tax_rate / 100);
+        $calculatedSubtotal += $prorated;
+        $calculatedVat += $taxAmt;
+    }
+}
+$calculatedTotal = $calculatedSubtotal + $calculatedVat;
+@endphp
 
-<div class="row">
-    <div class="col-md-2 form-group">
-        <label>Invoice Date</label>
-        <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}" name="inv_date" placeholder="Invoice Date">
-    </div>
+@include('invoices.partials.invoice_form_styles', ['invItemsCols' => $invItemsCols])
 
-    <div class="col-md-4 form-group">
-        <label>Leasing Company</label>
-        @php
-        $selectedLeasingCompany = isset($cloneFromInvoice) ? $cloneFromInvoice->leasing_company_id : (isset($invoice) ? $invoice->leasing_company_id : (isset($leasingCompany) && $leasingCompany ? $leasingCompany->id : null));
-        $isClone = isset($cloneFromInvoice);
-        @endphp
-        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_invoice_company_id', 'disabled' => $isClone]) !!}
-        @if($isClone)
-        <input type="hidden" name="leasing_company_id" value="{{ $selectedLeasingCompany }}">
-        <small class="text-muted">Leasing company is locked when cloning an invoice.</small>
-        @endif
-    </div>
-
-    <div class="form-group col-md-2">
-        <label>Billing Month</label>
-        <input type="month" name="billing_month" class="form-control" value="{{ isset($nextBillingMonth) ? $nextBillingMonth : (isset($invoice) && $invoice->billing_month ? date('Y-m', strtotime($invoice->billing_month)) : date('Y-m')) }}" id="billing_month" />
-    </div>
-
-    <div class="col-md-2 form-group">
-        <label>Reference Number <span class="text-danger">*</span></label>
-        <input type="text" name="reference_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->reference_number : '') }}" placeholder="Reference No." required>
-    </div>
-    @if(isset($invoice) || isset($cloneFromInvoice))
-    <div class="col-md-3 form-group">
-        <label> Invoice Number <span class="text-danger">*</span></label>
-        <input type="text" name="leasing_company_invoice_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->leasing_company_invoice_number : '') }}" placeholder="Invoice No." required>
-    </div>
-    @endif
-    <div class="col-md-3 form-group">
-        @include('partials.universal_document_upload', [
-          'name' => 'attachment',
-          'label' => 'Attachment',
-          'required' => false,
-          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
-          'inputClass' => 'form-control',
-          'showHint' => true,
-        ])
-        @isset($invoice->attachment)
-        <small class="text-muted">Current file: <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">{{ basename($invoice->attachment) }}</a></small>
-        @endisset
-    </div>
-    <div class="col-md-12 form-group">
-        <label>Descriptions</label>
-        {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, ['class' => 'form-control', 'placeholder' => 'Descriptions', 'rows' => 2]) !!}
-    </div>
-</div>
-
-<div class="mt-2">
-    <div class="card-header bg-blue m-3">
-        <h5 class="card-title">Item Details</h5>
-    </div>
-
-    <div class="scrollbar p-2 border rounded">
-        <div class="row">
-            <div class="col-md-3 form-group">
-                <label>Bike <span class="text-danger">*</span></label>
-            </div>
-            <div class="col-md-1 form-group">
-                <label>Days</label>
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Monthly Rate</label>
-            </div>
-            <div class="col-md-1 form-group">
-                <label>VAT %</label>
-            </div>
-            <div class="col-md-2 form-group">
-                <label>VAT Amount</label>
-            </div>
-            <div class="col-md-2 form-group">
-                <label>Amount</label>
+<div class="inv-form-wrap">
+    <div class="row g-3">
+        <div class="col-lg-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-file-alt"></i> Invoice Details</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Invoice Date</label>
+                        <input type="date" class="form-control" value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}" name="inv_date" placeholder="Invoice Date">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Billing Month</label>
+                        <input type="month" name="billing_month" class="form-control" value="{{ isset($nextBillingMonth) ? $nextBillingMonth : (isset($invoice) && $invoice->billing_month ? date('Y-m', strtotime($invoice->billing_month)) : date('Y-m')) }}" id="billing_month" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                        <input type="text" name="reference_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->reference_number : '') }}" placeholder="Reference No." required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Leasing Company</label>
+                        {!! Form::select('leasing_company_id', $leasingCompanies, $selectedLeasingCompany, ['class' => 'form-select form-select-sm select2', 'id' => 'leasing_invoice_company_id', 'disabled' => $isClone]) !!}
+                        @if($isClone)
+                        <input type="hidden" name="leasing_company_id" value="{{ $selectedLeasingCompany }}">
+                        <small class="text-muted">Leasing company is locked when cloning an invoice.</small>
+                        @endif
+                    </div>
+                    @if(isset($invoice) || isset($cloneFromInvoice))
+                    <div class="col-md-6">
+                        <label class="form-label">Invoice Number <span class="text-danger">*</span></label>
+                        <input type="text" name="leasing_company_invoice_number" class="form-control" value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->leasing_company_invoice_number : '') }}" placeholder="Invoice No." required>
+                    </div>
+                    @endif
+                    <div class="col-md-6">
+                        @include('partials.universal_document_upload', [
+                          'name' => 'attachment',
+                          'label' => 'Attachment',
+                          'required' => false,
+                          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+                          'inputClass' => 'form-control',
+                          'showHint' => true,
+                        ])
+                        @isset($invoice->attachment)
+                        <small class="text-muted">Current file: <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">{{ basename($invoice->attachment) }}</a></small>
+                        @endisset
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div id="rows-container">
-            @isset($invoice)
-            @foreach($invoice->items as $item)
-            @php
-            // Always use 30 days for calculation regardless of actual month days
-            $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
-            $taxAmtEdit = $proratedEdit * ($item->tax_rate / 100);
-            $lineTotalEdit = $proratedEdit + $taxAmtEdit;
-            @endphp
-            <div class="row mt-1 invoice-item-row">
-                <div class="col-md-3 form-group">
-                    {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
-                </div>
-                <div class="col-md-1 form-group">
-                    <input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
-                </div>
-                <div class="col-md-1 form-group">
-                    <input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}" placeholder="0.00">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}">
-                </div>
-                <div class="form-group col-md-1 d-flex align-items-center">
-                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-                </div>
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-align-left"></i> Description</h6>
+                {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, ['class' => 'form-control', 'placeholder' => 'Descriptions', 'rows' => 3]) !!}
             </div>
-            @endforeach
-            @endisset
+        </div>
 
-            @isset($cloneItems)
-            @foreach($cloneItems as $item)
-            {{-- Inactive bike styling and auto-exclude disabled: allow inactive bikes to be added; user will remove manually if needed --}}
-            <div class="row mt-1 invoice-item-row">
-                <div class="col-md-3 form-group">
-                    {!! Form::select('bike_id[]', $bikes ?? [], $item['bike_id'], ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-list"></i> Item Details</h6>
+                <div class="inv-items-head">
+                    <span>Bike</span>
+                    <span>Days</span>
+                    <span>Monthly Rate</span>
+                    <span>VAT %</span>
+                    <span>VAT Amount</span>
+                    <span>Amount</span>
+                    <span>Action</span>
                 </div>
-                <div class="col-md-1 form-group">
-                    <input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
-                </div>
-                <div class="col-md-1 form-group">
-                    <input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
-                </div>
-                <div class="col-md-2 form-group">
+                <div id="rows-container">
+                    @isset($invoice)
+                    @foreach($invoice->items as $item)
                     @php
-                    // Always use 30 days for calculation regardless of actual month days
-                    $proratedClone = $item['rental_amount'] * ($item['days'] / 30);
-                    $taxAmtClone = $proratedClone * ($item['tax_rate'] / 100);
-                    $lineTotalClone = $proratedClone + $taxAmtClone;
+                    $proratedEdit = $item->rental_amount * (($item->days ?? 1) / 30);
+                    $taxAmtEdit = $proratedEdit * ($item->tax_rate / 100);
+                    $lineTotalEdit = $proratedEdit + $taxAmtEdit;
                     @endphp
-                    <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}">
-                </div>
-                <div class="form-group col-md-1 d-flex align-items-center">
-                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
-                </div>
-            </div>
-            @endforeach
-            @endisset
+                    <div class="row mt-1 invoice-item-row">
+                        <div class="col-md-3 form-group">
+                            {!! Form::select('bike_id[]', $bikes, $item->bike_id, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="number" name="days[]" value="{{ $item->days ?? 1 }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="number" name="rental_amount[]" value="{{ $item->rental_amount }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="number" name="tax_rate[]" value="{{ $item->tax_rate }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtEdit, 2) }}" data-numeric-value="{{ $taxAmtEdit }}" placeholder="0.00">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalEdit, 2) }}" data-numeric-value="{{ $lineTotalEdit }}">
+                        </div>
+                        <div class="form-group col-md-1 d-flex align-items-center justify-content-center">
+                            <a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a>
+                        </div>
+                    </div>
+                    @endforeach
+                    @endisset
 
-            @if(!isset($invoice) && !isset($cloneItems))
-            <div class="row mt-1 invoice-item-row">
-                <div class="col-md-3 form-group">
-                    {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                    @isset($cloneItems)
+                    @foreach($cloneItems as $item)
+                    <div class="row mt-1 invoice-item-row">
+                        <div class="col-md-3 form-group">
+                            {!! Form::select('bike_id[]', $bikes ?? [], $item['bike_id'], ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="number" name="days[]" value="{{ $item['days'] }}" class="form-control days" min="1" step="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="number" name="rental_amount[]" value="{{ $item['rental_amount'] }}" class="form-control rate" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="number" name="tax_rate[]" value="{{ $item['tax_rate'] }}" class="form-control tax" step="0.01" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            @php
+                            $proratedClone = $item['rental_amount'] * ($item['days'] / 30);
+                            $taxAmtClone = $proratedClone * ($item['tax_rate'] / 100);
+                            $lineTotalClone = $proratedClone + $taxAmtClone;
+                            @endphp
+                            <input type="text" class="form-control tax_amount_display" readonly value="{{ number_format($taxAmtClone, 2) }}" data-numeric-value="{{ $taxAmtClone }}">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control amount" readonly value="{{ number_format($lineTotalClone, 2) }}" data-numeric-value="{{ $lineTotalClone }}">
+                        </div>
+                        <div class="form-group col-md-1 d-flex align-items-center justify-content-center">
+                            <a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a>
+                        </div>
+                    </div>
+                    @endforeach
+                    @endisset
+
+                    @if(!isset($invoice) && !isset($cloneItems))
+                    <div class="row mt-1 invoice-item-row">
+                        <div class="col-md-3 form-group">
+                            {!! Form::select('bike_id[]', $bikes ?? [], null, ['class' => 'form-select form-select-sm select2 bike-select', 'required' => true]) !!}
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="number" name="days[]" class="form-control days" min="1" step="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
+                        </div>
+                        <div class="col-md-1 form-group">
+                            <input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0">
+                        </div>
+                        <div class="col-md-2 form-group">
+                            <input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0">
+                        </div>
+                        <div class="form-group col-md-1 d-flex align-items-center justify-content-center">
+                            <a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a>
+                        </div>
+                    </div>
+                    @endif
                 </div>
-                <div class="col-md-1 form-group">
-                    <input type="number" name="days[]" class="form-control days" min="1" step="1" value="1" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="1">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="number" name="rental_amount[]" class="form-control rate" step="0.01" value="0" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="0.00">
-                </div>
-                <div class="col-md-1 form-group">
-                    <input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="{{ \App\Helpers\Common::getSetting('vat_percentage') ?? 5 }}" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);" placeholder="5">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0">
-                </div>
-                <div class="col-md-2 form-group">
-                    <input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0">
-                </div>
-                <div class="form-group col-md-1 d-flex align-items-center">
-                    <a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a>
+                <div class="mt-2">
+                    <button type="button" id="add-new-row" class="btn inv-add-item btn-sm">
+                        <i class="fa fa-plus"></i> Add Item
+                    </button>
                 </div>
             </div>
-            @endif
         </div>
-    </div>
 
-    <div>
-        <button type="button" id="add-new-row" class="btn btn-success btn-sm mt-3 mb-3">Add New</button>
-    </div>
-
-    <div class="row mt-2">
-        <div class="col-md-12 form-group">
-            <label>Internal Notes</label>
-            {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? '') : (isset($invoice) ? $invoice->notes : null), ['class' => 'form-control', 'placeholder' => 'Internal notes', 'rows' => 2]) !!}
-            @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'leasing_company_invoices', 'invoice' => $invoice ?? $cloneFromInvoice ?? null])
+        <div class="col-12">
+            <div class="inv-totals-area">
+                <div class="inv-totals-notes">
+                    @include('invoices.partials.invoice_note_fields', [
+                        'defaultsModule' => 'leasing_company_invoices',
+                        'invoice' => $invoice ?? $cloneFromInvoice ?? null,
+                        'render' => 'note',
+                        'asTotalsNotes' => true,
+                    ])
+                </div>
+                <div class="inv-totals">
+                    <div class="inv-summary-row">
+                        <span>Subtotal (excl. VAT)</span>
+                        <span class="inv-summary-value"><span id="subtotal_display">{{ number_format($calculatedSubtotal, 2, '.', '') }}</span></span>
+                    </div>
+                    <div class="inv-summary-row">
+                        <span>VAT Amount</span>
+                        <span class="inv-summary-value"><span id="vat_total_display">{{ number_format($calculatedVat, 2, '.', '') }}</span></span>
+                    </div>
+                    <div class="inv-summary-row inv-summary-total">
+                        <span>Total Due</span>
+                        <span class="inv-summary-value"><span id="total_display">{{ number_format($calculatedTotal, 2, '.', '') }}</span> {{ $currencyCode }}</span>
+                    </div>
+                    <input type="hidden" name="subtotal" id="subtotal" value="{{ number_format($calculatedSubtotal, 2, '.', '') }}">
+                    <input type="hidden" name="vat_total" id="vat_total" value="{{ number_format($calculatedVat, 2, '.', '') }}">
+                    <input type="hidden" name="total_amount_display" id="total" value="{{ number_format($calculatedTotal, 2, '.', '') }}">
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div class="d-flex justify-content-between align-items-center gap-3 mt-3">
-        <div></div>
-        <div class="d-flex align-items-center gap-3">
-            @php
-            $calculatedSubtotal = 0;
-            $calculatedVat = 0;
-            if(isset($invoice)) {
-                foreach($invoice->items as $item) {
-                    $prorated = $item->rental_amount * (($item->days ?? 1) / 30);
-                    $taxAmt = $prorated * ($item->tax_rate / 100);
-                    $calculatedSubtotal += $prorated;
-                    $calculatedVat += $taxAmt;
-                }
-            }
-            $calculatedTotal = $calculatedSubtotal + $calculatedVat;
-            @endphp
-            <div class="input-group">
-                <span class="input-group-text bg-light">Subtotal</span>
-                <input type="number" name="subtotal" class="form-control" id="subtotal" value="{{ number_format($calculatedSubtotal, 2, '.', '') }}" readonly style="min-width: 150px;">
-            </div>
-            <div class="input-group">
-                <span class="input-group-text bg-light">VAT Amount</span>
-                <input type="number" name="vat_total" class="form-control" id="vat_total" value="{{ number_format($calculatedVat, 2, '.', '') }}" readonly style="min-width: 150px;">
-            </div>
-            <div class="input-group">
-                <span class="input-group-text bg-primary text-white">Total</span>
-                <input type="number" name="total_amount_display" class="form-control" id="total" value="{{ number_format($calculatedTotal, 2, '.', '') }}" readonly style="min-width: 150px; font-weight: bold;">
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-file-contract"></i> Terms &amp; Conditions</h6>
+                @include('invoices.partials.invoice_note_fields', [
+                    'defaultsModule' => 'leasing_company_invoices',
+                    'invoice' => $invoice ?? $cloneFromInvoice ?? null,
+                    'render' => 'terms',
+                ])
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Define functions globally to ensure they're available for inline event handlers
     window.leasing_getDaysInMonth = function() {
-        // Always use 30 days for calculation regardless of actual month days
         return 30;
     };
 
@@ -250,7 +257,6 @@
         var vat = 0;
         var total = 0;
         $('#rows-container .invoice-item-row').each(function() {
-            // if ($(this).data('inactive') === 1) return; // commented out: include inactive bikes in total
             var tax = parseFloat($(this).find('.tax_amount_display').data('numeric-value')) || 0;
             var lineTotal = parseFloat($(this).find('.amount').data('numeric-value')) || 0;
             vat += tax;
@@ -260,6 +266,9 @@
         $('#subtotal').val(subtotal.toFixed(2));
         $('#vat_total').val(vat.toFixed(2));
         $('#total').val(total.toFixed(2));
+        $('#subtotal_display').text(subtotal.toFixed(2));
+        $('#vat_total_display').text(vat.toFixed(2));
+        $('#total_display').text(total.toFixed(2));
     };
 
     $(document).ready(function() {
@@ -315,7 +324,7 @@
                 '<div class="col-md-1 form-group"><input type="number" name="tax_rate[]" class="form-control tax" step="0.01" value="' + defaultTax + '" onkeyup="leasing_calculate_price(this);" onchange="leasing_calculate_price(this);"></div>' +
                 '<div class="col-md-2 form-group"><input type="text" class="form-control tax_amount_display" readonly value="0.00" data-numeric-value="0"></div>' +
                 '<div class="col-md-2 form-group"><input type="text" class="form-control amount" readonly value="0.00" data-numeric-value="0"></div>' +
-                '<div class="form-group col-md-1 d-flex align-items-center"><a href="javascript:void(0);" class="text-danger btn-remove-row"><i class="fa fa-trash"></i></a></div>' +
+                '<div class="form-group col-md-1 d-flex align-items-center justify-content-center"><a href="javascript:void(0);" class="btn-remove-row" title="Remove"><i class="fa fa-trash"></i></a></div>' +
                 '</div>';
             $('#rows-container').append(html);
             if ($.fn.select2) {

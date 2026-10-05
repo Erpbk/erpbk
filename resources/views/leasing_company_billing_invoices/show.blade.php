@@ -9,67 +9,67 @@
 
 <body>
     @php
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        $currency = \App\Helpers\Currency::code();
-        $defaults = \App\Support\InvoiceModuleDefaults::all('leasing_company_billing_invoices');
-        $party = $invoice->customer;
-        $invoiceTitle = $defaults['title'] ?: 'RENTAL BILL';
-        $partyNote = $invoice->customer_note
-            ?: ($party->invoice_note ?? null)
-            ?: ($defaults['notes'] ?: null);
-        $termsAndConditions = $invoice->terms_and_conditions
-            ?: ($party->terms_and_conditions ?? null)
-            ?: ($defaults['terms_and_conditions'] ?: null);
-        $partyNoteLabel = $party
-            ? $party->resolvedInvoiceNoteLabel()
-            : 'Invoice Note';
-        $termsAndConditionsLabel = $party
-            ? $party->resolvedTermsAndConditionsLabel()
-            : 'Terms & Conditions';
-        $invoiceNumber = $invoice->invoice_number ?? ('LBI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT));
-        $subtotalAmount = $invoice->subtotal ?? 0;
-        $vatAmt = $invoice->vat ?? 0;
-        $totalAmt = $invoice->total_amount ?? ($subtotalAmount + $vatAmt);
-        $noteCards = collect([
-            $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
-            $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
-        ])->filter()->values();
-        $noteGridClass = match ($noteCards->count()) {
-            1 => 'one',
-            3 => 'three',
-            default => '',
-        };
-        $invoiceDateLabel = $invoice->inv_date
-            ? (is_object($invoice->inv_date) ? $invoice->inv_date->format('d M Y') : date('d M Y', strtotime($invoice->inv_date)))
-            : '';
-        $billingLabel = date('M Y', strtotime($invoice->billing_month));
+    $settings = company_table('settings')->pluck('value', 'name')->toArray();
+    $currency = \App\Helpers\Currency::code();
+    $defaults = \App\Support\InvoiceModuleDefaults::all('leasing_company_billing_invoices');
+    $party = $invoice->customer;
+    $invoiceTitle = $defaults['title'] ?: 'RENTAL BILL';
+    $partyNote = $invoice->customer_note
+    ?: ($party->invoice_note ?? null)
+    ?: ($defaults['notes'] ?: null);
+    $termsAndConditions = $invoice->terms_and_conditions
+    ?: ($party->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
+    $partyNoteLabel = $party
+    ? $party->resolvedInvoiceNoteLabel()
+    : 'Invoice Note';
+    $termsAndConditionsLabel = $party
+    ? $party->resolvedTermsAndConditionsLabel()
+    : 'Terms & Conditions';
+    $invoiceNumber = $invoice->invoice_number ?? ('LBI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT));
+    $subtotalAmount = $invoice->subtotal ?? 0;
+    $vatAmt = $invoice->vat ?? 0;
+    $totalAmt = $invoice->total_amount ?? ($subtotalAmount + $vatAmt);
+    $noteCards = collect([
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+    $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
+    ])->filter()->values();
+    $noteGridClass = match ($noteCards->count()) {
+    1 => 'one',
+    3 => 'three',
+    default => '',
+    };
+    $invoiceDateLabel = $invoice->inv_date
+    ? (is_object($invoice->inv_date) ? $invoice->inv_date->format('d M Y') : date('d M Y', strtotime($invoice->inv_date)))
+    : '';
+    $billingLabel = date('M Y', strtotime($invoice->billing_month));
     @endphp
 
     @if(empty($isPdf))
     <div class="controls no-print">
         @php
-            $lbiStatus = (int) ($invoice->status ?? 0);
-            $lbiIsPaid = $lbiStatus === 1;
-            $lbiIsPartial = $lbiStatus === 3 || (! $lbiIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+        $lbiStatus = (int) ($invoice->status ?? 0);
+        $lbiIsPaid = $lbiStatus === 1;
+        $lbiIsPartial = $lbiStatus === 3 || (! $lbiIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
         @endphp
         @include('invoices.partials.action_toolbar', [
-            'isPaid' => $lbiIsPaid,
-            'isPartial' => $lbiIsPartial && ! $lbiIsPaid,
-            'editUrl' => route('leasingCompanyBillingInvoices.edit', $invoice->id),
-            'editTitle' => 'Edit Invoice',
-            'editCan' => 'bike_on_rent_invoices_edit',
-            'downloadUrl' => route('leasingCompanyBillingInvoices.show', $invoice->id),
-            'showPayment' => ! $lbiIsPaid,
-            'paymentUrl' => route('payments.create')
-                . '?customer_id=' . ($invoice->customer_id ?? '')
-                . '&invoice_id=' . $invoice->id,
-            'paymentTitle' => 'Record Payment',
-            'paymentCan' => ['customers_payments_create', 'bike_on_rent_invoices_edit'],
-            'cloneUrl' => route('leasingCompanyBillingInvoices.createFromClone', $invoice->id),
-            'cloneTitle' => 'Clone Invoice',
-            'cloneCan' => 'bike_on_rent_invoices_create',
-            'deleteFormRoute' => ['leasingCompanyBillingInvoices.destroy', $invoice->id],
-            'deleteCan' => 'bike_on_rent_invoices_delete',
+        'isPaid' => $lbiIsPaid,
+        'isPartial' => $lbiIsPartial && ! $lbiIsPaid,
+        'editUrl' => route('leasingCompanyBillingInvoices.edit', $invoice->id),
+        'editTitle' => 'Edit Invoice',
+        'editCan' => 'bike_on_rent_invoices_edit',
+        'downloadUrl' => route('leasingCompanyBillingInvoices.show', $invoice->id),
+        'showPayment' => ! $lbiIsPaid,
+        'paymentUrl' => route('payments.create')
+        . '?customer_id=' . ($invoice->customer_id ?? '')
+        . '&invoice_id=' . $invoice->id,
+        'paymentTitle' => 'Record Payment',
+        'paymentCan' => ['customers_payments_create', 'bike_on_rent_invoices_edit'],
+        'cloneUrl' => route('leasingCompanyBillingInvoices.createFromClone', $invoice->id),
+        'cloneTitle' => 'Clone Invoice',
+        'cloneCan' => 'bike_on_rent_invoices_create',
+        'deleteFormRoute' => ['leasingCompanyBillingInvoices.destroy', $invoice->id],
+        'deleteCan' => 'bike_on_rent_invoices_delete',
         ])
     </div>
     @endif
@@ -78,11 +78,11 @@
         <div class="band"></div>
         <div class="sheet">
             @include('invoices.partials.tax_invoice_header', [
-                'settings' => $settings,
-                'invoiceTitle' => $invoiceTitle,
-                'invoiceNumber' => $invoiceNumber,
-                'invoiceDateLabel' => $invoiceDateLabel,
-                'billingLabel' => $billingLabel,
+            'settings' => $settings,
+            'invoiceTitle' => $invoiceTitle,
+            'invoiceNumber' => $invoiceNumber,
+            'invoiceDateLabel' => $invoiceDateLabel,
+            'billingLabel' => $billingLabel,
             ])
 
             <div class="parties">
@@ -153,12 +153,12 @@
                     <tbody>
                         @foreach($invoice->items as $key => $item)
                         @php
-                            $vatRate = $item->tax_rate ?? 0;
-                            $vatAmtRow = $item->tax_amount ?? 0;
-                            $rowTotal = $item->total_amount ?? (($item->rental_amount ?? 0) + $vatAmtRow);
-                            $proratedAmount = $rowTotal - $vatAmtRow;
-                            $bikePlate = $item->bike?->plate ?? 'N/A';
-                            $bikeEmirates = $item->bike?->emirates ?? '';
+                        $vatRate = $item->tax_rate ?? 0;
+                        $vatAmtRow = $item->tax_amount ?? 0;
+                        $rowTotal = $item->total_amount ?? (($item->rental_amount ?? 0) + $vatAmtRow);
+                        $proratedAmount = $rowTotal - $vatAmtRow;
+                        $bikePlate = $item->bike?->plate ?? 'N/A';
+                        $bikeEmirates = $item->bike?->emirates ?? '';
                         @endphp
                         <tr>
                             <td class="col-sr">{{ $key + 1 }}</td>
@@ -177,22 +177,22 @@
             </div>
 
             @include('invoices.partials.tax_invoice_totals_notes', [
-                'partyNote' => $partyNote,
-                'partyNoteLabel' => $partyNoteLabel,
-                'subtotalAmount' => $subtotalAmount,
-                'vatAmount' => $vatAmt,
-                'totalAmount' => $totalAmt,
-                'currency' => $currency,
-                'paidAmount' => $invoice->paid_amount ?? 0,
-                'balanceAmount' => $invoice->balance ?? (($totalAmt ?? 0) - ($invoice->paid_amount ?? 0)),
+            'partyNote' => $partyNote,
+            'partyNoteLabel' => $partyNoteLabel,
+            'subtotalAmount' => $subtotalAmount,
+            'vatAmount' => $vatAmt,
+            'totalAmount' => $totalAmt,
+            'currency' => $currency,
+            'paidAmount' => $invoice->paid_amount ?? 0,
+            'balanceAmount' => $invoice->balance ?? (($totalAmt ?? 0) - ($invoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif
 
             @include('invoices.partials.tax_invoice_footnotes', [
-                'noteCards' => $noteCards,
-                'noteGridClass' => $noteGridClass,
+            'noteCards' => $noteCards,
+            'noteGridClass' => $noteGridClass,
             ])
 
             @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])

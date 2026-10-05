@@ -282,9 +282,9 @@
         @include('rider_invoices.partials.action_buttons')
     </div>
     @include('delete_requests._confirm_delete_script', [
-        'entityName' => 'Rider Invoice',
-        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
-        'method' => 'GET',
+    'entityName' => 'Rider Invoice',
+    'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+    'method' => 'GET',
     ])
     @endif
 

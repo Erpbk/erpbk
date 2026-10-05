@@ -192,6 +192,7 @@
         .invoice-box .party {
             background: var(--blue-soft);
             border: 1px solid var(--blue-line);
+            border-left: 4px solid var(--blue);
             border-radius: 6px;
             padding: 16px 18px;
             min-height: 100%;
@@ -200,6 +201,7 @@
         .invoice-box .party.alt {
             background: #f8fafc;
             border-color: var(--line);
+            border-left: 4px solid var(--blue);
         }
 
         .invoice-box .party-title {
@@ -264,7 +266,8 @@
         .invoice-box .desc {
             margin-bottom: 22px;
             padding: 12px 16px;
-            border-left: 3px solid var(--blue);
+            border: 1px solid var(--line);
+            border-left: 4px solid var(--blue);
             background: #f8fafc;
             border-radius: 6px;
         }
@@ -288,6 +291,7 @@
         /* ========== ITEMS TABLE ========== */
         .invoice-box .tbl-wrap {
             border: 1px solid var(--line);
+            border-left: 4px solid var(--blue);
             border-radius: 6px;
             overflow: hidden;
             margin-bottom: 8px;
@@ -374,6 +378,7 @@
             padding: 14px 16px;
             background: #f8fafc;
             border: 1px solid var(--line);
+            border-left: 4px solid var(--blue);
             border-top: 2px solid var(--blue);
             border-radius: 6px;
             display: flex;
@@ -474,7 +479,7 @@
             padding: 14px 16px;
             background: #f8fafc;
             border: 1px solid var(--line);
-            border-left: 2px solid var(--blue);
+            border-left: 4px solid var(--blue);
             border-radius: 6px;
         }
 
@@ -970,7 +975,7 @@
 
             .invoice-box .note-card {
                 padding: 5px 8px !important;
-                border-left: 2px solid var(--blue) !important;
+                border-left: 4px solid var(--blue) !important;
             }
 
             .invoice-box .note-card h4 {

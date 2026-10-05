@@ -121,7 +121,7 @@
         .invoice-box table.items-table th,
         .invoice-box .secondary-header,
         .invoice-box .accent-total {
-            background: #004aad;
+            background: var(--blue, #004aad);
             color: #fff;
             font-weight: 700;
             vertical-align: middle;

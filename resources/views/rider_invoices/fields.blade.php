@@ -8,184 +8,51 @@ $defaultNotes = old('customer_note', isset($invoice) ? ($invoice->customer_note 
 $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_and_conditions ?? '') : ($invoiceDefaults['terms_and_conditions'] ?? ''));
 @endphp
 
-<style>
-    .ri-form-wrap {
-        --ri-primary: #1e3a5f;
-        --ri-primary-soft: #e8f0fe;
-        --ri-border: #e2e8f0;
-        --ri-muted: #64748b;
-        --ri-bg: #f0f4f8;
-        background: var(--ri-bg);
-        margin: -1rem;
-        padding: 1.25rem;
-        border-radius: 0 0 .5rem .5rem;
-    }
-
-    .ri-form-wrap .ri-card {
-        background: #fff;
-        border: 1px solid var(--ri-border);
-        border-radius: 12px;
-        padding: 1.15rem 1.25rem;
-        height: 100%;
-        box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
-    }
-
-    .ri-form-wrap .ri-card-title {
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-        font-size: .95rem;
-        font-weight: 700;
-        color: var(--ri-primary);
-        margin: 0 0 1rem;
-    }
-
-    .ri-form-wrap .ri-card-title i {
-        color: #3b82f6;
-        font-size: 1rem;
-    }
-
-    .ri-form-wrap .form-label,
-    .ri-form-wrap label {
-        font-size: .78rem;
-        font-weight: 600;
-        color: #475569;
-        margin-bottom: .35rem;
-    }
-
-    .ri-form-wrap .form-control,
-    .ri-form-wrap .form-select {
-        border-radius: 8px;
-        border-color: var(--ri-border);
-        font-size: .875rem;
-        min-height: 38px;
-    }
-
-    .ri-form-wrap .form-control:focus,
-    .ri-form-wrap .form-select:focus {
-        border-color: #93c5fd;
-        box-shadow: 0 0 0 .2rem rgba(59, 130, 246, .15);
-    }
-
-    .ri-form-wrap .ri-items-head {
-        display: grid;
-        grid-template-columns: 2.2fr .7fr .9fr .8fr .7fr 1fr .5fr;
-        gap: .5rem;
-        padding: 0 .25rem .5rem;
-        border-bottom: 1px solid var(--ri-border);
-        margin-bottom: .5rem;
-    }
-
-    .ri-form-wrap .ri-items-head span {
-        font-size: .75rem;
-        font-weight: 700;
-        color: #475569;
-    }
-
-    .ri-form-wrap #rows-container>.row {
-        display: grid !important;
-        grid-template-columns: 2.2fr .7fr .9fr .8fr .7fr 1fr .5fr;
-        gap: .5rem;
-        margin: 0 0 .5rem !important;
-        align-items: center;
-    }
-
-    .ri-form-wrap #rows-container>.row>[class*="col-"],
-    .ri-form-wrap #rows-container>.row>.form-group {
-        width: auto !important;
-        max-width: none !important;
-        flex: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-
-    .ri-form-wrap .ri-add-item {
-        border: 1px solid #3b82f6;
-        color: #2563eb;
-        background: #fff;
-        border-radius: 8px;
-        font-weight: 600;
-        padding: .4rem .9rem;
-    }
-
-    .ri-form-wrap .ri-add-item:hover {
-        background: var(--ri-primary-soft);
-        color: var(--ri-primary);
-    }
-
-    .ri-form-wrap .ri-summary-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: .55rem 0;
-        font-size: .9rem;
-        color: #334155;
-        border-bottom: 1px solid var(--ri-border);
-    }
-
-    .ri-form-wrap .ri-summary-row:last-child {
-        border-bottom: 0;
-    }
-
-    .ri-form-wrap .ri-summary-total {
-        background: var(--ri-primary-soft);
-        border-radius: 8px;
-        padding: .7rem .85rem;
-        margin-top: .35rem;
-        border-bottom: 0;
-        font-weight: 700;
-        color: var(--ri-primary);
-    }
-
-    .ri-form-wrap .ri-summary-value {
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-    }
-
-    .ri-form-wrap .btn-remove-row {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        color: #ef4444 !important;
-        background: #fef2f2;
-        text-decoration: none;
-    }
-
-    .ri-form-wrap .btn-remove-row:hover {
-        background: #fee2e2;
-    }
-
-    .ri-form-wrap .select2-container .select2-selection--single {
-        height: 38px !important;
-        border-radius: 8px !important;
-        border-color: var(--ri-border) !important;
-        padding-top: 4px;
-    }
-
-    .ri-form-wrap .select2-container--default .select2-selection--single .select2-selection__arrow {
-        height: 36px !important;
-    }
-
-    @media (max-width: 991.98px) {
-        .ri-form-wrap .ri-items-head {
-            display: none;
-        }
-
-        .ri-form-wrap #rows-container>.row {
-            grid-template-columns: 1fr 1fr;
-        }
-
-        .ri-form-wrap #rows-container>.row> :first-child {
-            grid-column: 1 / -1;
-        }
-    }
-</style>
+@include('invoices.partials.invoice_form_styles')
 
 <div class="ri-form-wrap">
     <div class="row g-3">
+        {{-- Rider & Attendance --}}
+        <div class="col-lg-6">
+            <div class="ri-card">
+                <h6 class="ri-card-title"><i class="fa fa-user"></i> Rider &amp; Attendance</h6>
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">Rider</label>
+                        {!! Form::select('rider_id', $riders, null, ['class' => 'form-select form-select-sm select2', 'id' => 'rider_id', 'data-placeholder' => 'Search or select rider']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Zone</label>
+                        {!! Form::text('zone', null, ['class' => 'form-control', 'placeholder' => 'Select zone']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Login Hours</label>
+                        {!! Form::text('login_hours', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Working Days</label>
+                        {!! Form::text('working_days', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Perfect Attendance</label>
+                        {!! Form::text('perfect_attendance', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Rejections</label>
+                        {!! Form::text('rejection', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Off Days</label>
+                        {!! Form::text('off', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Performance</label>
+                        {!! Form::text('performance', null, ['class' => 'form-control', 'placeholder' => 'Select performance']) !!}
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {{-- Invoice Details --}}
         <div class="col-lg-6">
             <div class="ri-card">
@@ -235,47 +102,6 @@ $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_a
                             id="service_period_to"
                             required
                             value="{{ old('service_period_to', isset($invoice) ? optional($invoice->service_period_to)->format('Y-m-d') ?? date('Y-m-t', strtotime($invoice->billing_month)) : date('Y-m-t')) }}">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Rider & Attendance --}}
-        <div class="col-lg-6">
-            <div class="ri-card">
-                <h6 class="ri-card-title"><i class="fa fa-user"></i> Rider &amp; Attendance</h6>
-                <div class="row g-3">
-                    <div class="col-md-8">
-                        <label class="form-label">Rider</label>
-                        {!! Form::select('rider_id', $riders, null, ['class' => 'form-select form-select-sm select2', 'id' => 'rider_id', 'data-placeholder' => 'Search or select rider']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Zone</label>
-                        {!! Form::text('zone', null, ['class' => 'form-control', 'placeholder' => 'Select zone']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Login Hours</label>
-                        {!! Form::text('login_hours', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Working Days</label>
-                        {!! Form::text('working_days', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Perfect Attendance</label>
-                        {!! Form::text('perfect_attendance', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Rejections</label>
-                        {!! Form::text('rejection', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Off Days</label>
-                        {!! Form::text('off', $isEdit ? null : '0', ['class' => 'form-control', 'placeholder' => '0']) !!}
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Performance</label>
-                        {!! Form::text('performance', null, ['class' => 'form-control', 'placeholder' => 'Select performance']) !!}
                     </div>
                 </div>
             </div>
@@ -387,55 +213,51 @@ $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_a
                     <i class="fa fa-plus"></i> Add Item
                 </button>
             </div>
+            </div>
+        </div>
+
+    {{-- Note + totals (matches invoice show layout) --}}
+    <div class="col-12">
+        <div class="ri-totals-area">
+            <div class="ri-totals-notes">
+                <h4>Invoice Note</h4>
+                {!! Form::textarea('customer_note', $defaultNotes ?: 'Thanks for your business.', [
+                'class' => 'form-control',
+                'rows' => 4,
+                'id' => 'customer_note',
+                'placeholder' => 'Thanks for your business.',
+                ]) !!}
+            </div>
+            <div class="ri-totals">
+                <div class="ri-summary-row">
+                    <span>Subtotal (excl. VAT)</span>
+                    <span class="ri-summary-value"><span id="subtotal_display">0.00</span></span>
+                </div>
+                <div class="ri-summary-row">
+                    <span>VAT Amount</span>
+                    <span class="ri-summary-value"><span id="vat_total_display">0.00</span></span>
+                </div>
+                <div class="ri-summary-row ri-summary-total">
+                    <span>Total Due</span>
+                    <span class="ri-summary-value"><span id="total_display">0.00</span> {{ $currencyCode }}</span>
+                </div>
+                <input type="hidden" name="subtotal" id="subtotal" value="0">
+                <input type="hidden" name="vat_total" id="vat_total" value="0">
+                <input type="hidden" name="total_amount" id="total" value="0">
+            </div>
         </div>
     </div>
 
-    {{-- Notes & Terms --}}
-    <div class="col-lg-8">
+    {{-- Terms & Conditions (full width under summary) --}}
+    <div class="col-12">
         <div class="ri-card">
-            <h6 class="ri-card-title"><i class="fa fa-sticky-note"></i> Notes &amp; Terms</h6>
-            <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" id="customer_note_field_label">Invoice Note</label>
-                    {!! Form::textarea('customer_note', $defaultNotes ?: 'Thanks for your business.', [
-                    'class' => 'form-control',
-                    'rows' => 4,
-                    'id' => 'customer_note',
-                    'placeholder' => 'Thanks for your business.',
-                    ]) !!}
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" id="terms_and_conditions_field_label">Terms &amp; Conditions</label>
-                    {!! Form::textarea('terms_and_conditions', $defaultTerms, [
-                    'class' => 'form-control',
-                    'rows' => 4,
-                    'id' => 'terms_and_conditions',
-                    'placeholder' => 'Enter terms & conditions...',
-                    ]) !!}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Invoice Summary --}}
-    <div class="col-lg-4">
-        <div class="ri-card">
-            <h6 class="ri-card-title"><i class="fa fa-calculator"></i> Invoice Summary</h6>
-            <div class="ri-summary-row">
-                <span>Subtotal</span>
-                <span class="ri-summary-value">{{ $currencyCode }} <span id="subtotal_display">0.00</span></span>
-            </div>
-            <div class="ri-summary-row">
-                <span>VAT Amount</span>
-                <span class="ri-summary-value">{{ $currencyCode }} <span id="vat_total_display">0.00</span></span>
-            </div>
-            <div class="ri-summary-row ri-summary-total">
-                <span>Total</span>
-                <span class="ri-summary-value">{{ $currencyCode }} <span id="total_display">0.00</span></span>
-            </div>
-            <input type="hidden" name="subtotal" id="subtotal" value="0">
-            <input type="hidden" name="vat_total" id="vat_total" value="0">
-            <input type="hidden" name="total_amount" id="total" value="0">
+            <h6 class="ri-card-title"><i class="fa fa-file-contract"></i> Terms &amp; Conditions</h6>
+            {!! Form::textarea('terms_and_conditions', $defaultTerms, [
+            'class' => 'form-control',
+            'rows' => 4,
+            'id' => 'terms_and_conditions',
+            'placeholder' => 'Enter terms & conditions...',
+            ]) !!}
         </div>
     </div>
 </div>

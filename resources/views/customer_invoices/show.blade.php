@@ -45,28 +45,28 @@
     @if(empty($isPdf))
     <div class="controls no-print">
         @php
-            $ciStatus = $invoice->status ?? null;
-            $ciIsPaid = $ciStatus === 'paid' || (int) $ciStatus === 1;
-            $ciIsPartial = $ciStatus === 'partially_paid' || (int) $ciStatus === 3;
+        $ciStatus = $invoice->status ?? null;
+        $ciIsPaid = $ciStatus === 'paid' || (int) $ciStatus === 1;
+        $ciIsPartial = $ciStatus === 'partially_paid' || (int) $ciStatus === 3;
         @endphp
         @include('invoices.partials.action_toolbar', [
-            'isPaid' => $ciIsPaid,
-            'isPartial' => $ciIsPartial && ! $ciIsPaid,
-            'editUrl' => route('customer_invoice.edit', $invoice->id),
-            'editTitle' => 'Edit Invoice',
-            'editCan' => ['customers_invoices_edit', 'bike_on_rent_invoices_edit'],
-            'emailUrl' => route('customer_invoices.sendEmail', $invoice->id),
-            'emailTitle' => 'Send Email',
-            'downloadUrl' => route('customer_invoices.show', $invoice),
-            'showPayment' => ! $ciIsPaid,
-            'paymentUrl' => route('payments.create') . '?customer_id=' . ($invoice->customer_id ?? '') . '&invoice_id=' . $invoice->id,
-            'paymentTitle' => 'Record Payment',
-            'paymentCan' => ['customers_payments_create', 'customers_invoices_edit', 'bike_on_rent_invoices_edit'],
-            'cloneUrl' => route('customer_invoice.clone', $invoice),
-            'cloneTitle' => 'Clone Invoice',
-            'cloneCan' => ['customers_invoices_create', 'bike_on_rent_invoices_create'],
-            'deleteFormRoute' => ['customer_invoices.destroy', $invoice],
-            'deleteCan' => ['customers_invoices_delete', 'bike_on_rent_invoices_delete'],
+        'isPaid' => $ciIsPaid,
+        'isPartial' => $ciIsPartial && ! $ciIsPaid,
+        'editUrl' => route('customer_invoice.edit', $invoice->id),
+        'editTitle' => 'Edit Invoice',
+        'editCan' => ['customers_invoices_edit', 'bike_on_rent_invoices_edit'],
+        'emailUrl' => route('customer_invoices.sendEmail', $invoice->id),
+        'emailTitle' => 'Send Email',
+        'downloadUrl' => route('customer_invoices.show', $invoice),
+        'showPayment' => ! $ciIsPaid,
+        'paymentUrl' => route('payments.create') . '?customer_id=' . ($invoice->customer_id ?? '') . '&invoice_id=' . $invoice->id,
+        'paymentTitle' => 'Record Payment',
+        'paymentCan' => ['customers_payments_create', 'customers_invoices_edit', 'bike_on_rent_invoices_edit'],
+        'cloneUrl' => route('customer_invoice.clone', $invoice),
+        'cloneTitle' => 'Clone Invoice',
+        'cloneCan' => ['customers_invoices_create', 'bike_on_rent_invoices_create'],
+        'deleteFormRoute' => ['customer_invoices.destroy', $invoice],
+        'deleteCan' => ['customers_invoices_delete', 'bike_on_rent_invoices_delete'],
         ])
     </div>
     @endif

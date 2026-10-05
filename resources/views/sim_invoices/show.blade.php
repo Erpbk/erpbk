@@ -9,71 +9,71 @@
 
 <body>
     @php
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        $currency = \App\Helpers\Currency::code();
-        $defaults = \App\Support\InvoiceModuleDefaults::all('sim_invoices');
-        $party = $invoice->company;
-        $invoiceTitle = $defaults['title'] ?: 'SIM INVOICE';
-        $partyNote = $invoice->customer_note
-            ?: ($party->invoice_note ?? null)
-            ?: ($defaults['notes'] ?: null);
-        $termsAndConditions = $invoice->terms_and_conditions
-            ?: ($party->terms_and_conditions ?? null)
-            ?: ($defaults['terms_and_conditions'] ?: null);
-        $partyNoteLabel = $party
-            ? $party->resolvedInvoiceNoteLabel()
-            : 'Invoice Note';
-        $termsAndConditionsLabel = $party
-            ? $party->resolvedTermsAndConditionsLabel()
-            : 'Terms & Conditions';
-        $invoiceNumber = $invoice->invoice_number ?? ('SIMI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT));
-        $subtotalAmount = $invoice->subtotal ?? 0;
-        $vatAmt = $invoice->vat ?? 0;
-        $totalAmt = $invoice->total_amount ?? ($subtotalAmount + $vatAmt);
-        $noteCards = collect([
-            $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
-            $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
-        ])->filter()->values();
-        $noteGridClass = match ($noteCards->count()) {
-            1 => 'one',
-            3 => 'three',
-            default => '',
-        };
-        $invoiceDateLabel = $invoice->inv_date
-            ? (is_object($invoice->inv_date) ? $invoice->inv_date->format('d M Y') : date('d M Y', strtotime($invoice->inv_date)))
-            : '';
-        $billingLabel = $invoice->billing_month
-            ? date('M Y', strtotime($invoice->billing_month))
-            : '';
-        $pivotColumns = $pivotColumns ?? collect();
-        $pivotRows = $pivotRows ?? [];
+    $settings = company_table('settings')->pluck('value', 'name')->toArray();
+    $currency = \App\Helpers\Currency::code();
+    $defaults = \App\Support\InvoiceModuleDefaults::all('sim_invoices');
+    $party = $invoice->company;
+    $invoiceTitle = $defaults['title'] ?: 'SIM INVOICE';
+    $partyNote = $invoice->customer_note
+    ?: ($party->invoice_note ?? null)
+    ?: ($defaults['notes'] ?: null);
+    $termsAndConditions = $invoice->terms_and_conditions
+    ?: ($party->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
+    $partyNoteLabel = $party
+    ? $party->resolvedInvoiceNoteLabel()
+    : 'Invoice Note';
+    $termsAndConditionsLabel = $party
+    ? $party->resolvedTermsAndConditionsLabel()
+    : 'Terms & Conditions';
+    $invoiceNumber = $invoice->invoice_number ?? ('SIMI-' . str_pad($invoice->id, 4, '0', STR_PAD_LEFT));
+    $subtotalAmount = $invoice->subtotal ?? 0;
+    $vatAmt = $invoice->vat ?? 0;
+    $totalAmt = $invoice->total_amount ?? ($subtotalAmount + $vatAmt);
+    $noteCards = collect([
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+    $invoice->notes ? ['title' => 'Internal Notes', 'body' => $invoice->notes] : null,
+    ])->filter()->values();
+    $noteGridClass = match ($noteCards->count()) {
+    1 => 'one',
+    3 => 'three',
+    default => '',
+    };
+    $invoiceDateLabel = $invoice->inv_date
+    ? (is_object($invoice->inv_date) ? $invoice->inv_date->format('d M Y') : date('d M Y', strtotime($invoice->inv_date)))
+    : '';
+    $billingLabel = $invoice->billing_month
+    ? date('M Y', strtotime($invoice->billing_month))
+    : '';
+    $pivotColumns = $pivotColumns ?? collect();
+    $pivotRows = $pivotRows ?? [];
     @endphp
 
     @if(empty($isPdf))
     <div class="controls no-print">
         @php
-            $companySlug = request()->route('company_slug');
-            $simStatus = (int) ($invoice->status ?? 0);
-            $simIsPaid = $simStatus === 1;
-            $simIsPartial = $simStatus === 3 || (! $simIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+        $companySlug = request()->route('company_slug');
+        $simStatus = (int) ($invoice->status ?? 0);
+        $simIsPaid = $simStatus === 1;
+        $simIsPartial = $simStatus === 3 || (! $simIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
         @endphp
         @include('invoices.partials.action_toolbar', [
-            'isPaid' => $simIsPaid,
-            'isPartial' => $simIsPartial && ! $simIsPaid,
-            'editUrl' => route('simInvoices.edit', $invoice->id),
-            'editTitle' => 'Edit Invoice',
-            'editCan' => 'sims_invoices_edit',
-            'downloadUrl' => route('simInvoices.show', $invoice->id),
-            'showPayment' => ! $simIsPaid,
-            'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
-                . '?invoice_type=sim&invoice_id=' . $invoice->id,
-            'paymentTitle' => 'Record Payment',
-            'paymentCan' => 'sims_payments_create',
-            'cloneUrl' => route('simInvoices.createFromClone', $invoice->id),
-            'cloneTitle' => 'Clone Invoice',
-            'cloneCan' => 'sims_invoices_create',
-            'deleteFormRoute' => ['simInvoices.destroy', $invoice->id],
-            'deleteCan' => 'sims_invoices_delete',
+        'isPaid' => $simIsPaid,
+        'isPartial' => $simIsPartial && ! $simIsPaid,
+        'editUrl' => route('simInvoices.edit', $invoice->id),
+        'editTitle' => 'Edit Invoice',
+        'editCan' => 'sims_invoices_edit',
+        'downloadUrl' => route('simInvoices.show', $invoice->id),
+        'showPayment' => ! $simIsPaid,
+        'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
+        . '?invoice_type=sim&invoice_id=' . $invoice->id,
+        'paymentTitle' => 'Record Payment',
+        'paymentCan' => 'sims_payments_create',
+        'cloneUrl' => route('simInvoices.createFromClone', $invoice->id),
+        'cloneTitle' => 'Clone Invoice',
+        'cloneCan' => 'sims_invoices_create',
+        'deleteFormRoute' => ['simInvoices.destroy', $invoice->id],
+        'deleteCan' => 'sims_invoices_delete',
         ])
     </div>
     @endif
@@ -82,11 +82,11 @@
         <div class="band"></div>
         <div class="sheet">
             @include('invoices.partials.tax_invoice_header', [
-                'settings' => $settings,
-                'invoiceTitle' => $invoiceTitle,
-                'invoiceNumber' => $invoiceNumber,
-                'invoiceDateLabel' => $invoiceDateLabel,
-                'billingLabel' => $billingLabel,
+            'settings' => $settings,
+            'invoiceTitle' => $invoiceTitle,
+            'invoiceNumber' => $invoiceNumber,
+            'invoiceDateLabel' => $invoiceDateLabel,
+            'billingLabel' => $billingLabel,
             ])
 
             <div class="parties">
@@ -165,22 +165,22 @@
             </div>
 
             @include('invoices.partials.tax_invoice_totals_notes', [
-                'partyNote' => $partyNote,
-                'partyNoteLabel' => $partyNoteLabel,
-                'subtotalAmount' => $subtotalAmount,
-                'vatAmount' => $vatAmt,
-                'totalAmount' => $totalAmt,
-                'currency' => $currency,
-                'paidAmount' => $invoice->paid_amount ?? 0,
-                'balanceAmount' => $invoice->balance ?? (($totalAmt ?? 0) - ($invoice->paid_amount ?? 0)),
+            'partyNote' => $partyNote,
+            'partyNoteLabel' => $partyNoteLabel,
+            'subtotalAmount' => $subtotalAmount,
+            'vatAmount' => $vatAmt,
+            'totalAmount' => $totalAmt,
+            'currency' => $currency,
+            'paidAmount' => $invoice->paid_amount ?? 0,
+            'balanceAmount' => $invoice->balance ?? (($totalAmt ?? 0) - ($invoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif
 
             @include('invoices.partials.tax_invoice_footnotes', [
-                'noteCards' => $noteCards,
-                'noteGridClass' => $noteGridClass,
+            'noteCards' => $noteCards,
+            'noteGridClass' => $noteGridClass,
             ])
 
             @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])

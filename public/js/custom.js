@@ -14,9 +14,10 @@ $(document).ready(function () {
 
     const previous = bootstrap.Dropdown.Default.popperConfig;
     bootstrap.Dropdown.Default.popperConfig = function (defaultBsPopperConfig) {
-      const resolved = typeof previous === 'function'
-        ? previous(defaultBsPopperConfig)
-        : Object.assign({}, defaultBsPopperConfig || {}, previous || {});
+      const resolved =
+        typeof previous === 'function'
+          ? previous(defaultBsPopperConfig)
+          : Object.assign({}, defaultBsPopperConfig || {}, previous || {});
       return withFixedStrategy(resolved);
     };
 
@@ -31,9 +32,10 @@ $(document).ready(function () {
       }
       const existing = instance._config.popperConfig;
       instance._config.popperConfig = function (defaultBsPopperConfig) {
-        const resolved = typeof existing === 'function'
-          ? existing(defaultBsPopperConfig)
-          : Object.assign({}, defaultBsPopperConfig || {}, existing || {});
+        const resolved =
+          typeof existing === 'function'
+            ? existing(defaultBsPopperConfig)
+            : Object.assign({}, defaultBsPopperConfig || {}, existing || {});
         return withFixedStrategy(resolved);
       };
     });
@@ -314,73 +316,147 @@ $('#rightSideModal').on('click', '.modal-content', function (e) {
   e.stopPropagation();
 });
 
-// Print invoice/content from right-side modal or standalone invoice pages (global for onclick handlers).
+// Print invoice on the same page — professional full-page A4 fit (no distortion).
 window.printModalContent = function printModalContent() {
-  var title = (document.title || 'Print').replace(/</g, '');
-  var bodyHtml = '';
-  var embeddedStyles = '';
+  var source = document.querySelector('#rightSideModalBody .invoice-box') || document.querySelector('.invoice-box');
 
-  if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.invoice-box').length) {
-    bodyHtml = $('#rightSideModalBody').html();
-    var modalTitle = ($('#rightSideModalTitle').text() || '').trim();
-    if (modalTitle) {
-      title = modalTitle.replace(/</g, '');
-    }
-  } else {
-    var invoiceBox = document.querySelector('.invoice-box');
-    if (!invoiceBox) {
-      window.print();
-      return;
-    }
-    document.querySelectorAll('style').forEach(function (node) {
-      embeddedStyles += node.outerHTML;
-    });
-    bodyHtml = embeddedStyles + invoiceBox.outerHTML;
-  }
-
-  if (!bodyHtml || !String(bodyHtml).trim()) {
+  if (!source) {
     window.print();
     return;
   }
 
-  var printWindow = window.open('', '_blank');
-  if (!printWindow) {
-    window.print();
-    return;
+  var printRoot = document.getElementById('invoice-print-root');
+  if (!printRoot) {
+    printRoot = document.createElement('div');
+    printRoot.id = 'invoice-print-root';
+    printRoot.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(printRoot);
   }
 
-  printWindow.document.open();
-  printWindow.document.write(
-    '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
-      title +
-      '</title><style>' +
-      'body{font-family:Calibri,Arial,sans-serif;margin:0;padding:20px;color:#000;}' +
-      '.no-print{display:none!important;}' +
-      '.invoice-box{max-width:100%;margin:0 auto;}' +
-      'table{width:100%;border-collapse:collapse;margin-bottom:10px;}' +
-      'th,td{border:1px solid #000;padding:8px;text-align:left;}' +
-      'th{background:#004aad;color:#fff;}' +
-      '.text-center{text-align:center;}' +
-      '@media print{body{margin:0;padding:0;}.no-print{display:none!important;}}' +
-      '</style></head><body>' +
-      bodyHtml +
-      '</body></html>'
-  );
-  printWindow.document.close();
+  printRoot.innerHTML = '';
+  var box = source.cloneNode(true);
+  box.querySelectorAll('.controls, .no-print, script').forEach(function (el) {
+    if (el.parentNode) el.parentNode.removeChild(el);
+  });
 
-  setTimeout(function () {
-    try {
-      printWindow.focus();
-      printWindow.print();
-    } catch (e) {}
-    printWindow.onafterprint = function () {
-      printWindow.close();
-    };
-  }, 400);
+  var rowCount = box.querySelectorAll('table tbody tr').length;
+  box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
+  if (rowCount > 22) box.classList.add('invoice-print-ultra');
+  else if (rowCount > 12) box.classList.add('invoice-print-dense');
+
+  var fitWrap = document.createElement('div');
+  fitWrap.className = 'invoice-print-fit is-page-frame';
+  fitWrap.appendChild(box);
+  printRoot.appendChild(fitWrap);
+  document.body.classList.add('printing-invoice');
+
+  var runPrint = function () {
+    // Exact printable area matching @page { margin: 6mm }
+    var pageWmm = 198; // 210 - 12
+    var pageHmm = 285; // 297 - 12
+
+    fitWrap.style.cssText = '';
+    fitWrap.className = 'invoice-print-fit is-page-frame';
+    fitWrap.style.setProperty('width', pageWmm + 'mm', 'important');
+    fitWrap.style.setProperty('height', pageHmm + 'mm', 'important');
+    fitWrap.style.setProperty('max-width', '100%', 'important');
+    fitWrap.style.setProperty('margin', '0 auto', 'important');
+    fitWrap.style.setProperty('overflow', 'hidden', 'important');
+    fitWrap.style.setProperty('box-sizing', 'border-box', 'important');
+
+    box.style.cssText = '';
+    box.style.setProperty('width', '100%', 'important');
+    box.style.setProperty('max-width', 'none', 'important');
+    box.style.setProperty('height', 'auto', 'important');
+    box.style.setProperty('margin', '0', 'important');
+    box.style.setProperty('transform', 'none', 'important');
+    box.style.setProperty('zoom', '1', 'important');
+    box.style.setProperty('transform-origin', 'top left', 'important');
+    void box.offsetHeight;
+
+    var pageW = fitWrap.clientWidth || 1;
+    var pageH = fitWrap.clientHeight || 1;
+    var contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
+    var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
+
+    if (contentH > pageH + 1) {
+      // Long invoice: uniform scale DOWN to fit one page (keeps proportions)
+      var scale = Math.min(pageW / contentW, pageH / contentH);
+      scale = Math.max(0.35, Math.min(1, scale));
+      box.style.setProperty('transform', 'scale(' + scale.toFixed(4) + ')', 'important');
+      box.style.setProperty('width', 100 / scale + '%', 'important');
+    } else {
+      // Short invoice: force taller layout to fill A4 height
+      fitWrap.classList.add('is-fill');
+      box.classList.add('invoice-print-tall');
+      box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
+
+      box.style.setProperty('height', '100%', 'important');
+      box.style.setProperty('display', 'flex', 'important');
+      box.style.setProperty('flex-direction', 'column', 'important');
+      box.style.setProperty('font-size', '13px', 'important');
+      box.style.setProperty('line-height', '1.45', 'important');
+
+      var sheet = box.querySelector('.sheet');
+      if (sheet) {
+        sheet.style.setProperty('height', '100%', 'important');
+        sheet.style.setProperty('min-height', '100%', 'important');
+        sheet.style.setProperty('display', 'flex', 'important');
+        sheet.style.setProperty('flex-direction', 'column', 'important');
+        sheet.style.setProperty('justify-content', 'space-between', 'important');
+        sheet.style.setProperty('padding', '8px 4px', 'important');
+        sheet.style.setProperty('box-sizing', 'border-box', 'important');
+      }
+
+      var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
+      if (items) {
+        items.style.setProperty('flex', '1 1 auto', 'important');
+        items.style.setProperty('display', 'flex', 'important');
+        items.style.setProperty('flex-direction', 'column', 'important');
+        items.style.setProperty('justify-content', 'space-evenly', 'important');
+      }
+
+      // Enlarge row height so tables take more vertical space
+      var rowPad = contentH < pageH * 0.55 ? '14px' : contentH < pageH * 0.75 ? '11px' : '9px';
+      box.querySelectorAll('th, td').forEach(function (el) {
+        el.style.setProperty('padding-top', rowPad, 'important');
+        el.style.setProperty('padding-bottom', rowPad, 'important');
+        el.style.setProperty('font-size', '12.5px', 'important');
+        el.style.setProperty('line-height', '1.45', 'important');
+      });
+      box.querySelectorAll('.party, .desc, .totals-notes, .note-card, .sum').forEach(function (el) {
+        el.style.setProperty('padding', '12px 14px', 'important');
+      });
+
+      void box.offsetHeight;
+      contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
+      contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
+
+      if (contentH > pageH + 1) {
+        var scaleDown = Math.min(pageW / contentW, pageH / contentH);
+        scaleDown = Math.max(0.35, Math.min(1, scaleDown));
+        box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
+        box.style.setProperty('width', 100 / scaleDown + '%', 'important');
+      }
+    }
+
+    window.print();
+  };
+
+  var cleanup = function () {
+    document.body.classList.remove('printing-invoice');
+    if (printRoot && printRoot.parentNode) printRoot.innerHTML = '';
+    window.removeEventListener('afterprint', cleanup);
+  };
+
+  window.addEventListener('afterprint', cleanup);
+  setTimeout(cleanup, 4000);
+  setTimeout(runPrint, 160);
 };
 
 $('body').on('click', '.js-print-modal-content', function (e) {
   e.preventDefault();
+  e.stopPropagation();
   window.printModalContent();
 });
 
@@ -658,9 +734,23 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   // filename contains blocked extensions/chars. Re-send files under a safe name.
   (function sanitizeUploadFilenames(fd) {
     var allowedExt = {
-      pdf: 1, jpg: 1, jpeg: 1, png: 1, gif: 1, webp: 1, bmp: 1,
-      heic: 1, heif: 1,
-      doc: 1, docx: 1, xls: 1, xlsx: 1, csv: 1, txt: 1, rar: 1, zip: 1
+      pdf: 1,
+      jpg: 1,
+      jpeg: 1,
+      png: 1,
+      gif: 1,
+      webp: 1,
+      bmp: 1,
+      heic: 1,
+      heif: 1,
+      doc: 1,
+      docx: 1,
+      xls: 1,
+      xlsx: 1,
+      csv: 1,
+      txt: 1,
+      rar: 1,
+      zip: 1
     };
     var pending = [];
     fd.forEach(function (value, key) {
@@ -817,7 +907,11 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
             hint =
               'The web server blocked this upload (often due to the file name/extension). Try renaming the file to a simple name like document.pdf and upload again.';
           } else {
-            hint = raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+            hint = raw
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim()
+              .slice(0, 180);
           }
         }
         toastr.error(hint || 'Access denied (403). Check permission or company access, then try again.');

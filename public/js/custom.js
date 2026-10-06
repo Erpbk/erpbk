@@ -316,11 +316,17 @@ $('#rightSideModal').on('click', '.modal-content', function (e) {
   e.stopPropagation();
 });
 
-// Print invoice on the same page — professional full-page A4 fit (no distortion).
+// Print invoice on the same page — scale to fill one A4 sheet (works in browser print engines).
 window.printModalContent = function printModalContent() {
+  if (window.__invoicePrinting) {
+    return;
+  }
+  window.__invoicePrinting = true;
+
   var source = document.querySelector('#rightSideModalBody .invoice-box') || document.querySelector('.invoice-box');
 
   if (!source) {
+    window.__invoicePrinting = false;
     window.print();
     return;
   }
@@ -340,7 +346,7 @@ window.printModalContent = function printModalContent() {
   });
 
   var rowCount = box.querySelectorAll('table tbody tr').length;
-  box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
+  box.classList.remove('invoice-print-dense', 'invoice-print-ultra', 'invoice-print-tall');
   if (rowCount > 22) box.classList.add('invoice-print-ultra');
   else if (rowCount > 12) box.classList.add('invoice-print-dense');
 
@@ -351,21 +357,30 @@ window.printModalContent = function printModalContent() {
   document.body.classList.add('printing-invoice');
 
   var runPrint = function () {
-    // Exact printable area matching @page { margin: 6mm }
-    var pageWmm = 198; // 210 - 12
-    var pageHmm = 285; // 297 - 12
+    // A4 content box @ 96dpi — matches @page { margin: 6mm }
+    var mm = 96 / 25.4;
+    var pageW = Math.round(198 * mm); // ~748px
+    var pageH = Math.round(285 * mm); // ~1077px
+
+    // Measure on-screen (off-screen left:-10000px often returns 0 height on servers/Chrome)
+    printRoot.style.cssText =
+      'position:fixed;left:0;top:0;width:' +
+      pageW +
+      'px;height:' +
+      pageH +
+      'px;visibility:hidden;pointer-events:none;z-index:-1;overflow:hidden;';
 
     fitWrap.style.cssText = '';
     fitWrap.className = 'invoice-print-fit is-page-frame';
-    fitWrap.style.setProperty('width', pageWmm + 'mm', 'important');
-    fitWrap.style.setProperty('height', pageHmm + 'mm', 'important');
-    fitWrap.style.setProperty('max-width', '100%', 'important');
-    fitWrap.style.setProperty('margin', '0 auto', 'important');
+    fitWrap.style.setProperty('width', pageW + 'px', 'important');
+    fitWrap.style.setProperty('height', pageH + 'px', 'important');
+    fitWrap.style.setProperty('max-width', 'none', 'important');
+    fitWrap.style.setProperty('margin', '0', 'important');
     fitWrap.style.setProperty('overflow', 'hidden', 'important');
     fitWrap.style.setProperty('box-sizing', 'border-box', 'important');
 
     box.style.cssText = '';
-    box.style.setProperty('width', '100%', 'important');
+    box.style.setProperty('width', pageW + 'px', 'important');
     box.style.setProperty('max-width', 'none', 'important');
     box.style.setProperty('height', 'auto', 'important');
     box.style.setProperty('margin', '0', 'important');
@@ -374,69 +389,46 @@ window.printModalContent = function printModalContent() {
     box.style.setProperty('transform-origin', 'top left', 'important');
     void box.offsetHeight;
 
-    var pageW = fitWrap.clientWidth || 1;
-    var pageH = fitWrap.clientHeight || 1;
     var contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
     var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
 
-    if (contentH > pageH + 1) {
-      // Long invoice: uniform scale DOWN to fit one page (keeps proportions)
-      var scale = Math.min(pageW / contentW, pageH / contentH);
-      scale = Math.max(0.35, Math.min(1, scale));
-      box.style.setProperty('transform', 'scale(' + scale.toFixed(4) + ')', 'important');
-      box.style.setProperty('width', 100 / scale + '%', 'important');
-    } else {
-      // Short invoice: force taller layout to fill A4 height
-      fitWrap.classList.add('is-fill');
+    // Short invoices: grow paddings first so scale-up stays readable
+    if (contentH < pageH * 0.92 && rowCount <= 12) {
       box.classList.add('invoice-print-tall');
-      box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
-
-      box.style.setProperty('height', '100%', 'important');
-      box.style.setProperty('display', 'flex', 'important');
-      box.style.setProperty('flex-direction', 'column', 'important');
-      box.style.setProperty('font-size', '13px', 'important');
-      box.style.setProperty('line-height', '1.45', 'important');
-
-      var sheet = box.querySelector('.sheet');
-      if (sheet) {
-        sheet.style.setProperty('height', '100%', 'important');
-        sheet.style.setProperty('min-height', '100%', 'important');
-        sheet.style.setProperty('display', 'flex', 'important');
-        sheet.style.setProperty('flex-direction', 'column', 'important');
-        sheet.style.setProperty('justify-content', 'space-between', 'important');
-        sheet.style.setProperty('padding', '8px 4px', 'important');
-        sheet.style.setProperty('box-sizing', 'border-box', 'important');
-      }
-
-      var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
-      if (items) {
-        items.style.setProperty('flex', '1 1 auto', 'important');
-        items.style.setProperty('display', 'flex', 'important');
-        items.style.setProperty('flex-direction', 'column', 'important');
-        items.style.setProperty('justify-content', 'space-evenly', 'important');
-      }
-
-      // Enlarge row height so tables take more vertical space
-      var rowPad = contentH < pageH * 0.55 ? '14px' : contentH < pageH * 0.75 ? '11px' : '9px';
+      var need = pageH / contentH;
+      var padY = need > 1.45 ? '12px' : need > 1.2 ? '9px' : '7px';
       box.querySelectorAll('th, td').forEach(function (el) {
-        el.style.setProperty('padding-top', rowPad, 'important');
-        el.style.setProperty('padding-bottom', rowPad, 'important');
-        el.style.setProperty('font-size', '12.5px', 'important');
-        el.style.setProperty('line-height', '1.45', 'important');
+        el.style.setProperty('padding-top', padY, 'important');
+        el.style.setProperty('padding-bottom', padY, 'important');
       });
-      box.querySelectorAll('.party, .desc, .totals-notes, .note-card, .sum').forEach(function (el) {
-        el.style.setProperty('padding', '12px 14px', 'important');
-      });
-
       void box.offsetHeight;
       contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
       contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
+    }
 
-      if (contentH > pageH + 1) {
-        var scaleDown = Math.min(pageW / contentW, pageH / contentH);
-        scaleDown = Math.max(0.35, Math.min(1, scaleDown));
-        box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
-        box.style.setProperty('width', 100 / scaleDown + '%', 'important');
+    // Uniform scale to fill page height (and stay within width). Print engines honor this.
+    var scale = Math.min(pageW / contentW, pageH / contentH);
+    if (scale > 1) {
+      scale = Math.min(scale, 1.9); // grow short invoices up to full page
+    } else {
+      scale = Math.max(scale, 0.35); // shrink long invoices onto one page
+    }
+
+    box.style.setProperty('transform', 'scale(' + scale.toFixed(4) + ')', 'important');
+    box.style.setProperty('width', Math.round(pageW / scale) + 'px', 'important');
+
+    // Also set zoom for engines that print layout size better with zoom
+    if (scale > 1.01) {
+      box.style.setProperty('zoom', scale.toFixed(4), 'important');
+      box.style.setProperty('transform', 'none', 'important');
+      box.style.setProperty('width', pageW + 'px', 'important');
+      void box.offsetHeight;
+      var zoomedH = Math.max(box.scrollHeight, box.offsetHeight, 1);
+      var zoomedW = Math.max(box.scrollWidth, box.offsetWidth, 1);
+      // If zoom already applied to metrics, clamp overflow
+      if (zoomedH > pageH + 2 || zoomedW > pageW + 2) {
+        var fix = Math.min(pageW / zoomedW, pageH / zoomedH, 1);
+        box.style.setProperty('zoom', (scale * fix).toFixed(4), 'important');
       }
     }
 
@@ -445,13 +437,17 @@ window.printModalContent = function printModalContent() {
 
   var cleanup = function () {
     document.body.classList.remove('printing-invoice');
-    if (printRoot && printRoot.parentNode) printRoot.innerHTML = '';
+    window.__invoicePrinting = false;
+    if (printRoot) {
+      printRoot.innerHTML = '';
+      printRoot.removeAttribute('style');
+    }
     window.removeEventListener('afterprint', cleanup);
   };
 
   window.addEventListener('afterprint', cleanup);
-  setTimeout(cleanup, 4000);
-  setTimeout(runPrint, 160);
+  setTimeout(cleanup, 5000);
+  setTimeout(runPrint, 200);
 };
 
 $('body').on('click', '.js-print-modal-content', function (e) {

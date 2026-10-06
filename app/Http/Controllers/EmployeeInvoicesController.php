@@ -62,6 +62,24 @@ class EmployeeInvoicesController extends AppBaseController
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
+        if ($request->filled('quick_search')) {
+            $search = trim((string) $request->input('quick_search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('employee_invoices.id', 'like', '%'.$search.'%')
+                    ->orWhere('employee_invoices.descriptions', 'like', '%'.$search.'%')
+                    ->orWhere('employee_invoices.zone', 'like', '%'.$search.'%')
+                    ->orWhere('employee_invoices.notes', 'like', '%'.$search.'%')
+                    ->orWhere('employee_invoices.performance', 'like', '%'.$search.'%')
+                    ->orWhereHas('employee', function ($employeeQuery) use ($search) {
+                        $employeeQuery->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('employee_id', 'like', '%'.$search.'%');
+                    });
+
+                if (preg_match('/^(?:EINV-?)?0*(\d+)$/i', $search, $matches)) {
+                    $q->orWhere('employee_invoices.id', (int) $matches[1]);
+                }
+            });
+        }
 
         $data = $this->applyPagination($query, $paginationParams);
 

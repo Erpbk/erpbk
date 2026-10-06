@@ -97,7 +97,7 @@
 
             <div class="parties">
                 <div class="party">
-                    <h3 class="party-title">Bill From</h3>
+                    <h3 class="party-title">Supplier</h3>
                     <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
                     <div class="party-grid">
                         <div class="party-line">

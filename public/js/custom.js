@@ -316,7 +316,7 @@ $('#rightSideModal').on('click', '.modal-content', function (e) {
   e.stopPropagation();
 });
 
-// Print invoice on the same page — scale to fill one A4 sheet (works in browser print engines).
+// Print invoice on the same page — fill one A4 sheet (CSS height fill; no zoom-up).
 window.printModalContent = function printModalContent() {
   if (window.__invoicePrinting) {
     return;
@@ -359,10 +359,10 @@ window.printModalContent = function printModalContent() {
   var runPrint = function () {
     // A4 content box @ 96dpi — matches @page { margin: 6mm }
     var mm = 96 / 25.4;
-    var pageW = Math.round(198 * mm); // ~748px
-    var pageH = Math.round(285 * mm); // ~1077px
+    var pageW = Math.round(198 * mm);
+    var pageH = Math.round(285 * mm);
 
-    // Measure on-screen (off-screen left:-10000px often returns 0 height on servers/Chrome)
+    // Measure on-screen (left:-10000px often returns 0 height in Chrome/server)
     printRoot.style.cssText =
       'position:fixed;left:0;top:0;width:' +
       pageW +
@@ -392,43 +392,45 @@ window.printModalContent = function printModalContent() {
     var contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
     var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
 
-    // Short invoices: grow paddings first so scale-up stays readable
-    if (contentH < pageH * 0.92 && rowCount <= 12) {
+    if (contentH > pageH + 2) {
+      // Long invoice: uniform scale DOWN (print engines honor transform for shrink)
+      var scaleDown = Math.min(pageW / contentW, pageH / contentH);
+      scaleDown = Math.max(0.35, Math.min(1, scaleDown));
+      box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
+      box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
+    } else {
+      // Short invoice: stretch to full A4 height via CSS flex (zoom-up is ignored by many print engines)
+      fitWrap.classList.add('is-fill');
       box.classList.add('invoice-print-tall');
-      var need = pageH / contentH;
-      var padY = need > 1.45 ? '12px' : need > 1.2 ? '9px' : '7px';
+      box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
+
+      var need = pageH / Math.max(contentH, 1);
+      var padY = need > 1.5 ? '14px' : need > 1.25 ? '11px' : need > 1.08 ? '9px' : '7px';
       box.querySelectorAll('th, td').forEach(function (el) {
         el.style.setProperty('padding-top', padY, 'important');
         el.style.setProperty('padding-bottom', padY, 'important');
       });
-      void box.offsetHeight;
-      contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
-      contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
-    }
 
-    // Uniform scale to fill page height (and stay within width). Print engines honor this.
-    var scale = Math.min(pageW / contentW, pageH / contentH);
-    if (scale > 1) {
-      scale = Math.min(scale, 1.9); // grow short invoices up to full page
-    } else {
-      scale = Math.max(scale, 0.35); // shrink long invoices onto one page
-    }
+      box.style.setProperty('height', '100%', 'important');
+      box.style.setProperty('display', 'flex', 'important');
+      box.style.setProperty('flex-direction', 'column', 'important');
 
-    box.style.setProperty('transform', 'scale(' + scale.toFixed(4) + ')', 'important');
-    box.style.setProperty('width', Math.round(pageW / scale) + 'px', 'important');
+      var sheet = box.querySelector('.sheet');
+      if (sheet) {
+        sheet.style.setProperty('height', '100%', 'important');
+        sheet.style.setProperty('min-height', '100%', 'important');
+        sheet.style.setProperty('display', 'flex', 'important');
+        sheet.style.setProperty('flex-direction', 'column', 'important');
+        sheet.style.setProperty('justify-content', 'space-between', 'important');
+        sheet.style.setProperty('box-sizing', 'border-box', 'important');
+      }
 
-    // Also set zoom for engines that print layout size better with zoom
-    if (scale > 1.01) {
-      box.style.setProperty('zoom', scale.toFixed(4), 'important');
-      box.style.setProperty('transform', 'none', 'important');
-      box.style.setProperty('width', pageW + 'px', 'important');
-      void box.offsetHeight;
-      var zoomedH = Math.max(box.scrollHeight, box.offsetHeight, 1);
-      var zoomedW = Math.max(box.scrollWidth, box.offsetWidth, 1);
-      // If zoom already applied to metrics, clamp overflow
-      if (zoomedH > pageH + 2 || zoomedW > pageW + 2) {
-        var fix = Math.min(pageW / zoomedW, pageH / zoomedH, 1);
-        box.style.setProperty('zoom', (scale * fix).toFixed(4), 'important');
+      var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
+      if (items) {
+        items.style.setProperty('flex', '1 1 auto', 'important');
+        items.style.setProperty('display', 'flex', 'important');
+        items.style.setProperty('flex-direction', 'column', 'important');
+        items.style.setProperty('justify-content', 'space-evenly', 'important');
       }
     }
 

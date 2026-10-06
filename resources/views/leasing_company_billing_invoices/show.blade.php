@@ -109,7 +109,7 @@
                     </div>
                 </div>
                 <div class="party alt">
-                    <h3 class="party-title">Billing</h3>
+                    <h3 class="party-title">Billing Period</h3>
                     <div class="party-grid" style="margin-top: 4px;">
                         <div class="party-line">
                             <span class="k">Reference</span>

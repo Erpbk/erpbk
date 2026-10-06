@@ -131,7 +131,7 @@
 
             <div class="parties">
                 <div class="party">
-                    <h3 class="party-title">Bill To</h3>
+                    <h3 class="party-title">Employee</h3>
                     <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
                     <div class="party-grid">
                         <div class="party-line">
@@ -153,7 +153,7 @@
                     </div>
                 </div>
                 <div class="party alt">
-                    <h3 class="party-title">Service Period</h3>
+                    <h3 class="party-title">Pay Period</h3>
                     <div class="party-grid" style="margin-top: 4px;">
                         <div class="party-line">
                             <span class="k">From</span>

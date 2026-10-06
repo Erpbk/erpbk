@@ -223,11 +223,11 @@
         }
 
         .invoice-box .party.alt .party-title {
-            color: #475569;
+            color: var(--blue);
         }
 
         .invoice-box .party.alt .party-title::after {
-            background: var(--line);
+            background: var(--blue-line);
         }
 
         .invoice-box .party-name {
@@ -710,8 +710,8 @@
                 padding: 0 !important;
                 margin: 0 !important;
                 width: 100% !important;
-                height: auto !important;
-                min-height: 0 !important;
+                height: 100% !important;
+                min-height: 100% !important;
                 overflow: hidden !important;
                 font-size: 10px !important;
                 line-height: 1.3 !important;
@@ -737,6 +737,8 @@
                 pointer-events: auto !important;
                 z-index: auto !important;
                 width: 100% !important;
+                height: 100% !important;
+                min-height: 285mm !important;
                 max-width: none !important;
                 margin: 0 !important;
                 padding: 0 !important;
@@ -756,9 +758,10 @@
             }
 
             body.printing-invoice #invoice-print-root .invoice-print-fit.is-page-frame {
-                width: 198mm !important;
-                height: 285mm !important;
-                max-width: 100% !important;
+                width: 100% !important;
+                max-width: 198mm !important;
+                height: 100% !important;
+                min-height: 285mm !important;
                 margin: 0 auto !important;
             }
 

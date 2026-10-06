@@ -57,19 +57,24 @@ class AgreementPdfBranding
     {
         $primary = $this->normalizeHex($branding['primary_color'] ?? '#2563eb');
         $secondary = $this->normalizeHex($branding['secondary_color'] ?? '#1e3a8a');
+        $accent = $this->normalizeHex($branding['accent_color'] ?? '#818cf8');
 
         $branding['primary_color'] = $primary;
         $branding['secondary_color'] = $secondary;
+        $branding['accent_color'] = $accent;
         $branding['primary_light'] = $this->mixWithWhite($primary, 0.92);
         $branding['primary_soft'] = $this->mixWithWhite($primary, 0.85);
         $branding['primary_muted'] = $this->mixWithWhite($primary, 0.72);
         $branding['primary_dark'] = $this->darken($primary, 0.22);
         $branding['secondary_light'] = $this->mixWithWhite($secondary, 0.9);
+        $branding['accent_soft'] = $this->mixWithWhite($accent, 0.85);
         $branding['text_on_primary'] = $this->contrastingTextColor($primary);
         $branding['border_color'] = $this->mixWithWhite($primary, 0.65);
         $branding['accent_line'] = $secondary;
         [$r, $g, $b] = $this->hexToRgb($primary);
         $branding['primary_rgb'] = $r . ', ' . $g . ', ' . $b;
+        [$ar, $ag, $ab] = $this->hexToRgb($accent);
+        $branding['accent_rgb'] = $ar . ', ' . $ag . ', ' . $ab;
 
         return $branding;
     }

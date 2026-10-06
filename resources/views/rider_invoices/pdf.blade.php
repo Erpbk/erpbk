@@ -6,20 +6,30 @@
     <title>Rider Invoice {{ $riderInvoice->invoice_number ?? $riderInvoice->id }}</title>
     @include('invoices.partials.tax_invoice_styles')
     <style>
+        @page {
+            size: A4 portrait;
+            margin: 5mm;
+        }
+
         body {
             background: #fff !important;
             padding: 0 !important;
+            margin: 0 !important;
             font-size: 10px !important;
-            line-height: 1.3 !important;
+            line-height: 1.25 !important;
         }
 
         .invoice-box {
             box-shadow: none !important;
             max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            page-break-inside: avoid !important;
         }
 
         .invoice-box .sheet {
-            padding: 10px 12px 8px !important;
+            padding: 6px 8px 4px !important;
         }
 
         .invoice-box .hdr {
@@ -249,6 +259,10 @@
     $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
     ])->filter()->values();
     $noteGridClass = 'one';
+    $pdfRowEstimate = (int) ($riderInvoice->items?->count() ?? 0)
+        + (int) (($paymentVouchers ?? collect())->count())
+        + 10;
+    $pdfFontPx = $pdfRowEstimate > 28 ? 7.5 : ($pdfRowEstimate > 18 ? 8.5 : ($pdfRowEstimate > 12 ? 9.5 : 10));
     $serviceFrom = $riderInvoice->service_period_from
     ? $riderInvoice->service_period_from->format('d M Y')
     : date('d M Y', strtotime($riderInvoice->billing_month));
@@ -265,6 +279,27 @@
     ?? '';
     $billingLabel = date('M Y', strtotime($riderInvoice->billing_month));
     @endphp
+    <style>
+        body { font-size: {{ $pdfFontPx }}px !important; }
+        .invoice-box table.items-table th,
+        .invoice-box table.items-table td,
+        .invoice-box .rider-template-items table th,
+        .invoice-box .rider-template-items table td {
+            padding: {{ $pdfRowEstimate > 18 ? '2px 3px' : '3px 4px' }} !important;
+            font-size: {{ $pdfFontPx }}px !important;
+        }
+        .invoice-box .party,
+        .invoice-box .desc,
+        .invoice-box .totals-notes,
+        .invoice-box .note-card {
+            padding: {{ $pdfRowEstimate > 18 ? '4px 6px' : '6px 8px' }} !important;
+        }
+        .invoice-box .parties,
+        .invoice-box .desc,
+        .invoice-box .hdr {
+            margin-bottom: {{ $pdfRowEstimate > 18 ? '4px' : '6px' }} !important;
+        }
+    </style>
 
     <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">
         <div class="band"></div>

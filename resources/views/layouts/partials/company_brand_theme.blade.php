@@ -2,10 +2,13 @@
 @php
   $themePrimary = $companyBrand['primary_color'] ?? '#2563eb';
   $themeSecondary = $companyBrand['secondary_color'] ?? '#1e3a8a';
+  $themeAccent = $companyBrand['accent_color'] ?? '#818cf8';
   $themePrimaryRgb = $companyBrand['primary_rgb'] ?? '37, 99, 235';
+  $themeAccentRgb = $companyBrand['accent_rgb'] ?? '129, 140, 248';
   $themePrimarySoft = $companyBrand['primary_soft'] ?? '#eff6ff';
   $themePrimaryLight = $companyBrand['primary_light'] ?? '#f8fafc';
   $themePrimaryMuted = $companyBrand['primary_muted'] ?? $themePrimarySoft;
+  $themeAccentSoft = $companyBrand['accent_soft'] ?? '#eef2ff';
   $themeOnPrimary = $companyBrand['text_on_primary'] ?? '#ffffff';
   $themeBorder = $companyBrand['border_color'] ?? $themePrimarySoft;
 @endphp
@@ -32,6 +35,9 @@
     --bs-focus-ring-color: rgba({{ $themePrimaryRgb }}, 0.25);
     --company-brand-primary: {{ $themePrimary }};
     --company-brand-secondary: {{ $themeSecondary }};
+    --company-brand-accent: {{ $themeAccent }};
+    --company-brand-accent-rgb: {{ $themeAccentRgb }};
+    --company-brand-accent-soft: {{ $themeAccentSoft }};
     --company-brand-on-primary: {{ $themeOnPrimary }};
     --company-brand-soft: {{ $themePrimarySoft }};
     --company-brand-light: {{ $themePrimaryLight }};
@@ -345,6 +351,20 @@
   .avatar .avatar-initial.bg-label-primary i,
   .avatar-initial.rounded.bg-label-primary i {
     color: {{ $themePrimary }} !important;
+  }
+
+  /* —— Accent text (document date badges, highlight labels) —— */
+  .text-accent,
+  .company-accent-text {
+    color: {{ $themeAccent }} !important;
+  }
+
+  .rider-doc-expiry-badge,
+  a.rider-doc-expiry-badge,
+  a.rider-doc-expiry-badge:hover,
+  a.rider-doc-expiry-badge:focus,
+  a.rider-doc-expiry-badge:visited {
+    color: {{ $themeAccent }} !important;
   }
 </style>
 @endif

@@ -130,6 +130,12 @@
           <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
             value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
         </div>
+        <div class="col-md-2 mb-3">
+          <label>Accent text color</label>
+          <input type="color" name="company_accent_color" class="form-control form-control-color w-100"
+            value="{{ old('company_accent_color', $currentCompany->accent_color ?? '#818cf8') }}" />
+          <small class="text-muted d-block mt-1">Used for highlight text and badge labels (e.g. document dates).</small>
+        </div>
         @endif
 
         @php

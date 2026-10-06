@@ -191,6 +191,7 @@ class AppServiceProvider extends ServiceProvider
       $view->with('companyDisplayName', $companyName);
       $view->with('companyPrimaryColor', $companyBrand['primary_color'] ?? ($branding['primary_color'] ?? '#2563eb'));
       $view->with('companySecondaryColor', $companyBrand['secondary_color'] ?? ($branding['secondary_color'] ?? '#1e3a8a'));
+      $view->with('companyAccentColor', $companyBrand['accent_color'] ?? ($branding['accent_color'] ?? '#818cf8'));
       $view->with('companyBrand', $companyBrand);
       $view->with('applyCompanyTheme', $applyCompanyTheme);
       $view->with('appCurrencyCode', Currency::code());

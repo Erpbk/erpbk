@@ -4,16 +4,14 @@
             box-sizing: border-box;
         }
 
-        @php
-            $invoiceBrand = $brand ?? ($companyBrand ?? []);
-            $invBlue = $invoiceBrand['primary_color'] ?? '#004aad';
-            $invBlue2 = $invoiceBrand['secondary_color'] ?? ($invoiceBrand['primary_dark'] ?? '#1a5fc4');
-            $invBlueSoft = $invoiceBrand['primary_soft'] ?? ($invoiceBrand['primary_light'] ?? '#eef4fc');
-            $invBlueLine = $invoiceBrand['border_color'] ?? '#c5d8f0';
-            $invBlueRgb = $invoiceBrand['primary_rgb'] ?? '0, 74, 173';
-        @endphp
+        @php $invoiceBrand =$brand ?? ($companyBrand ?? []);
+        $invBlue =$invoiceBrand['primary_color'] ?? '#004aad';
+        $invBlue2 =$invoiceBrand['secondary_color'] ?? ($invoiceBrand['primary_dark'] ?? '#1a5fc4');
+        $invBlueSoft =$invoiceBrand['primary_soft'] ?? ($invoiceBrand['primary_light'] ?? '#eef4fc');
+        $invBlueLine =$invoiceBrand['border_color'] ?? '#c5d8f0';
+        $invBlueRgb =$invoiceBrand['primary_rgb'] ?? '0, 74, 173';
 
-        body:has(> .invoice-box),
+        @endphp body:has(> .invoice-box),
         body:has(> .controls) {
             font-family: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
             font-size: 12.5px;
@@ -35,11 +33,45 @@
         }
 
         .invoice-box {
-            --blue: {{ $invBlue }};
-            --blue-2: {{ $invBlue2 }};
-            --blue-soft: {{ $invBlueSoft }};
-            --blue-line: {{ $invBlueLine }};
-            --blue-rgb: {{ $invBlueRgb }};
+            --blue: {
+                    {
+                    $invBlue
+                }
+            }
+
+            ;
+
+            --blue-2: {
+                    {
+                    $invBlue2
+                }
+            }
+
+            ;
+
+            --blue-soft: {
+                    {
+                    $invBlueSoft
+                }
+            }
+
+            ;
+
+            --blue-line: {
+                    {
+                    $invBlueLine
+                }
+            }
+
+            ;
+
+            --blue-rgb: {
+                    {
+                    $invBlueRgb
+                }
+            }
+
+            ;
             --ink: #0f172a;
             --muted: #64748b;
             --line: #e2e8f0;
@@ -49,9 +81,8 @@
             margin: 0 auto;
             background: var(--paper);
             border-radius: 4px;
-            box-shadow:
-                0 1px 2px rgba(15, 23, 42, 0.04),
-                0 12px 40px rgba(var(--blue-rgb), 0.1);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+            0 12px 40px rgba(var(--blue-rgb), 0.1);
             overflow: hidden;
             position: relative;
         }
@@ -584,10 +615,13 @@
         }
 
         @keyframes invoice-pay-status-blink {
-            0%, 100% {
+
+            0%,
+            100% {
                 opacity: 1;
                 box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
             }
+
             50% {
                 opacity: 0.55;
                 box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
@@ -595,10 +629,13 @@
         }
 
         @keyframes invoice-pay-status-blink-red {
-            0%, 100% {
+
+            0%,
+            100% {
                 opacity: 1;
                 box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
             }
+
             50% {
                 opacity: 0.55;
                 box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
@@ -614,10 +651,13 @@
         }
 
         @keyframes invoice-pay-status-blink-amber {
-            0%, 100% {
+
+            0%,
+            100% {
                 opacity: 1;
                 box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
             }
+
             50% {
                 opacity: 0.55;
                 box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
@@ -630,8 +670,22 @@
             align-items: center;
             gap: 6px;
             background: #fff;
-            color: {{ $invBlue }};
-            border: 1px solid {{ $invBlue }};
+
+            color: {
+                    {
+                    $invBlue
+                }
+            }
+
+            ;
+
+            border: 1px solid {
+                    {
+                    $invBlue
+                }
+            }
+
+            ;
             padding: 6px 14px;
             font-size: 13px;
             font-weight: 500;
@@ -640,7 +694,8 @@
             cursor: pointer;
             text-decoration: none;
             white-space: nowrap;
-            transition: background 0.15s, color 0.15s;
+            transition: background 0.15s,
+            color 0.15s;
             font-family: inherit;
         }
 
@@ -652,8 +707,21 @@
 
         #rightSideModalBody>.controls .action-btn:hover,
         body>.controls .action-btn:hover {
-            background: {{ $invBlueSoft }};
-            color: {{ $invBlue }};
+            background: {
+                    {
+                    $invBlueSoft
+                }
+            }
+
+            ;
+
+            color: {
+                    {
+                    $invBlue
+                }
+            }
+
+            ;
             text-decoration: none;
         }
 
@@ -677,7 +745,7 @@
 
         @page {
             size: A4 portrait;
-            margin: 8mm 10mm;
+            margin: 6mm;
         }
 
         @media print {
@@ -703,8 +771,15 @@
                 display: none !important;
             }
 
-            /* Full A4 width â€” do NOT use break-inside:avoid on the whole box
-               (browsers shrink-to-fit and leave large empty margins). */
+            /* Full A4 width — JS fitInvoiceToSinglePage scales to one page */
+            .invoice-fit-wrap {
+                width: 100% !important;
+                overflow: hidden !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
+            }
+
             .invoice-box {
                 box-shadow: none !important;
                 border-radius: 0 !important;
@@ -713,8 +788,9 @@
                 min-width: 100% !important;
                 margin: 0 !important;
                 overflow: visible !important;
-                page-break-inside: auto !important;
-                break-inside: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
             }
 
             .invoice-box .band {
@@ -723,7 +799,7 @@
             }
 
             .invoice-box .sheet {
-                padding: 0 !important;
+                padding: 8px 10px !important;
                 width: 100% !important;
             }
 
@@ -858,7 +934,7 @@
             .invoice-box table.items,
             .invoice-box table.items-table,
             .invoice-box .rider-template-items table,
-            .invoice-box .sheet > table {
+            .invoice-box .sheet>table {
                 width: 100% !important;
                 table-layout: auto !important;
                 margin-bottom: 6px !important;
@@ -867,7 +943,7 @@
             .invoice-box table.items thead th,
             .invoice-box table.items-table th,
             .invoice-box .rider-template-items table th,
-            .invoice-box .sheet > table th {
+            .invoice-box .sheet>table th {
                 font-size: 8.5px !important;
                 padding: 4px 5px !important;
                 letter-spacing: 0.2px !important;
@@ -881,7 +957,7 @@
             .invoice-box table.items tbody td,
             .invoice-box table.items-table td,
             .invoice-box .rider-template-items table td,
-            .invoice-box .sheet > table td {
+            .invoice-box .sheet>table td {
                 font-size: 9px !important;
                 padding: 3px 5px !important;
                 line-height: 1.25 !important;
@@ -1039,11 +1115,23 @@
             .invoice-box .foot {
                 page-break-before: avoid !important;
                 break-before: avoid-page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
 
             .invoice-box .tbl-wrap {
-                page-break-inside: auto !important;
-                break-inside: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            .invoice-box .hdr,
+            .invoice-box .parties,
+            .invoice-box .desc,
+            .invoice-box table.items,
+            .invoice-box table.items-table,
+            .invoice-box .rider-template-items {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
             }
         }
 

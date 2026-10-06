@@ -81,6 +81,7 @@ class HomeController extends Controller
         'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp',
         'company_primary_color' => 'nullable|string|max:20',
         'company_secondary_color' => 'nullable|string|max:20',
+        'company_accent_color' => 'nullable|string|max:20',
         'settings.currency_code' => ['nullable', 'string', 'max:10', Rule::in(Currency::catalogCodes())],
         'settings.vat_number' => 'nullable|string|max:50',
         'settings.vat_percentage' => 'nullable|numeric',
@@ -120,6 +121,9 @@ class HomeController extends Controller
       }
       if ($request->filled('company_secondary_color')) {
         $currentCompany->secondary_color = $request->input('company_secondary_color');
+      }
+      if ($request->filled('company_accent_color')) {
+        $currentCompany->accent_color = $request->input('company_accent_color');
       }
 
       if ($request->hasFile('company_logo')) {

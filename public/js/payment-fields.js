@@ -41,6 +41,34 @@
     var isRiderPayment = $ctx.find('[data-salary-invoice-payment="1"]').length > 0
       || $ctx.find('[data-rider-payment="1"]').length > 0
       || ['rider', 'employee'].indexOf($ctx.find('input[name="invoice_type"]').val()) !== -1;
+    var $boot = $ctx.find('[data-payment-fields-init]').first();
+    var preservePrimaryAmount = $boot.attr('data-preserve-payment-amount') === '1';
+    var savedPrimaryAmount = parseFloat($boot.attr('data-saved-payment-amount'));
+    if (isNaN(savedPrimaryAmount)) {
+      savedPrimaryAmount = parseFloat($ctx.find('#payment_amount').attr('data-saved-amount'));
+    }
+    if (isNaN(savedPrimaryAmount)) {
+      savedPrimaryAmount = null;
+    }
+
+    function applyPrimaryAmountDisplay(amount) {
+      var value = parseFloat(amount);
+      if (isNaN(value)) {
+        value = 0;
+      }
+      $ctx.find('#payment_amount').val(value.toFixed(2));
+      $ctx.find('#display_amount').text(value.toFixed(2));
+      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
+      $ctx.find('#total_debit').text((value + bankCharges).toFixed(2));
+    }
+
+    function restoreSavedPrimaryAmount() {
+      if (!preservePrimaryAmount || savedPrimaryAmount === null) {
+        return;
+      }
+      applyPrimaryAmountDisplay(savedPrimaryAmount);
+      validatePaymentDistribution();
+    }
 
     $ctx.find('.select2').each(function () {
       var $el = $(this);
@@ -155,17 +183,21 @@
       }
 
       var total = updateTotalPayment();
-      var $amount = $ctx.find('#payment_amount');
-      var existing = parseFloat($amount.val()) || 0;
-      // Raise primary amount to cover invoice lines, but never overwrite a higher
-      // saved/manual amount (e.g. edit modal with unallocated remainder).
-      if (total > existing + 0.009) {
-        $amount.val(total.toFixed(2));
-        existing = total;
+      var existing = parseFloat($ctx.find('#payment_amount').val()) || 0;
+
+      // Edit mode: never overwrite the primary amount from invoice lines.
+      if (preservePrimaryAmount) {
+        applyPrimaryAmountDisplay(existing);
+        validatePaymentDistribution();
+        return;
       }
-      $ctx.find('#display_amount').text(existing.toFixed(2));
-      var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
-      $ctx.find('#total_debit').text((existing + bankCharges).toFixed(2));
+
+      // Create mode: raise primary amount to cover invoice lines, never lower it.
+      if (total > existing + 0.009) {
+        applyPrimaryAmountDisplay(total);
+      } else {
+        applyPrimaryAmountDisplay(existing);
+      }
       validatePaymentDistribution();
     }
 
@@ -350,13 +382,17 @@
       var amount = parseFloat($(this).val()) || 0;
       var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
 
+      if (preservePrimaryAmount) {
+        savedPrimaryAmount = amount;
+      }
+
       $ctx.find('#display_amount').text(amount.toFixed(2));
       $ctx.find('#total_debit').text((amount + bankCharges).toFixed(2));
 
       if (isRiderPayment) {
         var $activeAmounts = $ctx.find('.payment-amount:not(:disabled)');
-        if ($activeAmounts.length === 1) {
-          // Single selected invoice: keep the line in sync with the primary amount.
+        if ($activeAmounts.length === 1 && !preservePrimaryAmount) {
+          // Single selected invoice on create: keep the line in sync with the primary amount.
           var $line = $activeAmounts.first();
           var rowBalance = parseFloat($line.closest('tr').data('balance')) || 0;
           if (Math.abs(rowBalance) >= 0.01 || amount > 0) {
@@ -365,7 +401,7 @@
           updateTotalPayment();
           validatePaymentDistribution();
         } else {
-          // Multi-invoice: allow primary > allocated total; only trim lines if primary drops.
+          // Multi-invoice (or edit): allow primary > allocated total; only trim lines if primary drops.
           updateTotalPayment();
           validatePaymentDistribution();
           syncInvoicePaymentsToAmount(amount);
@@ -413,6 +449,8 @@
       updateSelectAllState();
       calculateTotals();
       applyInvoiceDateFromSelection();
+      // After all invoice sync, put the DB primary amount back on edit.
+      restoreSavedPrimaryAmount();
     }, 100);
   };
 

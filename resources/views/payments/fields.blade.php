@@ -17,6 +17,10 @@
                 ? \Carbon\Carbon::parse($openedInvoice->billing_month)->format('Y-m')
                 : date('Y-m'))
     );
+    $savedPrimaryAmount = null;
+    if (isset($payment) && $payment) {
+        $savedPrimaryAmount = round((float) $payment->amount - (float) ($payment->bank_charges ?? 0), 2);
+    }
 @endphp
 <div class="card-body px-4" @if($isSalaryInvoicePayment) data-salary-invoice-payment="1" data-rider-payment="1" @endif @if($openedInvoiceId) data-opened-invoice-id="{{ $openedInvoiceId }}" @endif>
     <!-- Basic Payment Information -->
@@ -237,7 +241,17 @@
                 <div class="input-group-prepend">
                     <span class="input-group-text">{{ \App\Helpers\Currency::code() }}</span>
                 </div>
-                {!! Form::number('amount', isset($payment) ? ($payment->amount - $payment->bank_charges) : null, ['class' => 'form-control cr_amount', 'step' => 'any', 'placeholder' => 'Enter amount', 'id' => 'payment_amount']) !!}
+                {!! Form::number(
+                    'amount',
+                    old('amount', $savedPrimaryAmount),
+                    [
+                        'class' => 'form-control cr_amount',
+                        'step' => 'any',
+                        'placeholder' => 'Enter amount',
+                        'id' => 'payment_amount',
+                        'data-saved-amount' => $savedPrimaryAmount !== null ? number_format($savedPrimaryAmount, 2, '.', '') : null,
+                    ]
+                ) !!}
             </div>
         </div>
         
@@ -440,7 +454,15 @@
 </div>
 
 {{-- Boot marker only: JS lives in public/js/payment-fields.js (avoids jQuery DOMEval of large inline scripts in modals) --}}
-<div data-payment-fields-init data-currency="{{ \App\Helpers\Currency::code() }}" hidden></div>
+<div
+    data-payment-fields-init
+    data-currency="{{ \App\Helpers\Currency::code() }}"
+    @if($savedPrimaryAmount !== null)
+        data-preserve-payment-amount="1"
+        data-saved-payment-amount="{{ number_format($savedPrimaryAmount, 2, '.', '') }}"
+    @endif
+    hidden
+></div>
 
 <style>
 #invoices-table thead th {

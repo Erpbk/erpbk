@@ -6,7 +6,6 @@
             <th>Billing Month</th>
             <th>Employee</th>
             <th>Descriptions</th>
-            <th>Project</th>
             <th>Subtotal ({{ \App\Helpers\Currency::code() }})</th>
             <th>Vat ({{ \App\Helpers\Currency::code() }})</th>
             <th>Total ({{ \App\Helpers\Currency::code() }})</th>
@@ -22,7 +21,6 @@
                 <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
                 <td>{{ optional($r->employee)->employee_id }} - {{ optional($r->employee)->name }}</td>
                 <td>{{ $r->descriptions }}</td>
-                <td>{{ $r->zone }}</td>
                 <td>{{ number_format($r->subtotal, 2) }}</td>
                 <td>{{ number_format($r->vat ?? 0, 2) }}</td>
                 <td>{{ number_format($r->total_amount, 2) }}</td>

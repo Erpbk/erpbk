@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Helpers\Account;
 use App\Helpers\Common;
+use App\Helpers\Currency;
 use App\Support\GlobalAccounts;
 use App\Models\EmployeeInvoiceItem;
 use App\Models\EmployeeInvoices;
@@ -81,8 +82,8 @@ class EmployeeInvoicesRepository extends BaseRepository
         foreach ($request['item_id'] as $key => $val) {
             if (!empty($request['item_id'][$key]) && $request['amount'][$key] > 0) {
                 $amountValue = $request['amount'][$key];
-                if (is_string($amountValue) && strpos($amountValue, 'AED') !== false) {
-                    $amountValue = str_replace('AED', '', $amountValue);
+                if (is_string($amountValue)) {
+                    $amountValue = str_ireplace([Currency::code(), Currency::symbol()], '', $amountValue);
                     $amountValue = str_replace(',', '', $amountValue);
                     $amountValue = trim($amountValue);
                 }

@@ -141,8 +141,8 @@ class SalikController extends AppBaseController
                 'tableData' => $tableData,
                 'paginationLinks' => $paginationLinks,
                 'totals' => [
-                    'paidAmount'   => 'AED ' . number_format($paidAmount, 2),
-                    'unpaidAmount' => 'AED ' . number_format($unpaidAmount, 2),
+                    'paidAmount'   => \App\Helpers\Currency::formatPlain($paidAmount),
+                    'unpaidAmount' => \App\Helpers\Currency::formatPlain($unpaidAmount),
                     'paidCount'    => $paidCount,
                     'unpaidCount'  => $unpaidCount,
                 ],

@@ -29,9 +29,11 @@
     })->values();
 @endphp
 
+@include('invoices.partials.invoice_form_styles')
+
 <style>
-    .sim-pivot-wrap {
-        border: 1px solid #e7eaf3;
+    .inv-form-wrap .sim-pivot-wrap {
+        border: 1px solid var(--inv-border);
         border-radius: .5rem;
         background: #fff;
         overflow: hidden;
@@ -50,14 +52,14 @@
         position: sticky;
         top: 0;
         z-index: 2;
-        background: #f5f7fb;
-        color: #4b5675;
+        background: var(--inv-primary-soft);
+        color: var(--inv-primary);
         font-size: .78rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: .02em;
         text-align: center;
-        border-bottom: 1px solid #e7eaf3 !important;
+        border-bottom: 1px solid var(--inv-border) !important;
         white-space: nowrap;
         vertical-align: middle;
         padding: .7rem .75rem;
@@ -69,7 +71,7 @@
         font-weight: 500;
         text-transform: none;
         letter-spacing: 0;
-        color: #99a1b7;
+        color: var(--inv-muted);
     }
     .sim-pivot-table tbody td,
     .sim-pivot-table tfoot td {
@@ -79,14 +81,14 @@
         border-color: #eef1f7;
     }
     .sim-pivot-table tbody tr:hover {
-        background: #fafbff;
+        background: var(--inv-primary-soft);
     }
     .sim-pivot-table tfoot td {
         position: sticky;
         bottom: 0;
         z-index: 2;
-        background: #f8f9fc;
-        border-top: 1px solid #e7eaf3 !important;
+        background: var(--inv-primary-soft);
+        border-top: 1px solid var(--inv-border) !important;
         font-weight: 600;
     }
     .sim-pivot-table .sim-sim-col { min-width: 240px; width: 240px; }
@@ -102,154 +104,182 @@
     }
     .sim-pivot-table .sim-row-total {
         font-variant-numeric: tabular-nums;
-        color: #1b84ff;
+        color: var(--inv-primary);
     }
     .sim-pivot-empty {
         text-align: center;
         padding: 2rem 1rem !important;
-        color: #99a1b7;
+        color: var(--inv-muted);
         background: #fcfcfd;
         white-space: normal !important;
     }
     .sim-selected-items .badge {
         font-weight: 500;
         padding: .45rem .65rem;
+        background: var(--inv-primary) !important;
     }
     #sim_lines_hint {
         font-size: .825rem;
+        color: var(--inv-muted);
     }
 </style>
 
-<div class="row">
-    <div class="col-md-2 form-group">
-        <label>Invoice Date</label>
-        <input type="date" class="form-control"
-            value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}"
-            name="inv_date">
-    </div>
-
-    <div class="col-md-3 form-group">
-        <label>Company <span class="text-danger">*</span></label>
-        {!! Form::select('company_id', $companies, $selectedCompany, [
-            'class' => 'form-select form-select-sm select2',
-            'id' => 'sim_invoice_company_id',
-            'disabled' => $isClone,
-        ]) !!}
-        @if($isClone)
-            <input type="hidden" name="company_id" value="{{ $selectedCompany }}">
-            <small class="text-muted">Company is locked when cloning an invoice.</small>
-        @else
-            <small class="text-muted">SIM numbers load after you choose a company.</small>
-        @endif
-    </div>
-
-    <div class="form-group col-md-2">
-        <label>Billing Month</label>
-        <input type="month" name="billing_month" class="form-control" id="billing_month"
-            value="{{ isset($nextBillingMonth) ? $nextBillingMonth : (isset($invoice) && $invoice->billing_month ? date('Y-m', strtotime($invoice->billing_month)) : date('Y-m')) }}">
-    </div>
-
-    <div class="col-md-2 form-group">
-        <label>Reference Number <span class="text-danger">*</span></label>
-        <input type="text" name="reference_number" class="form-control" required
-            value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->reference_number : '') }}"
-            placeholder="Reference No.">
-    </div>
-
-    <div class="col-md-3 form-group">
-        @include('partials.universal_document_upload', [
-          'name' => 'attachment',
-          'label' => 'Attachment',
-          'required' => false,
-          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
-          'inputClass' => 'form-control',
-          'showHint' => true,
-        ])
-        @isset($invoice->attachment)
-            <small class="text-muted">Current file:
-                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">{{ basename($invoice->attachment) }}</a>
-            </small>
-        @endisset
-    </div>
-
-    <div class="col-md-6 col-lg-3 form-group">
-        <label>Descriptions</label>
-        {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, [
-            'class' => 'form-control',
-            'placeholder' => 'Descriptions',
-            'rows' => 2,
-        ]) !!}
-    </div>
-    <div class="col-md-6 col-lg-3 form-group">
-        <label>Internal Notes</label>
-        {!! Form::textarea('notes', isset($cloneFromInvoice) ? ($cloneFromInvoice->notes ?? null) : null, [
-            'class' => 'form-control',
-            'placeholder' => 'Internal notes',
-            'rows' => 2,
-        ]) !!}
-    </div>
-    <div class="col-md-12 form-group">
-        @include('invoices.partials.invoice_note_fields', ['defaultsModule' => 'sim_invoices', 'invoice' => $invoice ?? $cloneFromInvoice ?? null])
-    </div>
-</div>
-
-<div class="mt-3">
-    <div class="card-header bg-blue m-0 mb-2">
-        <h5 class="card-title mb-0">Charge Items</h5>
-    </div>
-    <div class="row align-items-end mb-3">
-        <div class="col-md-6 col-lg-3 form-group mb-0">
-            <label>Add charge columns</label>
-            <select id="sim_charge_item_picker" class="form-select form-select-sm">
-                <option value="">Select item…</option>
-                @foreach($catalogItems as $item)
-                    <option value="{{ $item['id'] }}"
-                        data-name="{{ $item['name'] }}"
-                        data-price="{{ $item['price'] }}"
-                        data-vat="{{ $item['vat'] }}">{{ $item['name'] }}</option>
-                @endforeach
-            </select>
-            <small class="text-muted">Selected items become columns on each SIM row.</small>
+<div class="inv-form-wrap">
+    <div class="row g-3">
+        <div class="col-lg-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-file-alt"></i> Invoice Details</h6>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Invoice Date</label>
+                        <input type="date" class="form-control"
+                            value="{{ isset($cloneFromInvoice) ? $cloneFromInvoice->inv_date : (isset($invoice) ? \Carbon\Carbon::parse($invoice->inv_date)->format('Y-m-d') : date('Y-m-d')) }}"
+                            name="inv_date">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Billing Month</label>
+                        <input type="month" name="billing_month" class="form-control" id="billing_month"
+                            value="{{ isset($nextBillingMonth) ? $nextBillingMonth : (isset($invoice) && $invoice->billing_month ? date('Y-m', strtotime($invoice->billing_month)) : date('Y-m')) }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Reference Number <span class="text-danger">*</span></label>
+                        <input type="text" name="reference_number" class="form-control" required
+                            value="{{ isset($cloneFromInvoice) ? '' : (isset($invoice) ? $invoice->reference_number : '') }}"
+                            placeholder="Reference No.">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Company <span class="text-danger">*</span></label>
+                        {!! Form::select('company_id', $companies, $selectedCompany, [
+                            'class' => 'form-select form-select-sm select2',
+                            'id' => 'sim_invoice_company_id',
+                            'disabled' => $isClone,
+                        ]) !!}
+                        @if($isClone)
+                            <input type="hidden" name="company_id" value="{{ $selectedCompany }}">
+                            <small class="text-muted">Company is locked when cloning an invoice.</small>
+                        @else
+                            <small class="text-muted">SIM numbers load after you choose a company.</small>
+                        @endif
+                    </div>
+                    <div class="col-md-6">
+                        @include('partials.universal_document_upload', [
+                          'name' => 'attachment',
+                          'label' => 'Attachment',
+                          'required' => false,
+                          'accept' => '.pdf,.jpg,.jpeg,.png,.doc,.docx',
+                          'inputClass' => 'form-control',
+                          'showHint' => true,
+                        ])
+                        @isset($invoice->attachment)
+                            <small class="text-muted">Current file:
+                                <a href="{{ asset('storage/' . $invoice->attachment) }}" target="_blank" class="text-primary">{{ basename($invoice->attachment) }}</a>
+                            </small>
+                        @endisset
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-6 col-lg-9">
-            <div id="sim_selected_items" class="sim-selected-items d-flex flex-wrap gap-1"></div>
-        </div>
-    </div>
 
-    <div class="card-header bg-blue m-0 mb-2 d-flex justify-content-between align-items-center">
-        <div>
-            <h5 class="card-title mb-0">SIM Lines</h5>
-            <div id="sim_lines_hint" class="text-white-50 small mt-1">Choose a company, add charge columns, then add SIM rows.</div>
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-align-left"></i> Description</h6>
+                {!! Form::textarea('descriptions', isset($cloneFromInvoice) ? $cloneFromInvoice->descriptions : null, [
+                    'class' => 'form-control',
+                    'placeholder' => 'Descriptions',
+                    'rows' => 2,
+                ]) !!}
+            </div>
         </div>
-        <button type="button" class="btn btn-sm btn-light" id="sim_add_row">
-            <i class="fa fa-plus"></i> Add SIM
-        </button>
-    </div>
 
-    <div class="sim-pivot-wrap">
-        <div class="sim-pivot-scroll">
-            <table class="table table-sm sim-pivot-table" id="sim_pivot_table">
-                <thead>
-                    <tr id="sim_pivot_header">
-                        <th class="sim-sim-col text-center">SIM <span class="text-danger">*</span></th>
-                        <th class="sim-vat-col text-center">VAT %</th>
-                        <th class="sim-total-col text-center">Total</th>
-                        <th class="sim-actions-col"></th>
-                    </tr>
-                </thead>
-                <tbody id="sim_pivot_body"></tbody>
-                <tfoot id="sim_pivot_footer">
-                    <tr>
-                        <td class="text-end" id="sim_pivot_footer_label">Invoice totals</td>
-                        <td></td>
-                        <td class="text-end" id="sim_invoice_grand_total">0.00</td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-list"></i> Charge Items</h6>
+                <div class="row align-items-end mb-3">
+                    <div class="col-md-6 col-lg-3 form-group mb-0">
+                        <label class="form-label">Add charge columns</label>
+                        <select id="sim_charge_item_picker" class="form-select form-select-sm">
+                            <option value="">Select item…</option>
+                            @foreach($catalogItems as $item)
+                                <option value="{{ $item['id'] }}"
+                                    data-name="{{ $item['name'] }}"
+                                    data-price="{{ $item['price'] }}"
+                                    data-vat="{{ $item['vat'] }}">{{ $item['name'] }}</option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">Selected items become columns on each SIM row.</small>
+                    </div>
+                    <div class="col-md-6 col-lg-9">
+                        <div id="sim_selected_items" class="sim-selected-items d-flex flex-wrap gap-1"></div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="inv-card-title mb-0" style="margin-bottom:0"><i class="fa fa-sim-card"></i> SIM Lines</h6>
+                        <div id="sim_lines_hint" class="small mt-1">Choose a company, add charge columns, then add SIM rows.</div>
+                    </div>
+                    <button type="button" class="btn inv-add-item btn-sm" id="sim_add_row">
+                        <i class="fa fa-plus"></i> Add SIM
+                    </button>
+                </div>
+
+                <div class="sim-pivot-wrap">
+                    <div class="sim-pivot-scroll">
+                        <table class="table table-sm sim-pivot-table" id="sim_pivot_table">
+                            <thead>
+                                <tr id="sim_pivot_header">
+                                    <th class="sim-sim-col text-center">SIM <span class="text-danger">*</span></th>
+                                    <th class="sim-vat-col text-center">VAT %</th>
+                                    <th class="sim-total-col text-center">Total</th>
+                                    <th class="sim-actions-col"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="sim_pivot_body"></tbody>
+                            <tfoot id="sim_pivot_footer">
+                                <tr>
+                                    <td class="text-end" id="sim_pivot_footer_label">Invoice totals</td>
+                                    <td></td>
+                                    <td class="text-end" id="sim_invoice_grand_total">0.00</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+                <div id="sim_charge_item_ids_container"></div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="inv-totals-area">
+                <div class="inv-totals-notes">
+                    @include('invoices.partials.invoice_note_fields', [
+                        'defaultsModule' => 'sim_invoices',
+                        'invoice' => $invoice ?? $cloneFromInvoice ?? null,
+                        'render' => 'note',
+                        'asTotalsNotes' => true,
+                    ])
+                </div>
+                <div class="inv-totals">
+                    <div class="inv-summary-row inv-summary-total">
+                        <span>Total Due</span>
+                        <span class="inv-summary-value"><span id="sim_invoice_grand_total_display">0.00</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="inv-card">
+                <h6 class="inv-card-title"><i class="fa fa-file-contract"></i> Terms &amp; Conditions</h6>
+                @include('invoices.partials.invoice_note_fields', [
+                    'defaultsModule' => 'sim_invoices',
+                    'invoice' => $invoice ?? $cloneFromInvoice ?? null,
+                    'render' => 'terms',
+                ])
+            </div>
         </div>
     </div>
-    <div id="sim_charge_item_ids_container"></div>
 </div>
 
 @push('page-scripts')
@@ -561,6 +591,7 @@
             $('.sim-col-total[data-item-id="' + col.id + '"]').text(money(colTotals[col.id] || 0));
         });
         $('#sim_invoice_grand_total').text(money(grand));
+        $('#sim_invoice_grand_total_display').text(money(grand));
     }
 
     function clearSims() {

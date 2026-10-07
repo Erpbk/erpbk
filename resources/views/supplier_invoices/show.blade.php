@@ -9,44 +9,44 @@
 
 <body>
     @php
-        $settings = company_table('settings')->pluck('value', 'name')->toArray();
-        $currency = \App\Helpers\Currency::code();
-        $defaults = \App\Support\InvoiceModuleDefaults::all('supplier_invoices');
-        $party = $supplierInvoice->supplier;
-        $invoiceTitle = $defaults['title'] ?: 'SUPPLIER INVOICE';
-        $partyNote = $supplierInvoice->customer_note
-            ?: ($party->invoice_note ?? null)
-            ?: ($defaults['notes'] ?: null);
-        $termsAndConditions = $supplierInvoice->terms_and_conditions
-            ?: ($party->terms_and_conditions ?? null)
-            ?: ($defaults['terms_and_conditions'] ?: null);
-        $partyNoteLabel = $party
-            ? $party->resolvedInvoiceNoteLabel()
-            : 'Invoice Note';
-        $termsAndConditionsLabel = $party
-            ? $party->resolvedTermsAndConditionsLabel()
-            : 'Terms & Conditions';
-        $invoiceNumber = $supplierInvoice->inv_id ?? ('SUP-' . str_pad($supplierInvoice->id, 6, '0', STR_PAD_LEFT));
-        $itemsTotal = $supplierInvoice->items ? $supplierInvoice->items->sum('total_amount') : 0;
-        $itemsVat = $supplierInvoice->items ? $supplierInvoice->items->sum('tax_amount') : 0;
-        $subtotalAmount = $supplierInvoice->subtotal ?? max(0, $itemsTotal - $itemsVat);
-        $vatAmt = $supplierInvoice->vat ?? $itemsVat;
-        $totalAmt = $supplierInvoice->total_amount ?? $itemsTotal;
-        $noteCards = collect([
-            $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
-            $supplierInvoice->notes ? ['title' => 'Internal Notes', 'body' => $supplierInvoice->notes] : null,
-        ])->filter()->values();
-        $noteGridClass = match ($noteCards->count()) {
-            1 => 'one',
-            3 => 'three',
-            default => '',
-        };
-        $invoiceDateLabel = $supplierInvoice->inv_date
-            ? $supplierInvoice->inv_date->format('d M Y')
-            : '';
-        $billingLabel = $supplierInvoice->billing_month
-            ? date('M Y', strtotime($supplierInvoice->billing_month))
-            : '';
+    $settings = company_table('settings')->pluck('value', 'name')->toArray();
+    $currency = \App\Helpers\Currency::code();
+    $defaults = \App\Support\InvoiceModuleDefaults::all('supplier_invoices');
+    $party = $supplierInvoice->supplier;
+    $invoiceTitle = $defaults['title'] ?: 'SUPPLIER INVOICE';
+    $partyNote = $supplierInvoice->customer_note
+    ?: ($party->invoice_note ?? null)
+    ?: ($defaults['notes'] ?: null);
+    $termsAndConditions = $supplierInvoice->terms_and_conditions
+    ?: ($party->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
+    $partyNoteLabel = $party
+    ? $party->resolvedInvoiceNoteLabel()
+    : 'Invoice Note';
+    $termsAndConditionsLabel = $party
+    ? $party->resolvedTermsAndConditionsLabel()
+    : 'Terms & Conditions';
+    $invoiceNumber = $supplierInvoice->inv_id ?? ('SUP-' . str_pad($supplierInvoice->id, 6, '0', STR_PAD_LEFT));
+    $itemsTotal = $supplierInvoice->items ? $supplierInvoice->items->sum('total_amount') : 0;
+    $itemsVat = $supplierInvoice->items ? $supplierInvoice->items->sum('tax_amount') : 0;
+    $subtotalAmount = $supplierInvoice->subtotal ?? max(0, $itemsTotal - $itemsVat);
+    $vatAmt = $supplierInvoice->vat ?? $itemsVat;
+    $totalAmt = $supplierInvoice->total_amount ?? $itemsTotal;
+    $noteCards = collect([
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+    $supplierInvoice->notes ? ['title' => 'Internal Notes', 'body' => $supplierInvoice->notes] : null,
+    ])->filter()->values();
+    $noteGridClass = match ($noteCards->count()) {
+    1 => 'one',
+    3 => 'three',
+    default => '',
+    };
+    $invoiceDateLabel = $supplierInvoice->inv_date
+    ? $supplierInvoice->inv_date->format('d M Y')
+    : '';
+    $billingLabel = $supplierInvoice->billing_month
+    ? date('M Y', strtotime($supplierInvoice->billing_month))
+    : '';
     @endphp
 
     @if(empty($isPdf))
@@ -86,9 +86,9 @@
         ])
     </div>
     @include('delete_requests._confirm_delete_script', [
-        'entityName' => 'Supplier Invoice',
-        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
-        'method' => 'GET',
+    'entityName' => 'Supplier Invoice',
+    'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+    'method' => 'GET',
     ])
     @endif
 
@@ -96,16 +96,16 @@
         <div class="band"></div>
         <div class="sheet">
             @include('invoices.partials.tax_invoice_header', [
-                'settings' => $settings,
-                'invoiceTitle' => $invoiceTitle,
-                'invoiceNumber' => $invoiceNumber,
-                'invoiceDateLabel' => $invoiceDateLabel,
-                'billingLabel' => $billingLabel,
+            'settings' => $settings,
+            'invoiceTitle' => $invoiceTitle,
+            'invoiceNumber' => $invoiceNumber,
+            'invoiceDateLabel' => $invoiceDateLabel,
+            'billingLabel' => $billingLabel,
             ])
 
             <div class="parties">
                 <div class="party">
-                    <h3 class="party-title">Bill From</h3>
+                    <h3 class="party-title">Supplier</h3>
                     <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
                     <div class="party-grid">
                         <div class="party-line">
@@ -181,22 +181,22 @@
             </div>
 
             @include('invoices.partials.tax_invoice_totals_notes', [
-                'partyNote' => $partyNote,
-                'partyNoteLabel' => $partyNoteLabel,
-                'subtotalAmount' => $subtotalAmount,
-                'vatAmount' => $vatAmt,
-                'totalAmount' => $totalAmt,
-                'currency' => $currency,
-                'paidAmount' => $supplierInvoice->paid_amount ?? 0,
-                'balanceAmount' => $supplierInvoice->balance ?? (($totalAmt ?? 0) - ($supplierInvoice->paid_amount ?? 0)),
+            'partyNote' => $partyNote,
+            'partyNoteLabel' => $partyNoteLabel,
+            'subtotalAmount' => $subtotalAmount,
+            'vatAmount' => $vatAmt,
+            'totalAmount' => $totalAmt,
+            'currency' => $currency,
+            'paidAmount' => $supplierInvoice->paid_amount ?? 0,
+            'balanceAmount' => $supplierInvoice->balance ?? (($totalAmt ?? 0) - ($supplierInvoice->paid_amount ?? 0)),
             ])
             @else
             <div class="empty">No line items on this invoice.</div>
             @endif
 
             @include('invoices.partials.tax_invoice_footnotes', [
-                'noteCards' => $noteCards,
-                'noteGridClass' => $noteGridClass,
+            'noteCards' => $noteCards,
+            'noteGridClass' => $noteGridClass,
             ])
 
             @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])

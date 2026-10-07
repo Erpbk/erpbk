@@ -206,6 +206,7 @@ class AdminCompaniesController extends Controller
             $centralCompany->logo = $adminCompany->logo;
             $centralCompany->primary_color = $adminCompany->primary_color;
             $centralCompany->secondary_color = $adminCompany->secondary_color;
+            $centralCompany->accent_color = $adminCompany->accent_color;
             $centralCompany->branding_json = $adminCompany->branding_json;
             $centralCompany->modules_settings = $adminCompany->modules_settings;
             $centralCompany->approved_at = null;

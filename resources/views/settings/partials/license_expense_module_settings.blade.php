@@ -174,7 +174,7 @@
                         </select>
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label">Default Fee (AED)</label>
+                        <label class="form-label">Default Fee ({{ \App\Helpers\Currency::code() }})</label>
                         <input type="number" name="default_fee" class="form-control" min="0" step="0.01">
                       </div>
                       <div class="col-md-6">
@@ -246,7 +246,7 @@
                         </select>
                       </div>
                       <div class="col-md-6">
-                        <label class="form-label">Default Fee (AED)</label>
+                        <label class="form-label">Default Fee ({{ \App\Helpers\Currency::code() }})</label>
                         <input type="number" name="default_fee" id="editLicenseExpenseStatusDefaultFee" class="form-control" min="0" step="0.01">
                       </div>
                       <div class="col-md-6">

@@ -11,41 +11,41 @@
 <script src="{{ asset('assets/vendor/libs/block-ui/block-ui.js') }}"></script>
 <script src="{{ asset('assets/vendor/libs/select2/select2.js') }}"></script>
 <script>
-    function formatEmirateId(input) {
-        // Save cursor position
-        const cursorPosition = input.selectionStart;
+  function formatEmirateId(input) {
+    // Save cursor position
+    const cursorPosition = input.selectionStart;
 
-        // Remove hyphens and non-digits, then truncate to 15 digits (3+4+7+1)
-        let value = input.value.replace(/-/g, '').replace(/\D/g, '').slice(0, 15);
+    // Remove hyphens and non-digits, then truncate to 15 digits (3+4+7+1)
+    let value = input.value.replace(/-/g, '').replace(/\D/g, '').slice(0, 15);
 
-        // Build formatted string with hyphens
-        let formatted = '';
-        const parts = [3, 4, 7, 1]; // 3 digits, 4 digits, 7 digits, 1 digit
-        let currentIndex = 0;
+    // Build formatted string with hyphens
+    let formatted = '';
+    const parts = [3, 4, 7, 1]; // 3 digits, 4 digits, 7 digits, 1 digit
+    let currentIndex = 0;
 
-        for (const part of parts) {
-            if (value.length > currentIndex) {
-                formatted += value.slice(currentIndex, currentIndex + part);
-                if (currentIndex + part < 15) formatted += '-'; // Add hyphen only if not the last part
-                currentIndex += part;
-            }
-        }
-
-        // Update input value
-        input.value = formatted;
-
-        // Adjust cursor position (account for hyphens)
-        const addedHyphens = (formatted.match(/-/g) || []).length;
-        const newCursorPosition = Math.min(cursorPosition + addedHyphens, 18); // Cap at maxlength
-        input.setSelectionRange(newCursorPosition, newCursorPosition);
+    for (const part of parts) {
+      if (value.length > currentIndex) {
+        formatted += value.slice(currentIndex, currentIndex + part);
+        if (currentIndex + part < 15) formatted += '-'; // Add hyphen only if not the last part
+        currentIndex += part;
+      }
     }
+
+    // Update input value
+    input.value = formatted;
+
+    // Adjust cursor position (account for hyphens)
+    const addedHyphens = (formatted.match(/-/g) || []).length;
+    const newCursorPosition = Math.min(cursorPosition + addedHyphens, 18); // Cap at maxlength
+    input.setSelectionRange(newCursorPosition, newCursorPosition);
+  }
 </script>
 @yield('vendor-script')
 <!-- END: Page Vendor JS-->
 <!-- BEGIN: Theme JS-->
 <script src="{{ asset('assets/js/main.js') }}"></script>
 @include('layouts.datatables_js')
-<script src="{{ asset('js/custom.js') }}?v=20260905-dropdown-fixed"></script>
+<script src="{{ asset('js/custom.js') }}?v={{ @filemtime(public_path('js/custom.js')) ?: '20261006b' }}"></script>
 <script src="{{ asset('js/payment-fields.js') }}?v=20260915-allow-overpay"></script>
 <script src="{{ asset('js/application.js?id=1') }}"></script>
 <script>

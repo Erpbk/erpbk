@@ -157,32 +157,8 @@
                 padding: 8px 10px !important;
             }
 
-            .invoice-box .rider-template-items .tbl-wrap {
-                margin-bottom: 6px !important;
-            }
-
-            .invoice-box table.items-table,
-            .invoice-box .rider-template-items table,
-            .invoice-box .sheet>table {
-                margin-bottom: 6px !important;
-            }
-
-            .invoice-box table.items-table th,
-            .invoice-box table.items-table td,
-            .invoice-box .rider-template-items table th,
-            .invoice-box .rider-template-items table td,
-            .invoice-box .sheet>table th,
-            .invoice-box .sheet>table td {
-                padding: 3px 5px !important;
-                font-size: 9px !important;
-                line-height: 1.25 !important;
-            }
-
-            .invoice-box table.items-table th,
-            .invoice-box .secondary-header,
-            .invoice-box .accent-total {
-                padding: 4px 5px !important;
-                font-size: 8.5px !important;
+            .invoice-box.invoice-print-tall .sheet {
+                padding: 8px 4px !important;
             }
 
             .invoice-box .totals-area,
@@ -190,6 +166,20 @@
             .invoice-box .foot {
                 page-break-before: avoid !important;
                 break-before: avoid-page !important;
+            }
+
+            /* Compact table only when many rows (JS adds these classes) */
+            .invoice-box.invoice-print-dense table.items-table th,
+            .invoice-box.invoice-print-dense table.items-table td,
+            .invoice-box.invoice-print-dense .rider-template-items table th,
+            .invoice-box.invoice-print-dense .rider-template-items table td,
+            .invoice-box.invoice-print-ultra table.items-table th,
+            .invoice-box.invoice-print-ultra table.items-table td,
+            .invoice-box.invoice-print-ultra .rider-template-items table th,
+            .invoice-box.invoice-print-ultra .rider-template-items table td {
+                padding: 2px 4px !important;
+                font-size: 8.5px !important;
+                line-height: 1.2 !important;
             }
         }
 
@@ -205,8 +195,21 @@
         .invoice-box.invoice-layout-modern .success-highlight,
         .invoice-box.invoice-layout-modern .amount-highlight,
         .invoice-box.invoice-layout-modern .primary-header {
-            background: #c6d9f1;
-            color: #000;
+            background: var(--blue-soft, #eef4fc);
+            color: var(--ink, #0f172a);
+        }
+
+        .invoice-box.invoice-layout-modern th,
+        .invoice-box.invoice-layout-modern td {
+            border-color: var(--blue-line, #c5d8f0);
+        }
+
+        .invoice-box.invoice-layout-modern .band {
+            background: var(--blue, #004aad);
+        }
+
+        .invoice-box.invoice-layout-modern .hdr {
+            border-bottom-color: var(--blue, #004aad);
         }
     </style>
 </head>
@@ -269,9 +272,9 @@
         @include('rider_invoices.partials.action_buttons')
     </div>
     @include('delete_requests._confirm_delete_script', [
-        'entityName' => 'Rider Invoice',
-        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
-        'method' => 'GET',
+    'entityName' => 'Rider Invoice',
+    'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+    'method' => 'GET',
     ])
     @endif
 

@@ -120,28 +120,91 @@
           <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
         </div>
         <div class="col-md-2 mb-3">
-          <label>Email header color</label>
+          <label>Primary brand color</label>
           <input type="color" name="company_primary_color" class="form-control form-control-color w-100"
             value="{{ old('company_primary_color', $currentCompany->primary_color ?? '#2563eb') }}" />
+          <small class="text-muted d-block mt-1">Used across the site (UI, invoices, vouchers, emails) for this company only.</small>
         </div>
         <div class="col-md-2 mb-3">
-          <label>Email accent color</label>
+          <label>Secondary brand color</label>
           <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
             value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
         </div>
+        <div class="col-md-2 mb-3">
+          <label>Accent text color</label>
+          <input type="color" name="company_accent_color" class="form-control form-control-color w-100"
+            value="{{ old('company_accent_color', $currentCompany->accent_color ?? '#818cf8') }}" />
+          <small class="text-muted d-block mt-1">Used for highlight text and badge labels (e.g. document dates).</small>
+        </div>
         @endif
 
-        <!-- <div class="col-md-4 mb-3">
-          <label class="">Currency Code</label>
-          <div class="input-group ">
-            <input type="text" name="settings[currency_code]" class="form-control" value="{{ $settings['currency_code'] ?? ($appCurrencyCode ?? 'AED') }}" placeholder="{{ $appCurrencyCode ?? 'AED' }}, USD, PKR" />
-          </div>
-        </div> -->
+        @php
+          $currencyCatalog = $currencyCatalog ?? \App\Helpers\Currency::catalog();
+          $selectedCurrencyCode = old('settings.currency_code', $settings['currency_code'] ?? ($appCurrencyCode ?? 'AED'));
+          $selectedCurrencyCode = strtoupper(trim((string) $selectedCurrencyCode));
+          if (!isset($currencyCatalog[$selectedCurrencyCode])) {
+            $selectedCurrencyCode = 'AED';
+          }
+          $selectedCurrencySymbol = $currencyCatalog[$selectedCurrencyCode]['symbol'] ?? ($settings['currency_symbol'] ?? $selectedCurrencyCode);
+          $currencyIconPath = $settings['currency_icon'] ?? null;
+          $currencyIconExists = !empty($currencyIconPath) && \App\Support\PublicStorageDisk::exists($currencyIconPath);
+          $currencyIconUrl = $currencyIconExists ? \App\Support\PublicStorageDisk::url($currencyIconPath) : null;
+          $currencyIconMode = old('currency_icon_mode', $currencyIconExists ? 'custom' : 'default');
+        @endphp
         <div class="col-md-4 mb-3">
           <label class="">Currency</label>
-          <div class="input-group ">
-            <input type="text" name="settings[currency_symbol]" class="form-control" value="{{ $settings['currency_symbol'] ?? ($appCurrencySymbol ?? 'AED') }}" placeholder="{{ $appCurrencySymbol ?? 'AED' }}, $, Rs" />
+          <select
+            id="company_currency_code"
+            name="settings[currency_code]"
+            class="form-select select2"
+            data-placeholder="Select currency">
+            @foreach($currencyCatalog as $code => $meta)
+              <option
+                value="{{ $code }}"
+                data-symbol="{{ $meta['symbol'] }}"
+                @selected($selectedCurrencyCode === $code)>
+                {{ $code }} — {{ $meta['name'] }} ({{ $meta['symbol'] }})
+              </option>
+            @endforeach
+          </select>
+          <input type="hidden" name="settings[currency_symbol]" id="company_currency_symbol" value="{{ old('settings.currency_symbol', $selectedCurrencySymbol) }}" />
+          <small class="text-muted d-block mt-1">
+            Default symbol:
+            <span id="company_currency_symbol_preview">{{ $selectedCurrencySymbol }}</span>
+          </small>
+        </div>
+        <div class="col-md-4 mb-3">
+          <label class="">Currency icon</label>
+          <div class="d-flex flex-column gap-2">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="currency_icon_mode" id="currency_icon_mode_default" value="default" @checked($currencyIconMode === 'default')>
+              <label class="form-check-label" for="currency_icon_mode_default">Use default currency symbol</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="currency_icon_mode" id="currency_icon_mode_custom" value="custom" @checked($currencyIconMode === 'custom')>
+              <label class="form-check-label" for="currency_icon_mode_custom">Upload custom currency icon</label>
+            </div>
+            <div id="currency_icon_upload_wrap" class="{{ $currencyIconMode === 'custom' ? '' : 'd-none' }}">
+              <input type="file" name="currency_icon" id="currency_icon" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
+              @error('currency_icon')
+              <div class="text-danger small mt-1">{{ $message }}</div>
+              @enderror
+              @if($currencyIconExists && $currencyIconUrl)
+              <div class="mt-2 d-flex align-items-center gap-2">
+                <img src="{{ $currencyIconUrl }}" alt="Currency icon" class="app-currency-icon app-currency-icon--preview">
+                <div class="form-check mb-0">
+                  <input class="form-check-input" type="checkbox" name="remove_currency_icon" id="remove_currency_icon" value="1">
+                  <label class="form-check-label" for="remove_currency_icon">Remove custom icon</label>
+                </div>
+              </div>
+              @elseif(!empty($currencyIconPath))
+              <div class="alert alert-warning mt-2 mb-0 py-2 small">
+                A currency icon path is saved but the file is missing on the server. Upload the icon again.
+              </div>
+              @endif
+            </div>
           </div>
+          <small class="text-muted d-block mt-1">Used for amounts across this company only (UI, PDFs, emails).</small>
         </div>
         <div class="col-md-4 mb-3">
           <label class="">VAT Number</label>
@@ -385,10 +448,61 @@
   document.addEventListener('DOMContentLoaded', async function() {
     const countrySelect = document.getElementById('company_country');
     const citySelect = document.getElementById('company_city');
-    const currencyCodeInput = document.querySelector('input[name="settings[currency_code]"]');
-    const currencySymbolInput = document.querySelector('input[name="settings[currency_symbol]"]');
+    const currencyCodeSelect = document.getElementById('company_currency_code');
+    const currencySymbolInput = document.getElementById('company_currency_symbol');
+    const currencySymbolPreview = document.getElementById('company_currency_symbol_preview');
+    const currencyIconModeDefault = document.getElementById('currency_icon_mode_default');
+    const currencyIconModeCustom = document.getElementById('currency_icon_mode_custom');
+    const currencyIconUploadWrap = document.getElementById('currency_icon_upload_wrap');
     const rtaFeeCurrencyText = document.querySelector('input[name="settings[rta_admin_fee]"]')?.closest('.input-group')?.querySelector('.input-group-text');
     const hasSelect2 = !!(window.jQuery && window.jQuery.fn && window.jQuery.fn.select2);
+
+    function syncCurrencySymbolFromSelect() {
+      if (!currencyCodeSelect) {
+        return;
+      }
+      const selectedOption = currencyCodeSelect.options[currencyCodeSelect.selectedIndex];
+      const symbol = selectedOption ? (selectedOption.getAttribute('data-symbol') || selectedOption.value || 'AED') : 'AED';
+      if (currencySymbolInput) {
+        currencySymbolInput.value = symbol;
+      }
+      if (currencySymbolPreview) {
+        currencySymbolPreview.textContent = symbol;
+      }
+      if (rtaFeeCurrencyText) {
+        rtaFeeCurrencyText.textContent = symbol;
+      }
+    }
+
+    function toggleCurrencyIconUpload() {
+      if (!currencyIconUploadWrap) {
+        return;
+      }
+      const useCustom = !!(currencyIconModeCustom && currencyIconModeCustom.checked);
+      currencyIconUploadWrap.classList.toggle('d-none', !useCustom);
+    }
+
+    if (currencyCodeSelect) {
+      if (hasSelect2) {
+        window.jQuery(currencyCodeSelect).select2({
+          width: '100%',
+          placeholder: currencyCodeSelect.dataset.placeholder || 'Select currency',
+          allowClear: false
+        });
+        window.jQuery(currencyCodeSelect).on('change', syncCurrencySymbolFromSelect);
+      } else {
+        currencyCodeSelect.addEventListener('change', syncCurrencySymbolFromSelect);
+      }
+      syncCurrencySymbolFromSelect();
+    }
+
+    if (currencyIconModeDefault) {
+      currencyIconModeDefault.addEventListener('change', toggleCurrencyIconUpload);
+    }
+    if (currencyIconModeCustom) {
+      currencyIconModeCustom.addEventListener('change', toggleCurrencyIconUpload);
+    }
+    toggleCurrencyIconUpload();
 
     if (!countrySelect || !citySelect) {
       return;
@@ -424,46 +538,42 @@
       'Ras Al Khaimah',
       'Fujairah'
     ];
-    const currencySymbols = {
-      AED: 'AED',
-      USD: '$',
-      EUR: 'EUR',
-      GBP: 'GBP',
-      PKR: 'Rs',
-      INR: 'Rs',
-      SAR: 'SAR',
-      QAR: 'QAR',
-      KWD: 'KWD',
-      BHD: 'BHD',
-      OMR: 'OMR',
-      JPY: 'JPY',
-      CNY: 'CNY'
-    };
-
     function getCurrencySymbolByCode(code) {
+      if (!currencyCodeSelect) {
+        return (code || '').trim().toUpperCase() || 'AED';
+      }
       const normalizedCode = (code || '').trim().toUpperCase();
-      return currencySymbols[normalizedCode] || normalizedCode || 'AED';
+      const option = Array.from(currencyCodeSelect.options).find(function(item) {
+        return item.value === normalizedCode;
+      });
+      return option ? (option.getAttribute('data-symbol') || option.value) : (normalizedCode || 'AED');
     }
 
     function applyCurrencyForCountry(countryName, forceUpdate) {
       const normalizedCountry = (countryName || '').trim().toLowerCase();
       const code = countryCurrencyMap[normalizedCountry];
 
-      if (!code) {
+      if (!code || !currencyCodeSelect) {
         return;
       }
 
-      if (currencyCodeInput && (forceUpdate || !currencyCodeInput.value.trim())) {
-        currencyCodeInput.value = code;
+      const optionExists = Array.from(currencyCodeSelect.options).some(function(item) {
+        return item.value === code;
+      });
+      if (!optionExists) {
+        return;
       }
 
-      const symbol = getCurrencySymbolByCode(code);
-      if (currencySymbolInput && (forceUpdate || !currencySymbolInput.value.trim())) {
-        currencySymbolInput.value = symbol;
-      }
-
-      if (rtaFeeCurrencyText) {
-        rtaFeeCurrencyText.textContent = symbol;
+      const currentCode = (currencyCodeSelect.value || '').trim().toUpperCase();
+      if (forceUpdate || !currentCode) {
+        if (hasSelect2) {
+          window.jQuery(currencyCodeSelect).val(code).trigger('change');
+        } else {
+          currencyCodeSelect.value = code;
+          syncCurrencySymbolFromSelect();
+        }
+      } else if (rtaFeeCurrencyText) {
+        rtaFeeCurrencyText.textContent = getCurrencySymbolByCode(currentCode);
       }
     }
 

@@ -341,7 +341,7 @@
                         <i class="ti ti-receipt-2"></i>
                         <span class="fc-info-label">Service Charges (Monthly)</span>
                         <span class="fc-info-value">
-                            {{ $card->service_charges !== null ? 'AED ' . number_format((float) $card->service_charges, 2) : '—' }}
+                            {{ $card->service_charges !== null ? \App\Helpers\Currency::format($card->service_charges) : '—' }}
                         </span>
                     </div>
                     <div class="fc-info-row">
@@ -438,7 +438,7 @@
                             <div>
                                 <div class="text-muted" style="font-size: 11px;">Charged Amount</div>
                                 <div class="fw-bold text-danger" style="font-size: 18px;">
-                                    AED {{ number_format((float) $card->lost_amount, 2) }}
+                                    {{ \App\Helpers\Currency::format($card->lost_amount) }}
                                 </div>
                             </div>
                             @if($card->lostVoucherLabel())
@@ -620,7 +620,7 @@
                             <div class="text-end" style="font-size: 12px;">
                                 <div class="text-muted">Total Fuel Value</div>
                                 <div class="fw-bold">
-                                    AED {{ number_format((float) ($transactionTotals->total ?? 0), 2) }}
+                                    {{ \App\Helpers\Currency::format($transactionTotals->total ?? 0) }}
                                     <span class="text-muted fw-normal">
                                         ({{ (int) ($transactionTotals->trips ?? 0) }} trips,
                                         {{ number_format((float) ($transactionTotals->qty ?? 0), 2) }} ltr)

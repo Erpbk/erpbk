@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Supplier Invoice #{{ $supplierInvoice->inv_id }}</title>
+    @php
+        $orderBrand = $brand ?? ($companyBrand ?? []);
+        $orderBlue = $orderBrand['primary_color'] ?? '#004aad';
+        $orderBlueSoft = $orderBrand['primary_soft'] ?? '#e6f1ff';
+        $orderBlueRgb = $orderBrand['primary_rgb'] ?? '0, 74, 173';
+    @endphp
     <style>
         /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
         .invoice-box,
@@ -26,6 +32,9 @@
             padding: 20px;
         }
         .invoice-box {
+            --blue: {{ $orderBlue }};
+            --blue-soft: {{ $orderBlueSoft }};
+            --blue-rgb: {{ $orderBlueRgb }};
             max-width: 1100px;
             width: 100%;
             margin: 0 auto;
@@ -49,7 +58,7 @@
             vertical-align: top;
         }
         .invoice-box th {
-            background: #004aad;
+            background: var(--blue);
             color: white;
             font-weight: 600;
             text-align: center;
@@ -67,15 +76,15 @@
 
         /* ----- HEADER STYLES (kept from v1 but enhanced) ----- */
         .invoice-box .primary-header { background: #211c1d; color: white; }
-        .invoice-box .secondary-header { background: #004aad; color: white; font-weight: bold; }
+        .invoice-box .secondary-header { background: var(--blue); color: white; font-weight: bold; }
         .invoice-box .accent-total { background: #5271ff; color: white; }
-        .invoice-box .light-header { background: #e6f1ff; color: #004aad; }
+        .invoice-box .light-header { background: var(--blue-soft); color: var(--blue); }
         .invoice-box .amount-highlight { background: #2A62FF; color: white; }
         .invoice-box .yellow-highlight { background: #ffff00; font-weight: bold; padding: 8px; }
 
         /* ----- PRINT BUTTONS & CONTROLS (consistent with fuel invoice) ----- */
         #rightSideModalBody .print-btn,        body > .controls .print-btn {
-            background: #004aad;
+            background: var(--blue);
             color: #fff;
             border: none;
             padding: 8px 16px;
@@ -120,11 +129,11 @@
         .invoice-box  .card-header {
             margin-bottom: 14px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #004aad;
+            border-bottom: 2px solid var(--blue);
             background-color: white !important;
         }
         .invoice-box .card-header strong {
-            color: #004aad;
+            color: var(--blue);
             font-size: 15px;
             letter-spacing: 0.3px;
         }
@@ -160,13 +169,13 @@
         /* description section (clean as v2) */
         .description-block {
             background: #f8fafc;
-            border-left: 4px solid #004aad;
+            border-left: 4px solid var(--blue);
             padding: 12px 18px;
             margin: 20px 0;
             border-radius: 10px;
         }
         .description-block strong {
-            color: #004aad;
+            color: var(--blue);
             font-size: 13px;
         }
 
@@ -187,7 +196,7 @@
         .grand-total-card {
             display: inline-block;
             padding: 12px 28px;
-            background: #004aad;
+            background: var(--blue);
             color: white;
             border-radius: 20px;
             text-align: center;
@@ -218,7 +227,7 @@
             border: 1px solid #ccc;
         }
         .items-table th {
-            background: #004aad;
+            background: var(--blue);
             color: white;
             font-weight: 600;
             text-align: center;
@@ -238,7 +247,7 @@
             border: 1px solid #e2e8f0;
         }
         .summary-mini-table th {
-            background: #004aad;
+            background: var(--blue);
         }
 
         @media print {
@@ -262,7 +271,7 @@
                 break-inside: avoid;
             }
             .grand-total-card {
-                background: #004aad !important;
+                background: var(--blue) !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -313,7 +322,7 @@
                 <p style="margin: 3px 0; font-size: 12px;">TRN: {{ $settings['vat_number'] ?? 'TRN Number' }}</p>
             </td>
             <td style="width: 33%; text-align: center; align-content: center; border: none !important;">
-                <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 22px;">PURCHASE ORDER</h2>
+                <h2 style="margin: 0; font-weight: 800; color: var(--blue); font-size: 22px;">PURCHASE ORDER</h2>
             </td>
         </tr>
     </table>
@@ -410,7 +419,7 @@
     <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
         <table style="width: 45%; min-width: 260px; border: 1px solid #e2e8f0;">
             <thead>
-                <tr><th colspan="2" class="secondary-header" style="background:#004aad;">Financial Summary</th></tr>
+                <tr><th colspan="2" class="secondary-header" style="background:var(--blue);">Financial Summary</th></tr>
             </thead>
             <tbody>
                 <tr>

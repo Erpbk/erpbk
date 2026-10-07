@@ -40,6 +40,7 @@ class Company extends BaseModel
         'logo',
         'primary_color',
         'secondary_color',
+        'accent_color',
         'branding_json',
         'modules_settings',
         'notification_channels_settings',

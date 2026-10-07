@@ -11,10 +11,12 @@
         .invoice-box table.items.ledger td {
             text-align: left;
         }
+
         .invoice-box table.items.ledger td.num,
         .invoice-box table.items.ledger th.num {
             text-align: right;
         }
+
         .invoice-box .balance-lines {
             display: flex;
             flex-direction: column;
@@ -23,55 +25,64 @@
             align-items: flex-end;
             font-size: 12.5px;
         }
+
         .invoice-box .balance-lines .line {
             display: flex;
             gap: 24px;
             min-width: 260px;
             justify-content: space-between;
         }
-        .invoice-box .balance-lines .k { color: #64748b; font-weight: 500; }
-        .invoice-box .balance-lines .v { font-weight: 700; color: #0f172a; }
+
+        .invoice-box .balance-lines .k {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .invoice-box .balance-lines .v {
+            font-weight: 700;
+            color: #0f172a;
+        }
     </style>
 </head>
 
 <body>
     @php
-        $settings = $settings ?? company_table('settings')->pluck('value', 'name')->toArray();
-        $currency = \App\Helpers\Currency::code();
-        $defaults = \App\Support\InvoiceModuleDefaults::all('employee_invoices');
-        $party = $employeeInvoice->employee;
-        $invoiceTitle = $defaults['title'] ?: 'EMPLOYEE INVOICE';
-        $partyNote = $employeeInvoice->customer_note
-            ?: ($party->invoice_note ?? null)
-            ?: ($defaults['notes'] ?: null);
-        $termsAndConditions = $employeeInvoice->terms_and_conditions
-            ?: ($party->terms_and_conditions ?? null)
-            ?: ($defaults['terms_and_conditions'] ?: null);
-        $partyNoteLabel = $party
-            ? $party->resolvedInvoiceNoteLabel()
-            : 'Invoice Note';
-        $termsAndConditionsLabel = $party
-            ? $party->resolvedTermsAndConditionsLabel()
-            : 'Terms & Conditions';
-        $invoiceNumber = $invoiceNumber
-            ?? $employeeInvoice->invoice_number
-            ?? ('EI-' . str_pad($employeeInvoice->id, 6, '0', STR_PAD_LEFT));
-        $subtotalAmount = $totalBeforeTax ?? $employeeInvoice->subtotal ?? 0;
-        $vatAmt = $vatAmount ?? $employeeInvoice->vat ?? 0;
-        $totalAmt = $finalAmount ?? $employeeInvoice->total_amount ?? 0;
-        $noteCards = collect([
-            $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
-            $employeeInvoice->notes ? ['title' => 'Internal Notes', 'body' => $employeeInvoice->notes] : null,
-        ])->filter()->values();
-        $noteGridClass = match ($noteCards->count()) {
-            1 => 'one',
-            3 => 'three',
-            default => '',
-        };
-        $ledger_deductions = $ledger_deductions ?? [];
-        $ledger_additions = $ledger_additions ?? [];
-        $employee_balance = $employee_balance ?? 0;
-        $employee_balance_final = $employee_balance_final ?? 0;
+    $settings = $settings ?? company_table('settings')->pluck('value', 'name')->toArray();
+    $currency = \App\Helpers\Currency::code();
+    $defaults = \App\Support\InvoiceModuleDefaults::all('employee_invoices');
+    $party = $employeeInvoice->employee;
+    $invoiceTitle = $defaults['title'] ?: 'EMPLOYEE INVOICE';
+    $partyNote = $employeeInvoice->customer_note
+    ?: ($party->invoice_note ?? null)
+    ?: ($defaults['notes'] ?: null);
+    $termsAndConditions = $employeeInvoice->terms_and_conditions
+    ?: ($party->terms_and_conditions ?? null)
+    ?: ($defaults['terms_and_conditions'] ?: null);
+    $partyNoteLabel = $party
+    ? $party->resolvedInvoiceNoteLabel()
+    : 'Invoice Note';
+    $termsAndConditionsLabel = $party
+    ? $party->resolvedTermsAndConditionsLabel()
+    : 'Terms & Conditions';
+    $invoiceNumber = $invoiceNumber
+    ?? $employeeInvoice->invoice_number
+    ?? ('EI-' . str_pad($employeeInvoice->id, 6, '0', STR_PAD_LEFT));
+    $subtotalAmount = $totalBeforeTax ?? $employeeInvoice->subtotal ?? 0;
+    $vatAmt = $vatAmount ?? $employeeInvoice->vat ?? 0;
+    $totalAmt = $finalAmount ?? $employeeInvoice->total_amount ?? 0;
+    $noteCards = collect([
+    $termsAndConditions ? ['title' => $termsAndConditionsLabel, 'body' => $termsAndConditions] : null,
+    $employeeInvoice->notes ? ['title' => 'Internal Notes', 'body' => $employeeInvoice->notes] : null,
+    ])->filter()->values();
+    $noteGridClass = match ($noteCards->count()) {
+    1 => 'one',
+    3 => 'three',
+    default => '',
+    };
+    $ledger_deductions = $ledger_deductions ?? [];
+    $ledger_additions = $ledger_additions ?? [];
+    $employee_balance = $employee_balance ?? 0;
+    $employee_balance_final = $employee_balance_final ?? 0;
     @endphp
 
     @if(empty($isPdf))
@@ -108,9 +119,9 @@
         ])
     </div>
     @include('delete_requests._confirm_delete_script', [
-        'entityName' => 'Employee Invoice',
-        'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
-        'method' => 'GET',
+    'entityName' => 'Employee Invoice',
+    'confirmText' => 'This will submit a delete request or move the invoice to the Recycle Bin.',
+    'method' => 'GET',
     ])
     @endif
 
@@ -118,16 +129,16 @@
         <div class="band"></div>
         <div class="sheet">
             @include('invoices.partials.tax_invoice_header', [
-                'settings' => $settings,
-                'invoiceTitle' => $invoiceTitle,
-                'invoiceNumber' => $invoiceNumber,
-                'invoiceDateLabel' => \Carbon\Carbon::parse($employeeInvoice->inv_date)->format('d M Y'),
-                'billingLabel' => \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('M Y'),
+            'settings' => $settings,
+            'invoiceTitle' => $invoiceTitle,
+            'invoiceNumber' => $invoiceNumber,
+            'invoiceDateLabel' => \Carbon\Carbon::parse($employeeInvoice->inv_date)->format('d M Y'),
+            'billingLabel' => \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('M Y'),
             ])
 
             <div class="parties">
                 <div class="party">
-                    <h3 class="party-title">Bill To</h3>
+                    <h3 class="party-title">Employee</h3>
                     <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
                     <div class="party-grid">
                         <div class="party-line">
@@ -149,7 +160,7 @@
                     </div>
                 </div>
                 <div class="party alt">
-                    <h3 class="party-title">Service Period</h3>
+                    <h3 class="party-title">Pay Period</h3>
                     <div class="party-grid" style="margin-top: 4px;">
                         <div class="party-line">
                             <span class="k">From</span>
@@ -197,10 +208,10 @@
                         @php $items_subtotal = 0; $items_vat = 0; @endphp
                         @foreach($employeeInvoice->items as $key => $item)
                         @php
-                            $subtotal = ($item->rate * $item->qty) - $item->discount;
-                            $vat = ($item->tax / 100) * $subtotal;
-                            $items_subtotal += $subtotal;
-                            $items_vat += $vat;
+                        $subtotal = ($item->rate * $item->qty) - $item->discount;
+                        $vat = ($item->tax / 100) * $subtotal;
+                        $items_subtotal += $subtotal;
+                        $items_vat += $vat;
                         @endphp
                         <tr>
                             <td class="col-sr">{{ $key + 1 }}</td>
@@ -238,52 +249,52 @@
                             <td>-{{ number_format($deduction['amount'], 2) }}</td>
                         </tr>
                         @empty
-                            @if($employee_balance <= 0)
+                        @if($employee_balance <= 0)
                             <tr>
-                                <td class="col-desc" colspan="2">No ledger deductions for this billing month</td>
+                            <td class="col-desc" colspan="2">No ledger deductions for this billing month</td>
                             </tr>
                             @endif
-                        @endforelse
-                        <tr>
-                            <td class="col-desc"><strong>Total Deductions</strong></td>
-                            <td class="total-cell">-{{ number_format($total_deductions ?? 0, 2) }}</td>
-                        </tr>
+                            @endforelse
+                            <tr>
+                                <td class="col-desc"><strong>Total Deductions</strong></td>
+                                <td class="total-cell">-{{ number_format($total_deductions ?? 0, 2) }}</td>
+                            </tr>
                     </tbody>
                 </table>
             </div>
 
-            @if(($employee_balance < 0) || count($ledger_additions) > 0)
-            <div class="tbl-wrap" style="margin-top: 12px;">
-                <table class="items ledger">
-                    <thead>
-                        <tr>
-                            <th class="col-desc">Additions</th>
-                            <th>Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if($employee_balance < 0)
-                        <tr>
-                            <td class="col-desc">Previous Balance (Addition)</td>
-                            <td>+{{ number_format(abs($employee_balance), 2) }}</td>
-                        </tr>
-                        @endif
-                        @foreach($ledger_additions as $addition)
-                        <tr>
-                            <td class="col-desc">{{ $addition['label'] }}</td>
-                            <td>+{{ number_format($addition['amount'], 2) }}</td>
-                        </tr>
-                        @endforeach
-                        <tr>
-                            <td class="col-desc"><strong>Total Additions</strong></td>
-                            <td class="total-cell">+{{ number_format($total_additions ?? 0, 2) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            @endif
+            @if(($employee_balance < 0) || count($ledger_additions)> 0)
+                <div class="tbl-wrap" style="margin-top: 12px;">
+                    <table class="items ledger">
+                        <thead>
+                            <tr>
+                                <th class="col-desc">Additions</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if($employee_balance < 0)
+                                <tr>
+                                <td class="col-desc">Previous Balance (Addition)</td>
+                                <td>+{{ number_format(abs($employee_balance), 2) }}</td>
+                                </tr>
+                                @endif
+                                @foreach($ledger_additions as $addition)
+                                <tr>
+                                    <td class="col-desc">{{ $addition['label'] }}</td>
+                                    <td>+{{ number_format($addition['amount'], 2) }}</td>
+                                </tr>
+                                @endforeach
+                                <tr>
+                                    <td class="col-desc"><strong>Total Additions</strong></td>
+                                    <td class="total-cell">+{{ number_format($total_additions ?? 0, 2) }}</td>
+                                </tr>
+                        </tbody>
+                    </table>
+                </div>
+                @endif
 
-            @include('invoices.partials.tax_invoice_totals_notes', [
+                @include('invoices.partials.tax_invoice_totals_notes', [
                 'partyNote' => $partyNote,
                 'partyNoteLabel' => $partyNoteLabel,
                 'subtotalAmount' => $subtotalAmount,
@@ -292,17 +303,17 @@
                 'currency' => $currency,
                 'paidAmount' => $paid_amount ?? 0,
                 'balanceAmount' => $employee_balance_final ?? 0,
-            ])
-            @else
-            <div class="empty">No line items on this invoice.</div>
-            @endif
+                ])
+                @else
+                <div class="empty">No line items on this invoice.</div>
+                @endif
 
-            @include('invoices.partials.tax_invoice_footnotes', [
+                @include('invoices.partials.tax_invoice_footnotes', [
                 'noteCards' => $noteCards,
                 'noteGridClass' => $noteGridClass,
-            ])
+                ])
 
-            @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])
+                @include('invoices.partials.tax_invoice_footer', ['settings' => $settings])
         </div>
     </div>
 

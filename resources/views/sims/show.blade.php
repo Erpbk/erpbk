@@ -482,7 +482,7 @@
                             <div>
                                 <div class="text-muted" style="font-size: 11px;">Charged Amount</div>
                                 <div class="fw-bold text-danger" style="font-size: 18px;">
-                                    AED {{ number_format((float) $sims->lost_amount, 2) }}
+                                    {{ \App\Helpers\Currency::format($sims->lost_amount) }}
                                 </div>
                             </div>
                             @if($sims->lostVoucherLabel())
@@ -674,7 +674,7 @@
                             <div class="text-end" style="font-size: 12px;">
                                 <div class="text-muted">Total Billed</div>
                                 <div class="fw-bold">
-                                    AED {{ number_format((float) ($invoiceTotals->total ?? 0), 2) }}
+                                    {{ \App\Helpers\Currency::format($invoiceTotals->total ?? 0) }}
                                     <span class="text-muted fw-normal">
                                         ({{ (int) ($invoiceTotals->bills ?? 0) }} bills)
                                     </span>

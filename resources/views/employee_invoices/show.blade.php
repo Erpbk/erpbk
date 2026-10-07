@@ -43,6 +43,7 @@
             color: #0f172a;
         }
     </style>
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -106,7 +107,7 @@
             'editPaymentUrl' => $eiPaymentId ? route('payments.edit', $eiPaymentId) : null,
             'editPaymentTitle' => 'Edit Payment',
             'editPaymentCan' => ['employees_payments_edit', 'cash_&_banks_payments_edit'],
-            'downloadUrl' => route('employeeInvoices.show', $employeeInvoice->id),
+            'downloadUrl' => route('employeeInvoices.download', $employeeInvoice->id),
             'showPayment' => ! $eiIsPaid,
             'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
                 . '?employee_payment=1&invoice_id=' . $employeeInvoice->id,

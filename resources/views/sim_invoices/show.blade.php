@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>SIM Invoice #{{ $invoice->invoice_number ?? $invoice->id }}</title>
     @include('invoices.partials.tax_invoice_styles')
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -70,7 +71,7 @@
             'editPaymentUrl' => $simPaymentId ? route('payments.edit', $simPaymentId) : null,
             'editPaymentTitle' => 'Edit Payment',
             'editPaymentCan' => ['sims_payments_edit', 'cash_&_banks_payments_edit'],
-            'downloadUrl' => route('simInvoices.show', $invoice->id),
+            'downloadUrl' => route('simInvoices.download', $invoice->id),
             'showPayment' => ! $simIsPaid,
             'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
                 . '?invoice_type=sim&invoice_id=' . $invoice->id,

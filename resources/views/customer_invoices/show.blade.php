@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Customer Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
     @include('invoices.partials.tax_invoice_styles')
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -64,7 +65,7 @@
             'editPaymentCan' => ['customers_payments_edit', 'cash_&_banks_payments_edit'],
             'emailUrl' => route('customer_invoices.sendEmail', $invoice->id),
             'emailTitle' => 'Send Email',
-            'downloadUrl' => route('customer_invoices.show', $invoice),
+            'downloadUrl' => route('customer_invoices.download', $invoice),
             'showPayment' => ! $ciIsPaid,
             'paymentUrl' => route('payments.create') . '?customer_id=' . ($invoice->customer_id ?? '') . '&invoice_id=' . $invoice->id,
             'paymentTitle' => 'Record Payment',

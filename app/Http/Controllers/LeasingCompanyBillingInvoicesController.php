@@ -9,6 +9,7 @@ use App\Models\LeasingCompanyBillingInvoice;
 use App\Repositories\LeasingCompanyBillingInvoicesRepository;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
     use GlobalPagination;
 
     public function __construct(private LeasingCompanyBillingInvoicesRepository $billingInvoicesRepository) {
-        $this->middleware('permission:bike_on_rent_invoices_view')->only('index', 'show', 'all');
+        $this->middleware('permission:bike_on_rent_invoices_view')->only('index', 'show', 'download', 'all');
         $this->middleware('permission:bike_on_rent_invoices_create')->only('create', 'store', 'createFromClone', 'clone');
         $this->middleware('permission:bike_on_rent_invoices_edit')->only('edit', 'update');
         $this->middleware('permission:bike_on_rent_invoices_delete')->only('destroy');
@@ -294,9 +295,27 @@ class LeasingCompanyBillingInvoicesController extends AppBaseController
 
             return redirect(route('leasingCompanyBillingInvoices.index'));
         }
-        $invoice->load('customer');
+        $invoice->load(['customer', 'items']);
 
         return view('leasing_company_billing_invoices.show')->with('invoice', $invoice);
+    }
+
+    public function download($company_slug, $id)
+    {
+        $invoice = $this->billingInvoicesRepository->find($id);
+        if (empty($invoice)) {
+            abort(404, 'Billing invoice not found');
+        }
+
+        $invoice->load(['customer', 'items']);
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('LCBI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return InvoicePdf::download(
+            'leasing_company_billing_invoices.show',
+            ['invoice' => $invoice],
+            'Leasing-Billing-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     public function edit($company_slug, $id)

@@ -14,6 +14,7 @@ use App\Models\Items;
 use App\Models\Transactions;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -122,6 +123,24 @@ class BikeMaintenanceController extends Controller
         ]);
 
         return view('bike-maintenance.invoice', compact('maintenance'));
+    }
+
+    public function downloadInvoice($company_slug, BikeMaintenance $maintenance)
+    {
+        $maintenance->load([
+            'bike.rider',
+            'garage',
+            'maintenanceItems',
+            'createdBy',
+            'UpdatedBy',
+            'rentalCompany',
+        ]);
+
+        return InvoicePdf::download(
+            'bike-maintenance.invoice',
+            ['maintenance' => $maintenance],
+            'Maintenance-Invoice-MA-' . $maintenance->id . '.pdf'
+        );
     }
 
     /**

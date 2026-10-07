@@ -21,6 +21,7 @@ use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
 use App\Traits\HasTrashFunctionality;
 use App\Traits\TracksCascadingDeletions;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -663,7 +664,27 @@ class LeasingCompaniesController extends AppBaseController
             return redirect(route('leasingCompanyInvoices.index'));
         }
 
+        $invoice->load(['items', 'leasingCompany']);
+
         return view('leasing_company_invoices.show')->with('invoice', $invoice);
+    }
+
+    public function downloadInvoice($company_slug, $id)
+    {
+        $invoice = $this->leasingCompanyInvoicesRepository->find($id);
+        if (empty($invoice)) {
+            abort(404, 'Leasing Company Invoice not found');
+        }
+
+        $invoice->load(['items', 'leasingCompany']);
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('LCI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return InvoicePdf::download(
+            'leasing_company_invoices.show',
+            ['invoice' => $invoice],
+            'Leasing-Company-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     /**

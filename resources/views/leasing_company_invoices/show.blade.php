@@ -32,6 +32,7 @@
             color: #0f172a;
         }
     </style>
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -97,7 +98,7 @@
             'editPaymentUrl' => $lciPaymentId ? route('payments.edit', $lciPaymentId) : null,
             'editPaymentTitle' => 'Edit Payment',
             'editPaymentCan' => ['leasing_companies_payments_edit', 'cash_&_banks_payments_edit'],
-            'downloadUrl' => route('leasingCompanyInvoices.show', $invoice->id),
+            'downloadUrl' => route('leasingCompanyInvoices.download', $invoice->id),
             'showPayment' => ! $isPaid,
             'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
                 . '?leasing_company_id=' . $invoice->leasing_company_id . '&invoice_id=' . $invoice->id,

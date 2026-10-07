@@ -13,6 +13,7 @@ use App\Models\Transactions;
 use App\Repositories\EmployeeInvoicesRepository;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Traits\GlobalPagination;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -29,7 +30,7 @@ class EmployeeInvoicesController extends AppBaseController
     public function __construct(EmployeeInvoicesRepository $employeeInvoicesRepo)
     {
         $this->employeeInvoicesRepository = $employeeInvoicesRepo;
-        $this->middleware('permission:employees_invoice_view')->only('index', 'show');
+        $this->middleware('permission:employees_invoice_view')->only('index', 'show', 'download');
         $this->middleware('permission:employees_invoice_create')->only('create', 'store', 'importForm', 'import');
         $this->middleware('permission:employees_invoice_edit')->only('edit', 'update', 'markAsSettled');
         $this->middleware('permission:employees_invoice_delete')->only('destroy', 'bulkDelete');
@@ -138,6 +139,38 @@ class EmployeeInvoicesController extends AppBaseController
 
     public function show($comapny_slug, $id)
     {
+        $viewData = $this->invoiceViewData($id);
+        if ($viewData instanceof \Illuminate\Http\RedirectResponse) {
+            return $viewData;
+        }
+
+        return response(view('employee_invoices.show', $viewData)->render());
+    }
+
+    public function download($company_slug, $id)
+    {
+        $viewData = $this->invoiceViewData($id);
+        if ($viewData instanceof \Illuminate\Http\RedirectResponse) {
+            abort(404, 'Employee Invoice not found');
+        }
+
+        $employeeInvoice = $viewData['employeeInvoice'];
+        $invoiceNumber = $viewData['invoiceNumber']
+            ?? $employeeInvoice->invoice_number
+            ?? ('EI-' . str_pad((string) $employeeInvoice->id, 6, '0', STR_PAD_LEFT));
+
+        return InvoicePdf::download(
+            'employee_invoices.show',
+            $viewData,
+            'Employee-Invoice-' . $invoiceNumber . '.pdf'
+        );
+    }
+
+    /**
+     * @return array<string, mixed>|\Illuminate\Http\RedirectResponse
+     */
+    private function invoiceViewData($id)
+    {
         $employeeInvoice = $this->employeeInvoicesRepository->find($id);
         if (empty($employeeInvoice)) {
             session()->flash('error', 'Employee invoice not found');
@@ -158,12 +191,10 @@ class EmployeeInvoicesController extends AppBaseController
             return redirect(route('employeeInvoices.index'));
         }
 
-        $viewData = array_merge(
+        return array_merge(
             app(EmployeeInvoiceViewDataBuilder::class)->build($employeeInvoice),
             ['employeeInvoice' => $employeeInvoice]
         );
-
-        return response(view('employee_invoices.show', $viewData)->render());
     }
 
     public function edit($comapny_slug, $id)

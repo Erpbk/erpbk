@@ -17,6 +17,7 @@ use App\Models\Payment;
 use App\Models\SimCompany;
 use App\Repositories\SimInvoicesRepository;
 use App\Traits\GlobalPagination;
+use App\Support\InvoicePdf;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -411,6 +412,29 @@ class SimInvoicesController extends AppBaseController
             'pivotColumns' => $pivot['columns'],
             'pivotRows' => $pivot['rows'],
         ]);
+    }
+
+    public function download($company_slug, $id)
+    {
+        $invoice = $this->simInvoicesRepository->find($id);
+        if (empty($invoice)) {
+            abort(404, 'SIM Invoice not found');
+        }
+
+        $invoice->load(['items.item', 'items.sim', 'company']);
+        $pivot = $invoice->pivotChargeGrid();
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('SIM-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return InvoicePdf::download(
+            'sim_invoices.show',
+            [
+                'invoice' => $invoice,
+                'pivotColumns' => $pivot['columns'],
+                'pivotRows' => $pivot['rows'],
+            ],
+            'SIM-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     public function edit($company_slug, $id)

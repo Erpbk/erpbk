@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Leasing Company Billing Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
     @include('invoices.partials.tax_invoice_styles')
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -65,7 +66,7 @@
             'editPaymentUrl' => $lbiPaymentId ? route('payments.edit', $lbiPaymentId) : null,
             'editPaymentTitle' => 'Edit Payment',
             'editPaymentCan' => ['customers_payments_edit', 'cash_&_banks_payments_edit'],
-            'downloadUrl' => route('leasingCompanyBillingInvoices.show', $invoice->id),
+            'downloadUrl' => route('leasingCompanyBillingInvoices.download', $invoice->id),
             'showPayment' => ! $lbiIsPaid,
             'paymentUrl' => route('payments.create')
                 . '?customer_id=' . ($invoice->customer_id ?? '')

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Supplier Invoice #{{ $supplierInvoice->inv_id }}</title>
     @include('invoices.partials.tax_invoice_styles')
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -74,7 +75,7 @@
                 ? route('supplier_invoices.send_email', $supplierInvoice->id)
                 : null,
             'emailTitle' => 'Send Email',
-            'downloadUrl' => route('supplierInvoices.show', $supplierInvoice->id),
+            'downloadUrl' => route('supplierInvoices.download', $supplierInvoice->id),
             'showPayment' => ! $siIsPaid,
             'paymentUrl' => route('payments.create')
                 . '?supplier_payment=1&supplier_id=' . ($supplierInvoice->supplier_id ?? '')

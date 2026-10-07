@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Bike Maintenance Invoice #{{ $maintenance->id }}</title>
     @include('invoices.partials.tax_invoice_styles')
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 <body>
     @php
@@ -39,6 +40,9 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
+        <a href="{{ route('bike-maintenance.invoice.download', $maintenance) }}" class="action-btn" target="_blank" rel="noopener">
+            <i class="ti ti-download"></i><span>Download</span>
+        </a>
         <button type="button" class="action-btn js-print-modal-content">
             <i class="ti ti-printer"></i><span>Print</span>
         </button>

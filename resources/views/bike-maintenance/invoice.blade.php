@@ -60,79 +60,81 @@
                 'billingLabel' => $billingLabel,
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Bike Details</h3>
-                    <p class="party-name">{{ $maintenance->bike->emirates ?? '' }}-{{ $maintenance->bike->plate ?? '' }}</p>
-                    <div class="party-grid">
-                        @if($maintenance->rider)
-                        <div class="party-line">
-                            <span class="k">Leasing Company</span>
-                            <span class="v">{{ $maintenance->bike?->LeasingCompany?->name ?? '—' }}</span>
+            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="party" width="50%" valign="top">
+                        <h3 class="party-title">Bike Details</h3>
+                        <p class="party-name">{{ $maintenance->bike->emirates ?? '' }}-{{ $maintenance->bike->plate ?? '' }}</p>
+                        <div class="party-grid">
+                            @if($maintenance->rider)
+                            <div class="party-line">
+                                <span class="k">Leasing Company</span>
+                                <span class="v">{{ $maintenance->bike?->LeasingCompany?->name ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Rider</span>
+                                <span class="v">{{ $partyName }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Rider Contact</span>
+                                <span class="v">{{ $maintenance->rider->company_contact ?? $maintenance->bike?->rider?->company_contact ?? '—' }}</span>
+                            </div>
+                            @elseif($maintenance->rentalCompany)
+                            <div class="party-line">
+                                <span class="k">User</span>
+                                <span class="v">{{ $maintenance->rentalCompany->name ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Contact</span>
+                                <span class="v">{{ $maintenance->rentalCompany->company_contact ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Address</span>
+                                <span class="v">{{ $maintenance->rentalCompany->address ?? '—' }}</span>
+                            </div>
+                            @else
+                            <div class="party-line">
+                                <span class="k">Assigned To</span>
+                                <span class="v">No User Assigned</span>
+                            </div>
+                            @endif
+                            <div class="party-line">
+                                <span class="k">Garage</span>
+                                <span class="v">{{ $maintenance->garage?->name ?? '—' }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Rider</span>
-                            <span class="v">{{ $partyName }}</span>
+                    </td>
+                    <td class="party alt" width="50%" valign="top">
+                        <h3 class="party-title">Bill Info</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line">
+                                <span class="k">Created By</span>
+                                <span class="v">{{ $maintenance->createdBy->name ?? 'System' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Month</span>
+                                <span class="v">{{ $billingLabel !== '' ? $billingLabel : '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Currency</span>
+                                <span class="v">{{ $currency }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Previous KM</span>
+                                <span class="v">{{ number_format($maintenance->previous_km ?? 0, 0) }} KM</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Current KM</span>
+                                <span class="v">{{ number_format($maintenance->current_km ?? 0, 0) }} KM</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Next Service</span>
+                                <span class="v">{{ number_format($maintenance_km + (float) ($maintenance->current_km ?? 0), 2) }} KM</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Rider Contact</span>
-                            <span class="v">{{ $maintenance->rider->company_contact ?? $maintenance->bike?->rider?->company_contact ?? '—' }}</span>
-                        </div>
-                        @elseif($maintenance->rentalCompany)
-                        <div class="party-line">
-                            <span class="k">User</span>
-                            <span class="v">{{ $maintenance->rentalCompany->name ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Contact</span>
-                            <span class="v">{{ $maintenance->rentalCompany->company_contact ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Address</span>
-                            <span class="v">{{ $maintenance->rentalCompany->address ?? '—' }}</span>
-                        </div>
-                        @else
-                        <div class="party-line">
-                            <span class="k">Assigned To</span>
-                            <span class="v">No User Assigned</span>
-                        </div>
-                        @endif
-                        <div class="party-line">
-                            <span class="k">Garage</span>
-                            <span class="v">{{ $maintenance->garage?->name ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Bill Info</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">Created By</span>
-                            <span class="v">{{ $maintenance->createdBy->name ?? 'System' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Month</span>
-                            <span class="v">{{ $billingLabel !== '' ? $billingLabel : '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Previous KM</span>
-                            <span class="v">{{ number_format($maintenance->previous_km ?? 0, 0) }} KM</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Current KM</span>
-                            <span class="v">{{ number_format($maintenance->current_km ?? 0, 0) }} KM</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Next Service</span>
-                            <span class="v">{{ number_format($maintenance_km + (float) ($maintenance->current_km ?? 0), 2) }} KM</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                </tr>
+            </table>
 
             @if(($maintenance->overdue_km ?? 0) > 0)
             <div class="desc">

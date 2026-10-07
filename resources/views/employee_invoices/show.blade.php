@@ -5,44 +5,6 @@
     <meta charset="UTF-8">
     <title>Employee Invoice #{{ $employeeInvoice->id }} Month: {{ date('M-Y', strtotime($employeeInvoice->billing_month)) }}</title>
     @include('invoices.partials.tax_invoice_styles')
-    <style>
-        .invoice-box table.items tfoot td,
-        .invoice-box table.items.ledger th,
-        .invoice-box table.items.ledger td {
-            text-align: left;
-        }
-
-        .invoice-box table.items.ledger td.num,
-        .invoice-box table.items.ledger th.num {
-            text-align: right;
-        }
-
-        .invoice-box .balance-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin: 8px 0 16px;
-            align-items: flex-end;
-            font-size: 12.5px;
-        }
-
-        .invoice-box .balance-lines .line {
-            display: flex;
-            gap: 24px;
-            min-width: 260px;
-            justify-content: space-between;
-        }
-
-        .invoice-box .balance-lines .k {
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .invoice-box .balance-lines .v {
-            font-weight: 700;
-            color: #0f172a;
-        }
-    </style>
     @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
@@ -137,51 +99,53 @@
             'billingLabel' => \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('M Y'),
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Employee</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
-                    <div class="party-grid">
-                        <div class="party-line">
-                            <span class="k">Employee ID</span>
-                            <span class="v">{{ $party->employee_id ?? '—' }}</span>
+            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="party" width="50%" valign="top">
+                        <h3 class="party-title">Employee</h3>
+                        <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                        <div class="party-grid">
+                            <div class="party-line">
+                                <span class="k">Employee ID</span>
+                                <span class="v">{{ $party->employee_id ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Designation</span>
+                                <span class="v">{{ $party->designation ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Department</span>
+                                <span class="v">{{ $party->department?->name ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Contact</span>
+                                <span class="v">{{ $party->company_contact ?? $party->personal_contact ?? '—' }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Designation</span>
-                            <span class="v">{{ $party->designation ?? '—' }}</span>
+                    </td>
+                    <td class="party alt" width="50%" valign="top">
+                        <h3 class="party-title">Pay Period</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line">
+                                <span class="k">From</span>
+                                <span class="v">{{ \Carbon\Carbon::parse($employeeInvoice->billing_month)->startOfMonth()->format('d M Y') }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">To</span>
+                                <span class="v">{{ \Carbon\Carbon::parse($employeeInvoice->billing_month)->endOfMonth()->format('d M Y') }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Month</span>
+                                <span class="v">{{ \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('F Y') }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Currency</span>
+                                <span class="v">{{ $currency }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Department</span>
-                            <span class="v">{{ $party->department?->name ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Contact</span>
-                            <span class="v">{{ $party->company_contact ?? $party->personal_contact ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Pay Period</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">From</span>
-                            <span class="v">{{ \Carbon\Carbon::parse($employeeInvoice->billing_month)->startOfMonth()->format('d M Y') }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">To</span>
-                            <span class="v">{{ \Carbon\Carbon::parse($employeeInvoice->billing_month)->endOfMonth()->format('d M Y') }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Month</span>
-                            <span class="v">{{ \Carbon\Carbon::parse($employeeInvoice->billing_month)->format('F Y') }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                </tr>
+            </table>
 
             @if($employeeInvoice->descriptions)
             <div class="desc">

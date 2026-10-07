@@ -1,11 +1,16 @@
 {{--
-  Expected: $settings (array), $invoiceTitle, $invoiceNumber, $invoiceDateLabel, $billingLabel (optional)
+  Shared header for screen + PDF (same markup).
+  Expected: $settings, $invoiceTitle, $invoiceNumber, $invoiceDateLabel, $billingLabel
 --}}
 @php
     $invoiceDateLabel = $invoiceDateLabel ?? '';
     $billingLabel = $billingLabel ?? '';
+    $accent = ($brand['primary_color'] ?? null) ?: '#004aad';
+    $accentSoft = ($brand['primary_soft'] ?? null) ?: '#eef4fc';
+    $accentLine = ($brand['border_color'] ?? null) ?: '#c5d8f0';
+
     $logoSrc = null;
-    if (!empty($isPdf) && !empty($brand['logo_src'])) {
+    if (!empty($brand['logo_src']) && !empty($isPdf)) {
         $logoSrc = $brand['logo_src'];
     } elseif (!empty($settings['company_logo']) && Storage::disk('public')->exists($settings['company_logo'])) {
         if (!empty($isPdf)) {
@@ -20,99 +25,53 @@
     }
 @endphp
 
-@if(!empty($isPdf))
-<table class="pdf-hdr" width="100%" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse; margin:0 0 12px 0; border-bottom:2px solid {{ $brand['primary_color'] ?? '#004aad' }};">
+<table class="inv-hdr" width="100%" cellpadding="0" cellspacing="0">
     <tr>
-        <td width="22%" valign="middle" style="width:22%; vertical-align:middle; padding:0 8px 10px 0;">
+        <td class="inv-hdr-logo" width="22%" valign="middle">
             @if(!empty($logoSrc))
-                <img src="{{ $logoSrc }}" alt="Logo" style="max-width:110px; max-height:56px; display:block;">
+                <img src="{{ $logoSrc }}" alt="{{ $settings['company_name'] ?? 'Logo' }}">
             @else
-                <div style="border:1px dashed {{ $brand['border_color'] ?? '#c5d8f0' }}; background:{{ $brand['primary_soft'] ?? '#eef4fc' }}; color:{{ $brand['primary_color'] ?? '#004aad' }}; font-size:9px; font-weight:700; text-align:center; padding:14px 6px;">LOGO</div>
+                <div class="inv-logo-ph">Logo</div>
             @endif
         </td>
-        <td width="45%" valign="middle" align="center" style="width:45%; vertical-align:middle; text-align:center; padding:0 8px 10px;">
-            <div style="font-size:14px; font-weight:700; color:#0f172a; margin:0 0 4px;">{{ ucwords($settings['company_name'] ?? '') }}</div>
-            <div style="font-size:9px; color:#64748b; line-height:1.45;">
+        <td class="inv-hdr-brand" width="46%" valign="middle" align="center">
+            <div class="inv-company">{{ ucwords($settings['company_name'] ?? '') }}</div>
+            <div class="inv-meta">
                 @if(!empty($settings['vat_number']))
-                    TRN: {{ $settings['vat_number'] }}<br>
+                    TRN: {{ $settings['vat_number'] }}
                 @endif
-                @if(!empty($settings['company_phone']) || !empty($settings['company_email']))
-                    @if(!empty($settings['company_phone'])) Tel: {{ $settings['company_phone'] }} @endif
-                    @if(!empty($settings['company_email'])) {{ $settings['company_email'] }} @endif
-                    <br>
+                @if(!empty($settings['company_phone']))
+                    @if(!empty($settings['vat_number'])) · @endif
+                    Tel: {{ $settings['company_phone'] }}
+                @endif
+                @if(!empty($settings['company_email']))
+                    {{ $settings['company_email'] }}
                 @endif
                 @if(!empty($settings['company_address']))
-                    {{ ucwords($settings['company_address']) }}
+                    <br>{{ ucwords($settings['company_address']) }}
                 @endif
             </div>
         </td>
-        <td width="33%" valign="top" align="right" style="width:33%; vertical-align:top; text-align:right; padding:0 0 10px 8px;">
-            <div style="display:inline-block; background:{{ $brand['primary_color'] ?? '#004aad' }}; color:#fff; font-size:10px; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; padding:6px 12px; margin:0 0 8px;">{{ $invoiceTitle }}</div>
-            <table cellpadding="0" cellspacing="0" align="right" style="margin-left:auto; border-collapse:collapse; font-size:10px;">
+        <td class="inv-hdr-stamp" width="32%" valign="top" align="right">
+            <div class="inv-badge">{{ $invoiceTitle }}</div>
+            <table class="inv-kv" cellpadding="0" cellspacing="0" align="right">
                 <tr>
-                    <td style="color:#64748b; padding:2px 10px 2px 0; text-align:left;">Invoice No</td>
-                    <td style="color:#0f172a; font-weight:700; padding:2px 0; text-align:right;">{{ $invoiceNumber }}</td>
+                    <td class="k">Invoice No</td>
+                    <td class="v">{{ $invoiceNumber }}</td>
                 </tr>
                 @if($invoiceDateLabel !== '')
                 <tr>
-                    <td style="color:#64748b; padding:2px 10px 2px 0; text-align:left;">Date</td>
-                    <td style="color:#0f172a; font-weight:700; padding:2px 0; text-align:right;">{{ $invoiceDateLabel }}</td>
+                    <td class="k">Date</td>
+                    <td class="v">{{ $invoiceDateLabel }}</td>
                 </tr>
                 @endif
                 @if($billingLabel !== '')
                 <tr>
-                    <td style="color:#64748b; padding:2px 10px 2px 0; text-align:left;">Billing</td>
-                    <td style="color:#0f172a; font-weight:700; padding:2px 0; text-align:right;">{{ $billingLabel }}</td>
+                    <td class="k">Billing</td>
+                    <td class="v">{{ $billingLabel }}</td>
                 </tr>
                 @endif
             </table>
         </td>
     </tr>
 </table>
-@else
-<header class="hdr">
-    <div class="brand">
-        <div class="brand-logo {{ empty($logoSrc) ? 'placeholder' : '' }}">
-            @if(!empty($logoSrc))
-            <img src="{{ $logoSrc }}" alt="{{ $settings['company_name'] ?? 'Logo' }}">
-            @else
-            Logo
-            @endif
-        </div>
-        <div class="brand-text">
-            <h1>{{ ucwords($settings['company_name'] ?? '') }}</h1>
-            <p class="meta">
-                @if(!empty($settings['vat_number']))
-                TRN: {{ $settings['vat_number'] }}
-                @endif
-                @if(!empty($settings['company_phone']) && !empty($settings['vat_number']))
-                &nbsp;·&nbsp;
-                @endif
-                <br>
-                @if(!empty($settings['company_phone']))
-                Tel: {{ $settings['company_phone'] }}
-                @endif
-                @if(!empty($settings['company_email']))
-                {{ $settings['company_email'] }}
-                @endif
-                <br>
-                @if(!empty($settings['company_address']))
-                {{ ucwords($settings['company_address']) }}
-                @endif
-            </p>
-        </div>
-    </div>
-    <div class="doc-stamp">
-        <div class="label">{{ $invoiceTitle }}</div>
-        <div class="kv">
-            <span>Invoice No</span><span>{{ $invoiceNumber }}</span>
-            @if($invoiceDateLabel !== '')
-            <span>Date</span><span>{{ $invoiceDateLabel }}</span>
-            @endif
-            @if($billingLabel !== '')
-            <span>Billing</span><span>{{ $billingLabel }}</span>
-            @endif
-        </div>
-    </div>
-</header>
-@endif

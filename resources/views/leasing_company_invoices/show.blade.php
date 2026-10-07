@@ -5,33 +5,6 @@
     <meta charset="UTF-8">
     <title>Leasing Company Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
     @include('invoices.partials.tax_invoice_styles')
-    <style>
-        .invoice-box .balance-lines {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            margin: 8px 0 16px;
-            align-items: flex-end;
-            font-size: 12.5px;
-        }
-
-        .invoice-box .balance-lines .line {
-            display: flex;
-            gap: 24px;
-            min-width: 260px;
-            justify-content: space-between;
-        }
-
-        .invoice-box .balance-lines .k {
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .invoice-box .balance-lines .v {
-            font-weight: 700;
-            color: #0f172a;
-        }
-    </style>
     @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
@@ -124,51 +97,53 @@
             'billingLabel' => $billingLabel,
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Leasing Company</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
-                    <div class="party-grid">
-                        <div class="party-line">
-                            <span class="k">TRN</span>
-                            <span class="v">{{ $party->trn_number ?? '—' }}</span>
+            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="party" width="50%" valign="top">
+                        <h3 class="party-title">Leasing Company</h3>
+                        <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                        <div class="party-grid">
+                            <div class="party-line">
+                                <span class="k">TRN</span>
+                                <span class="v">{{ $party->trn_number ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Contact</span>
+                                <span class="v">{{ $party->contact_person ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Phone</span>
+                                <span class="v">{{ $party->contact_number ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">LC Inv #</span>
+                                <span class="v">{{ $invoice->leasing_company_invoice_number ?? '—' }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Contact</span>
-                            <span class="v">{{ $party->contact_person ?? '—' }}</span>
+                    </td>
+                    <td class="party alt" width="50%" valign="top">
+                        <h3 class="party-title">Billing Period</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line">
+                                <span class="k">From</span>
+                                <span class="v">{{ date('d M Y', strtotime($invoice->billing_month)) }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">To</span>
+                                <span class="v">{{ date('t M Y', strtotime($invoice->billing_month)) }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Reference</span>
+                                <span class="v">{{ $invoice->reference_number ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Bikes</span>
+                                <span class="v">{{ $invoice->items ? $invoice->items->count() : 0 }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Phone</span>
-                            <span class="v">{{ $party->contact_number ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">LC Inv #</span>
-                            <span class="v">{{ $invoice->leasing_company_invoice_number ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Billing Period</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">From</span>
-                            <span class="v">{{ date('d M Y', strtotime($invoice->billing_month)) }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">To</span>
-                            <span class="v">{{ date('t M Y', strtotime($invoice->billing_month)) }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Reference</span>
-                            <span class="v">{{ $invoice->reference_number ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Bikes</span>
-                            <span class="v">{{ $invoice->items ? $invoice->items->count() : 0 }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                </tr>
+            </table>
 
             @if($invoice->descriptions)
             <div class="desc">

@@ -268,7 +268,7 @@ class RiderInvoicesController extends AppBaseController
         $riderInvoice->load([
             'items',
             'rider' => function ($query) {
-                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
             },
         ]);
 
@@ -288,7 +288,7 @@ class RiderInvoicesController extends AppBaseController
         $builder = app(RiderInvoiceViewDataBuilder::class);
 
         return InvoicePdf::download(
-            'rider_invoices.pdf',
+            'rider_invoices.show',
             array_merge(
                 $builder->build($riderInvoice),
                 [
@@ -1148,7 +1148,7 @@ class RiderInvoicesController extends AppBaseController
             $invoice->load([
                 'items',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
                 },
             ]);
 
@@ -1167,7 +1167,7 @@ class RiderInvoicesController extends AppBaseController
 
             $builder = app(RiderInvoiceViewDataBuilder::class);
             $pdf = InvoicePdf::make(
-                'rider_invoices.pdf',
+                'rider_invoices.show',
                 array_merge(
                     $builder->build($invoice),
                     [

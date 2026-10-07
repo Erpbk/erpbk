@@ -90,51 +90,53 @@
             'billingLabel' => date('M Y', strtotime($invoice->billing_month)),
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Bill To</h3>
-                    <p class="party-name">{{ $customerDisplay }}</p>
-                    <div class="party-grid">
-                        <div class="party-line">
-                            <span class="k">Project</span>
-                            <span class="v">{{ $projectName }}</span>
+            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="party" width="50%" valign="top">
+                        <h3 class="party-title">Bill To</h3>
+                        <p class="party-name">{{ $customerDisplay }}</p>
+                        <div class="party-grid">
+                            <div class="party-line">
+                                <span class="k">Project</span>
+                                <span class="v">{{ $projectName }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">TRN</span>
+                                <span class="v">{{ $invoice->customer->tax_number ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Contact</span>
+                                <span class="v">{{ $invoice->customer->contact_number ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Email</span>
+                                <span class="v">{{ $invoice->customer->company_email ?? '—' }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">TRN</span>
-                            <span class="v">{{ $invoice->customer->tax_number ?? '—' }}</span>
+                    </td>
+                    <td class="party alt" width="50%" valign="top">
+                        <h3 class="party-title">Service Period</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line">
+                                <span class="k">From</span>
+                                <span class="v">{{ date('d M Y', strtotime($invoice->date_from)) }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">To</span>
+                                <span class="v">{{ date('d M Y', strtotime($invoice->date_to)) }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Month</span>
+                                <span class="v">{{ date('F Y', strtotime($invoice->billing_month)) }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Currency</span>
+                                <span class="v">{{ $currency }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Contact</span>
-                            <span class="v">{{ $invoice->customer->contact_number ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Email</span>
-                            <span class="v">{{ $invoice->customer->company_email ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Service Period</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">From</span>
-                            <span class="v">{{ date('d M Y', strtotime($invoice->date_from)) }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">To</span>
-                            <span class="v">{{ date('d M Y', strtotime($invoice->date_to)) }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Month</span>
-                            <span class="v">{{ date('F Y', strtotime($invoice->billing_month)) }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                </tr>
+            </table>
 
             @if($invoice->description)
             <div class="desc">

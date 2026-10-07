@@ -188,30 +188,21 @@
             display: none;
         }
 
+        /* Keep solid blue headers for modern layout (same as salary-slip view) */
         .invoice-box.invoice-layout-modern table.items-table th,
         .invoice-box.invoice-layout-modern .secondary-header,
         .invoice-box.invoice-layout-modern .accent-total,
-        .invoice-box.invoice-layout-modern .light-header,
-        .invoice-box.invoice-layout-modern .success-highlight,
-        .invoice-box.invoice-layout-modern .amount-highlight,
         .invoice-box.invoice-layout-modern .primary-header {
+            background: var(--blue, #004aad) !important;
+            color: #fff !important;
+        }
+
+        .invoice-box.invoice-layout-modern .light-header {
             background: var(--blue-soft, #eef4fc);
-            color: var(--ink, #0f172a);
-        }
-
-        .invoice-box.invoice-layout-modern th,
-        .invoice-box.invoice-layout-modern td {
-            border-color: var(--blue-line, #c5d8f0);
-        }
-
-        .invoice-box.invoice-layout-modern .band {
-            background: var(--blue, #004aad);
-        }
-
-        .invoice-box.invoice-layout-modern .hdr {
-            border-bottom-color: var(--blue, #004aad);
+            color: var(--blue, #004aad);
         }
     </style>
+    @include('invoices.partials.tax_invoice_pdf_styles')
 </head>
 
 <body>
@@ -289,53 +280,55 @@
             'billingLabel' => $billingLabel,
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Bill To</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
-                            {{ $riderStatusLabel ?? '—' }}
-                        </span></p>
-                    <div class="party-grid">
-                        <div class="party-line">
-                            <span class="k">Rider ID</span>
-                            <span class="v">{{ $party->rider_id ?? '—' }}</span>
+            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="party" width="50%" valign="top">
+                        <h3 class="party-title">Bill To</h3>
+                        <p class="party-name">{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
+                                {{ $riderStatusLabel ?? '—' }}
+                            </span></p>
+                        <div class="party-grid">
+                            <div class="party-line">
+                                <span class="k">Rider ID</span>
+                                <span class="v">{{ $party->rider_id ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Mobile</span>
+                                <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Project</span>
+                                <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Mobile</span>
-                            <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
+                    </td>
+                    <td class="party alt" width="50%" valign="top">
+                        <h3 class="party-title">Service Period</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line">
+                                <span class="k">From</span>
+                                <span class="v">{{ $serviceFrom }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">To</span>
+                                <span class="v">{{ $serviceTo }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Working</span>
+                                <span class="v">{{ $riderInvoice->working_days ?? '—' }} | Off: {{ $riderInvoice->off ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Zone</span>
+                                <span class="v">{{ $riderInvoice->zone ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Bike</span>
+                                <span class="v">{{ $bikePlate }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Project</span>
-                            <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Service Period</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">From</span>
-                            <span class="v">{{ $serviceFrom }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">To</span>
-                            <span class="v">{{ $serviceTo }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Working</span>
-                            <span class="v">{{ $riderInvoice->working_days ?? '—' }} | Off: {{ $riderInvoice->off ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Zone</span>
-                            <span class="v">{{ $riderInvoice->zone ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Bike</span>
-                            <span class="v">{{ $bikePlate }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                </tr>
+            </table>
 
             @if($riderInvoice->descriptions)
             <div class="desc">

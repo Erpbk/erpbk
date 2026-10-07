@@ -97,39 +97,41 @@
             'billingLabel' => $billingLabel,
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Vendor</h3>
-                    <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
-                    <div class="party-grid">
-                        <div class="party-line">
-                            <span class="k">Contact</span>
-                            <span class="v">{{ $party->contact_number ?? ($party->phone ?? '—') }}</span>
+            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="party" width="50%" valign="top">
+                        <h3 class="party-title">Vendor</h3>
+                        <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+                        <div class="party-grid">
+                            <div class="party-line">
+                                <span class="k">Contact</span>
+                                <span class="v">{{ $party->contact_number ?? ($party->phone ?? '—') }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Email</span>
+                                <span class="v">{{ $party->email ?? '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Reference</span>
+                                <span class="v">{{ $invoice->reference_number ?? '—' }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Email</span>
-                            <span class="v">{{ $party->email ?? '—' }}</span>
+                    </td>
+                    <td class="party alt" width="50%" valign="top">
+                        <h3 class="party-title">Billing Period</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line">
+                                <span class="k">Month</span>
+                                <span class="v">{{ $billingLabel !== '' ? $billingLabel : '—' }}</span>
+                            </div>
+                            <div class="party-line">
+                                <span class="k">Currency</span>
+                                <span class="v">{{ $currency }}</span>
+                            </div>
                         </div>
-                        <div class="party-line">
-                            <span class="k">Reference</span>
-                            <span class="v">{{ $invoice->reference_number ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Billing Period</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">Month</span>
-                            <span class="v">{{ $billingLabel !== '' ? $billingLabel : '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </td>
+                </tr>
+            </table>
 
             @if(!empty($invoice->descriptions))
             <div class="desc">

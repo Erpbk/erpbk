@@ -104,8 +104,9 @@
         width: 100%;
         table-layout: fixed;
         border-collapse: separate;
-        border-spacing: {{ $isPdfMode ? '8px' : '16px' }} 0;
-        margin: 0 0 {{ $isPdfMode ? '10px' : '20px' }} 0;
+        border-spacing: {{ $isPdfMode ? '8px' : '14px' }} 0;
+        margin: 0 0 {{ $isPdfMode ? '10px' : '18px' }} 0;
+        padding: {{ $isPdfMode ? '8px' : '12px' }} 0;
     }
     .invoice-box .parties > tbody > tr > .party,
     .invoice-box .parties > tr > .party,
@@ -115,13 +116,15 @@
         vertical-align: top;
         background: {{ $invBlueSoft }};
         border: 1px solid {{ $invBlueLine }};
-        border-left: 4px solid {{ $invBlue }};
-        padding: {{ $isPdfMode ? '8px 10px' : '14px 16px' }};
+        border-left: 5px solid {{ $invBlue }};
+        border-radius: {{ $isPdfMode ? '0' : '8px' }};
+        padding: {{ $isPdfMode ? '10px 12px' : '14px 16px' }};
+        {{ $isPdfMode ? '' : 'box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);' }}
     }
     .invoice-box td.party.alt {
-        background: #f8fafc;
+        background: #ffffff;
         border-color: #e2e8f0;
-        border-left: 4px solid {{ $invBlue }};
+        border-left: 5px solid {{ $invBlue }};
     }
     /* Legacy div-based parties (fallback) */
     .invoice-box div.parties {
@@ -129,8 +132,9 @@
         width: 100%;
         table-layout: fixed;
         border-collapse: separate;
-        border-spacing: {{ $isPdfMode ? '8px' : '16px' }} 0;
-        margin: 0 0 {{ $isPdfMode ? '10px' : '20px' }} 0;
+        border-spacing: {{ $isPdfMode ? '8px' : '14px' }} 0;
+        margin: 0 0 {{ $isPdfMode ? '10px' : '18px' }} 0;
+        padding: {{ $isPdfMode ? '8px' : '12px' }} 0;
     }
     .invoice-box div.parties > .party,
     .invoice-box div.parties > .party.alt {
@@ -139,48 +143,85 @@
         vertical-align: top;
         background: {{ $invBlueSoft }};
         border: 1px solid {{ $invBlueLine }};
-        border-left: 4px solid {{ $invBlue }};
-        padding: {{ $isPdfMode ? '8px 10px' : '14px 16px' }};
+        border-left: 5px solid {{ $invBlue }};
+        border-radius: {{ $isPdfMode ? '0' : '8px' }};
+        padding: {{ $isPdfMode ? '10px 12px' : '14px 16px' }};
     }
     .invoice-box div.parties > .party.alt {
-        background: #f8fafc;
+        background: #ffffff;
         border-color: #e2e8f0;
-        border-left: 4px solid {{ $invBlue }};
+        border-left: 5px solid {{ $invBlue }};
     }
+    /* Title left + line extending to the right */
     .invoice-box .party-title {
-        margin: 0 0 {{ $isPdfMode ? '6px' : '10px' }};
+        display: table;
+        width: 100%;
+        table-layout: auto;
+        margin: 0 0 {{ $isPdfMode ? '8px' : '10px' }};
         font-size: {{ $isPdfMode ? '8.5px' : '10px' }};
         font-weight: 700;
         letter-spacing: 1px;
         text-transform: uppercase;
         color: {{ $invBlue }};
+        text-align: left;
+        white-space: nowrap;
     }
-    .invoice-box .party-title::after { display: none; content: none; }
+    .invoice-box .party-title::after {
+        content: '';
+        display: table-cell;
+        width: 100%;
+        border-bottom: 1px solid {{ $invBlue }};
+        vertical-align: middle;
+        padding-left: 10px;
+    }
     .invoice-box .party-name {
-        margin: 0 0 {{ $isPdfMode ? '6px' : '8px' }};
-        font-size: {{ $isPdfMode ? '12px' : '15px' }};
+        margin: 0 0 {{ $isPdfMode ? '8px' : '12px' }};
+        font-size: {{ $isPdfMode ? '13px' : '16px' }};
         font-weight: 700;
         color: #0f172a;
+        text-align: left;
+        line-height: 1.35;
     }
-    .invoice-box .party-grid { display: block; }
+    .invoice-box .party-grid {
+        display: block;
+        width: 100%;
+    }
+    /* Label column left · value column left (aligned gutter) */
     .invoice-box .party-line {
         display: table;
         width: 100%;
-        margin: 0 0 3px;
-        font-size: {{ $isPdfMode ? '9.5px' : '12px' }};
+        table-layout: fixed;
+        margin: 0 0 {{ $isPdfMode ? '3px' : '5px' }};
+        font-size: {{ $isPdfMode ? '9.5px' : '12.5px' }};
+        line-height: 1.5;
     }
     .invoice-box .party-line .k,
-    .invoice-box .party-line .v { display: table-cell; vertical-align: top; }
-    .invoice-box .party-line .k { width: 92px; color: #64748b; font-weight: 500; }
-    .invoice-box .party-line .v { color: #0f172a; font-weight: 600; }
+    .invoice-box .party-line .v {
+        display: table-cell;
+        vertical-align: top;
+        text-align: left;
+    }
+    .invoice-box .party-line .k {
+        width: {{ $isPdfMode ? '88px' : '110px' }};
+        color: #64748b;
+        font-weight: 500;
+        padding-right: 12px;
+        white-space: nowrap;
+    }
+    .invoice-box .party-line .v {
+        color: #0f172a;
+        font-weight: 700;
+        word-break: break-word;
+    }
 
     /* ===== DESCRIPTION ===== */
     .invoice-box .desc {
         margin: 0 0 {{ $isPdfMode ? '10px' : '16px' }};
         padding: {{ $isPdfMode ? '7px 10px' : '12px 16px' }};
-        border: 1px solid #e2e8f0;
+        border: 1px solid {{ $invBlueLine }};
         border-left: 4px solid {{ $invBlue }};
-        background: #f8fafc;
+        background: {{ $invBlueSoft }};
+        text-align: left;
     }
     .invoice-box .desc .t {
         display: block;
@@ -189,12 +230,14 @@
         letter-spacing: 0.8px;
         text-transform: uppercase;
         color: {{ $invBlue }};
-        margin: 0 0 3px;
+        margin: 0 0 4px;
+        text-align: left;
     }
     .invoice-box .desc p {
         margin: 0;
         color: #334155;
         font-size: {{ $isPdfMode ? '10px' : '12.5px' }};
+        text-align: left;
     }
 
     /* ===== TABLES ===== */

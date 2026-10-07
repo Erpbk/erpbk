@@ -394,12 +394,25 @@ class PaymentController extends Controller
             $input['bank_charges_account'] = $bankChargesAccountId;
 
             // Validate invoice payments if invoices are selected
+            $salaryBalancesBefore = [];
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $paymentAmounts = $request->input('payment_amounts');
                 $totalPayment = array_sum($paymentAmounts);
 
                 if ($totalPayment > $paymentAmount) {
                     throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
+                }
+
+                // Snapshot salary due amounts before creating the payment row so legacy
+                // billing-month paid totals (and carry-forward) do not distort status.
+                $invoiceType = $request->input('invoice_type');
+                if (in_array($invoiceType, ['rider', 'employee'], true)) {
+                    $previewIds = $request->input('invoice_ids');
+                    $previewInvoices = $invoiceType === 'employee'
+                        ? EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $previewIds)->get()
+                        : RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $previewIds)->get();
+                    $this->applySequentialSalaryInvoiceBalances($previewInvoices, null, $invoiceType);
+                    $salaryBalancesBefore = $this->captureInvoiceBalances($previewInvoices);
                 }
             }
 
@@ -439,7 +452,6 @@ class PaymentController extends Controller
                     }
                 } elseif ($invoiceType == 'employee') {
                     $invoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
-                    $balancesBefore = $this->captureInvoiceBalances($invoices);
 
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
@@ -449,7 +461,7 @@ class PaymentController extends Controller
 
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
-                        $balanceBefore = $balancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
 
                         $invoice->update([
                             'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
@@ -459,7 +471,6 @@ class PaymentController extends Controller
                     }
                 } elseif ($invoiceType == 'rider') {
                     $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
-                    $balancesBefore = $this->captureInvoiceBalances($invoices);
 
                     $invoiceRefs = [];
                     foreach ($invoices as $invoice) {
@@ -475,7 +486,7 @@ class PaymentController extends Controller
 
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
-                        $balanceBefore = $balancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
 
                         $invoice->update([
                             'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
@@ -1000,12 +1011,17 @@ class PaymentController extends Controller
                 }
 
                 // Snapshot salary balances before reverting this payment's allocations.
-                $salaryBalancesBefore = [];
+                // Use the same sequential period slices as the payment form.
                 if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
                     $previewIds = $request->input('invoice_ids');
                     $previewInvoices = ($input['invoice_type'] === 'employee')
                         ? EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $previewIds)->get()
                         : RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $previewIds)->get();
+                    $this->applySequentialSalaryInvoiceBalances(
+                        $previewInvoices,
+                        null,
+                        $input['invoice_type']
+                    );
                     $salaryBalancesBefore = $this->captureInvoiceBalances($previewInvoices, $payment);
                 }
 
@@ -1410,20 +1426,30 @@ class PaymentController extends Controller
 
     /**
      * Recalculate employee invoice status after the payment row has been saved.
-     * Paid amount is the sum of payments for that employee and billing month.
+     * Uses sequential period balances so multi-month selections are not double-counted.
      */
     private function refreshSelectedEmployeeInvoiceStatuses($invoices): void
     {
-        $builder = app(EmployeeInvoiceViewDataBuilder::class);
+        $ids = collect($invoices)->pluck('id')->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
 
-        foreach (collect($invoices)->unique('id') as $invoice) {
-            $fresh = EmployeeInvoices::with(['employee.account', 'items'])->find($invoice->id);
-            if (! $fresh) {
-                continue;
+        $freshInvoices = EmployeeInvoices::with(['employee.account', 'items'])
+            ->whereIn('id', $ids)
+            ->get();
+        $this->applySequentialSalaryInvoiceBalances($freshInvoices, null, 'employee');
+
+        foreach ($freshInvoices as $fresh) {
+            $balance = (float) ($fresh->balance ?? 0);
+            $paid = (float) ($fresh->paid_amount ?? 0);
+            if ($balance <= 0.01) {
+                $fresh->status = 1;
+            } elseif ($paid >= 0.01) {
+                $fresh->status = 3;
+            } else {
+                $fresh->status = 0;
             }
-
-            $balance = (float) $builder->outstandingAmounts($fresh)['balance'];
-            $fresh->status = $balance <= 0.01 ? 1 : 3;
             $fresh->updated_by = auth()->id();
             $fresh->save();
         }

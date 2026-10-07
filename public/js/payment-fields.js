@@ -156,16 +156,16 @@
 
       var total = updateTotalPayment();
       var $amount = $ctx.find('#payment_amount');
-      if (total > 0) {
+      var existing = parseFloat($amount.val()) || 0;
+      // Raise primary amount to cover invoice lines, but never overwrite a higher
+      // saved/manual amount (e.g. edit modal with unallocated remainder).
+      if (total > existing + 0.009) {
         $amount.val(total.toFixed(2));
-        $ctx.find('#display_amount').text(total.toFixed(2));
-      } else {
-        var existing = parseFloat($amount.val()) || 0;
-        $ctx.find('#display_amount').text(existing.toFixed(2));
+        existing = total;
       }
-      var paymentAmount = parseFloat($amount.val()) || 0;
+      $ctx.find('#display_amount').text(existing.toFixed(2));
       var bankCharges = parseFloat($ctx.find('#bank_charges').val()) || 0;
-      $ctx.find('#total_debit').text((paymentAmount + bankCharges).toFixed(2));
+      $ctx.find('#total_debit').text((existing + bankCharges).toFixed(2));
       validatePaymentDistribution();
     }
 
@@ -356,6 +356,7 @@
       if (isRiderPayment) {
         var $activeAmounts = $ctx.find('.payment-amount:not(:disabled)');
         if ($activeAmounts.length === 1) {
+          // Single selected invoice: keep the line in sync with the primary amount.
           var $line = $activeAmounts.first();
           var rowBalance = parseFloat($line.closest('tr').data('balance')) || 0;
           if (Math.abs(rowBalance) >= 0.01 || amount > 0) {
@@ -364,6 +365,7 @@
           updateTotalPayment();
           validatePaymentDistribution();
         } else {
+          // Multi-invoice: allow primary > allocated total; only trim lines if primary drops.
           updateTotalPayment();
           validatePaymentDistribution();
           syncInvoicePaymentsToAmount(amount);
@@ -427,13 +429,18 @@
       return false;
     }
 
-    if ($('#invoices-table').length && Math.abs(totalCredit - totalInvoicePayment) > 0.01) {
-      alert('Payment amount must equal total selected invoice payments');
+    if ($('#invoices-table').length && totalInvoicePayment > totalCredit + 0.01) {
+      alert('Total selected invoice payments cannot exceed the payment amount');
       return false;
     }
 
     if (isRiderPayment && !$('.invoice-checkbox:checked').length) {
       alert('Please select at least one invoice for payment');
+      return false;
+    }
+
+    if (isRiderPayment && $('#invoices-table').length && totalInvoicePayment <= 0) {
+      alert('Please enter a payment amount against at least one selected invoice');
       return false;
     }
 

@@ -240,12 +240,7 @@ class EmployeeInvoiceViewDataBuilder
 
         $finalAmount = round($items_total - $total_deductions + $total_additions, 2);
 
-        $paid_amount = 0.0;
-        if ($accountId) {
-            $paid_amount = round((float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount'), 2);
-        }
+        $paid_amount = $this->paidAmountAgainstInvoice($employeeInvoice, $accountId, $monthStart);
 
         $employee_balance_final = round($finalAmount - $paid_amount, 2);
 
@@ -370,18 +365,43 @@ class EmployeeInvoiceViewDataBuilder
         $totalAdditions = round($monthAdditions + ($carry < 0 ? abs($carry) : 0), 2);
         $finalAmount = round($itemsTotal - $totalDeductions + $totalAdditions, 2);
 
-        $paidAmount = 0.0;
-        if ($accountId) {
-            $paidAmount = round((float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount'), 2);
-        }
+        $paidAmount = $this->paidAmountAgainstInvoice($employeeInvoice, $accountId, $monthStart);
 
         return [
             'final_amount' => $finalAmount,
             'paid_amount' => $paidAmount,
             'balance' => round($finalAmount - $paidAmount, 2),
         ];
+    }
+
+    /**
+     * Amount paid against this invoice.
+     *
+     * Prefers per-payment allocations on partial_paid_amount (multi-invoice vouchers).
+     * Legacy Payment-module rows for the billing month are still counted when they are
+     * not already represented in those allocations.
+     */
+    private function paidAmountAgainstInvoice(EmployeeInvoices $employeeInvoice, ?int $accountId, string $monthStart): float
+    {
+        $partials = $employeeInvoice->partial_paid_amount ?? [];
+        if (! is_array($partials)) {
+            $partials = [];
+        }
+
+        $partialSum = round((float) array_sum($partials), 2);
+        $allocatedPaymentIds = array_values(array_filter(array_map('intval', array_keys($partials))));
+
+        $legacy = 0.0;
+        if ($accountId) {
+            $legacyQuery = Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart);
+            if ($allocatedPaymentIds !== []) {
+                $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
+            }
+            $legacy = round((float) $legacyQuery->sum('amount'), 2);
+        }
+
+        return round($partialSum + $legacy, 2);
     }
 
     private function invoiceItemsTotal(EmployeeInvoices $employeeInvoice): float

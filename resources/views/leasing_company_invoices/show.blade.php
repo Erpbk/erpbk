@@ -74,6 +74,10 @@
             $companySlug = request()->route('company_slug');
             $isPaid = (int) ($invoice->status ?? 0) === 1;
             $isPartial = (int) ($invoice->status ?? 0) === 3 || (! $isPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+            $lciPaymentId = \App\Support\InvoicePaymentLink::latestId(
+                $invoice,
+                $invoice->leasingCompany?->account_id ? (int) $invoice->leasingCompany->account_id : null
+            );
         @endphp
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $isPaid,
@@ -81,6 +85,9 @@
             'editUrl' => route('leasingCompanyInvoices.edit', $invoice->id),
             'editTitle' => 'Edit Invoice',
             'editCan' => 'leasing_companies_invoices_edit',
+            'editPaymentUrl' => $lciPaymentId ? route('payments.edit', $lciPaymentId) : null,
+            'editPaymentTitle' => 'Edit Payment',
+            'editPaymentCan' => ['leasing_companies_payments_edit', 'cash_&_banks_payments_edit'],
             'downloadUrl' => route('leasingCompanyInvoices.show', $invoice->id),
             'showPayment' => ! $isPaid,
             'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))

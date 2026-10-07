@@ -210,7 +210,7 @@ class RiderInvoicesController extends AppBaseController
             $riderInvoice->load([
                 'items',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account']);
                 },
             ]);
 

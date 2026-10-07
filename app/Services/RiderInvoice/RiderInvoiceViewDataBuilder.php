@@ -486,6 +486,14 @@ class RiderInvoiceViewDataBuilder
 
         $paid += (float) $invoiceGl->sum('debit');
 
+        $partials = $riderInvoice->partial_paid_amount ?? [];
+        if (! is_array($partials)) {
+            $partials = [];
+        }
+        $partialSum = round((float) array_sum($partials), 2);
+        $allocatedPaymentIds = array_values(array_filter(array_map('intval', array_keys($partials))));
+        $paid += $partialSum;
+
         if (! $accountId) {
             return round($paid, 2);
         }
@@ -499,23 +507,29 @@ class RiderInvoiceViewDataBuilder
 
         $linked = 0.0;
         if ($patterns !== []) {
-            $linked = (float) Payment::where('payee_account_id', $accountId)
+            $linkedQuery = Payment::where('payee_account_id', $accountId)
                 ->where(function ($q) use ($patterns) {
                     foreach ($patterns as $pattern) {
                         $q->orWhere('reference', 'like', '%'.$pattern.'%')
                             ->orWhere('description', 'like', '%'.$pattern.'%');
                     }
-                })
-                ->sum('amount');
+                });
+            if ($allocatedPaymentIds !== []) {
+                $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+            }
+            $linked = (float) $linkedQuery->sum('amount');
         }
 
         if ($linked >= 0.01) {
             $paid += $linked;
         } elseif ($paid < 0.01) {
             // Legacy Payment-module payments for this billing month (no invoice text link)
-            $paid += (float) Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart)
-                ->sum('amount');
+            $legacyQuery = Payment::where('payee_account_id', $accountId)
+                ->whereDate('billing_month', $monthStart);
+            if ($allocatedPaymentIds !== []) {
+                $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
+            }
+            $paid += (float) $legacyQuery->sum('amount');
         }
 
         return round($paid, 2);

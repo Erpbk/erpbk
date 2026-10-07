@@ -44,7 +44,31 @@
                             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end">
-                            @if((int) $r->status !== 1)
+                            @php
+                                $eiStatus = (int) ($r->status ?? 0);
+                                $eiLocked = in_array($eiStatus, [1, 3], true);
+                                $eiPaymentId = $eiLocked
+                                    ? \App\Support\InvoicePaymentLink::latestId(
+                                        $r,
+                                        optional($r->employee)->account_id ? (int) $r->employee->account_id : null
+                                    )
+                                    : null;
+                            @endphp
+                            @if(! $eiLocked)
+                            @can('employees_invoice_edit')
+                                <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
+                                    <i class="fa fa-edit mx-1"></i> Update
+                                </a>
+                            @endcan
+                            @endif
+                            @if($eiLocked && $eiPaymentId)
+                            @canany(['employees_payments_edit', 'cash_&_banks_payments_edit'])
+                                <a href="javascript:void(0);" data-action="{{ route('payments.edit', $eiPaymentId) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Edit Payment">
+                                    <i class="fa fa-money-bill mx-1 text-success"></i> Edit Payment
+                                </a>
+                            @endcanany
+                            @endif
+                            @if($eiStatus !== 1)
                             @can('employees_payments_create')
                                 <a href="javascript:void(0);" data-action="{{ route('payments.create', ['employee_payment' => 1, 'invoice_id' => $r->id]) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Add Payment">
                                     <i class="fa fa-money-bill mx-1"></i> Add Payment
@@ -56,11 +80,6 @@
                                 </a>
                             @endcan
                             @endif
-                            @can('employees_invoice_edit')
-                                <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
-                                    <i class="fa fa-edit mx-1"></i> Update
-                                </a>
-                            @endcan
                             @can('employees_invoice_delete')
                                 <a href="javascript:void(0);" onclick="confirmDelete('{{ route('employeeInvoices.delete', $r->id) }}')" class="dropdown-item waves-effect">
                                     <i class="fa fa-trash mx-1"></i> Delete

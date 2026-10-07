@@ -38,6 +38,7 @@ class RiderInvoices extends BaseModel
         'terms_and_conditions',
         'customer_note',
         'status',
+        'partial_paid_amount',
         'template_id',
         'deleted_by',
     ];
@@ -56,6 +57,7 @@ class RiderInvoices extends BaseModel
         'gaurantee' => 'string',
         'notes' => 'string',
         'status' => 'integer',
+        'partial_paid_amount' => 'array',
     ];
 
     /**
@@ -143,15 +145,23 @@ class RiderInvoices extends BaseModel
     }
 
     /**
-     * Invoices that can receive a payment (unpaid only).
+     * Invoices that can receive a payment (unpaid or partially paid).
      * Uses explicit status values because SQL `status != 1` excludes NULL rows.
      */
     public function scopePayable($query)
     {
         return $query->where(function ($q) {
             $q->whereNull('status')
-                ->orWhere('status', 0);
+                ->orWhereIn('status', [0, 3]);
         });
+    }
+
+    /**
+     * Clear cached outstanding figures after payment allocations change.
+     */
+    public function clearOutstandingSummary(): void
+    {
+        $this->outstandingSummaryCache = null;
     }
 
     public function rider()

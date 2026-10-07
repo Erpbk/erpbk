@@ -141,6 +141,14 @@ class EmployeeInvoices extends BaseModel
         });
     }
 
+    /**
+     * Clear cached outstanding figures after payment allocations change.
+     */
+    public function clearOutstandingSummary(): void
+    {
+        $this->outstandingSummaryCache = null;
+    }
+
     public function employee()
     {
         return $this->belongsTo(Employee::class, 'employee_id');

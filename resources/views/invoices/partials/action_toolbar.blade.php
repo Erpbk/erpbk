@@ -2,15 +2,19 @@
   Shared invoice action toolbar (matches rider invoice UI).
 
   $isPaid (bool), $isPartial (bool optional)
-  Optional action configs: editUrl/editTitle/editCan, clone*, email*, downloadUrl,
-  paymentUrl/paymentTitle/paymentCan, showPayment, markSettled*,
+  Optional action configs: editUrl/editTitle/editCan, editPaymentUrl/editPaymentTitle/editPaymentCan,
+  clone*, email*, downloadUrl, paymentUrl/paymentTitle/paymentCan, showPayment, markSettled*,
   deleteUrl/deleteCan OR deleteFormRoute/deleteCan
+
+  When paid/partially paid, invoice Edit is hidden; Edit Payment is shown when a linked payment exists.
 --}}
 @php
 $isPaid = (bool) ($isPaid ?? false);
 $isPartial = (bool) ($isPartial ?? false);
+$invoiceDetailsLocked = $isPaid || $isPartial;
 $showPayment = isset($showPayment) ? (bool) $showPayment : ! $isPaid;
 $editTitle = $editTitle ?? 'Edit Invoice';
+$editPaymentTitle = $editPaymentTitle ?? 'Edit Payment';
 $cloneTitle = $cloneTitle ?? 'Clone Invoice';
 $emailTitle = $emailTitle ?? 'Send Email';
 $paymentTitle = $paymentTitle ?? 'Record Payment';
@@ -28,7 +32,7 @@ $canList = static function ($can) {
 @endphp
 <span class="invoice-pay-status {{ $payStatusClass }}">{{ $payStatusLabel }}</span>
 
-@if(!empty($editUrl))
+@if(! $invoiceDetailsLocked && !empty($editUrl))
     @php $perms = $canList($editCan ?? null); @endphp
     @if($perms === null)
         <a href="javascript:void(0);" class="action-btn show-modal" data-size="xl" data-title="{{ $editTitle }}" data-close-right-modal="1" data-action="{{ $editUrl }}">
@@ -38,6 +42,21 @@ $canList = static function ($can) {
         @canany($perms)
         <a href="javascript:void(0);" class="action-btn show-modal" data-size="xl" data-title="{{ $editTitle }}" data-close-right-modal="1" data-action="{{ $editUrl }}">
             <i class="ti ti-edit"></i><span>Edit</span>
+        </a>
+        @endcanany
+    @endif
+@endif
+
+@if($invoiceDetailsLocked && !empty($editPaymentUrl))
+    @php $perms = $canList($editPaymentCan ?? null); @endphp
+    @if($perms === null)
+        <a href="javascript:void(0);" class="action-btn show-modal" data-size="xl" data-title="{{ $editPaymentTitle }}" data-close-right-modal="1" data-action="{{ $editPaymentUrl }}">
+            <i class="ti ti-cash"></i><span>Edit Payment</span>
+        </a>
+    @else
+        @canany($perms)
+        <a href="javascript:void(0);" class="action-btn show-modal" data-size="xl" data-title="{{ $editPaymentTitle }}" data-close-right-modal="1" data-action="{{ $editPaymentUrl }}">
+            <i class="ti ti-cash"></i><span>Edit Payment</span>
         </a>
         @endcanany
     @endif

@@ -255,7 +255,8 @@
           var balanceDue = parseFloat($row.data('balance')) || 0;
           var fillAmount = balanceDue;
 
-          if (!isRiderPayment && fillAmount > difference && difference > 0) {
+          // Cap to remaining payment amount when a top-level amount is already set.
+          if (fillAmount > difference && difference > 0) {
             $paymentInput.val(difference.toFixed(2));
             if (typeof toastr !== 'undefined') {
               toastr.warning('Total Selected Payment cannot exceed Payment Amount.');
@@ -307,17 +308,12 @@
     });
 
     $ctx.on('keyup.paymentFields change.paymentFields', '.payment-amount', function () {
-      if (isRiderPayment && $(this).is('[type="hidden"]')) {
-        updateTotalPayment();
-        validatePaymentDistribution();
-        return;
-      }
-
       var enteredAmount = parseFloat($(this).val()) || 0;
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
       var total = updateTotalPayment();
 
-      if (total > paymentAmount && paymentAmount > 0) {
+      // Salary payments sync the top amount from invoice lines; leasing caps lines to the top amount.
+      if (!isRiderPayment && total > paymentAmount && paymentAmount > 0) {
         var excess = total - paymentAmount;
         var newVal = enteredAmount - excess;
         if (newVal > 0) {
@@ -341,6 +337,9 @@
 
       updateTotalPayment();
       validatePaymentDistribution();
+      if (isRiderPayment) {
+        syncRiderPaymentAmountFromInvoices();
+      }
     });
 
     $ctx.on('keyup.paymentFields change.paymentFields', '#payment_amount', function () {
@@ -358,9 +357,13 @@
           if (Math.abs(rowBalance) >= 0.01 || amount > 0) {
             $line.val(amount.toFixed(2));
           }
+          updateTotalPayment();
+          validatePaymentDistribution();
+        } else {
+          updateTotalPayment();
+          validatePaymentDistribution();
+          syncInvoicePaymentsToAmount(amount);
         }
-        updateTotalPayment();
-        validatePaymentDistribution();
       } else {
         updateTotalPayment();
         validatePaymentDistribution();
@@ -421,10 +424,8 @@
     }
 
     if ($('#invoices-table').length && Math.abs(totalCredit - totalInvoicePayment) > 0.01) {
-      if (!(isRiderPayment && totalInvoicePayment <= 0 && totalCredit > 0)) {
-        alert('Payment amount must equal total selected invoice payments');
-        return false;
-      }
+      alert('Payment amount must equal total selected invoice payments');
+      return false;
     }
 
     if (isRiderPayment && !$('.invoice-checkbox:checked').length) {

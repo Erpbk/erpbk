@@ -52,12 +52,31 @@
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+                  @php
+                     $riStatus = (int) ($r->status ?? 0);
+                     $riLocked = in_array($riStatus, [1, 3], true);
+                     $riPaymentId = $riLocked
+                        ? \App\Support\InvoicePaymentLink::latestId(
+                            $r,
+                            isset($rider->account_id) ? (int) $rider->account_id : null
+                        )
+                        : null;
+                  @endphp
+                  @if(! $riLocked)
                   @can('riders_invoices_edit')
                   <a href="javascript:void(0);" data-action="{{ route('riderInvoices.edit', $r->id) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Invoice">
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
-                  @if((int) $r->status !== 1)
+                  @endif
+                  @if($riLocked && $riPaymentId)
+                  @canany(['riders_payments_edit', 'cash_&_banks_payments_edit'])
+                  <a href="javascript:void(0);" data-action="{{ route('payments.edit', $riPaymentId) }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Edit Payment">
+                     <i class="fa fa-money-bill mx-1 text-success"></i> Edit Payment
+                  </a>
+                  @endcanany
+                  @endif
+                  @if($riStatus !== 1)
                   @can('riders_payments_create')
                   <a href="javascript:void(0);" data-action="{{ route('payments.create') }}?invoice_type=rider&invoice_id={{ $r->id }}" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Record Rider Payment">
                      <i class="fa fa-money-bill mx-1 text-success"></i> Record Payment

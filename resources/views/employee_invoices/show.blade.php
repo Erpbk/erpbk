@@ -81,6 +81,10 @@
             $eiStatus = (int) ($employeeInvoice->status ?? 0);
             $eiIsPaid = $eiStatus === 1;
             $eiIsPartial = $eiStatus === 3 || (! $eiIsPaid && (float) ($employeeInvoice->paid_amount ?? 0) > 0);
+            $eiPaymentId = \App\Support\InvoicePaymentLink::latestId(
+                $employeeInvoice,
+                $employeeInvoice->employee?->account_id ? (int) $employeeInvoice->employee->account_id : null
+            );
         @endphp
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $eiIsPaid,
@@ -88,6 +92,9 @@
             'editUrl' => route('employeeInvoices.edit', $employeeInvoice->id),
             'editTitle' => 'Edit Invoice',
             'editCan' => 'employees_invoice_edit',
+            'editPaymentUrl' => $eiPaymentId ? route('payments.edit', $eiPaymentId) : null,
+            'editPaymentTitle' => 'Edit Payment',
+            'editPaymentCan' => ['employees_payments_edit', 'cash_&_banks_payments_edit'],
             'downloadUrl' => route('employeeInvoices.show', $employeeInvoice->id),
             'showPayment' => ! $eiIsPaid,
             'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))

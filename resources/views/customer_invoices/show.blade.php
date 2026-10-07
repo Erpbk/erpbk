@@ -48,6 +48,10 @@
             $ciStatus = $invoice->status ?? null;
             $ciIsPaid = $ciStatus === 'paid' || (int) $ciStatus === 1;
             $ciIsPartial = $ciStatus === 'partially_paid' || (int) $ciStatus === 3;
+            $ciPaymentId = \App\Support\InvoicePaymentLink::latestId(
+                $invoice,
+                $invoice->customer?->account_id ? (int) $invoice->customer->account_id : null
+            );
         @endphp
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $ciIsPaid,
@@ -55,6 +59,9 @@
             'editUrl' => route('customer_invoice.edit', $invoice->id),
             'editTitle' => 'Edit Invoice',
             'editCan' => ['customers_invoices_edit', 'bike_on_rent_invoices_edit'],
+            'editPaymentUrl' => $ciPaymentId ? route('payments.edit', $ciPaymentId) : null,
+            'editPaymentTitle' => 'Edit Payment',
+            'editPaymentCan' => ['customers_payments_edit', 'cash_&_banks_payments_edit'],
             'emailUrl' => route('customer_invoices.sendEmail', $invoice->id),
             'emailTitle' => 'Send Email',
             'downloadUrl' => route('customer_invoices.show', $invoice),

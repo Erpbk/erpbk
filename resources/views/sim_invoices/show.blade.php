@@ -56,6 +56,10 @@
             $simStatus = (int) ($invoice->status ?? 0);
             $simIsPaid = $simStatus === 1;
             $simIsPartial = $simStatus === 3 || (! $simIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+            $simPaymentId = \App\Support\InvoicePaymentLink::latestId(
+                $invoice,
+                $invoice->company?->account_id ? (int) $invoice->company->account_id : null
+            );
         @endphp
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $simIsPaid,
@@ -63,6 +67,9 @@
             'editUrl' => route('simInvoices.edit', $invoice->id),
             'editTitle' => 'Edit Invoice',
             'editCan' => 'sims_invoices_edit',
+            'editPaymentUrl' => $simPaymentId ? route('payments.edit', $simPaymentId) : null,
+            'editPaymentTitle' => 'Edit Payment',
+            'editPaymentCan' => ['sims_payments_edit', 'cash_&_banks_payments_edit'],
             'downloadUrl' => route('simInvoices.show', $invoice->id),
             'showPayment' => ! $simIsPaid,
             'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))

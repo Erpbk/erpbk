@@ -51,6 +51,10 @@
             $lbiStatus = (int) ($invoice->status ?? 0);
             $lbiIsPaid = $lbiStatus === 1;
             $lbiIsPartial = $lbiStatus === 3 || (! $lbiIsPaid && (float) ($invoice->paid_amount ?? 0) > 0);
+            $lbiPaymentId = \App\Support\InvoicePaymentLink::latestId(
+                $invoice,
+                $invoice->customer?->account_id ? (int) $invoice->customer->account_id : null
+            );
         @endphp
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $lbiIsPaid,
@@ -58,6 +62,9 @@
             'editUrl' => route('leasingCompanyBillingInvoices.edit', $invoice->id),
             'editTitle' => 'Edit Invoice',
             'editCan' => 'bike_on_rent_invoices_edit',
+            'editPaymentUrl' => $lbiPaymentId ? route('payments.edit', $lbiPaymentId) : null,
+            'editPaymentTitle' => 'Edit Payment',
+            'editPaymentCan' => ['customers_payments_edit', 'cash_&_banks_payments_edit'],
             'downloadUrl' => route('leasingCompanyBillingInvoices.show', $invoice->id),
             'showPayment' => ! $lbiIsPaid,
             'paymentUrl' => route('payments.create')

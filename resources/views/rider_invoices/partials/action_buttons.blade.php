@@ -3,6 +3,10 @@ $companySlug = request()->route('company_slug');
 $statusInt = (int) ($riderInvoice->status ?? 0);
 $isFullyPaid = $statusInt === 1;
 $isPartial = $statusInt === 3 || (! $isFullyPaid && (float) ($riderInvoice->paid_amount ?? 0) > 0);
+$linkedPaymentId = \App\Support\InvoicePaymentLink::latestId(
+    $riderInvoice,
+    $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null
+);
 @endphp
 @include('invoices.partials.action_toolbar', [
     'isPaid' => $isFullyPaid,
@@ -10,6 +14,9 @@ $isPartial = $statusInt === 3 || (! $isFullyPaid && (float) ($riderInvoice->paid
     'editUrl' => route('riderInvoices.edit', ['company_slug' => $companySlug, 'riderInvoice' => $riderInvoice->id]),
     'editTitle' => 'Edit Rider Invoice',
     'editCan' => ['riders_invoice_edit', 'riders_invoices_edit'],
+    'editPaymentUrl' => $linkedPaymentId ? route('payments.edit', $linkedPaymentId) : null,
+    'editPaymentTitle' => 'Edit Payment',
+    'editPaymentCan' => ['riders_payments_edit', 'cash_&_banks_payments_edit'],
     'emailUrl' => Route::has('riderInvoices.sendEmail')
         ? route('riderInvoices.sendEmail', ['company_slug' => $companySlug, 'id' => $riderInvoice->id])
         : null,

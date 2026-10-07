@@ -52,9 +52,14 @@
     @if(empty($isPdf))
     <div class="controls no-print">
         @php
-            $siStatus = (int) ($supplierInvoice->status ?? 0);
-            $siIsPaid = $siStatus === 1;
-            $siIsPartial = $siStatus === 3 || (! $siIsPaid && (float) ($supplierInvoice->paid_amount ?? 0) > 0);
+            $siStatus = $supplierInvoice->status ?? null;
+            $siIsPaid = $siStatus === 'paid' || (int) $siStatus === 1;
+            $siIsPartial = $siStatus === 'partially_paid' || (int) $siStatus === 3
+                || (! $siIsPaid && (float) ($supplierInvoice->paid_amount ?? 0) > 0);
+            $siPaymentId = \App\Support\InvoicePaymentLink::latestId(
+                $supplierInvoice,
+                $supplierInvoice->supplier?->account_id ? (int) $supplierInvoice->supplier->account_id : null
+            );
         @endphp
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $siIsPaid,
@@ -62,6 +67,9 @@
             'editUrl' => route('supplierInvoices.edit', $supplierInvoice->id),
             'editTitle' => 'Edit Supplier Invoice',
             'editCan' => ['suppliers_invoices_edit', 'suppliers_purchase_order_edit'],
+            'editPaymentUrl' => $siPaymentId ? route('payments.edit', $siPaymentId) : null,
+            'editPaymentTitle' => 'Edit Payment',
+            'editPaymentCan' => ['suppliers_payments_edit', 'cash_&_banks_payments_edit'],
             'emailUrl' => Route::has('supplier_invoices.send_email')
                 ? route('supplier_invoices.send_email', $supplierInvoice->id)
                 : null,

@@ -6,6 +6,7 @@ use App\Models\Cheques;
 use App\Models\EmployeeInvoices;
 use App\Models\LeasingCompanyInvoice;
 use App\Models\Payment;
+use App\Models\RiderInvoices;
 use App\Models\SimInvoice;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
@@ -182,24 +183,56 @@ class PaymentDeletionService
                 ->get();
             $builder = app(EmployeeInvoiceViewDataBuilder::class);
             foreach ($invoices as $invoice) {
-                $accountId = $invoice->employee?->account_id;
-                $monthStart = date('Y-m-01', strtotime($invoice->billing_month));
-                $paidExcluding = 0.0;
-                if ($accountId) {
-                    $paidExcluding = round((float) Payment::where('payee_account_id', $accountId)
-                        ->whereDate('billing_month', $monthStart)
-                        ->where('id', '!=', $payment->id)
-                        ->sum('amount'), 2);
-                }
-                $finalAmount = (float) $builder->outstandingAmounts($invoice)['final_amount'];
-                $remaining = round($finalAmount - $paidExcluding, 2);
-                if ($remaining <= 0.01) {
-                    $invoice->status = 1;
-                } elseif ($paidExcluding > 0.01) {
-                    $invoice->status = 3;
+                $partialAmount = $invoice->partial_paid_amount ?? [];
+                $hadAllocation = array_key_exists($payment->id, $partialAmount)
+                    || array_key_exists((string) $payment->id, $partialAmount);
+                unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+                $invoice->partial_paid_amount = $partialAmount;
+                $invoice->clearOutstandingSummary();
+
+                if ($hadAllocation || $partialAmount !== []) {
+                    $invoice->status = count($partialAmount) < 1 ? 0 : 3;
                 } else {
-                    $invoice->status = 0;
+                    // Legacy payments without per-invoice allocations.
+                    $accountId = $invoice->employee?->account_id;
+                    $monthStart = date('Y-m-01', strtotime($invoice->billing_month));
+                    $paidExcluding = 0.0;
+                    if ($accountId) {
+                        $paidExcluding = round((float) Payment::where('payee_account_id', $accountId)
+                            ->whereDate('billing_month', $monthStart)
+                            ->where('id', '!=', $payment->id)
+                            ->sum('amount'), 2);
+                    }
+                    $finalAmount = (float) $builder->outstandingAmounts($invoice)['final_amount'];
+                    $remaining = round($finalAmount - $paidExcluding, 2);
+                    if ($remaining <= 0.01) {
+                        $invoice->status = 1;
+                    } elseif ($paidExcluding > 0.01) {
+                        $invoice->status = 3;
+                    } else {
+                        $invoice->status = 0;
+                    }
                 }
+                $invoice->save();
+            }
+        }
+
+        if (str_contains($reference, 'RINV')) {
+            $invoiceIds = [];
+            foreach (explode(' ', $reference) as $invoice_number) {
+                if (preg_match('/RINV-?0*(\d+)/i', $invoice_number, $matches)) {
+                    $invoiceIds[] = (int) $matches[1];
+                }
+            }
+            $invoices = RiderInvoices::with(['rider.account', 'items'])
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            foreach ($invoices as $invoice) {
+                $partialAmount = $invoice->partial_paid_amount ?? [];
+                unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+                $invoice->partial_paid_amount = $partialAmount;
+                $invoice->clearOutstandingSummary();
+                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
                 $invoice->save();
             }
         }

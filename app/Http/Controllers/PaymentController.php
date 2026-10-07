@@ -439,20 +439,27 @@ class PaymentController extends Controller
                     }
                 } elseif ($invoiceType == 'employee') {
                     $invoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
+                    $balancesBefore = $this->captureInvoiceBalances($invoices);
 
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
-
-                        if ($this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
-                            // Payment already saved; balance is remaining due after deductions/payments.
-                            $invoice->update([
-                                'status' => ((float) $invoice->balance) <= 0.01 ? 1 : 3,
-                                'updated_by' => auth()->id(),
-                            ]);
+                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
+                            continue;
                         }
+
+                        $partialAmount = $invoice->partial_paid_amount ?? [];
+                        $partialAmount[$payment->id] = $invoicePaymentAmount;
+                        $balanceBefore = $balancesBefore[$invoice->id] ?? (float) $invoice->balance;
+
+                        $invoice->update([
+                            'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
+                            'partial_paid_amount' => $partialAmount,
+                            'updated_by' => auth()->id(),
+                        ]);
                     }
                 } elseif ($invoiceType == 'rider') {
                     $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
+                    $balancesBefore = $this->captureInvoiceBalances($invoices);
 
                     $invoiceRefs = [];
                     foreach ($invoices as $invoice) {
@@ -466,8 +473,13 @@ class PaymentController extends Controller
                             continue;
                         }
 
+                        $partialAmount = $invoice->partial_paid_amount ?? [];
+                        $partialAmount[$payment->id] = $invoicePaymentAmount;
+                        $balanceBefore = $balancesBefore[$invoice->id] ?? (float) $invoice->balance;
+
                         $invoice->update([
-                            'status' => 1,
+                            'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
+                            'partial_paid_amount' => $partialAmount,
                             'updated_by' => auth()->id(),
                         ]);
                         $invoiceRefs[] = 'Rider Invoice #'.$invoice->id;
@@ -961,6 +973,7 @@ class PaymentController extends Controller
             $paid = null;
             $employeeInvoicesToRefresh = collect();
             $originalReference = (string) ($payment->reference ?? '');
+            $salaryBalancesBefore = [];
 
             $payment->fill($input);
             $paymentHasChanges = $payment->isDirty();
@@ -984,6 +997,16 @@ class PaymentController extends Controller
 
                 if ($totalPayment > $paymentAmount) {
                     throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
+                }
+
+                // Snapshot salary balances before reverting this payment's allocations.
+                $salaryBalancesBefore = [];
+                if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
+                    $previewIds = $request->input('invoice_ids');
+                    $previewInvoices = ($input['invoice_type'] === 'employee')
+                        ? EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $previewIds)->get()
+                        : RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $previewIds)->get();
+                    $salaryBalancesBefore = $this->captureInvoiceBalances($previewInvoices, $payment);
                 }
 
                 // Use the reference from before fill(), so invoices removed on this edit are reverted.
@@ -1049,13 +1072,6 @@ class PaymentController extends Controller
                 }
 
                 foreach ($existingInvoices as $invoice) {
-                    if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
-                        $invoice->status = $pending;
-                        $invoice->updated_by = auth()->id();
-                        $invoice->save();
-                        continue;
-                    }
-
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     unset($partialAmount[$payment->id]); // Remove payment for this payment record
                     $invoice->partial_paid_amount = $partialAmount;
@@ -1067,6 +1083,9 @@ class PaymentController extends Controller
                     }
                     if (($input['invoice_type'] ?? null) != 'sim') {
                         $invoice->updated_by = auth()->id();
+                    }
+                    if (method_exists($invoice, 'clearOutstandingSummary')) {
+                        $invoice->clearOutstandingSummary();
                     }
                     $invoice->save();
                 }
@@ -1101,25 +1120,25 @@ class PaymentController extends Controller
                 foreach ($invoices as $invoice) {
                     $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
 
-                    if (($input['invoice_type'] ?? null) === 'rider') {
-                        $invoice->status = $paid;
-                        $invoice->updated_by = auth()->id();
-                        $invoice->save();
-                        continue;
-                    }
-
-                    if (($input['invoice_type'] ?? null) === 'employee') {
-                        // Status depends on the saved payment amount, applied after the payment row is updated.
-                        $employeeInvoicesToRefresh->push($invoice);
-                        continue;
-                    }
-
                     if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                         continue;
                     }
 
                     $partialAmount = $invoice->partial_paid_amount ?? [];
                     $partialAmount[$payment->id] = $invoicePaymentAmount;
+
+                    if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
+                        $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        $invoice->status = $invoicePaymentAmount >= ($balanceBefore - 0.01) ? $paid : $partial;
+                        $invoice->partial_paid_amount = $partialAmount;
+                        $invoice->updated_by = auth()->id();
+                        $invoice->clearOutstandingSummary();
+                        $invoice->save();
+                        if (($input['invoice_type'] ?? null) === 'employee') {
+                            $employeeInvoicesToRefresh->push($invoice);
+                        }
+                        continue;
+                    }
 
                     if ($input['invoice_type'] == 'sim') {
                         if ($invoicePaymentAmount >= ($invoice->balance ?? 0)) {
@@ -1357,6 +1376,36 @@ class PaymentController extends Controller
     private function isNonZeroInvoiceAllocation($amount): bool
     {
         return abs((float) $amount) >= 0.01;
+    }
+
+    /**
+     * Snapshot balance due per invoice before payment allocations are written.
+     * When editing, add back this payment's existing allocation so status compares
+     * against the true remaining due.
+     *
+     * @param  \Illuminate\Support\Collection|iterable  $invoices
+     * @return array<int, float>
+     */
+    private function captureInvoiceBalances($invoices, ?Payment $payment = null): array
+    {
+        $balances = [];
+        foreach (collect($invoices) as $invoice) {
+            if (! $invoice || ! isset($invoice->id)) {
+                continue;
+            }
+            $balance = (float) ($invoice->balance ?? 0);
+            if ($payment) {
+                $partials = $invoice->partial_paid_amount ?? [];
+                if (is_array($partials) && array_key_exists($payment->id, $partials)) {
+                    $balance += (float) $partials[$payment->id];
+                } elseif (is_array($partials) && array_key_exists((string) $payment->id, $partials)) {
+                    $balance += (float) $partials[(string) $payment->id];
+                }
+            }
+            $balances[(int) $invoice->id] = $balance;
+        }
+
+        return $balances;
     }
 
     /**

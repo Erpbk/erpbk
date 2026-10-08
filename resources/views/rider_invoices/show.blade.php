@@ -4,9 +4,18 @@
 <head>
     <meta charset="UTF-8">
     <title>RiderID: {{ $riderInvoice->rider?->rider_id ?? $riderInvoice->id }} Month: {{ date('M-Y', strtotime($riderInvoice->billing_month)) }}</title>
+</head>
+
+<body>
     @include('invoices.partials.tax_invoice_styles')
+    @php
+        $riBrand = $brand ?? ($companyBrand ?? []);
+        $riBlue = $riBrand['primary_color'] ?? '#004aad';
+        $riSoft = $riBrand['primary_soft'] ?? ($riBrand['primary_light'] ?? '#eef4fc');
+    @endphp
     <style>
-        /* Rider template item tables (legacy class names inside items area) */
+        /* Rider template item tables (legacy class names inside items area)
+           Use literal colors — DomPDF does not support CSS variables. */
         .invoice-box .rider-template-items {
             width: 100%;
         }
@@ -22,8 +31,7 @@
         .invoice-box table.invoice-description-summary,
         .invoice-box table.summary-table,
         .invoice-box .rider-template-items table,
-        .invoice-box .tbl-wrap+table,
-        .invoice-box .sheet>table {
+        .invoice-box .tbl-wrap+table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 12px;
@@ -37,10 +45,8 @@
         .invoice-box table.items-table td,
         .invoice-box table.summary-table td,
         .invoice-box .rider-template-items table th,
-        .invoice-box .rider-template-items table td,
-        .invoice-box .sheet>table th,
-        .invoice-box .sheet>table td {
-            border: 1px solid var(--line, #e2e8f0);
+        .invoice-box .rider-template-items table td {
+            border: 1px solid #e2e8f0;
             padding: 8px 10px;
             font-size: 12px;
             vertical-align: middle;
@@ -58,16 +64,16 @@
         .invoice-box .success-highlight,
         .invoice-box .amount-highlight,
         .invoice-box .primary-header {
-            background: var(--blue, #004aad);
-            color: #fff;
+            background: {{ $riSoft }} !important;
+            color: #0f172a !important;
             font-weight: 700;
             text-align: center;
             vertical-align: middle;
         }
 
         .invoice-box .light-header {
-            background: var(--blue-soft, #eef4fc);
-            color: var(--blue, #004aad);
+            background: {{ $riSoft }} !important;
+            color: {{ $riBlue }} !important;
         }
 
         .invoice-box td.num {
@@ -114,7 +120,7 @@
             border-color: #fca5a5;
         }
 
-        @keyframes status-blink {
+        @@keyframes status-blink {
 
             0%,
             100% {
@@ -132,7 +138,7 @@
             animation-name: status-blink-red;
         }
 
-        @keyframes status-blink-red {
+        @@keyframes status-blink-red {
 
             0%,
             100% {
@@ -146,7 +152,7 @@
             }
         }
 
-        @media print {
+        @@media print {
             .invoice-box .status-badge {
                 animation: none !important;
                 opacity: 1 !important;
@@ -158,7 +164,7 @@
             }
 
             .invoice-box.invoice-print-tall .sheet {
-                padding: 8px 4px !important;
+                padding: 10px 6px !important;
             }
 
             .invoice-box .totals-area,
@@ -188,24 +194,21 @@
             display: none;
         }
 
-        /* Keep solid blue headers for modern layout (same as salary-slip view) */
+        /* Soft salary-slip headers for modern layout (literal colors for DomPDF) */
         .invoice-box.invoice-layout-modern table.items-table th,
         .invoice-box.invoice-layout-modern .secondary-header,
         .invoice-box.invoice-layout-modern .accent-total,
         .invoice-box.invoice-layout-modern .primary-header {
-            background: var(--blue, #004aad) !important;
-            color: #fff !important;
+            background: {{ $riSoft }} !important;
+            color: #0f172a !important;
         }
 
         .invoice-box.invoice-layout-modern .light-header {
-            background: var(--blue-soft, #eef4fc);
-            color: var(--blue, #004aad);
+            background: {{ $riSoft }} !important;
+            color: {{ $riBlue }} !important;
         }
     </style>
     @include('invoices.partials.tax_invoice_pdf_styles')
-</head>
-
-<body>
     @php
     $settings = $settings ?? company_table('settings')->pluck('value', 'name')->toArray();
     $currency = \App\Helpers\Currency::code();
@@ -269,9 +272,9 @@
     ])
     @endif
 
-    <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}">
+    <div class="invoice-box invoice-layout-{{ $activeTemplate?->layout_key ?? 'modern' }}"@if(!empty($invPdf['box'])) style="{{ $invPdf['box'] }}"@endif>
         <div class="band"></div>
-        <div class="sheet">
+        <div class="sheet"@if(!empty($invPdf['sheet'])) style="{{ $invPdf['sheet'] }}"@endif>
             @include('invoices.partials.tax_invoice_header', [
             'settings' => $settings,
             'invoiceTitle' => $invoiceTitle,
@@ -280,60 +283,58 @@
             'billingLabel' => $billingLabel,
             ])
 
-            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td class="party" width="50%" valign="top">
-                        <h3 class="party-title">Bill To</h3>
-                        <p class="party-name">{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
+            <div class="parties"@if(!empty($invPdf['parties'])) style="{{ $invPdf['parties'] }}"@endif>
+                    <div class="party"@if(!empty($invPdf['partyFirst'])) style="{{ $invPdf['partyFirst'] }}"@endif>
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Bill To</h3>
+                        <p class="party-name"@if(!empty($invPdf['partyName'])) style="{{ $invPdf['partyName'] }}"@endif>{{ $party->name ?? 'N/A' }} <span class="status-badge @if(in_array((int) ($party->status ?? 0), [3, 4, 5], true)) red @else status-green @endif">
                                 {{ $riderStatusLabel ?? '—' }}
                             </span></p>
                         <div class="party-grid">
-                            <div class="party-line">
-                                <span class="k">Rider ID</span>
-                                <span class="v">{{ $party->rider_id ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Rider ID</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party->rider_id ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Mobile</span>
-                                <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Mobile</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party?->sim?->number ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Project</span>
-                                <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Project</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party?->customer?->name ?? '—' }}</span>
                             </div>
                         </div>
-                    </td>
-                    <td class="party alt" width="50%" valign="top">
-                        <h3 class="party-title">Service Period</h3>
+                    </div>
+                    <div class="party alt"@if(!empty($invPdf['partyAlt'])) style="{{ $invPdf['partyAlt'] }}"@endif>
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Service Period</h3>
                         <div class="party-grid" style="margin-top: 4px;">
-                            <div class="party-line">
-                                <span class="k">From</span>
-                                <span class="v">{{ $serviceFrom }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>From</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $serviceFrom }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">To</span>
-                                <span class="v">{{ $serviceTo }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>To</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $serviceTo }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Working</span>
-                                <span class="v">{{ $riderInvoice->working_days ?? '—' }} | Off: {{ $riderInvoice->off ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Working</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $riderInvoice->working_days ?? '—' }} | Off: {{ $riderInvoice->off ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Zone</span>
-                                <span class="v">{{ $riderInvoice->zone ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Zone</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $riderInvoice->zone ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Bike</span>
-                                <span class="v">{{ $bikePlate }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Bike</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $bikePlate }}</span>
                             </div>
                         </div>
-                    </td>
-                </tr>
-            </table>
+                    </div>
+            </div>
 
             @if($riderInvoice->descriptions)
-            <div class="desc">
-                <span class="t">Description</span>
-                <p>{{ $riderInvoice->descriptions }}</p>
+            <div class="desc"@if(!empty($invPdf['desc'])) style="{{ $invPdf['desc'] }}"@endif>
+                <span class="t"@if(!empty($invPdf['descTitle'])) style="{{ $invPdf['descTitle'] }}"@endif>Description</span>
+                <p @if(!empty($invPdf['descBody'])) style="{{ $invPdf['descBody'] }}"@endif>{{ $riderInvoice->descriptions }}</p>
             </div>
             @endif
 

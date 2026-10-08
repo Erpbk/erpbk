@@ -1,4 +1,4 @@
-﻿{{-- Screen + print chrome. Visual shell (header/parties/tables/totals) lives in tax_invoice_shell_styles. --}}
+{{-- Screen + print chrome. Visual shell (header/parties/tables/totals) lives in tax_invoice_shell_styles. --}}
 @php
     if (empty($brand) && empty($companyBrand) && class_exists(\App\Services\Agreements\AgreementPdfBranding::class)) {
         try {
@@ -13,6 +13,7 @@
     $invBlueSoft = $invoiceBrand['primary_soft'] ?? ($invoiceBrand['primary_light'] ?? '#eef4fc');
 @endphp
 
+@include('invoices.partials.tax_invoice_pdf_inline')
 @include('invoices.partials.tax_invoice_shell_styles')
 
 <style>
@@ -42,7 +43,7 @@
         line-height: 1.5;
     }
 
-    /* Force solid blue table headers (classic salary-slip look) on all layout keys */
+    /* Soft salary-slip table headers (tint + brand text) */
     .invoice-box.invoice-layout-modern table.items-table th,
     .invoice-box.invoice-layout-modern .secondary-header,
     .invoice-box.invoice-layout-modern .accent-total,
@@ -50,9 +51,14 @@
     .invoice-box.invoice-layout-modern .success-highlight,
     .invoice-box.invoice-layout-modern .amount-highlight,
     .invoice-box.invoice-layout-modern .primary-header,
-    .invoice-box.invoice-layout-modern table.items thead th {
-        background: {{ $invBlue }} !important;
-        color: #ffffff !important;
+    .invoice-box.invoice-layout-modern table.items thead th,
+    .invoice-box table.items-table th,
+    .invoice-box .primary-header,
+    .invoice-box .secondary-header,
+    .invoice-box .accent-total,
+    .invoice-box table.items thead th {
+        background: {{ $invBlueSoft }} !important;
+        color: #0f172a !important;
     }
 
     /* ========== CONTROLS ========== */
@@ -110,17 +116,17 @@
         animation-name: invoice-pay-status-blink-amber;
     }
 
-    @keyframes invoice-pay-status-blink {
+    @@keyframes invoice-pay-status-blink {
         0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
         50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
     }
 
-    @keyframes invoice-pay-status-blink-red {
+    @@keyframes invoice-pay-status-blink-red {
         0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
         50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
     }
 
-    @keyframes invoice-pay-status-blink-amber {
+    @@keyframes invoice-pay-status-blink-amber {
         0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
         50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
     }
@@ -177,7 +183,7 @@
         margin: 0;
     }
 
-    @page {
+    @@page {
         size: A4 portrait;
         margin: 6mm;
     }
@@ -193,7 +199,7 @@
         overflow: hidden !important;
     }
 
-    @media print {
+    @@media print {
         html,
         body {
             background: #fff !important;
@@ -251,6 +257,7 @@
             margin: 0 auto !important;
         }
 
+        /* Short invoices: light vertical distribution without crushing soft cards */
         body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall,
         body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall .sheet {
             height: 100% !important;
@@ -261,44 +268,15 @@
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .sheet {
             justify-content: space-between !important;
-            padding: 8px 4px !important;
+            padding: 10px 6px !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-hdr {
-            margin-bottom: 14px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-company {
-            font-size: 16px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-meta,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-kv {
-            font-size: 11px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-badge {
-            font-size: 12px !important;
-            padding: 8px 14px !important;
+            margin-bottom: 16px !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .parties {
             margin-bottom: 14px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .party,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .desc {
-            padding: 12px 14px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .party-name {
-            font-size: 15px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .party-line,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .desc p {
-            font-size: 12px !important;
-            line-height: 1.55 !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .rider-template-items,
@@ -306,37 +284,13 @@
             flex: 1 1 auto !important;
         }
 
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall table.items thead th,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall table.items-table th,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .rider-template-items table th {
-            font-size: 11px !important;
-            padding: 10px 8px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall table.items tbody td,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall table.items-table td,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .rider-template-items table td {
-            font-size: 12px !important;
-            padding: 10px 8px !important;
-            line-height: 1.45 !important;
-        }
-
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-totals-area {
             margin: 14px 0 !important;
         }
 
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-grand .v {
-            font-size: 16px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-footnotes {
-            margin-top: 12px !important;
-        }
-
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
-            margin-top: 10px !important;
-            padding-top: 8px !important;
-            font-size: 11px !important;
+            margin-top: 12px !important;
+            padding-top: 10px !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box {
@@ -369,6 +323,7 @@
         .invoice-box table.items thead th,
         .invoice-box table.items-table th,
         .invoice-box .party,
+        .invoice-box .desc,
         .invoice-box .inv-note-box {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -410,26 +365,32 @@
         }
     }
 
-    @media screen and (max-width: 720px) {
+    @@media screen and (max-width: 720px) {
         .invoice-box .sheet {
             padding: 18px 14px;
         }
 
-        .invoice-box table.parties,
+        .invoice-box .parties,
         .invoice-box .inv-totals-area,
         .invoice-box .inv-footnotes {
-            display: block !important;
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 10px !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
         }
 
-        .invoice-box table.parties tr,
-        .invoice-box table.parties td.party,
-        .invoice-box table.parties td.party.alt,
+        .invoice-box .parties > .party,
+        .invoice-box .parties > .party.alt,
         .invoice-box .inv-totals-notes,
         .invoice-box .inv-totals,
         .invoice-box .inv-footnote-cell {
             display: block !important;
             width: 100% !important;
-            margin-bottom: 10px;
+            max-width: 100% !important;
+            flex: none !important;
+            margin-bottom: 0;
         }
     }
 </style>

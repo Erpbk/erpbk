@@ -1,7 +1,7 @@
 @if(empty($isPdf))
 <script>
     (function() {
-        // Same-page full A4 print. Defined here so it works even if server custom.js is cached/stale.
+        // Fit the full invoice on a single A4 page (scale down when tall; natural spacing when short).
         window.printModalContent = function printModalContent() {
             if (window.__invoicePrinting) {
                 return;
@@ -43,6 +43,7 @@
             document.body.classList.add('printing-invoice');
 
             var runPrint = function() {
+                // A4 content box @ 96dpi — matches @page { margin: 6mm }
                 var mm = 96 / 25.4;
                 var pageW = Math.round(198 * mm);
                 var pageH = Math.round(285 * mm);
@@ -74,22 +75,16 @@
                 var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
 
                 if (contentH > pageH + 2) {
+                    // Long invoice: uniform scale DOWN — never spill to page 2
                     var scaleDown = Math.min(pageW / contentW, pageH / contentH);
                     scaleDown = Math.max(0.35, Math.min(1, scaleDown));
                     box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
                     box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
                 } else {
-                    // Full-page stretch (zoom-up is ignored by many print engines / servers)
+                    // Short invoice: keep scale 1.0 with light vertical distribution (no cell-padding stretch)
                     fitWrap.classList.add('is-fill');
                     box.classList.add('invoice-print-tall');
                     box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
-
-                    var need = pageH / Math.max(contentH, 1);
-                    var padY = need > 1.5 ? '14px' : need > 1.25 ? '11px' : need > 1.08 ? '9px' : '7px';
-                    box.querySelectorAll('th, td').forEach(function(el) {
-                        el.style.setProperty('padding-top', padY, 'important');
-                        el.style.setProperty('padding-bottom', padY, 'important');
-                    });
 
                     box.style.setProperty('height', '100%', 'important');
                     box.style.setProperty('display', 'flex', 'important');
@@ -108,9 +103,6 @@
                     var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
                     if (items) {
                         items.style.setProperty('flex', '1 1 auto', 'important');
-                        items.style.setProperty('display', 'flex', 'important');
-                        items.style.setProperty('flex-direction', 'column', 'important');
-                        items.style.setProperty('justify-content', 'space-evenly', 'important');
                     }
                 }
 

@@ -4,11 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Leasing Company Invoice #{{ $invoice->invoice_number ?? $invoice->id }} Month: {{ date('M-Y', strtotime($invoice->billing_month)) }}</title>
-    @include('invoices.partials.tax_invoice_styles')
-    @include('invoices.partials.tax_invoice_pdf_styles')
+
 </head>
 
+
+
 <body>
+
+    @include('invoices.partials.tax_invoice_styles')
+
+    @include('invoices.partials.tax_invoice_pdf_styles')
     @php
     $settings = company_table('settings')->pluck('value', 'name')->toArray();
     $currency = \App\Helpers\Currency::code();
@@ -86,9 +91,9 @@
     </div>
     @endif
 
-    <div class="invoice-box">
+    <div class="invoice-box"@if(!empty($invPdf['box'])) style="{{ $invPdf['box'] }}"@endif>
         <div class="band"></div>
-        <div class="sheet">
+        <div class="sheet"@if(!empty($invPdf['sheet'])) style="{{ $invPdf['sheet'] }}"@endif>
             @include('invoices.partials.tax_invoice_header', [
             'settings' => $settings,
             'invoiceTitle' => $invoiceTitle,
@@ -97,58 +102,56 @@
             'billingLabel' => $billingLabel,
             ])
 
-            <table class="parties" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td class="party" width="50%" valign="top">
-                        <h3 class="party-title">Leasing Company</h3>
-                        <p class="party-name">{{ $party->name ?? 'N/A' }}</p>
+            <div class="parties"@if(!empty($invPdf['parties'])) style="{{ $invPdf['parties'] }}"@endif>
+                    <div class="party"@if(!empty($invPdf['partyFirst'])) style="{{ $invPdf['partyFirst'] }}"@endif>
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Leasing Company</h3>
+                        <p class="party-name"@if(!empty($invPdf['partyName'])) style="{{ $invPdf['partyName'] }}"@endif>{{ $party->name ?? 'N/A' }}</p>
                         <div class="party-grid">
-                            <div class="party-line">
-                                <span class="k">TRN</span>
-                                <span class="v">{{ $party->trn_number ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>TRN</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party->trn_number ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Contact</span>
-                                <span class="v">{{ $party->contact_person ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Contact</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party->contact_person ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Phone</span>
-                                <span class="v">{{ $party->contact_number ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Phone</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party->contact_number ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">LC Inv #</span>
-                                <span class="v">{{ $invoice->leasing_company_invoice_number ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>LC Inv #</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->leasing_company_invoice_number ?? '—' }}</span>
                             </div>
                         </div>
-                    </td>
-                    <td class="party alt" width="50%" valign="top">
-                        <h3 class="party-title">Billing Period</h3>
+                    </div>
+                    <div class="party alt"@if(!empty($invPdf['partyAlt'])) style="{{ $invPdf['partyAlt'] }}"@endif>
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Billing Period</h3>
                         <div class="party-grid" style="margin-top: 4px;">
-                            <div class="party-line">
-                                <span class="k">From</span>
-                                <span class="v">{{ date('d M Y', strtotime($invoice->billing_month)) }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>From</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ date('d M Y', strtotime($invoice->billing_month)) }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">To</span>
-                                <span class="v">{{ date('t M Y', strtotime($invoice->billing_month)) }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>To</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ date('t M Y', strtotime($invoice->billing_month)) }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Reference</span>
-                                <span class="v">{{ $invoice->reference_number ?? '—' }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Reference</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->reference_number ?? '—' }}</span>
                             </div>
-                            <div class="party-line">
-                                <span class="k">Bikes</span>
-                                <span class="v">{{ $invoice->items ? $invoice->items->count() : 0 }}</span>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Bikes</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $invoice->items ? $invoice->items->count() : 0 }}</span>
                             </div>
                         </div>
-                    </td>
-                </tr>
-            </table>
+                    </div>
+            </div>
 
             @if($invoice->descriptions)
-            <div class="desc">
-                <span class="t">Description</span>
-                <p>{{ $invoice->descriptions }}</p>
+            <div class="desc"@if(!empty($invPdf['desc'])) style="{{ $invPdf['desc'] }}"@endif>
+                <span class="t"@if(!empty($invPdf['descTitle'])) style="{{ $invPdf['descTitle'] }}"@endif>Description</span>
+                <p @if(!empty($invPdf['descBody'])) style="{{ $invPdf['descBody'] }}"@endif>{{ $invoice->descriptions }}</p>
             </div>
             @endif
 

@@ -186,6 +186,40 @@ function clearRightSideModalStyles() {
   }
 }
 
+/**
+ * Extract insertable HTML from a full document response.
+ * Never pass a full <!DOCTYPE>/<html> string to .html() — browsers strip <head>
+ * and can dump <style> contents as visible text (broken </style> fragments).
+ */
+function extractAjaxBodyHtml(responseHtml) {
+  var html = String(responseHtml || '');
+  var bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) {
+    return bodyMatch[1];
+  }
+  // Fragment response (no body wrapper) — use as-is
+  return html;
+}
+
+function loadHtmlInto($target, url, done) {
+  $.ajax({
+    url: url,
+    method: 'GET',
+    dataType: 'html'
+  })
+    .done(function (response) {
+      $target.html(extractAjaxBodyHtml(response));
+      if (typeof done === 'function') {
+        done(response, 'success', null);
+      }
+    })
+    .fail(function (xhr) {
+      if (typeof done === 'function') {
+        done(xhr.responseText || '', 'error', xhr);
+      }
+    });
+}
+
 function openRightSideModal(action, title, size = 'lg', callback = null) {
   // Reset modal size classes
   $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
@@ -211,8 +245,8 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
         </div>
     `);
 
-  // Load content
-  $('#rightSideModalBody').load(action, function (response, status, xhr) {
+  // Load body-only HTML (full documents break <style> when stuffed into a div)
+  loadHtmlInto($('#rightSideModalBody'), action, function (response, status, xhr) {
     if (status === 'error') {
       var err = parseModalLoadError(response, xhr);
 
@@ -241,7 +275,7 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
       initializeModalContent();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
-      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+      window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('rightSideModalBody'));
     }
   });
 
@@ -362,7 +396,6 @@ window.printModalContent = function printModalContent() {
     var pageW = Math.round(198 * mm);
     var pageH = Math.round(285 * mm);
 
-    // Measure on-screen (left:-10000px often returns 0 height in Chrome/server)
     printRoot.style.cssText =
       'position:fixed;left:0;top:0;width:' +
       pageW +
@@ -393,23 +426,16 @@ window.printModalContent = function printModalContent() {
     var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
 
     if (contentH > pageH + 2) {
-      // Long invoice: uniform scale DOWN (print engines honor transform for shrink)
+      // Long invoice: uniform scale DOWN — never spill to page 2
       var scaleDown = Math.min(pageW / contentW, pageH / contentH);
       scaleDown = Math.max(0.35, Math.min(1, scaleDown));
       box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
       box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
     } else {
-      // Short invoice: stretch to full A4 height via CSS flex (zoom-up is ignored by many print engines)
+      // Short invoice: keep scale 1.0 with light vertical distribution (no cell-padding stretch)
       fitWrap.classList.add('is-fill');
       box.classList.add('invoice-print-tall');
       box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
-
-      var need = pageH / Math.max(contentH, 1);
-      var padY = need > 1.5 ? '14px' : need > 1.25 ? '11px' : need > 1.08 ? '9px' : '7px';
-      box.querySelectorAll('th, td').forEach(function (el) {
-        el.style.setProperty('padding-top', padY, 'important');
-        el.style.setProperty('padding-bottom', padY, 'important');
-      });
 
       box.style.setProperty('height', '100%', 'important');
       box.style.setProperty('display', 'flex', 'important');
@@ -428,9 +454,6 @@ window.printModalContent = function printModalContent() {
       var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
       if (items) {
         items.style.setProperty('flex', '1 1 auto', 'important');
-        items.style.setProperty('display', 'flex', 'important');
-        items.style.setProperty('flex-direction', 'column', 'important');
-        items.style.setProperty('justify-content', 'space-evenly', 'important');
       }
     }
 
@@ -567,7 +590,7 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function (response, status, xhr) {
+  loadHtmlInto($('#modalTopbody'), action, function (response, status, xhr) {
     unblock();
 
     if (status === 'error') {
@@ -594,7 +617,7 @@ $('body').on('click', '.show-modal', function () {
       window.Helpers.initPasswordToggle();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
-      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+      window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('modalTopbody'));
     }
     if (typeof window.initPermissionRoleMatrix === 'function') {
       window.initPermissionRoleMatrix();

@@ -21,15 +21,41 @@ class InvoicePdf
             $data['brand'] = app(AgreementPdfBranding::class)->forCompany(CompanyContext::id());
         }
 
-        return Pdf::loadView($view, $data)
-            ->setPaper('a4', 'portrait')
-            ->setOptions([
-                'isRemoteEnabled' => true,
-                'isHtml5ParserEnabled' => true,
-                'isFontSubsettingEnabled' => true,
-                'defaultFont' => 'DejaVu Sans',
-                'dpi' => 96,
-            ], true);
+        // Start at full size; shrink until the invoice fits on one A4 page.
+        $scale = 1.0;
+        $pdf = null;
+        $minScale = 0.40;
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $data['pdfFitScale'] = $scale;
+
+            $pdf = Pdf::loadView($view, $data)
+                ->setPaper('a4', 'portrait')
+                ->setOptions([
+                    'isRemoteEnabled' => true,
+                    'isHtml5ParserEnabled' => true,
+                    'isFontSubsettingEnabled' => true,
+                    'defaultFont' => 'DejaVu Sans',
+                    'dpi' => 96,
+                ], true);
+
+            $dompdf = $pdf->getDomPDF();
+            $dompdf->render();
+            $canvas = $dompdf->getCanvas();
+            $pageCount = 1;
+            if ($canvas && method_exists($canvas, 'get_page_count')) {
+                $pageCount = max(1, (int) $canvas->get_page_count());
+            }
+
+            if ($pageCount <= 1 || $scale <= $minScale) {
+                break;
+            }
+
+            // Shrink ~12% each pass (floor 0.40 so dense invoices still fit one page)
+            $scale = max($minScale, round($scale * 0.88, 3));
+        }
+
+        return $pdf;
     }
 
     /**

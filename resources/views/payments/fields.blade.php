@@ -57,6 +57,8 @@
               'required' => false,
               'inputClass' => 'form-control',
               'showHint' => true,
+              'existingUrl' => !empty($payment?->attachment) ? url('storage/vouchers/' . ltrim($payment->attachment, '/')) : null,
+              'existingName' => !empty($payment?->attachment) ? basename($payment->attachment) : null,
             ])
         </div>
 

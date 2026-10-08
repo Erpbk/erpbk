@@ -1,4 +1,4 @@
-{!! Form::model($payment, ['route' => ['payments.update', $payment->id], 'method' => 'patch','id'=>'formajax']) !!}
+{!! Form::model($payment, ['route' => ['payments.update', $payment->id], 'method' => 'patch','id'=>'formajax', 'enctype' => 'multipart/form-data']) !!}
 
 <div class="card-body">
     <div class="row">

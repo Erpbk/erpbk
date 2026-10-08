@@ -41,6 +41,7 @@ class RiderInvoices extends BaseModel
         'partial_paid_amount',
         'template_id',
         'deleted_by',
+        'updated_by',
     ];
 
     protected $casts = [

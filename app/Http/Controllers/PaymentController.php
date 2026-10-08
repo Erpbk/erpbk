@@ -312,6 +312,8 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
+        $this->forgetEmptyAttachmentUpload($request);
+
         $rules = [
             'reference' => 'nullable|string|max:255',
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
@@ -898,6 +900,7 @@ class PaymentController extends Controller
         }
 
         $request['billing_month'] = $request['billing_month'] . '-01';
+        $this->forgetEmptyAttachmentUpload($request);
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -973,8 +976,8 @@ class PaymentController extends Controller
                 $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
             }
 
-            // Prepare data for payment update
-            $input = $request->all();
+            // Prepare data for payment update (keep existing attachment unless a new file is uploaded)
+            $input = $request->except(['attachment']);
             $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
             $input['amount'] = $totalAmount;
             $input['updated_by'] = auth()->id();
@@ -1392,6 +1395,26 @@ class PaymentController extends Controller
     private function isNonZeroInvoiceAllocation($amount): bool
     {
         return abs((float) $amount) >= 0.01;
+    }
+
+    /**
+     * Drop empty / invalid attachment uploads so optional file fields stay optional
+     * (especially on update when the original file is already stored).
+     */
+    private function forgetEmptyAttachmentUpload(Request $request): void
+    {
+        if (! $request->hasFile('attachment')) {
+            $request->files->remove('attachment');
+            $request->request->remove('attachment');
+
+            return;
+        }
+
+        $file = $request->file('attachment');
+        if (! $file || ! $file->isValid() || $file->getSize() === 0) {
+            $request->files->remove('attachment');
+            $request->request->remove('attachment');
+        }
     }
 
     /**

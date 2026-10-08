@@ -767,6 +767,10 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
       }
     });
     pending.forEach(function (item, index) {
+      // Skip empty file-input placeholders so optional uploads stay optional on edit.
+      if (!item.file || !item.file.name || item.file.size === 0) {
+        return;
+      }
       var original = item.file.name || 'document';
       var ext = (original.split('.').pop() || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       if (!allowedExt[ext]) {

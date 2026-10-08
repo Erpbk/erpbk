@@ -43,10 +43,10 @@
             document.body.classList.add('printing-invoice');
 
             var runPrint = function() {
-                // A4 content box @ 96dpi — matches @page { margin: 6mm }
+                // A4 content box @ 96dpi — matches @page { margin: 4mm }
                 var mm = 96 / 25.4;
-                var pageW = Math.round(198 * mm);
-                var pageH = Math.round(285 * mm);
+                var pageW = Math.round(202 * mm);
+                var pageH = Math.round(289 * mm);
 
                 printRoot.style.cssText =
                     'position:fixed;left:0;top:0;width:' + pageW + 'px;height:' + pageH +
@@ -69,23 +69,31 @@
                 box.style.setProperty('transform', 'none', 'important');
                 box.style.setProperty('zoom', '1', 'important');
                 box.style.setProperty('transform-origin', 'top left', 'important');
+
+                // Force full-page width so wide tables don't shrink the whole sheet
+                box.querySelectorAll('.sheet, .tbl-wrap, .parties, .desc, table').forEach(function(el) {
+                    el.style.setProperty('width', '100%', 'important');
+                    el.style.setProperty('max-width', 'none', 'important');
+                });
+                box.querySelectorAll('.tbl-wrap, .rider-template-items').forEach(function(el) {
+                    el.style.setProperty('overflow', 'hidden', 'important');
+                });
                 void box.offsetHeight;
 
                 var contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
-                var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
 
                 if (contentH > pageH + 2) {
-                    // Long invoice: uniform scale DOWN — never spill to page 2
-                    var scaleDown = Math.min(pageW / contentW, pageH / contentH);
-                    scaleDown = Math.max(0.35, Math.min(1, scaleDown));
-                    box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
+                    // Long invoice: scale by HEIGHT only, keep layout width so print fills page width
+                    var scaleDown = Math.max(0.35, Math.min(1, pageH / contentH));
                     box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
+                    box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
                 } else {
-                    // Short invoice: keep scale 1.0 with light vertical distribution (no cell-padding stretch)
+                    // Short invoice: stretch to full page height + width
                     fitWrap.classList.add('is-fill');
                     box.classList.add('invoice-print-tall');
                     box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
 
+                    box.style.setProperty('width', pageW + 'px', 'important');
                     box.style.setProperty('height', '100%', 'important');
                     box.style.setProperty('display', 'flex', 'important');
                     box.style.setProperty('flex-direction', 'column', 'important');
@@ -94,15 +102,24 @@
                     if (sheet) {
                         sheet.style.setProperty('height', '100%', 'important');
                         sheet.style.setProperty('min-height', '100%', 'important');
+                        sheet.style.setProperty('width', '100%', 'important');
                         sheet.style.setProperty('display', 'flex', 'important');
                         sheet.style.setProperty('flex-direction', 'column', 'important');
-                        sheet.style.setProperty('justify-content', 'space-between', 'important');
+                        sheet.style.setProperty('justify-content', 'flex-start', 'important');
                         sheet.style.setProperty('box-sizing', 'border-box', 'important');
+                        sheet.style.setProperty('padding', '8px 4px', 'important');
                     }
 
                     var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
                     if (items) {
                         items.style.setProperty('flex', '1 1 auto', 'important');
+                        items.style.setProperty('width', '100%', 'important');
+                    }
+
+                    var foot = box.querySelector('.inv-footnotes') || box.querySelector('.inv-note-box') || box.querySelector('.foot');
+                    if (foot) {
+                        foot.style.setProperty('margin-top', 'auto', 'important');
+                        foot.style.setProperty('width', '100%', 'important');
                     }
                 }
 

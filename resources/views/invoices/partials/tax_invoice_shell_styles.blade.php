@@ -383,7 +383,7 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
         border-bottom: 1px solid #e2e8f0;
         font-size: {{ $isPdfMode ? '9.5px' : '12px' }};
         color: #0f172a;
-        text-align: right;
+        text-align: center;
         vertical-align: middle;
     }
 

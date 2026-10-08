@@ -229,14 +229,14 @@
 
     @@page {
         size: A4 portrait;
-        margin: 6mm;
+        margin: 4mm;
     }
 
     #invoice-print-root {
         position: fixed !important;
         left: -10000px !important;
         top: 0 !important;
-        width: 198mm !important;
+        width: 202mm !important;
         visibility: hidden !important;
         pointer-events: none !important;
         z-index: -1 !important;
@@ -274,7 +274,7 @@
             z-index: auto !important;
             width: 100% !important;
             height: 100% !important;
-            min-height: 285mm !important;
+            min-height: 289mm !important;
             max-width: none !important;
             margin: 0 !important;
             padding: 0 !important;
@@ -295,46 +295,64 @@
 
         body.printing-invoice #invoice-print-root .invoice-print-fit.is-page-frame {
             width: 100% !important;
-            max-width: 198mm !important;
+            max-width: none !important;
             height: 100% !important;
-            min-height: 285mm !important;
-            margin: 0 auto !important;
+            min-height: 289mm !important;
+            margin: 0 !important;
         }
 
-        /* Short invoices: light vertical distribution without crushing soft cards */
+        /* Short invoices: stretch to fill the full printable sheet */
         body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall,
         body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall .sheet {
             height: 100% !important;
             min-height: 100% !important;
+            width: 100% !important;
+            max-width: none !important;
             display: flex !important;
             flex-direction: column !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .sheet {
-            justify-content: space-between !important;
-            padding: 10px 6px !important;
+            justify-content: flex-start !important;
+            padding: 8px 4px !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-hdr {
-            margin-bottom: 16px !important;
+            margin-bottom: 12px !important;
+            flex: 0 0 auto !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .parties {
-            margin-bottom: 14px !important;
+            margin-bottom: 10px !important;
+            flex: 0 0 auto !important;
+        }
+
+        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .desc {
+            flex: 0 0 auto !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .rider-template-items,
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .tbl-wrap {
             flex: 1 1 auto !important;
+            width: 100% !important;
+            max-width: none !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-totals-area {
-            margin: 14px 0 !important;
+            margin: 10px 0 !important;
+            flex: 0 0 auto !important;
+        }
+
+        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-footnotes,
+        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-note-box,
+        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
+            margin-top: auto !important;
+            flex: 0 0 auto !important;
+            width: 100% !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
-            margin-top: 12px !important;
-            padding-top: 10px !important;
+            padding-top: 8px !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box {
@@ -349,6 +367,15 @@
             break-inside: avoid !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+        }
+
+        body.printing-invoice #invoice-print-root .invoice-box .sheet,
+        body.printing-invoice #invoice-print-root .invoice-box table,
+        body.printing-invoice #invoice-print-root .invoice-box .tbl-wrap,
+        body.printing-invoice #invoice-print-root .invoice-box .parties,
+        body.printing-invoice #invoice-print-root .invoice-box .desc {
+            width: 100% !important;
+            max-width: none !important;
         }
 
         .controls,

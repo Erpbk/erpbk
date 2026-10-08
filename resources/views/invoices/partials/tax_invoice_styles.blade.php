@@ -301,60 +301,6 @@
             margin: 0 !important;
         }
 
-        /* Short invoices: stretch to fill the full printable sheet */
-        body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall,
-        body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall .sheet {
-            height: 100% !important;
-            min-height: 100% !important;
-            width: 100% !important;
-            max-width: none !important;
-            display: flex !important;
-            flex-direction: column !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .sheet {
-            justify-content: flex-start !important;
-            padding: 8px 4px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-hdr {
-            margin-bottom: 12px !important;
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .parties {
-            margin-bottom: 10px !important;
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .desc {
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .rider-template-items,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .tbl-wrap {
-            flex: 1 1 auto !important;
-            width: 100% !important;
-            max-width: none !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-totals-area {
-            margin: 10px 0 !important;
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-footnotes,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-note-box,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
-            margin-top: auto !important;
-            flex: 0 0 auto !important;
-            width: 100% !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
-            padding-top: 8px !important;
-        }
-
         body.printing-invoice #invoice-print-root .invoice-box {
             position: relative !important;
             width: 100% !important;

@@ -1,7 +1,7 @@
 @if(empty($isPdf))
 <script>
     (function() {
-        // Fit the full invoice on a single A4 page (scale down when tall; natural spacing when short).
+        // Fit the full invoice on a single A4 page (scale down when tall; natural height when short).
         window.printModalContent = function printModalContent() {
             if (window.__invoicePrinting) {
                 return;
@@ -88,39 +88,10 @@
                     box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
                     box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
                 } else {
-                    // Short invoice: stretch to full page height + width
-                    fitWrap.classList.add('is-fill');
-                    box.classList.add('invoice-print-tall');
-                    box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
-
+                    // Short invoice: full page width, natural content height (no empty stretch under items)
+                    box.classList.remove('invoice-print-dense', 'invoice-print-ultra', 'invoice-print-tall');
                     box.style.setProperty('width', pageW + 'px', 'important');
-                    box.style.setProperty('height', '100%', 'important');
-                    box.style.setProperty('display', 'flex', 'important');
-                    box.style.setProperty('flex-direction', 'column', 'important');
-
-                    var sheet = box.querySelector('.sheet');
-                    if (sheet) {
-                        sheet.style.setProperty('height', '100%', 'important');
-                        sheet.style.setProperty('min-height', '100%', 'important');
-                        sheet.style.setProperty('width', '100%', 'important');
-                        sheet.style.setProperty('display', 'flex', 'important');
-                        sheet.style.setProperty('flex-direction', 'column', 'important');
-                        sheet.style.setProperty('justify-content', 'flex-start', 'important');
-                        sheet.style.setProperty('box-sizing', 'border-box', 'important');
-                        sheet.style.setProperty('padding', '8px 4px', 'important');
-                    }
-
-                    var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
-                    if (items) {
-                        items.style.setProperty('flex', '1 1 auto', 'important');
-                        items.style.setProperty('width', '100%', 'important');
-                    }
-
-                    var foot = box.querySelector('.inv-footnotes') || box.querySelector('.inv-note-box') || box.querySelector('.foot');
-                    if (foot) {
-                        foot.style.setProperty('margin-top', 'auto', 'important');
-                        foot.style.setProperty('width', '100%', 'important');
-                    }
+                    box.style.setProperty('height', 'auto', 'important');
                 }
 
                 window.print();

@@ -239,6 +239,23 @@ class CustomerInvoicesController extends Controller
         return view('customer_invoices.show', compact('invoice'));
     }
 
+    public function download(Request $request, $company_slug, $id)
+    {
+        $invoice = CustomerInvoices::with(['items', 'customer'])->find($id);
+        if (!$invoice) {
+            abort(404, 'Customer Invoice not found');
+        }
+
+        $invoiceNumber = $invoice->invoice_number
+            ?? ('CI-' . str_pad((string) $invoice->id, 6, '0', STR_PAD_LEFT));
+
+        return \App\Support\InvoicePdf::download(
+            'customer_invoices.show',
+            ['invoice' => $invoice],
+            'Customer-Invoice-' . $invoiceNumber . '.pdf'
+        );
+    }
+
     /**
      * Show the form for editing the specified resource.
      */
@@ -544,10 +561,9 @@ class CustomerInvoicesController extends Controller
                 'html' => $request->input('email_message'),
             ]);
 
-            $pdf = Pdf::loadView('customer_invoices.show', [
+            $pdf = \App\Support\InvoicePdf::make('customer_invoices.show', [
                 'invoice' => $invoice,
-                'isPdf' => true,
-            ])->setPaper('a4', 'portrait');
+            ]);
 
             $fromEmail = $smtpPrep['from_email'];
             $fromName = $smtpPrep['from_name'];

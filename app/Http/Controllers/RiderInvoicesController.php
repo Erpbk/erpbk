@@ -24,7 +24,7 @@ use App\Services\TransactionService;
 use App\Support\CompanyQuery;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Support\InvoicePdf;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Database\QueryException;
@@ -268,7 +268,7 @@ class RiderInvoicesController extends AppBaseController
         $riderInvoice->load([
             'items',
             'rider' => function ($query) {
-                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
             },
         ]);
 
@@ -286,17 +286,20 @@ class RiderInvoicesController extends AppBaseController
         }
 
         $builder = app(RiderInvoiceViewDataBuilder::class);
-        $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
-            $builder->build($riderInvoice),
-            [
-                'riderInvoice' => $riderInvoice,
-                'activeTemplate' => $activeTemplate,
-                'templateView' => $templateView,
-                'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
-            ]
-        ))->setPaper('a4', 'portrait');
 
-        return $pdf->download('Rider-Invoice-' . $invoiceNumber . '.pdf');
+        return InvoicePdf::download(
+            'rider_invoices.show',
+            array_merge(
+                $builder->build($riderInvoice),
+                [
+                    'riderInvoice' => $riderInvoice,
+                    'activeTemplate' => $activeTemplate,
+                    'templateView' => $templateView,
+                    'paymentVouchers' => $builder->paymentVouchersForInvoice($riderInvoice),
+                ]
+            ),
+            'Rider-Invoice-' . $invoiceNumber . '.pdf'
+        );
     }
 
     public function updateTemplate(Request $request, $company_slug, $id)
@@ -1145,7 +1148,7 @@ class RiderInvoicesController extends AppBaseController
             $invoice->load([
                 'items',
                 'rider' => function ($query) {
-                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes']);
+                    $query->withTrashed()->with(['sim', 'vendor', 'branch', 'bikes', 'account', 'customer']);
                 },
             ]);
 
@@ -1163,15 +1166,18 @@ class RiderInvoicesController extends AppBaseController
             }
 
             $builder = app(RiderInvoiceViewDataBuilder::class);
-            $pdf = Pdf::loadView('rider_invoices.pdf', array_merge(
-                $builder->build($invoice),
-                [
-                    'riderInvoice' => $invoice,
-                    'activeTemplate' => $activeTemplate,
-                    'templateView' => $templateView,
-                    'paymentVouchers' => $builder->paymentVouchersForInvoice($invoice),
-                ]
-            ))->setPaper('a4', 'portrait');
+            $pdf = InvoicePdf::make(
+                'rider_invoices.show',
+                array_merge(
+                    $builder->build($invoice),
+                    [
+                        'riderInvoice' => $invoice,
+                        'activeTemplate' => $activeTemplate,
+                        'templateView' => $templateView,
+                        'paymentVouchers' => $builder->paymentVouchersForInvoice($invoice),
+                    ]
+                )
+            );
 
             $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
                 $message->to([$toEmail]);

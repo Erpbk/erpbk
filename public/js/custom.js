@@ -63,7 +63,7 @@ $(document).ready(function () {
     // Add custom CSS for right side slide animation
     $('head').append(`
             <style>
-                /* Right side modal slide animation */
+                /* Right side modal — full usable width on phones / Fold cover / split */
                 .right-side-modal .modal-dialog.modal-slide-right {
                     position: fixed;
                     margin: 0;
@@ -71,16 +71,26 @@ $(document).ready(function () {
                     right: 0;
                     bottom: 0;
                     left: auto;
-                    width: 50%;
-                    max-width: 960px;
+                    width: min(960px, 100%);
+                    max-width: 100%;
                     height: 100%;
+                    height: 100dvh;
                     transform: translateX(100%);
                     transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
                 }
 
+                .right-side-modal .modal-dialog.modal-slide-right.modal-sm {
+                    width: min(420px, 100%);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-md {
+                    width: min(640px, 100%);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-lg,
                 .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
-                    width: 50%;
-                    max-width: 960px;
+                    width: min(960px, 100%);
+                    max-width: 100%;
                 }
                 
                 .right-side-modal.show .modal-dialog.modal-slide-right {
@@ -91,11 +101,16 @@ $(document).ready(function () {
                     height: 100%;
                     border-radius: 0;
                     border: none;
+                    overflow-x: hidden;
+                    max-width: 100%;
                 }
                 
                 .right-side-modal .modal-body {
                     overflow-y: auto;
+                    overflow-x: hidden;
                     flex: 1;
+                    max-width: 100%;
+                    -webkit-overflow-scrolling: touch;
                 }
                 
                 .right-side-modal .modal-header {
@@ -126,10 +141,15 @@ $(document).ready(function () {
                     opacity: 0.5;
                 }
                 
-                /* Responsive */
-                @media (max-width: 768px) {
-                    .right-side-modal .modal-dialog.modal-slide-right {
-                        width: 100%;
+                /* Phones, Fold cover, narrow split: edge-to-edge drawer */
+                @media (max-width: 1199.98px) {
+                    .right-side-modal .modal-dialog.modal-slide-right,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-sm,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-md,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-lg,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
+                        width: 100% !important;
+                        max-width: 100% !important;
                     }
                 }
                 
@@ -186,6 +206,40 @@ function clearRightSideModalStyles() {
   }
 }
 
+/**
+ * Extract insertable HTML from a full document response.
+ * Never pass a full <!DOCTYPE>/<html> string to .html() — browsers strip <head>
+ * and can dump <style> contents as visible text (broken </style> fragments).
+ */
+function extractAjaxBodyHtml(responseHtml) {
+  var html = String(responseHtml || '');
+  var bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+  if (bodyMatch) {
+    return bodyMatch[1];
+  }
+  // Fragment response (no body wrapper) — use as-is
+  return html;
+}
+
+function loadHtmlInto($target, url, done) {
+  $.ajax({
+    url: url,
+    method: 'GET',
+    dataType: 'html'
+  })
+    .done(function (response) {
+      $target.html(extractAjaxBodyHtml(response));
+      if (typeof done === 'function') {
+        done(response, 'success', null);
+      }
+    })
+    .fail(function (xhr) {
+      if (typeof done === 'function') {
+        done(xhr.responseText || '', 'error', xhr);
+      }
+    });
+}
+
 function openRightSideModal(action, title, size = 'lg', callback = null) {
   // Reset modal size classes
   $('#rightSideModal .modal-dialog').removeClass('modal-sm modal-md modal-lg modal-xl');
@@ -211,8 +265,8 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
         </div>
     `);
 
-  // Load content
-  $('#rightSideModalBody').load(action, function (response, status, xhr) {
+  // Load body-only HTML (full documents break <style> when stuffed into a div)
+  loadHtmlInto($('#rightSideModalBody'), action, function (response, status, xhr) {
     if (status === 'error') {
       var err = parseModalLoadError(response, xhr);
 
@@ -241,7 +295,7 @@ function openRightSideModal(action, title, size = 'lg', callback = null) {
       initializeModalContent();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
-      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+      window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('rightSideModalBody'));
     }
   });
 
@@ -357,12 +411,11 @@ window.printModalContent = function printModalContent() {
   document.body.classList.add('printing-invoice');
 
   var runPrint = function () {
-    // A4 content box @ 96dpi — matches @page { margin: 6mm }
+    // A4 content box @ 96dpi — matches @page { margin: 4mm }
     var mm = 96 / 25.4;
-    var pageW = Math.round(198 * mm);
-    var pageH = Math.round(285 * mm);
+    var pageW = Math.round(202 * mm);
+    var pageH = Math.round(289 * mm);
 
-    // Measure on-screen (left:-10000px often returns 0 height in Chrome/server)
     printRoot.style.cssText =
       'position:fixed;left:0;top:0;width:' +
       pageW +
@@ -387,30 +440,31 @@ window.printModalContent = function printModalContent() {
     box.style.setProperty('transform', 'none', 'important');
     box.style.setProperty('zoom', '1', 'important');
     box.style.setProperty('transform-origin', 'top left', 'important');
+
+    // Force full-page width so wide tables don't shrink the whole sheet
+    box.querySelectorAll('.sheet, .tbl-wrap, .parties, .desc, table').forEach(function (el) {
+      el.style.setProperty('width', '100%', 'important');
+      el.style.setProperty('max-width', 'none', 'important');
+    });
+    box.querySelectorAll('.tbl-wrap, .rider-template-items').forEach(function (el) {
+      el.style.setProperty('overflow', 'hidden', 'important');
+    });
     void box.offsetHeight;
 
     var contentH = Math.max(box.scrollHeight, box.offsetHeight, 1);
-    var contentW = Math.max(box.scrollWidth, box.offsetWidth, 1);
 
     if (contentH > pageH + 2) {
-      // Long invoice: uniform scale DOWN (print engines honor transform for shrink)
-      var scaleDown = Math.min(pageW / contentW, pageH / contentH);
-      scaleDown = Math.max(0.35, Math.min(1, scaleDown));
-      box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
+      // Long invoice: scale by HEIGHT only, keep layout width so print fills page width
+      var scaleDown = Math.max(0.35, Math.min(1, pageH / contentH));
       box.style.setProperty('width', Math.round(pageW / scaleDown) + 'px', 'important');
+      box.style.setProperty('transform', 'scale(' + scaleDown.toFixed(4) + ')', 'important');
     } else {
-      // Short invoice: stretch to full A4 height via CSS flex (zoom-up is ignored by many print engines)
+      // Short invoice: stretch to full page height + width
       fitWrap.classList.add('is-fill');
       box.classList.add('invoice-print-tall');
       box.classList.remove('invoice-print-dense', 'invoice-print-ultra');
 
-      var need = pageH / Math.max(contentH, 1);
-      var padY = need > 1.5 ? '14px' : need > 1.25 ? '11px' : need > 1.08 ? '9px' : '7px';
-      box.querySelectorAll('th, td').forEach(function (el) {
-        el.style.setProperty('padding-top', padY, 'important');
-        el.style.setProperty('padding-bottom', padY, 'important');
-      });
-
+      box.style.setProperty('width', pageW + 'px', 'important');
       box.style.setProperty('height', '100%', 'important');
       box.style.setProperty('display', 'flex', 'important');
       box.style.setProperty('flex-direction', 'column', 'important');
@@ -419,18 +473,24 @@ window.printModalContent = function printModalContent() {
       if (sheet) {
         sheet.style.setProperty('height', '100%', 'important');
         sheet.style.setProperty('min-height', '100%', 'important');
+        sheet.style.setProperty('width', '100%', 'important');
         sheet.style.setProperty('display', 'flex', 'important');
         sheet.style.setProperty('flex-direction', 'column', 'important');
-        sheet.style.setProperty('justify-content', 'space-between', 'important');
+        sheet.style.setProperty('justify-content', 'flex-start', 'important');
         sheet.style.setProperty('box-sizing', 'border-box', 'important');
+        sheet.style.setProperty('padding', '8px 4px', 'important');
       }
 
       var items = box.querySelector('.rider-template-items') || box.querySelector('.tbl-wrap');
       if (items) {
         items.style.setProperty('flex', '1 1 auto', 'important');
-        items.style.setProperty('display', 'flex', 'important');
-        items.style.setProperty('flex-direction', 'column', 'important');
-        items.style.setProperty('justify-content', 'space-evenly', 'important');
+        items.style.setProperty('width', '100%', 'important');
+      }
+
+      var foot = box.querySelector('.inv-footnotes') || box.querySelector('.inv-note-box') || box.querySelector('.foot');
+      if (foot) {
+        foot.style.setProperty('margin-top', 'auto', 'important');
+        foot.style.setProperty('width', '100%', 'important');
       }
     }
 
@@ -567,7 +627,7 @@ $('body').on('click', '.show-modal', function () {
     $('.modal-dialog').addClass('modal-' + size);
   }
   $('#modalTopTitle').text(title);
-  $('#modalTopbody').load(action, function (response, status, xhr) {
+  loadHtmlInto($('#modalTopbody'), action, function (response, status, xhr) {
     unblock();
 
     if (status === 'error') {
@@ -594,7 +654,7 @@ $('body').on('click', '.show-modal', function () {
       window.Helpers.initPasswordToggle();
     }
     if (typeof window.initBikeFormSelect2 === 'function') {
-      window.initBikeFormSelect2(document.getElementById('formajax') || this);
+      window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('modalTopbody'));
     }
     if (typeof window.initPermissionRoleMatrix === 'function') {
       window.initPermissionRoleMatrix();

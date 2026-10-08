@@ -1,21 +1,25 @@
 {{--
-  Expected: $noteCards (Illuminate\Support\Collection of ['title'=>,'body'=>]), $noteGridClass
+  Shared footnotes for screen + PDF (same markup).
+  Expected: $noteCards (collection of ['title'=>,'body'=>])
 --}}
 @php
     $noteCards = collect($noteCards ?? []);
-    $noteGridClass = $noteGridClass ?? match ($noteCards->count()) {
-        1 => 'one',
-        3 => 'three',
-        default => '',
-    };
 @endphp
 @if($noteCards->isNotEmpty())
-<div class="footnotes {{ $noteGridClass }}">
-    @foreach($noteCards as $card)
-    <div class="note-card">
-        <h4>{{ $card['title'] }}</h4>
-        <div class="body">{!! nl2br(e($card['body'])) !!}</div>
-    </div>
-    @endforeach
-</div>
+@php
+    $cols = max(1, min(3, $noteCards->count()));
+    $width = (int) floor(100 / $cols);
+@endphp
+<table class="inv-footnotes" width="100%" cellpadding="0" cellspacing="0">
+    <tr>
+        @foreach($noteCards as $card)
+        <td class="inv-footnote-cell" width="{{ $width }}%" valign="top">
+            <div class="inv-note-box">
+                <div class="inv-note-title">{{ $card['title'] }}</div>
+                <div class="inv-note-body">{!! nl2br(e($card['body'])) !!}</div>
+            </div>
+        </td>
+        @endforeach
+    </tr>
+</table>
 @endif

@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>Rider Invoice {{ $riderInvoice->invoice_number ?? $riderInvoice->id }}</title>
     @include('invoices.partials.tax_invoice_styles')
+    @include('invoices.partials.tax_invoice_pdf_styles', ['isPdf' => true])
     <style>
         @page {
             size: A4 portrait;

@@ -6,23 +6,25 @@ $vatRate = $invoice_applies_vat ? $invoice_vat_rate : 0;
 $qtyText = static fn ($qty) => (float) $qty == 0
 ? '-'
 : rtrim(rtrim(number_format((float) $qty, 2), '0'), '.');
+$invPdf = $invPdf ?? [];
+$thStyle = !empty($invPdf['th']) ? ' style="' . e($invPdf['th']) . '"' : '';
 @endphp
 
-<div class="tbl-wrap">
-<table class="items-table">
+<div class="tbl-wrap"@if(!empty($isPdf)) style="border:1px solid {{ ($brand['border_color'] ?? '#c5d8f0') }};margin:0 0 8px 0;overflow:hidden;"@endif>
+<table class="items-table"@if(!empty($isPdf)) style="width:100%;border-collapse:collapse;margin:0;"@endif>
     <tr>
-        <th rowspan="2" class="secondary-header">Sr.</th>
-        <th rowspan="2" class="secondary-header">Product / Service Description</th>
-        <th rowspan="2" class="secondary-header">FMO</th>
-        <th rowspan="2" class="secondary-header">Qty</th>
-        <th rowspan="2" class="secondary-header">Rate</th>
-        <th rowspan="2" class="secondary-header">Amount</th>
-        <th colspan="2" class="secondary-header">VAT</th>
-        <th rowspan="2" class="accent-total">Total (In {{ \App\Helpers\Currency::code() }})</th>
+        <th rowspan="2" class="secondary-header"{!! $thStyle !!}>Sr.</th>
+        <th rowspan="2" class="secondary-header"{!! $thStyle !!}>Product / Service Description</th>
+        <th rowspan="2" class="secondary-header"{!! $thStyle !!}>FMO</th>
+        <th rowspan="2" class="secondary-header"{!! $thStyle !!}>Qty</th>
+        <th rowspan="2" class="secondary-header"{!! $thStyle !!}>Rate</th>
+        <th rowspan="2" class="secondary-header"{!! $thStyle !!}>Amount</th>
+        <th colspan="2" class="secondary-header"{!! $thStyle !!}>VAT</th>
+        <th rowspan="2" class="accent-total"{!! $thStyle !!}>Total (In {{ \App\Helpers\Currency::code() }})</th>
     </tr>
     <tr>
-        <th class="secondary-header">Rate</th>
-        <th class="secondary-header">Amount</th>
+        <th class="secondary-header"{!! $thStyle !!}>Rate</th>
+        <th class="secondary-header"{!! $thStyle !!}>Amount</th>
     </tr>
     @foreach($riderInvoice->items as $key => $val)
     @php
@@ -54,7 +56,7 @@ $qtyText = static fn ($qty) => (float) $qty == 0
 <div class="tbl-wrap">
 <table class="items-table">
     <tr>
-        <th colspan="5" class="secondary-header">Deductions</th>
+        <th colspan="5" class="secondary-header"{!! $thStyle !!}>Deductions</th>
     </tr>
     @if($rider_balance > 0)
     <tr>
@@ -85,7 +87,7 @@ $qtyText = static fn ($qty) => (float) $qty == 0
     <div class="tbl-wrap">
     <table class="items-table">
         <tr>
-            <th colspan="5" class="secondary-header">Additions</th>
+            <th colspan="5" class="secondary-header"{!! $thStyle !!}>Additions</th>
         </tr>
         @if($rider_balance < 0)
             <tr>

@@ -332,6 +332,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::any('bike-maintenance/{bike}/edit', [BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
     Route::any('bike-maintenance/{bike}/update', [BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');
     Route::get('bike-maintenance/{maintenance}/invoice', [BikeMaintenanceController::class, 'Invoice'])->name('bike-maintenance.invoice');
+    Route::get('bike-maintenance/{maintenance}/invoice/download', [BikeMaintenanceController::class, 'downloadInvoice'])->name('bike-maintenance.invoice.download');
     Route::get('bike-maintenance/{maintenance}/sticker', [BikeMaintenanceController::class, 'sticker'])->name('bike-maintenance.sticker');
 
     Route::get('bikes/import-bikes', [BikesController::class, 'importbikes'])->name('bikes.importbikes');
@@ -371,6 +372,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('/customer_invoices/{id}/edit', [CustomerInvoicesController::class, 'edit'])->name('customer_invoice.edit');
     Route::get('/customer_invoices/{id}/clone', [CustomerInvoicesController::class, 'clone'])->name('customer_invoice.clone');
     Route::any('/customer_invoices/sendemail/{id}', [CustomerInvoicesController::class, 'sendEmail'])->name('customer_invoices.sendEmail');
+    Route::get('customer_invoices/{id}/download', [CustomerInvoicesController::class, 'download'])->name('customer_invoices.download');
     Route::resource('customer_invoices', CustomerInvoicesController::class);
 
     Route::get('employees/payments', [EmployeeController::class, 'payment'])->name('employee.payment');
@@ -624,6 +626,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('simInvoices/import', [SimInvoicesController::class, 'importForm'])->name('simInvoices.import.form');
     Route::post('simInvoices/import', [SimInvoicesController::class, 'import'])->name('simInvoices.import');
     Route::post('simInvoices/store', [SimInvoicesController::class, 'store'])->name('simInvoices.store');
+    Route::get('simInvoices/{id}/download', [SimInvoicesController::class, 'download'])->name('simInvoices.download')->whereNumber('id');
     Route::get('simInvoices/{id}', [SimInvoicesController::class, 'show'])->name('simInvoices.show')->whereNumber('id');
     Route::get('simInvoices/{id}/edit', [SimInvoicesController::class, 'edit'])->name('simInvoices.edit')->whereNumber('id');
     Route::put('simInvoices/{id}', [SimInvoicesController::class, 'update'])->name('simInvoices.update')->whereNumber('id');
@@ -765,6 +768,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('employeeInvoices/import', [EmployeeInvoicesController::class, 'importForm'])->name('employeeInvoices.import.form');
     Route::post('employeeInvoices/import', [EmployeeInvoicesController::class, 'import'])->name('employeeInvoices.import');
     Route::any('employee/invoice-mark-settled/{id}', [EmployeeInvoicesController::class, 'markAsSettled'])->name('employeeInvoices.markAsSettled');
+    Route::get('employeeInvoices/{id}/download', [EmployeeInvoicesController::class, 'download'])->name('employeeInvoices.download');
     Route::resource('employeeInvoices', EmployeeInvoicesController::class);
     Route::get('employeeInvoices/delete/{id}', [EmployeeInvoicesController::class, 'destroy'])->name('employeeInvoices.delete');
     Route::post('employeeInvoices/bulk-delete', [EmployeeInvoicesController::class, 'bulkDelete'])->name('employeeInvoices.bulkDelete');
@@ -866,6 +870,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('leasingCompanyInvoices/create/{leasingCompanyId?}', [LeasingCompaniesController::class, 'createInvoice'])->name('leasingCompanyInvoices.create');
     Route::get('leasingCompanyInvoices/create-from-clone/{id}', [LeasingCompaniesController::class, 'createFromClone'])->name('leasingCompanyInvoices.createFromClone');
     Route::post('leasingCompanyInvoices/store', [LeasingCompaniesController::class, 'storeInvoice'])->name('leasingCompanyInvoices.store');
+    Route::get('leasingCompanyInvoices/{id}/download', [LeasingCompaniesController::class, 'downloadInvoice'])->name('leasingCompanyInvoices.download');
     Route::get('leasingCompanyInvoices/{id}', [LeasingCompaniesController::class, 'showInvoice'])->name('leasingCompanyInvoices.show');
     Route::get('leasingCompanyInvoices/{id}/edit', [LeasingCompaniesController::class, 'editInvoice'])->name('leasingCompanyInvoices.edit');
     Route::put('leasingCompanyInvoices/{id}', [LeasingCompaniesController::class, 'updateInvoice'])->name('leasingCompanyInvoices.update');
@@ -877,6 +882,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('leasingCompanyBillingInvoices/create/{customerId?}', [LeasingCompanyBillingInvoicesController::class, 'create'])->name('leasingCompanyBillingInvoices.create');
     Route::get('leasingCompanyBillingInvoices/create-from-clone/{id}', [LeasingCompanyBillingInvoicesController::class, 'createFromClone'])->name('leasingCompanyBillingInvoices.createFromClone');
     Route::post('leasingCompanyBillingInvoices/store', [LeasingCompanyBillingInvoicesController::class, 'store'])->name('leasingCompanyBillingInvoices.store');
+    Route::get('leasingCompanyBillingInvoices/{id}/download', [LeasingCompanyBillingInvoicesController::class, 'download'])->name('leasingCompanyBillingInvoices.download');
     Route::get('leasingCompanyBillingInvoices/{id}', [LeasingCompanyBillingInvoicesController::class, 'show'])->name('leasingCompanyBillingInvoices.show');
     Route::get('leasingCompanyBillingInvoices/{id}/edit', [LeasingCompanyBillingInvoicesController::class, 'edit'])->name('leasingCompanyBillingInvoices.edit');
     Route::put('leasingCompanyBillingInvoices/{id}', [LeasingCompanyBillingInvoicesController::class, 'update'])->name('leasingCompanyBillingInvoices.update');
@@ -1109,6 +1115,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('/supplier_invoices/send-email/{id}', [SupplierInvoicesController::class, 'sendEmail'])->name('supplier_invoices.send_email');
     Route::get('supplierInvoices/edit/{id}', [SupplierInvoicesController::class, 'edit'])->name('supplierInvoices.edit');
     Route::put('/supplierInvoices/{id}', [SupplierInvoicesController::class, 'update'])->name('supplierInvoices.update');
+    Route::get('/supplier_invoices/{id}/download', [SupplierInvoicesController::class, 'download'])->name('supplierInvoices.download');
     Route::get('/supplier_invoices/{id}', [SupplierInvoicesController::class, 'show'])->name('supplierInvoices.show');
     Route::get('/supplierInvoices/create', [SupplierInvoicesController::class, 'create'])->name('supplierInvoices.create');
     Route::post('supplierInvoices', [SupplierInvoicesController::class, 'store'])->name('supplierInvoices.store');

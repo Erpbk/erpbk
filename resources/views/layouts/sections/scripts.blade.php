@@ -45,12 +45,12 @@
 <!-- BEGIN: Theme JS-->
 <script src="{{ asset('assets/js/main.js') }}"></script>
 @include('layouts.datatables_js')
-<script src="{{ asset('js/custom.js') }}?v={{ @filemtime(public_path('js/custom.js')) ?: '20261006b' }}"></script>
+<script src="{{ asset('js/custom.js') }}?v={{ @filemtime(public_path('js/custom.js')) ?: '20261007c' }}"></script>
 <script src="{{ asset('js/payment-fields.js') }}?v=20261007-preserve-primary"></script>
 <script src="{{ asset('js/application.js?id=1') }}"></script>
 <script>
   window.__rfpDefaultEntity = @json($rfpDefaultEntity ?? null);
-  window.__rfpLocks = @json($rfpFieldLocks ?? new \stdClass());
+  window.__rfpLocks = @json($rfpFieldLocks ?? (object) []);
 </script>
 <script src="{{ asset('js/field_permission_locks.js') }}?v=2"></script>
 <style>

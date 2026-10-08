@@ -3,9 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <title>Bike Maintenance Invoice #{{ $maintenance->id }}</title>
-    @include('invoices.partials.tax_invoice_styles')
+
 </head>
+
+
+
 <body>
+
+    @include('invoices.partials.tax_invoice_styles')
+
+    @include('invoices.partials.tax_invoice_pdf_styles')
     @php
         $settings = company_table('settings')->pluck('value', 'name')->toArray();
         $currency = \App\Helpers\Currency::code();
@@ -39,15 +46,18 @@
 
     @if(empty($isPdf))
     <div class="controls no-print">
+        <a href="{{ route('bike-maintenance.invoice.download', $maintenance) }}" class="action-btn" target="_blank" rel="noopener">
+            <i class="ti ti-download"></i><span>Download</span>
+        </a>
         <button type="button" class="action-btn js-print-modal-content">
             <i class="ti ti-printer"></i><span>Print</span>
         </button>
     </div>
     @endif
 
-    <div class="invoice-box">
+    <div class="invoice-box"@if(!empty($invPdf['box'])) style="{{ $invPdf['box'] }}"@endif>
         <div class="band"></div>
-        <div class="sheet">
+        <div class="sheet"@if(!empty($invPdf['sheet'])) style="{{ $invPdf['sheet'] }}"@endif>
             @include('invoices.partials.tax_invoice_header', [
                 'settings' => $settings,
                 'invoiceTitle' => $invoiceTitle,
@@ -56,84 +66,84 @@
                 'billingLabel' => $billingLabel,
             ])
 
-            <div class="parties">
-                <div class="party">
-                    <h3 class="party-title">Bike Details</h3>
-                    <p class="party-name">{{ $maintenance->bike->emirates ?? '' }}-{{ $maintenance->bike->plate ?? '' }}</p>
-                    <div class="party-grid">
-                        @if($maintenance->rider)
-                        <div class="party-line">
-                            <span class="k">Leasing Company</span>
-                            <span class="v">{{ $maintenance->bike?->LeasingCompany?->name ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Rider</span>
-                            <span class="v">{{ $partyName }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Rider Contact</span>
-                            <span class="v">{{ $maintenance->rider->company_contact ?? $maintenance->bike?->rider?->company_contact ?? '—' }}</span>
-                        </div>
-                        @elseif($maintenance->rentalCompany)
-                        <div class="party-line">
-                            <span class="k">User</span>
-                            <span class="v">{{ $maintenance->rentalCompany->name ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Contact</span>
-                            <span class="v">{{ $maintenance->rentalCompany->company_contact ?? '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Address</span>
-                            <span class="v">{{ $maintenance->rentalCompany->address ?? '—' }}</span>
-                        </div>
-                        @else
-                        <div class="party-line">
-                            <span class="k">Assigned To</span>
-                            <span class="v">No User Assigned</span>
-                        </div>
-                        @endif
-                        <div class="party-line">
-                            <span class="k">Garage</span>
-                            <span class="v">{{ $maintenance->garage?->name ?? '—' }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="party alt">
-                    <h3 class="party-title">Bill Info</h3>
-                    <div class="party-grid" style="margin-top: 4px;">
-                        <div class="party-line">
-                            <span class="k">Created By</span>
-                            <span class="v">{{ $maintenance->createdBy->name ?? 'System' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Month</span>
-                            <span class="v">{{ $billingLabel !== '' ? $billingLabel : '—' }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Currency</span>
-                            <span class="v">{{ $currency }}</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Previous KM</span>
-                            <span class="v">{{ number_format($maintenance->previous_km ?? 0, 0) }} KM</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Current KM</span>
-                            <span class="v">{{ number_format($maintenance->current_km ?? 0, 0) }} KM</span>
-                        </div>
-                        <div class="party-line">
-                            <span class="k">Next Service</span>
-                            <span class="v">{{ number_format($maintenance_km + (float) ($maintenance->current_km ?? 0), 2) }} KM</span>
+            <div class="parties"@if(!empty($invPdf['parties'])) style="{{ $invPdf['parties'] }}"@endif>
+                    <div class="party"@if(!empty($invPdf['partyFirst'])) style="{{ $invPdf['partyFirst'] }}"@endif>
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Bike Details</h3>
+                        <p class="party-name"@if(!empty($invPdf['partyName'])) style="{{ $invPdf['partyName'] }}"@endif>{{ $maintenance->bike->emirates ?? '' }}-{{ $maintenance->bike->plate ?? '' }}</p>
+                        <div class="party-grid">
+                            @if($maintenance->rider)
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Leasing Company</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->bike?->LeasingCompany?->name ?? '—' }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Rider</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $partyName }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Rider Contact</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->rider->company_contact ?? $maintenance->bike?->rider?->company_contact ?? '—' }}</span>
+                            </div>
+                            @elseif($maintenance->rentalCompany)
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>User</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->rentalCompany->name ?? '—' }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Contact</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->rentalCompany->company_contact ?? '—' }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Address</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->rentalCompany->address ?? '—' }}</span>
+                            </div>
+                            @else
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Assigned To</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>No User Assigned</span>
+                            </div>
+                            @endif
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Garage</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->garage?->name ?? '—' }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                    <div class="party alt"@if(!empty($invPdf['partyAlt'])) style="{{ $invPdf['partyAlt'] }}"@endif>
+                        <h3 class="party-title"@if(!empty($invPdf['partyTitle'])) style="{{ $invPdf['partyTitle'] }}"@endif>Bill Info</h3>
+                        <div class="party-grid" style="margin-top: 4px;">
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Created By</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $maintenance->createdBy->name ?? 'System' }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Month</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $billingLabel !== '' ? $billingLabel : '—' }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Currency</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $currency }}</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Previous KM</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ number_format($maintenance->previous_km ?? 0, 0) }} KM</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Current KM</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ number_format($maintenance->current_km ?? 0, 0) }} KM</span>
+                            </div>
+                            <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
+                                <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Next Service</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ number_format($maintenance_km + (float) ($maintenance->current_km ?? 0), 2) }} KM</span>
+                            </div>
+                        </div>
+                    </div>
             </div>
 
             @if(($maintenance->overdue_km ?? 0) > 0)
-            <div class="desc">
-                <span class="t">Overdue</span>
-                <p>
+            <div class="desc"@if(!empty($invPdf['desc'])) style="{{ $invPdf['desc'] }}"@endif>
+                <span class="t"@if(!empty($invPdf['descTitle'])) style="{{ $invPdf['descTitle'] }}"@endif>Overdue</span>
+                <p @if(!empty($invPdf['descBody'])) style="{{ $invPdf['descBody'] }}"@endif>
                     Overdue KM: {{ number_format($maintenance->overdue_km ?? 0, 1) }} —
                     Cost/KM: {{ \App\Helpers\Currency::format($maintenance->overdue_cost_per_km ?? 0, 2) }}
                 </p>
@@ -211,7 +221,7 @@
 
             @if($maintenance->attachment)
             <div class="desc no-print">
-                <span class="t">Attachment</span>
+                <span class="t"@if(!empty($invPdf['descTitle'])) style="{{ $invPdf['descTitle'] }}"@endif>Attachment</span>
                 <p><a href="{{ storage_url($maintenance->attachment) }}" target="_blank">View Attachment</a></p>
             </div>
             @endif

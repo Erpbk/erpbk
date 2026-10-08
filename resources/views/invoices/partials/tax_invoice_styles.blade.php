@@ -29,6 +29,7 @@
 @endif
 
 <style>
+    /* ========== BASE ========== */
     .invoice-box,
     .invoice-box * {
         box-sizing: border-box;
@@ -119,9 +120,10 @@
         margin: 0 0 14px 0;
         width: 100%;
         max-width: 100%;
-        justify-content: flex-start;
+        justify-content: flex-end;
     }
 
+    /* ----- Pay status badge ----- */
     #rightSideModalBody>.controls .invoice-pay-status,
     body>.controls .invoice-pay-status {
         display: inline-flex;
@@ -161,20 +163,45 @@
     }
 
     @@keyframes invoice-pay-status-blink {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+        0%,
+        100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+        }
+
+        50% {
+            opacity: 0.55;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+        }
     }
 
     @@keyframes invoice-pay-status-blink-red {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+        0%,
+        100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+
+        50% {
+            opacity: 0.55;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+        }
     }
 
     @@keyframes invoice-pay-status-blink-amber {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
-        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+        0%,
+        100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+        }
+
+        50% {
+            opacity: 0.55;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
+        }
     }
 
+    /* ----- Action buttons ----- */
     #rightSideModalBody>.controls .action-btn,
     body>.controls .action-btn {
         display: inline-flex;
@@ -227,6 +254,7 @@
         margin: 0;
     }
 
+    /* ========== PRINT ========== */
     @@page {
         size: A4 portrait;
         margin: 4mm;
@@ -424,8 +452,8 @@
 
         /* Header stacks: logo → company → badge/meta */
         .invoice-box .inv-hdr,
-        .invoice-box .inv-hdr > tbody,
-        .invoice-box .inv-hdr > tbody > tr,
+        .invoice-box .inv-hdr>tbody,
+        .invoice-box .inv-hdr>tbody>tr,
         .invoice-box .inv-hdr tr {
             display: block !important;
             width: 100% !important;
@@ -486,8 +514,8 @@
             margin-right: 0 !important;
         }
 
-        .invoice-box .parties > .party,
-        .invoice-box .parties > .party.alt,
+        .invoice-box .parties>.party,
+        .invoice-box .parties>.party.alt,
         .invoice-box .inv-totals-notes,
         .invoice-box .inv-totals,
         .invoice-box .inv-footnote-cell {
@@ -597,8 +625,8 @@
         }
 
         .invoice-box .inv-hdr,
-        .invoice-box .inv-hdr > tbody,
-        .invoice-box .inv-hdr > tbody > tr,
+        .invoice-box .inv-hdr>tbody,
+        .invoice-box .inv-hdr>tbody>tr,
         .invoice-box .inv-hdr tr {
             display: block !important;
             width: 100% !important;
@@ -645,8 +673,8 @@
             margin-right: 0 !important;
         }
 
-        .invoice-box .parties > .party,
-        .invoice-box .parties > .party.alt,
+        .invoice-box .parties>.party,
+        .invoice-box .parties>.party.alt,
         .invoice-box .inv-totals-notes,
         .invoice-box .inv-totals,
         .invoice-box .inv-footnote-cell {

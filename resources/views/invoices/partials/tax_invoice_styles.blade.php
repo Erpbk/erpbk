@@ -16,6 +16,18 @@
 @include('invoices.partials.tax_invoice_pdf_inline')
 @include('invoices.partials.tax_invoice_shell_styles')
 
+@if(empty($isPdf))
+<script>
+    (function() {
+        if (document.querySelector('meta[name="viewport"]')) return;
+        var m = document.createElement('meta');
+        m.name = 'viewport';
+        m.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+        document.head.appendChild(m);
+    })();
+</script>
+@endif
+
 <style>
     .invoice-box,
     .invoice-box * {
@@ -41,6 +53,25 @@
         background: #edf1f7;
         padding: 20px 12px;
         line-height: 1.5;
+        max-width: 100%;
+        overflow-x: hidden;
+        container-type: inline-size;
+        container-name: inv-modal;
+    }
+
+    .invoice-box {
+        width: 100%;
+        max-width: min(920px, 100%);
+    }
+
+    /* Horizontal scroll for wide item tables on small screens */
+    .invoice-box .tbl-wrap,
+    .invoice-box .rider-template-items,
+    .invoice-box .rider-template-items .tbl-wrap {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     /* Soft salary-slip table headers (tint + brand text) */
@@ -72,10 +103,23 @@
         align-items: center;
         gap: 8px;
         border-radius: 10px;
-        margin: auto 8px 18px auto;
+        box-sizing: border-box;
+    }
+
+    /* Standalone page: centered action strip */
+    body>.controls {
+        margin: auto auto 18px auto;
         width: fit-content;
         max-width: 920px;
         justify-content: center;
+    }
+
+    /* Modal drawer: never wider than panel (Fold / phone) */
+    #rightSideModalBody>.controls {
+        margin: 0 0 14px 0;
+        width: 100%;
+        max-width: 100%;
+        justify-content: flex-start;
     }
 
     #rightSideModalBody>.controls .invoice-pay-status,
@@ -365,9 +409,256 @@
         }
     }
 
-    @@media screen and (max-width: 720px) {
+    /* ========== RESPONSIVE (screen only; print/PDF unchanged) ========== */
+    @@media screen and (max-width: 960px) {
+        body:has(> .invoice-box),
+        body:has(> .controls) {
+            padding: 16px 12px;
+        }
+
+        #rightSideModalBody:has(.invoice-box) {
+            padding: 14px 10px;
+        }
+
         .invoice-box .sheet {
-            padding: 18px 14px;
+            padding: 22px 18px 18px;
+        }
+
+        #rightSideModalBody>.controls,
+        body>.controls {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 0 14px 0;
+            justify-content: flex-start;
+        }
+    }
+
+    @@media screen and (max-width: 720px) {
+        body:has(> .invoice-box),
+        body:has(> .controls) {
+            padding: 12px 8px;
+            font-size: 12px;
+        }
+
+        .invoice-box {
+            border-radius: 0;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        }
+
+        .invoice-box .sheet {
+            padding: 16px 12px 14px;
+        }
+
+        /* Header stacks: logo → company → badge/meta */
+        .invoice-box .inv-hdr,
+        .invoice-box .inv-hdr > tbody,
+        .invoice-box .inv-hdr > tbody > tr,
+        .invoice-box .inv-hdr tr {
+            display: block !important;
+            width: 100% !important;
+        }
+
+        .invoice-box .inv-hdr td,
+        .invoice-box .inv-hdr-logo,
+        .invoice-box .inv-hdr-brand,
+        .invoice-box .inv-hdr-stamp {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            text-align: center !important;
+            padding: 0 0 10px 0 !important;
+        }
+
+        .invoice-box .inv-hdr-logo img {
+            margin: 0 auto;
+            max-width: 140px;
+            max-height: 64px;
+        }
+
+        .invoice-box .inv-logo-ph {
+            margin: 0 auto;
+            max-width: 160px;
+        }
+
+        .invoice-box .inv-company {
+            font-size: 15px;
+        }
+
+        .invoice-box .inv-meta {
+            font-size: 11px;
+        }
+
+        .invoice-box .inv-badge {
+            margin: 0 auto 8px;
+        }
+
+        .invoice-box .inv-kv {
+            margin: 0 auto !important;
+        }
+
+        .invoice-box .inv-hdr {
+            border-bottom-width: 2px;
+            margin-bottom: 14px !important;
+        }
+
+        /* Bill To / Service Period + notes / totals → stacked columns */
+        .invoice-box .parties,
+        .invoice-box .inv-totals-area,
+        .invoice-box .inv-footnotes {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            gap: 10px !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+
+        .invoice-box .parties > .party,
+        .invoice-box .parties > .party.alt,
+        .invoice-box .inv-totals-notes,
+        .invoice-box .inv-totals,
+        .invoice-box .inv-footnote-cell {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            flex: none !important;
+            margin: 0 !important;
+        }
+
+        .invoice-box .inv-note-box {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+
+        .invoice-box .inv-totals {
+            width: 100% !important;
+        }
+
+        /* Wide tables scroll instead of overflowing the viewport */
+        .invoice-box table.items,
+        .invoice-box table.items-table,
+        .invoice-box table.ledger,
+        .invoice-box .rider-template-items table {
+            min-width: 620px;
+        }
+
+        .invoice-box table.items-table th,
+        .invoice-box table.items-table td,
+        .invoice-box .rider-template-items table th,
+        .invoice-box .rider-template-items table td {
+            font-size: 11px;
+            padding: 7px 8px;
+        }
+
+        #rightSideModalBody>.controls,
+        body>.controls {
+            gap: 6px;
+            top: 6px;
+        }
+
+        #rightSideModalBody>.controls .action-btn,
+        body>.controls .action-btn {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+    }
+
+    @@media screen and (max-width: 480px) {
+        body:has(> .invoice-box),
+        body:has(> .controls) {
+            padding: 8px 6px;
+        }
+
+        .invoice-box .sheet {
+            padding: 12px 10px;
+        }
+
+        .invoice-box .inv-company {
+            font-size: 14px;
+        }
+
+        .invoice-box .party-name {
+            font-size: 14px;
+        }
+
+        .invoice-box .party-line,
+        .invoice-box .inv-totals-row {
+            font-size: 12px;
+        }
+
+        .invoice-box .inv-grand .v {
+            font-size: 15px;
+        }
+
+        .invoice-box table.items,
+        .invoice-box table.items-table,
+        .invoice-box table.ledger,
+        .invoice-box .rider-template-items table {
+            min-width: 560px;
+        }
+
+        #rightSideModalBody>.controls .action-btn,
+        body>.controls .action-btn {
+            flex: 1 1 calc(50% - 6px);
+            justify-content: center;
+        }
+
+        #rightSideModalBody>.controls .invoice-pay-status,
+        body>.controls .invoice-pay-status {
+            flex: 1 1 100%;
+            justify-content: center;
+        }
+    }
+
+    /*
+     * Modal / Fold: layout follows PANEL width, not viewport.
+     * Z Fold cover or split can be ~360–900px wide while @media still sees a wide screen.
+     */
+    @@container inv-modal (max-width: 860px) {
+        .invoice-box {
+            padding: 0;
+        }
+
+        .invoice-box .sheet {
+            padding: 16px 12px 14px;
+        }
+
+        .invoice-box .inv-hdr,
+        .invoice-box .inv-hdr > tbody,
+        .invoice-box .inv-hdr > tbody > tr,
+        .invoice-box .inv-hdr tr {
+            display: block !important;
+            width: 100% !important;
+        }
+
+        .invoice-box .inv-hdr td,
+        .invoice-box .inv-hdr-logo,
+        .invoice-box .inv-hdr-brand,
+        .invoice-box .inv-hdr-stamp {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            text-align: center !important;
+            padding: 0 0 10px 0 !important;
+        }
+
+        .invoice-box .inv-hdr-logo img {
+            margin: 0 auto;
+            max-width: 140px;
+            max-height: 64px;
+        }
+
+        .invoice-box .inv-logo-ph {
+            margin: 0 auto;
+            max-width: 160px;
+        }
+
+        .invoice-box .inv-badge {
+            margin: 0 auto 8px;
+        }
+
+        .invoice-box .inv-kv {
+            margin: 0 auto !important;
         }
 
         .invoice-box .parties,
@@ -390,7 +681,61 @@
             width: 100% !important;
             max-width: 100% !important;
             flex: none !important;
-            margin-bottom: 0;
+            margin: 0 !important;
+        }
+
+        .invoice-box .inv-note-box {
+            height: auto !important;
+            min-height: 0 !important;
+        }
+
+        .invoice-box .inv-totals {
+            width: 100% !important;
+        }
+
+        .invoice-box table.items,
+        .invoice-box table.items-table,
+        .invoice-box table.ledger,
+        .invoice-box .rider-template-items table {
+            min-width: 560px;
+        }
+
+        #rightSideModalBody>.controls .action-btn {
+            flex: 1 1 calc(50% - 6px);
+            justify-content: center;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+
+        #rightSideModalBody>.controls .invoice-pay-status {
+            flex: 1 1 100%;
+            justify-content: center;
+        }
+    }
+
+    @@container inv-modal (max-width: 480px) {
+        .invoice-box .sheet {
+            padding: 12px 8px;
+        }
+
+        .invoice-box .inv-company {
+            font-size: 14px;
+        }
+
+        .invoice-box table.items,
+        .invoice-box table.items-table,
+        .invoice-box table.ledger,
+        .invoice-box .rider-template-items table {
+            min-width: 520px;
+        }
+
+        #rightSideModalBody>.controls {
+            gap: 6px;
+        }
+
+        #rightSideModalBody>.controls .action-btn {
+            flex: 1 1 calc(50% - 6px);
+            min-width: 0;
         }
     }
 </style>

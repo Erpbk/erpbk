@@ -63,7 +63,7 @@ $(document).ready(function () {
     // Add custom CSS for right side slide animation
     $('head').append(`
             <style>
-                /* Right side modal slide animation */
+                /* Right side modal — full usable width on phones / Fold cover / split */
                 .right-side-modal .modal-dialog.modal-slide-right {
                     position: fixed;
                     margin: 0;
@@ -71,16 +71,26 @@ $(document).ready(function () {
                     right: 0;
                     bottom: 0;
                     left: auto;
-                    width: 50%;
-                    max-width: 960px;
+                    width: min(960px, 100%);
+                    max-width: 100%;
                     height: 100%;
+                    height: 100dvh;
                     transform: translateX(100%);
                     transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
                 }
 
+                .right-side-modal .modal-dialog.modal-slide-right.modal-sm {
+                    width: min(420px, 100%);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-md {
+                    width: min(640px, 100%);
+                }
+
+                .right-side-modal .modal-dialog.modal-slide-right.modal-lg,
                 .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
-                    width: 50%;
-                    max-width: 960px;
+                    width: min(960px, 100%);
+                    max-width: 100%;
                 }
                 
                 .right-side-modal.show .modal-dialog.modal-slide-right {
@@ -91,11 +101,16 @@ $(document).ready(function () {
                     height: 100%;
                     border-radius: 0;
                     border: none;
+                    overflow-x: hidden;
+                    max-width: 100%;
                 }
                 
                 .right-side-modal .modal-body {
                     overflow-y: auto;
+                    overflow-x: hidden;
                     flex: 1;
+                    max-width: 100%;
+                    -webkit-overflow-scrolling: touch;
                 }
                 
                 .right-side-modal .modal-header {
@@ -126,10 +141,15 @@ $(document).ready(function () {
                     opacity: 0.5;
                 }
                 
-                /* Responsive */
-                @media (max-width: 768px) {
-                    .right-side-modal .modal-dialog.modal-slide-right {
-                        width: 100%;
+                /* Phones, Fold cover, narrow split: edge-to-edge drawer */
+                @media (max-width: 1199.98px) {
+                    .right-side-modal .modal-dialog.modal-slide-right,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-sm,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-md,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-lg,
+                    .right-side-modal .modal-dialog.modal-slide-right.modal-xl {
+                        width: 100% !important;
+                        max-width: 100% !important;
                     }
                 }
                 

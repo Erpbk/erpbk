@@ -174,6 +174,7 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
         vertical-align: top;
         background-color: {{ $invBlueSoft }} !important;
         border: 1px solid {{ $invBlueLine }} !important;
+        border-top: 3px solid #1f3edb !important;
         border-radius: 0;
         padding: {{ $partyPad }};
     }
@@ -184,7 +185,6 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
 
     .invoice-box .parties > .party.alt {
         background-color: {{ $invBlueSoft }} !important;
-        border-color: {{ $invBlueLine }} !important;
     }
     @else
     .invoice-box .parties {
@@ -206,13 +206,13 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
         vertical-align: top;
         background: {{ $invBlueSoft }} !important;
         border: 1px solid {{ $invBlueLine }} !important;
+        border-top: 3px solid #1f3edb !important;
         border-radius: {{ $radius }};
         padding: {{ $partyPad }};
     }
 
     .invoice-box .parties > .party.alt {
         background: {{ $invBlueSoft }} !important;
-        border-color: {{ $invBlueLine }} !important;
     }
     @endif
 
@@ -298,6 +298,7 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
         margin: 0 0 {{ $isPdfMode ? '10px' : '14px' }};
         padding: {{ $isPdfMode ? '8px 10px' : '12px 14px' }};
         border: 1px solid {{ $invBlueLine }};
+        border-top: 3px solid #1f3edb;
         background: {{ $invBlueSoft }};
         border-radius: {{ $radius }};
         text-align: left;
@@ -329,6 +330,7 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
     .invoice-box .tbl-wrap,
     .invoice-box .rider-template-items .tbl-wrap {
         border: 1px solid {{ $invBlueLine }};
+        border-top: 3px solid #1f3edb;
         border-radius: {{ $isPdfMode ? '0' : '6px' }};
         margin: 0 0 {{ $isPdfMode ? '8px' : '12px' }};
         overflow: hidden;
@@ -575,8 +577,6 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
     /* ===== FOOTNOTES ===== */
     .invoice-box .inv-footnotes {
         width: 100%;
-        border-collapse: separate;
-        border-spacing: {{ $isPdfMode ? '8px' : '12px' }} 0;
         margin-top: {{ $isPdfMode ? '8px' : '12px' }};
     }
 

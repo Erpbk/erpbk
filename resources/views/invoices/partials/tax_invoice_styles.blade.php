@@ -29,6 +29,7 @@
 @endif
 
 <style>
+    /* ========== BASE ========== */
     .invoice-box,
     .invoice-box * {
         box-sizing: border-box;
@@ -119,9 +120,10 @@
         margin: 0 0 14px 0;
         width: 100%;
         max-width: 100%;
-        justify-content: flex-start;
+        justify-content: flex-end;
     }
 
+    /* ----- Pay status badge ----- */
     #rightSideModalBody>.controls .invoice-pay-status,
     body>.controls .invoice-pay-status {
         display: inline-flex;
@@ -161,20 +163,45 @@
     }
 
     @@keyframes invoice-pay-status-blink {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
-        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+        0%,
+        100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+        }
+
+        50% {
+            opacity: 0.55;
+            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
+        }
     }
 
     @@keyframes invoice-pay-status-blink-red {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0); }
+        0%,
+        100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+        }
+
+        50% {
+            opacity: 0.55;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
+        }
     }
 
     @@keyframes invoice-pay-status-blink-amber {
-        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
-        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+        0%,
+        100% {
+            opacity: 1;
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+        }
+
+        50% {
+            opacity: 0.55;
+            box-shadow: 0 0 0 4px rgba(245, 158, 11, 0);
+        }
     }
 
+    /* ----- Action buttons ----- */
     #rightSideModalBody>.controls .action-btn,
     body>.controls .action-btn {
         display: inline-flex;
@@ -227,6 +254,7 @@
         margin: 0;
     }
 
+    /* ========== PRINT ========== */
     @@page {
         size: A4 portrait;
         margin: 4mm;
@@ -299,60 +327,6 @@
             height: 100% !important;
             min-height: 289mm !important;
             margin: 0 !important;
-        }
-
-        /* Short invoices: stretch to fill the full printable sheet */
-        body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall,
-        body.printing-invoice #invoice-print-root .invoice-print-fit.is-fill .invoice-box.invoice-print-tall .sheet {
-            height: 100% !important;
-            min-height: 100% !important;
-            width: 100% !important;
-            max-width: none !important;
-            display: flex !important;
-            flex-direction: column !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .sheet {
-            justify-content: flex-start !important;
-            padding: 8px 4px !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-hdr {
-            margin-bottom: 12px !important;
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .parties {
-            margin-bottom: 10px !important;
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .desc {
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .rider-template-items,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .tbl-wrap {
-            flex: 1 1 auto !important;
-            width: 100% !important;
-            max-width: none !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-totals-area {
-            margin: 10px 0 !important;
-            flex: 0 0 auto !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-footnotes,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .inv-note-box,
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
-            margin-top: auto !important;
-            flex: 0 0 auto !important;
-            width: 100% !important;
-        }
-
-        body.printing-invoice #invoice-print-root .invoice-box.invoice-print-tall .foot {
-            padding-top: 8px !important;
         }
 
         body.printing-invoice #invoice-print-root .invoice-box {
@@ -478,8 +452,8 @@
 
         /* Header stacks: logo → company → badge/meta */
         .invoice-box .inv-hdr,
-        .invoice-box .inv-hdr > tbody,
-        .invoice-box .inv-hdr > tbody > tr,
+        .invoice-box .inv-hdr>tbody,
+        .invoice-box .inv-hdr>tbody>tr,
         .invoice-box .inv-hdr tr {
             display: block !important;
             width: 100% !important;
@@ -540,8 +514,8 @@
             margin-right: 0 !important;
         }
 
-        .invoice-box .parties > .party,
-        .invoice-box .parties > .party.alt,
+        .invoice-box .parties>.party,
+        .invoice-box .parties>.party.alt,
         .invoice-box .inv-totals-notes,
         .invoice-box .inv-totals,
         .invoice-box .inv-footnote-cell {
@@ -651,8 +625,8 @@
         }
 
         .invoice-box .inv-hdr,
-        .invoice-box .inv-hdr > tbody,
-        .invoice-box .inv-hdr > tbody > tr,
+        .invoice-box .inv-hdr>tbody,
+        .invoice-box .inv-hdr>tbody>tr,
         .invoice-box .inv-hdr tr {
             display: block !important;
             width: 100% !important;
@@ -699,8 +673,8 @@
             margin-right: 0 !important;
         }
 
-        .invoice-box .parties > .party,
-        .invoice-box .parties > .party.alt,
+        .invoice-box .parties>.party,
+        .invoice-box .parties>.party.alt,
         .invoice-box .inv-totals-notes,
         .invoice-box .inv-totals,
         .invoice-box .inv-footnote-cell {

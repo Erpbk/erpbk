@@ -76,7 +76,7 @@ class LedgerDataTable extends DataTable
                     $view_file = '  <a href="' . storage_url($fineFile) . '" class="no-print" target="_blank">View File</a>';
                 }
             } elseif (isset($row->voucher->attach_file)) {
-                if (in_array($row->reference_type, ['LV', 'LE'], true)) {
+                if (in_array($row->reference_type, ['LV', 'LE', 'VR'], true)) {
                     $view_file = '  <a href="' . url('storage/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';
                 } else {
                     $view_file = '  <a href="' . url('storage/vouchers/' . $row->voucher->attach_file) . '" class="no-print"  target="_blank">View File</a>';

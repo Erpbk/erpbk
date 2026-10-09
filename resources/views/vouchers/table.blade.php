@@ -78,11 +78,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
       @if($vfCols['updated_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>@endif
       @if($vfCols['attach_file'])<td>
         @if($voucher->attach_file)
-        @if($voucher->voucher_type == 'RFV')
-        <a href="{{ url('storage/' . $voucher->attach_file) }}" class="btn btn-sm btn-outline-primary" target="_blank">
-          <i class="fa fa-file"></i> View
-        </a>
-        @elseif($voucher->voucher_type == 'LV')
+        @if(in_array($voucher->voucher_type, ['RFV', 'LV', 'VR'], true))
         <a href="{{ url('storage/' . $voucher->attach_file) }}" class="btn btn-sm btn-outline-primary" target="_blank">
           <i class="fa fa-file"></i> View
         </a>

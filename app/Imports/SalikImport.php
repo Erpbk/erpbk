@@ -30,6 +30,8 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     protected $columnMap;
     protected $importBatchId;
     protected $affectedInvoiceGroups = [];
+    /** @var string 'own'|numeric leasing company id */
+    protected $leasingCompanyFilter;
     /** @var string ExcelSlashDateFormat::ORDER_DMY|ORDER_MDY */
     protected $slashDateOrder = ExcelSlashDateFormat::ORDER_DMY;
 
@@ -39,6 +41,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     public int $missingDataCount = 0;
     public int $duplicateCount = 0;
     public int $noBikeCount = 0;
+    public int $wrongCompanyCount = 0;
     public int $noRiderCount = 0;
     public int $noAccountCount = 0;
     public int $notSalikCount = 0;
@@ -48,12 +51,15 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     /** @var array<int, string> */
     public array $skippedLog = [];
 
-    public function __construct($adminChargePerSalik = 0, array $columnMap = [], $salikVatPercent = 0, $adminVatPercent = 0)
+    public function __construct($adminChargePerSalik = 0, array $columnMap = [], $salikVatPercent = 0, $adminVatPercent = 0, $leasingCompanyFilter = 'own')
     {
         $this->adminChargePerSalik = round((float) $adminChargePerSalik, 2);
         $this->salikVatPercent = (float) $salikVatPercent;
         $this->adminVatPercent = (float) $adminVatPercent;
         $this->columnMap = $columnMap ?: $this->defaultColumnMap();
+        $this->leasingCompanyFilter = $leasingCompanyFilter === 'own' || $leasingCompanyFilter === null || $leasingCompanyFilter === ''
+            ? 'own'
+            : (string) $leasingCompanyFilter;
         $this->importBatchId = 'batch_' . time() . '_' . Auth::id();
     }
 
@@ -161,6 +167,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             $duplicateCount = 0;
             $missingDataCount = 0;
             $noBikeCount = 0;
+            $wrongCompanyCount = 0;
             $noRiderCount = 0;
             $notSalikCount = 0;
             $updatedCount = 0;
@@ -291,6 +298,20 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                         continue;
                     }
 
+                    if (!$this->bikeMatchesLeasingFilter($bike)) {
+                        $filterLabel = $this->leasingCompanyFilter === 'own'
+                            ? 'Own'
+                            : ('leasing company #' . $this->leasingCompanyFilter);
+                        $this->storeFailedImport(
+                            $row,
+                            $excelRowNumber,
+                            'Bike does not belong to selected company',
+                            "Plate {$plateNumber} does not belong to selected company ({$filterLabel})"
+                        );
+                        $wrongCompanyCount++;
+                        continue;
+                    }
+
                     $assignment = $this->findChargePartyForTripDate($bike->id, $tripDateForQueries);
                     if (!$assignment) {
                         $this->storeFailedImport(
@@ -350,6 +371,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                         'tag_number' => $tagNumber,
                         'plate' => $plateNumber,
                         'bike_id' => $bike->id,
+                        'leasing_company_id' => $this->resolveLeasingCompanyIdForImport(),
                         'amount' => $transactionAmount,
                         'salik_vat' => $salikVatPercent,
                         'salik_vat_amount' => $salikVatAmount,
@@ -414,6 +436,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             $this->missingDataCount = $missingDataCount;
             $this->duplicateCount = $duplicateCount;
             $this->noBikeCount = $noBikeCount;
+            $this->wrongCompanyCount = $wrongCompanyCount;
             $this->noRiderCount = $noRiderCount;
             $this->noAccountCount = $skippedCount;
             $this->notSalikCount = $notSalikCount;
@@ -502,6 +525,43 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     private function parseTransactionPostDate($transactionPostDate)
     {
         return ExcelDate::format($transactionPostDate, 'd M Y', $this->slashDateOrder);
+    }
+
+    /**
+     * Snapshot leasing company id for this import batch (null = own).
+     */
+    private function resolveLeasingCompanyIdForImport(): ?int
+    {
+        if ($this->leasingCompanyFilter === 'own') {
+            return null;
+        }
+
+        $id = (int) $this->leasingCompanyFilter;
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * Snapshot leasing company from bike. Null for owned / empty company bikes.
+     */
+    private function resolveLeasingCompanyIdFromBike(Bikes $bike): ?int
+    {
+        if (strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0) {
+            return null;
+        }
+
+        $companyId = (int) ($bike->company ?? 0);
+        return $companyId > 0 ? $companyId : null;
+    }
+
+    private function bikeMatchesLeasingFilter(Bikes $bike): bool
+    {
+        $resolved = $this->resolveLeasingCompanyIdFromBike($bike);
+
+        if ($this->leasingCompanyFilter === 'own') {
+            return $resolved === null;
+        }
+
+        return $resolved !== null && (int) $resolved === (int) $this->leasingCompanyFilter;
     }
 
     /**

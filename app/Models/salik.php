@@ -35,6 +35,7 @@ class salik extends BaseModel
         'rider_id',
         'rental_company_id',
         'bike_id',
+        'leasing_company_id',
         'admin_charges',
         'admin_vat',
         'admin_vat_amount',
@@ -237,6 +238,11 @@ class salik extends BaseModel
     public function bike()
     {
         return $this->belongsTo(Bikes::class, 'bike_id');
+    }
+
+    public function leasingCompany()
+    {
+        return $this->belongsTo(LeasingCompanies::class, 'leasing_company_id');
     }
 
     public function rider()

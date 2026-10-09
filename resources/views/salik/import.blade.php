@@ -52,19 +52,44 @@
                     </div>
                     <div class="col-md-3">
                         <div class="form-group">
-                            <label for="admin_charge_per_salik">Default Admin Charge per Salik</label>
+                            <label for="leasing_company_id">Vehicle Company <span class="text-danger">*</span></label>
+                            <select name="leasing_company_id" id="leasing_company_id" class="form-control select2" required>
+                                <option value="">Select company</option>
+                                @php
+                                    $ownCompanyName = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
+                                    if ($ownCompanyName === '') {
+                                        $currentCompany = view()->shared('currentCompany');
+                                        $ownCompanyName = is_object($currentCompany) ? trim((string) ($currentCompany->name ?? '')) : '';
+                                    }
+                                    if ($ownCompanyName === '') {
+                                        $ownCompanyName = 'Own Vehicles';
+                                    }
+                                @endphp
+                                <option value="own" {{ old('leasing_company_id') === 'own' ? 'selected' : '' }}>{{ $ownCompanyName }}</option>
+                                @foreach($leasingCompanies as $company)
+                                    <option value="{{ $company->id }}" {{ (string) old('leasing_company_id') === (string) $company->id ? 'selected' : '' }}>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">Only rows whose bike belongs to this company will be imported.</small>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label for="admin_charge_per_salik">Admin Charge per Salik</label>
                             <input type="number" name="admin_charge_per_salik" id="admin_charge_per_salik" class="form-control" step="0.01" min="0" value="0">
                             <small class="text-muted">Used when Admin Charge column is not mapped. Leave 0 for none.</small>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
                             <label for="salik_vat_percent">Salik VAT %</label>
                             <input type="number" name="salik_vat_percent" id="salik_vat_percent" class="form-control" step="0.01" min="0" value="0">
                             <small class="text-muted">Applied to all records (amount × %).</small>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
                             <label for="admin_vat_percent">Admin VAT %</label>
                             <input type="number" name="admin_vat_percent" id="admin_vat_percent" class="form-control" step="0.01" min="0" value="0">
@@ -270,6 +295,14 @@
 <script src="{{ asset('assets/vendor/libs/xlsx/xlsx.full.min.js') }}"></script>
 <script>
 (function () {
+    if ($.fn.select2) {
+        $('#leasing_company_id').select2({
+            allowClear: true,
+            placeholder: 'Select company',
+            width: '100%'
+        });
+    }
+
     var processTimer = null;
 
     function setProgress(pct, label) {

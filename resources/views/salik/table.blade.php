@@ -33,9 +33,9 @@
             @if($vf('billing_month'))<td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M-Y') : 'N/A' }}</td>@endif
             @if($vf('plate'))<td>{{ $r->plate }}</td>@endif
             @php
-                $bike = $r->bike;
-                $isOwnedBike = $bike && strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0;
-                if ($isOwnedBike) {
+                if ($r->leasing_company_id) {
+                    $companyLabel = $r->leasingCompany?->name ?? '-';
+                } else {
                     $companyLabel = trim((string) (\App\Helpers\Common::getSetting('company_name') ?: ''));
                     if ($companyLabel === '') {
                         $currentCompany = view()->shared('currentCompany');
@@ -44,8 +44,6 @@
                     if ($companyLabel === '') {
                         $companyLabel = '-';
                     }
-                } else {
-                    $companyLabel = $bike?->leasingCompany?->name ?? '-';
                 }
             @endphp
             <td>{{ $companyLabel }}</td>

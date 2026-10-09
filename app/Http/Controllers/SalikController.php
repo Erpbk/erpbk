@@ -65,7 +65,7 @@ class SalikController extends AppBaseController
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = salik::query()
-            ->with(['branch', 'bike.leasingCompany', 'rider', 'rentalCompany'])
+            ->with(['branch', 'leasingCompany', 'rider', 'rentalCompany'])
             ->orderBy('billing_month', 'desc')
             ->orderBy('id', 'desc');
 
@@ -108,13 +108,9 @@ class SalikController extends AppBaseController
         }
         if ($request->has('company') && ! empty($request->company)) {
             if ($request->company === 'own') {
-                $query->whereHas('bike', function ($query) {
-                    $query->where('bike_owner', 'Owned');
-                });
+                $query->whereNull('leasing_company_id');
             } else {
-                $query->whereHas('bike', function ($query) use ($request) {
-                    $query->where('company', $request->company);
-                });
+                $query->where('leasing_company_id', $request->company);
             }
         }
         if ($request->filled('status')) {
@@ -604,7 +600,7 @@ class SalikController extends AppBaseController
         $hasOwn = false;
 
         foreach ($saliks as $salik) {
-            $leasingCompany = $salik->bike?->leasingCompany;
+            $leasingCompany = $salik->leasingCompany;
             if ($leasingCompany && $leasingCompany->account_id) {
                 $hasLeased = true;
                 $leasingNames[$leasingCompany->name] = true;
@@ -631,7 +627,7 @@ class SalikController extends AppBaseController
         $leasingId = null;
 
         foreach ($saliks as $salik) {
-            $leasingCompany = $salik->bike?->leasingCompany;
+            $leasingCompany = $salik->leasingCompany;
             if ($leasingCompany?->account_id) {
                 $hasLeased = true;
                 $leasingId = (string) $leasingCompany->id;
@@ -885,6 +881,7 @@ class SalikController extends AppBaseController
             'tag_number' => $request->tag_number,
             'plate' => $bike->plate,
             'bike_id' => $bike->id,
+            'leasing_company_id' => $this->resolveLeasingCompanyIdFromBike($bike),
             'amount' => $amount,
             'salik_vat' => $salikVatPercent,
             'salik_vat_amount' => $salikVatAmount,
@@ -899,6 +896,19 @@ class SalikController extends AppBaseController
             'branch_id' => $bike->branch_id,
             'billing_month' => $billingMonth,
         ];
+    }
+
+    /**
+     * Snapshot leasing company from bike. Null for owned / empty company bikes.
+     */
+    private function resolveLeasingCompanyIdFromBike(Bikes $bike): ?int
+    {
+        if (strcasecmp((string) ($bike->bike_owner ?? ''), 'Owned') === 0) {
+            return null;
+        }
+
+        $companyId = (int) ($bike->company ?? 0);
+        return $companyId > 0 ? $companyId : null;
     }
 
     /**
@@ -1405,6 +1415,18 @@ class SalikController extends AppBaseController
     {
         $request->validate([
             'file' => 'required|mimes:xlsx,csv,xls',
+            'leasing_company_id' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if ($value === 'own') {
+                        return;
+                    }
+                    if (!LeasingCompanies::where('id', $value)->exists()) {
+                        $fail('Selected leasing company is invalid.');
+                    }
+                },
+            ],
             'admin_charge_per_salik' => 'nullable|numeric|min:0',
             'salik_vat_percent' => 'nullable|numeric|min:0',
             'admin_vat_percent' => 'nullable|numeric|min:0',
@@ -1463,7 +1485,8 @@ class SalikController extends AppBaseController
             $adminChargePerSalik = $request->admin_charge_per_salik ?? 0;
             $salikVatPercent = $request->salik_vat_percent ?? 0;
             $adminVatPercent = $request->admin_vat_percent ?? 0;
-            $import = new SalikImport($adminChargePerSalik, $columnMap, $salikVatPercent, $adminVatPercent);
+            $leasingCompanyFilter = $request->input('leasing_company_id');
+            $import = new SalikImport($adminChargePerSalik, $columnMap, $salikVatPercent, $adminVatPercent, $leasingCompanyFilter);
             Excel::import($import, $request->file('file'));
             $importedCount = $import->importedCount;
             \Log::info('Import completed. Records imported: ' . $importedCount);
@@ -1480,6 +1503,9 @@ class SalikController extends AppBaseController
             }
             if ($import->noBikeCount > 0) {
                 $messages[] = "{$import->noBikeCount} unknown bikes";
+            }
+            if ($import->wrongCompanyCount > 0) {
+                $messages[] = "{$import->wrongCompanyCount} wrong company";
             }
             if ($import->noRiderCount > 0) {
                 $messages[] = "{$import->noRiderCount} no user assigned";
@@ -1527,7 +1553,9 @@ class SalikController extends AppBaseController
      */
     public function importForm($company_slug, $salikAccountId = null)
     {
-        return view('salik.import');
+        $leasingCompanies = LeasingCompanies::orderBy('name')->get();
+
+        return view('salik.import', compact('leasingCompanies'));
     }
 
     /**
@@ -2064,7 +2092,7 @@ class SalikController extends AppBaseController
                 return redirect()->route('salik.payments');
             }
 
-            $voucherSaliks = salik::with('bike.leasingCompany')
+            $voucherSaliks = salik::with('leasingCompany')
                 ->where('payment_voucher_id', $editingVoucher->id)
                 ->get();
 
@@ -2154,7 +2182,7 @@ class SalikController extends AppBaseController
 
         if ($missingPinnedIds->isNotEmpty()) {
             $pinnedQuery = salik::query()
-                ->with(['bike.leasingCompany', 'rider'])
+                ->with(['leasingCompany', 'rider'])
                 ->whereIn('id', $missingPinnedIds->all());
             $this->constrainEligiblePaymentSaliks($pinnedQuery, $editingVoucherId);
             $pinnedRecords = $pinnedQuery
@@ -2199,7 +2227,7 @@ class SalikController extends AppBaseController
         $editingVoucherId = $request->filled('editing_voucher_id') ? (int) $request->editing_voucher_id : null;
 
         $query = salik::query()
-            ->with(['bike.leasingCompany', 'rider']);
+            ->with(['leasingCompany', 'rider']);
         $this->constrainEligiblePaymentSaliks($query, $editingVoucherId);
         $query
             // trip_date is stored as "d M Y" (e.g. 09 Apr 2026), not a native DATE
@@ -2208,17 +2236,11 @@ class SalikController extends AppBaseController
                 [$dateFrom, $dateTo]
             );
 
-        $query->whereHas('bike', function ($bikeQuery) use ($selectedFilter) {
-            if ($selectedFilter === 'own') {
-                $bikeQuery->where(function ($q) {
-                    $q->where('bike_owner', 'Owned')
-                        ->orWhereNull('company')
-                        ->orWhere('company', 0);
-                });
-            } else {
-                $bikeQuery->where('company', $selectedFilter);
-            }
-        });
+        if ($selectedFilter === 'own') {
+            $query->whereNull('leasing_company_id');
+        } else {
+            $query->where('leasing_company_id', $selectedFilter);
+        }
 
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search'));
@@ -2314,7 +2336,7 @@ class SalikController extends AppBaseController
         ]);
 
         $editingVoucherId = $request->filled('editing_voucher_id') ? (int) $request->editing_voucher_id : null;
-        $salikQuery = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids);
+        $salikQuery = salik::with('leasingCompany')->whereIn('id', $request->salik_ids);
         $this->constrainEligiblePaymentSaliks($salikQuery, $editingVoucherId);
         $saliks = $salikQuery->get();
 
@@ -2344,7 +2366,7 @@ class SalikController extends AppBaseController
             $salikVat = (float) ($salik->salik_vat_amount ?? 0);
             $adminVat = (float) ($salik->admin_vat_amount ?? 0);
             $lineTotal = $amount + $admin + $salikVat + $adminVat;
-            $leasingCompany = $salik->bike?->leasingCompany;
+            $leasingCompany = $salik->leasingCompany;
 
             if ($leasingCompany && $leasingCompany->account_id) {
                 $key = 'lease_' . $leasingCompany->id;
@@ -2452,7 +2474,7 @@ class SalikController extends AppBaseController
                 }
             }
 
-            $saliks = salik::with('bike.leasingCompany')->whereIn('id', $request->salik_ids)
+            $saliks = salik::with('leasingCompany')->whereIn('id', $request->salik_ids)
                 ->unpaid()
                 ->lockForUpdate()
                 ->get();

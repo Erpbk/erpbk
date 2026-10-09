@@ -61,7 +61,7 @@ class UserController extends AppBaseController
     $roles = $this->assignableRolesQuery()->pluck('name', 'name')->all();
     $countries = Country::countries();
     $departments = Departments::all()->pluck('name', 'id');
-    $branches = Branch::active()->pluck('name', 'id');
+    $branches = $this->branchSelectOptions();
     $employees = Employee::active()->get(['id', 'employee_id', 'name']);
     return view('users.create', compact('roles', 'countries', 'departments', 'branches', 'employees'));
   }
@@ -131,7 +131,7 @@ class UserController extends AppBaseController
     $userRole = $user->roles->pluck('name', 'name')->first();
     $departments = Departments::all()->pluck('name', 'id');
     $countries = Country::countries();
-    $branches = Branch::active()->pluck('name', 'id');
+    $branches = $this->branchSelectOptions();
     $employees = Employee::active()->get(['id', 'employee_id', 'name']);
     $isSuperAdmin = $user->hasRole(IConstants::ROLE_SUPER_ADMIN);
     $emailAccounts = EmailAccount::query()->orderBy('email')->get(['id', 'email', 'display_name', 'status']);
@@ -395,6 +395,20 @@ class UserController extends AppBaseController
     }
 
     return $query;
+  }
+
+  /**
+   * Active branches labeled as "name ( code )" for user create/edit selects.
+   */
+  private function branchSelectOptions()
+  {
+    return Branch::active()
+      ->get(['id', 'name', 'code'])
+      ->mapWithKeys(function (Branch $branch) {
+        $label = trim($branch->name . ($branch->code ? ' ( ' . $branch->code . ' )' : ''));
+
+        return [$branch->id => $label !== '' ? $label : (string) $branch->id];
+      });
   }
 
   /**

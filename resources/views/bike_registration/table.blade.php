@@ -92,7 +92,7 @@
                   <a href="javascript:void(0);"
                      class="show-modal text-body-secondary"
                      data-size="xl"
-                     data-title="Edit payment account — {{ $r->vouchers->first()->voucher_type ?? 'BR' }}-{{ str_pad((string) ($r->vouchers->first()->id ?? 0), 4, '0', STR_PAD_LEFT) }}"
+                     data-title="Edit payment account — {{ $r->vouchers->first()->voucher_type ?? 'VR' }}-{{ str_pad((string) ($r->vouchers->first()->id ?? 0), 4, '0', STR_PAD_LEFT) }}"
                      data-action="{{ route('BikeRegistration.editVoucherCreditForm', $r->id) }}"
                      title="Change credit / payment account only">
                      <i class="fa fa-edit text-primary"></i>

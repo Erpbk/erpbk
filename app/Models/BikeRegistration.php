@@ -80,14 +80,14 @@ class BikeRegistration extends BaseModel
     public function vouchers()
     {
         return $this->hasMany(Vouchers::class, 'ref_id', 'id')
-            ->where('voucher_type', 'BR');
+            ->where('voucher_type', 'VR');
     }
 
     public function getVoucherIdsAttribute()
     {
         if ($this->vouchers->isEmpty()) {
             if ($this->trans_code) {
-                $fallback = Vouchers::where('trans_code', $this->trans_code)->where('voucher_type', 'BR')->get();
+                $fallback = Vouchers::where('trans_code', $this->trans_code)->where('voucher_type', 'VR')->get();
 
                 if ($fallback->isEmpty()) {
                     return '';

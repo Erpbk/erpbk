@@ -777,6 +777,7 @@ class General
       'IL' => 'Inventory Loss',
       'FAV' => 'Fixed Asset Acquisition',
       'FDV' => 'Fixed Asset Depreciation',
+      'VR' => 'Vehicle Registration Voucher',
     ];
 
     try {

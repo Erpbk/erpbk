@@ -97,6 +97,7 @@ class VoucherType extends BaseModel
             'VP' => ['vat', 'vouchers'],
             'FAV' => ['assets', 'vouchers'],
             'FDV' => ['assets', 'vouchers'],
+            'VR' => ['bikes', 'bike_list', 'vouchers'],
         ];
     }
 

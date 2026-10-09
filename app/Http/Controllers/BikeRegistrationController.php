@@ -905,7 +905,7 @@ class BikeRegistrationController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id' => GlobalAccounts::id('BIKE_REGISTRATION_EXPENSE_ACCOUNT'),
                     'reference_id' => $expense->id,
-                    'reference_type' => 'BR',
+                    'reference_type' => 'VR',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => $narration,
@@ -919,7 +919,7 @@ class BikeRegistrationController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id' => GlobalAccounts::id('VAT_PURCHASE_ACCOUNT'),
                     'reference_id' => $expense->id,
-                    'reference_type' => 'BR',
+                    'reference_type' => 'VR',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => 'VAT: ' . $narration,
@@ -933,7 +933,7 @@ class BikeRegistrationController extends AppBaseController
                 $TransactionService->recordTransaction([
                     'account_id' => $validated['account'],
                     'reference_id' => $expense->id,
-                    'reference_type' => 'BR',
+                    'reference_type' => 'VR',
                     'trans_code' => $trans_code,
                     'trans_date' => $transDate,
                     'narration' => $narration,
@@ -950,7 +950,7 @@ class BikeRegistrationController extends AppBaseController
                 'trip_date' => $request->trip_date,
                 'billing_month' => $billingMonth,
                 'payment_type' => $payment_type_flag,
-                'voucher_type' => 'BR',
+                'voucher_type' => 'VR',
                 'remarks' => $vatAmount > 0
                     ? ('Bike Registration Voucher (incl. VAT ' . number_format($vatAmount, 2) . ')')
                     : 'Bike Registration Voucher',
@@ -1068,7 +1068,7 @@ class BikeRegistrationController extends AppBaseController
 
             if ($bikeRegistration->payment_status == 'paid') {
                 $vouchers = Vouchers::where('ref_id', $bikeRegistration->id)
-                    ->where('voucher_type', 'BR')
+                    ->where('voucher_type', 'VR')
                     ->first();
                 if ($vouchers) {
                     $vouchers->reference_number = $bikeRegistration->reference_number;
@@ -1077,7 +1077,7 @@ class BikeRegistrationController extends AppBaseController
                 }
 
                 $transactions = Transactions::where('reference_id', $bikeRegistration->id)
-                    ->where('reference_type', 'BR')
+                    ->where('reference_type', 'VR')
                     ->get();
 
                 foreach ($transactions as $transaction) {
@@ -1146,7 +1146,7 @@ class BikeRegistrationController extends AppBaseController
 
         $voucher = $expense->vouchers->first();
         if (!$voucher) {
-            $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'BR')->first();
+            $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'VR')->first();
         }
         if (!$voucher) {
             return response(
@@ -1222,7 +1222,7 @@ class BikeRegistrationController extends AppBaseController
             return redirect()->back();
         }
 
-        $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'BR')->first();
+        $voucher = Vouchers::where('ref_id', $expense->id)->where('voucher_type', 'VR')->first();
         if (!$voucher) {
             Flash::error('No voucher found for this expense.');
 
@@ -1333,16 +1333,16 @@ class BikeRegistrationController extends AppBaseController
         $identifier = 'Bike Registration #' . $id . ' - ' . ($bikeRegistration->registration_status ?? '') . ' (Amount: ' . number_format((float) $bikeRegistration->amount, 2) . ')';
 
         $relatedTransactions = Transactions::where('reference_id', $bikeRegistration->id)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->get();
 
         $transCodeTransactions = Transactions::where('trans_code', $bikeRegistration->trans_code)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->get();
 
         $relatedVouchers = Vouchers::withTrashed()
             ->where('ref_id', $bikeRegistration->id)
-            ->where('voucher_type', 'BR')
+            ->where('voucher_type', 'VR')
             ->whereNull('deleted_at')
             ->get();
 
@@ -1407,11 +1407,11 @@ class BikeRegistrationController extends AppBaseController
         }
 
         Transactions::where('reference_id', $bikeRegistration->id)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->delete();
 
         Transactions::where('trans_code', $bikeRegistration->trans_code)
-            ->where('reference_type', 'BR')
+            ->where('reference_type', 'VR')
             ->delete();
 
         foreach ($relatedVouchers as $voucher) {

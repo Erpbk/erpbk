@@ -104,7 +104,7 @@ class LedgerDataTable extends DataTable
                 $voucher_ID = 'RTA FINE';
                 $voucher_text = '<a href="javascript:void(0);" data-action="' . route('rtaFines.show', $row->reference_id) . '" class="show-modal-right" >' . $voucher_ID . '</a>';
             }
-            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV', 'BL'], true)) {
+            if (in_array($row->reference_type, ['LV', 'LE', 'VL', 'IL', 'FAV', 'FDV', 'BL', 'VR'], true)) {
                 $vouchers = CompanyQuery::table('vouchers')->where('trans_code', $row->trans_code)->first();
                 if ($vouchers) {
                     $voucher_ID = $vouchers->voucher_type . '-' . str_pad($vouchers->id, 4, '0', STR_PAD_LEFT);

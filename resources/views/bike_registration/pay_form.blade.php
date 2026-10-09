@@ -30,7 +30,7 @@
     <input type="hidden" name="trans_date" value="{{ $data->trans_date ?? $data->date }}">
     <input type="hidden" name="trans_code" value="{{ $data->trans_code }}">
     <input type="hidden" name="billing_month" value="{{ $data->billing_month }}">
-    <input type="hidden" name="voucher_type" value="BR">
+    <input type="hidden" name="voucher_type" value="VR">
     <input type="hidden" name="amount" id="br_pay_amount" value="{{ number_format($baseAmount, 2, '.', '') }}">
     <input type="hidden" name="Created_By" value="{{ Auth::user()->id }}">
     <input type="hidden" name="payment_type" id="br_pay_payment_type" value="Asset">

@@ -364,7 +364,7 @@ $partyPad = $isPdfMode ? '10px 12px' : '16px 18px';
         padding: {{ $isPdfMode ? '6px 5px' : '9px 10px' }};
         border: none;
         border-bottom: 1px solid {{ $invBlueLine }};
-        text-align: right;
+        text-align: center;
     }
 
     .invoice-box table.items thead th.col-desc,

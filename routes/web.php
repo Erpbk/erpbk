@@ -242,6 +242,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('notifications', [\App\Http\Controllers\NotificationCenterController::class, 'index'])->name('notifications.index');
     Route::get('notifications/unread-count', [\App\Http\Controllers\NotificationCenterController::class, 'unreadCount'])->name('notifications.unread-count');
     Route::get('notifications/dropdown', [\App\Http\Controllers\NotificationCenterController::class, 'dropdown'])->name('notifications.dropdown');
+    Route::get('notifications/banners', [\App\Http\Controllers\NotificationCenterController::class, 'banners'])->name('notifications.banners');
     Route::post('notifications/read-all', [\App\Http\Controllers\NotificationCenterController::class, 'markAllRead'])->name('notifications.read-all');
     Route::post('notifications/dismiss-all', [\App\Http\Controllers\NotificationCenterController::class, 'dismissAll'])->name('notifications.dismiss-all');
     Route::post('notifications/{notification}/read', [\App\Http\Controllers\NotificationCenterController::class, 'markRead'])->name('notifications.read');

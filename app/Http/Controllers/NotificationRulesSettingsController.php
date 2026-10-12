@@ -117,9 +117,11 @@ class NotificationRulesSettingsController extends Controller
             ->all();
 
         $enabled = $request->boolean('enabled');
+        $displayBanner = $request->boolean('display_banner');
 
         $validated = $request->validate([
             'enabled' => 'nullable|boolean',
+            'display_banner' => 'nullable|boolean',
             'days_before' => 'nullable|array',
             'days_before.*' => 'integer|min:0|max:365',
             'both_user_ids' => 'nullable|array',
@@ -177,6 +179,8 @@ class NotificationRulesSettingsController extends Controller
         } else {
             $config['email_account_id'] = (int) $validated['email_account_id'];
         }
+
+        $config['display_banner'] = $displayBanner;
 
         $ruleService->updateRule($notificationRule, [
             'enabled' => $enabled,

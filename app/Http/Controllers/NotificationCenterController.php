@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\NotificationRule;
 use App\Models\UserNotification;
 use App\Services\Notifications\NotificationTypeRegistry;
+use App\Support\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -74,6 +76,55 @@ class NotificationCenterController extends Controller
             'unread' => $unread,
             'items' => $notifications->map(fn (UserNotification $n) => $this->serialize($n))->values(),
         ]);
+    }
+
+    /**
+     * Unread + undismissed titles for rules that have Display Banner enabled.
+     * Items leave the banner once read or dismissed.
+     */
+    public function banners(string $company_slug)
+    {
+        $companyId = (int) (CompanyContext::id() ?? 0);
+        if ($companyId <= 0) {
+            return response()->json(['items' => []]);
+        }
+
+        $bannerTypeKeys = NotificationRule::query()
+            ->where('company_id', $companyId)
+            ->where('enabled', true)
+            ->get(['id', 'type_key', 'config'])
+            ->filter(function (NotificationRule $rule) {
+                $config = is_array($rule->config) ? $rule->config : [];
+
+                return ! empty($config['display_banner']);
+            })
+            ->pluck('type_key')
+            ->map(fn ($key) => (string) $key)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($bannerTypeKeys === []) {
+            return response()->json(['items' => []]);
+        }
+
+        $items = UserNotification::query()
+            ->where('user_id', Auth::id())
+            ->where('company_id', $companyId)
+            ->unread()
+            ->whereIn('type', $bannerTypeKeys)
+            ->latest()
+            ->limit(25)
+            ->get(['id', 'title', 'severity', 'type'])
+            ->map(fn (UserNotification $n) => [
+                'id' => $n->id,
+                'title' => (string) $n->title,
+                'severity' => $n->severity ?? 'info',
+                'type' => $n->type,
+            ])
+            ->values();
+
+        return response()->json(['items' => $items]);
     }
 
     public function markRead(Request $request, string $company_slug, UserNotification $notification)

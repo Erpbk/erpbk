@@ -239,6 +239,7 @@
                                 if (!$rule) { continue; }
                                 $config = is_array($rule->config) ? $rule->config : ($typeDef['default_config'] ?? []);
                                 $daysBefore = $config['days_before'] ?? [3];
+                                $displayBanner = !empty($config['display_banner']);
                                 $ruleStatuses = array_values(array_map('strval', $config['statuses'] ?? ($typeDef['default_config']['statuses'] ?? [])));
                                 $statusOptions = array_values(array_map('strval', $typeDef['status_options'] ?? []));
                                 $recipientConfig = \App\Services\Notifications\RecipientBuckets::normalize(
@@ -286,6 +287,11 @@
                                                 <span class="badge {{ $rule->enabled ? 'bg-label-success' : 'bg-label-secondary' }}" data-enabled-badge>
                                                     {{ $rule->enabled ? __('On') : __('Off') }}
                                                 </span>
+                                                @if($displayBanner)
+                                                    <span class="badge bg-label-info">
+                                                        <i class="ti ti-marquee-2 me-1"></i>{{ __('Banner') }}
+                                                    </span>
+                                                @endif
                                             </div>
                                             <div class="nr-summary">
                                                 @if(($typeDef['trigger'] ?? '') === 'scheduled' && !empty($daysBefore))
@@ -322,12 +328,20 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <div class="form-check form-switch mb-0">
-                                            <input class="form-check-input" type="checkbox" role="switch"
-                                                   id="enabled_{{ $rule->id }}" name="enabled" value="1"
-                                                   @checked($rule->enabled)
-                                                   data-rule-enable="{{ $rule->id }}">
-                                            <label class="form-check-label" for="enabled_{{ $rule->id }}">{{ __('Enabled') }}</label>
+                                        <div class="d-flex flex-wrap align-items-center gap-3">
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                       id="banner_{{ $rule->id }}" name="display_banner" value="1"
+                                                       @checked($displayBanner)>
+                                                <label class="form-check-label" for="banner_{{ $rule->id }}">{{ __('Display Banner') }}</label>
+                                            </div>
+                                            <div class="form-check form-switch mb-0">
+                                                <input class="form-check-input" type="checkbox" role="switch"
+                                                       id="enabled_{{ $rule->id }}" name="enabled" value="1"
+                                                       @checked($rule->enabled)
+                                                       data-rule-enable="{{ $rule->id }}">
+                                                <label class="form-check-label" for="enabled_{{ $rule->id }}">{{ __('Enabled') }}</label>
+                                            </div>
                                         </div>
                                     </div>
 

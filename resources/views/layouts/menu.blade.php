@@ -20,22 +20,45 @@ $homeLink = $isAdminLogin
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('cash_banks'))
 @canany(['cash_&_banks_banks_view', 'cash_&_banks_cheques_view', 'cash_&_banks_payments_view', 'cash_&_banks_receipts_view'])
-@php
-  $cashBanksUrl = user_can('cash_&_banks_banks_view')
-      ? route('banks.index')
-      : (user_can('cash_&_banks_cheques_view')
-          ? route('cheques.index')
-          : (user_can('cash_&_banks_payments_view')
-              ? route('payments.index')
-              : (user_can('cash_&_banks_receipts_view')
-                  ? route('receipts.index')
-                  : route('banks.index'))));
-@endphp
-<li class="menu-item {{ (Route::is('banks.*') || Route::is('bank.*') || Route::is('cheques.*') || Route::is('payments.*') || Route::is('receipts.*')) ? 'active' : '' }}">
-  <a href="{{ $cashBanksUrl }}" class="menu-link">
+<li class="menu-item {{ (Route::is('banks.*') || Route::is('bank.*') || Route::is('cheques.*') || Route::is('payments.*') || Route::is('receipts.*')) ? 'open' : '' }}">
+  <a href="javascript:void(0);" class="menu-link menu-toggle">
     @include('layouts.partials.module_menu_icon', ['key' => 'cash_banks'])
     <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
   </a>
+  <ul class="menu-sub">
+    @can('cash_&_banks_banks_view')
+    <li class="menu-item {{ Route::is('banks.*') || Route::is('bank.*') ? 'active' : '' }}">
+      <a href="{{ route('banks.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'cash_banks'])
+        <div>{{ $menuLabels['cash_banks'] ?? 'Cash & Banks' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('cash_&_banks_cheques_view')
+    <li class="menu-item {{ Route::is('cheques.*') ? 'active' : '' }}">
+      <a href="{{ route('cheques.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'cheques'])
+        <div>{{ $menuLabels['cheques'] ?? 'Cheques' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('cash_&_banks_payments_view')
+    <li class="menu-item {{ Route::is('payments.*') ? 'active' : '' }}">
+      <a href="{{ route('payments.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
+        <div>{{ $menuLabels['payments'] ?? 'Payments' }}</div>
+      </a>
+    </li>
+    @endcan
+    @can('cash_&_banks_receipts_view')
+    <li class="menu-item {{ Route::is('receipts.*') ? 'active' : '' }}">
+      <a href="{{ route('receipts.index') }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'receipts'])
+        <div>{{ $menuLabels['receipts'] ?? 'Receipts' }}</div>
+      </a>
+    </li>
+    @endcan
+  </ul>
 </li>
 @endcanany
 @endif

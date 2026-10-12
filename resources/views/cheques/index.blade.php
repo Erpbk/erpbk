@@ -10,8 +10,6 @@
 @endpush
 @section('page_content')
 
-        @include('banks.partials.nav_tabs')
-
         @include('flash::message')
         <div class="clearfix"></div>
         @can('cash_&_banks_cheques_view')

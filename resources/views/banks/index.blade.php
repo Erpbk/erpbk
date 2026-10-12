@@ -1,8 +1,6 @@
 @extends('banks.viewindex')
 @section('page_content')
 
-@include('banks.partials.nav_tabs')
-
 <!-- Filter Sidebar -->
 <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
     <div class="filter-header">

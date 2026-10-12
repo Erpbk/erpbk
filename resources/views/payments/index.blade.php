@@ -2,8 +2,6 @@
 @section('page_content')
 <div class="content px-3">
 
-    @include('banks.partials.nav_tabs')
-
     @include('flash::message')
     <div class="clearfix"></div>
 

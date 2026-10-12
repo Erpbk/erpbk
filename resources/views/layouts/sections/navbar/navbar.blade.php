@@ -260,9 +260,8 @@ $homeLink = $isAdminSession
     position: absolute;
     inset: 0;
     overflow: hidden;
-    border-radius: .5rem;
-    background: rgba(105, 108, 255, 0.08);
-    border: 1px solid rgba(105, 108, 255, 0.18);
+    background: transparent;
+    border: 0;
   }
   .nav-notification-banner.d-none {
     display: none !important;
@@ -290,6 +289,13 @@ $homeLink = $isAdminSession
     font-weight: 500;
     color: var(--bs-body-color);
     margin-inline-end: 2rem;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .nav-notification-banner__item:hover,
+  .nav-notification-banner__item:focus {
+    color: var(--bs-primary);
+    text-decoration: underline;
   }
   .nav-notification-banner__item:last-child {
     margin-inline-end: 0;
@@ -374,16 +380,42 @@ $homeLink = $isAdminSession
         lastBannerKey = key;
 
         // One copy of each unread title — enters from the right, exits left, then loops.
-        var html = items.map(function (item) {
-          return '<span class="nav-notification-banner__item">' +
+        var html = items.map(function (item, idx) {
+          var href = item.action_url || '#';
+          return '<a href="' + escapeHtml(href) + '" class="nav-notification-banner__item" data-banner-idx="' + idx + '"' +
+            (item.action_url ? '' : ' role="button"') + '>' +
             '<span class="nav-notification-banner__dot ' + severityClass(item.severity) + '"></span>' +
             escapeHtml(item.title) +
-            '</span>';
+            '</a>';
         }).join('');
 
         bannerTrack.style.animation = 'none';
         bannerTrack.innerHTML = html;
         bannerEl.classList.remove('d-none');
+
+        bannerTrack.querySelectorAll('[data-banner-idx]').forEach(function (el) {
+          el.addEventListener('click', function (e) {
+            e.preventDefault();
+            var idx = parseInt(el.getAttribute('data-banner-idx'), 10);
+            var item = items[idx];
+            if (!item) return;
+            var url = item.mark_read_url;
+            var open = function () { openNotificationAction(item); };
+            if (!url) {
+              open();
+              return;
+            }
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              credentials: 'same-origin'
+            }).finally(open);
+          });
+        });
 
         requestAnimationFrame(function () {
           var trackW = Math.max(bannerTrack.scrollWidth, 1);

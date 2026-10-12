@@ -115,13 +115,8 @@ class NotificationCenterController extends Controller
             ->whereIn('type', $bannerTypeKeys)
             ->latest()
             ->limit(25)
-            ->get(['id', 'title', 'severity', 'type'])
-            ->map(fn (UserNotification $n) => [
-                'id' => $n->id,
-                'title' => (string) $n->title,
-                'severity' => $n->severity ?? 'info',
-                'type' => $n->type,
-            ])
+            ->get()
+            ->map(fn (UserNotification $n) => $this->serialize($n))
             ->values();
 
         return response()->json(['items' => $items]);

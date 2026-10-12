@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Fine Invoice #{{ $rtaFine->ticket_no ?? $rtaFine->id }}</title>
+</head>
+<body>
+    {{-- Styles must live in <body>: openRightSideModal uses extractAjaxBodyHtml(), which drops <head> --}}
     <style>
-        /* Scoped — do not style the app <body> when embedded in right-side modal */
+        /* Scoped — do not style the app body when embedded in right-side modal */
         body:has(> .invoice-box),
         body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
@@ -20,15 +23,18 @@
         }
 
         .invoice-box {
-            width: 850px;
+            width: 100%;
+            max-width: 850px;
             margin: auto;
             padding: 10px;
+            box-sizing: border-box;
         }
 
         .invoice-box table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 8px;
+            table-layout: fixed;
         }
 
         .invoice-box th, .invoice-box td {
@@ -36,6 +42,7 @@
             padding: 4px 6px;
             font-size: 12px;
             text-align: center;
+            word-break: break-word;
         }
 
         .invoice-box th {
@@ -210,8 +217,7 @@
             color: #28a745;
         }
     </style>
-</head>
-<body>
+
     <div class="controls no-print">
         <button type="button" class="print-btn" onclick="printModalContent()">Print</button>
     </div>

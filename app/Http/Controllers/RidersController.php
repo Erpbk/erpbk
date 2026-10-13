@@ -54,6 +54,7 @@ use App\Services\Email\UserEmailService;
 use App\Services\Permissions\RiderStatusPermissionSync;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
+use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
@@ -3147,14 +3148,8 @@ class RidersController extends AppBaseController
   public function storeadvanceloan(Request $request)
   {
     try {
-      if (! VoucherType::isCodeAllowedForModule('AL', 'riders')) {
-        return response()->json(['errors' => ['error' => 'Advance Loan voucher type (AL) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
-      }
-      \DB::beginTransaction();
-
       $this->mergeVoucherBranchId($request);
 
-      // Validate the request
       $request->validate([
         'account_id' => 'required|array|min:2',
         'account_id.*' => 'required|integer',
@@ -3163,102 +3158,46 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'invoice_id' => 'nullable|numeric|exists:rider_invoices,id',
       ]);
 
-      // Get rider account (first entry should be the rider's liability account)
       $riderAccountId = $request->account_id[0];
-
-      if (empty($riderAccountId)) {
-        throw new \Exception('Rider account ID is required');
-      }
-
-      $riderAccount = Accounts::find($riderAccountId);
-
-      if (! $riderAccount) {
-        throw new \Exception('Rider account not found with ID: ' . $riderAccountId);
-      }
-
-      // Get the second account (credit account - should be Advance Loan account)
       $creditAccountId = $request->account_id[1];
-
-      // Get amounts
-      $riderAmount = $request->dr_amount[0] ?? 0;
-      $creditAmount = $request->dr_amount[1] ?? 0;
-
-      // Use the first amount for both entries if only one amount is provided
-      if ($creditAmount == 0) {
-        $creditAmount = $riderAmount;
+      $riderAmount = (float) ($request->dr_amount[0] ?? 0);
+      if ($riderAmount < 0.01) {
+        $riderAmount = (float) ($request->dr_amount[1] ?? 0);
       }
 
-      // Generate transaction code
-      $transCode = Account::trans_code();
-
-      // Create voucher entry
-      $voucherData = [
-        'trans_date' => $request->trans_date ?? date('Y-m-d'),
-        'voucher_type' => 'AL', // Advance Loan
-        'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => $creditAccountId,
-        'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
+      $result = app(RiderAdvanceLoanService::class)->create([
+        'rider_account_id' => (int) $riderAccountId,
+        'bank_account_id' => (int) $creditAccountId,
         'amount' => $riderAmount,
-        'remarks' => 'Advance Loan to Rider',
-        'ref_id' => $riderAccount->ref_id, // Rider ID
+        'trans_date' => $request->trans_date ?? date('Y-m-d'),
+        'billing_month' => $request->billing_month ?? null,
         'reference_number' => $request->reference_number ?? null,
-        'trans_code' => $transCode,
-        'Created_By' => auth()->id(),
-        'status' => 1,
+        'payment_type' => $request->payment_type ?? 1,
         'branch_id' => $request->input('branch_id') ?: null,
+        'invoice_id' => $request->filled('invoice_id') ? (int) $request->invoice_id : null,
+        'debit_narration' => $request->narration[0] ?? 'Advance Loan Received',
+        'credit_narration' => $request->narration[1] ?? null,
+        'remarks' => 'Advance Loan to Rider',
         'custom_field_values' => $request->input('voucher_custom_fields', []),
-      ];
+      ]);
 
-      $voucher = Vouchers::create($voucherData);
-
-      // Create debit transaction for rider account (first entry)
-      $debitTransaction = [
-        'account_id' => $riderAccountId,
-        'reference_id' => $voucher->id,
-        'reference_type' => 'AL',
-        'trans_code' => $transCode,
-        'trans_date' => $voucherData['trans_date'],
-        'narration' => $request->narration[0] ?? 'Advance Loan Received',
-        'debit' => $riderAmount,
-        'branch_id' => $request->input('branch_id') ?: null,
-        'billing_month' => $voucherData['billing_month'],
-        'created_By' => auth()->id(),
-      ];
-
-      Transactions::create($debitTransaction);
-
-      // Create credit transaction for advance loan account (second entry)
-      $creditTransaction = [
-        'account_id' => $creditAccountId,
-        'reference_id' => $voucher->id,
-        'reference_type' => 'AL',
-        'trans_code' => $transCode,
-        'trans_date' => $voucherData['trans_date'],
-        'narration' => $request->narration[1] ?? 'Advance Loan Given to ' . $riderAccount->name,
-        'credit' => $creditAmount,
-        'billing_month' => $voucherData['billing_month'],
-        'Created_By' => auth()->id(),
-        'branch_id' => $request->input('branch_id') ?: null,
-      ];
-
-      Transactions::create($creditTransaction);
-
-      \DB::commit();
-
-      // Return success response
       return response()->json([
         'success' => true,
         'message' => 'Advance loan recorded successfully',
-        'voucher_id' => $voucher->id,
-        'trans_code' => $transCode,
+        'voucher_id' => $result['voucher']->id,
+        'trans_code' => $result['trans_code'],
         'reload' => true,
       ]);
+    } catch (\InvalidArgumentException $e) {
+      return response()->json([
+        'success' => false,
+        'message' => $e->getMessage(),
+        'errors' => ['error' => $e->getMessage()],
+      ], 422);
     } catch (\Exception $e) {
-      \DB::rollback();
-
-      // Log the request data for debugging
       \Log::error('Advance loan error', [
         'request_data' => $request->all(),
         'error' => $e->getMessage(),
@@ -3739,13 +3678,25 @@ class RidersController extends AppBaseController
     }
 
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('date_of_payment');
-    $query->whereIn('payee_account_id', $accountIds);
+    $query = Payment::query()
+      ->with(['payeeAccount', 'voucher', 'bank.account'])
+      ->latest('date_of_payment')
+      ->whereIn('payee_account_id', $accountIds)
+      ->applyListFilters($request);
 
     $data = $this->applyPagination($query, $paginationParams);
     $voucherTypes = $this->riderVoucherTypeOptions();
+    $banks = \App\Models\Banks::active()->get();
 
-    return view('riders.payments', compact('data', 'voucherTypes'));
+    if ($request->ajax()) {
+      $tableData = view('payments.table', compact('data'))->render();
+
+      return response()->json([
+        'tableData' => $tableData,
+      ]);
+    }
+
+    return view('riders.payments', compact('data', 'voucherTypes', 'banks'));
   }
 
   public function storeincentive(Request $request)

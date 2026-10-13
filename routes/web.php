@@ -745,6 +745,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::resource('riderleads', riderhiringController::class);
 
     Route::get('payments/{id}/clone', [PaymentController::class, 'clone'])->name('payments.clone');
+    Route::get('payments/{id}/pdf', [PaymentController::class, 'pdf'])->name('payments.pdf');
     Route::resource('payments', PaymentController::class);
     Route::get('receipts/{id}/clone', [ReceiptController::class, 'clone'])->name('receipts.clone');
     Route::resource('receipts', ReceiptController::class);

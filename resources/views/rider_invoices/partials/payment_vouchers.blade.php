@@ -15,6 +15,9 @@ foreach ($vouchersOrdered as $voucher) {
 $runningPaid = round($runningPaid + (float) $voucher->amount, 2);
 $balancesById[$voucher->id] = round($invoiceDue - $runningPaid, 2);
 }
+$paymentIdsByVoucher = \App\Models\Payment::query()
+    ->whereIn('voucher_id', $paymentVouchers->pluck('id')->filter()->all())
+    ->pluck('id', 'voucher_id');
 @endphp
 @if($paymentVouchers->isNotEmpty())
 <div class="tbl-wrap" style="margin-top: 14px;">
@@ -28,18 +31,33 @@ $balancesById[$voucher->id] = round($invoiceDue - $runningPaid, 2);
             <th class="secondary-header">Balance</th>
         </tr>
         @foreach($paymentVouchers as $voucher)
+        @php
+            $linkedPaymentId = $paymentIdsByVoucher[$voucher->id] ?? null;
+            $voucherViewAction = $linkedPaymentId
+                ? route('payments.show', array_filter([
+                    'payment' => $linkedPaymentId,
+                    'company_slug' => $__companySlug,
+                ]))
+                : route('vouchers.show', array_filter([
+                    'voucher' => $voucher->id,
+                    'company_slug' => $__companySlug,
+                ]));
+            $voucherViewClass = $linkedPaymentId ? 'show-voucher-panel' : 'show-modal';
+        @endphp
         <tr class="">
             <td style="text-align: center;">{{ $voucher->trans_date ? \App\Helpers\Common::DateFormat($voucher->trans_date) : '—' }}</td>
             <td style="text-align: center;">
                 @if(empty($isPdf))
                 <a href="javascript:void(0);"
-                    class="show-modal"
+                    class="{{ $voucherViewClass }}"
                     data-size="xl"
-                    data-title="Voucher {{ $voucher->formatted_id }}"
-                    data-action="{{ route('vouchers.show', array_filter([
-                        'voucher' => $voucher->id,
-                        'company_slug' => $__companySlug,
-                    ])) }}">
+                    data-title="Payment Voucher {{ $voucher->formatted_id }}"
+                    data-action="{{ $voucherViewAction }}"
+                    @if($linkedPaymentId)
+                        data-collapse-sidebar="1"
+                        data-list-url="{{ route('vouchers.list-sidebar', array_filter(['company_slug' => $__companySlug])) }}"
+                    @endif
+                >
                     {{ $voucher->formatted_id }}
                 </a>
                 @else

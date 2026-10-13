@@ -633,6 +633,13 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initPaymentFieldsForm === 'function' && $('#modalTopbody [data-payment-fields-init]').length) {
       window.initPaymentFieldsForm(document.getElementById('formajax') || $('#modalTopbody'));
     }
+    if ($('#modalTopbody .rider-payment-form').length) {
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">Record Rider Payment</span>' +
+          '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">Allocate a payment to rider invoices</div>'
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    }
   });
 
   if (table) {
@@ -826,6 +833,16 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
   if (values.length !== values.filter((item, index) => values.indexOf(item) === index).length) {
     console.log('Array has duplicates');
     $('#error_message_duplicate_id').html('Array has duplicates');
+    unblock();
+    return false;
+  }
+
+  // Rider/employee payment form client-side checks (payment type, single invoice, balance cap).
+  if (
+    $form.find('#payment_amount').length
+    && typeof window.validatePaymentForm === 'function'
+    && !window.validatePaymentForm()
+  ) {
     unblock();
     return false;
   }

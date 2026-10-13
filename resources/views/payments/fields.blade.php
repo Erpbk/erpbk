@@ -21,15 +21,25 @@
     if (isset($payment) && $payment) {
         $savedPrimaryAmount = round((float) $payment->amount - (float) ($payment->bank_charges ?? 0), 2);
     }
+    $defaultCreatePaymentType = old('create_payment_type', 'payment');
 @endphp
-<div class="card-body px-4" @if($isSalaryInvoicePayment) data-salary-invoice-payment="1" data-rider-payment="1" @endif @if($openedInvoiceId) data-opened-invoice-id="{{ $openedInvoiceId }}" @endif>
+@if($isRiderPayment)
+    @include('payments.partials.rider_payment_form')
+@else
+<div class="card-body px-4"
+     @if($isSalaryInvoicePayment) data-salary-invoice-payment="1" @endif
+     @if($openedInvoiceId) data-opened-invoice-id="{{ $openedInvoiceId }}" @endif>
     <!-- Basic Payment Information -->
     <div class="row">
         @if($isSalaryInvoicePayment)
-        {{-- Billing month is stored on the payment voucher; it does not filter the invoice list --}}
-        <div class="form-group col-md-3">
+        <div class="form-group col-md-3" id="billing-month-group">
             {!! Form::label('billing_month', 'Billing Month:') !!}
-            {!! Form::month('billing_month', $defaultBillingMonth, ['class' => 'form-control', 'id' => 'billing_month', 'maxlength' => 255, 'required' => true]) !!}
+            {!! Form::month('billing_month', $defaultBillingMonth, [
+                'class' => 'form-control',
+                'id' => 'billing_month',
+                'maxlength' => 255,
+                'required' => true,
+            ]) !!}
         </div>
         @endif
 
@@ -39,7 +49,7 @@
             {!! Form::text('reference', null, ['class' => 'form-control', 'maxlength' => 255, 'placeholder' => 'Enter reference number', 'id' => 'reference']) !!}
         </div>
 
-        <!-- Payment Type Field -->
+        <!-- Payment Mode Field -->
         <div class="form-group col-md-3">
             {!! Form::label('amount_type', 'Payment Mode:') !!}
             {!! Form::select('amount_type', 
@@ -306,7 +316,16 @@
                             @php
                                 $existingBalance = ($invoice->balance ?? 0) + ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
                                 $existingPaid = ($invoice->paid_amount ?? 0) - ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
-                                $existingPaymentAmt = $invoice->partial_paid_amount[optional($payment)->id] ?? 0;
+                                $existingPaymentAmt = (float) ($invoice->partial_paid_amount[optional($payment)->id] ?? 0);
+                                // Invoice lines must exclude bank charges (stored payment.amount is net + charges).
+                                if (isset($payment) && (float) ($payment->bank_charges ?? 0) > 0) {
+                                    $netPaymentAmt = round((float) $payment->amount - (float) $payment->bank_charges, 2);
+                                    if (abs($existingPaymentAmt - (float) $payment->amount) < 0.02) {
+                                        $existingPaymentAmt = $netPaymentAmt;
+                                    } elseif ($existingPaymentAmt > $netPaymentAmt + 0.009) {
+                                        $existingPaymentAmt = $netPaymentAmt;
+                                    }
+                                }
                                 $invoiceDate = optional($invoice->inv_date)->format('Y-m-d')
                                     ?? (isset($invoice->inv_date) ? date('Y-m-d', strtotime($invoice->inv_date)) : '');
                                 $invoiceBillingMonth = $invoice->billing_month
@@ -533,3 +552,4 @@ hr {
     margin-top: 3px;
 }
 </style>
+@endif

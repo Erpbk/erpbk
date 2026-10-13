@@ -22,6 +22,8 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
   }
   return $params;
 };
+$moduleActions = \App\Support\VoucherModuleActions::forVoucher($voucher, $__companySlug);
+$editDeleteFlags = $editDeleteFlags ?? \App\Models\VoucherType::getEditDeleteFlagsByModule('vouchers');
 @endphp
 <div class="voucher-modal-content">
   {{-- Action bar: Published ribbon, Edit, PDF/Print, etc. (hidden when embedded e.g. visa expense payment-account edit) --}}
@@ -38,29 +40,23 @@ $voucherCloneParams = static function ($transCode) use ($__companySlug): array {
       @if($voucherPendingDeletion)
         <span class="text-muted small"><i class="ti ti-lock me-1"></i>Locked — awaiting delete approval</span>
       @else
-      @can('vouchers_edit')
-      @if(in_array($voucher->voucher_type, ['AL', 'COD', 'PN', 'INC', 'PAY', 'VC', 'JV', 'TRF']))
-      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Edit Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
+      @canany(['vouchers_edit', 'voucher_edit'])
+      @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']))
+      <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="{{ $moduleActions['edit_size'] }}" data-title="{{ $moduleActions['edit_title'] }}" data-action="{{ $moduleActions['edit_url'] }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
-      @endcan
-      @can('vouchers_create')
+      @endcanany
+      @canany(['vouchers_create', 'voucher_create'])
         @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
           <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucherCloneParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>
         @endif
-      @endcan
-      @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-      @can('vouchers_delete')
-        <li>
-          <form action="{{ route('vouchers.destroy', $voucherRouteParams($voucher->trans_code)) }}" id="formajax" >
-              @csrf
-              @method('Delete')
-              <button onclick="return confirm('Submit a delete request for this voucher? It will stay as Pending Deletion until approved.');" class='btn btn-sm btn-outline-danger'>
-                <i class="fa fa-trash my-1"></i> Delete
-              </button>
-          </form>
-        </li>
-      @endcan
+      @endcanany
+      @canany(['vouchers_delete', 'voucher_delete'])
+      @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']))
+        <button type="button" class="btn btn-sm btn-outline-danger" onclick='confirmDelete(@json($moduleActions['delete_url']))'>
+          <i class="fa fa-trash my-1"></i> Delete
+        </button>
       @endif
+      @endcanany
       @endif
       <a href="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener"><i class="ti ti-file-description me-1"></i> PDF/Print</a>
       @can('email_create')

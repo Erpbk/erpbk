@@ -58,7 +58,10 @@ $vfColspan = count(array_filter($vfCols)) + 2;
     @endphp
     @if(isset($data) && $data->count() > 0)
     @foreach($data as $voucher)
-    @php $voucherPendingDeletion = record_is_pending_deletion($voucher); @endphp
+    @php
+      $voucherPendingDeletion = record_is_pending_deletion($voucher);
+      $moduleActions = \App\Support\VoucherModuleActions::forVoucher($voucher, $__companySlug);
+    @endphp
     <tr class="text-center {{ $voucherPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $voucher->id }}">
       <td>
         @php
@@ -100,36 +103,34 @@ $vfColspan = count(array_filter($vfCols)) + 2;
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}">
-            @canany(['voucher_create', 'voucher_edit'])
-            @if(!in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
+            @canany(['voucher_create', 'voucher_edit', 'vouchers_create', 'vouchers_edit'])
             <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
-                data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class="dropdown-item waves-effect show-modal">
-                <i class="fa fa-file my-1"></i> Upload Document
-              </a>
-            @endif
+              data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class="dropdown-item waves-effect show-modal">
+              <i class="fa fa-file my-1"></i> Upload Document
+            </a>
             @endcanany
             @can('voucher_view')
             <a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
-                <i class="fa fa-eye my-1"></i> View
-              </a>
+              <i class="fa fa-eye my-1"></i> View
+            </a>
             @endcan
-            @can('voucher_edit')
-            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <a href="javascript:void(0);" data-size="xl"
-                data-title="Edit Voucher No. {{ $voucher->voucher_type.'-'.str_pad($voucher->id,4,'0',STR_PAD_LEFT) }}"
-                data-action="{{ route('vouchers.edit', $voucherRouteParams($voucher->trans_code)) }}"
-                class="dropdown-item waves-effect show-modal">
-                <i class="fa fa-edit my-1"></i> Edit
-              </a>
+            @canany(['voucher_edit', 'vouchers_edit'])
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_edit']))
+            <a href="javascript:void(0);" data-size="{{ $moduleActions['edit_size'] }}"
+              data-title="{{ $moduleActions['edit_title'] }}"
+              data-action="{{ $moduleActions['edit_url'] }}"
+              class="dropdown-item waves-effect show-modal">
+              <i class="fa fa-edit my-1"></i> Edit
+            </a>
             @endif
-            @endcan
-            @can('voucher_delete')
-            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']) && !in_array($voucher->voucher_type, ['PV','RV','EXP','RFV','SV','VL','LV','FAV','FDV']))
-            <a href="javascript:void(0);" onclick='confirmDelete(@json(route('vouchers.destroy', $voucherRouteParams($voucher->trans_code))))' class="dropdown-item waves-effect text-danger">
-                <i class="fa fa-trash my-1"></i> Delete
-              </a>
+            @endcanany
+            @canany(['voucher_delete', 'vouchers_delete'])
+            @if(!empty($editDeleteFlags[$voucher->voucher_type]['can_delete']))
+            <a href="javascript:void(0);" onclick='confirmDelete(@json($moduleActions['delete_url']))' class="dropdown-item waves-effect text-danger">
+              <i class="fa fa-trash my-1"></i> Delete
+            </a>
             @endif
-            @endcan
+            @endcanany
           </div>
         </div>
         @endif
@@ -158,8 +159,8 @@ $vfColspan = count(array_filter($vfCols)) + 2;
 @endif
 
 @include('delete_requests._confirm_delete_script', [
-    'entityName' => 'Voucher',
-    'confirmText' => 'Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.',
+'entityName' => 'Voucher',
+'confirmText' => 'Submit a delete request for this voucher? It will stay in the list as Pending Deletion until an administrator approves.',
 ])
 <script>
   // Initialize Bootstrap dropdowns when this content is loaded (run only after jQuery is available)

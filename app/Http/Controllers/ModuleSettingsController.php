@@ -689,6 +689,44 @@ class ModuleSettingsController extends Controller
             ->with('success', 'Invoice defaults saved.');
     }
 
+    public function updateRiderPaymentVoucherDefaults(Request $request, string $company_slug, string $module)
+    {
+        $module = $this->normalizeModuleKey($module);
+        abort_unless(in_array($module, ['rider_invoices', 'invoices'], true), 404);
+
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:100'],
+            'show_internal_notes' => ['nullable', 'boolean'],
+            'internal_notes_label' => ['nullable', 'string', 'max:100'],
+            'show_signature' => ['nullable', 'boolean'],
+            'rider_signature_label' => ['nullable', 'string', 'max:100'],
+            'payer_signature_label' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        \App\Support\RiderPaymentVoucherDefaults::save([
+            'title' => $validated['title'] ?? null,
+            'show_internal_notes' => $request->boolean('show_internal_notes'),
+            'internal_notes_label' => $validated['internal_notes_label'] ?? null,
+            'show_signature' => $request->boolean('show_signature'),
+            'rider_signature_label' => $validated['rider_signature_label'] ?? null,
+            'payer_signature_label' => $validated['payer_signature_label'] ?? null,
+        ]);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment voucher settings saved.',
+            ]);
+        }
+
+        return redirect()
+            ->route('settings-panel.module-settings.index', [
+                'company_slug' => $company_slug,
+                'module' => $module,
+            ])
+            ->with('success', 'Payment voucher settings saved.');
+    }
+
     public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)
     {
         $module = $this->normalizeModuleKey($module);

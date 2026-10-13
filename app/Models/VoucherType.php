@@ -155,12 +155,13 @@ class VoucherType extends BaseModel
 
     /**
      * Voucher types that are system-managed and cannot be edited or deleted from the Vouchers module.
+     * Empty by default — Edit/Delete follow module assignment flags for every type.
      *
      * @return list<string>
      */
     public static function vouchersModuleLockedCodes(): array
     {
-        return ['FAV', 'FDV'];
+        return [];
     }
 
     public static function isLockedInVouchersModule(string $code): bool
@@ -171,15 +172,21 @@ class VoucherType extends BaseModel
     /**
      * For a given module, return edit/delete flags per voucher type code.
      * Used in views to show/hide Edit and Delete per voucher type in that module.
+     * Falls back to active voucher types so types not in the default map still get flags.
      *
      * @return array [voucher_type_code => ['can_edit' => bool, 'can_delete' => bool]]
      */
     public static function getEditDeleteFlagsByModule(string $moduleKey): array
     {
         $defaultCodes = static::defaultCodesForModule($moduleKey);
+        $activeCodes = static::query()
+            ->where('is_active', true)
+            ->pluck('code')
+            ->all();
+        $codes = array_values(array_unique(array_merge($defaultCodes, $activeCodes)));
         $lockedCodes = $moduleKey === 'vouchers' ? static::vouchersModuleLockedCodes() : [];
         $flags = [];
-        foreach ($defaultCodes as $code) {
+        foreach ($codes as $code) {
             $locked = in_array($code, $lockedCodes, true);
             $flags[$code] = [
                 'can_edit' => !$locked,

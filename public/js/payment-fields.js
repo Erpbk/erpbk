@@ -38,9 +38,12 @@
     }
     var $ctx = $form.length ? $form : $(document);
     var currency = currencyCode($ctx);
+    var invoiceTypeVal = $ctx.find('input[name="invoice_type"]').val() || '';
     var isRiderPayment = $ctx.find('[data-salary-invoice-payment="1"]').length > 0
       || $ctx.find('[data-rider-payment="1"]').length > 0
-      || ['rider', 'employee'].indexOf($ctx.find('input[name="invoice_type"]').val()) !== -1;
+      || ['rider', 'employee'].indexOf(invoiceTypeVal) !== -1;
+    var isRiderOnlyPayment = $ctx.find('[data-rider-payment="1"]').length > 0
+      || invoiceTypeVal === 'rider';
     var $boot = $ctx.find('[data-payment-fields-init]').first();
     var preservePrimaryAmount = $boot.attr('data-preserve-payment-amount') === '1';
     var savedPrimaryAmount = parseFloat($boot.attr('data-saved-payment-amount'));
@@ -49,6 +52,117 @@
     }
     if (isNaN(savedPrimaryAmount)) {
       savedPrimaryAmount = null;
+    }
+
+    function getCreatePaymentType() {
+      if (!isRiderOnlyPayment || !$ctx.find('#create_payment_type').length) {
+        return 'payment';
+      }
+      return $ctx.find('#create_payment_type').val() || '';
+    }
+
+    function isAdvanceLoanType() {
+      return getCreatePaymentType() === 'advance_loan';
+    }
+
+    function isPaymentCreateType() {
+      return getCreatePaymentType() === 'payment';
+    }
+
+    function enforceSingleInvoiceSelection($keepCheckbox) {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+      $ctx.find('#invoices-table tbody .invoice-checkbox:checked').each(function () {
+        if ($keepCheckbox && this === $keepCheckbox[0]) {
+          return;
+        }
+        $(this).prop('checked', false);
+        var $otherRow = $(this).closest('tr');
+        var $otherInput = $otherRow.find('.payment-amount');
+        $otherInput.prop('disabled', true).val(0);
+        var otherRef = $otherRow.data('reference') || '';
+        if (otherRef) {
+          var refVal = ($ctx.find('#reference').val() || '').replace(otherRef, '').trim();
+          $ctx.find('#reference').val(refVal);
+        }
+      });
+    }
+
+    /**
+     * Rider single-invoice focus: keep only the selected row visible while checked;
+     * show all payee-matching rows again when nothing is selected.
+     */
+    function syncRiderInvoiceRowVisibility() {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+
+      var $checked = $ctx.find('#invoices-table tbody .invoice-checkbox:checked');
+      if ($checked.length === 1) {
+        var keepId = String($checked.first().closest('tr').data('invoice-id') || '');
+        $ctx.find('#invoices-table tbody tr').each(function () {
+          var $row = $(this);
+          if (String($row.data('invoice-id') || '') === keepId) {
+            $row.show();
+          } else {
+            $row.hide();
+          }
+        });
+        return;
+      }
+
+      // No selection: restore rows using the normal payee filter.
+      filterInvoiceRows({ skipSelectionSync: true });
+    }
+
+    function syncBillingMonthFromSelectedInvoice() {
+      if (!isRiderOnlyPayment || !isPaymentCreateType()) {
+        return;
+      }
+      var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
+      var billingMonth = $checked.data('billing-month') || '';
+      if (billingMonth) {
+        $ctx.find('#billing_month').val(billingMonth);
+      }
+    }
+
+    function applyCreatePaymentTypeUi() {
+      if (!isRiderOnlyPayment || !$ctx.find('#create_payment_type').length) {
+        return;
+      }
+      var type = getCreatePaymentType();
+      var $billingGroup = $ctx.find('#billing-month-group');
+      var $billingInput = $ctx.find('#billing_month');
+      var $selectAll = $ctx.find('#select-all-invoices');
+
+      $selectAll.addClass('d-none').hide().prop('checked', false).prop('disabled', true);
+
+      if (type === 'advance_loan') {
+        $billingGroup.show();
+        $billingInput.prop('required', true);
+      } else if (type === 'payment') {
+        $billingGroup.hide();
+        $billingInput.prop('required', false);
+        syncBillingMonthFromSelectedInvoice();
+      } else {
+        $billingGroup.hide();
+        $billingInput.prop('required', false);
+      }
+    }
+
+    function capAmountToBalance($input, amount) {
+      var maxBalance = parseFloat($input.attr('data-max'));
+      if (isNaN(maxBalance)) {
+        maxBalance = parseFloat($input.closest('tr').data('balance')) || 0;
+      }
+      if (maxBalance >= 0 && amount > maxBalance + 0.009) {
+        if (typeof toastr !== 'undefined') {
+          toastr.warning('Payment amount cannot exceed the invoice balance due (' + currency + ' ' + maxBalance.toFixed(2) + ').');
+        }
+        return maxBalance;
+      }
+      return amount;
     }
 
     function applyPrimaryAmountDisplay(amount) {
@@ -73,11 +187,23 @@
     $ctx.find('.select2').each(function () {
       var $el = $(this);
       if ($el.hasClass('select2-hidden-accessible')) {
-        return;
+        try {
+          $el.select2('destroy');
+        } catch (e) {
+          // Ignore destroy errors from prior modal inits.
+        }
+      }
+      // allowClear requires a placeholder + empty <option>, or Select2 throws on clear.
+      var emptyOptionText = $.trim($el.find('option[value=""]').first().text() || '');
+      if (!emptyOptionText) {
+        $el.prepend('<option value=""></option>');
+        emptyOptionText = 'Select';
       }
       $el.select2({
-        dropdownParent: $form.length ? $form : $('#modalTopbody'),
-        allowClear: true
+        dropdownParent: $form.length ? $form : ($('#modalTopbody').length ? $('#modalTopbody') : $(document.body)),
+        allowClear: true,
+        placeholder: emptyOptionText,
+        width: '100%'
       });
     });
 
@@ -115,6 +241,10 @@
     }
 
     function updateSelectAllState() {
+      if (isRiderOnlyPayment) {
+        $ctx.find('#select-all-invoices').prop('checked', false).prop('disabled', true).addClass('d-none').hide();
+        return;
+      }
       var totalVisible = $ctx.find('#invoices-table tbody tr:visible').length;
       var checkedVisible = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').length;
 
@@ -201,6 +331,58 @@
       validatePaymentDistribution();
     }
 
+    function resolvePayeeLedgerBalance() {
+      var $payee = $ctx.find('#payee_account_id, [name="payee_account_id"]').first();
+      if (!$payee.length) {
+        return 0;
+      }
+      // Locked payee (hidden input) carries data-ledger-balance directly.
+      if ($payee.is('input')) {
+        return parseFloat($payee.attr('data-ledger-balance')) || 0;
+      }
+      var $selected = $payee.find('option:selected');
+      if (!$selected.length || !$selected.val()) {
+        return 0;
+      }
+      return parseFloat($selected.attr('data-ledger-balance')) || 0;
+    }
+
+    function updateRiderBalanceDueDisplay() {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+      var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
+      var remaining = $checked.length ? (parseFloat($checked.data('balance')) || 0) : 0;
+      $ctx.find('#rider_balance_due').text(remaining.toFixed(2));
+      $ctx.find('#rider_ledger_due').text(resolvePayeeLedgerBalance().toFixed(2));
+    }
+
+    function updateRiderNotesAndTermsDisplay(force) {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+      var $panel = $ctx.find('#rpf-notes-terms');
+      var $notesField = $ctx.find('#rpf-internal-notes');
+      var $termsField = $ctx.find('#rpf-terms-conditions');
+      if (!$panel.length || !$notesField.length) {
+        return;
+      }
+      // Keep in-progress typing unless invoice selection forced a reload.
+      if (!force && ($notesField.data('user-edited') || $termsField.data('user-edited'))) {
+        return;
+      }
+      var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
+      var notes = $checked.length
+        ? ($checked.attr('data-internal-notes') || '')
+        : ($panel.attr('data-default-notes') || '');
+      var terms = $checked.length
+        ? ($checked.attr('data-terms-conditions') || '')
+        : ($panel.attr('data-default-terms') || '');
+
+      $notesField.val(notes).data('user-edited', false);
+      $termsField.val(terms).data('user-edited', false);
+    }
+
     function applyInvoiceDateFromSelection() {
       if (!isRiderPayment) {
         return;
@@ -209,13 +391,31 @@
       var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
       var invoiceDate = $checked.data('invoice-date') || '';
       $ctx.find('#date_of_invoice, [name="date_of_invoice"]').val(invoiceDate || '');
+      syncBillingMonthFromSelectedInvoice();
+      updateRiderBalanceDueDisplay();
+      updateRiderNotesAndTermsDisplay(false);
     }
 
-    function filterInvoiceRows() {
+    function filterInvoiceRows(options) {
+      options = options || {};
       var selectedCustomerId = getSelectedCustomerId();
       var selectedCustomerName = getSelectedCustomerName();
       var visibleCount = 0;
       var hasPayeeFilter = !!(selectedCustomerId || selectedCustomerName);
+
+      // While a rider invoice is focused, don't re-expand the list via payee filter.
+      if (
+        !options.skipSelectionSync
+        && isRiderOnlyPayment
+        && $ctx.find('#invoices-table tbody .invoice-checkbox:checked').length === 1
+      ) {
+        syncRiderInvoiceRowVisibility();
+        updateSelectAllState();
+        updateTotalPayment();
+        validatePaymentDistribution();
+        applyInvoiceDateFromSelection();
+        return;
+      }
 
       $ctx.find('#invoices-table tbody tr').each(function () {
         var $row = $(this);
@@ -255,7 +455,7 @@
       updateTotalPayment();
       validatePaymentDistribution();
       applyInvoiceDateFromSelection();
-      if (isRiderPayment) {
+      if (isRiderPayment && !options.skipSelectionSync) {
         syncRiderPaymentAmountFromInvoices();
       }
     }
@@ -269,6 +469,22 @@
 
     $ctx.on('change.paymentFields', '#payee_account_id, [name="payee_account_id"]', function () {
       filterInvoiceRows();
+      updateRiderBalanceDueDisplay();
+    });
+
+    $ctx.on('change.paymentFields', '#create_payment_type', function () {
+      applyCreatePaymentTypeUi();
+      // Re-apply single selection when switching types.
+      var $checked = $ctx.find('#invoices-table tbody .invoice-checkbox:checked');
+      if ($checked.length > 1) {
+        enforceSingleInvoiceSelection($checked.first());
+        updateTotalPayment();
+        validatePaymentDistribution();
+        if (isRiderPayment) {
+          syncRiderPaymentAmountFromInvoices();
+        }
+      }
+      applyInvoiceDateFromSelection();
     });
 
     $ctx.on('change.paymentFields', '.invoice-checkbox', function () {
@@ -279,15 +495,23 @@
       var difference = (paymentAmount > 0) ? paymentAmount - totalSelectedPayment : 0;
       var rowRef = $row.data('reference') || '';
       var Reference = $ctx.find('#reference').val() || '';
+      var advanceLoan = isAdvanceLoanType();
 
       if ($(this).prop('checked')) {
+        if (isRiderOnlyPayment) {
+          enforceSingleInvoiceSelection($(this));
+        }
+
         $paymentInput.prop('disabled', false);
 
         if (!Reference.includes(rowRef)) {
           $ctx.find('#reference').val((Reference + ' ' + rowRef).trim());
         }
 
-        if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
+        if (advanceLoan) {
+          // Advance loan uses the primary amount; line amount is reference-only (0).
+          $paymentInput.val('0.00');
+        } else if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
           var balanceDue = parseFloat($row.data('balance')) || 0;
           var fillAmount = balanceDue;
 
@@ -334,19 +558,38 @@
         $paymentInput.trigger('change');
       }
 
+      if (isRiderOnlyPayment) {
+        syncRiderInvoiceRowVisibility();
+        updateRiderNotesAndTermsDisplay(true);
+      }
+
       updateTotalPayment();
       validatePaymentDistribution();
       updateSelectAllState();
       applyInvoiceDateFromSelection();
-      if (isRiderPayment) {
+      if (isRiderPayment && !advanceLoan) {
         syncRiderPaymentAmountFromInvoices();
+      } else if (advanceLoan) {
+        validatePaymentDistribution();
       }
+    });
+
+    $ctx.on('input.paymentFields', '#rpf-internal-notes, #rpf-terms-conditions', function () {
+      $(this).data('user-edited', true);
     });
 
     $ctx.on('keyup.paymentFields change.paymentFields', '.payment-amount', function () {
       var enteredAmount = parseFloat($(this).val()) || 0;
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
       var total = updateTotalPayment();
+
+      if (isRiderOnlyPayment && isPaymentCreateType()) {
+        var capped = capAmountToBalance($(this), enteredAmount);
+        if (capped !== enteredAmount) {
+          $(this).val(capped.toFixed(2));
+          enteredAmount = capped;
+        }
+      }
 
       // Salary payments sync the top amount from invoice lines; leasing caps lines to the top amount.
       if (!isRiderPayment && total > paymentAmount && paymentAmount > 0) {
@@ -373,7 +616,7 @@
 
       updateTotalPayment();
       validatePaymentDistribution();
-      if (isRiderPayment) {
+      if (isRiderPayment && !isAdvanceLoanType()) {
         syncRiderPaymentAmountFromInvoices();
       }
     });
@@ -386,17 +629,29 @@
         savedPrimaryAmount = amount;
       }
 
+      if (isRiderOnlyPayment && isPaymentCreateType()) {
+        var $activeLine = $ctx.find('.payment-amount:not(:disabled)').first();
+        if ($activeLine.length) {
+          amount = capAmountToBalance($activeLine, amount);
+          $(this).val(amount.toFixed(2));
+        }
+      }
+
       $ctx.find('#display_amount').text(amount.toFixed(2));
       $ctx.find('#total_debit').text((amount + bankCharges).toFixed(2));
 
-      if (isRiderPayment) {
+      if (isRiderPayment && !isAdvanceLoanType()) {
         var $activeAmounts = $ctx.find('.payment-amount:not(:disabled)');
         if ($activeAmounts.length === 1 && !preservePrimaryAmount) {
           // Single selected invoice on create: keep the line in sync with the primary amount.
           var $line = $activeAmounts.first();
           var rowBalance = parseFloat($line.closest('tr').data('balance')) || 0;
-          if (Math.abs(rowBalance) >= 0.01 || amount > 0) {
-            $line.val(amount.toFixed(2));
+          var lineAmount = amount;
+          if (isRiderOnlyPayment && isPaymentCreateType()) {
+            lineAmount = capAmountToBalance($line, amount);
+          }
+          if (Math.abs(rowBalance) >= 0.01 || lineAmount > 0) {
+            $line.val(lineAmount.toFixed(2));
           }
           updateTotalPayment();
           validatePaymentDistribution();
@@ -406,6 +661,9 @@
           validatePaymentDistribution();
           syncInvoicePaymentsToAmount(amount);
         }
+      } else if (isAdvanceLoanType()) {
+        updateTotalPayment();
+        validatePaymentDistribution();
       } else {
         updateTotalPayment();
         validatePaymentDistribution();
@@ -420,15 +678,22 @@
       $ctx.find('#display_charges').text(bankCharges.toFixed(2));
       $ctx.find('#total_debit').text((paymentAmount + bankCharges).toFixed(2));
 
+      // Bank charges are ledger-only — never change invoice allocation lines.
       calculateTotals();
+      validatePaymentDistribution();
     });
 
     $ctx.on('change.paymentFields', '#select-all-invoices', function () {
+      if (isRiderOnlyPayment) {
+        $(this).prop('checked', false);
+        return;
+      }
       var isChecked = $(this).prop('checked');
       $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox').prop('checked', isChecked).trigger('change');
     });
 
     setTimeout(function () {
+      applyCreatePaymentTypeUi();
       var $payeeSelect = $ctx.find('#payee_account_id, [name="payee_account_id"]');
       if ($payeeSelect.val() || isRiderPayment) {
         filterInvoiceRows();
@@ -457,9 +722,19 @@
   window.validatePaymentForm = function () {
     var totalCredit = parseFloat($('#payment_amount').val()) || 0;
     var totalInvoicePayment = parseFloat($('#total_invoice_payment').text()) || 0;
+    var invoiceType = $('input[name="invoice_type"]').val() || '';
     var isRiderPayment = $('[data-salary-invoice-payment="1"]').length > 0
       || $('[data-rider-payment="1"]').length > 0
-      || ['rider', 'employee'].indexOf($('input[name="invoice_type"]').val()) !== -1;
+      || ['rider', 'employee'].indexOf(invoiceType) !== -1;
+    var isRiderOnly = $('[data-rider-payment="1"]').length > 0 || invoiceType === 'rider';
+    var createType = $('#create_payment_type').length ? ($('#create_payment_type').val() || '') : 'payment';
+    var $checkedInvoices = $('.invoice-checkbox:checked');
+
+    if (isRiderOnly && $('#create_payment_type').length && !createType) {
+      alert('Please select a payment type');
+      $('#create_payment_type').addClass('is-invalid');
+      return false;
+    }
 
     if (totalCredit <= 0) {
       alert('Please enter a valid payment amount greater than zero');
@@ -467,12 +742,62 @@
       return false;
     }
 
-    if ($('#invoices-table').length && totalInvoicePayment > totalCredit + 0.01) {
-      alert('Total selected invoice payments cannot exceed the payment amount');
-      return false;
+    if (isRiderOnly && createType === 'advance_loan') {
+      if (!$('#billing_month').val()) {
+        alert('Billing month is required for Advance Loan');
+        $('#billing_month').addClass('is-invalid');
+        return false;
+      }
+      // Invoice selection is optional for Advance Loan.
+      if ($checkedInvoices.length > 1) {
+        alert('Please select at most one invoice for the advance loan');
+        return false;
+      }
+      $('.is-invalid').removeClass('is-invalid');
+      return true;
     }
 
-    if (isRiderPayment && !$('.invoice-checkbox:checked').length) {
+    // Compare against payment amount only — bank charges must not affect invoice allocation.
+    if ($('#invoices-table').length && totalInvoicePayment > totalCredit + 0.01) {
+      var bankCharges = parseFloat($('#bank_charges').val()) || 0;
+      var excess = totalInvoicePayment - totalCredit;
+      // Auto-trim lines that still include bank charges instead of blocking submit.
+      if (bankCharges > 0.009 && excess <= bankCharges + 0.01) {
+        var $line = $('.payment-amount:not(:disabled)').last();
+        if ($line.length) {
+          var lineVal = parseFloat($line.val()) || 0;
+          $line.val(Math.max(0, lineVal - excess).toFixed(2));
+          if (typeof window.jQuery !== 'undefined') {
+            $line.trigger('change');
+          }
+        }
+      } else {
+        alert('Total selected invoice payments cannot exceed the payment amount');
+        return false;
+      }
+    }
+
+    if (isRiderOnly && createType === 'payment') {
+      if ($checkedInvoices.length !== 1) {
+        alert('Please select exactly one invoice for payment');
+        return false;
+      }
+      var $row = $checkedInvoices.first().closest('tr');
+      var balanceDue = parseFloat($row.data('balance')) || 0;
+      if (totalCredit > balanceDue + 0.01) {
+        alert('Payment amount cannot exceed the invoice balance due');
+        $('#payment_amount').addClass('is-invalid');
+        return false;
+      }
+      if (totalInvoicePayment <= 0) {
+        alert('Please enter a payment amount against the selected invoice');
+        return false;
+      }
+      $('.is-invalid').removeClass('is-invalid');
+      return true;
+    }
+
+    if (isRiderPayment && !$checkedInvoices.length) {
       alert('Please select at least one invoice for payment');
       return false;
     }

@@ -248,7 +248,12 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
                     container.appendChild(originalForm);
                     initLoadedForm(originalForm, temp);
 
-                    $('#modalTopTitle').text('Record Rider Payment');
+                    $('#modalTopTitle').html(
+                        '<span style="color:#1e4b8f;font-weight:700;">Record Rider Payment</span>' +
+                        '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">Allocate a payment to rider invoices</div>'
+                    );
+                    // Prefer modal chrome title; keep in-form header hidden.
+                    $(originalForm).find('[data-rpf-inline-header]').addClass('d-none');
                 })
                 .catch(() => {
                     container.innerHTML = '<div class="alert alert-danger">Failed to load payment form.</div>';

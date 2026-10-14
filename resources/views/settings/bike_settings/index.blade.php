@@ -266,6 +266,9 @@ $attendanceRefType = $attendanceRefType ?? null;
             @if($isInvoiceDefaultsModule)
               @include('settings.partials.invoice_module_defaults', ['defaultsModule' => $moduleKey])
             @endif
+            @if(in_array(($moduleKey ?? ''), ['rider_invoices', 'invoices'], true))
+              @include('settings.partials.rider_payment_voucher_defaults', ['defaultsModule' => $moduleKey])
+            @endif
           </div>
 
           @include('settings.partials.top_bar._settings_tab_content')

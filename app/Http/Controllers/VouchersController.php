@@ -306,7 +306,7 @@ class VouchersController extends Controller
    *
    * @return Response
    */
-  public function edit($company_slug, $id)
+  public function edit(Request $request, $company_slug, $id)
   {
     /** @var Vouchers $vouchers */
     $vouchers = Vouchers::where('trans_code', $id)->first();
@@ -321,11 +321,33 @@ class VouchersController extends Controller
       abort(403, 'This voucher cannot be edited from the Vouchers module.');
     }
 
-    if (in_array($vouchers->voucher_type, ['JV', 'TRF', 'RFV', 'AL', 'COD', 'PN', 'IL', 'PAY', 'VC', 'INC'], true)) {
-      $data = Transactions::where('trans_code', $id)->get();
-    } else {
-      $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
+    $editFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+    if (empty($editFlags[$vouchers->voucher_type]['can_edit'])) {
+      abort(403, 'This voucher type is not allowed to be edited in the Vouchers module.');
     }
+
+    // Open the owning-module modal for PV / RV / EXP (same UI as Payments, Receipts, Expenses).
+    $moduleActions = \App\Support\VoucherModuleActions::forVoucher($vouchers, $company_slug);
+    if ($moduleActions['module'] === 'payments') {
+      $paymentId = Payment::where('voucher_id', $vouchers->id)->value('id')
+        ?: ($vouchers->ref_id ?: null);
+      if ($paymentId) {
+        return app(PaymentController::class)->edit($request, $company_slug, $paymentId);
+      }
+    }
+    if ($moduleActions['module'] === 'receipts') {
+      $receiptId = Receipt::where('voucher_id', $vouchers->id)->value('id')
+        ?: ($vouchers->ref_id ?: null);
+      if ($receiptId) {
+        return app(ReceiptController::class)->edit($request, $company_slug, $receiptId);
+      }
+    }
+    if ($moduleActions['module'] === 'expenses') {
+      return app(ExpenseController::class)->editVoucher($company_slug, $vouchers->id);
+    }
+
+    // Load full ledger lines for every other voucher type (JV, etc.).
+    $data = Transactions::where('trans_code', $id)->get();
 
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
     return view('vouchers.edit', compact('vouchers', 'data', 'voucherCustomFields'));
@@ -360,6 +382,11 @@ class VouchersController extends Controller
 
     if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {
       return response()->json(['errors' => ['error' => 'This voucher cannot be edited from the Vouchers module.']], 403);
+    }
+
+    $editFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+    if (empty($editFlags[$vouchers->voucher_type]['can_edit'])) {
+      return response()->json(['errors' => ['error' => 'This voucher type is not allowed to be edited in the Vouchers module.']], 403);
     }
 
     if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
@@ -518,6 +545,13 @@ class VouchersController extends Controller
         DB::rollBack();
 
         return response()->json(['errors' => ['error' => 'This voucher cannot be deleted from the Vouchers module.']], 403);
+      }
+
+      $deleteFlags = VoucherType::getEditDeleteFlagsByModule('vouchers');
+      if (empty($deleteFlags[$voucher->voucher_type]['can_delete'])) {
+        DB::rollBack();
+
+        return response()->json(['errors' => ['error' => 'This voucher type is not allowed to be deleted in the Vouchers module.']], 403);
       }
 
       $relatedTransactions = Transactions::where('trans_code', $id)->get();
@@ -868,8 +902,24 @@ class VouchersController extends Controller
   {
     $canUpload = user_can('vouchers_edit')
       || user_can('vouchers_create')
+      || user_can('voucher_edit')
+      || user_can('voucher_create')
       || user_can('expenses_edit')
-      || user_can('expenses_create');
+      || user_can('expenses_create')
+      || user_can('riders_payments_edit')
+      || user_can('riders_payments_create')
+      || user_can('cash_&_banks_payments_edit')
+      || user_can('cash_&_banks_payments_create')
+      || user_can('employees_payments_edit')
+      || user_can('employees_payments_create')
+      || user_can('customers_payments_edit')
+      || user_can('customers_payments_create')
+      || user_can('sims_payments_edit')
+      || user_can('sims_payments_create')
+      || user_can('leasing_companies_payments_edit')
+      || user_can('leasing_companies_payments_create')
+      || user_can('suppliers_payments_edit')
+      || user_can('suppliers_payments_create');
 
     if (! $canUpload) {
       return response()->json(['message' => 'Unauthorized action.'], 403);
@@ -907,6 +957,14 @@ class VouchersController extends Controller
         $voucher->attach_file = $fileName;
         $voucher->updated_by = auth()->id();
         $voucher->save();
+
+        // Keep linked payment attachment in sync (PV and similar).
+        $payment = Payment::where('voucher_id', $voucher->id)->first();
+        if ($payment) {
+          $payment->attachment = $fileName;
+          $payment->updated_by = auth()->id();
+          $payment->save();
+        }
       } catch (\Throwable $e) {
         report($e);
 

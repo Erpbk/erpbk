@@ -41,6 +41,14 @@
             $pendingDeletionModel = record_is_pending_deletion($payment)
                 ? $payment
                 : ($payment->voucher ?? $payment);
+            $isRiderPaymentRow = strcasecmp((string) optional($payment->payeeAccount)->ref_name, 'Rider') === 0
+                || (bool) preg_match('/RINV/i', (string) ($payment->reference ?? '').' '.($payment->description ?? ''));
+            $viewVoucherAction = $isRiderPaymentRow
+                ? route('payments.show', array_filter(['payment' => $payment->id, 'company_slug' => $__companySlug]))
+                : ($voucherId ? route('vouchers.show', $voucherShowParams($voucherId)) : null);
+            $viewVoucherTitle = $isRiderPaymentRow
+                ? ('Payment Voucher '.($payment->reference ?: $voucherLabel))
+                : ('Payment Voucher '.$voucherLabel);
         @endphp
         <tr class="{{ $paymentPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $payment->id }}">
             <td>
@@ -51,11 +59,11 @@
             </td>
             <td>{{ \App\Helpers\Common::MonthFormat($payment->billing_month) }}</td>
             <td>
-                @if($voucherId)
+                @if($viewVoucherAction)
                 <a href="javascript:void(0);"
-                    data-action="{{ route('vouchers.show', $voucherShowParams($voucherId)) }}"
+                    data-action="{{ $viewVoucherAction }}"
                     class="text-primary show-voucher-panel"
-                    data-title="Payment Voucher {{ $voucherLabel }}"
+                    data-title="{{ $viewVoucherTitle }}"
                     data-collapse-sidebar="1"
                     data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                     {{ $voucherLabel }}
@@ -87,19 +95,38 @@
                         <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $payment->id }}">
-                        @if($voucherId)
+                        @if($viewVoucherAction)
                         @can('voucher_view')
                         <a href="javascript:void(0);"
                             class="dropdown-item waves-effect show-voucher-panel"
-                            data-action="{{ route('vouchers.show', $voucherShowParams($voucherId)) }}"
-                            data-title="Payment Voucher {{ $voucherLabel }}"
+                            data-action="{{ $viewVoucherAction }}"
+                            data-title="{{ $viewVoucherTitle }}"
                             data-collapse-sidebar="1"
                             data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
                             <i class="fa fa-eye my-1"></i> View Voucher
                         </a>
                         @endcan
-                        @canany(['voucher_create', 'voucher_edit'])
-                        @if(!in_array($voucherType, ['PV', 'RV', 'EXP', 'RFV', 'SV', 'VL', 'LV', 'FAV', 'FDV'], true))
+                        @canany([
+                            'voucher_create',
+                            'voucher_edit',
+                            'vouchers_create',
+                            'vouchers_edit',
+                            'riders_payments_create',
+                            'riders_payments_edit',
+                            'cash_&_banks_payments_create',
+                            'cash_&_banks_payments_edit',
+                            'employees_payments_create',
+                            'employees_payments_edit',
+                            'customers_payments_create',
+                            'customers_payments_edit',
+                            'sims_payments_create',
+                            'sims_payments_edit',
+                            'leasing_companies_payments_create',
+                            'leasing_companies_payments_edit',
+                            'suppliers_payments_create',
+                            'suppliers_payments_edit',
+                        ])
+                        @if($voucherId)
                         <a href="javascript:void(0);"
                             data-size="sm"
                             data-title="Upload Document"
@@ -169,7 +196,7 @@
 {!! $data->links('components.global-pagination') !!}
 @endif
 
-@section('page-script')
+@push('page-scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     $(document).ready(function() {
@@ -226,4 +253,4 @@
     });
 </script>
 @include('delete_requests._pending_table_script', ['items' => $data])
-@endsection
+@endpush

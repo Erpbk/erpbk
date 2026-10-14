@@ -1,3 +1,1 @@
-<div class="row">
-    @include('payments.show_fields')
-</div>
+@include('payments.voucher_document')

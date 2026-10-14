@@ -61,6 +61,7 @@ class Vouchers extends BaseModel
     'reference_number',
     'ref_id',
     'rider_id',
+    'invoice_id',
     'vendor_id',
     'toll_gate',
     'trip_date',

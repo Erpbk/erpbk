@@ -22,13 +22,17 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Repositories\PaymentsRepository;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
+use App\Services\Payment\RiderPaymentVoucherViewData;
+use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
+use App\Support\InvoicePdf;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
@@ -45,7 +49,10 @@ class PaymentController extends Controller
     {
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = Payment::query()->with(['payeeAccount', 'voucher'])->orderBy('date_of_payment', 'desc');
+        $query = Payment::query()
+            ->with(['payeeAccount', 'voucher', 'bank.account'])
+            ->orderBy('date_of_payment', 'desc')
+            ->applyListFilters($request);
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
 
@@ -59,8 +66,17 @@ class PaymentController extends Controller
             'month_count' => (clone $monthQuery)->count(),
             'month_amount' => (float) (clone $monthQuery)->sum('amount'),
         ];
+        $banks = Banks::active()->get();
 
-        return view('payments.index', compact('data', 'totals'));
+        if ($request->ajax()) {
+            $tableData = view('payments.table', compact('data'))->render();
+
+            return response()->json([
+                'tableData' => $tableData,
+            ]);
+        }
+
+        return view('payments.index', compact('data', 'totals', 'banks'));
     }
 
     public function create()
@@ -180,16 +196,21 @@ class PaymentController extends Controller
             $invoices = $invoiceQuery->orderBy('billing_month', 'desc')->get();
 
             // Full rider list for payee dropdown.
-            $payeeOptions = $this->buildPayeeOptionsFromEntities(
-                Riders::with('account')
-                    ->whereNotNull('account_id')
-                    ->orderBy('name')
-                    ->get()
+            $payeeOptions = $this->attachLedgerBalancesToPayeeOptions(
+                $this->buildPayeeOptionsFromEntities(
+                    Riders::with('account')
+                        ->whereNotNull('account_id')
+                        ->orderBy('name')
+                        ->get()
+                )
             );
             $accountIds = $payeeOptions->pluck('account_id')->all();
 
             if ($riderId) {
                 $lockedPayee = $this->makePayeeOption(Riders::with('account')->find($riderId));
+                if ($lockedPayee) {
+                    $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) $lockedPayee['account_id']);
+                }
             } elseif ($selectedInvoice && $selectedInvoice->rider) {
                 $preferredPayeeAccountId = $selectedInvoice->rider->account_id;
             }
@@ -286,6 +307,15 @@ class PaymentController extends Controller
         if ($employeePayment || $riderPayment || $simPayment) {
             $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
 
+            // Payable invoices must stay listed even when sequential ledger net is <= 0
+            // (deductions/carry). Normalize allocatable balance for payment allocation UI.
+            if ($invoiceType === 'rider') {
+                $this->normalizeRiderPaymentFormBalances($invoices);
+                if (! empty($existingInvoices)) {
+                    $this->normalizeRiderPaymentFormBalances($existingInvoices);
+                }
+            }
+
             return view('payments.create', compact(
                 'banks',
                 'payment',
@@ -314,6 +344,16 @@ class PaymentController extends Controller
     {
         $this->forgetEmptyAttachmentUpload($request);
 
+        if (
+            $request->input('invoice_type') === 'rider'
+            && $request->input('create_payment_type') === 'advance_loan'
+        ) {
+            return $this->storeRiderAdvanceLoanFromPaymentForm($request);
+        }
+
+        $isRiderPaymentCreate = $request->input('invoice_type') === 'rider'
+            && in_array($request->input('create_payment_type', 'payment'), ['payment', ''], true);
+
         $rules = [
             'reference' => 'nullable|string|max:255',
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
@@ -321,16 +361,22 @@ class PaymentController extends Controller
             'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
             'date_of_invoice' => 'nullable|date',
-            'billing_month' => 'required|date_format:Y-m',
+            'billing_month' => $isRiderPaymentCreate ? 'nullable|date_format:Y-m' : 'required|date_format:Y-m',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'invoice_ids' => 'nullable|array',
+            'invoice_ids' => $isRiderPaymentCreate ? 'required|array|size:1' : 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
             'payment_amounts.*' => 'nullable|numeric',
         ];
+
+        if ($isRiderPaymentCreate) {
+            $rules['create_payment_type'] = 'nullable|in:payment';
+            $rules['internal_notes'] = 'nullable|string|max:500';
+            $rules['terms_and_conditions'] = 'nullable|string';
+        }
 
         $messages = [
             'amount_type.required' => 'Payment mode is required',
@@ -342,9 +388,16 @@ class PaymentController extends Controller
             'billing_month.required' => 'Billing month is required',
             'description.required' => 'Main narration is required',
             'bank_charges_account.required_if' => 'Please select a bank charges account when bank charges are entered',
+            'invoice_ids.required' => 'Please select exactly one invoice for payment',
+            'invoice_ids.size' => 'Please select exactly one invoice for payment',
         ];
 
         $this->validate($request, $rules, $messages);
+
+        // For rider Payment type: derive billing month from the selected invoice.
+        if ($isRiderPaymentCreate) {
+            $this->applyRiderPaymentInvoiceRules($request);
+        }
 
         // For rider/employee payments, inherit invoice date from the selected invoice when not provided.
         if (
@@ -398,12 +451,8 @@ class PaymentController extends Controller
             // Validate invoice payments if invoices are selected
             $salaryBalancesBefore = [];
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
-                $paymentAmounts = $request->input('payment_amounts');
-                $totalPayment = array_sum($paymentAmounts);
-
-                if ($totalPayment > $paymentAmount) {
-                    throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
-                }
+                // Bank charges are ledger-only — never part of invoice allocation.
+                $this->enforceInvoicePaymentsWithinPaymentAmount($request, $paymentAmount, $bankCharges);
 
                 // Snapshot salary due amounts before creating the payment row so legacy
                 // billing-month paid totals (and carry-forward) do not distort status.
@@ -479,8 +528,8 @@ class PaymentController extends Controller
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
                         if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
                             && count($invoiceIds) === 1) {
-                            // Single-invoice payments may omit per-row amounts
-                            $invoicePaymentAmount = (float) $payment->amount;
+                            // Single-invoice payments may omit per-row amounts (exclude bank charges)
+                            $invoicePaymentAmount = $paymentAmount;
                         }
                         if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             continue;
@@ -490,11 +539,19 @@ class PaymentController extends Controller
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
                         $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
 
-                        $invoice->update([
+                        $invoiceUpdate = [
                             'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
                             'partial_paid_amount' => $partialAmount,
                             'updated_by' => auth()->id(),
-                        ]);
+                        ];
+                        // Persist editable notes/terms from the payment form onto the invoice.
+                        if ($request->has('internal_notes')) {
+                            $invoiceUpdate['notes'] = $request->input('internal_notes');
+                        }
+                        if ($request->has('terms_and_conditions')) {
+                            $invoiceUpdate['terms_and_conditions'] = $request->input('terms_and_conditions');
+                        }
+                        $invoice->update($invoiceUpdate);
                         $invoiceRefs[] = 'Rider Invoice #'.$invoice->id;
                     }
 
@@ -560,49 +617,19 @@ class PaymentController extends Controller
             $billingMonth = $input['billing_month'];
             $desc = $input['description'];
 
-            // 1. Credit the paying account (BANK) - CREDIT entry (money going out)
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $payment->id,
-                'reference_type' => 'PV',
-                'account_id' => $payingAccountId, // Bank account (credit)
-                'credit' => $totalAmount,
-                'debit' => 0,
-                'billing_month' => $billingMonth,
-                'narration' => $desc,
-                'branch_id' => $payment->branch_id,
-            ]);
-
-            // 2. Debit the payee account (receiving account) - DEBIT entry (money coming in)
-            Transactions::create([
-                'trans_code' => $transCode,
-                'trans_date' => $date,
-                'reference_id' => $payment->id,
-                'reference_type' => 'PV',
-                'account_id' => $request->input('payee_account_id'), // Receiving account (debit)
-                'credit' => 0,
-                'debit' => $paymentAmount,
-                'billing_month' => $billingMonth,
-                'branch_id' => $payment->branch_id,
-                'narration' => $desc,
-            ]);
-
-            // 3. Handle bank charges if any
-            if ($bankCharges > 0) {
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $date,
-                    'reference_id' => $payment->id,
-                    'reference_type' => 'PV',
-                    'account_id' => $bankChargesAccountId,
-                    'credit' => 0,
-                    'debit' => $bankCharges,
-                    'billing_month' => $billingMonth,
-                    'branch_id' => $payment->branch_id,
-                    'narration' => 'Bank charges for ( ' . $payment->description . ' )',
-                ]);
-            }
+            $this->postPaymentLedgerEntries(
+                $transCode,
+                $date,
+                (int) $payment->id,
+                (int) $payingAccountId,
+                (int) $request->input('payee_account_id'),
+                $paymentAmount,
+                $bankCharges,
+                $bankChargesAccountId,
+                $billingMonth,
+                $payment->branch_id ? (int) $payment->branch_id : null,
+                (string) $desc
+            );
 
             // Create voucher
             $voucherData = [
@@ -690,16 +717,51 @@ class PaymentController extends Controller
         }
     }
 
-    public function show($comapny_slug, $id)
+    public function show(Request $request, $comapny_slug, $id)
     {
-        $payment = $this->paymentsRepository->find($id);
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($id);
+        if (empty($payment)) {
+            if ($request->ajax()) {
+                return response('Payment not found', 404);
+            }
+            Flash::error('Payment not found');
+
+            return redirect(route('payments.index'));
+        }
+
+        $viewData = app(RiderPaymentVoucherViewData::class);
+        if (! $viewData->isRiderPayment($payment)) {
+            // Non-rider payments keep the generic voucher modal when a voucher exists.
+            if ($payment->voucher_id) {
+                return redirect()->route('vouchers.show', array_filter([
+                    'voucher' => $payment->voucher_id,
+                    'company_slug' => $comapny_slug,
+                    'print' => $request->boolean('print') ? 1 : null,
+                ]));
+            }
+
+            return view('payments.show_fields')->with('payment', $payment);
+        }
+
+        return view('payments.show', $viewData->build($payment));
+    }
+
+    public function pdf($comapny_slug, $id)
+    {
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($id);
         if (empty($payment)) {
             Flash::error('Payment not found');
 
             return redirect(route('payments.index'));
         }
 
-        return view('payments.show')->with('payment', $payment);
+        $viewData = app(RiderPaymentVoucherViewData::class);
+        abort_unless($viewData->isRiderPayment($payment), 404);
+
+        $data = $viewData->build($payment);
+        $filename = 'Payment-Voucher-'.preg_replace('/[^A-Za-z0-9\-_]/', '', (string) ($data['referenceNo'] ?? $payment->id)).'.pdf';
+
+        return InvoicePdf::download('payments.pdf', $data, $filename);
     }
 
     public function edit(Request $request, $comapny_slug, $id)
@@ -852,11 +914,13 @@ class PaymentController extends Controller
                 ->orderBy('billing_month', 'desc')
                 ->get();
             $invoiceType = 'rider';
-            $payeeOptions = $this->buildPayeeOptionsFromEntities(
-                Riders::with('account')
-                    ->whereNotNull('account_id')
-                    ->orderBy('name')
-                    ->get()
+            $payeeOptions = $this->attachLedgerBalancesToPayeeOptions(
+                $this->buildPayeeOptionsFromEntities(
+                    Riders::with('account')
+                        ->whereNotNull('account_id')
+                        ->orderBy('name')
+                        ->get()
+                )
             );
             $accountIds = $payeeOptions->pluck('account_id')->all();
             $lockedPayee = null;
@@ -866,6 +930,10 @@ class PaymentController extends Controller
         // For module-linked payments without a selectable list, surface the saved payee as locked.
         if ($invoiceType && ! $lockedPayee && $payment->payee_account_id && $payeeOptions->isEmpty()) {
             $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
+        }
+
+        if ($invoiceType === 'rider' && $lockedPayee && ! isset($lockedPayee['ledger_balance'])) {
+            $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) ($lockedPayee['account_id'] ?? 0));
         }
 
         $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
@@ -913,6 +981,7 @@ class PaymentController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
             'description' => 'required|string|max:500',
+            'internal_notes' => 'nullable|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
             'invoice_ids' => 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
@@ -1006,12 +1075,8 @@ class PaymentController extends Controller
 
             // Handle existing invoice payments (remove old ones)
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
-                $paymentAmounts = $request->input('payment_amounts');
-                $totalPayment = array_sum($paymentAmounts);
-
-                if ($totalPayment > $paymentAmount) {
-                    throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
-                }
+                // Bank charges are ledger-only — never part of invoice allocation.
+                $this->enforceInvoicePaymentsWithinPaymentAmount($request, $paymentAmount, $bankCharges);
 
                 // Snapshot salary balances before reverting this payment's allocations.
                 // Use the same sequential period slices as the payment form.
@@ -1194,49 +1259,19 @@ class PaymentController extends Controller
                 // Delete existing transactions
                 Transactions::where('trans_code', $transCode)->delete();
 
-                // 1. CREDIT transaction (paying account - BANK - money going out)
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $date,
-                    'reference_id' => $payment->id,
-                    'reference_type' => 'PV',
-                    'account_id' => $payingAccountId,
-                    'credit' => $totalAmount,
-                    'debit' => 0,
-                    'billing_month' => $billingMonth,
-                    'branch_id' => $payment->branch_id,
-                    'narration' => $desc,
-                ]);
-
-                // 2. DEBIT transaction (receiving account - money coming in)
-                Transactions::create([
-                    'trans_code' => $transCode,
-                    'trans_date' => $date,
-                    'reference_id' => $payment->id,
-                    'reference_type' => 'PV',
-                    'account_id' => $request->input('payee_account_id'),
-                    'credit' => 0,
-                    'debit' => $paymentAmount,
-                    'billing_month' => $billingMonth,
-                    'branch_id' => $payment->branch_id,
-                    'narration' => $desc,
-                ]);
-
-                // 3. Bank charges transaction (if any)
-                if ($bankCharges > 0) {
-                    Transactions::create([
-                        'trans_code' => $transCode,
-                        'trans_date' => $date,
-                        'reference_id' => $payment->id,
-                        'reference_type' => 'PV',
-                        'account_id' => $bankChargesAccountId,
-                        'credit' => 0,
-                        'debit' => $bankCharges,
-                        'billing_month' => $billingMonth,
-                        'branch_id' => $payment->branch_id,
-                        'narration' => 'Bank charges for ( ' . $desc . ' )',
-                    ]);
-                }
+                $this->postPaymentLedgerEntries(
+                    (int) $transCode,
+                    $date,
+                    (int) $payment->id,
+                    (int) $payingAccountId,
+                    (int) $request->input('payee_account_id'),
+                    $paymentAmount,
+                    $bankCharges,
+                    $bankChargesAccountId,
+                    $billingMonth,
+                    $payment->branch_id ? (int) $payment->branch_id : null,
+                    (string) $desc
+                );
 
                 // Update voucher
                 $voucherData = [
@@ -1479,6 +1514,434 @@ class PaymentController extends Controller
     }
 
     /**
+     * When sequential ledger net is not positive, fall back to remaining invoice
+     * line total (items + VAT − paid) so unpaid invoices stay payable in the form.
+     *
+     * @param  iterable<int, RiderInvoices>|null  $invoices
+     */
+    private function normalizeRiderPaymentFormBalances($invoices): void
+    {
+        foreach (collect($invoices ?? []) as $invoice) {
+            if (! $invoice) {
+                continue;
+            }
+
+            $sequentialBalance = (float) ($invoice->balance ?? 0);
+            if ($sequentialBalance > 0.01) {
+                continue;
+            }
+
+            $itemsTotal = round(
+                (float) ($invoice->items?->sum('amount') ?? 0) + (float) ($invoice->vat ?? 0),
+                2
+            );
+            $paid = (float) ($invoice->paid_amount ?? 0);
+            $remaining = round(max(0, $itemsTotal - $paid), 2);
+            if ($remaining <= 0.01) {
+                continue;
+            }
+
+            $invoice->setOutstandingSummary([
+                'final_amount' => $itemsTotal,
+                'paid_amount' => $paid,
+                'balance' => $remaining,
+            ]);
+        }
+    }
+
+    /**
+     * Rider Payment type: require one invoice, derive billing month, cap amount to balance due.
+     */
+    private function applyRiderPaymentInvoiceRules(Request $request): void
+    {
+        $invoiceId = (int) collect($request->input('invoice_ids', []))->filter()->first();
+        if ($invoiceId <= 0) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Please select exactly one invoice for payment',
+            ]);
+        }
+
+        $invoice = RiderInvoices::with(['rider.account', 'items'])->find($invoiceId);
+        if (! $invoice) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Selected invoice was not found',
+            ]);
+        }
+
+        $collection = collect([$invoice]);
+        $this->applySequentialSalaryInvoiceBalances($collection, null, 'rider');
+        $this->normalizeRiderPaymentFormBalances($collection);
+        $balanceDue = (float) ($invoice->balance ?? 0);
+
+        if ($balanceDue <= 0.01) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Selected invoice has no outstanding balance',
+            ]);
+        }
+
+        $paymentAmount = round((float) $request->input('amount', 0), 2);
+        $bankCharges = round((float) $request->input('bank_charges', 0), 2);
+        $lineAmount = round((float) ($request->input('payment_amounts.'.$invoiceId) ?? $paymentAmount), 2);
+        if ($lineAmount < 0.01) {
+            $lineAmount = $paymentAmount;
+        }
+
+        // If the line mistakenly includes bank charges, strip them before invoice checks.
+        if ($bankCharges > 0.009 && $lineAmount > $paymentAmount + 0.009
+            && $lineAmount <= $paymentAmount + $bankCharges + 0.01) {
+            $lineAmount = $paymentAmount;
+        }
+
+        // Invoice allocation uses payment amount only (bank charges excluded).
+        if ($lineAmount > $paymentAmount + 0.01) {
+            $lineAmount = $paymentAmount;
+        }
+
+        if ($paymentAmount > $balanceDue + 0.01 || $lineAmount > $balanceDue + 0.01) {
+            throw ValidationException::withMessages([
+                'amount' => 'Payment amount cannot exceed the invoice balance due ('.number_format($balanceDue, 2).')',
+            ]);
+        }
+
+        $billingMonth = $invoice->billing_month
+            ? Carbon::parse($invoice->billing_month)->format('Y-m')
+            : date('Y-m');
+
+        $request->merge([
+            'billing_month' => $billingMonth,
+            'payment_amounts' => array_merge(
+                (array) $request->input('payment_amounts', []),
+                [(string) $invoiceId => $lineAmount]
+            ),
+        ]);
+    }
+
+    /**
+     * Ensure selected invoice allocations do not exceed the payment amount.
+     * Bank charges must never inflate or block invoice allocation.
+     */
+    private function enforceInvoicePaymentsWithinPaymentAmount(
+        Request $request,
+        float $paymentAmount,
+        float $bankCharges = 0.0
+    ): void {
+        $invoiceIds = collect($request->input('invoice_ids', []))
+            ->filter(static fn ($id) => $id !== null && $id !== '')
+            ->map(static fn ($id) => (string) $id)
+            ->values();
+
+        if ($invoiceIds->isEmpty()) {
+            return;
+        }
+
+        $rawAmounts = (array) $request->input('payment_amounts', []);
+        $normalized = [];
+        $totalPayment = 0.0;
+
+        foreach ($invoiceIds as $id) {
+            $value = round((float) ($rawAmounts[$id] ?? $rawAmounts[(int) $id] ?? 0), 2);
+            $normalized[$id] = $value;
+            $totalPayment += $value;
+        }
+
+        $totalPayment = round($totalPayment, 2);
+        $paymentAmount = round($paymentAmount, 2);
+        $bankCharges = round($bankCharges, 2);
+
+        if ($totalPayment <= $paymentAmount + 0.01) {
+            // Keep request in sync with the selected-invoice-only map.
+            $request->merge(['payment_amounts' => array_merge($rawAmounts, $normalized)]);
+
+            return;
+        }
+
+        // Lines that still include bank charges (legacy / UI bleed): cap to payment amount.
+        $excess = round($totalPayment - $paymentAmount, 2);
+        if ($bankCharges > 0.009 && $excess <= $bankCharges + 0.01) {
+            $normalized = $this->capInvoicePaymentAmounts($normalized, $paymentAmount);
+            $request->merge(['payment_amounts' => array_merge($rawAmounts, $normalized)]);
+
+            return;
+        }
+
+        throw new \Exception('Total payment amount for selected invoices cannot exceed the payment amount.');
+    }
+
+    /**
+     * Reduce selected invoice line amounts so they sum to at most $maxAmount.
+     *
+     * @param  array<string, float>  $amounts
+     * @return array<string, float>
+     */
+    private function capInvoicePaymentAmounts(array $amounts, float $maxAmount): array
+    {
+        $maxAmount = round(max(0, $maxAmount), 2);
+        $total = round(array_sum($amounts), 2);
+
+        if ($total <= $maxAmount + 0.01 || $total < 0.01) {
+            return $amounts;
+        }
+
+        // Prefer trimming the last non-zero line (typical single-invoice rider payment).
+        $keys = array_reverse(array_keys($amounts));
+        $remainingExcess = round($total - $maxAmount, 2);
+
+        foreach ($keys as $key) {
+            if ($remainingExcess <= 0.009) {
+                break;
+            }
+            $current = round((float) $amounts[$key], 2);
+            if ($current <= 0) {
+                continue;
+            }
+            $reduction = min($current, $remainingExcess);
+            $amounts[$key] = round($current - $reduction, 2);
+            $remainingExcess = round($remainingExcess - $reduction, 2);
+        }
+
+        return $amounts;
+    }
+
+    /**
+     * Post PV ledger lines:
+     * 1) Debit rider for payment + bank charges (single clubbed entry)
+     * 2) Credit bank for payment amount
+     * 3) Credit bank charges account (when charges apply)
+     */
+    private function postPaymentLedgerEntries(
+        int $transCode,
+        string $date,
+        int $paymentId,
+        int $payingAccountId,
+        int $payeeAccountId,
+        float $paymentAmount,
+        float $bankCharges,
+        ?int $bankChargesAccountId,
+        string $billingMonth,
+        ?int $branchId,
+        string $desc
+    ): void {
+        $paymentAmount = round($paymentAmount, 2);
+        $bankCharges = round(max(0, $bankCharges), 2);
+        $riderDebit = round($paymentAmount + $bankCharges, 2);
+
+        $riderNarration = $desc;
+        if ($bankCharges > 0.009) {
+            $riderNarration = trim($desc.' | Bank charges '.number_format($bankCharges, 2));
+        }
+
+        // 1. Debit payee (rider) — payment + bank charges in one entry
+        Transactions::create([
+            'trans_code' => $transCode,
+            'trans_date' => $date,
+            'reference_id' => $paymentId,
+            'reference_type' => 'PV',
+            'account_id' => $payeeAccountId,
+            'credit' => 0,
+            'debit' => $riderDebit,
+            'billing_month' => $billingMonth,
+            'branch_id' => $branchId,
+            'narration' => $riderNarration,
+        ]);
+
+        // 2. Credit bank for the payment amount
+        Transactions::create([
+            'trans_code' => $transCode,
+            'trans_date' => $date,
+            'reference_id' => $paymentId,
+            'reference_type' => 'PV',
+            'account_id' => $payingAccountId,
+            'credit' => $paymentAmount,
+            'debit' => 0,
+            'billing_month' => $billingMonth,
+            'narration' => $desc,
+            'branch_id' => $branchId,
+        ]);
+
+        // 3. Credit bank charges account
+        if ($bankCharges > 0.009 && $bankChargesAccountId) {
+            Transactions::create([
+                'trans_code' => $transCode,
+                'trans_date' => $date,
+                'reference_id' => $paymentId,
+                'reference_type' => 'PV',
+                'account_id' => $bankChargesAccountId,
+                'credit' => $bankCharges,
+                'debit' => 0,
+                'billing_month' => $billingMonth,
+                'branch_id' => $branchId,
+                'narration' => 'Bank charges for ( '.$desc.' )',
+            ]);
+        }
+    }
+
+    /**
+     * Ledger closing balance (debit − credit), same as account detail panel.
+     */
+    private function ledgerBalanceForAccount(?int $accountId): float
+    {
+        if (! $accountId) {
+            return 0.0;
+        }
+
+        return round((float) Transactions::where('account_id', $accountId)
+            ->sum(DB::raw('debit - credit')), 2);
+    }
+
+    /**
+     * @param  array<int, int|string>  $accountIds
+     * @return array<int, float> account_id => balance
+     */
+    private function ledgerBalancesForAccountIds(array $accountIds): array
+    {
+        $accountIds = array_values(array_unique(array_filter(array_map('intval', $accountIds))));
+        if ($accountIds === []) {
+            return [];
+        }
+
+        return Transactions::query()
+            ->whereIn('account_id', $accountIds)
+            ->groupBy('account_id')
+            ->selectRaw('account_id, COALESCE(SUM(debit - credit), 0) as balance')
+            ->pluck('balance', 'account_id')
+            ->map(static fn ($balance) => round((float) $balance, 2))
+            ->all();
+    }
+
+    /**
+     * Attach ledger_balance onto payee option arrays.
+     *
+     * @param  \Illuminate\Support\Collection|array  $options
+     * @return \Illuminate\Support\Collection
+     */
+    private function attachLedgerBalancesToPayeeOptions($options)
+    {
+        $options = collect($options)->values();
+        $balances = $this->ledgerBalancesForAccountIds($options->pluck('account_id')->all());
+
+        return $options->map(function ($option) use ($balances) {
+            $accountId = (int) ($option['account_id'] ?? 0);
+            $option['ledger_balance'] = round((float) ($balances[$accountId] ?? 0), 2);
+
+            return $option;
+        });
+    }
+
+    /**
+     * Create an AL voucher from the Record Rider Payment form (Advance Loan type).
+     * Does not allocate against invoice paid balances.
+     */
+    private function storeRiderAdvanceLoanFromPaymentForm(Request $request)
+    {
+        $this->validate($request, [
+            'create_payment_type' => 'required|in:advance_loan',
+            'reference' => 'nullable|string|max:255',
+            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
+            'bank_id' => 'required|numeric|exists:banks,id',
+            'payee_account_id' => 'required|numeric|exists:accounts,id',
+            'date_of_payment' => 'required|date',
+            'billing_month' => 'required|date_format:Y-m',
+            'amount' => 'required|numeric|min:0.01',
+            'bank_charges' => 'nullable|numeric|min:0',
+            'description' => 'required|string|max:500',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'invoice_ids' => 'nullable|array|max:1',
+            'invoice_ids.*' => 'numeric|exists:rider_invoices,id',
+            'internal_notes' => 'nullable|string|max:500',
+            'terms_and_conditions' => 'nullable|string',
+        ], [
+            'invoice_ids.max' => 'Please select at most one invoice for the advance loan',
+            'billing_month.required' => 'Billing month is required for Advance Loan',
+        ]);
+
+        $invoiceId = (int) collect($request->input('invoice_ids', []))->filter()->first();
+        $invoice = $invoiceId > 0 ? RiderInvoices::find($invoiceId) : null;
+        if ($invoiceId > 0 && ! $invoice) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Selected invoice was not found',
+            ]);
+        }
+
+        $bank = Banks::find($request->input('bank_id'));
+        if (! $bank || ! $bank->account_id) {
+            throw ValidationException::withMessages([
+                'bank_id' => 'Selected paying account was not found',
+            ]);
+        }
+
+        $attachFile = null;
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $fileName = time().'_'.$file->getClientOriginalName();
+            PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
+            $attachFile = $fileName;
+        }
+
+        $branchId = Accounts::where('id', $request->input('payee_account_id'))->value('branch_id');
+
+        // Persist editable notes/terms only when an invoice is linked.
+        if ($invoice) {
+            $invoice->update([
+                'notes' => $request->input('internal_notes'),
+                'terms_and_conditions' => $request->input('terms_and_conditions'),
+                'updated_by' => auth()->id(),
+            ]);
+        }
+
+        try {
+            $result = app(RiderAdvanceLoanService::class)->create([
+                'rider_account_id' => (int) $request->input('payee_account_id'),
+                'bank_account_id' => (int) $bank->account_id,
+                'amount' => (float) $request->input('amount'),
+                'bank_charges' => (float) $request->input('bank_charges', 0),
+                'trans_date' => $request->input('date_of_payment'),
+                'billing_month' => $request->input('billing_month'),
+                'reference_number' => $request->input('reference'),
+                'payment_type' => RiderAdvanceLoanService::paymentTypeFromAmountType($request->input('amount_type')),
+                'branch_id' => $branchId ? (int) $branchId : null,
+                'invoice_id' => $invoice ? $invoiceId : null,
+                'debit_narration' => $request->input('description') ?: 'Advance Loan Received',
+                'credit_narration' => $request->input('description')
+                    ? ('Advance Loan: '.$request->input('description'))
+                    : null,
+                'remarks' => 'Advance Loan to Rider',
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+                'attach_file' => $attachFile,
+            ]);
+        } catch (GlobalAccountNotConfiguredException $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
+        } catch (\InvalidArgumentException $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
+        }
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance loan recorded successfully',
+                'voucher_id' => $result['voucher']->id,
+                'trans_code' => $result['trans_code'],
+                'reload' => true,
+            ]);
+        }
+
+        Flash::success('Advance loan recorded successfully.');
+
+        return redirect()->back();
+    }
+
+    /**
      * Give each rider/employee invoice a unique period slice so payment-form
      * balances do not re-include earlier unpaid months.
      */
@@ -1578,10 +2041,13 @@ class PaymentController extends Controller
         }
 
         $codePrefix = '';
+        $entityCode = null;
         if (!empty($entity->employee_id)) {
-            $codePrefix = (string) $entity->employee_id . ' - ';
+            $entityCode = (string) $entity->employee_id;
+            $codePrefix = $entityCode . ' - ';
         } elseif (!empty($entity->rider_id)) {
-            $codePrefix = (string) $entity->rider_id . ' - ';
+            $entityCode = (string) $entity->rider_id;
+            $codePrefix = $entityCode . ' - ';
         }
 
         $displayName = $codePrefix . ($name ?: '-');
@@ -1591,6 +2057,7 @@ class PaymentController extends Controller
             'account_id' => (int) $entity->account_id,
             'entity_id' => (int) $entity->id,
             'name' => $name ?: '-',
+            'entity_code' => $entityCode,
             'account_code' => $accountCode,
             'label' => trim(($accountCode !== '' ? $accountCode . ' - ' : '') . $displayName),
         ];

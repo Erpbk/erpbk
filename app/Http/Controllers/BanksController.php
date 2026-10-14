@@ -456,11 +456,23 @@ class BanksController extends AppBaseController
     $fundOut += $credit;
     $banks->update(['balance' => $balance]);
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-    $query = Payment::query()->latest('id');
-    $query->where('bank_id', $id);
+    $query = Payment::query()
+      ->with(['payeeAccount', 'voucher', 'bank.account'])
+      ->latest('id')
+      ->where('bank_id', $id)
+      ->applyListFilters($request);
 
     // Apply pagination using the trait
     $data = $this->applyPagination($query, $paginationParams);
+
+    if ($request->ajax()) {
+      $tableData = view('payments.table', compact('data'))->render();
+
+      return response()->json([
+        'tableData' => $tableData,
+      ]);
+    }
+
     return view('banks.payments', ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
   }
 

@@ -183,10 +183,6 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
                 $.globalEval(this.text || this.textContent || this.innerHTML || '');
             });
 
-            if (typeof window.initPaymentFieldsForm === 'function' && form.querySelector('[data-payment-fields-init]')) {
-                window.initPaymentFieldsForm(form);
-            }
-
             if (window.jQuery && $.fn && $.fn.select2) {
                 $(form).find('select.select2').each(function() {
                     var $select = $(this);
@@ -199,6 +195,11 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
                         dropdownParent: $('#modalTopbody')
                     });
                 });
+            }
+
+            // Init after Select2 so Payment Type / billing-month toggle sees the live value.
+            if (typeof window.initPaymentFieldsForm === 'function' && form.querySelector('[data-payment-fields-init]')) {
+                window.initPaymentFieldsForm(form);
             }
 
             if (typeof window.getTotal === 'function') {

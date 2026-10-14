@@ -116,6 +116,36 @@
       filterInvoiceRows({ skipSelectionSync: true });
     }
 
+    function normalizeMonthValue(value) {
+      var raw = String(value || '').trim();
+      if (!raw) {
+        return '';
+      }
+      // type="month" requires YYYY-MM (not YYYY-MM-DD)
+      var match = raw.match(/^(\d{4})-(\d{2})/);
+      if (match) {
+        return match[1] + '-' + match[2];
+      }
+      return raw;
+    }
+
+    function setBillingMonthValue(value) {
+      var $billingInput = $ctx.find('#billing_month');
+      if (!$billingInput.length) {
+        return;
+      }
+      var month = normalizeMonthValue(value);
+      if (!month) {
+        return;
+      }
+      $billingInput.val(month);
+      // Some browsers keep a stale empty display if value was previously invalid (e.g. Y-m-d).
+      if ($billingInput.val() !== month) {
+        $billingInput.attr('value', month);
+        $billingInput.val(month);
+      }
+    }
+
     function syncBillingMonthFromSelectedInvoice() {
       if (!isRiderOnlyPayment || !isPaymentCreateType()) {
         return;
@@ -123,7 +153,7 @@
       var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
       var billingMonth = $checked.data('billing-month') || '';
       if (billingMonth) {
-        $ctx.find('#billing_month').val(billingMonth);
+        setBillingMonthValue(billingMonth);
       }
     }
 
@@ -139,10 +169,16 @@
       $selectAll.addClass('d-none').hide().prop('checked', false).prop('disabled', true);
 
       if (type === 'advance_loan') {
-        $billingGroup.show();
-        $billingInput.prop('required', true);
+        $billingGroup.css('display', '').removeClass('d-none').show();
+        $billingInput.prop('disabled', false).prop('required', true);
+        if (!normalizeMonthValue($billingInput.val())) {
+          setBillingMonthValue($billingInput.attr('value') || new Date().toISOString().slice(0, 7));
+        } else {
+          setBillingMonthValue($billingInput.val());
+        }
       } else if (type === 'payment') {
         $billingGroup.hide();
+        // Hidden required fields block HTML5 submit — always clear required when hidden.
         $billingInput.prop('required', false);
         syncBillingMonthFromSelectedInvoice();
       } else {
@@ -472,7 +508,7 @@
       updateRiderBalanceDueDisplay();
     });
 
-    $ctx.on('change.paymentFields', '#create_payment_type', function () {
+    function onCreatePaymentTypeChanged() {
       applyCreatePaymentTypeUi();
       // Re-apply single selection when switching types.
       var $checked = $ctx.find('#invoices-table tbody .invoice-checkbox:checked');
@@ -485,7 +521,11 @@
         }
       }
       applyInvoiceDateFromSelection();
-    });
+    }
+
+    $ctx.on('change.paymentFields', '#create_payment_type', onCreatePaymentTypeChanged);
+    // Select2 often fires these instead of (or in addition to) native change in modals.
+    $ctx.on('select2:select.paymentFields select2:clear.paymentFields', '#create_payment_type', onCreatePaymentTypeChanged);
 
     $ctx.on('change.paymentFields', '.invoice-checkbox', function () {
       var $row = $(this).closest('tr');

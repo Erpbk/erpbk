@@ -309,7 +309,7 @@ class ReportController extends Controller
       ]);
 
       $data .= '<tr>';
-      $data .= '<td>' . e($rider->rider_id) . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
       $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
       $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
       $data .= '<td>' . e($rider->emirate_hub) . '</td>';
@@ -1095,7 +1095,7 @@ class ReportController extends Controller
       $statusText = $statusDisplay['label'];
 
       $data .= '<tr>';
-      $data .= '<td>' . e($rider->rider_id) . '</td>';
+      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
       $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
       $data .= '<td>' . e(optional($rider->vendor)->name) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';

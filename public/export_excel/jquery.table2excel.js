@@ -83,6 +83,15 @@
 						
 						// Reset for this column
 						additionalStyles = "";
+
+						// Keep inline styles (e.g. mso-number-format:'\@' for long IDs as text)
+						var existingStyle = (($(q).attr("style") || "") + "").trim();
+						if (existingStyle) {
+							if (existingStyle.charAt(existingStyle.length - 1) !== ";") {
+								existingStyle += ";";
+							}
+							additionalStyles += existingStyle;
+						}
 						
 						// Preserve background and text colors on the row
 						if(e.settings.preserveColors){
@@ -108,7 +117,8 @@
                                 tempRows += " colspan='" + rc.cols + "' ";
                             }
                             if(additionalStyles){
-								tempRows += " style='" + additionalStyles + "'";
+								// Double-quoted attr so mso-number-format:'\@' survives for Excel text cells
+								tempRows += ' style="' + additionalStyles.replace(/"/g, "&quot;") + '"';
 							}
                             tempRows += ">" + $(q).html() + "</td>";
                         }

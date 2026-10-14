@@ -320,14 +320,14 @@ class LedgerController extends Controller
             $query->where('account_id', $request->account);
         }
 
-        // Date Filters
-        if ($request->from_date && $request->to_date) {
-
-            $query->whereBetween('trans_date', [
-                $request->from_date,
-                $request->to_date,
-            ]);
-
+        // Date Filters — from and/or to may be set independently
+        if ($request->from_date || $request->to_date) {
+            if ($request->from_date) {
+                $query->where('trans_date', '>=', $request->from_date);
+            }
+            if ($request->to_date) {
+                $query->where('trans_date', '<=', $request->to_date);
+            }
         } elseif ($request->month) {
 
             $query->whereDate(
@@ -347,22 +347,26 @@ class LedgerController extends Controller
 
         if ($request->account) {
 
-            if ($request->from_date) {
+            if ($request->from_date || $request->to_date) {
 
-                $openingBalance = Transactions::where(
-                    'account_id',
-                    $request->account
-                )
-                    ->where('trans_date', '<', $request->from_date)
-                    ->sum(DB::raw('debit - credit'));
+                if ($request->from_date) {
+                    $openingBalance = Transactions::where(
+                        'account_id',
+                        $request->account
+                    )
+                        ->where('trans_date', '<', $request->from_date)
+                        ->sum(DB::raw('debit - credit'));
+                }
 
-                $closingBalance = $openingBalance + Transactions::where(
-                    'account_id',
-                    $request->account
-                )->whereBetween('trans_date', [
-                    $request->from_date,
-                    $request->to_date,
-                ])
+                $rangeQuery = Transactions::where('account_id', $request->account);
+                if ($request->from_date) {
+                    $rangeQuery->where('trans_date', '>=', $request->from_date);
+                }
+                if ($request->to_date) {
+                    $rangeQuery->where('trans_date', '<=', $request->to_date);
+                }
+
+                $closingBalance = $openingBalance + $rangeQuery
                     ->sum(DB::raw('debit - credit'));
 
             } elseif ($request->month) {

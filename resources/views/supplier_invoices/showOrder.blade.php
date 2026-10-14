@@ -9,8 +9,11 @@
         $orderBlueSoft = $orderBrand['primary_soft'] ?? '#e6f1ff';
         $orderBlueRgb = $orderBrand['primary_rgb'] ?? '0, 74, 173';
     @endphp
+</head>
+<body>
+    {{-- Styles in body so AJAX modals keep them (head is dropped) --}}
     <style>
-        /* Scoped to invoice content — do not leak into app when loaded in right-side modal */
+        /* Scoped to invoice content - do not leak into app when loaded in right-side modal */
         .invoice-box,
         .invoice-box * {
             box-sizing: border-box;
@@ -294,8 +297,7 @@
             }
         }
     </style>
-</head>
-<body>
+
 <div class="controls no-print">
     <button type="button" class="print-btn" onclick="printModalContent()">Print Order</button>
 </div>
@@ -332,17 +334,17 @@
         <!-- Supplier Information Card (modern card version) -->
         <div class="supplier-card">
             <div class="card-header">
-                <strong>📇 Supplier Details</strong>
+                <strong>ÃÂ°ÃÂÃÂÃÂ Supplier Details</strong>
             </div>
             <div class="details-grid">
                 <span class="detail-label">Supplier Name:</span>
-                <span class="detail-value">{{ $supplierInvoice->supplier->name ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->name ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
 
                 <span class="detail-label">Company Name:</span>
-                <span class="detail-value">{{ $supplierInvoice->supplier->company_name ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->company_name ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
 
                 <span class="detail-label">Contact:</span>
-                <span class="detail-value">{{ $supplierInvoice->supplier->phone ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->supplier->phone ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
                 
                 @if(!empty($supplierInvoice->supplier->email))
                 <span class="detail-label">Email:</span>
@@ -354,7 +356,7 @@
         <!-- Invoice Details Card (showing order/invoice fields from original, enhanced with billing month + garage) -->
         <div class="details-card">
             <div class="card-header">
-                <strong>📄 Invoice Details</strong>
+                <strong>ÃÂ°ÃÂÃÂÃÂ Invoice Details</strong>
             </div>
             <div class="details-grid">
                 <span class="detail-label">Order #:</span>
@@ -364,10 +366,10 @@
                 <span class="detail-value">{{ $supplierInvoice->order_date?->format('d M Y') ?? '' }}</span>
 
                 <span class="detail-label">Garage:</span>
-                <span class="detail-value">{{ $supplierInvoice->garage?->name ?? '—' }}</span>
+                <span class="detail-value">{{ $supplierInvoice->garage?->name ?? 'ÃÂ¢ÃÂÃÂ' }}</span>
 
                 <span class="detail-label">Created By:</span>
-                <span class="detail-value">{{ $supplierInvoice->creatorBy?->name ?? ($supplierInvoice->updatedBy?->name ?? '—') }}</span>
+                <span class="detail-value">{{ $supplierInvoice->creatorBy?->name ?? ($supplierInvoice->updatedBy?->name ?? 'ÃÂ¢ÃÂÃÂ') }}</span>
             </div>
         </div>
     </div>
@@ -375,7 +377,7 @@
     <!-- Description Section (if exists) exactly like fuel invoice description block -->
     @if($supplierInvoice->descriptions)
     <div class="description-block">
-        <strong>📝 Description</strong><br>
+        <strong>ÃÂ°ÃÂÃÂÃÂ Description</strong><br>
         <span style="color: #334155;">{{ $supplierInvoice->descriptions }}</span>
     </div>
     @endif
@@ -383,7 +385,7 @@
     <!-- Additional Notes Section (kept from original but elevated with v2 style) -->
     @if($supplierInvoice->notes)
     <div class="notes-section">
-        <strong>📌 Additional Notes:</strong><br>
+        <strong>ÃÂ°ÃÂÃÂÃÂ Additional Notes:</strong><br>
         {{ $supplierInvoice->notes }}
     </div>
     @endif
@@ -404,7 +406,7 @@
             <tbody>
                 @foreach($supplierInvoice->items as $item)
                 <tr>
-                    <td>{{ $item->item_des ?? '—' }}</td>
+                    <td>{{ $item->item_des ?? 'ÃÂ¢ÃÂÃÂ' }}</td>
                     <td class="num">{{ number_format($item->qty ?? 0, 2) }}</td>
                     <td class="num">{{ number_format($item->rate ?? 0, 2) }}</td>
                     <td class="num">{{ number_format($item->tax_amount ?? 0, 2) }}</td>
@@ -435,7 +437,7 @@
     </div>
     @else
     <div style="text-align: center; padding: 30px; background: #f9f9fc; border: 1px solid #e9ecef; border-radius: 12px; margin: 20px 0;">
-        <p style="margin: 0; color: #5b6e8c;">📭 No items recorded for this invoice</p>
+        <p style="margin: 0; color: #5b6e8c;">ÃÂ°ÃÂÃÂÃÂ­ No items recorded for this invoice</p>
     </div>
     @endif
 

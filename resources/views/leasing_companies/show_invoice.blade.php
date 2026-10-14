@@ -4,8 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Leasing Company Invoice #{{ $invoice->id }}</title>
+</head>
+<body>
+    {{-- Styles in body so AJAX modals keep them (head is dropped) --}}
     <style>
-        /* Scoped — do not style the app <body> / global tables when embedded */
+        /* Scoped - do not style the app body / global tables when embedded */
         body:has(> .invoice-box),
         body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
@@ -130,9 +133,7 @@
             }
         }
     </style>
-</head>
 
-<body>
     <div style="position: fixed; top: 10px; right: 10px; z-index: 9999; display: flex; gap: 10px;">
         <button type="button" class="print-btn" onclick="window.print()">Print</button>
         <a href="{{ route('leasingCompanyInvoices.edit', $invoice->id) }}" class="print-btn" style="text-decoration: none; display: inline-block; padding: 8px 12px;">Edit</a>

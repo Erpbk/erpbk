@@ -61,7 +61,10 @@ class VouchersController extends Controller
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    $query = Vouchers::query()
+      ->orderBy('billing_month', 'desc')
+      ->orderBy('trans_date', 'desc')
+      ->orderBy('id', 'desc');
 
     // Apply filters
     if ($request->has('voucher_id') && !empty($request->voucher_id)) {
@@ -147,7 +150,10 @@ class VouchersController extends Controller
       abort(403, 'Unauthorized action.');
     }
 
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    $query = Vouchers::query()
+      ->orderBy('billing_month', 'desc')
+      ->orderBy('trans_date', 'desc')
+      ->orderBy('id', 'desc');
 
     if ($request->filled('voucher_type')) {
       $query->where('voucher_type', $request->voucher_type);

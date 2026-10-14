@@ -210,12 +210,27 @@ function clearRightSideModalStyles() {
  * Extract insertable HTML from a full document response.
  * Never pass a full <!DOCTYPE>/<html> string to .html() — browsers strip <head>
  * and can dump <style> contents as visible text (broken </style> fragments).
+ * Head <style> tags are prepended so invoice/modal views keep their CSS.
  */
 function extractAjaxBodyHtml(responseHtml) {
   var html = String(responseHtml || '');
   var bodyMatch = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
   if (bodyMatch) {
-    return bodyMatch[1];
+    var bodyHtml = bodyMatch[1];
+    var headMatch = html.match(/<head[^>]*>([\s\S]*)<\/head>/i);
+    if (headMatch) {
+      var headStyles = headMatch[1].match(/<style\b[^>]*>[\s\S]*?<\/style>/gi);
+      if (headStyles && headStyles.length) {
+        var bodyStyles = bodyHtml.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || [];
+        var toPrepend = headStyles.filter(function (styleTag) {
+          return bodyStyles.indexOf(styleTag) === -1;
+        });
+        if (toPrepend.length) {
+          return toPrepend.join('') + bodyHtml;
+        }
+      }
+    }
+    return bodyHtml;
   }
   // Fragment response (no body wrapper) — use as-is
   return html;

@@ -43,8 +43,13 @@ class LedgerExport implements FromArray, WithColumnWidths, WithHeadings, WithSty
             $query->where('billing_month', $this->month.'-01');
         }
 
-        if ($this->from_date && $this->to_date) {
-            $query->whereBetween('trans_date', [$this->from_date, $this->to_date]);
+        if ($this->from_date || $this->to_date) {
+            if ($this->from_date) {
+                $query->where('trans_date', '>=', $this->from_date);
+            }
+            if ($this->to_date) {
+                $query->where('trans_date', '<=', $this->to_date);
+            }
         }
 
         $query = $query->orderBy('billing_month', 'ASC')->orderBy('trans_date', 'ASC');
@@ -153,10 +158,14 @@ class LedgerExport implements FromArray, WithColumnWidths, WithHeadings, WithSty
             return 0;
         }
 
-        if ($this->from_date && $this->to_date) {
+        if ($this->from_date) {
             return Transactions::where('account_id', $this->account_id)
                 ->where('trans_date', '<', $this->from_date)
                 ->sum(DB::raw('debit - credit'));
+        }
+
+        if ($this->to_date && ! $this->month) {
+            return 0;
         }
 
         return Transactions::where('account_id', $this->account_id)

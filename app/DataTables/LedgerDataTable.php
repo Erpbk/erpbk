@@ -450,8 +450,13 @@ class LedgerDataTable extends DataTable
             $query->where('billing_month', request('month') . '-01');
         }
 
-        if (request('from_date') && request('to_date')) {
-            $query->whereBetween('trans_date', [request('from_date'), request('to_date')]);
+        if (request('from_date') || request('to_date')) {
+            if (request('from_date')) {
+                $query->where('trans_date', '>=', request('from_date'));
+            }
+            if (request('to_date')) {
+                $query->where('trans_date', '<=', request('to_date'));
+            }
         }
 
         $query = $query->orderBy('billing_month', 'ASC')->orderBy('trans_date', 'ASC');
@@ -477,10 +482,15 @@ class LedgerDataTable extends DataTable
             return 0;
         }
 
-        if (request('from_date') && request('to_date')) {
+        if (request('from_date')) {
             return Transactions::where('account_id', $account_id)
                 ->where('trans_date', '<', request('from_date'))
                 ->sum(DB::raw('debit - credit'));
+        }
+
+        // Only to_date (no from): no opening cut-off — show history up to to_date
+        if (request('to_date') && ! request('month')) {
+            return 0;
         }
 
         return Transactions::where('account_id', $account_id)

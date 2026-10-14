@@ -5,10 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Installment Plan Invoice - {{ $rider->name }}</title>
-    @include('visa_expenses.partials.installment_invoice_styles')
 </head>
 
 <body>
+    {{-- Styles in body so AJAX modals (extractAjaxBodyHtml) keep them — head is dropped --}}
+    @include('visa_expenses.partials.installment_invoice_styles')
     @include('visa_expenses.partials.installment_invoice_body')
 
     <script>

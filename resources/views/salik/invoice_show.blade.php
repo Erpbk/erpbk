@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Salik Invoice #{{ $summary->inv_id }}</title>
+</head>
+<body>
+    {{-- Styles in body so AJAX modals keep them (head is dropped) --}}
     <style>
-        /* Scoped — do not style the app <body> when embedded in right-side modal */
+        /* Scoped - do not style the app body when embedded in right-side modal */
         body:has(> .invoice-box),
         body:has(> .controls) {
             font-family: Calibri, Arial, sans-serif;
@@ -165,8 +168,7 @@
             font-size: 14px;
         }
     </style>
-</head>
-<body>
+
     <div class="controls no-print">
         <button type="button" class="print-btn" onclick="printModalContent()">Print</button>
     </div>

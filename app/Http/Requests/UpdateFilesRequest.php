@@ -25,7 +25,8 @@ class UpdateFilesRequest extends FormRequest
     public function rules()
     {
         $rules = Files::$rules;
-        
+        $rules['file_name'] = 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:2048';
+
         return $rules;
     }
 }

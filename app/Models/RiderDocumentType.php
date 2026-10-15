@@ -23,6 +23,20 @@ class RiderDocumentType extends BaseModel
         'is_active' => 'boolean',
     ];
 
+    public function subtypes()
+    {
+        return $this->hasMany(RiderDocumentTypeSubtype::class, 'document_type_id')
+            ->orderBy('display_order')
+            ->orderBy('id');
+    }
+
+    public function fields()
+    {
+        return $this->hasMany(RiderDocumentTypeField::class, 'document_type_id')
+            ->orderBy('display_order')
+            ->orderBy('id');
+    }
+
     /**
      * Scope: active types ordered by display_order.
      */

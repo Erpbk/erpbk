@@ -1,39 +1,11 @@
-@extends('layouts.app')
+{!! Form::model($files, ['route' => ['files.update', $files->id], 'method' => 'patch', 'id' => 'formajax', 'enctype' => 'multipart/form-data']) !!}
 
-@section('content')
-    <section class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-12">
-                    <h1>
-                        Edit Files
-                    </h1>
-                </div>
-            </div>
-        </div>
-    </section>
+<div class="row">
+    @include('files.fields')
+</div>
 
-    <div class="content px-3">
+<div class="action-btn pt-3">
+    {!! Form::submit('Update', ['class' => 'btn btn-primary']) !!}
+</div>
 
-        @include('adminlte-templates::common.errors')
-
-        <div class="card">
-
-            {!! Form::model($files, ['route' => ['files.update', $files->id], 'method' => 'patch']) !!}
-
-            <div class="card-body">
-                <div class="row">
-                    @include('files.fields')
-                </div>
-            </div>
-
-            <div class="card-footer">
-                {!! Form::submit('Save', ['class' => 'btn btn-primary']) !!}
-                <a href="{{ route('files.index') }}" class="btn btn-default"> Cancel </a>
-            </div>
-
-            {!! Form::close() !!}
-
-        </div>
-    </div>
-@endsection
+{!! Form::close() !!}

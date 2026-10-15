@@ -705,6 +705,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('/all', [UserTableSettingsController::class, 'getAllSettings'])->name('user-table-settings.all');
     });
     Route::get('riders/files/{id}', [RidersController::class, 'files'])->name('rider.files');
+    Route::get('files/rider-document-types/{id}/subtypes', [App\Http\Controllers\FilesController::class, 'riderDocumentTypeSubtypes'])->name('files.rider-document-type-subtypes');
+    Route::get('files/rider-document-subtypes/{id}/fields', [App\Http\Controllers\FilesController::class, 'riderDocumentSubtypeFields'])->name('files.rider-document-subtype-fields');
+    Route::get('files/rider-document-subtypes/{id}/prefill', [App\Http\Controllers\FilesController::class, 'riderDocumentSubtypePrefill'])->name('files.rider-document-subtype-prefill');
     Route::get('riders/items/{id}', [RidersController::class, 'items'])->name('rider.items');
     Route::get('riders/additems/{id}', [RidersController::class, 'additems'])->name('riders.additems');
     Route::post('riders/storeitems/{id}', [RidersController::class, 'storeitems'])->name('riders.storeitems');

@@ -13,11 +13,16 @@ use App\Models\Bikes;
 use App\Models\Customers;
 use App\Models\Employee;
 use App\Models\LeasingCompanies;
+use App\Models\RiderDocumentType;
+use App\Models\RiderDocumentTypeField;
+use App\Models\RiderDocumentTypeSubtype;
 use App\Models\Riders;
 use App\Support\DocumentExpiry;
 use App\Support\DocumentExpiryDashboard;
+use App\Support\RiderDocumentFieldValues;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Traits\GlobalPagination;
 use Flash;
@@ -98,6 +103,118 @@ class FilesController extends AppBaseController
   }
 
   /**
+   * Active subtypes for a rider document type (upload form).
+   */
+  public function riderDocumentTypeSubtypes($company_slug, $id)
+  {
+    abort_unless(
+      auth()->user()?->can('riders_documents_view')
+        || auth()->user()?->can('riders_documents_create')
+        || auth()->user()?->can('documents_view')
+        || auth()->user()?->can('documents_create'),
+      403
+    );
+
+    $docType = RiderDocumentType::query()->where('is_active', true)->findOrFail($id);
+    $subtypes = RiderDocumentTypeSubtype::query()
+      ->where('document_type_id', $docType->id)
+      ->where('is_active', true)
+      ->orderedForAdmin()
+      ->get()
+      ->map(fn (RiderDocumentTypeSubtype $s) => [
+        'id' => $s->id,
+        'document_type_id' => $s->document_type_id,
+        'key' => $s->key,
+        'label' => $s->label,
+        'display_order' => $s->display_order,
+        'is_active' => (bool) $s->is_active,
+      ]);
+
+    return response()->json([
+      'success' => true,
+      'document_type' => [
+        'id' => $docType->id,
+        'key' => $docType->key,
+        'label' => $docType->label ?: ($docType->front_label ?: $docType->key),
+        'type' => $docType->type,
+      ],
+      'subtypes' => $subtypes,
+    ]);
+  }
+
+  /**
+   * Active fields for a rider document subtype (upload form).
+   */
+  public function riderDocumentSubtypeFields($company_slug, $id)
+  {
+    abort_unless(
+      auth()->user()?->can('riders_documents_view')
+        || auth()->user()?->can('riders_documents_create')
+        || auth()->user()?->can('documents_view')
+        || auth()->user()?->can('documents_create'),
+      403
+    );
+
+    $subtype = RiderDocumentTypeSubtype::query()
+      ->where('is_active', true)
+      ->with('documentType')
+      ->findOrFail($id);
+
+    $fields = RiderDocumentTypeField::query()
+      ->where('subtype_id', $subtype->id)
+      ->where('is_active', true)
+      ->orderedForAdmin()
+      ->get()
+      ->map(fn (RiderDocumentTypeField $f) => [
+        'id' => $f->id,
+        'document_type_id' => $f->document_type_id,
+        'subtype_id' => $f->subtype_id,
+        'key' => $f->key,
+        'label' => $f->label,
+        'input_type' => $f->input_type,
+        'is_required' => (bool) $f->is_required,
+        'display_order' => $f->display_order,
+        'rider_column' => $f->rider_column,
+        'options' => $f->options,
+        'is_active' => (bool) $f->is_active,
+      ]);
+
+    return response()->json([
+      'success' => true,
+      'subtype' => [
+        'id' => $subtype->id,
+        'document_type_id' => $subtype->document_type_id,
+        'key' => $subtype->key,
+        'label' => $subtype->label,
+      ],
+      'fields' => $fields,
+    ]);
+  }
+
+  /**
+   * Prefill linked field values from the rider profile for a subtype.
+   */
+  public function riderDocumentSubtypePrefill($company_slug, $id, Request $request)
+  {
+    abort_unless(
+      auth()->user()?->can('riders_documents_view')
+        || auth()->user()?->can('riders_documents_create')
+        || auth()->user()?->can('documents_view')
+        || auth()->user()?->can('documents_create'),
+      403
+    );
+
+    $subtype = RiderDocumentTypeSubtype::query()->where('is_active', true)->findOrFail($id);
+    $riderId = (int) $request->query('rider_id', 0);
+    $rider = $riderId > 0 ? Riders::find($riderId) : null;
+
+    return response()->json([
+      'success' => true,
+      'values' => RiderDocumentFieldValues::prefillFromRider($rider, (int) $subtype->id),
+    ]);
+  }
+
+  /**
    * Store a newly created Files in storage.
    */
   public function store(CreateFilesRequest $request)
@@ -115,6 +232,19 @@ class FilesController extends AppBaseController
     } else {
       $input['type'] = $type;
       $input['type_id'] = $typeId;
+    }
+
+    $normalizedFields = [
+      'document_type_id' => null,
+      'document_subtype_id' => null,
+      'field_values' => [],
+    ];
+    if ($type === 'rider' && $typeId > 0) {
+      $normalizedFields = RiderDocumentFieldValues::validateAndNormalize(
+        isset($input['document_type_id']) && $input['document_type_id'] !== '' ? (int) $input['document_type_id'] : null,
+        isset($input['document_subtype_id']) && $input['document_subtype_id'] !== '' ? (int) $input['document_subtype_id'] : null,
+        $input['field_values'] ?? []
+      );
     }
 
     if (isset($input['file_name'])) {
@@ -143,11 +273,37 @@ class FilesController extends AppBaseController
     }
 
     $input['branch_id'] = $this->resolveBranchIdForFile($type, $typeId);
+    $input['document_type_id'] = $normalizedFields['document_type_id'];
+    $input['document_subtype_id'] = $normalizedFields['document_subtype_id'];
+    $input['field_values'] = $normalizedFields['field_values'];
 
-    $this->filesRepository->create($input);
-    if(!empty($type) && !empty($typeId)) {
-      
-    return response()->json(['message' => 'File uploaded successfully.', 'reload' => true]);
+    if ($type === 'rider' && !empty($normalizedFields['document_subtype_id'])) {
+      $fromFields = RiderDocumentFieldValues::resolveExpiryDateFromFields(
+        (int) $normalizedFields['document_subtype_id'],
+        $normalizedFields['field_values']
+      );
+      if ($fromFields !== null) {
+        $input['expiry_date'] = $fromFields;
+      }
+    }
+
+    DB::transaction(function () use ($input, $type, $typeId, $normalizedFields) {
+      $this->filesRepository->create($input);
+
+      if ($type === 'rider' && $typeId > 0 && !empty($normalizedFields['document_subtype_id'])) {
+        $rider = Riders::find($typeId);
+        if ($rider) {
+          RiderDocumentFieldValues::syncLinkedRiderColumns(
+            $rider,
+            (int) $normalizedFields['document_subtype_id'],
+            $normalizedFields['field_values']
+          );
+        }
+      }
+    });
+
+    if (!empty($type) && !empty($typeId)) {
+      return response()->json(['message' => 'File uploaded successfully.', 'reload' => true]);
     }
     return response()->json(['message' => 'File uploaded successfully.', 'reload' => false]);
   }
@@ -192,17 +348,90 @@ class FilesController extends AppBaseController
     $files = $this->filesRepository->find($id);
 
     if (empty($files)) {
+      if ($request->ajax() || $request->wantsJson()) {
+        return response()->json(['message' => 'Files not found'], 404);
+      }
       Flash::error('Files not found');
 
       return redirect(route('files.index'));
     }
 
     $input = $request->all();
+    $type = trim((string) ($files->type ?? $input['type'] ?? ''));
+    $typeId = (int) ($files->type_id ?? $input['type_id'] ?? 0);
+
+    $normalizedFields = [
+      'document_type_id' => $files->document_type_id,
+      'document_subtype_id' => $files->document_subtype_id,
+      'field_values' => is_array($files->field_values) ? $files->field_values : [],
+    ];
+
+    if ($type === 'rider' && $typeId > 0) {
+      $normalizedFields = RiderDocumentFieldValues::validateAndNormalize(
+        isset($input['document_type_id']) && $input['document_type_id'] !== '' ? (int) $input['document_type_id'] : null,
+        isset($input['document_subtype_id']) && $input['document_subtype_id'] !== '' ? (int) $input['document_subtype_id'] : null,
+        $input['field_values'] ?? []
+      );
+      $input['document_type_id'] = $normalizedFields['document_type_id'];
+      $input['document_subtype_id'] = $normalizedFields['document_subtype_id'];
+      $input['field_values'] = $normalizedFields['field_values'];
+    }
+
+    if ($request->hasFile('file_name')) {
+      $uploaded = $request->file('file_name');
+      $extension = $uploaded->extension();
+      $storageDir = ($type !== '' && $typeId > 0)
+        ? $type . '/' . $typeId
+        : 'documents';
+      $namePrefix = ($type !== '' && $typeId > 0)
+        ? $type . '-' . $typeId
+        : 'documents';
+      $name = $namePrefix . '-' . time() . '.' . $extension;
+      $uploaded->storeAs($storageDir . '/', $name, 'public');
+      $input['file_name'] = $name;
+      $input['file_type'] = $extension;
+      if (!empty($input['suggested_name'])) {
+        $input['name'] = $input['suggested_name'];
+      }
+    } else {
+      unset($input['file_name']);
+      if (!empty($input['suggested_name'])) {
+        $input['name'] = $input['suggested_name'];
+      }
+    }
+
     if (array_key_exists('expiry_date', $input) && $input['expiry_date'] === '') {
       $input['expiry_date'] = null;
     }
 
-    $files = $this->filesRepository->update($input, $id);
+    if ($type === 'rider' && !empty($normalizedFields['document_subtype_id'])) {
+      $fromFields = RiderDocumentFieldValues::resolveExpiryDateFromFields(
+        (int) $normalizedFields['document_subtype_id'],
+        $normalizedFields['field_values']
+      );
+      if ($fromFields !== null) {
+        $input['expiry_date'] = $fromFields;
+      }
+    }
+
+    DB::transaction(function () use ($input, $id, $type, $typeId, $normalizedFields) {
+      $this->filesRepository->update($input, $id);
+
+      if ($type === 'rider' && $typeId > 0 && !empty($normalizedFields['document_subtype_id'])) {
+        $rider = Riders::find($typeId);
+        if ($rider) {
+          RiderDocumentFieldValues::syncLinkedRiderColumns(
+            $rider,
+            (int) $normalizedFields['document_subtype_id'],
+            $normalizedFields['field_values']
+          );
+        }
+      }
+    });
+
+    if ($request->ajax() || $request->wantsJson()) {
+      return response()->json(['message' => 'File updated successfully.', 'reload' => true]);
+    }
 
     Flash::success('Files updated successfully.');
 

@@ -166,7 +166,7 @@ class EmployeeInvoiceViewDataBuilder
     /**
      * @return array<string, mixed>
      */
-    public function build(EmployeeInvoices $employeeInvoice): array
+    public function build(EmployeeInvoices $employeeInvoice, bool $includePriorCarry = true): array
     {
         $settings = $this->normalizeSettings(
             company_table('settings')->pluck('value', 'name')->toArray()
@@ -183,8 +183,9 @@ class EmployeeInvoiceViewDataBuilder
         $ledger_additions = $ledger['additions'];
 
         // Previous balance from employee ledger before this billing month (carry-forward).
+        // Omit for invoice payment-status checks so paying this invoice's own net marks it Paid.
         $employee_balance = 0.0;
-        if ($accountId) {
+        if ($includePriorCarry && $accountId) {
             $employee_balance = round((float) Transactions::where('account_id', $accountId)
                 ->whereDate('billing_month', '<', $monthStart)
                 ->sum(DB::raw('debit - credit')), 2);
@@ -287,15 +288,26 @@ class EmployeeInvoiceViewDataBuilder
      *
      * @return array{final_amount: float, paid_amount: float, balance: float}
      */
-    public function outstandingAmounts(EmployeeInvoices $employeeInvoice): array
+    public function outstandingAmounts(EmployeeInvoices $employeeInvoice, bool $includePriorCarry = true): array
     {
-        $data = $this->build($employeeInvoice);
+        $data = $this->build($employeeInvoice, $includePriorCarry);
 
         return [
             'final_amount' => (float) $data['finalAmount'],
             'paid_amount' => (float) $data['paid_amount'],
             'balance' => (float) $data['employee_balance_final'],
         ];
+    }
+
+    /**
+     * Outstanding for Paid / Partial status only — this invoice's month net, without
+     * prior-month ledger carry-forward (which belongs to older unpaid periods).
+     *
+     * @return array{final_amount: float, paid_amount: float, balance: float}
+     */
+    public function outstandingAmountsForStatus(EmployeeInvoices $employeeInvoice): array
+    {
+        return $this->outstandingAmounts($employeeInvoice, false);
     }
 
     /**

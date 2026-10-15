@@ -54,8 +54,10 @@
         @php
             $companySlug = request()->route('company_slug');
             $eiStatus = (int) ($employeeInvoice->status ?? 0);
-            $eiIsPaid = $eiStatus === 1;
-            $eiIsPartial = $eiStatus === 3 || (! $eiIsPaid && (float) ($employeeInvoice->paid_amount ?? 0) > 0);
+            $eiPaidAmt = (float) ($employeeInvoice->paid_amount ?? 0);
+            $eiBalAmt = (float) ($employee_balance_final ?? $employeeInvoice->balance ?? 0);
+            $eiIsPaid = $eiStatus === 1 || ($eiPaidAmt >= 0.01 && $eiBalAmt <= 0.01);
+            $eiIsPartial = ! $eiIsPaid && ($eiStatus === 3 || $eiPaidAmt >= 0.01);
             $eiPaymentId = \App\Support\InvoicePaymentLink::latestId(
                 $employeeInvoice,
                 $employeeInvoice->employee?->account_id ? (int) $employeeInvoice->employee->account_id : null

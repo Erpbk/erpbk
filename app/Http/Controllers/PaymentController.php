@@ -503,22 +503,35 @@ class PaymentController extends Controller
                     }
                 } elseif ($invoiceType == 'employee') {
                     $invoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
+                    $employeeInvoicesToRefresh = collect();
 
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                            && count($invoiceIds) === 1) {
+                            // Single-invoice payments may omit per-row amounts (exclude bank charges)
+                            $invoicePaymentAmount = $paymentAmount;
+                        }
                         if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                             continue;
                         }
 
                         $partialAmount = $invoice->partial_paid_amount ?? [];
                         $partialAmount[$payment->id] = $invoicePaymentAmount;
-                        $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        // Status uses this invoice's own net (no prior-month carry-forward).
+                        $balanceBefore = (float) app(EmployeeInvoiceViewDataBuilder::class)
+                            ->outstandingAmountsForStatus($invoice)['balance'];
 
                         $invoice->update([
                             'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
                             'partial_paid_amount' => $partialAmount,
                             'updated_by' => auth()->id(),
                         ]);
+                        $employeeInvoicesToRefresh->push($invoice);
+                    }
+
+                    if ($employeeInvoicesToRefresh->isNotEmpty()) {
+                        $this->refreshSelectedEmployeeInvoiceStatuses($employeeInvoicesToRefresh);
                     }
                 } elseif ($invoiceType == 'rider') {
                     $invoices = RiderInvoices::with(['rider.account', 'items'])->whereIn('id', $invoiceIds)->get();
@@ -1059,12 +1072,34 @@ class PaymentController extends Controller
             $salaryBalancesBefore = [];
 
             $payment->fill($input);
-            $paymentHasChanges = $payment->isDirty();
+            // updated_by is always stamped; ignore it so attachment-only edits do not
+            // look like payment/invoice changes and wipe invoice statuses.
+            $meaningfulDirty = array_values(array_diff(
+                array_keys($payment->getDirty()),
+                ['updated_by', 'updated_at']
+            ));
+            $paymentHasChanges = $meaningfulDirty !== [];
             $hasNewAttachment = $request->hasFile('attachment');
             $hasInvoiceSelection = $request->has('invoice_ids') && count((array) ($input['invoice_ids'] ?? [])) > 0;
+            $invoiceAllocationsChanged = $hasInvoiceSelection
+                && $this->invoiceAllocationsChanged(
+                    $payment,
+                    $originalReference,
+                    $input['invoice_type'] ?? null,
+                    (array) $request->input('invoice_ids', []),
+                    (array) $request->input('payment_amounts', []),
+                    $paymentAmount
+                );
+            $amountFieldsDirty = array_intersect(
+                $meaningfulDirty,
+                ['amount', 'bank_charges', 'bank_charges_account']
+            ) !== [];
+            // Skip revert/reapply when only the attachment (or non-amount fields) changed.
+            $shouldSyncInvoiceStatuses = $hasInvoiceSelection
+                && ($invoiceAllocationsChanged || $amountFieldsDirty);
 
             // Leave linked invoices untouched when the form has nothing to save.
-            if (! $paymentHasChanges && ! $hasNewAttachment && ! $hasInvoiceSelection) {
+            if (! $paymentHasChanges && ! $hasNewAttachment && ! $invoiceAllocationsChanged) {
                 DB::commit();
 
                 return response()->json([
@@ -1074,7 +1109,7 @@ class PaymentController extends Controller
             }
 
             // Handle existing invoice payments (remove old ones)
-            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
+            if ($shouldSyncInvoiceStatuses) {
                 // Bank charges are ledger-only — never part of invoice allocation.
                 $this->enforceInvoicePaymentsWithinPaymentAmount($request, $paymentAmount, $bankCharges);
 
@@ -1157,7 +1192,7 @@ class PaymentController extends Controller
 
                 foreach ($existingInvoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$payment->id]); // Remove payment for this payment record
+                    unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
                     $invoice->partial_paid_amount = $partialAmount;
 
                     if (count($partialAmount) < 1) {
@@ -1176,9 +1211,9 @@ class PaymentController extends Controller
             }
 
             // Process new invoice payments
-            if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
+            if ($shouldSyncInvoiceStatuses) {
                 $invoiceIds = $request->input('invoice_ids');
-                $paymentAmounts = $request->input('payment_amounts');
+                $paymentAmounts = (array) $request->input('payment_amounts', []);
                 if ($input['invoice_type'] == 'leasingCompany') {
                     $invoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
@@ -1203,6 +1238,11 @@ class PaymentController extends Controller
 
                 foreach ($invoices as $invoice) {
                     $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
+                    if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                        && count($invoiceIds) === 1) {
+                        // Single-invoice payments may omit per-row amounts (exclude bank charges)
+                        $invoicePaymentAmount = $paymentAmount;
+                    }
 
                     if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)) {
                         continue;
@@ -1212,7 +1252,12 @@ class PaymentController extends Controller
                     $partialAmount[$payment->id] = $invoicePaymentAmount;
 
                     if (in_array($input['invoice_type'] ?? null, ['rider', 'employee'], true)) {
-                        $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        if (($input['invoice_type'] ?? null) === 'employee') {
+                            $balanceBefore = (float) app(EmployeeInvoiceViewDataBuilder::class)
+                                ->outstandingAmountsForStatus($invoice)['balance'];
+                        } else {
+                            $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        }
                         $invoice->status = $invoicePaymentAmount >= ($balanceBefore - 0.01) ? $paid : $partial;
                         $invoice->partial_paid_amount = $partialAmount;
                         $invoice->updated_by = auth()->id();
@@ -1310,6 +1355,15 @@ class PaymentController extends Controller
 
             if ($employeeInvoicesToRefresh->isNotEmpty()) {
                 $this->refreshSelectedEmployeeInvoiceStatuses($employeeInvoicesToRefresh);
+            } elseif (
+                $hasInvoiceSelection
+                && ($input['invoice_type'] ?? null) === 'employee'
+            ) {
+                // Attachment-only / no allocation churn: still correct Paid vs Partial
+                // using this invoice's own net (without prior-month carry).
+                $this->refreshSelectedEmployeeInvoiceStatuses(
+                    EmployeeInvoices::whereIn('id', (array) $request->input('invoice_ids', []))->get()
+                );
             }
 
             // Handle attachment if provided (can be updated independently)
@@ -1433,6 +1487,128 @@ class PaymentController extends Controller
     }
 
     /**
+     * Parse linked invoice IDs from a payment reference string.
+     *
+     * @return list<int>
+     */
+    private function invoiceIdsFromPaymentReference(string $reference, ?string $invoiceType): array
+    {
+        if ($reference === '') {
+            return [];
+        }
+
+        $invoiceNumbers = explode(' ', $reference);
+        $invoiceIds = [];
+
+        if ($invoiceType === 'leasingCompany') {
+            foreach ($invoiceNumbers as $invoiceNumber) {
+                $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoiceNumber);
+                if ($id) {
+                    $invoiceIds[] = (int) $id;
+                }
+            }
+        } elseif ($invoiceType === 'employee') {
+            foreach ($invoiceNumbers as $invoiceNumber) {
+                $id = EmployeeInvoices::getIdFromInvoiceNumber($invoiceNumber);
+                if ($id) {
+                    $invoiceIds[] = (int) $id;
+                }
+            }
+        } elseif ($invoiceType === 'sim') {
+            foreach ($invoiceNumbers as $invoiceNumber) {
+                $id = SimInvoice::getIdFromInvoiceNumber($invoiceNumber);
+                if ($id) {
+                    $invoiceIds[] = (int) $id;
+                }
+            }
+        } elseif ($invoiceType === 'rider') {
+            foreach ($invoiceNumbers as $invoiceNumber) {
+                if (preg_match('/RINV-?0*(\d+)/i', $invoiceNumber, $matches)) {
+                    $invoiceIds[] = (int) $matches[1];
+                }
+            }
+        } else {
+            foreach ($invoiceNumbers as $invoiceNumber) {
+                $id = SupplierInvoices::getIdFromInvoiceNumber($invoiceNumber);
+                if ($id) {
+                    $invoiceIds[] = (int) $id;
+                }
+            }
+        }
+
+        return array_values(array_unique($invoiceIds));
+    }
+
+    /**
+     * Whether submitted invoice IDs / line amounts differ from what is already stored
+     * on this payment. Omitted or zero line amounts (common on attachment-only saves)
+     * are not treated as a change unless a single-invoice fallback amount differs.
+     */
+    private function invoiceAllocationsChanged(
+        Payment $payment,
+        string $originalReference,
+        ?string $invoiceType,
+        array $submittedInvoiceIds,
+        array $paymentAmounts,
+        float $paymentAmount
+    ): bool {
+        $originalIds = collect($this->invoiceIdsFromPaymentReference($originalReference, $invoiceType))
+            ->sort()
+            ->values()
+            ->all();
+        $submittedIds = collect($submittedInvoiceIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($submittedIds !== $originalIds) {
+            return true;
+        }
+
+        if ($submittedIds === []) {
+            return false;
+        }
+
+        $invoices = match ($invoiceType) {
+            'leasingCompany' => LeasingCompanyInvoice::whereIn('id', $submittedIds)->get(),
+            'employee' => EmployeeInvoices::whereIn('id', $submittedIds)->get(),
+            'sim' => SimInvoice::whereIn('id', $submittedIds)->get(),
+            'rider' => RiderInvoices::whereIn('id', $submittedIds)->get(),
+            default => SupplierInvoices::whereIn('id', $submittedIds)->get(),
+        };
+
+        if ($invoices->count() !== count($submittedIds)) {
+            return true;
+        }
+
+        foreach ($invoices as $invoice) {
+            $partial = $invoice->partial_paid_amount ?? [];
+            $existing = floatval($partial[$payment->id] ?? $partial[(string) $payment->id] ?? 0);
+            $submittedAmt = floatval(
+                $paymentAmounts[$invoice->id] ?? $paymentAmounts[(string) $invoice->id] ?? 0
+            );
+
+            if (! $this->isNonZeroInvoiceAllocation($submittedAmt)) {
+                if (count($submittedIds) === 1) {
+                    $submittedAmt = $paymentAmount;
+                } else {
+                    // Multi-invoice forms often omit line amounts on attachment-only saves.
+                    continue;
+                }
+            }
+
+            if (abs($submittedAmt - $existing) >= 0.01) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Drop empty / invalid attachment uploads so optional file fields stay optional
      * (especially on update when the original file is already stored).
      */
@@ -1484,7 +1660,8 @@ class PaymentController extends Controller
 
     /**
      * Recalculate employee invoice status after the payment row has been saved.
-     * Uses sequential period balances so multi-month selections are not double-counted.
+     * Uses each invoice's own month net (excludes prior-month carry-forward) so a
+     * full payment of the invoice amount marks it Paid.
      */
     private function refreshSelectedEmployeeInvoiceStatuses($invoices): void
     {
@@ -1496,11 +1673,12 @@ class PaymentController extends Controller
         $freshInvoices = EmployeeInvoices::with(['employee.account', 'items'])
             ->whereIn('id', $ids)
             ->get();
-        $this->applySequentialSalaryInvoiceBalances($freshInvoices, null, 'employee');
+        $builder = app(EmployeeInvoiceViewDataBuilder::class);
 
         foreach ($freshInvoices as $fresh) {
-            $balance = (float) ($fresh->balance ?? 0);
-            $paid = (float) ($fresh->paid_amount ?? 0);
+            $amounts = $builder->outstandingAmountsForStatus($fresh);
+            $balance = (float) ($amounts['balance'] ?? 0);
+            $paid = (float) ($amounts['paid_amount'] ?? 0);
             if ($balance <= 0.01) {
                 $fresh->status = 1;
             } elseif ($paid >= 0.01) {

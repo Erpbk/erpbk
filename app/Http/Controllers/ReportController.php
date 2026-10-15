@@ -309,12 +309,12 @@ class ReportController extends Controller
       ]);
 
       $data .= '<tr>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
+      $data .= '<td class="excel-text" style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
       $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
       $data .= '<td><span class="badge ' . $badgeClass . '">' . e($statusText) . '</span></td>';
       $data .= '<td>' . e($rider->emirate_hub) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
+      $data .= '<td class="excel-text" style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
       $data .= '<td>' . e($rider->wps) . '</td>';
       $data .= '<td>' . e(optional($rider->customer)->name) . '</td>';
       $data .= '<td><a target="_blank" href="' . e($detailUrl) . '" title="View rider report details">' . e($billingMonthLabel) . '</a></td>';
@@ -376,8 +376,15 @@ class ReportController extends Controller
       $data .= '</tr>';
     }
 
+    // Pass the current page collection so paginator->count() is not 0
     $paginationLinks = view('components.global-pagination', [
-      'paginator' => new \Illuminate\Pagination\LengthAwarePaginator([], $totalCount, $perPage, $page, ['path' => url()->current()]),
+      'paginator' => new \Illuminate\Pagination\LengthAwarePaginator(
+        $result,
+        $totalCount,
+        max(1, (int) $perPage),
+        $page,
+        ['path' => url()->current(), 'query' => $request->query()]
+      ),
       'perPageOptions' => [20, 50, 100, -1]
     ])->render();
 
@@ -1095,12 +1102,12 @@ class ReportController extends Controller
       $statusText = $statusDisplay['label'];
 
       $data .= '<tr>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
+      $data .= '<td class="excel-text" style="mso-number-format:\'\@\';">' . e($rider->rider_id) . '</td>';
       $data .= '<td><a target="_blank" href="' . route('riders.show', $rider->id) . '">' . e($rider->name) . '</a></td>';
       $data .= '<td>' . e(optional($rider->vendor)->name) . '</td>';
       $data .= '<td>' . e($rider->designation) . '</td>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
-      $data .= '<td style="mso-number-format:\'\@\';">' . e($rider->labor_card_number) . '</td>';
+      $data .= '<td class="excel-text" style="mso-number-format:\'\@\';">' . e($rider->person_code) . '</td>';
+      $data .= '<td class="excel-text" style="mso-number-format:\'\@\';">' . e($rider->labor_card_number) . '</td>';
       $data .= '<td>' . e(optional($rider->bikes)->plate) . '</td>';
       $data .= '<td>' . e($rider->wps) . '</td>';
       $data .= '<td><span class="badge ' . $badgeClass . '">' . $statusText . '</span></td>';
@@ -1133,8 +1140,15 @@ class ReportController extends Controller
       $data .= '</tr>';
     }
 
+    // Pass the current page collection so paginator->count() is not 0
     $paginationLinks = view('components.global-pagination', [
-      'paginator' => new \Illuminate\Pagination\LengthAwarePaginator([], $totalCount, $perPage, $page, ['path' => url()->current()]),
+      'paginator' => new \Illuminate\Pagination\LengthAwarePaginator(
+        $result,
+        $totalCount,
+        max(1, (int) $perPage),
+        $page,
+        ['path' => url()->current(), 'query' => $request->query()]
+      ),
       'perPageOptions' => [20, 50, 100, -1]
     ])->render();
 

@@ -109,6 +109,27 @@
                         if( rc.flag.length > 0 ) {
                             tempRows += "<td> </td>"; // exclude it!!
                         } else {
+                            var $cell = $(q);
+                            var isHeader = (q.tagName || "").toLowerCase() === "th";
+                            var forceText = !isHeader && (
+                                $cell.hasClass("excel-text") ||
+                                (($cell.attr("style") || "").indexOf("mso-number-format") !== -1)
+                            );
+                            var cellHtml;
+                            var plainText = "";
+
+                            if (forceText) {
+                                // HTML .xls often ignores mso-number-format alone; ="value"
+                                // forces Excel to keep long IDs as text (no scientific notation).
+                                plainText = $cell.text().replace(/\u00a0/g, " ").trim();
+                                cellHtml = '="' + String(plainText).replace(/"/g, '""') + '"';
+                                if (additionalStyles.indexOf("mso-number-format") === -1) {
+                                    additionalStyles += "mso-number-format:'\\@';";
+                                }
+                            } else {
+                                cellHtml = $cell.html();
+                            }
+
                             tempRows += "<td";
                             if( rc.rows > 0) {
                                 tempRows += " rowspan='" + rc.rows + "' ";
@@ -116,11 +137,14 @@
                             if( rc.cols > 0) {
                                 tempRows += " colspan='" + rc.cols + "' ";
                             }
+                            if (forceText) {
+                                tempRows += ' x:str="' + String(plainText).replace(/"/g, "&quot;") + '"';
+                            }
                             if(additionalStyles){
 								// Double-quoted attr so mso-number-format:'\@' survives for Excel text cells
 								tempRows += ' style="' + additionalStyles.replace(/"/g, "&quot;") + '"';
 							}
-                            tempRows += ">" + $(q).html() + "</td>";
+                            tempRows += ">" + cellHtml + "</td>";
                         }
                     });
 

@@ -25,12 +25,18 @@
                 <td>{{ number_format($r->vat ?? 0, 2) }}</td>
                 <td>{{ number_format($r->total_amount, 2) }}</td>
                 <td>
-                    @if($r->status == 1)
+                    @php
+                        $eiRowStatus = (int) ($r->status ?? 0);
+                        $eiRowPaid = (float) ($r->paid_amount ?? 0);
+                        $eiRowBalance = (float) ($r->balance ?? 0);
+                        $eiRowIsPaid = $eiRowStatus === 1 || ($eiRowPaid >= 0.01 && $eiRowBalance <= 0.01);
+                    @endphp
+                    @if($eiRowIsPaid)
                         @include('invoices.partials.status_badge', ['status' => 'paid'])
-                    @elseif($r->status == 3 || ($r->paid_amount ?? 0) > 0)
+                    @elseif($eiRowStatus === 3 || $eiRowPaid >= 0.01)
                         @include('invoices.partials.status_badge', ['status' => 'partial'])
-                        @if(($r->balance ?? 0) > 0.01)
-                            <small>({{ \App\Helpers\Currency::format($r->balance) }} due)</small>
+                        @if($eiRowBalance > 0.01)
+                            <small>({{ \App\Helpers\Currency::format($eiRowBalance) }} due)</small>
                         @endif
                     @else
                         @include('invoices.partials.status_badge', ['status' => 'unpaid'])

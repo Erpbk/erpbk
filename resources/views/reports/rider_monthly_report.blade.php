@@ -346,7 +346,7 @@
 
 @push('page-scripts')
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script src="{{ URL::asset('export_excel/jquery.table2excel.js') }}"></script>
+<script src="{{ URL::asset('export_excel/jquery.table2excel.js') }}?v={{ @filemtime(public_path('export_excel/jquery.table2excel.js')) ?: '1' }}"></script>
 <script>
     $(document).ready(function() {
         // Filter sidebar toggle

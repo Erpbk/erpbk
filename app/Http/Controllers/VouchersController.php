@@ -286,6 +286,19 @@ class VouchersController extends Controller
       return redirect()->back();
     }
 
+    // Rider payment vouchers use the payment document UI (with All Vouchers sidebar).
+    if ((string) $voucher->voucher_type === 'PV') {
+      $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])
+        ->where('voucher_id', $voucher->id)
+        ->first();
+      if (! $payment && ! empty($voucher->ref_id)) {
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($voucher->ref_id);
+      }
+      if ($payment && app(\App\Services\Payment\RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
+        return app(PaymentController::class)->show(request(), $company_slug, $payment->id);
+      }
+    }
+
     if (request()->ajax() || request()->wantsJson()) {
       return view('vouchers.show_modal', compact('voucher', 'editDeleteFlags'));
     }

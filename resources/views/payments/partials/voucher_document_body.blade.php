@@ -7,328 +7,462 @@
     $money = $formatMoney ?? static fn ($n) => ($currencyCode ?? '').' '.number_format((float) $n, 2);
     $showNotes = !empty($settings['show_internal_notes']) && trim((string) ($internalNotes ?? '')) !== '';
     $showSignature = !empty($settings['show_signature']);
+    $logoSrc = $logoSrc ?? ($brand['logo_src'] ?? ($brand['logo_url'] ?? null));
+    $voucherNo = $voucherNo ?? ($referenceNo ?? '—');
 @endphp
 
 <style>
+.rpv-page {
+    max-width: 920px;
+    margin: 4px auto 28px;
+}
+.rpv-toolbar .btn {
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 6px 12px;
+}
+.rpv-toolbar .btn-primary {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
 .rpv-doc {
     --rpv-blue: {{ $blue }};
     --rpv-soft: {{ $blueSoft }};
     --rpv-line: {{ $blueLine }};
-    font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+    font-family: 'Segoe UI', DejaVu Sans, Arial, Helvetica, sans-serif;
     color: #0f172a;
-    max-width: 920px;
+    max-width: {{ $isPdf ? 'none' : '920px' }};
+    width: 100%;
     margin: 0 auto;
     background: #fff;
+    border: {{ $isPdf ? 'none' : '1px solid #e6edf5' }};
+    border-radius: {{ $isPdf ? '0' : '12px' }};
+    box-shadow: {{ $isPdf ? 'none' : '0 1px 2px rgba(15, 23, 42, 0.04), 0 16px 40px rgba(15, 23, 42, 0.06)' }};
+    overflow: hidden;
+    line-height: 1.45;
 }
+.rpv-page .rpv-doc { max-width: none; }
 .rpv-doc * { box-sizing: border-box; }
-.rpv-sheet { padding: {{ $isPdf ? '12px 14px' : '24px 28px 20px' }}; }
-.rpv-hdr {
-    display: {{ $isPdf ? 'table' : 'flex' }};
-    width: 100%;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 18px;
-    border-bottom: 2px solid var(--rpv-line);
-    padding-bottom: 14px;
+.rpv-accent {
+    height: {{ $isPdf ? '4px' : '5px' }};
+    background: var(--rpv-blue);
 }
-.rpv-hdr-left { {{ $isPdf ? 'display:table-cell;width:68%;vertical-align:top;' : '' }} }
-.rpv-hdr-right { {{ $isPdf ? 'display:table-cell;width:32%;vertical-align:top;text-align:right;' : 'text-align:right;' }} }
+.rpv-sheet { padding: {{ $isPdf ? '14px 16px 16px' : '26px 30px 24px' }}; }
+.rpv-hdr { width: 100%; border-collapse: collapse; margin: 0 0 {{ $isPdf ? '14px' : '18px' }}; }
+.rpv-hdr td {
+    border: none;
+    vertical-align: middle;
+    padding: 0 0 {{ $isPdf ? '12px' : '16px' }};
+    border-bottom: 2px solid var(--rpv-blue);
+}
+.rpv-hdr-logo { width: 28%; text-align: left; }
+.rpv-hdr-brand { width: 44%; text-align: center; padding-left: 8px; padding-right: 8px; }
+.rpv-hdr-right { width: 28%; text-align: right; }
+.rpv-logo {
+    display: block;
+    max-width: {{ $isPdf ? '150px' : '180px' }};
+    max-height: {{ $isPdf ? '52px' : '60px' }};
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    object-position: left center;
+    margin: 0;
+}
 .rpv-company {
-    font-size: {{ $isPdf ? '18px' : '22px' }};
+    font-size: {{ $isPdf ? '17px' : '20px' }};
     font-weight: 700;
     color: var(--rpv-blue);
-    line-height: 1.25;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-align: center;
 }
 .rpv-title {
-    margin-top: 4px;
-    font-size: {{ $isPdf ? '11px' : '12px' }};
-    letter-spacing: 0.08em;
-    color: #64748b;
-    font-weight: 600;
+    display: block;
+    margin-top: 6px;
+    font-size: {{ $isPdf ? '10px' : '11px' }};
+    letter-spacing: 0.16em;
+    color: var(--rpv-blue);
+    font-weight: 700;
     text-transform: uppercase;
+    text-align: center;
 }
 .rpv-ref-label {
-    font-size: 11px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     color: #64748b;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    font-weight: 600;
 }
 .rpv-ref-box {
     display: inline-block;
-    min-width: 140px;
+    min-width: 148px;
     border: 1px solid var(--rpv-line);
     background: var(--rpv-soft);
-    padding: 8px 12px;
+    padding: 9px 14px;
     font-weight: 700;
+    font-size: {{ $isPdf ? '13px' : '15px' }};
+    letter-spacing: 0.03em;
     color: var(--rpv-blue);
     text-align: center;
+    border-radius: {{ $isPdf ? '0' : '8px' }};
 }
-.rpv-grid {
-    width: 100%;
-    margin: 12px 0 16px;
-    {{ $isPdf ? 'border-collapse:collapse;' : 'display:grid;grid-template-columns:1fr 1fr;gap:10px 28px;' }}
+.rpv-split { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0 0 {{ $isPdf ? '12px' : '14px' }}; table-layout: fixed; }
+.rpv-split-cell { width: 50%; vertical-align: top; border: none; padding: 0; }
+.rpv-split-cell:first-child { padding-right: {{ $isPdf ? '6px' : '8px' }}; }
+.rpv-split-cell:last-child { padding-left: {{ $isPdf ? '6px' : '8px' }}; }
+.rpv-card {
+    background: var(--rpv-soft);
+    border: 1px solid var(--rpv-line);
+    border-top: 3px solid var(--rpv-blue);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    padding: {{ $isPdf ? '2px 12px 4px' : '4px 14px 6px' }};
 }
-.rpv-grid-table { width: 100%; border-collapse: collapse; }
-.rpv-grid-table td { width: 50%; vertical-align: top; padding: 0 12px 0 0; }
-.rpv-kv { margin-bottom: 8px; font-size: {{ $isPdf ? '11px' : '13px' }}; }
-.rpv-kv .k { color: #64748b; display: inline-block; min-width: 120px; }
-.rpv-kv .v { color: #0f172a; font-weight: 600; }
+.rpv-kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rpv-kv td {
+    border: none;
+    border-bottom: 1px solid rgba(197, 216, 240, 0.85);
+    padding: {{ $isPdf ? '5px 0' : '7px 0' }};
+    vertical-align: middle;
+    font-size: {{ $isPdf ? '11px' : '13px' }};
+}
+.rpv-kv tr:last-child td { border-bottom: none; }
+.rpv-kv .k {
+    color: #64748b;
+    font-weight: 500;
+    width: 42%;
+    text-align: left;
+    padding-right: 8px;
+    white-space: nowrap;
+}
+.rpv-kv .v {
+    color: #0f172a;
+    font-weight: 700;
+    width: 58%;
+    text-align: right;
+    word-break: break-word;
+}
 .rpv-kv .v-link { color: var(--rpv-blue); }
 .rpv-box {
     border: 1px solid var(--rpv-line);
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin: 12px 0;
+    border-top: 3px solid var(--rpv-blue);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    padding: {{ $isPdf ? '8px 12px' : '12px 14px' }};
+    margin: 0 0 {{ $isPdf ? '12px' : '14px' }};
     background: #f8fafc;
 }
 .rpv-box-title {
-    font-size: 11px;
+    font-size: {{ $isPdf ? '9px' : '10px' }};
     font-weight: 700;
     color: var(--rpv-blue);
     margin-bottom: 4px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
 }
 .rpv-box-body { font-size: {{ $isPdf ? '11px' : '13px' }}; color: #334155; white-space: pre-wrap; }
+.rpv-table-wrap {
+    border: 1px solid var(--rpv-line);
+    border-top: 3px solid var(--rpv-blue);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    overflow: hidden;
+    margin: 0 0 {{ $isPdf ? '10px' : '4px' }};
+}
 .rpv-table {
     width: 100%;
     border-collapse: collapse;
-    margin: 14px 0 8px;
-    font-size: {{ $isPdf ? '10px' : '12px' }};
+    margin: 0;
+    font-size: {{ $isPdf ? '10px' : '12.5px' }};
 }
 .rpv-table th {
     background: var(--rpv-soft);
-    color: var(--rpv-blue);
-    border: 1px solid var(--rpv-line);
-    padding: 8px 6px;
+    color: #0f172a;
+    border: none;
+    border-bottom: 1px solid var(--rpv-line);
+    padding: {{ $isPdf ? '7px 6px' : '10px 10px' }};
     text-align: left;
     font-weight: 700;
+    font-size: {{ $isPdf ? '9px' : '10.5px' }};
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 .rpv-table td {
-    border: 1px solid #e2e8f0;
-    padding: 7px 6px;
+    border: none;
+    border-bottom: 1px solid #e8eef5;
+    padding: {{ $isPdf ? '6px' : '9px 10px' }};
     vertical-align: middle;
+    color: #0f172a;
 }
-.rpv-table .num { text-align: right; white-space: nowrap; }
+.rpv-table tbody tr:last-child td { border-bottom: none; }
+.rpv-table tbody tr:nth-child(even) td { background: #fafbfc; }
+.rpv-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpv-table .pay { font-weight: 700; }
 .rpv-table tfoot td {
     background: var(--rpv-soft);
     font-weight: 700;
     color: var(--rpv-blue);
+    border-top: 1px solid var(--rpv-line);
+    border-bottom: none;
+    padding: {{ $isPdf ? '7px 6px' : '10px' }};
 }
-.rpv-bottom {
-    width: 100%;
-    margin-top: 10px;
-    {{ $isPdf ? '' : 'display:flex;justify-content:flex-end;' }}
-}
+.rpv-table .empty { text-align: center; color: #94a3b8; }
+.rpv-bottom { width: 100%; border-collapse: collapse; margin-top: {{ $isPdf ? '10px' : '14px' }}; }
+.rpv-bottom td { border: none; vertical-align: top; padding: 0; }
+.rpv-bottom-sum { width: {{ $isPdf ? '48%' : '320px' }}; }
 .rpv-summary {
-    width: {{ $isPdf ? '45%' : '280px' }};
-    {{ $isPdf ? 'margin-left:auto;' : '' }}
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--rpv-line);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    overflow: hidden;
     font-size: {{ $isPdf ? '11px' : '13px' }};
 }
-.rpv-summary-row {
-    display: {{ $isPdf ? 'table' : 'flex' }};
-    width: 100%;
-    justify-content: space-between;
-    padding: 4px 0;
-    border-bottom: 1px solid #eef2f7;
+.rpv-summary td {
+    padding: {{ $isPdf ? '5px 10px' : '8px 14px' }};
+    border: none;
+    border-bottom: 1px solid #e8eef5;
 }
-.rpv-summary-row span:first-child { {{ $isPdf ? 'display:table-cell;width:55%;' : '' }} color: #64748b; }
-.rpv-summary-row span:last-child { {{ $isPdf ? 'display:table-cell;width:45%;text-align:right;' : '' }} font-weight: 600; text-align: right; }
-.rpv-summary-total {
-    margin-top: 6px;
-    background: var(--rpv-soft);
-    border: 1px solid var(--rpv-line);
-    border-radius: 4px;
-    padding: 8px 10px;
+.rpv-summary .k { color: #64748b; font-weight: 500; text-align: left; }
+.rpv-summary .v { font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpv-summary tr:last-child td { border-bottom: none; }
+.rpv-summary-total td {
+    background: var(--rpv-blue);
+    color: #fff !important;
     font-weight: 700;
-    color: var(--rpv-blue);
-    display: {{ $isPdf ? 'table' : 'flex' }};
-    width: 100%;
-    justify-content: space-between;
+    border-bottom: none;
+    padding: {{ $isPdf ? '8px 10px' : '11px 14px' }};
 }
-.rpv-summary-total span { {{ $isPdf ? 'display:table-cell;' : '' }} }
-.rpv-summary-total span:last-child { {{ $isPdf ? 'text-align:right;' : '' }} }
 .rpv-meta-box {
     border: 1px solid var(--rpv-line);
-    border-radius: 6px;
-    padding: 10px 12px;
-    margin-top: 14px;
-    font-size: {{ $isPdf ? '11px' : '12px' }};
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    padding: {{ $isPdf ? '8px 12px' : '10px 14px' }};
+    margin-top: {{ $isPdf ? '10px' : '12px' }};
+    font-size: {{ $isPdf ? '11px' : '12.5px' }};
+    color: #334155;
 }
-.rpv-meta-box strong { color: var(--rpv-blue); }
+.rpv-meta-box strong {
+    color: var(--rpv-blue);
+    margin-right: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: {{ $isPdf ? '10px' : '11px' }};
+}
+.rpv-meta-box a { color: var(--rpv-blue); font-weight: 600; text-decoration: none; }
 .rpv-sigs {
-    margin-top: 36px;
+    margin-top: {{ $isPdf ? '28px' : '36px' }};
     width: 100%;
-    {{ $isPdf ? 'border-collapse:collapse;' : 'display:flex;gap:40px;justify-content:space-between;' }}
+    border-collapse: collapse;
 }
 .rpv-sig {
-    {{ $isPdf ? 'display:table-cell;width:48%;padding:0 12px;text-align:center;vertical-align:bottom;' : 'flex:1;text-align:center;' }}
+    width: 50%;
+    text-align: center;
+    vertical-align: bottom;
+    padding: 0 18px;
+    border: none;
 }
 .rpv-sig-line {
     border-top: 1px solid #94a3b8;
-    margin: 48px 12px 8px;
+    margin: {{ $isPdf ? '36px' : '48px' }} 8px 8px;
 }
 .rpv-sig-label {
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     color: #475569;
 }
 @media print {
     .rpv-toolbar { display: none !important; }
-    .rpv-doc { box-shadow: none !important; max-width: none; }
+    .rpv-page { max-width: none; margin: 0; }
+    .rpv-doc { box-shadow: none !important; border: none !important; max-width: none; border-radius: 0; }
 }
 </style>
 
 <div class="rpv-doc">
+    <div class="rpv-accent"></div>
     <div class="rpv-sheet">
-        <div class="rpv-hdr">
-            <div class="rpv-hdr-left">
-                <div class="rpv-company">{{ $companyName }}</div>
-                <div class="rpv-title">{{ $documentTitle }}</div>
-            </div>
-            <div class="rpv-hdr-right">
-                <div class="rpv-ref-label">Reference No.</div>
-                <div class="rpv-ref-box">{{ $referenceNo }}</div>
-            </div>
-        </div>
+        <table class="rpv-hdr" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="rpv-hdr-logo">
+                    @if(!empty($logoSrc))
+                        <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="rpv-logo">
+                    @endif
+                </td>
+                <td class="rpv-hdr-brand">
+                    <div class="rpv-company">{{ $companyName }}</div>
+                    <div class="rpv-title">{{ $documentTitle }}</div>
+                </td>
+                <td class="rpv-hdr-right">
+                    <div class="rpv-ref-label">Voucher No.</div>
+                    <div class="rpv-ref-box">{{ $voucherNo }}</div>
+                </td>
+            </tr>
+        </table>
 
-        @if($isPdf)
-            <table class="rpv-grid-table" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td>
-                        <div class="rpv-kv"><span class="k">Payment Date:</span> <span class="v">{{ $paymentDate }}</span></div>
-                        <div class="rpv-kv"><span class="k">Payee (Rider):</span> <span class="v v-link">{{ $payeeName }}</span></div>
-                        <div class="rpv-kv"><span class="k">Rider Code:</span> <span class="v">{{ $riderCode }}</span></div>
-                        <div class="rpv-kv"><span class="k">Billing Month:</span> <span class="v">{{ $billingMonth }}</span></div>
-                        <div class="rpv-kv"><span class="k">Paid By:</span> <span class="v">{{ $paidBy }}</span></div>
-                    </td>
-                    <td>
-                        <div class="rpv-kv"><span class="k">Reference:</span> <span class="v">{{ $referenceNo }}</span></div>
-                        <div class="rpv-kv"><span class="k">Payment Mode:</span> <span class="v">{{ $paymentMode }}</span></div>
-                        <div class="rpv-kv"><span class="k">Payment Type:</span> <span class="v">{{ $paymentType }}</span></div>
-                        <div class="rpv-kv"><span class="k">Payment Amount:</span> <span class="v">{{ $money($paymentAmount) }}</span></div>
-                        <div class="rpv-kv"><span class="k">Bank Charges:</span> <span class="v">{{ $money($bankCharges) }}</span></div>
-                    </td>
-                </tr>
-            </table>
-        @else
-            <div class="rpv-grid">
-                <div>
-                    <div class="rpv-kv"><span class="k">Payment Date:</span> <span class="v">{{ $paymentDate }}</span></div>
-                    <div class="rpv-kv"><span class="k">Payee (Rider):</span> <span class="v v-link">{{ $payeeName }}</span></div>
-                    <div class="rpv-kv"><span class="k">Rider Code:</span> <span class="v">{{ $riderCode }}</span></div>
-                    <div class="rpv-kv"><span class="k">Billing Month:</span> <span class="v">{{ $billingMonth }}</span></div>
-                    <div class="rpv-kv"><span class="k">Paid By:</span> <span class="v">{{ $paidBy }}</span></div>
-                </div>
-                <div>
-                    <div class="rpv-kv"><span class="k">Reference:</span> <span class="v">{{ $referenceNo }}</span></div>
-                    <div class="rpv-kv"><span class="k">Payment Mode:</span> <span class="v">{{ $paymentMode }}</span></div>
-                    <div class="rpv-kv"><span class="k">Payment Type:</span> <span class="v">{{ $paymentType }}</span></div>
-                    <div class="rpv-kv"><span class="k">Payment Amount:</span> <span class="v">{{ $money($paymentAmount) }}</span></div>
-                    <div class="rpv-kv"><span class="k">Bank Charges:</span> <span class="v">{{ $money($bankCharges) }}</span></div>
-                </div>
-            </div>
-        @endif
+        <table class="rpv-split" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="rpv-split-cell">
+                    <div class="rpv-card">
+                        <table class="rpv-kv" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td class="k">Payment Date:</td>
+                                <td class="v">{{ $paymentDate }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Payee (Rider):</td>
+                                <td class="v v-link">{{ $payeeName }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Rider Code:</td>
+                                <td class="v">{{ $riderCode }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Billing Month:</td>
+                                <td class="v">{{ $billingMonth }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Paid By:</td>
+                                <td class="v">{{ $paidBy }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+                <td class="rpv-split-cell">
+                    <div class="rpv-card">
+                        <table class="rpv-kv" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td class="k">Voucher No.:</td>
+                                <td class="v">{{ $voucherNo }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Payment Mode:</td>
+                                <td class="v">{{ $paymentMode }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Payment Type:</td>
+                                <td class="v">{{ $paymentType }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Payment Amount:</td>
+                                <td class="v">{{ $money($paymentAmount) }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Bank Charges:</td>
+                                <td class="v">{{ $money($bankCharges) }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </table>
 
         <div class="rpv-box">
             <div class="rpv-box-title">Narration / Description</div>
             <div class="rpv-box-body">{{ $narration }}</div>
         </div>
 
-        <table class="rpv-table">
-            <thead>
-                <tr>
-                    <th>Invoice #</th>
-                    <th>Billing Month</th>
-                    <th class="num">Total Amount</th>
-                    <th class="num">Previously Paid</th>
-                    <th class="num">Balance Due</th>
-                    <th class="num">Payment</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($allocations as $row)
+        <div class="rpv-table-wrap">
+            <table class="rpv-table">
+                <thead>
                     <tr>
-                        <td>{{ $row['invoice_number'] }}</td>
-                        <td>{{ $row['billing_month'] }}</td>
-                        <td class="num">{{ $money($row['total']) }}</td>
-                        <td class="num">{{ $money($row['previously_paid']) }}</td>
-                        <td class="num">{{ $money($row['balance_due']) }}</td>
-                        <td class="num">{{ $money($row['payment']) }}</td>
+                        <th>Invoice #</th>
+                        <th>Billing Month</th>
+                        <th class="num">Total Amount</th>
+                        <th class="num">Previously Paid</th>
+                        <th class="num">Balance Due</th>
+                        <th class="num">Payment</th>
                     </tr>
-                @empty
+                </thead>
+                <tbody>
+                    @forelse($allocations as $row)
+                        <tr>
+                            <td>{{ $row['invoice_number'] }}</td>
+                            <td>{{ $row['billing_month'] }}</td>
+                            <td class="num">{{ $money($row['total']) }}</td>
+                            <td class="num">{{ $money($row['previously_paid']) }}</td>
+                            <td class="num">{{ $money($row['balance_due']) }}</td>
+                            <td class="num pay">{{ $money($row['payment']) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="empty">No invoice allocation</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+                <tfoot>
                     <tr>
-                        <td colspan="6" style="text-align:center;color:#94a3b8;">No invoice allocation</td>
+                        <td colspan="5" class="num">Total Allocated:</td>
+                        <td class="num">{{ $money($allocatedTotal) }}</td>
                     </tr>
-                @endforelse
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5" style="text-align:right;">Total Allocated:</td>
-                    <td class="num">{{ $money($allocatedTotal) }}</td>
-                </tr>
-            </tfoot>
+                </tfoot>
+            </table>
+        </div>
+
+        <table class="rpv-bottom" cellpadding="0" cellspacing="0">
+            <tr>
+                <td></td>
+                <td class="rpv-bottom-sum">
+                    <table class="rpv-summary" cellpadding="0" cellspacing="0">
+                        <tr>
+                            <td class="k">Payment Amount:</td>
+                            <td class="v">{{ $money($paymentAmount) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="k">Invoice Allocation:</td>
+                            <td class="v">{{ $money($allocatedTotal) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="k">Difference:</td>
+                            <td class="v">{{ $money($difference) }}</td>
+                        </tr>
+                        <tr>
+                            <td class="k">Bank Charges:</td>
+                            <td class="v">{{ $money($bankCharges) }}</td>
+                        </tr>
+                        <tr class="rpv-summary-total">
+                            <td>Total Payment:</td>
+                            <td class="v">{{ $money($totalPayment) }}</td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
         </table>
 
-        <div class="rpv-bottom">
-            <div class="rpv-summary">
-                <div class="rpv-summary-row"><span>Payment Amount:</span><span>{{ $money($paymentAmount) }}</span></div>
-                <div class="rpv-summary-row"><span>Invoice Allocation:</span><span>{{ $money($allocatedTotal) }}</span></div>
-                <div class="rpv-summary-row"><span>Difference:</span><span>{{ $money($difference) }}</span></div>
-                <div class="rpv-summary-row"><span>Bank Charges:</span><span>{{ $money($bankCharges) }}</span></div>
-                <div class="rpv-summary-total"><span>Total Payment:</span><span>{{ $money($totalPayment) }}</span></div>
-            </div>
-        </div>
-
         <div class="rpv-meta-box">
-            <div><strong>Amount in Words:</strong> {{ $amountInWords }}</div>
+            <strong>Amount in Words:</strong> {{ $amountInWords }}
         </div>
         <div class="rpv-meta-box">
-            <div><strong>Attachments:</strong>
-                @if(!empty($attachmentUrl))
-                    @if($isPdf)
-                        {{ $attachmentName ?? 'Attachment' }}
-                    @else
-                        <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
-                    @endif
+            <strong>Attachments:</strong>
+            @if(!empty($attachmentUrl))
+                @if($isPdf)
+                    {{ $attachmentName ?? 'Attachment' }}
                 @else
-                    No attachment
+                    <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
                 @endif
-            </div>
+            @else
+                No attachment
+            @endif
         </div>
 
         @if($showNotes)
-            <div class="rpv-box">
+            <div class="rpv-box" style="margin-top:14px;">
                 <div class="rpv-box-title">{{ $settings['internal_notes_label'] ?? 'Internal Notes' }}</div>
                 <div class="rpv-box-body">{{ $internalNotes }}</div>
             </div>
         @endif
 
         @if($showSignature)
-            @if($isPdf)
-                <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
-                    <tr>
-                        <td class="rpv-sig">
-                            <div class="rpv-sig-line"></div>
-                            <div class="rpv-sig-label">{{ $settings['payer_signature_label'] ?? 'Paid By' }}</div>
-                        </td>
-                        <td class="rpv-sig">
-                            <div class="rpv-sig-line"></div>
-                            <div class="rpv-sig-label">{{ $settings['rider_signature_label'] ?? 'Received By' }}</div>
-                        </td>
-                    </tr>
-                </table>
-            @else
-                <div class="rpv-sigs">
-                    <div class="rpv-sig">
+            <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                    <td class="rpv-sig">
                         <div class="rpv-sig-line"></div>
                         <div class="rpv-sig-label">{{ $settings['payer_signature_label'] ?? 'Paid By' }}</div>
-                    </div>
-                    <div class="rpv-sig">
+                    </td>
+                    <td class="rpv-sig">
                         <div class="rpv-sig-line"></div>
                         <div class="rpv-sig-label">{{ $settings['rider_signature_label'] ?? 'Received By' }}</div>
-                    </div>
-                </div>
-            @endif
+                    </td>
+                </tr>
+            </table>
         @endif
     </div>
 </div>

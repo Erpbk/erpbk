@@ -187,14 +187,23 @@
       }
     }
 
-    function capAmountToBalance($input, amount) {
+    function invoiceAmountCap($input) {
+      // Prefer explicit invoice total (TOTAL AMOUNT), not remaining balance.
       var maxBalance = parseFloat($input.attr('data-max'));
+      if (isNaN(maxBalance)) {
+        maxBalance = parseFloat($input.closest('tr').data('invoice-total'));
+      }
       if (isNaN(maxBalance)) {
         maxBalance = parseFloat($input.closest('tr').data('balance')) || 0;
       }
+      return maxBalance;
+    }
+
+    function capAmountToBalance($input, amount) {
+      var maxBalance = invoiceAmountCap($input);
       if (maxBalance >= 0 && amount > maxBalance + 0.009) {
         if (typeof toastr !== 'undefined') {
-          toastr.warning('Payment amount cannot exceed the invoice balance due (' + currency + ' ' + maxBalance.toFixed(2) + ').');
+          toastr.warning('Payment amount cannot exceed the selected invoice amount (' + currency + ' ' + maxBalance.toFixed(2) + ').');
         }
         return maxBalance;
       }
@@ -391,6 +400,20 @@
       var remaining = $checked.length ? (parseFloat($checked.data('balance')) || 0) : 0;
       $ctx.find('#rider_balance_due').text(remaining.toFixed(2));
       $ctx.find('#rider_ledger_due').text(resolvePayeeLedgerBalance().toFixed(2));
+
+      // Cap primary payment amount to invoice TOTAL AMOUNT (not remaining).
+      var invoiceTotal = 0;
+      if ($checked.length) {
+        invoiceTotal = invoiceAmountCap($checked.find('.payment-amount').first());
+      }
+      var $paymentAmount = $ctx.find('#payment_amount');
+      if ($checked.length && invoiceTotal > 0) {
+        $paymentAmount.attr('max', invoiceTotal.toFixed(2));
+        $paymentAmount.attr('data-invoice-max', invoiceTotal.toFixed(2));
+      } else {
+        $paymentAmount.removeAttr('max');
+        $paymentAmount.removeAttr('data-invoice-max');
+      }
     }
 
     function updateRiderNotesAndTermsDisplay(force) {
@@ -551,6 +574,18 @@
         if (advanceLoan) {
           // Advance loan uses the primary amount; line amount is reference-only (0).
           $paymentInput.val('0.00');
+        } else if (isRiderOnlyPayment && isPaymentCreateType()) {
+          // Rider payment: never auto-fill the remaining/invoice amount.
+          // If the user already typed a primary amount, mirror it onto the line (capped).
+          if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
+            if (paymentAmount > 0.009) {
+              var mirrored = capAmountToBalance($paymentInput, paymentAmount);
+              $paymentInput.val(mirrored.toFixed(2));
+              $paymentInput.trigger('change');
+            } else {
+              $paymentInput.val('');
+            }
+          }
         } else if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
           var balanceDue = parseFloat($row.data('balance')) || 0;
           var fillAmount = balanceDue;
@@ -601,6 +636,7 @@
       if (isRiderOnlyPayment) {
         syncRiderInvoiceRowVisibility();
         updateRiderNotesAndTermsDisplay(true);
+        updateRiderBalanceDueDisplay();
       }
 
       updateTotalPayment();
@@ -671,7 +707,17 @@
 
       if (isRiderOnlyPayment && isPaymentCreateType()) {
         var $activeLine = $ctx.find('.payment-amount:not(:disabled)').first();
-        if ($activeLine.length) {
+        var invoiceMax = parseFloat($(this).attr('data-invoice-max'));
+        if (isNaN(invoiceMax) && $activeLine.length) {
+          invoiceMax = invoiceAmountCap($activeLine);
+        }
+        if (!isNaN(invoiceMax) && invoiceMax >= 0 && amount > invoiceMax + 0.009) {
+          amount = invoiceMax;
+          $(this).val(amount.toFixed(2));
+          if (typeof toastr !== 'undefined') {
+            toastr.warning('Payment amount cannot exceed the selected invoice amount (' + currency + ' ' + invoiceMax.toFixed(2) + ').');
+          }
+        } else if ($activeLine.length) {
           amount = capAmountToBalance($activeLine, amount);
           $(this).val(amount.toFixed(2));
         }
@@ -823,10 +869,24 @@
         return false;
       }
       var $row = $checkedInvoices.first().closest('tr');
-      var balanceDue = parseFloat($row.data('balance')) || 0;
-      if (totalCredit > balanceDue + 0.01) {
-        alert('Payment amount cannot exceed the invoice balance due');
+      var $lineInput = $row.find('.payment-amount');
+      // Cap against invoice TOTAL AMOUNT (data-max / data-invoice-total), not remaining.
+      var invoiceAmount = parseFloat($lineInput.attr('data-max'));
+      if (isNaN(invoiceAmount)) {
+        invoiceAmount = parseFloat($row.data('invoice-total'));
+      }
+      if (isNaN(invoiceAmount)) {
+        invoiceAmount = parseFloat($row.data('balance')) || 0;
+      }
+      if (totalCredit > invoiceAmount + 0.01) {
+        alert('Payment amount cannot exceed the selected invoice amount (' + currencyCode($(document)) + ' ' + invoiceAmount.toFixed(2) + ')');
         $('#payment_amount').addClass('is-invalid');
+        return false;
+      }
+      var lineAmount = parseFloat($lineInput.val()) || 0;
+      if (lineAmount > invoiceAmount + 0.01) {
+        alert('Payment amount cannot exceed the selected invoice amount (' + currencyCode($(document)) + ' ' + invoiceAmount.toFixed(2) + ')');
+        $lineInput.addClass('is-invalid');
         return false;
       }
       if (totalInvoicePayment <= 0) {

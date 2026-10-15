@@ -795,183 +795,8 @@ class PaymentController extends Controller
 
             return redirect()->back();
         }
-        $invoices = null;
-        $existingInvoices = null;
-        $accountIds = null;
-        $invoiceType = null;
-        $payeeOptions = collect();
-        $lockedPayee = null;
-        $preferredPayeeAccountId = null;
 
-        if ((str_contains($payment->reference, 'LCI'))) {
-            $invoice_numbers = explode(' ', $payment->reference);
-            $invoiceIds = [];
-            foreach ($invoice_numbers as $invoice_number) {
-                $invoiceId = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
-                if ($invoiceId) {
-                    $invoiceIds[] = $invoiceId;
-                }
-            }
-            $existingInvoices = LeasingCompanyInvoice::with('leasingCompany.account')
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            $invoices = LeasingCompanyInvoice::with('leasingCompany.account')
-                ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
-                ->where(function ($query) use ($invoiceIds) {
-                    $query->whereIn('status', [0, 3])
-                        ->WhereNotIn('id', $invoiceIds);
-                })
-                ->get();
-            $invoiceType = 'leasingCompany';
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
-                $existingInvoices->concat($invoices),
-                'leasingCompany'
-            );
-            $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
-                ?: $payeeOptions->first();
-        }
-        if ((str_contains($payment->reference, 'SUP'))) {
-            $invoice_numbers = explode(' ', $payment->reference);
-            $invoiceIds = [];
-            foreach ($invoice_numbers as $invoice_number) {
-                $invoiceId = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
-                if ($invoiceId) {
-                    $invoiceIds[] = $invoiceId;
-                }
-            }
-            $existingInvoices = SupplierInvoices::with('supplier.account')
-                ->where('is_invoice', true)
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            $invoices = SupplierInvoices::with('supplier.account')
-                ->where('is_invoice', true)
-                ->whereIn('supplier_id', $existingInvoices->pluck('supplier_id'))
-                ->where(function ($query) use ($invoiceIds) {
-                    $query->whereIn('status', ['unpaid', 'partially_paid'])
-                        ->WhereNotIn('id', $invoiceIds);
-                })
-                ->get();
-            $invoiceType = 'supplier';
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
-                $existingInvoices->concat($invoices),
-                'supplier'
-            );
-            $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
-                ?: $payeeOptions->first();
-        }
-        if ((str_contains($payment->reference, 'EMP_INV'))) {
-            $invoice_numbers = explode(' ', $payment->reference);
-            $invoiceIds = [];
-            foreach ($invoice_numbers as $invoice_number) {
-                $invoiceId = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
-                if ($invoiceId) {
-                    $invoiceIds[] = $invoiceId;
-                }
-            }
-            $existingInvoices = EmployeeInvoices::with(['employee.account', 'items'])
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            $invoices = EmployeeInvoices::with(['employee.account', 'items'])
-                ->payable()
-                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'))
-                ->whereNotIn('id', $invoiceIds)
-                ->orderBy('billing_month', 'desc')
-                ->get();
-            $invoiceType = 'employee';
-            $payeeOptions = $this->buildPayeeOptionsFromEntities(
-                Employee::with('account')
-                    ->whereNotNull('account_id')
-                    ->orderBy('name')
-                    ->get()
-            );
-            $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = null;
-            $preferredPayeeAccountId = $payment->payee_account_id;
-        }
-        if ((str_contains($payment->reference, 'SIMI'))) {
-            $invoice_numbers = explode(' ', $payment->reference);
-            $invoiceIds = [];
-            foreach ($invoice_numbers as $invoice_number) {
-                $invoiceId = SimInvoice::getIdFromInvoiceNumber($invoice_number);
-                if ($invoiceId) {
-                    $invoiceIds[] = $invoiceId;
-                }
-            }
-            $existingInvoices = SimInvoice::with('company.account')
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            $invoices = SimInvoice::with('company.account')
-                ->whereIn('vendor_id', $existingInvoices->pluck('vendor_id'))
-                ->where('status', '!=', 1)
-                ->whereNotIn('id', $invoiceIds)
-                ->get();
-            $invoiceType = 'sim';
-            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
-                $existingInvoices->concat($invoices),
-                'sim'
-            );
-            $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
-                ?: $payeeOptions->first();
-        }
-        if ((str_contains($payment->reference, 'RINV'))) {
-            $invoice_numbers = explode(' ', $payment->reference);
-            $invoiceIds = [];
-            foreach ($invoice_numbers as $invoice_number) {
-                if (preg_match('/RINV-?0*(\d+)/i', $invoice_number, $matches)) {
-                    $invoiceIds[] = (int) $matches[1];
-                }
-            }
-            $existingInvoices = RiderInvoices::with(['rider.account', 'items'])
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            $invoices = RiderInvoices::with(['rider.account', 'items'])
-                ->payable()
-                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'))
-                ->whereNotIn('id', $invoiceIds)
-                ->orderBy('billing_month', 'desc')
-                ->get();
-            $invoiceType = 'rider';
-            $payeeOptions = $this->attachLedgerBalancesToPayeeOptions(
-                $this->buildPayeeOptionsFromEntities(
-                    Riders::with('account')
-                        ->whereNotNull('account_id')
-                        ->orderBy('name')
-                        ->get()
-                )
-            );
-            $accountIds = $payeeOptions->pluck('account_id')->all();
-            $lockedPayee = null;
-            $preferredPayeeAccountId = $payment->payee_account_id;
-        }
-
-        // For module-linked payments without a selectable list, surface the saved payee as locked.
-        if ($invoiceType && ! $lockedPayee && $payment->payee_account_id && $payeeOptions->isEmpty()) {
-            $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
-        }
-
-        if ($invoiceType === 'rider' && $lockedPayee && ! isset($lockedPayee['ledger_balance'])) {
-            $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) ($lockedPayee['account_id'] ?? 0));
-        }
-
-        $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
-
-        $banks = Banks::active()->get();
-        $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
-
-        return view('payments.edit', compact(
-            'payment',
-            'banks',
-            'accountIds',
-            'existingInvoices',
-            'invoices',
-            'invoiceType',
-            'payeeOptions',
-            'lockedPayee',
-            'preferredPayeeAccountId'
-        ));
+        return view('payments.edit', $this->buildLinkedPaymentFormData($payment));
     }
 
     public function update(Request $request, $comapny_slug, $id)
@@ -1735,7 +1560,7 @@ class PaymentController extends Controller
     }
 
     /**
-     * Rider Payment type: require one invoice, derive billing month, cap amount to balance due.
+     * Rider Payment type: require one invoice, derive billing month, cap amount to invoice total.
      */
     private function applyRiderPaymentInvoiceRules(Request $request): void
     {
@@ -1757,6 +1582,11 @@ class PaymentController extends Controller
         $this->applySequentialSalaryInvoiceBalances($collection, null, 'rider');
         $this->normalizeRiderPaymentFormBalances($collection);
         $balanceDue = (float) ($invoice->balance ?? 0);
+        // Cap to TOTAL AMOUNT (invoice total), not remaining balance due.
+        $invoiceTotal = round((float) ($invoice->total ?? $invoice->total_amount ?? 0), 2);
+        if ($invoiceTotal <= 0.01) {
+            $invoiceTotal = round($balanceDue + (float) ($invoice->paid_amount ?? 0), 2);
+        }
 
         if ($balanceDue <= 0.01) {
             throw ValidationException::withMessages([
@@ -1782,9 +1612,9 @@ class PaymentController extends Controller
             $lineAmount = $paymentAmount;
         }
 
-        if ($paymentAmount > $balanceDue + 0.01 || $lineAmount > $balanceDue + 0.01) {
+        if ($paymentAmount > $invoiceTotal + 0.01 || $lineAmount > $invoiceTotal + 0.01) {
             throw ValidationException::withMessages([
-                'amount' => 'Payment amount cannot exceed the invoice balance due ('.number_format($balanceDue, 2).')',
+                'amount' => 'Payment amount cannot exceed the selected invoice amount ('.number_format($invoiceTotal, 2).')',
             ]);
         }
 
@@ -2290,9 +2120,8 @@ class PaymentController extends Controller
         ];
     }
 
-    public function clone($comapny_slug, $id)
+    public function clone(Request $request, $comapny_slug, $id)
     {
-
         $payment = Payment::find($id);
         if (empty($payment)) {
             if ($request->ajax()) {
@@ -2303,12 +2132,202 @@ class PaymentController extends Controller
             return redirect()->back();
         }
 
-        $banks = Banks::active()->get();
-        $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
-        $payment->amount = $payment->amount - $payment->bank_charges;
-        $payeeOptions = collect();
-        $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
+        // Same linked-invoice UI as edit/create (rider form, invoice table, etc.).
+        return view('payments.create', $this->buildLinkedPaymentFormData($payment));
+    }
 
-        return view('payments.create', compact('payment', 'banks', 'payeeOptions', 'lockedPayee'));
+    /**
+     * Shared create/edit/clone form payload for payments linked to module invoices.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildLinkedPaymentFormData(Payment $payment): array
+    {
+        $invoices = null;
+        $existingInvoices = null;
+        $accountIds = null;
+        $invoiceType = null;
+        $payeeOptions = collect();
+        $lockedPayee = null;
+        $preferredPayeeAccountId = null;
+
+        if ((str_contains((string) $payment->reference, 'LCI'))) {
+            $invoice_numbers = explode(' ', (string) $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                $invoiceId = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
+                }
+            }
+            $existingInvoices = LeasingCompanyInvoice::with('leasingCompany.account')
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = LeasingCompanyInvoice::with('leasingCompany.account')
+                ->whereIn('leasing_company_id', $existingInvoices->pluck('leasing_company_id'))
+                ->where(function ($query) use ($invoiceIds) {
+                    $query->whereIn('status', [0, 3])
+                        ->WhereNotIn('id', $invoiceIds);
+                })
+                ->get();
+            $invoiceType = 'leasingCompany';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'leasingCompany'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
+        }
+        if ((str_contains((string) $payment->reference, 'SUP'))) {
+            $invoice_numbers = explode(' ', (string) $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                $invoiceId = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
+                }
+            }
+            $existingInvoices = SupplierInvoices::with('supplier.account')
+                ->where('is_invoice', true)
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = SupplierInvoices::with('supplier.account')
+                ->where('is_invoice', true)
+                ->whereIn('supplier_id', $existingInvoices->pluck('supplier_id'))
+                ->where(function ($query) use ($invoiceIds) {
+                    $query->whereIn('status', ['unpaid', 'partially_paid'])
+                        ->WhereNotIn('id', $invoiceIds);
+                })
+                ->get();
+            $invoiceType = 'supplier';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'supplier'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
+        }
+        if ((str_contains((string) $payment->reference, 'EMP_INV'))) {
+            $invoice_numbers = explode(' ', (string) $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                $invoiceId = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
+                }
+            }
+            $existingInvoices = EmployeeInvoices::with(['employee.account', 'items'])
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = EmployeeInvoices::with(['employee.account', 'items'])
+                ->payable()
+                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'))
+                ->whereNotIn('id', $invoiceIds)
+                ->orderBy('billing_month', 'desc')
+                ->get();
+            $invoiceType = 'employee';
+            $payeeOptions = $this->buildPayeeOptionsFromEntities(
+                Employee::with('account')
+                    ->whereNotNull('account_id')
+                    ->orderBy('name')
+                    ->get()
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = null;
+            $preferredPayeeAccountId = $payment->payee_account_id;
+        }
+        if ((str_contains((string) $payment->reference, 'SIMI'))) {
+            $invoice_numbers = explode(' ', (string) $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                $invoiceId = SimInvoice::getIdFromInvoiceNumber($invoice_number);
+                if ($invoiceId) {
+                    $invoiceIds[] = $invoiceId;
+                }
+            }
+            $existingInvoices = SimInvoice::with('company.account')
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = SimInvoice::with('company.account')
+                ->whereIn('vendor_id', $existingInvoices->pluck('vendor_id'))
+                ->where('status', '!=', 1)
+                ->whereNotIn('id', $invoiceIds)
+                ->get();
+            $invoiceType = 'sim';
+            $payeeOptions = $this->buildPayeeOptionsFromInvoices(
+                $existingInvoices->concat($invoices),
+                'sim'
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = $payeeOptions->firstWhere('account_id', (int) $payment->payee_account_id)
+                ?: $payeeOptions->first();
+        }
+        if ((str_contains((string) $payment->reference, 'RINV'))) {
+            $invoice_numbers = explode(' ', (string) $payment->reference);
+            $invoiceIds = [];
+            foreach ($invoice_numbers as $invoice_number) {
+                if (preg_match('/RINV-?0*(\d+)/i', $invoice_number, $matches)) {
+                    $invoiceIds[] = (int) $matches[1];
+                }
+            }
+            $existingInvoices = RiderInvoices::with(['rider.account', 'items'])
+                ->whereIn('id', $invoiceIds)
+                ->get();
+            $invoices = RiderInvoices::with(['rider.account', 'items'])
+                ->payable()
+                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'))
+                ->whereNotIn('id', $invoiceIds)
+                ->orderBy('billing_month', 'desc')
+                ->get();
+            $invoiceType = 'rider';
+            $payeeOptions = $this->attachLedgerBalancesToPayeeOptions(
+                $this->buildPayeeOptionsFromEntities(
+                    Riders::with('account')
+                        ->whereNotNull('account_id')
+                        ->orderBy('name')
+                        ->get()
+                )
+            );
+            $accountIds = $payeeOptions->pluck('account_id')->all();
+            $lockedPayee = null;
+            $preferredPayeeAccountId = $payment->payee_account_id;
+        }
+
+        // For module-linked payments without a selectable list, surface the saved payee as locked.
+        if ($invoiceType && ! $lockedPayee && $payment->payee_account_id && $payeeOptions->isEmpty()) {
+            $lockedPayee = $this->makePayeeOptionFromAccountId($payment->payee_account_id);
+        }
+
+        if ($invoiceType === 'rider' && $lockedPayee && ! isset($lockedPayee['ledger_balance'])) {
+            $lockedPayee['ledger_balance'] = $this->ledgerBalanceForAccount((int) ($lockedPayee['account_id'] ?? 0));
+        }
+
+        $this->applySequentialSalaryInvoiceBalances($invoices, $existingInvoices, $invoiceType);
+
+        if ($invoiceType === 'rider') {
+            $this->normalizeRiderPaymentFormBalances($invoices);
+            if (! empty($existingInvoices)) {
+                $this->normalizeRiderPaymentFormBalances($existingInvoices);
+            }
+        }
+
+        $banks = Banks::active()->get();
+        if (! empty($payment->billing_month)) {
+            $payment->billing_month = Carbon::parse($payment->billing_month)->format('Y-m');
+        }
+
+        return compact(
+            'payment',
+            'banks',
+            'accountIds',
+            'existingInvoices',
+            'invoices',
+            'invoiceType',
+            'payeeOptions',
+            'lockedPayee',
+            'preferredPayeeAccountId'
+        );
     }
 }

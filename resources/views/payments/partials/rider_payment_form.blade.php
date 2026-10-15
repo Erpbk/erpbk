@@ -183,6 +183,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                         'placeholder' => '0.00',
                         'id' => 'payment_amount',
                         'required' => true,
+                        'min' => '0',
                         'data-saved-amount' => $savedPrimaryAmount !== null ? number_format($savedPrimaryAmount, 2, '.', '') : null,
                         ]
                         ) !!}
@@ -279,6 +280,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                         @endphp
                         <tr data-invoice-id="{{ $invoice->id }}"
                             data-balance="{{ $existingBalance }}"
+                            data-invoice-total="{{ $invoice->total ?? $invoice->total_amount }}"
                             data-reference="{{ $invoice->invoice_number ?? $invoice->id }}"
                             data-old-payment="{{ $existingPaymentAmt }}"
                             data-invoice-date="{{ $invoiceDate }}"
@@ -299,7 +301,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                                     class="form-control payment-amount rpf-line-amount"
                                     step="any"
                                     placeholder="0.00"
-                                    data-max="{{ $existingBalance }}"
+                                    data-max="{{ $invoice->total ?? $invoice->total_amount }}"
                                     value="{{ $existingPaymentAmt }}">
                             </td>
                         </tr>
@@ -317,6 +319,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                         @endphp
                         <tr data-invoice-id="{{ $invoice->id }}"
                             data-balance="{{ $invoice->balance }}"
+                            data-invoice-total="{{ $invoice->total ?? $invoice->total_amount }}"
                             data-reference="{{ $invoice->invoice_number }}"
                             data-invoice-date="{{ $invoiceDate }}"
                             data-billing-month="{{ $invoiceBillingMonth }}"
@@ -336,7 +339,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                                     class="form-control payment-amount rpf-line-amount"
                                     step="any"
                                     placeholder="0.00"
-                                    data-max="{{ $invoice->balance }}"
+                                    data-max="{{ $invoice->total ?? $invoice->total_amount }}"
                                     disabled>
                             </td>
                         </tr>

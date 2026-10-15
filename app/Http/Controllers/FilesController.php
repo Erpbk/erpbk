@@ -19,13 +19,17 @@ use App\Models\RiderDocumentTypeSubtype;
 use App\Models\Riders;
 use App\Support\DocumentExpiry;
 use App\Support\DocumentExpiryDashboard;
+use App\Support\RiderDocumentChecklist;
 use App\Support\RiderDocumentFieldValues;
+use App\Support\RiderDocumentUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use App\Traits\GlobalPagination;
 use Flash;
+use App\Models\Files;
 
 class FilesController extends AppBaseController
 {
@@ -212,6 +216,134 @@ class FilesController extends AppBaseController
       'success' => true,
       'values' => RiderDocumentFieldValues::prefillFromRider($rider, (int) $subtype->id),
     ]);
+  }
+
+  /**
+   * Typed rider document upload modal (single or dual) — no type/subtype selectors.
+   */
+  public function riderDocumentUploadForm($company_slug, $riderId, $documentTypeId)
+  {
+    abort_unless(
+      auth()->user()?->can('riders_documents_create')
+        || auth()->user()?->can('riders_documents_edit')
+        || auth()->user()?->can('documents_create')
+        || auth()->user()?->can('documents_edit'),
+      403
+    );
+
+    $riders = Riders::findOrFail((int) $riderId);
+    if (!empty($riders->branch_id) && !in_array($riders->branch_id, app('user_branches'))) {
+      abort(403);
+    }
+
+    $docType = RiderDocumentType::query()->where('is_active', true)->findOrFail((int) $documentTypeId);
+    $subs = RiderDocumentChecklist::resolveSubtypes($docType);
+
+    $existingFiles = Files::query()
+      ->where('type', 'rider')
+      ->where('type_id', $riders->id)
+      ->orderByDesc('id')
+      ->get();
+
+    $buildSide = function (?RiderDocumentTypeSubtype $subtype, string $sideKey) use ($riders, $docType, $existingFiles) {
+      $file = RiderDocumentChecklist::findFileForSide($existingFiles, $docType, $sideKey);
+      if ($sideKey === 'main' && !$file) {
+        $file = RiderDocumentChecklist::findFileForType($existingFiles, $docType);
+      }
+
+      $fields = RiderDocumentUploadService::fieldsForSubtype($subtype);
+      $values = [];
+      if ($file && is_array($file->field_values)) {
+        $values = $file->field_values;
+      } elseif ($subtype) {
+        $values = RiderDocumentFieldValues::prefillFromRider($riders, (int) $subtype->id);
+      }
+
+      return [
+        'subtype' => $subtype,
+        'file' => $file,
+        'fields' => $fields,
+        'values' => $values,
+      ];
+    };
+
+    $front = $docType->type === 'dual' ? $buildSide($subs['front'], 'front') : null;
+    $back = $docType->type === 'dual' ? $buildSide($subs['back'], 'back') : null;
+    $main = $docType->type !== 'dual' ? $buildSide($subs['main'], 'main') : null;
+
+    $shared = null;
+    if ($docType->type === 'dual') {
+      $sharedFields = RiderDocumentUploadService::sharedFieldsForDual(
+        $subs['front'] ?? null,
+        $subs['back'] ?? null
+      );
+      $sharedValues = [];
+      if (!empty($front['values']) && is_array($front['values'])) {
+        $sharedValues = $front['values'];
+      } elseif (!empty($back['values']) && is_array($back['values'])) {
+        $sharedValues = $back['values'];
+      } elseif (!empty($subs['front'])) {
+        $sharedValues = RiderDocumentFieldValues::prefillFromRider($riders, (int) $subs['front']->id);
+      }
+      // Fill any missing keys from the other side / prefill
+      if (!empty($back['values']) && is_array($back['values'])) {
+        foreach ($back['values'] as $k => $v) {
+          if (!array_key_exists($k, $sharedValues) || $sharedValues[$k] === null || $sharedValues[$k] === '') {
+            $sharedValues[$k] = $v;
+          }
+        }
+      }
+      $shared = [
+        'fields' => $sharedFields,
+        'values' => $sharedValues,
+      ];
+    }
+
+    $existingAny = $docType->type === 'dual'
+      ? (($front['file'] ?? null) || ($back['file'] ?? null))
+      : (($main['file'] ?? null) !== null);
+
+    return view('files.rider_document_upload', compact(
+      'riders',
+      'docType',
+      'front',
+      'back',
+      'main',
+      'shared',
+      'existingAny'
+    ));
+  }
+
+  /**
+   * Persist typed rider document upload (single or dual sides).
+   */
+  public function riderDocumentUploadStore($company_slug, $riderId, $documentTypeId, Request $request)
+  {
+    abort_unless(
+      auth()->user()?->can('riders_documents_create')
+        || auth()->user()?->can('riders_documents_edit')
+        || auth()->user()?->can('documents_create')
+        || auth()->user()?->can('documents_edit'),
+      403
+    );
+
+    $rider = Riders::findOrFail((int) $riderId);
+    if (!empty($rider->branch_id) && !in_array($rider->branch_id, app('user_branches'))) {
+      abort(403);
+    }
+
+    $docType = RiderDocumentType::query()->where('is_active', true)->findOrFail((int) $documentTypeId);
+
+    try {
+      $result = RiderDocumentUploadService::store($rider, $docType, $request);
+    } catch (ValidationException $e) {
+      return response()->json([
+        'message' => 'Please fix the highlighted errors.',
+        'errors' => $e->errors(),
+      ], 422);
+    }
+
+    return response()->json($result);
   }
 
   /**

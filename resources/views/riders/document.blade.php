@@ -2,27 +2,24 @@
 
 @section('page_content')
 @php
-  $uploadedCount = is_countable($files ?? null) ? count($files) : 0;
-  $pendingCount = is_countable($missingFiles ?? null) ? count($missingFiles) : 0;
+  $checklist = $checklist ?? [];
+  $uploadedCount = isset($uploadedCount) ? (int) $uploadedCount : collect($checklist)->where('status', 'complete')->count();
+  $pendingCount = isset($pendingCount) ? (int) $pendingCount : collect($checklist)->whereIn('status', ['missing', 'partial'])->count();
   $expiringCount = 0;
   $expiredCount = 0;
-  foreach (($files ?? []) as $f) {
-    $meta = \App\Support\RiderDocumentReplacement::expiryMetaForFile($f, $riders);
-    $status = $meta['status'] ?? 'none';
-    if (in_array($status, ['expired'], true)) {
-      $expiredCount++;
-    } elseif (in_array($status, ['expiring', 'critical', 'warning'], true)) {
-      $expiringCount++;
-    } elseif (!empty($meta['expiry'])) {
-      try {
-        $days = now()->startOfDay()->diffInDays(\Carbon\Carbon::parse($meta['expiry']), false);
-        if ($days < 0) {
-          $expiredCount++;
-        } elseif ($days <= 60) {
-          $expiringCount++;
-        }
-      } catch (\Throwable) {
-        // ignore
+  foreach ($checklist as $row) {
+    $checkFiles = array_filter([
+      $row['file'] ?? null,
+      $row['front_file'] ?? null,
+      $row['back_file'] ?? null,
+    ]);
+    foreach ($checkFiles as $f) {
+      $meta = \App\Support\RiderDocumentReplacement::expiryMetaForFile($f, $riders);
+      $status = $meta['status'] ?? 'none';
+      if (in_array($status, ['expired'], true)) {
+        $expiredCount++;
+      } elseif (in_array($status, ['expiring', 'critical', 'warning'], true)) {
+        $expiringCount++;
       }
     }
   }
@@ -40,13 +37,13 @@
             </span>
             <div>
               <h5 class="mb-0 fw-semibold">Documents</h5>
-              <div class="text-muted small">Rider document checklist and uploads</div>
+              <div class="text-muted small">Configured rider documents — upload from checklist</div>
             </div>
           </div>
           <div class="d-flex flex-wrap gap-2 mt-3">
             <span class="rider-docs-stat">
               <span class="rider-docs-stat-dot is-uploaded"></span>
-              <strong>{{ $uploadedCount }}</strong> uploaded
+              <strong>{{ $uploadedCount }}</strong> complete
             </span>
             <span class="rider-docs-stat">
               <span class="rider-docs-stat-dot is-pending"></span>
@@ -81,16 +78,6 @@
               <i class="ti ti-x"></i>
             </button>
           </div>
-
-          @can('riders_documents_create')
-          <a class="btn btn-primary show-modal action-btn rider-docs-upload-btn"
-            href="javascript:void(0);"
-            data-action="{{ route('files.create',['type_id'=>$riders->id,'type'=>'rider']) }}"
-            data-size="lg"
-            data-title="Upload File">
-            <i class="ti ti-upload me-1"></i>Upload File
-          </a>
-          @endcan
         </div>
       </div>
     </div>
@@ -101,126 +88,132 @@
           <tr>
             <th style="width: 56px;" class="text-center">#</th>
             <th class="text-start">Document</th>
+            <th style="width: 120px;" class="text-center">Type</th>
+            <th style="width: 140px;" class="text-center">Status</th>
             <th style="width: 160px;" class="text-center">Expiry</th>
-            <th style="width: 140px;" class="text-end">Action</th>
+            <th style="width: 160px;" class="text-end">Action</th>
           </tr>
         </thead>
         <tbody id="files-table-body">
           @php $counter = 1; @endphp
-          @foreach ($files as $riderFile)
+          @forelse ($checklist as $row)
           @php
-            $docBadge = \App\Support\RiderDocumentReplacement::expiryMetaForFile($riderFile, $riders);
-            $displayName = ucwords(str_replace('_', ' ', $riderFile->name));
-            $fileUrl = storage_url($riderFile->type . '/' . $riderFile->type_id . '/' . $riderFile->file_name);
-            $ext = strtolower((string) ($riderFile->file_type ?? pathinfo((string) $riderFile->file_name, PATHINFO_EXTENSION)));
-            $iconClass = match (true) {
-              in_array($ext, ['pdf'], true) => 'ti-file-type-pdf text-danger',
-              in_array($ext, ['doc', 'docx'], true) => 'ti-file-type-doc text-primary',
-              in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true) => 'ti-photo text-success',
-              default => 'ti-file-text text-secondary',
-            };
+            $status = $row['status'] ?? 'missing';
+            $isDual = ($row['kind'] ?? '') === 'dual';
+            $primaryFile = $isDual
+              ? ($row['front_file'] ?? $row['back_file'] ?? null)
+              : ($row['file'] ?? null);
+            $docBadge = $primaryFile
+              ? \App\Support\RiderDocumentReplacement::expiryMetaForFile($primaryFile, $riders)
+              : ['status' => 'none', 'expiry' => null, 'label' => null];
+            $uploadUrl = route('files.rider-document-upload', [
+              'rider' => $riders->id,
+              'documentType' => $row['document_type_id'],
+            ]);
+            $modalTitle = ($status === 'complete' || $status === 'partial' ? 'Update' : 'Upload') . ' ' . $row['label'];
+            $searchBlob = strtolower(($row['label'] ?? '') . ' ' . ($row['key'] ?? '') . ' ' . ($row['front_label'] ?? '') . ' ' . ($row['back_label'] ?? ''));
           @endphp
-          <tr class="file-row is-uploaded" data-name="{{ strtolower($riderFile->name) }}">
+          <tr class="file-row is-{{ $status }}" data-name="{{ $searchBlob }}">
             <td class="row-counter text-center text-muted">{{ $counter++ }}</td>
             <td class="text-start">
               <div class="d-flex align-items-center gap-2">
-                <span class="rider-docs-file-icon">
-                  <i class="ti {{ $iconClass }}"></i>
+                <span class="rider-docs-file-icon {{ $status === 'missing' ? 'is-missing' : '' }}">
+                  <i class="ti {{ $isDual ? 'ti-copy' : ($status === 'complete' ? 'ti-file-check' : 'ti-file-off') }}"></i>
                 </span>
                 <div class="min-w-0">
-                  <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="rider-docs-name fw-medium">
-                    {{ $displayName }}
-                  </a>
+                  <div class="rider-docs-name fw-medium text-body">{{ $row['label'] }}</div>
                   <div class="text-muted small">
-                    Uploaded
-                    @if(!empty($riderFile->updated_at))
-                      · {{ \App\Helpers\General::DateFormat($riderFile->updated_at) }}
+                    @if($isDual)
+                      @if(!empty($row['front_file']))
+                        @php $frontUrl = storage_url($row['front_file']->type . '/' . $row['front_file']->type_id . '/' . $row['front_file']->file_name); @endphp
+                        <a href="{{ $frontUrl }}" target="_blank" rel="noopener">{{ $row['front_label'] ?: 'Front' }}</a>
+                      @else
+                        <span>{{ $row['front_label'] ?: 'Front' }}</span>
+                      @endif
+                      <span class="mx-1">·</span>
+                      @if(!empty($row['back_file']))
+                        @php $backUrl = storage_url($row['back_file']->type . '/' . $row['back_file']->type_id . '/' . $row['back_file']->file_name); @endphp
+                        <a href="{{ $backUrl }}" target="_blank" rel="noopener">{{ $row['back_label'] ?: 'Back' }}</a>
+                      @else
+                        <span>{{ $row['back_label'] ?: 'Back' }}</span>
+                      @endif
+                    @elseif(!empty($row['file']))
+                      @php $fileUrl = storage_url($row['file']->type . '/' . $row['file']->type_id . '/' . $row['file']->file_name); @endphp
+                      <a href="{{ $fileUrl }}" target="_blank" rel="noopener">View file</a>
+                      @if(!empty($row['file']->updated_at))
+                        · {{ \App\Helpers\General::DateFormat($row['file']->updated_at) }}
+                      @endif
+                    @else
+                      Required · not uploaded yet
                     @endif
                   </div>
                 </div>
               </div>
             </td>
             <td class="text-center">
-              @include('riders._document_expiry_badge', ['badge' => $docBadge])
+              <span class="badge {{ $isDual ? 'bg-label-info' : 'bg-label-secondary' }}">
+                {{ $isDual ? 'Dual' : 'Single' }}
+              </span>
+            </td>
+            <td class="text-center">
+              @if($status === 'complete')
+                <span class="badge bg-label-success">Complete</span>
+              @elseif($status === 'partial')
+                <span class="badge bg-label-warning">Partial</span>
+              @else
+                <span class="badge rider-docs-missing-badge">Missing</span>
+              @endif
+            </td>
+            <td class="text-center">
+              @if($primaryFile)
+                @include('riders._document_expiry_badge', ['badge' => $docBadge])
+              @else
+                <span class="text-muted">—</span>
+              @endif
             </td>
             <td class="text-end">
-              <div class="btn-group btn-group-sm rider-docs-actions" role="group">
-                @if(auth()->user()?->can('riders_documents_edit') || auth()->user()?->can('riders_documents_create') || auth()->user()?->can('documents_edit'))
-                <a class="btn btn-outline-primary show-modal action-btn"
+              <div class="rider-docs-actions d-inline-flex align-items-center justify-content-end gap-1">
+                @if(auth()->user()?->can('riders_documents_create') || auth()->user()?->can('riders_documents_edit') || auth()->user()?->can('documents_create') || auth()->user()?->can('documents_edit'))
+                <a class="btn btn-sm {{ $status === 'complete' ? 'btn-outline-primary' : 'btn-primary' }} show-modal"
                   href="javascript:void(0);"
-                  data-action="{{ route('files.edit', $riderFile->id) }}"
+                  data-action="{{ $uploadUrl }}"
                   data-size="lg"
-                  data-title="Edit Document"
-                  title="Edit">
-                  <i class="ti ti-edit"></i>
+                  data-title="{{ $modalTitle }}"
+                  title="{{ $status === 'complete' ? 'Update' : 'Upload' }}">
+                  <i class="ti {{ $status === 'complete' ? 'ti-edit' : 'ti-upload' }}{{ $status === 'missing' ? ' me-1' : '' }}"></i>
+                  @if($status === 'missing')
+                    Upload
+                  @endif
                 </a>
                 @endif
                 @can('riders_documents_delete')
-                <a href="javascript:void(0);"
-                  data-url="{{ route('files.destroy', $riderFile->id) }}"
-                  class="btn btn-outline-danger delete-file"
-                  title="Delete">
-                  <i class="ti ti-trash"></i>
-                </a>
+                  @php
+                    $deleteIds = [];
+                    if (!empty($row['file'])) { $deleteIds[] = $row['file']->id; }
+                    if (!empty($row['front_file'])) { $deleteIds[] = $row['front_file']->id; }
+                    if (!empty($row['back_file'])) { $deleteIds[] = $row['back_file']->id; }
+                  @endphp
+                  @if(!empty($deleteIds))
+                  <a href="javascript:void(0);"
+                    data-ids="{{ implode(',', $deleteIds) }}"
+                    class="btn btn-sm btn-outline-danger delete-doc-type"
+                    title="Delete">
+                    <i class="ti ti-trash"></i>
+                  </a>
+                  @endif
                 @endcan
               </div>
             </td>
           </tr>
-          @endforeach
-
-          @if(!empty($missingFiles))
-          @foreach($missingFiles as $key => $fileName)
-          <tr class="file-row is-missing" data-name="{{ strtolower($fileName . ' ' . $key) }}">
-            <td class="row-counter text-center text-muted">{{ $counter++ }}</td>
-            <td class="text-start">
-              <div class="d-flex align-items-center gap-2">
-                <span class="rider-docs-file-icon is-missing">
-                  <i class="ti ti-file-off"></i>
-                </span>
-                <div class="min-w-0">
-                  <div class="rider-docs-name text-body">{{ $fileName }}</div>
-                  <div class="text-muted small">Required · not uploaded yet</div>
-                </div>
-              </div>
-            </td>
-            <td class="text-center">
-              <span class="badge rider-docs-missing-badge">Missing</span>
-            </td>
-            <td class="text-end">
-              @can('riders_documents_create')
-              @php
-                $docSubtypeKey = null;
-                $docTypeKey = (string) $key;
-                if (str_ends_with((string) $key, '_front')) {
-                  $docTypeKey = substr((string) $key, 0, -6);
-                  $docSubtypeKey = 'front';
-                } elseif (str_ends_with((string) $key, '_back')) {
-                  $docTypeKey = substr((string) $key, 0, -5);
-                  $docSubtypeKey = 'back';
-                }
-                $createParams = [
-                  'type_id' => $riders->id,
-                  'type' => 'rider',
-                  'suggested_name' => $key,
-                  'document_key' => $key,
-                  'document_type_key' => $docTypeKey,
-                ];
-                if ($docSubtypeKey) {
-                  $createParams['document_subtype_key'] = $docSubtypeKey;
-                }
-              @endphp
-              <a class="btn btn-sm btn-primary show-modal action-btn"
-                href="javascript:void(0);"
-                data-action="{{ route('files.create', $createParams) }}"
-                data-size="lg"
-                data-title="Upload {{ $fileName }}">
-                <i class="ti ti-upload me-1"></i>Upload
-              </a>
-              @endcan
+          @empty
+          <tr>
+            <td colspan="6" class="text-center py-5">
+              <i class="ti ti-folder-off fs-2 text-muted d-block mb-2"></i>
+              <div class="fw-medium">No document types configured</div>
+              <div class="text-muted small">Add document types in Rider Document Settings</div>
             </td>
           </tr>
-          @endforeach
-          @endif
+          @endforelse
         </tbody>
       </table>
 
@@ -229,23 +222,6 @@
         <div class="fw-medium">No documents found</div>
         <div class="text-muted small">Try a different search term</div>
       </div>
-
-      @if($uploadedCount === 0 && $pendingCount === 0)
-      <div class="rider-docs-empty text-center py-5">
-        <i class="ti ti-folder-off fs-2 text-muted d-block mb-2"></i>
-        <div class="fw-medium">No documents yet</div>
-        <div class="text-muted small mb-3">Upload the first rider document to get started</div>
-        @can('riders_documents_create')
-        <a class="btn btn-primary show-modal action-btn"
-          href="javascript:void(0);"
-          data-action="{{ route('files.create',['type_id'=>$riders->id,'type'=>'rider']) }}"
-          data-size="lg"
-          data-title="Upload File">
-          <i class="ti ti-upload me-1"></i>Upload File
-        </a>
-        @endcan
-      </div>
-      @endif
     </div>
   </div>
   @else
@@ -265,32 +241,39 @@
 
 <script type="text/javascript">
   $(document).ready(function() {
-    $(document).on('click', '.delete-file', function(e) {
+    $(document).on('click', '.delete-doc-type', function(e) {
       e.preventDefault();
-      const url = $(this).data('url');
+      const ids = String($(this).data('ids') || '').split(',').filter(Boolean);
+      if (!ids.length) return;
 
       Swal.fire({
         title: 'Delete document?',
-        text: "This cannot be undone.",
+        text: ids.length > 1
+          ? 'This will remove all sides of this document.'
+          : 'This cannot be undone.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Yes, delete it'
+        confirmButtonText: 'Yes, delete'
       }).then((result) => {
-        if (result.isConfirmed) {
-          $.ajax({
-            url: url,
+        if (!result.isConfirmed) return;
+
+        const token = '{{ csrf_token() }}';
+        const destroyTpl = @json(route('files.destroy', ['file' => '__ID__']));
+        const deletes = ids.map(function(id) {
+          return $.ajax({
+            url: destroyTpl.replace('__ID__', id),
             type: 'DELETE',
-            data: { _token: '{{ csrf_token() }}' },
-            success: function() {
-              Swal.fire('Deleted!', 'Document has been deleted.', 'success').then(() => location.reload());
-            },
-            error: function() {
-              Swal.fire('Error!', 'Failed to delete document.', 'error');
-            }
+            data: { _token: token }
           });
-        }
+        });
+
+        $.when.apply($, deletes).done(function() {
+          Swal.fire('Deleted!', 'Document has been deleted.', 'success').then(() => location.reload());
+        }).fail(function() {
+          Swal.fire('Error!', 'Failed to delete document.', 'error');
+        });
       });
     });
 
@@ -430,10 +413,6 @@
     background: #fcfcfd;
   }
 
-  .rider-docs-table tbody tr.is-missing:hover {
-    background: #f8fafc;
-  }
-
   .rider-docs-file-icon {
     width: 2.15rem;
     height: 2.15rem;
@@ -461,11 +440,6 @@
     line-height: 1.25;
   }
 
-  a.rider-docs-name:hover {
-    color: #1e4b8e;
-    text-decoration: underline;
-  }
-
   .rider-docs-missing-badge {
     background: #f1f5f9;
     color: #64748b;
@@ -474,13 +448,27 @@
     padding: 0.28rem 0.55rem;
   }
 
+  .rider-docs-actions {
+    float: none;
+    vertical-align: middle;
+  }
+
   .rider-docs-actions .btn {
-    width: 2rem;
+    float: none;
+    margin: 0;
+    min-width: 2rem;
     height: 2rem;
-    padding: 0;
+    padding: 0 0.55rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
+    position: static;
+    overflow: visible;
+  }
+
+  .rider-docs-actions .btn::before {
+    display: none;
   }
 
   .rider-docs-empty {
@@ -491,10 +479,6 @@
     .rider-docs-search {
       min-width: 100%;
       max-width: 100%;
-    }
-
-    .rider-docs-upload-btn {
-      width: 100%;
     }
   }
 </style>

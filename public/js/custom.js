@@ -642,6 +642,20 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initBikeFormSelect2 === 'function') {
       window.initBikeFormSelect2(document.getElementById('formajax') || document.getElementById('modalTopbody'));
     }
+    // Fallback Select2 for payment modal fields (Payment Type, etc.) when bike helper is absent.
+    if (window.jQuery && $.fn && $.fn.select2) {
+      $('#modalTopbody select.select2').each(function () {
+        var $select = $(this);
+        if ($select.hasClass('select2-hidden-accessible')) {
+          return;
+        }
+        $select.select2({
+          width: '100%',
+          allowClear: !$select.prop('required'),
+          dropdownParent: $('#modalTopbody')
+        });
+      });
+    }
     if (typeof window.initPermissionRoleMatrix === 'function') {
       window.initPermissionRoleMatrix();
     }

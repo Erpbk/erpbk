@@ -9,14 +9,20 @@
         $openedInvoice = collect($invoices ?? [])->firstWhere('id', (int) $openedInvoiceId)
             ?? collect($existingInvoices ?? [])->firstWhere('id', (int) $openedInvoiceId);
     }
-    $defaultBillingMonth = old(
+    $rawBillingMonth = old(
         'billing_month',
         isset($payment) && $payment->billing_month
-            ? \Carbon\Carbon::parse($payment->billing_month)->format('Y-m')
+            ? $payment->billing_month
             : ($openedInvoice && $openedInvoice->billing_month
-                ? \Carbon\Carbon::parse($openedInvoice->billing_month)->format('Y-m')
+                ? $openedInvoice->billing_month
                 : date('Y-m'))
     );
+    // type="month" only accepts YYYY-MM (never YYYY-MM-DD)
+    try {
+        $defaultBillingMonth = \Carbon\Carbon::parse($rawBillingMonth)->format('Y-m');
+    } catch (\Throwable $e) {
+        $defaultBillingMonth = date('Y-m');
+    }
     $savedPrimaryAmount = null;
     if (isset($payment) && $payment) {
         $savedPrimaryAmount = round((float) $payment->amount - (float) ($payment->bank_charges ?? 0), 2);

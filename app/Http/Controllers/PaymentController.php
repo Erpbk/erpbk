@@ -435,7 +435,14 @@ class PaymentController extends Controller
 
         $input = $request->all();
         $input['created_by'] = auth()->id();
-        $input['billing_month'] = $input['billing_month'] . '-01';
+        $billingMonthRaw = (string) ($input['billing_month'] ?? $request->input('billing_month') ?? '');
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $billingMonthRaw)) {
+            $input['billing_month'] = substr($billingMonthRaw, 0, 10);
+        } elseif (preg_match('/^\d{4}-\d{2}$/', $billingMonthRaw)) {
+            $input['billing_month'] = $billingMonthRaw . '-01';
+        } else {
+            $input['billing_month'] = date('Y-m-01');
+        }
         $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
         $input['amount'] = $totalAmount;
 
@@ -2011,6 +2018,26 @@ class PaymentController extends Controller
      */
     private function storeRiderAdvanceLoanFromPaymentForm(Request $request)
     {
+        $invoiceId = (int) collect($request->input('invoice_ids', []))->filter()->first();
+        $invoice = $invoiceId > 0 ? RiderInvoices::find($invoiceId) : null;
+        if ($invoiceId > 0 && ! $invoice) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Selected invoice was not found',
+            ]);
+        }
+
+        // Normalize / fill billing month before validation (type=month must be Y-m).
+        $billingMonthInput = $request->input('billing_month');
+        if (blank($billingMonthInput) && $invoice && $invoice->billing_month) {
+            $billingMonthInput = Carbon::parse($invoice->billing_month)->format('Y-m');
+        }
+        if (! blank($billingMonthInput) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $billingMonthInput)) {
+            $billingMonthInput = Carbon::parse($billingMonthInput)->format('Y-m');
+        }
+        if (! blank($billingMonthInput)) {
+            $request->merge(['billing_month' => $billingMonthInput]);
+        }
+
         $this->validate($request, [
             'create_payment_type' => 'required|in:advance_loan',
             'reference' => 'nullable|string|max:255',
@@ -2032,13 +2059,7 @@ class PaymentController extends Controller
             'billing_month.required' => 'Billing month is required for Advance Loan',
         ]);
 
-        $invoiceId = (int) collect($request->input('invoice_ids', []))->filter()->first();
-        $invoice = $invoiceId > 0 ? RiderInvoices::find($invoiceId) : null;
-        if ($invoiceId > 0 && ! $invoice) {
-            throw ValidationException::withMessages([
-                'invoice_ids' => 'Selected invoice was not found',
-            ]);
-        }
+        $billingMonthInput = $request->input('billing_month');
 
         $bank = Banks::find($request->input('bank_id'));
         if (! $bank || ! $bank->account_id) {
@@ -2073,7 +2094,7 @@ class PaymentController extends Controller
                 'amount' => (float) $request->input('amount'),
                 'bank_charges' => (float) $request->input('bank_charges', 0),
                 'trans_date' => $request->input('date_of_payment'),
-                'billing_month' => $request->input('billing_month'),
+                'billing_month' => $billingMonthInput,
                 'reference_number' => $request->input('reference'),
                 'payment_type' => RiderAdvanceLoanService::paymentTypeFromAmountType($request->input('amount_type')),
                 'branch_id' => $branchId ? (int) $branchId : null,

@@ -2,45 +2,83 @@
   $val = $val ?? '';
   $fname = $fname ?? '';
   $field = $field ?? null;
-  $countries = $countries ?? collect();
   if (!$field) {
     return;
   }
-  $isNationality = ($field->key ?? '') === 'nationality'
-    || ($field->rider_column ?? '') === 'nationality'
-    || strcasecmp((string) ($field->label ?? ''), 'Nationality') === 0;
+
+  $ui = \App\Support\RiderDocumentFieldValues::presentationForDocumentField($field);
+  $type = $ui['type'] ?? 'text';
+  $label = $ui['label'] ?? $field->label;
+  $required = (bool) ($ui['required'] ?? $field->is_required);
+  $selectOptions = $ui['select_options'] ?? [];
+  $useSelect2 = (bool) ($ui['use_select2'] ?? false);
+  $maxlength = $ui['maxlength'] ?? null;
+  $placeholder = $ui['placeholder'] ?? null;
+  $rows = $ui['rows'] ?? 2;
+
+  // Normalize date values for HTML date inputs.
+  $inputValue = $val;
+  if ($type === 'date' && $inputValue !== '' && $inputValue !== null) {
+    try {
+      $inputValue = \Carbon\Carbon::parse((string) $inputValue)->format('Y-m-d');
+    } catch (\Throwable) {
+      // keep raw
+    }
+  }
 @endphp
 <div class="col-md-6">
-  <label class="form-label{{ $field->is_required ? ' required' : '' }}">{{ $field->label }}</label>
-  @if($isNationality)
-    <select name="{{ $fname }}" class="form-select select2" data-placeholder="Select Nationality" @if($field->is_required) required @endif>
+  <label class="form-label{{ $required ? ' required' : '' }}">{{ $label }}</label>
+
+  @if($type === 'textarea')
+    <textarea
+      name="{{ $fname }}"
+      class="form-control"
+      rows="{{ (int) $rows }}"
+      @if($placeholder) placeholder="{{ $placeholder }}" @endif
+      @if($required) required @endif>{{ $val }}</textarea>
+
+  @elseif($type === 'select')
+    <select
+      name="{{ $fname }}"
+      class="form-select{{ $useSelect2 ? ' select2' : '' }}"
+      @if($useSelect2) data-placeholder="Select {{ $label }}" @endif
+      @if($required) required @endif>
       <option value="">— Select —</option>
-      @foreach($countries as $id => $name)
-        <option value="{{ $id }}"
-          @selected((string) $val === (string) $id || strcasecmp((string) $val, (string) $name) === 0)>
-          {{ $name }}
+      @foreach($selectOptions as $ov => $ol)
+        @if((string) $ov === '')
+          @continue
+        @endif
+        <option value="{{ $ov }}"
+          @selected(
+            (string) $val === (string) $ov
+            || strcasecmp((string) $val, (string) $ol) === 0
+          )>
+          {{ $ol }}
         </option>
       @endforeach
     </select>
-  @elseif($field->input_type === 'textarea')
-    <textarea name="{{ $fname }}" class="form-control" rows="2" @if($field->is_required) required @endif>{{ $val }}</textarea>
-  @elseif($field->input_type === 'select')
-    <select name="{{ $fname }}" class="form-select" @if($field->is_required) required @endif>
-      <option value="">— Select —</option>
-      @foreach(($field->options ?? []) as $opt)
-        @php
-          $ov = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : (string) $opt;
-          $ol = is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : (string) $opt;
-        @endphp
-        <option value="{{ $ov }}" @selected((string)$val === (string)$ov)>{{ $ol }}</option>
-      @endforeach
-    </select>
+
+  @elseif($type === 'checkbox')
+    <div class="form-check mt-2">
+      <input type="hidden" name="{{ $fname }}" value="0">
+      <input
+        type="checkbox"
+        name="{{ $fname }}"
+        value="1"
+        class="form-check-input"
+        id="doc_field_{{ $field->id }}"
+        @checked(filter_var($val, FILTER_VALIDATE_BOOLEAN) || (string) $val === '1')>
+      <label class="form-check-label" for="doc_field_{{ $field->id }}">Yes</label>
+    </div>
+
   @else
     <input
-      type="{{ $field->input_type === 'number' ? 'number' : ($field->input_type === 'date' ? 'date' : 'text') }}"
+      type="{{ in_array($type, ['number', 'date', 'email', 'tel', 'url'], true) ? $type : 'text' }}"
       name="{{ $fname }}"
       class="form-control"
-      value="{{ $val }}"
-      @if($field->is_required) required @endif>
+      value="{{ $inputValue }}"
+      @if($maxlength) maxlength="{{ $maxlength }}" @endif
+      @if($placeholder) placeholder="{{ $placeholder }}" @endif
+      @if($required) required @endif>
   @endif
 </div>

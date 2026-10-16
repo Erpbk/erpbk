@@ -2,11 +2,18 @@
 
 namespace App\Support;
 
+use App\Helpers\Common;
+use App\Models\Accounts;
+use App\Models\Branch;
 use App\Models\Countries;
+use App\Models\Customers;
+use App\Models\RiderCustomField;
 use App\Models\RiderDocumentType;
 use App\Models\RiderDocumentTypeField;
 use App\Models\RiderDocumentTypeSubtype;
+use App\Models\RiderFieldCategoryAssignment;
 use App\Models\Riders;
+use App\Models\Vendors;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
@@ -390,6 +397,22 @@ class RiderDocumentFieldValues
 
     private static function validateSelectOption(RiderDocumentTypeField $field, string $value): ?string
     {
+        $presentation = self::presentationForDocumentField($field);
+        $selectOptions = $presentation['select_options'] ?? [];
+        if ($selectOptions !== []) {
+            $allowed = array_map('strval', array_keys($selectOptions));
+            // Also allow matching by option label (legacy stored names).
+            foreach ($selectOptions as $optValue => $optLabel) {
+                $allowed[] = (string) $optLabel;
+            }
+            $allowed = array_values(array_unique(array_filter($allowed, fn ($v) => $v !== '')));
+            if ($allowed !== [] && !in_array($value, $allowed, true)) {
+                return $field->label . ' has an invalid option.';
+            }
+
+            return null;
+        }
+
         $options = is_array($field->options) ? $field->options : [];
         $allowed = [];
         foreach ($options as $opt) {
@@ -405,5 +428,197 @@ class RiderDocumentFieldValues
         }
 
         return null;
+    }
+
+    /**
+     * Resolve how a document field should render, mirroring Rider module configuration
+     * when the field is linked to a rider column.
+     *
+     * @return array{
+     *   label: string,
+     *   type: string,
+     *   required: bool,
+     *   maxlength: ?int,
+     *   placeholder: ?string,
+     *   rows: ?int,
+     *   select_options: array<string|int, string>,
+     *   use_select2: bool,
+     *   from_rider: bool
+     * }
+     */
+    public static function presentationForDocumentField(RiderDocumentTypeField $field): array
+    {
+        $label = (string) $field->label;
+        $type = (string) ($field->input_type ?: 'text');
+        $required = (bool) $field->is_required;
+        $maxlength = null;
+        $placeholder = null;
+        $rows = $type === 'textarea' ? 2 : null;
+        $selectOptions = [];
+        $useSelect2 = false;
+        $fromRider = false;
+
+        $riderKey = trim((string) ($field->rider_column ?: ''));
+        if ($riderKey === '') {
+            $riderKey = trim((string) ($field->key ?: ''));
+        }
+
+        $spec = self::resolveRiderFieldSpec($riderKey);
+        if ($spec !== null) {
+            $fromRider = true;
+            $type = (string) ($spec['type'] ?? $type);
+            if ($type === 'dropdown') {
+                $type = 'select';
+            }
+            $maxlength = isset($spec['maxlength']) ? (int) $spec['maxlength'] : null;
+            $placeholder = isset($spec['placeholder']) ? (string) $spec['placeholder'] : null;
+            $rows = isset($spec['rows']) ? (int) $spec['rows'] : $rows;
+            if (!empty($spec['label'])) {
+                $label = (string) $spec['label'];
+            }
+            if ($type === 'select') {
+                $selectOptions = self::resolveRiderSelectOptions($spec);
+                $useSelect2 = true;
+            }
+        } elseif ($type === 'select') {
+            foreach ((array) ($field->options ?? []) as $opt) {
+                if (is_array($opt)) {
+                    $ov = (string) ($opt['value'] ?? $opt['label'] ?? '');
+                    $ol = (string) ($opt['label'] ?? $opt['value'] ?? '');
+                } else {
+                    $ov = (string) $opt;
+                    $ol = (string) $opt;
+                }
+                if ($ov !== '') {
+                    $selectOptions[$ov] = $ol !== '' ? $ol : $ov;
+                }
+            }
+            $useSelect2 = $selectOptions !== [];
+        }
+
+        return [
+            'label' => $label,
+            'type' => $type,
+            'required' => $required,
+            'maxlength' => $maxlength,
+            'placeholder' => $placeholder,
+            'rows' => $rows,
+            'select_options' => $selectOptions,
+            'use_select2' => $useSelect2,
+            'from_rider' => $fromRider,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function resolveRiderFieldSpec(string $fieldKey): ?array
+    {
+        $fieldKey = trim($fieldKey);
+        if ($fieldKey === '') {
+            return null;
+        }
+
+        $specs = RiderCustomField::fixedFieldInputSpecs();
+        $base = $specs[$fieldKey] ?? null;
+        $spec = ModuleFieldSource::mergeFixedFieldSpec($fieldKey, $base);
+
+        $assignment = null;
+        if (Schema::hasTable('rider_field_category_assignments')) {
+            $assignment = RiderFieldCategoryAssignment::query()
+                ->where('field_key', $fieldKey)
+                ->orderBy('id')
+                ->first();
+        }
+
+        if ($assignment) {
+            if ($assignment->display_label !== null && trim((string) $assignment->display_label) !== '') {
+                $spec['label'] = trim((string) $assignment->display_label);
+            } else {
+                $spec['label'] = RiderCustomField::humanizeFieldKey($fieldKey);
+            }
+            if (!empty($assignment->input_type)) {
+                $spec['type'] = $assignment->input_type === 'dropdown' ? 'select' : $assignment->input_type;
+            }
+            if (is_array($assignment->input_config) && array_key_exists('options', $assignment->input_config)) {
+                $spec['options'] = $assignment->input_config['options'];
+            }
+        } elseif ($base !== null) {
+            $spec['label'] = RiderCustomField::humanizeFieldKey($fieldKey);
+        } else {
+            return null;
+        }
+
+        // If assignment exists but type never set, keep merged base type.
+        if (empty($spec['type'])) {
+            $spec['type'] = 'text';
+        }
+
+        return $spec;
+    }
+
+    /**
+     * Build select options exactly like riders/_form_field.blade.php.
+     *
+     * @param  array<string, mixed>  $spec
+     * @return array<string|int, string>
+     */
+    public static function resolveRiderSelectOptions(array $spec): array
+    {
+        $opts = [];
+        $rawOptions = $spec['options'] ?? null;
+        $parsedOptions = [];
+        if ($rawOptions !== null && $rawOptions !== '') {
+            $lines = is_array($rawOptions) ? $rawOptions : preg_split('/\r\n|\r|\n/', (string) $rawOptions);
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $parsedOptions[] = $line;
+                }
+            }
+        }
+
+        if ($parsedOptions !== []) {
+            foreach ($parsedOptions as $opt) {
+                $opts[$opt] = $opt;
+            }
+
+            return $opts;
+        }
+
+        $dropdown = (string) ($spec['dropdown'] ?? '');
+        if ($dropdown === 'countries') {
+            return Countries::list()->toArray();
+        }
+        if ($dropdown === 'vendors') {
+            return Vendors::dropdown() ?: [];
+        }
+        if ($dropdown === 'recruiters') {
+            $opts = ['' => 'Select Recruiter'];
+            foreach (company_table('recruiters')->where('status', 1)->get() as $r) {
+                $opts[$r->id] = $r->name;
+            }
+
+            return $opts;
+        }
+        if ($dropdown === 'accounts') {
+            return Accounts::dropdown(null) ?? ['' => 'Select'];
+        }
+        if ($dropdown === 'customers') {
+            return Customers::pluck('name', 'id')->prepend('Select', '')->toArray();
+        }
+        if ($dropdown === 'branch') {
+            $opts = ['' => 'Select'];
+            foreach (Branch::active()->orderBy('name')->get(['id', 'name', 'code']) as $branch) {
+                $opts[$branch->id] = trim($branch->name . ($branch->code ? ' (' . $branch->code . ')' : ''));
+            }
+
+            return $opts;
+        }
+        if ($dropdown !== '') {
+            return Common::Dropdowns($dropdown) ?: [];
+        }
+
+        return [];
     }
 }

@@ -16,7 +16,6 @@
     }
     return $v;
   };
-  $countries = \App\Models\Countries::list();
 @endphp
 
 {!! Form::open([
@@ -114,7 +113,6 @@
                 'field' => $field,
                 'val' => $fieldValue($sharedValues, $field->key),
                 'fname' => 'field_values['.$field->key.']',
-                'countries' => $countries,
               ])
             @endforeach
           </div>
@@ -161,7 +159,6 @@
                 'field' => $field,
                 'val' => $fieldValue($values, $field->key),
                 'fname' => 'sides[main][field_values]['.$field->key.']',
-                'countries' => $countries,
               ])
             @endforeach
           </div>

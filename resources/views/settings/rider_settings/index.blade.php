@@ -1728,6 +1728,7 @@
       var manageState = {
         documentTypeId: null,
         selectedSubtypeId: null,
+        subtypes: [],
         riderColumns: []
       };
       var subtypesUrlTpl = "{{ route('settings-panel.rider-settings.document-type-subtypes', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
@@ -1757,12 +1758,56 @@
         sel.innerHTML = html;
       }
 
-      function loadSubtypes(docTypeId, keepSubtypeId) {
+      function fillSubtypeSelect(selectedId) {
+        var sel = document.getElementById('editDocFieldSubtypeSelect');
+        if (!sel) return;
+        var html = '';
+        (manageState.subtypes || []).forEach(function(s) {
+          html += '<option value="' + s.id + '"' + (String(selectedId) === String(s.id) ? ' selected' : '') + '>' + esc(s.label) + ' (' + esc(s.key) + ')</option>';
+        });
+        sel.innerHTML = html || '<option value="">No subtypes</option>';
+      }
+
+      function renderAllFields(fields) {
+        var tbody = document.getElementById('docFieldsTbody');
+        var btn = document.getElementById('btnAddDocField');
+        var title = document.getElementById('manageSubtypeTitle');
+        var hasSubtypes = (manageState.subtypes || []).length > 0;
+        if (btn) btn.disabled = !hasSubtypes;
+        if (title) title.textContent = hasSubtypes ? '— all sides' : '';
+        if (!tbody) return;
+        if (!fields || !fields.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No fields yet. Click Add field.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = fields.map(function(f) {
+          return '<tr data-id="' + f.id + '">' +
+            '<td class="align-middle"><span class="drag-handle-field cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>' +
+            '<td class="align-middle">' + esc(f.label) + ' <code class="small text-muted">' + esc(f.key) + '</code>' + (!f.is_active ? ' <span class="badge bg-label-secondary">Off</span>' : '') + '</td>' +
+            '<td class="align-middle"><span class="badge bg-label-info">' + esc(f.subtype_label || f.subtype_key || '—') + '</span></td>' +
+            '<td class="align-middle">' + esc(f.input_type) + '</td>' +
+            '<td class="align-middle">' + (f.is_required ? 'Yes' : 'No') + '</td>' +
+            '<td class="align-middle">' + (f.rider_column ? '<code>' + esc(f.rider_column) + '</code>' : '—') + '</td>' +
+            '<td class="text-end align-middle">' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary btn-edit-doc-field" data-field="' + encodeURIComponent(JSON.stringify(f)) + '"><i class="ti ti-edit"></i></button> ' +
+            '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-doc-field" data-id="' + f.id + '"><i class="ti ti-trash"></i></button>' +
+            '</td></tr>';
+        }).join('');
+        initFieldsSortable();
+      }
+
+      function loadSubtypes(docTypeId) {
         manageState.documentTypeId = docTypeId;
         return fetch(subtypesUrlTpl.replace('__ID__', String(docTypeId)), {
           headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         }).then(function(r) { return r.json(); }).then(function(data) {
           manageState.riderColumns = data.rider_columns || [];
+          manageState.subtypes = data.subtypes || [];
+          if (manageState.subtypes.length) {
+            manageState.selectedSubtypeId = manageState.subtypes[0].id;
+          } else {
+            manageState.selectedSubtypeId = null;
+          }
           var title = document.getElementById('manageDocTypeTitle');
           if (title && data.document_type) {
             title.textContent = '— ' + (data.document_type.label || data.document_type.key);
@@ -1773,81 +1818,20 @@
             tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No subtypes yet. Add one (e.g. Front / Back).</td></tr>';
           } else {
             tbody.innerHTML = data.subtypes.map(function(s) {
-              var activeClass = manageState.selectedSubtypeId == s.id ? ' table-active' : '';
-              return '<tr class="doc-subtype-row' + activeClass + '" data-id="' + s.id + '" style="cursor:pointer;">' +
-                '<td class="align-middle"><span class="drag-handle-subtype cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>' +
+              return '<tr class="doc-subtype-row" data-id="' + s.id + '">' +
+                '<td class="align-middle"><span class="drag-handle-subtype cursor-grab" title="Drag to reorder"><i class="ti ti-grip-vertical"></i></span></td>' +
                 '<td class="align-middle">' + esc(s.label) + (!s.is_active ? ' <span class="badge bg-label-secondary">Off</span>' : '') + '</td>' +
                 '<td class="align-middle"><code>' + esc(s.key) + '</code></td>' +
                 '<td class="align-middle">' + (s.fields_count || 0) + '</td>' +
-                '<td class="text-end align-middle">' +
-                '<button type="button" class="btn btn-sm btn-outline-secondary btn-edit-doc-subtype" data-id="' + s.id + '" data-key="' + esc(s.key) + '" data-label="' + esc(s.label) + '" data-active="' + (s.is_active ? '1' : '0') + '"><i class="ti ti-edit"></i></button> ' +
-                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-doc-subtype" data-id="' + s.id + '"><i class="ti ti-trash"></i></button>' +
+                '<td class="text-end align-middle text-nowrap">' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary btn-edit-doc-subtype" title="Edit" data-id="' + s.id + '" data-key="' + esc(s.key) + '" data-label="' + esc(s.label) + '" data-active="' + (s.is_active ? '1' : '0') + '"><i class="ti ti-edit"></i></button> ' +
+                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-doc-subtype" title="Delete" data-id="' + s.id + '"><i class="ti ti-trash"></i></button>' +
                 '</td></tr>';
             }).join('');
           }
           initSubtypesSortable();
-          var pick = keepSubtypeId || manageState.selectedSubtypeId;
-          if (pick && data.subtypes && data.subtypes.some(function(s) { return s.id == pick; })) {
-            selectSubtype(pick);
-          } else if (data.subtypes && data.subtypes.length) {
-            selectSubtype(data.subtypes[0].id);
-          } else {
-            manageState.selectedSubtypeId = null;
-            renderEmptyFields();
-          }
+          renderAllFields(data.fields || []);
           return data;
-        });
-      }
-
-      function renderEmptyFields(msg) {
-        var tbody = document.getElementById('docFieldsTbody');
-        var btn = document.getElementById('btnAddDocField');
-        var title = document.getElementById('manageSubtypeTitle');
-        if (btn) btn.disabled = true;
-        if (title) title.textContent = '';
-        if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">' + esc(msg || 'Select a subtype') + '</td></tr>';
-      }
-
-      function selectSubtype(subtypeId) {
-        manageState.selectedSubtypeId = subtypeId;
-        document.querySelectorAll('#docSubtypesTbody tr.doc-subtype-row').forEach(function(tr) {
-          tr.classList.toggle('table-active', tr.getAttribute('data-id') == String(subtypeId));
-        });
-        var btn = document.getElementById('btnAddDocField');
-        if (btn) btn.disabled = !subtypeId;
-        loadFields(subtypeId);
-      }
-
-      function loadFields(subtypeId) {
-        if (!subtypeId) {
-          renderEmptyFields();
-          return Promise.resolve();
-        }
-        return fetch(fieldsUrlTpl.replace('__ID__', String(subtypeId)), {
-          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
-        }).then(function(r) { return r.json(); }).then(function(data) {
-          manageState.riderColumns = data.rider_columns || manageState.riderColumns;
-          var title = document.getElementById('manageSubtypeTitle');
-          if (title && data.subtype) title.textContent = '— ' + data.subtype.label;
-          var tbody = document.getElementById('docFieldsTbody');
-          if (!tbody) return;
-          if (!data.fields || !data.fields.length) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No fields for this subtype.</td></tr>';
-          } else {
-            tbody.innerHTML = data.fields.map(function(f) {
-              return '<tr data-id="' + f.id + '">' +
-                '<td class="align-middle"><span class="drag-handle-field cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>' +
-                '<td class="align-middle">' + esc(f.label) + ' <code class="small text-muted">' + esc(f.key) + '</code>' + (!f.is_active ? ' <span class="badge bg-label-secondary">Off</span>' : '') + '</td>' +
-                '<td class="align-middle">' + esc(f.input_type) + '</td>' +
-                '<td class="align-middle">' + (f.is_required ? 'Yes' : 'No') + '</td>' +
-                '<td class="align-middle">' + (f.rider_column ? '<code>' + esc(f.rider_column) + '</code>' : '—') + '</td>' +
-                '<td class="text-end align-middle">' +
-                '<button type="button" class="btn btn-sm btn-outline-secondary btn-edit-doc-field" data-field="' + encodeURIComponent(JSON.stringify(f)) + '"><i class="ti ti-edit"></i></button> ' +
-                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-doc-field" data-id="' + f.id + '"><i class="ti ti-trash"></i></button>' +
-                '</td></tr>';
-            }).join('');
-          }
-          initFieldsSortable();
         });
       }
 
@@ -1901,12 +1885,6 @@
           return;
         }
 
-        var subtypeRow = e.target.closest('#docSubtypesTbody tr.doc-subtype-row');
-        if (subtypeRow && !e.target.closest('button')) {
-          selectSubtype(subtypeRow.getAttribute('data-id'));
-          return;
-        }
-
         if (e.target.closest('#btnAddDocSubtype')) {
           document.getElementById('editDocSubtypeModalTitle').textContent = 'Add subtype';
           document.getElementById('editDocSubtypeId').value = '';
@@ -1951,10 +1929,13 @@
         }
 
         if (e.target.closest('#btnAddDocField')) {
-          if (!manageState.selectedSubtypeId) return;
+          if (!(manageState.subtypes || []).length) return;
           document.getElementById('editDocFieldModalTitle').textContent = 'Add field';
           document.getElementById('editDocFieldId').value = '';
-          document.getElementById('editDocFieldSubtypeId').value = manageState.selectedSubtypeId;
+          fillSubtypeSelect(manageState.selectedSubtypeId || manageState.subtypes[0].id);
+          var addSubSel = document.getElementById('editDocFieldSubtypeSelect');
+          if (addSubSel) addSubSel.disabled = false;
+          document.getElementById('editDocFieldSubtypeId').value = addSubSel ? addSubSel.value : '';
           document.getElementById('editDocFieldKey').value = '';
           document.getElementById('editDocFieldLabel').value = '';
           document.getElementById('editDocFieldInputType').value = 'text';
@@ -1974,6 +1955,9 @@
           try { f = JSON.parse(decodeURIComponent(editField.getAttribute('data-field') || '')); } catch (err) { return; }
           document.getElementById('editDocFieldModalTitle').textContent = 'Edit field';
           document.getElementById('editDocFieldId').value = f.id;
+          fillSubtypeSelect(f.subtype_id);
+          var editSubSel = document.getElementById('editDocFieldSubtypeSelect');
+          if (editSubSel) editSubSel.disabled = true;
           document.getElementById('editDocFieldSubtypeId').value = f.subtype_id;
           document.getElementById('editDocFieldKey').value = f.key || '';
           document.getElementById('editDocFieldLabel').value = f.label || '';
@@ -2002,8 +1986,7 @@
             headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
           }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.success) {
-              loadFields(manageState.selectedSubtypeId);
-              loadSubtypes(manageState.documentTypeId, manageState.selectedSubtypeId);
+              loadSubtypes(manageState.documentTypeId);
             }
           });
         }
@@ -2044,9 +2027,15 @@
               }
               var m = bootstrap.Modal.getInstance(document.getElementById('editDocSubtypeModal'));
               if (m) m.hide();
-              var keep = (res.data.subtype && res.data.subtype.id) || manageState.selectedSubtypeId;
-              loadSubtypes(manageState.documentTypeId, keep);
+              loadSubtypes(manageState.documentTypeId);
             });
+        });
+      }
+
+      var subtypeSelect = document.getElementById('editDocFieldSubtypeSelect');
+      if (subtypeSelect) {
+        subtypeSelect.addEventListener('change', function() {
+          document.getElementById('editDocFieldSubtypeId').value = this.value;
         });
       }
 
@@ -2055,6 +2044,10 @@
         formField.addEventListener('submit', function(e) {
           e.preventDefault();
           var id = document.getElementById('editDocFieldId').value;
+          var subtypeSel = document.getElementById('editDocFieldSubtypeSelect');
+          if (subtypeSel && subtypeSel.value) {
+            document.getElementById('editDocFieldSubtypeId').value = subtypeSel.value;
+          }
           var subtypeId = document.getElementById('editDocFieldSubtypeId').value;
           var fd = new FormData();
           fd.append('_token', csrf);
@@ -2087,8 +2080,7 @@
               }
               var m = bootstrap.Modal.getInstance(document.getElementById('editDocFieldModal'));
               if (m) m.hide();
-              loadFields(manageState.selectedSubtypeId);
-              loadSubtypes(manageState.documentTypeId, manageState.selectedSubtypeId);
+              loadSubtypes(manageState.documentTypeId);
             });
         });
       }

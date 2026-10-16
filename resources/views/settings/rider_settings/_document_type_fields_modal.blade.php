@@ -33,7 +33,7 @@
                 <tbody id="docSubtypesTbody"></tbody>
               </table>
             </div>
-            <p class="text-muted small mt-2 mb-0">Select a subtype to manage its fields. Upload forms show only that subtype’s fields.</p>
+            <p class="text-muted small mt-2 mb-0">Use edit, delete, or drag to reorder sides. Related fields for this document are listed on the right.</p>
           </div>
           <div class="col-lg-7">
             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -48,6 +48,7 @@
                   <tr>
                     <th style="width: 28px;"></th>
                     <th>Label</th>
+                    <th>Side</th>
                     <th>Type</th>
                     <th>Required</th>
                     <th>Rider column</th>
@@ -55,7 +56,7 @@
                   </tr>
                 </thead>
                 <tbody id="docFieldsTbody">
-                  <tr><td colspan="6" class="text-center text-muted py-4">Select a subtype</td></tr>
+                  <tr><td colspan="7" class="text-center text-muted py-4">No fields yet</td></tr>
                 </tbody>
               </table>
             </div>
@@ -114,6 +115,10 @@
         <input type="hidden" id="editDocFieldId" value="">
         <input type="hidden" id="editDocFieldSubtypeId" value="">
         <div class="modal-body pt-0">
+          <div class="mb-3">
+            <label class="form-label">Subtype / side <span class="text-danger">*</span></label>
+            <select class="form-select" id="editDocFieldSubtypeSelect" required></select>
+          </div>
           <div class="mb-3">
             <label class="form-label">Key <span class="text-danger">*</span></label>
             <input type="text" class="form-control" id="editDocFieldKey" pattern="[a-z0-9_]+" maxlength="80" required placeholder="e.g. emirates_id">

@@ -1396,20 +1396,44 @@ class RiderSettingsController extends Controller
     public function documentTypeSubtypes($company_slug, $id)
     {
         $docType = RiderDocumentType::findOrFail($id);
-        $subtypes = RiderDocumentTypeSubtype::query()
+        $subtypeModels = RiderDocumentTypeSubtype::query()
             ->where('document_type_id', $docType->id)
             ->orderedForAdmin()
             ->withCount('fields')
+            ->get();
+        $subtypes = $subtypeModels->map(fn (RiderDocumentTypeSubtype $s) => [
+            'id' => $s->id,
+            'document_type_id' => $s->document_type_id,
+            'key' => $s->key,
+            'label' => $s->label,
+            'display_order' => $s->display_order,
+            'is_active' => (bool) $s->is_active,
+            'fields_count' => (int) $s->fields_count,
+        ]);
+
+        $fields = RiderDocumentTypeField::query()
+            ->where('document_type_id', $docType->id)
+            ->orderedForAdmin()
             ->get()
-            ->map(fn (RiderDocumentTypeSubtype $s) => [
-                'id' => $s->id,
-                'document_type_id' => $s->document_type_id,
-                'key' => $s->key,
-                'label' => $s->label,
-                'display_order' => $s->display_order,
-                'is_active' => (bool) $s->is_active,
-                'fields_count' => (int) $s->fields_count,
-            ]);
+            ->map(function (RiderDocumentTypeField $f) use ($subtypeModels) {
+                $sub = $subtypeModels->firstWhere('id', $f->subtype_id);
+
+                return [
+                    'id' => $f->id,
+                    'document_type_id' => $f->document_type_id,
+                    'subtype_id' => $f->subtype_id,
+                    'subtype_label' => $sub?->label ?? '',
+                    'subtype_key' => $sub?->key ?? '',
+                    'key' => $f->key,
+                    'label' => $f->label,
+                    'input_type' => $f->input_type,
+                    'is_required' => (bool) $f->is_required,
+                    'display_order' => $f->display_order,
+                    'rider_column' => $f->rider_column,
+                    'options' => $f->options,
+                    'is_active' => (bool) $f->is_active,
+                ];
+            });
 
         return response()->json([
             'success' => true,
@@ -1420,6 +1444,7 @@ class RiderSettingsController extends Controller
                 'type' => $docType->type,
             ],
             'subtypes' => $subtypes,
+            'fields' => $fields,
             'rider_columns' => $this->linkableRiderColumns(),
         ]);
     }

@@ -8,6 +8,8 @@ use App\Services\Rider\RiderDefaultCategoryService;
 use App\Models\RiderCategory;
 use App\Models\RiderCustomField;
 use App\Models\RiderDocumentType;
+use App\Models\RiderDocumentTypeField;
+use App\Models\RiderDocumentTypeSubtype;
 use App\Models\RiderFieldCategoryAssignment;
 use App\Models\RiderTopCategory;
 use App\Models\RiderTopOption;
@@ -1289,7 +1291,7 @@ class RiderSettingsController extends Controller
             return response()->json(['message' => 'Front and back labels are required for dual document type.'], 422);
         }
         $maxOrder = (int) RiderDocumentType::max('display_order');
-        RiderDocumentType::create([
+        $docType = RiderDocumentType::create([
             'company_id' => $this->riderCategoryCompanyId(),
             'key' => $validated['key'],
             'type' => $validated['type'],
@@ -1299,6 +1301,9 @@ class RiderSettingsController extends Controller
             'display_order' => $maxOrder + 1,
             'is_active' => $request->boolean('is_active', true),
         ]);
+        if ($docType->type === 'dual') {
+            $this->ensureDualSubtypes($docType);
+        }
         return response()->json(['success' => true, 'message' => 'Document type added.']);
     }
 
@@ -1327,6 +1332,9 @@ class RiderSettingsController extends Controller
             'back_label' => $validated['type'] === 'dual' ? trim($validated['back_label']) : null,
             'is_active' => $request->boolean('is_active', true),
         ]);
+        if ($docType->type === 'dual') {
+            $this->ensureDualSubtypes($docType->fresh());
+        }
         return response()->json(['success' => true, 'message' => 'Document type updated.']);
     }
 
@@ -1342,6 +1350,299 @@ class RiderSettingsController extends Controller
         foreach ($request->input('order') as $position => $id) {
             RiderDocumentType::where('id', $id)->update(['display_order' => $position]);
         }
+        return response()->json(['success' => true]);
+    }
+
+    // ---------- Document subtypes & fields ----------
+
+    protected function ensureDualSubtypes(RiderDocumentType $docType): void
+    {
+        $companyId = $this->riderCategoryCompanyId();
+        $sides = [
+            ['key' => 'front', 'label' => trim((string) ($docType->front_label ?: 'Front')), 'order' => 0],
+            ['key' => 'back', 'label' => trim((string) ($docType->back_label ?: 'Back')), 'order' => 1],
+        ];
+        foreach ($sides as $side) {
+            $subtype = RiderDocumentTypeSubtype::query()
+                ->where('document_type_id', $docType->id)
+                ->where('key', $side['key'])
+                ->first();
+            if ($subtype) {
+                $subtype->update([
+                    'label' => $side['label'] !== '' ? $side['label'] : ucfirst($side['key']),
+                    'is_active' => true,
+                ]);
+                continue;
+            }
+            RiderDocumentTypeSubtype::create([
+                'company_id' => $companyId,
+                'document_type_id' => $docType->id,
+                'key' => $side['key'],
+                'label' => $side['label'] !== '' ? $side['label'] : ucfirst($side['key']),
+                'display_order' => $side['order'],
+                'is_active' => true,
+            ]);
+        }
+    }
+
+    protected function linkableRiderColumns(): array
+    {
+        $keys = $this->validFixedAssignableFieldKeys();
+        sort($keys);
+
+        return $keys;
+    }
+
+    public function documentTypeSubtypes($company_slug, $id)
+    {
+        $docType = RiderDocumentType::findOrFail($id);
+        $subtypeModels = RiderDocumentTypeSubtype::query()
+            ->where('document_type_id', $docType->id)
+            ->orderedForAdmin()
+            ->withCount('fields')
+            ->get();
+        $subtypes = $subtypeModels->map(fn (RiderDocumentTypeSubtype $s) => [
+            'id' => $s->id,
+            'document_type_id' => $s->document_type_id,
+            'key' => $s->key,
+            'label' => $s->label,
+            'display_order' => $s->display_order,
+            'is_active' => (bool) $s->is_active,
+            'fields_count' => (int) $s->fields_count,
+        ]);
+
+        $fields = RiderDocumentTypeField::query()
+            ->where('document_type_id', $docType->id)
+            ->orderedForAdmin()
+            ->get()
+            ->map(function (RiderDocumentTypeField $f) use ($subtypeModels) {
+                $sub = $subtypeModels->firstWhere('id', $f->subtype_id);
+
+                return [
+                    'id' => $f->id,
+                    'document_type_id' => $f->document_type_id,
+                    'subtype_id' => $f->subtype_id,
+                    'subtype_label' => $sub?->label ?? '',
+                    'subtype_key' => $sub?->key ?? '',
+                    'key' => $f->key,
+                    'label' => $f->label,
+                    'input_type' => $f->input_type,
+                    'is_required' => (bool) $f->is_required,
+                    'display_order' => $f->display_order,
+                    'rider_column' => $f->rider_column,
+                    'options' => $f->options,
+                    'is_active' => (bool) $f->is_active,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'document_type' => [
+                'id' => $docType->id,
+                'key' => $docType->key,
+                'label' => $docType->label ?: ($docType->front_label ?: $docType->key),
+                'type' => $docType->type,
+            ],
+            'subtypes' => $subtypes,
+            'fields' => $fields,
+            'rider_columns' => $this->linkableRiderColumns(),
+        ]);
+    }
+
+    public function storeDocumentSubtype(Request $request, $company_slug, $id)
+    {
+        $docType = RiderDocumentType::findOrFail($id);
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', Rule::unique('rider_document_type_subtypes', 'key')->where(fn ($q) => $q->where('document_type_id', $docType->id))],
+            'label' => 'required|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+        $maxOrder = (int) RiderDocumentTypeSubtype::where('document_type_id', $docType->id)->max('display_order');
+        $subtype = RiderDocumentTypeSubtype::create([
+            'company_id' => $this->riderCategoryCompanyId(),
+            'document_type_id' => $docType->id,
+            'key' => $validated['key'],
+            'label' => trim($validated['label']),
+            'display_order' => $maxOrder + 1,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Subtype added.', 'subtype' => $subtype]);
+    }
+
+    public function updateDocumentSubtype(Request $request, $company_slug, $id)
+    {
+        $subtype = RiderDocumentTypeSubtype::findOrFail($id);
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', Rule::unique('rider_document_type_subtypes', 'key')->where(fn ($q) => $q->where('document_type_id', $subtype->document_type_id))->ignore($subtype->id)],
+            'label' => 'required|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+        $subtype->update([
+            'key' => $validated['key'],
+            'label' => trim($validated['label']),
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Subtype updated.', 'subtype' => $subtype]);
+    }
+
+    public function destroyDocumentSubtype($company_slug, $id)
+    {
+        RiderDocumentTypeSubtype::findOrFail($id)->delete();
+
+        return response()->json(['success' => true, 'message' => 'Subtype deleted.']);
+    }
+
+    public function reorderDocumentSubtypes(Request $request)
+    {
+        $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer|exists:rider_document_type_subtypes,id',
+        ]);
+        foreach ($request->input('order') as $position => $id) {
+            RiderDocumentTypeSubtype::where('id', $id)->update(['display_order' => $position]);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    public function documentSubtypeFields($company_slug, $id)
+    {
+        $subtype = RiderDocumentTypeSubtype::with('documentType')->findOrFail($id);
+        $fields = RiderDocumentTypeField::query()
+            ->where('subtype_id', $subtype->id)
+            ->orderedForAdmin()
+            ->get()
+            ->map(fn (RiderDocumentTypeField $f) => [
+                'id' => $f->id,
+                'document_type_id' => $f->document_type_id,
+                'subtype_id' => $f->subtype_id,
+                'key' => $f->key,
+                'label' => $f->label,
+                'input_type' => $f->input_type,
+                'is_required' => (bool) $f->is_required,
+                'display_order' => $f->display_order,
+                'rider_column' => $f->rider_column,
+                'options' => $f->options,
+                'is_active' => (bool) $f->is_active,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'subtype' => [
+                'id' => $subtype->id,
+                'document_type_id' => $subtype->document_type_id,
+                'key' => $subtype->key,
+                'label' => $subtype->label,
+            ],
+            'document_type' => [
+                'id' => $subtype->documentType?->id,
+                'key' => $subtype->documentType?->key,
+                'label' => $subtype->documentType?->label ?: ($subtype->documentType?->front_label ?: $subtype->documentType?->key),
+            ],
+            'fields' => $fields,
+            'input_types' => RiderDocumentTypeField::INPUT_TYPES,
+            'rider_columns' => $this->linkableRiderColumns(),
+        ]);
+    }
+
+    public function storeDocumentTypeField(Request $request, $company_slug, $subtypeId)
+    {
+        $subtype = RiderDocumentTypeSubtype::findOrFail($subtypeId);
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', Rule::unique('rider_document_type_fields', 'key')->where(fn ($q) => $q->where('subtype_id', $subtype->id))],
+            'label' => 'required|string|max:255',
+            'input_type' => 'required|in:' . implode(',', RiderDocumentTypeField::INPUT_TYPES),
+            'is_required' => 'nullable|boolean',
+            'rider_column' => 'nullable|string|max:100',
+            'options' => 'nullable|array',
+            'options.*' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $riderColumn = trim((string) ($validated['rider_column'] ?? ''));
+        if ($riderColumn !== '' && !in_array($riderColumn, $this->linkableRiderColumns(), true)) {
+            return response()->json(['message' => 'Invalid rider column link.'], 422);
+        }
+
+        $options = null;
+        if (($validated['input_type'] ?? '') === 'select') {
+            $options = array_values(array_filter(array_map('trim', $validated['options'] ?? []), fn ($v) => $v !== ''));
+        }
+
+        $maxOrder = (int) RiderDocumentTypeField::where('subtype_id', $subtype->id)->max('display_order');
+        $field = RiderDocumentTypeField::create([
+            'company_id' => $this->riderCategoryCompanyId(),
+            'document_type_id' => $subtype->document_type_id,
+            'subtype_id' => $subtype->id,
+            'key' => $validated['key'],
+            'label' => trim($validated['label']),
+            'input_type' => $validated['input_type'],
+            'is_required' => $request->boolean('is_required', false),
+            'display_order' => $maxOrder + 1,
+            'rider_column' => $riderColumn !== '' ? $riderColumn : null,
+            'options' => $options,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Field added.', 'field' => $field]);
+    }
+
+    public function updateDocumentTypeField(Request $request, $company_slug, $id)
+    {
+        $field = RiderDocumentTypeField::findOrFail($id);
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:80', 'regex:/^[a-z0-9_]+$/', Rule::unique('rider_document_type_fields', 'key')->where(fn ($q) => $q->where('subtype_id', $field->subtype_id))->ignore($field->id)],
+            'label' => 'required|string|max:255',
+            'input_type' => 'required|in:' . implode(',', RiderDocumentTypeField::INPUT_TYPES),
+            'is_required' => 'nullable|boolean',
+            'rider_column' => 'nullable|string|max:100',
+            'options' => 'nullable|array',
+            'options.*' => 'nullable|string|max:255',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $riderColumn = trim((string) ($validated['rider_column'] ?? ''));
+        if ($riderColumn !== '' && !in_array($riderColumn, $this->linkableRiderColumns(), true)) {
+            return response()->json(['message' => 'Invalid rider column link.'], 422);
+        }
+
+        $options = null;
+        if (($validated['input_type'] ?? '') === 'select') {
+            $options = array_values(array_filter(array_map('trim', $validated['options'] ?? []), fn ($v) => $v !== ''));
+        }
+
+        $field->update([
+            'key' => $validated['key'],
+            'label' => trim($validated['label']),
+            'input_type' => $validated['input_type'],
+            'is_required' => $request->boolean('is_required', false),
+            'rider_column' => $riderColumn !== '' ? $riderColumn : null,
+            'options' => $options,
+            'is_active' => $request->boolean('is_active', true),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Field updated.', 'field' => $field]);
+    }
+
+    public function destroyDocumentTypeField($company_slug, $id)
+    {
+        RiderDocumentTypeField::findOrFail($id)->delete();
+
+        return response()->json(['success' => true, 'message' => 'Field deleted.']);
+    }
+
+    public function reorderDocumentTypeFields(Request $request)
+    {
+        $request->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer|exists:rider_document_type_fields,id',
+        ]);
+        foreach ($request->input('order') as $position => $id) {
+            RiderDocumentTypeField::where('id', $id)->update(['display_order' => $position]);
+        }
+
         return response()->json(['success' => true]);
     }
 }

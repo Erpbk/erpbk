@@ -59,6 +59,7 @@ use App\Services\RiderHistoryLogger;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
 use App\Support\CompanyScope;
+use App\Support\RiderDocumentChecklist;
 use App\Support\RiderDocumentReplacement;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
@@ -2044,58 +2045,33 @@ class RidersController extends AppBaseController
 
       return redirect(route('riders.index'));
     }
-    $expectedFiles = RiderDocumentType::expectedFilesStructure();
 
     $files = CompanyQuery::table('files')
       ->where('type', 'rider')
       ->where('type_id', $rider_id)
       ->get();
 
+    $checklist = RiderDocumentChecklist::forRider($riders);
+    $uploadedCount = collect($checklist)->where('status', 'complete')->count();
+    $pendingCount = collect($checklist)->whereIn('status', ['missing', 'partial'])->count();
     $missingFiles = [];
-    $fileStatus = [];
-
-    // Check single documents
-    foreach ($expectedFiles['single'] as $key => $name) {
-      $found = false;
-      foreach ($files as $riderFile) {
-        if (str_contains(strtolower($riderFile->name), $key)) {
-          $found = true;
-          break;
-        }
+    foreach ($checklist as $row) {
+      if ($row['status'] === 'complete') {
+        continue;
       }
-
-      if (! $found) {
-        $missingFiles[$key] = $name;
+      if ($row['kind'] === 'dual') {
+        if (empty($row['front_file'])) {
+          $missingFiles[$row['key'] . '_front'] = ($row['front_label'] ?: 'Front') . ' — ' . $row['label'];
+        }
+        if (empty($row['back_file'])) {
+          $missingFiles[$row['key'] . '_back'] = ($row['back_label'] ?: 'Back') . ' — ' . $row['label'];
+        }
+      } else {
+        $missingFiles[$row['key']] = $row['label'];
       }
     }
 
-    // Check dual documents (match file name containing key + front/first or back/second)
-    foreach ($expectedFiles['dual'] as $key => $sides) {
-      $foundFront = false;
-      $foundBack = false;
-      foreach ($files as $riderFile) {
-        $name = strtolower($riderFile->name);
-        if (! str_contains($name, $key)) {
-          continue;
-        }
-        if (str_contains($name, 'back') || str_contains($name, 'second')) {
-          $foundBack = true;
-        } elseif (str_contains($name, 'front') || str_contains($name, 'first')) {
-          $foundFront = true;
-        } else {
-          $foundBack = true;
-          $foundFront = true;
-        }
-      }
-      if (! $foundFront) {
-        $missingFiles[$key . '_front'] = $sides['front'];
-      }
-      if (! $foundBack) {
-        $missingFiles[$key . '_back'] = $sides['back'];
-      }
-    }
-
-    return view('riders.document', compact('missingFiles', 'files', 'riders'));
+    return view('riders.document', compact('missingFiles', 'files', 'riders', 'checklist', 'uploadedCount', 'pendingCount'));
   }
 
   public function inventory($company_slug, $rider_id)

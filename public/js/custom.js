@@ -342,9 +342,10 @@ $('body').on('click', '.show-modal-right', function () {
       $('#dataTableBuilder').DataTable().ajax.reload(null, false);
     }
 
-    // Collapse sidebar if specified
-    if (collapseSidebar) {
+    // Collapse sidebar if specified (skip while voucher panels keep the module menu open)
+    if (collapseSidebar && !$('body').hasClass('voucher-panels-open')) {
       $('.layout-wrapper').addClass('layout-menu-collapsed');
+      $('html').addClass('layout-menu-collapsed');
     }
 
     // Execute custom callback if defined in data-callback attribute
@@ -675,8 +676,10 @@ $('body').on('click', '.show-modal', function () {
     $('#dataTableBuilder').DataTable().ajax.reload(null, false);
   }
 
-  if (collapseSidebar) {
+  // Do not hide the module menu while All Vouchers + voucher detail are open.
+  if (collapseSidebar && !$('body').hasClass('voucher-panels-open')) {
     $('.layout-wrapper').addClass('layout-menu-collapsed');
+    $('html').addClass('layout-menu-collapsed');
   }
 
   toggleModalTop('show');
@@ -684,43 +687,115 @@ $('body').on('click', '.show-modal', function () {
 });
 
 $('#modalTop').on('hidden.bs.modal', function () {
-  $('.layout-wrapper').removeClass('layout-menu-collapsed');
+  // Keep module menu state while All Vouchers is open.
+  if (!$('body').hasClass('voucher-panels-open')) {
+    $('.layout-wrapper').removeClass('layout-menu-collapsed');
+    $('html').removeClass('layout-menu-collapsed');
+  }
 });
+
+var __voucherMenuState = null;
+
+function syncVoucherMenuOffset() {
+  var menu = document.getElementById('layout-menu');
+  var offsetPx = 0;
+  if (menu && !$('.layout-wrapper').hasClass('layout-without-menu') && window.innerWidth > 768) {
+    var width = menu.getBoundingClientRect().width;
+    offsetPx = width > 40 ? Math.round(width) : Math.round(16.25 * 16);
+  }
+  document.documentElement.style.setProperty('--voucher-menu-offset', offsetPx + 'px');
+  document.body.style.setProperty('--voucher-menu-offset', offsetPx + 'px');
+}
+
+function ensureModuleMenuVisibleForVouchers() {
+  if (__voucherMenuState === null) {
+    __voucherMenuState = {
+      htmlCollapsed: $('html').hasClass('layout-menu-collapsed'),
+      wrapperCollapsed: $('.layout-wrapper').hasClass('layout-menu-collapsed'),
+      htmlExpanded: $('html').hasClass('layout-menu-expanded'),
+      helpersCollapsed: window.Helpers && typeof window.Helpers.isCollapsed === 'function'
+        ? !!window.Helpers.isCollapsed()
+        : false
+    };
+  }
+
+  // Show the same full module sidebar used on the parent module page.
+  $('html, .layout-wrapper').removeClass('layout-menu-collapsed');
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(false, false);
+    } catch (e) {
+      $('html').addClass('layout-menu-expanded');
+    }
+  } else {
+    $('html').addClass('layout-menu-expanded');
+  }
+  syncVoucherMenuOffset();
+}
+
+function restoreModuleMenuAfterVouchers() {
+  document.documentElement.style.removeProperty('--voucher-menu-offset');
+  document.body.style.removeProperty('--voucher-menu-offset');
+
+  if (!__voucherMenuState) {
+    return;
+  }
+
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(!!__voucherMenuState.helpersCollapsed, false);
+    } catch (e) {
+      // fall through to class restore
+    }
+  }
+
+  $('html').toggleClass('layout-menu-collapsed', !!__voucherMenuState.htmlCollapsed);
+  $('.layout-wrapper').toggleClass('layout-menu-collapsed', !!__voucherMenuState.wrapperCollapsed);
+  if (__voucherMenuState.htmlExpanded) {
+    $('html').addClass('layout-menu-expanded');
+  } else {
+    $('html').removeClass('layout-menu-expanded');
+  }
+  __voucherMenuState = null;
+}
 
 // Voucher slide-in panel (from right) + left sidebar (voucher list)
 $('body').on('click', '.show-voucher-panel', function (e) {
   e.preventDefault();
   var action = $(this).data('action');
   var title = $(this).data('title');
-  var collapseSidebar = $(this).data('collapse-sidebar');
   var customListUrl = $(this).data('list-url');
   if (!action) return;
   var voucherPanelEl = document.getElementById('voucherPanel');
   var voucherOffcanvas = bootstrap.Offcanvas.getOrCreateInstance(voucherPanelEl);
   var panelAlreadyOpen = $(voucherPanelEl).hasClass('show');
+  var listSidebar = $('#voucherListSidebar');
+  var listBody = $('#voucherListSidebarBody');
+  var listUrl =
+    customListUrl ||
+    $('#vouchers_list_sidebar_url').val() ||
+    ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
 
-  if (!panelAlreadyOpen) {
-    // First open: show list sidebar and panel
-    var listSidebar = $('#voucherListSidebar');
-    var listBody = $('#voucherListSidebarBody');
-    if (listSidebar.length && listBody.length) {
-      listSidebar.addClass('visible').attr('aria-hidden', 'false');
-      $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
-      $('body').addClass('voucher-panels-open');
+  // Module sidebar + All Vouchers stay visible beside the voucher detail.
+  ensureModuleMenuVisibleForVouchers();
+  if (listSidebar.length && listBody.length) {
+    listSidebar.addClass('visible').attr('aria-hidden', 'false');
+    $('#voucherListSidebarBackdrop').addClass('visible').attr('aria-hidden', 'false');
+    $('body').addClass('voucher-panels-open');
+    syncVoucherMenuOffset();
+    if (!panelAlreadyOpen || !$.trim(listBody.text()).length || listBody.find('.voucher-list-sidebar').length === 0) {
       listBody.html(
         '<div class="p-3 text-center text-muted"><div class="spinner-border spinner-border-sm" role="status"></div><p class="mb-0 mt-2 small">Loading…</p></div>'
       );
-      var listUrl =
-        customListUrl ||
-        $('#vouchers_list_sidebar_url').val() ||
-        ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
       listBody.load(listUrl);
     }
-    if (collapseSidebar) {
-      $('.layout-wrapper').addClass('layout-menu-collapsed');
-    }
+  }
+  if (!panelAlreadyOpen) {
     voucherOffcanvas.show();
   }
+  // Remeasure after menu expand animation / paint.
+  setTimeout(syncVoucherMenuOffset, 50);
+  setTimeout(syncVoucherMenuOffset, 250);
 
   $('#voucherPanelTitle').text(title || 'Voucher');
   $('#voucherPanelFooter').text('—');
@@ -737,14 +812,21 @@ $('body').on('click', '.show-voucher-panel', function (e) {
     } else {
       $('#voucherPanelFooter').text('—');
     }
+    syncVoucherMenuOffset();
   });
 });
 
 $('#voucherPanel').on('hidden.bs.offcanvas', function () {
-  $('.layout-wrapper').removeClass('layout-menu-collapsed');
   $('body').removeClass('voucher-panels-open');
   $('#voucherListSidebar').removeClass('visible').attr('aria-hidden', 'true');
   $('#voucherListSidebarBackdrop').removeClass('visible').attr('aria-hidden', 'true');
+  restoreModuleMenuAfterVouchers();
+});
+
+$(window).on('resize.voucherPanels', function () {
+  if ($('body').hasClass('voucher-panels-open')) {
+    syncVoucherMenuOffset();
+  }
 });
 
 // Pagination and other links inside voucher list sidebar: load in place instead of navigating

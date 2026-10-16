@@ -56,6 +56,8 @@ class Riders extends BaseModel
     'person_code',
     'labor_card_number',
     'labor_card_expiry',
+    'residency_number',
+    'residency_expiry',
     'attendance',
     'customer_id',
     'rider_top_option_id',
@@ -92,6 +94,8 @@ class Riders extends BaseModel
     'person_code' => 'string',
     'labor_card_number' => 'string',
     'labor_card_expiry' => 'string',
+    'residency_number' => 'string',
+    'residency_expiry' => 'string',
     'attendance' => 'string',
     'rider_top_option_id' => 'integer',
     'recuriter' => 'string',
@@ -138,6 +142,8 @@ class Riders extends BaseModel
     'person_code' => 'nullable|string|max:50',
     'labor_card_number' => 'nullable|string|max:100',
     'labor_card_expiry' => 'nullable',
+    'residency_number' => 'nullable|string|max:100',
+    'residency_expiry' => 'nullable',
     'recuriter' => 'nullable|string|max:255',
     'recruiter_id' => 'nullable|integer|exists:recruiters,id'
   ];

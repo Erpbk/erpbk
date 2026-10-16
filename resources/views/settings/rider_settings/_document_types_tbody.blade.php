@@ -30,6 +30,14 @@
     <td class="text-end align-middle">
       <div class="btn-group btn-group-sm" role="group">
         <button type="button"
+                class="btn btn-outline-primary btn-icon btn-configure-document-type"
+                title="Subtypes &amp; fields"
+                data-id="{{ $doc->id }}"
+                data-key="{{ $doc->key }}"
+                data-label="{{ $doc->label ?: ($doc->front_label ?: $doc->key) }}">
+          <i class="ti ti-forms"></i>
+        </button>
+        <button type="button"
                 class="btn btn-outline-secondary btn-icon btn-edit-document-type"
                 data-id="{{ $doc->id }}"
                 data-key="{{ $doc->key }}"

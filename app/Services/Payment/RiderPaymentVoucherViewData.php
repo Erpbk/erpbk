@@ -50,7 +50,10 @@ class RiderPaymentVoucherViewData
         }
 
         $referenceDisplay = $payment->reference
-            ?: ($allocations->first()['invoice_number'] ?? ('PV-'.($payment->voucher_id ?: $payment->id)));
+            ?: ($allocations->first()['invoice_number'] ?? null);
+        $voucherId = $payment->voucher_id ?: $payment->id;
+        $voucherType = $payment->voucher->voucher_type ?? 'PV';
+        $voucherNo = $voucherType.'-'.$voucherId;
 
         return [
             'payment' => $payment,
@@ -58,7 +61,9 @@ class RiderPaymentVoucherViewData
             'brand' => $brand,
             'documentTitle' => $settings['title'],
             'companyName' => $brand['name'] ?? ($brand['company_name'] ?? '—'),
-            'referenceNo' => $referenceDisplay,
+            'logoSrc' => $brand['logo_src'] ?? ($brand['logo_url'] ?? null),
+            'voucherNo' => $voucherNo,
+            'referenceNo' => $referenceDisplay ?: $voucherNo,
             'paymentDate' => $payment->date_of_payment
                 ? Common::DateFormat($payment->date_of_payment)
                 : '—',

@@ -149,7 +149,7 @@
           {{-- Tab 3: Rider Documents (dynamic document types for rider files page) --}}
           <div class="tab-pane fade" id="tab-rider-documents" role="tabpanel">
             <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-              <p class="text-muted small mb-0">Define document types required for riders. Single = one file per type (e.g. Profile Photo). Dual = front and back page (e.g. Passport first/second). Key is used to match uploaded file names.</p>
+              <p class="text-muted small mb-0">Define document types required for riders. Use the forms icon to configure subtypes and dynamic fields per subtype. Single/Dual still drive missing-file checks; key is used to match uploaded file names.</p>
               <button type="button" class="btn btn-primary btn-sm" id="btnAddRiderDocumentType" data-bs-toggle="modal" data-bs-target="#addRiderDocumentTypeModal">
                 <i class="ti ti-plus me-1"></i> Add Document Type
               </button>
@@ -164,7 +164,7 @@
                     <th>Type</th>
                     <th>Label(s)</th>
                     <th>Status</th>
-                    <th class="text-end" style="width: 140px;">Actions</th>
+                    <th class="text-end" style="width: 180px;">Actions</th>
                   </tr>
                 </thead>
                 <tbody id="riderDocumentTypesTbody" class="rider-document-types-sortable-tbody">
@@ -843,6 +843,8 @@
     </div>
   </div>
 </div>
+
+@include('settings.rider_settings._document_type_fields_modal')
 
 {{-- Edit Rider Field modal --}}
 <div class="modal fade" id="editRiderFieldModal" tabindex="-1" data-bs-backdrop="static">
@@ -1720,6 +1722,369 @@
       });
     }
     if (document.getElementById('riderDocumentTypesTbody')) initRiderDocumentTypesSortable();
+
+    // ---------- Document subtypes & fields manager ----------
+    (function() {
+      var manageState = {
+        documentTypeId: null,
+        selectedSubtypeId: null,
+        subtypes: [],
+        riderColumns: []
+      };
+      var subtypesUrlTpl = "{{ route('settings-panel.rider-settings.document-type-subtypes', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var storeSubtypeUrlTpl = "{{ route('settings-panel.rider-settings.store-document-subtype', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var updateSubtypeUrlTpl = "{{ route('settings-panel.rider-settings.update-document-subtype', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var destroySubtypeUrlTpl = "{{ route('settings-panel.rider-settings.destroy-document-subtype', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var reorderSubtypesUrl = "{{ route('settings-panel.rider-settings.reorder-document-subtypes') }}";
+      var fieldsUrlTpl = "{{ route('settings-panel.rider-settings.document-subtype-fields', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var storeFieldUrlTpl = "{{ route('settings-panel.rider-settings.store-document-type-field', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var updateFieldUrlTpl = "{{ route('settings-panel.rider-settings.update-document-type-field', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var destroyFieldUrlTpl = "{{ route('settings-panel.rider-settings.destroy-document-type-field', ['company_slug' => request()->route('company_slug') ?? session('company_slug'), 'id' => '__ID__']) }}";
+      var reorderFieldsUrl = "{{ route('settings-panel.rider-settings.reorder-document-type-fields') }}";
+
+      function esc(s) {
+        return String(s == null ? '' : s)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      function fillRiderColumnSelect(selected) {
+        var sel = document.getElementById('editDocFieldRiderColumn');
+        if (!sel) return;
+        var html = '<option value="">— None —</option>';
+        (manageState.riderColumns || []).forEach(function(col) {
+          html += '<option value="' + esc(col) + '"' + (selected === col ? ' selected' : '') + '>' + esc(col) + '</option>';
+        });
+        sel.innerHTML = html;
+      }
+
+      function fillSubtypeSelect(selectedId) {
+        var sel = document.getElementById('editDocFieldSubtypeSelect');
+        if (!sel) return;
+        var html = '';
+        (manageState.subtypes || []).forEach(function(s) {
+          html += '<option value="' + s.id + '"' + (String(selectedId) === String(s.id) ? ' selected' : '') + '>' + esc(s.label) + ' (' + esc(s.key) + ')</option>';
+        });
+        sel.innerHTML = html || '<option value="">No subtypes</option>';
+      }
+
+      function renderAllFields(fields) {
+        var tbody = document.getElementById('docFieldsTbody');
+        var btn = document.getElementById('btnAddDocField');
+        var title = document.getElementById('manageSubtypeTitle');
+        var hasSubtypes = (manageState.subtypes || []).length > 0;
+        if (btn) btn.disabled = !hasSubtypes;
+        if (title) title.textContent = hasSubtypes ? '— all sides' : '';
+        if (!tbody) return;
+        if (!fields || !fields.length) {
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No fields yet. Click Add field.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = fields.map(function(f) {
+          return '<tr data-id="' + f.id + '">' +
+            '<td class="align-middle"><span class="drag-handle-field cursor-grab"><i class="ti ti-grip-vertical"></i></span></td>' +
+            '<td class="align-middle">' + esc(f.label) + ' <code class="small text-muted">' + esc(f.key) + '</code>' + (!f.is_active ? ' <span class="badge bg-label-secondary">Off</span>' : '') + '</td>' +
+            '<td class="align-middle"><span class="badge bg-label-info">' + esc(f.subtype_label || f.subtype_key || '—') + '</span></td>' +
+            '<td class="align-middle">' + esc(f.input_type) + '</td>' +
+            '<td class="align-middle">' + (f.is_required ? 'Yes' : 'No') + '</td>' +
+            '<td class="align-middle">' + (f.rider_column ? '<code>' + esc(f.rider_column) + '</code>' : '—') + '</td>' +
+            '<td class="text-end align-middle">' +
+            '<button type="button" class="btn btn-sm btn-outline-secondary btn-edit-doc-field" data-field="' + encodeURIComponent(JSON.stringify(f)) + '"><i class="ti ti-edit"></i></button> ' +
+            '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-doc-field" data-id="' + f.id + '"><i class="ti ti-trash"></i></button>' +
+            '</td></tr>';
+        }).join('');
+        initFieldsSortable();
+      }
+
+      function loadSubtypes(docTypeId) {
+        manageState.documentTypeId = docTypeId;
+        return fetch(subtypesUrlTpl.replace('__ID__', String(docTypeId)), {
+          headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          manageState.riderColumns = data.rider_columns || [];
+          manageState.subtypes = data.subtypes || [];
+          if (manageState.subtypes.length) {
+            manageState.selectedSubtypeId = manageState.subtypes[0].id;
+          } else {
+            manageState.selectedSubtypeId = null;
+          }
+          var title = document.getElementById('manageDocTypeTitle');
+          if (title && data.document_type) {
+            title.textContent = '— ' + (data.document_type.label || data.document_type.key);
+          }
+          var tbody = document.getElementById('docSubtypesTbody');
+          if (!tbody) return data;
+          if (!data.subtypes || !data.subtypes.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No subtypes yet. Add one (e.g. Front / Back).</td></tr>';
+          } else {
+            tbody.innerHTML = data.subtypes.map(function(s) {
+              return '<tr class="doc-subtype-row" data-id="' + s.id + '">' +
+                '<td class="align-middle"><span class="drag-handle-subtype cursor-grab" title="Drag to reorder"><i class="ti ti-grip-vertical"></i></span></td>' +
+                '<td class="align-middle">' + esc(s.label) + (!s.is_active ? ' <span class="badge bg-label-secondary">Off</span>' : '') + '</td>' +
+                '<td class="align-middle"><code>' + esc(s.key) + '</code></td>' +
+                '<td class="align-middle">' + (s.fields_count || 0) + '</td>' +
+                '<td class="text-end align-middle text-nowrap">' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary btn-edit-doc-subtype" title="Edit" data-id="' + s.id + '" data-key="' + esc(s.key) + '" data-label="' + esc(s.label) + '" data-active="' + (s.is_active ? '1' : '0') + '"><i class="ti ti-edit"></i></button> ' +
+                '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-doc-subtype" title="Delete" data-id="' + s.id + '"><i class="ti ti-trash"></i></button>' +
+                '</td></tr>';
+            }).join('');
+          }
+          initSubtypesSortable();
+          renderAllFields(data.fields || []);
+          return data;
+        });
+      }
+
+      function initSubtypesSortable() {
+        var tbody = document.getElementById('docSubtypesTbody');
+        if (!tbody || !window.Sortable) return;
+        if (tbody._sortable) { tbody._sortable.destroy(); tbody._sortable = null; }
+        tbody._sortable = window.Sortable.create(tbody, {
+          handle: '.drag-handle-subtype',
+          animation: 150,
+          onEnd: function() {
+            var order = [];
+            tbody.querySelectorAll('tr[data-id]').forEach(function(tr) { order.push(parseInt(tr.getAttribute('data-id'), 10)); });
+            var fd = new FormData();
+            fd.append('_token', csrf);
+            order.forEach(function(id) { fd.append('order[]', id); });
+            fetch(reorderSubtypesUrl, { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+          }
+        });
+      }
+
+      function initFieldsSortable() {
+        var tbody = document.getElementById('docFieldsTbody');
+        if (!tbody || !window.Sortable) return;
+        if (tbody._sortable) { tbody._sortable.destroy(); tbody._sortable = null; }
+        tbody._sortable = window.Sortable.create(tbody, {
+          handle: '.drag-handle-field',
+          animation: 150,
+          onEnd: function() {
+            var order = [];
+            tbody.querySelectorAll('tr[data-id]').forEach(function(tr) { order.push(parseInt(tr.getAttribute('data-id'), 10)); });
+            var fd = new FormData();
+            fd.append('_token', csrf);
+            order.forEach(function(id) { fd.append('order[]', id); });
+            fetch(reorderFieldsUrl, { method: 'POST', body: fd, headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+          }
+        });
+      }
+
+      document.addEventListener('click', function(e) {
+        var cfgBtn = e.target.closest('.btn-configure-document-type');
+        if (cfgBtn) {
+          e.preventDefault();
+          manageState.selectedSubtypeId = null;
+          document.getElementById('manageDocTypeId').value = cfgBtn.dataset.id || '';
+          loadSubtypes(cfgBtn.dataset.id).then(function() {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+              new bootstrap.Modal(document.getElementById('manageRiderDocumentTypeFieldsModal')).show();
+            }
+          });
+          return;
+        }
+
+        if (e.target.closest('#btnAddDocSubtype')) {
+          document.getElementById('editDocSubtypeModalTitle').textContent = 'Add subtype';
+          document.getElementById('editDocSubtypeId').value = '';
+          document.getElementById('editDocSubtypeKey').value = '';
+          document.getElementById('editDocSubtypeLabel').value = '';
+          document.getElementById('editDocSubtypeActive').checked = true;
+          new bootstrap.Modal(document.getElementById('editDocSubtypeModal')).show();
+          return;
+        }
+
+        var editSub = e.target.closest('.btn-edit-doc-subtype');
+        if (editSub) {
+          e.preventDefault();
+          e.stopPropagation();
+          document.getElementById('editDocSubtypeModalTitle').textContent = 'Edit subtype';
+          document.getElementById('editDocSubtypeId').value = editSub.dataset.id || '';
+          document.getElementById('editDocSubtypeKey').value = editSub.dataset.key || '';
+          document.getElementById('editDocSubtypeLabel').value = editSub.dataset.label || '';
+          document.getElementById('editDocSubtypeActive').checked = editSub.dataset.active === '1';
+          new bootstrap.Modal(document.getElementById('editDocSubtypeModal')).show();
+          return;
+        }
+
+        var delSub = e.target.closest('.btn-delete-doc-subtype');
+        if (delSub) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!confirm('Delete this subtype and its fields?')) return;
+          var fd = new FormData();
+          fd.append('_token', csrf);
+          fd.append('_method', 'DELETE');
+          fetch(destroySubtypeUrlTpl.replace('__ID__', String(delSub.dataset.id)), {
+            method: 'POST', body: fd,
+            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+          }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+              if (manageState.selectedSubtypeId == delSub.dataset.id) manageState.selectedSubtypeId = null;
+              loadSubtypes(manageState.documentTypeId);
+            }
+          });
+          return;
+        }
+
+        if (e.target.closest('#btnAddDocField')) {
+          if (!(manageState.subtypes || []).length) return;
+          document.getElementById('editDocFieldModalTitle').textContent = 'Add field';
+          document.getElementById('editDocFieldId').value = '';
+          fillSubtypeSelect(manageState.selectedSubtypeId || manageState.subtypes[0].id);
+          var addSubSel = document.getElementById('editDocFieldSubtypeSelect');
+          if (addSubSel) addSubSel.disabled = false;
+          document.getElementById('editDocFieldSubtypeId').value = addSubSel ? addSubSel.value : '';
+          document.getElementById('editDocFieldKey').value = '';
+          document.getElementById('editDocFieldLabel').value = '';
+          document.getElementById('editDocFieldInputType').value = 'text';
+          document.getElementById('editDocFieldOptions').value = '';
+          document.getElementById('editDocFieldOptionsWrap').style.display = 'none';
+          document.getElementById('editDocFieldRequired').checked = false;
+          document.getElementById('editDocFieldActive').checked = true;
+          fillRiderColumnSelect('');
+          new bootstrap.Modal(document.getElementById('editDocFieldModal')).show();
+          return;
+        }
+
+        var editField = e.target.closest('.btn-edit-doc-field');
+        if (editField) {
+          e.preventDefault();
+          var f;
+          try { f = JSON.parse(decodeURIComponent(editField.getAttribute('data-field') || '')); } catch (err) { return; }
+          document.getElementById('editDocFieldModalTitle').textContent = 'Edit field';
+          document.getElementById('editDocFieldId').value = f.id;
+          fillSubtypeSelect(f.subtype_id);
+          var editSubSel = document.getElementById('editDocFieldSubtypeSelect');
+          if (editSubSel) editSubSel.disabled = true;
+          document.getElementById('editDocFieldSubtypeId').value = f.subtype_id;
+          document.getElementById('editDocFieldKey').value = f.key || '';
+          document.getElementById('editDocFieldLabel').value = f.label || '';
+          document.getElementById('editDocFieldInputType').value = f.input_type || 'text';
+          var opts = Array.isArray(f.options) ? f.options : [];
+          document.getElementById('editDocFieldOptions').value = opts.map(function(o) {
+            return (typeof o === 'object' && o) ? (o.value || o.label || '') : String(o);
+          }).join('\n');
+          document.getElementById('editDocFieldOptionsWrap').style.display = (f.input_type === 'select') ? 'block' : 'none';
+          document.getElementById('editDocFieldRequired').checked = !!f.is_required;
+          document.getElementById('editDocFieldActive').checked = f.is_active !== false;
+          fillRiderColumnSelect(f.rider_column || '');
+          new bootstrap.Modal(document.getElementById('editDocFieldModal')).show();
+          return;
+        }
+
+        var delField = e.target.closest('.btn-delete-doc-field');
+        if (delField) {
+          e.preventDefault();
+          if (!confirm('Delete this field?')) return;
+          var fd2 = new FormData();
+          fd2.append('_token', csrf);
+          fd2.append('_method', 'DELETE');
+          fetch(destroyFieldUrlTpl.replace('__ID__', String(delField.dataset.id)), {
+            method: 'POST', body: fd2,
+            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+          }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.success) {
+              loadSubtypes(manageState.documentTypeId);
+            }
+          });
+        }
+      });
+
+      var inputTypeSel = document.getElementById('editDocFieldInputType');
+      if (inputTypeSel) {
+        inputTypeSel.addEventListener('change', function() {
+          document.getElementById('editDocFieldOptionsWrap').style.display = this.value === 'select' ? 'block' : 'none';
+        });
+      }
+
+      var formSubtype = document.getElementById('formEditDocSubtype');
+      if (formSubtype) {
+        formSubtype.addEventListener('submit', function(e) {
+          e.preventDefault();
+          var id = document.getElementById('editDocSubtypeId').value;
+          var fd = new FormData();
+          fd.append('_token', csrf);
+          fd.append('key', document.getElementById('editDocSubtypeKey').value);
+          fd.append('label', document.getElementById('editDocSubtypeLabel').value);
+          fd.append('is_active', document.getElementById('editDocSubtypeActive').checked ? '1' : '0');
+          var url, method;
+          if (id) {
+            fd.append('_method', 'PUT');
+            url = updateSubtypeUrlTpl.replace('__ID__', String(id));
+          } else {
+            url = storeSubtypeUrlTpl.replace('__ID__', String(manageState.documentTypeId));
+          }
+          fetch(url, {
+            method: 'POST', body: fd,
+            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+          }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+            .then(function(res) {
+              if (!res.ok) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: (res.data && res.data.message) || 'Could not save.' });
+                return;
+              }
+              var m = bootstrap.Modal.getInstance(document.getElementById('editDocSubtypeModal'));
+              if (m) m.hide();
+              loadSubtypes(manageState.documentTypeId);
+            });
+        });
+      }
+
+      var subtypeSelect = document.getElementById('editDocFieldSubtypeSelect');
+      if (subtypeSelect) {
+        subtypeSelect.addEventListener('change', function() {
+          document.getElementById('editDocFieldSubtypeId').value = this.value;
+        });
+      }
+
+      var formField = document.getElementById('formEditDocField');
+      if (formField) {
+        formField.addEventListener('submit', function(e) {
+          e.preventDefault();
+          var id = document.getElementById('editDocFieldId').value;
+          var subtypeSel = document.getElementById('editDocFieldSubtypeSelect');
+          if (subtypeSel && subtypeSel.value) {
+            document.getElementById('editDocFieldSubtypeId').value = subtypeSel.value;
+          }
+          var subtypeId = document.getElementById('editDocFieldSubtypeId').value;
+          var fd = new FormData();
+          fd.append('_token', csrf);
+          fd.append('key', document.getElementById('editDocFieldKey').value);
+          fd.append('label', document.getElementById('editDocFieldLabel').value);
+          fd.append('input_type', document.getElementById('editDocFieldInputType').value);
+          fd.append('rider_column', document.getElementById('editDocFieldRiderColumn').value || '');
+          fd.append('is_required', document.getElementById('editDocFieldRequired').checked ? '1' : '0');
+          fd.append('is_active', document.getElementById('editDocFieldActive').checked ? '1' : '0');
+          var optsText = document.getElementById('editDocFieldOptions').value || '';
+          optsText.split(/\r?\n/).forEach(function(line) {
+            line = line.trim();
+            if (line) fd.append('options[]', line);
+          });
+          var url;
+          if (id) {
+            fd.append('_method', 'PUT');
+            url = updateFieldUrlTpl.replace('__ID__', String(id));
+          } else {
+            url = storeFieldUrlTpl.replace('__ID__', String(subtypeId));
+          }
+          fetch(url, {
+            method: 'POST', body: fd,
+            headers: { 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+          }).then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+            .then(function(res) {
+              if (!res.ok) {
+                if (typeof Swal !== 'undefined') Swal.fire({ icon: 'error', title: 'Error', text: (res.data && res.data.message) || 'Could not save.' });
+                return;
+              }
+              var m = bootstrap.Modal.getInstance(document.getElementById('editDocFieldModal'));
+              if (m) m.hide();
+              loadSubtypes(manageState.documentTypeId);
+            });
+        });
+      }
+    })();
 
     // Sortable for rider categories (manual reorder)
     var riderCategoriesSortable = null;

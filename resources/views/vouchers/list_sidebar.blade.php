@@ -2,6 +2,20 @@
   $__companySlug = \App\Support\CompanyRouteContext::slug();
   $voucherTypes = \App\Helpers\General::VoucherType();
   $voucherTypesForCreate = $voucherTypesForCreate ?? \App\Models\VoucherType::activeCodeLabelMapForModule('vouchers');
+  $listSidebarUrl = route('vouchers.list-sidebar', array_filter(['company_slug' => $__companySlug]));
+  $riderPaymentByVoucherId = collect();
+  if (isset($data) && $data->count() > 0) {
+      $pvIds = collect($data->items())->where('voucher_type', 'PV')->pluck('id')->filter()->values();
+      if ($pvIds->isNotEmpty()) {
+          $riderChecker = app(\App\Services\Payment\RiderPaymentVoucherViewData::class);
+          $riderPaymentByVoucherId = \App\Models\Payment::query()
+              ->with('payeeAccount')
+              ->whereIn('voucher_id', $pvIds)
+              ->get()
+              ->filter(static fn ($payment) => $riderChecker->isRiderPayment($payment))
+              ->keyBy('voucher_id');
+      }
+  }
 @endphp
 <div class="voucher-list-sidebar h-100 d-flex flex-column">
   <div class="voucher-list-sidebar-header d-flex align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-light flex-shrink-0">
@@ -29,8 +43,18 @@
           $voucherId = $voucher->voucher_type . '-' . str_pad($voucher->id, 4, '0', STR_PAD_LEFT);
           $typeLabel = $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type;
           $voucherPendingDeletion = record_is_pending_deletion($voucher);
+          $linkedRiderPayment = $riderPaymentByVoucherId->get($voucher->id);
+          $viewAction = $linkedRiderPayment
+              ? route('payments.show', array_filter([
+                  'payment' => $linkedRiderPayment->id,
+                  'company_slug' => $__companySlug,
+              ]))
+              : route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]);
+          $viewTitle = $linkedRiderPayment
+              ? ('Payment Voucher '.($linkedRiderPayment->reference ?: $voucherId))
+              : ($typeLabel.' #'.$voucherId);
         @endphp
-        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body {{ $voucherPendingDeletion ? 'bg-warning-subtle' : '' }}" data-action="{{ route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]) }}" data-title="{{ $typeLabel }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', ['company_slug' => $__companySlug]) }}">
+        <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body {{ $voucherPendingDeletion ? 'bg-warning-subtle' : '' }}" data-action="{{ $viewAction }}" data-title="{{ $viewTitle }}" data-collapse-sidebar="1" data-list-url="{{ $listSidebarUrl }}">
           <div class="d-flex align-items-start pt-1">
             <input type="checkbox" class="form-check-input mt-0" onclick="event.preventDefault(); event.stopPropagation();" aria-label="Select">
           </div>

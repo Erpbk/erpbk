@@ -109,6 +109,16 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentType'])->name('settings-panel.rider-settings.update-document-type');
     Route::delete('rider-settings/documents/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentType'])->name('settings-panel.rider-settings.destroy-document-type');
     Route::post('rider-settings/documents/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypes'])->name('settings-panel.rider-settings.reorder-document-types');
+    Route::get('rider-settings/documents/{id}/subtypes', [App\Http\Controllers\RiderSettingsController::class, 'documentTypeSubtypes'])->name('settings-panel.rider-settings.document-type-subtypes');
+    Route::post('rider-settings/documents/{id}/subtypes', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentSubtype'])->name('settings-panel.rider-settings.store-document-subtype');
+    Route::put('rider-settings/documents/subtypes/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentSubtype'])->name('settings-panel.rider-settings.update-document-subtype');
+    Route::delete('rider-settings/documents/subtypes/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentSubtype'])->name('settings-panel.rider-settings.destroy-document-subtype');
+    Route::post('rider-settings/documents/subtypes/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentSubtypes'])->name('settings-panel.rider-settings.reorder-document-subtypes');
+    Route::get('rider-settings/documents/subtypes/{id}/fields', [App\Http\Controllers\RiderSettingsController::class, 'documentSubtypeFields'])->name('settings-panel.rider-settings.document-subtype-fields');
+    Route::post('rider-settings/documents/subtypes/{id}/fields', [App\Http\Controllers\RiderSettingsController::class, 'storeDocumentTypeField'])->name('settings-panel.rider-settings.store-document-type-field');
+    Route::put('rider-settings/documents/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'updateDocumentTypeField'])->name('settings-panel.rider-settings.update-document-type-field');
+    Route::delete('rider-settings/documents/fields/{id}', [App\Http\Controllers\RiderSettingsController::class, 'destroyDocumentTypeField'])->name('settings-panel.rider-settings.destroy-document-type-field');
+    Route::post('rider-settings/documents/fields/reorder', [App\Http\Controllers\RiderSettingsController::class, 'reorderDocumentTypeFields'])->name('settings-panel.rider-settings.reorder-document-type-fields');
     Route::get('rider-settings/rider-top/accordion-body', [App\Http\Controllers\RiderSettingsController::class, 'riderTopAccordionBody'])->name('settings-panel.rider-settings.rider-top-accordion-body');
     Route::post('rider-settings/rider-top/categories', [App\Http\Controllers\RiderSettingsController::class, 'storeRiderTopCategory'])->name('settings-panel.rider-settings.store-rider-top-category');
     Route::get('rider-settings/rider-top/categories/{id}/field-values', [App\Http\Controllers\RiderSettingsController::class, 'riderTopCategoryFieldValues'])->name('settings-panel.rider-settings.rider-top-category-field-values');

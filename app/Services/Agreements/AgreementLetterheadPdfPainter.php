@@ -17,7 +17,8 @@ class AgreementLetterheadPdfPainter
 
     public function registerDompdfCallbacks(Dompdf $dompdf, ?AgreementCategory $category): void
     {
-        if ($category === null || $category->letterheadMode() === 'none') {
+        // Only paint uploaded full-page designs; default/none use HTML header or nothing.
+        if ($category === null || $category->letterheadMode() !== 'library') {
             return;
         }
 
@@ -47,7 +48,8 @@ class AgreementLetterheadPdfPainter
      */
     public function applyToMpdf(Mpdf $mpdf, ?AgreementCategory $category): void
     {
-        if ($category === null || $category->letterheadMode() === 'none') {
+        // Only paint uploaded full-page designs; default/none use HTML header or nothing.
+        if ($category === null || $category->letterheadMode() !== 'library') {
             return;
         }
 

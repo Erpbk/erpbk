@@ -137,7 +137,7 @@ class RTAFineImport implements ToCollection
 
                     // Create fine record
                     $fineData = [
-                        'trans_date' => Carbon::today(),
+                        'trans_date' => $tripDate,
                         'trans_code' => Account::trans_code(),
                         'trip_date' => $tripDate,
                         'trip_time' => $tripTime,

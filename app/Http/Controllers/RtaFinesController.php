@@ -393,7 +393,7 @@ class RtaFinesController extends AppBaseController
             $input['billing_month']   = $input['billing_month'] . "-01";
             $input['attachment_path'] = $path;
             $input['plate_no']        = $bike->plate;
-            $input['trans_date']      = Carbon::today();
+            $input['trans_date']      = $input['trip_date'];
             $input['trans_code']      = $trans_code;
             $input['status']          = 'unpaid';
             $input['branch_id']       = $bike->branch_id;
@@ -589,7 +589,7 @@ class RtaFinesController extends AppBaseController
             // Update fields
             $input['billing_month']   = $input['billing_month'] . '-01';
             $input['plate_no']        = $bike->plate;
-            $input['trans_date']      = Carbon::today()->format('Y-m-d');
+            $input['trans_date']      = $input['trip_date'];
             $input['branch_id']       = $bike->branch_id;
 
             $rtaFines->update($input);

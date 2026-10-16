@@ -137,6 +137,11 @@ class AgreementCategory extends BaseModel
 
     public function letterheadRelativePath(): ?string
     {
+        // Uploaded design paths only apply in library mode (default/none must ignore leftovers).
+        if ($this->letterheadMode() !== 'library') {
+            return null;
+        }
+
         if ($this->letterhead_id) {
             $path = $this->letterhead?->relativePath();
             if ($path) {
@@ -151,6 +156,10 @@ class AgreementCategory extends BaseModel
 
     public function letterheadFilesystemPath(): ?string
     {
+        if ($this->letterheadMode() !== 'library') {
+            return null;
+        }
+
         if ($this->letterhead_id && $this->letterhead) {
             return $this->letterhead->filesystemPath();
         }

@@ -4,6 +4,7 @@
   // Prefer full paper height for letterhead artwork (avoid mPDF pageBoxH shrink clipping design).
   $chromeH = $paperHeightMm ?? $pageHeightMm ?? 297;
   $chromeHeaderTop = $headerTopMarginMm ?? 8;
+  $chromePrimary = ($branding['primary_color'] ?? null) ?: '#004aad';
 @endphp
 .page-decor {
   position: absolute;
@@ -53,64 +54,70 @@
 
 .page-header-table td {
   border: none;
-  padding: 0;
-  vertical-align: top;
+  padding: 0 0 4.5mm 0;
+  vertical-align: middle;
 }
 
 .page-header-logo {
-  width: 1%;
+  width: 22%;
   white-space: nowrap;
-  padding-right: 1.5mm;
   vertical-align: middle;
 }
 
 .page-header-logo .company-logo-img {
   width: auto;
-  height: 24mm;
-  max-width: 40mm;
-  max-height: 24mm;
+  height: auto;
+  max-width: 48mm;
+  max-height: 22mm;
   object-fit: contain;
   object-position: left center;
   display: block;
 }
 
 .page-header-logo .company-logo-fallback {
-  width: 24mm;
-  height: 24mm;
-  line-height: 24mm;
+  width: 22mm;
+  height: 22mm;
+  line-height: 22mm;
   text-align: center;
-  font-size: 12pt;
+  font-size: 11pt;
   font-weight: bold;
-  border-radius: 3mm;
+  border-radius: 2mm;
 }
 
-.page-header-info {
-  text-align: left;
+.page-header-brand {
+  width: 56%;
+  text-align: center;
   vertical-align: middle;
-  padding-top: 0;
+  padding-left: 2.5mm;
+  padding-right: 2.5mm;
+}
+
+.page-header-spacer {
+  width: 22%;
 }
 
 .page-header-name {
-  margin: 0 0 1pt;
-  font-size: 11pt;
-  color: #0f172a;
+  margin: 0 0 3.5pt;
+  font-size: 14pt;
+  color: {{ $chromePrimary }};
   line-height: 1.3;
-  text-align: left;
+  text-align: center;
   font-weight: bold;
+  letter-spacing: 0.2px;
 }
 
 .page-header-meta {
-  margin: 0 0 1pt;
-  font-size: 9.5pt;
-  color: #1e293b;
-  line-height: 1.35;
-  text-align: left;
-  font-weight: bolder;
+  margin: 0;
+  font-size: 9pt;
+  color: #64748b;
+  line-height: 1.7;
+  text-align: center;
+  font-weight: normal;
 }
 
 .page-header-rule {
-  height: 0.5mm;
-  margin-top: 2mm;
+  height: 2.5px;
+  margin: 0;
   width: 100%;
 }
 

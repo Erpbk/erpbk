@@ -1,15 +1,16 @@
 {{-- mPDF repeating header (htmlpageheader). Inline styles: header trees do not inherit document CSS. --}}
 @php
-  $s = $branding['secondary_color'] ?? '#2563eb';
+  $primary = $branding['primary_color'] ?? '#004aad';
   $name = trim((string) ($branding['name'] ?? ''));
   $phone = trim((string) ($branding['phone'] ?? ''));
+  $email = trim((string) ($branding['email'] ?? ''));
   $address = trim((string) ($branding['address'] ?? ''));
   $city = trim((string) ($branding['city'] ?? ''));
   $country = trim((string) ($branding['country'] ?? ''));
   $headerTop = (float) ($headerTopMarginMm ?? config('agreement_letterhead.header_top_margin_mm', 8));
   $logoMm = app(\App\Services\Agreements\AgreementPdfBranding::class)->letterheadLogoBoxMm();
-  $logoW = (float) ($branding['logo_width_mm'] ?? $logoMm['width']);
-  $logoH = (float) ($branding['logo_height_mm'] ?? $logoMm['height']);
+  $logoW = min((float) ($branding['logo_width_mm'] ?? $logoMm['width']), 48.0);
+  $logoH = min((float) ($branding['logo_height_mm'] ?? $logoMm['height']), 22.0);
   $logoPxW = (int) ($branding['logo_width_px'] ?? round($logoW * 96 / 25.4));
   $logoPxH = (int) ($branding['logo_height_px'] ?? round($logoH * 96 / 25.4));
   $addressLine = $address;
@@ -19,11 +20,19 @@
   if ($country !== '') {
       $addressLine .= ($addressLine !== '' ? ', ' : '').$country;
   }
+  $metaParts = [];
+  if ($phone !== '') {
+      $metaParts[] = 'Tel: '.$phone;
+  }
+  if ($email !== '') {
+      $metaParts[] = $email;
+  }
+  $metaLine = implode(' · ', $metaParts);
 @endphp
 <div style="width: 100%; padding-top: {{ $headerTop }}mm;">
   <table width="100%" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
     <tr>
-      <td width="{{ $logoW }}mm" style="width: {{ $logoW }}mm; vertical-align: middle; border: 0; padding: 0; line-height: 0;">
+      <td width="22%" style="width: 22%; vertical-align: middle; border: 0; padding: 0 0 4.5mm 0; line-height: 0;">
         @include('agreements.pdf.partials.logo', [
           'branding' => $branding,
           'pdfEngine' => 'mpdf',
@@ -33,22 +42,28 @@
           'logoHeightPx' => $logoPxH,
         ])
       </td>
-      <td style="vertical-align: middle; text-align: left; border: 0; padding: 0 0 0 1.5mm;">
+      <td width="56%" style="width: 56%; vertical-align: middle; text-align: center; border: 0; padding: 0 2.5mm 4.5mm 2.5mm;">
         @if($name !== '')
-        <p style="margin: 0 0 1pt; font-size: 14pt; color: #0f172a; line-height: 1.3; text-align: left; font-weight: bold;">{{ $name }}</p>
+        <div style="margin: 0 0 3.5pt; font-size: 14pt; color: {{ $primary }}; line-height: 1.3; text-align: center; font-weight: bold; letter-spacing: 0.2px;">{{ ucwords($name) }}</div>
         @endif
-        @if($phone !== '')
-        <p style="margin: 0 0 1pt; font-size: 11pt; color: #1e293b; line-height: 1.35; text-align: left; font-weight: bold;">{{ $phone }}</p>
-        @endif
-        @if($addressLine !== '')
-        <p style="margin: 0 0 1pt; font-size: 11pt; color: #1e293b; line-height: 1.35; text-align: left; font-weight: bold;">{{ $addressLine }}</p>
+        @if($metaLine !== '' || $addressLine !== '')
+        <div style="margin: 0; font-size: 9pt; color: #64748b; line-height: 1.7; text-align: center; font-weight: normal;">
+          @if($metaLine !== '')
+          {{ $metaLine }}
+          @endif
+          @if($addressLine !== '')
+          @if($metaLine !== '')<br>@endif{{ ucwords($addressLine) }}
+          @endif
+        </div>
         @endif
       </td>
+      <td width="22%" style="width: 22%; vertical-align: middle; border: 0; padding: 0 0 4.5mm 0;">&nbsp;</td>
     </tr>
   </table>
-  <table width="100%" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-top: 2mm;">
+  {{-- Single full-width rule (table border-bottom splits across columns in mPDF). --}}
+  <table width="100%" cellpadding="0" cellspacing="0" style="width: 100%; border-collapse: collapse;">
     <tr>
-      <td style="height: 0.5mm; line-height: 0.5mm; font-size: 1px; background-color: {{ $s }}; border: 0; padding: 0;">&nbsp;</td>
+      <td style="height: 2.5px; line-height: 2.5px; font-size: 1px; background-color: {{ $primary }}; border: 0; padding: 0;">&nbsp;</td>
     </tr>
   </table>
 </div>

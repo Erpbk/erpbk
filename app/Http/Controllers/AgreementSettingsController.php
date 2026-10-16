@@ -284,9 +284,11 @@ class AgreementSettingsController extends Controller
         if ($letterheadId === 'none') {
             $category->letterhead_mode = 'none';
             $category->letterhead_id = null;
+            $category->letterhead_path = null;
         } elseif ($letterheadId === 'default' || $letterheadId === '') {
             $category->letterhead_mode = 'default';
             $category->letterhead_id = null;
+            $category->letterhead_path = null;
         } else {
             $category->letterhead_mode = 'library';
             $category->letterhead_id = (int) $letterheadId;

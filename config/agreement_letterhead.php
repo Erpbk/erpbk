@@ -24,7 +24,7 @@ return [
     'page_height_mm' => 297,
 
     /** Space reserved for the fixed header chrome (logo, contact, rule). */
-    'header_reserve_mm' => 43,
+    'header_reserve_mm' => 48,
 
     /**
      * Top margin above the letterhead block (logo/contact area) on each page (mm).
@@ -35,7 +35,7 @@ return [
      * Total header block height in the page flow (mm).
      * Matches .page-header padding-top + logo + rule in letterhead.blade.php.
      */
-    'header_chrome_height_mm' => 33,
+    'header_chrome_height_mm' => 38,
 
     /** Gap between header and content, as a fraction of page height. */
     'content_top_gap_pct' => 0.02,
@@ -45,8 +45,8 @@ return [
      * box so a 20px icon and a 5000px photo both print as a logo, not a photo.
      */
     'logo_display_mm' => [
-        'width' => 40,
-        'height' => 24,
+        'width' => 48,
+        'height' => 22,
     ],
 
     /** Space reserved above the footer decoration (mm). */

@@ -156,9 +156,9 @@
      */
     .page-header-logo .company-logo-img {
       width: auto;
-      height: 24mm;
-      max-width: 40mm;
-      max-height: 24mm;
+      height: auto;
+      max-width: 48mm;
+      max-height: 22mm;
       object-fit: contain;
       object-position: left center;
     }

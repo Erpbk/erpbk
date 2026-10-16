@@ -249,6 +249,8 @@ class RiderCustomField extends BaseModel
                 'license_expiry',
                 'road_permit',
                 'road_permit_expiry',
+                'residency_number',
+                'residency_expiry',
             ],
             'job_info' => [
                 'emirate_id',
@@ -379,6 +381,8 @@ class RiderCustomField extends BaseModel
             'person_code' => ['type' => 'text', 'maxlength' => 50],
             'labor_card_number' => ['type' => 'text', 'maxlength' => 100],
             'labor_card_expiry' => ['type' => 'date'],
+            'residency_number' => ['type' => 'text', 'maxlength' => 100],
+            'residency_expiry' => ['type' => 'date'],
             'insurance' => ['type' => 'select', 'dropdown' => 'insurance'],
             'insurance_expiry' => ['type' => 'date'],
             'policy_no' => ['type' => 'text', 'maxlength' => 255],

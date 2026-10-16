@@ -179,6 +179,8 @@ class ModuleFieldSource
             'company_contact' => 'Company Contact',
             'dob' => 'Date of Birth',
             'doj' => 'Date of Joining',
+            'residency_number' => 'Residency Number',
+            'residency_expiry' => 'Residency Expiry',
             'customer_note' => 'Customer Notes',
             'terms_and_conditions' => 'Terms & Conditions',
             default => ucwords(str_replace(['_', '-'], ' ', $key)),

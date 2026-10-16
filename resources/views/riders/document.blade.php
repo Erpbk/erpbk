@@ -110,7 +110,7 @@
               'rider' => $riders->id,
               'documentType' => $row['document_type_id'],
             ]);
-            $modalTitle = ($status === 'complete' || $status === 'partial' ? 'Update' : 'Upload') . ' ' . $row['label'];
+            $modalTitle = ($status === 'complete' || $status === 'partial' ? 'Update' : 'Upload') . ' ' . \App\Support\RiderDocumentChecklist::cleanDocumentLabel($row['label'] ?? '');
             $searchBlob = strtolower(($row['label'] ?? '') . ' ' . ($row['key'] ?? '') . ' ' . ($row['front_label'] ?? '') . ' ' . ($row['back_label'] ?? ''));
           @endphp
           <tr class="file-row is-{{ $status }}" data-name="{{ $searchBlob }}">

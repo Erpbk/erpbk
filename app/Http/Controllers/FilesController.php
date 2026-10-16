@@ -245,19 +245,15 @@ class FilesController extends AppBaseController
       ->orderByDesc('id')
       ->get();
 
-    $buildSide = function (?RiderDocumentTypeSubtype $subtype, string $sideKey) use ($riders, $docType, $existingFiles) {
+    // Only show field values already stored on the document file(s) — never rider-profile prefill.
+    $buildSide = function (?RiderDocumentTypeSubtype $subtype, string $sideKey) use ($docType, $existingFiles) {
       $file = RiderDocumentChecklist::findFileForSide($existingFiles, $docType, $sideKey);
       if ($sideKey === 'main' && !$file) {
         $file = RiderDocumentChecklist::findFileForType($existingFiles, $docType);
       }
 
       $fields = RiderDocumentUploadService::fieldsForSubtype($subtype);
-      $values = [];
-      if ($file && is_array($file->field_values)) {
-        $values = $file->field_values;
-      } elseif ($subtype) {
-        $values = RiderDocumentFieldValues::prefillFromRider($riders, (int) $subtype->id);
-      }
+      $values = ($file && is_array($file->field_values)) ? $file->field_values : [];
 
       return [
         'subtype' => $subtype,
@@ -280,12 +276,7 @@ class FilesController extends AppBaseController
       $sharedValues = [];
       if (!empty($front['values']) && is_array($front['values'])) {
         $sharedValues = $front['values'];
-      } elseif (!empty($back['values']) && is_array($back['values'])) {
-        $sharedValues = $back['values'];
-      } elseif (!empty($subs['front'])) {
-        $sharedValues = RiderDocumentFieldValues::prefillFromRider($riders, (int) $subs['front']->id);
       }
-      // Fill any missing keys from the other side / prefill
       if (!empty($back['values']) && is_array($back['values'])) {
         foreach ($back['values'] as $k => $v) {
           if (!array_key_exists($k, $sharedValues) || $sharedValues[$k] === null || $sharedValues[$k] === '') {

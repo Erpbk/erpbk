@@ -1,11 +1,21 @@
 @php
   $isDual = ($docType->type ?? '') === 'dual';
-  $title = $docType->label ?: ($docType->front_label ?: $docType->key);
-  if ($isDual && empty($docType->label) && !empty($docType->front_label)) {
-    $title = preg_replace('/\s*\(\s*(Front|Back)\s*\)\s*$/i', '', (string) $title) ?: $title;
-  }
+  $title = \App\Support\RiderDocumentChecklist::cleanDocumentLabel(
+    $docType->label ?: '',
+    $isDual ? ($docType->front_label ?: $docType->key) : ($docType->key ?: '')
+  );
   $accept = '.jpg,.jpeg,.png,.pdf,.doc,.docx,image/jpeg,image/png,application/pdf';
   $existingAny = (bool) ($existingAny ?? false);
+  $fieldValue = static function ($values, $key) {
+    if (!is_array($values) || !array_key_exists($key, $values)) {
+      return '';
+    }
+    $v = $values[$key];
+    if ($v === null || $v === '' || (is_string($v) && strtolower(trim($v)) === 'null')) {
+      return '';
+    }
+    return $v;
+  };
 @endphp
 
 {!! Form::open([
@@ -26,9 +36,9 @@
         <div class="fw-semibold">{{ $title }}</div>
         <div class="text-muted small">
           @if($isDual)
-            Dual document — enter details once, then upload Front and Back separately.
+            Dual document — upload Front and Back first, then enter details once below.
           @else
-            Single document — complete the fields and upload one file.
+            Single document — upload the file first, then complete the fields below.
           @endif
         </div>
       </div>
@@ -40,50 +50,6 @@
       $sharedFields = $shared['fields'] ?? collect();
       $sharedValues = $shared['values'] ?? [];
     @endphp
-
-    @if($sharedFields->isNotEmpty())
-      <div class="card rider-doc-side-card mb-3">
-        <div class="card-header py-2 px-3">
-          <div class="fw-semibold">
-            <i class="ti ti-forms me-1 text-primary"></i>Document details
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="row g-3">
-            @foreach($sharedFields as $field)
-              @php
-                $val = $sharedValues[$field->key] ?? '';
-                $fname = 'field_values['.$field->key.']';
-              @endphp
-              <div class="col-md-6">
-                <label class="form-label{{ $field->is_required ? ' required' : '' }}">{{ $field->label }}</label>
-                @if($field->input_type === 'textarea')
-                  <textarea name="{{ $fname }}" class="form-control" rows="2" @if($field->is_required) required @endif>{{ $val }}</textarea>
-                @elseif($field->input_type === 'select')
-                  <select name="{{ $fname }}" class="form-select" @if($field->is_required) required @endif>
-                    <option value="">— Select —</option>
-                    @foreach(($field->options ?? []) as $opt)
-                      @php
-                        $ov = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : (string) $opt;
-                        $ol = is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : (string) $opt;
-                      @endphp
-                      <option value="{{ $ov }}" @selected((string)$val === (string)$ov)>{{ $ol }}</option>
-                    @endforeach
-                  </select>
-                @else
-                  <input
-                    type="{{ $field->input_type === 'number' ? 'number' : ($field->input_type === 'date' ? 'date' : 'text') }}"
-                    name="{{ $fname }}"
-                    class="form-control"
-                    value="{{ $val }}"
-                    @if($field->is_required) required @endif>
-                @endif
-              </div>
-            @endforeach
-          </div>
-        </div>
-      </div>
-    @endif
 
     <div class="rider-doc-sides-row">
       @foreach(['front' => $front, 'back' => $back] as $sideKey => $side)
@@ -132,25 +98,20 @@
         </div>
       @endforeach
     </div>
-  @else
-    @php
-      $side = $main ?? ['file' => null, 'fields' => collect(), 'values' => []];
-      $existing = $side['file'] ?? null;
-      $existingUrl = $existing
-        ? storage_url($existing->type . '/' . $existing->type_id . '/' . $existing->file_name)
-        : null;
-      $values = $side['values'] ?? [];
-      $fields = $side['fields'] ?? collect();
-      $needsFile = !$existing;
-    @endphp
-    <div class="card rider-doc-side-card mb-3">
-      <div class="card-body">
-        @if($fields->isNotEmpty())
-          <div class="row g-3 mb-3">
-            @foreach($fields as $field)
+
+    @if($sharedFields->isNotEmpty())
+      <div class="card rider-doc-side-card mb-3">
+        <div class="card-header py-2 px-3">
+          <div class="fw-semibold">
+            <i class="ti ti-forms me-1 text-primary"></i>Document details
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            @foreach($sharedFields as $field)
               @php
-                $val = $values[$field->key] ?? '';
-                $fname = 'sides[main][field_values]['.$field->key.']';
+                $val = $fieldValue($sharedValues, $field->key);
+                $fname = 'field_values['.$field->key.']';
               @endphp
               <div class="col-md-6">
                 <label class="form-label{{ $field->is_required ? ' required' : '' }}">{{ $field->label }}</label>
@@ -178,8 +139,22 @@
               </div>
             @endforeach
           </div>
-        @endif
-
+        </div>
+      </div>
+    @endif
+  @else
+    @php
+      $side = $main ?? ['file' => null, 'fields' => collect(), 'values' => []];
+      $existing = $side['file'] ?? null;
+      $existingUrl = $existing
+        ? storage_url($existing->type . '/' . $existing->type_id . '/' . $existing->file_name)
+        : null;
+      $values = $side['values'] ?? [];
+      $fields = $side['fields'] ?? collect();
+      $needsFile = !$existing;
+    @endphp
+    <div class="card rider-doc-side-card mb-3">
+      <div class="card-body">
         @include('partials.universal_document_upload', [
           'name' => 'sides[main][file]',
           'id' => 'rider_doc_'.$docType->id.'_main_file',
@@ -194,9 +169,44 @@
           'existingIsPdf' => $existing ? str_ends_with(strtolower((string) $existing->file_type), 'pdf') : false,
         ])
         @if($existing && $existingUrl)
-          <div class="small mt-2">
+          <div class="small mt-2 mb-3">
             <a href="{{ $existingUrl }}" target="_blank" rel="noopener">View current file</a>
             <span class="text-muted"> — leave empty to keep it</span>
+          </div>
+        @endif
+
+        @if($fields->isNotEmpty())
+          <div class="row g-3 mt-1">
+            @foreach($fields as $field)
+              @php
+                $val = $fieldValue($values, $field->key);
+                $fname = 'sides[main][field_values]['.$field->key.']';
+              @endphp
+              <div class="col-md-6">
+                <label class="form-label{{ $field->is_required ? ' required' : '' }}">{{ $field->label }}</label>
+                @if($field->input_type === 'textarea')
+                  <textarea name="{{ $fname }}" class="form-control" rows="2" @if($field->is_required) required @endif>{{ $val }}</textarea>
+                @elseif($field->input_type === 'select')
+                  <select name="{{ $fname }}" class="form-select" @if($field->is_required) required @endif>
+                    <option value="">— Select —</option>
+                    @foreach(($field->options ?? []) as $opt)
+                      @php
+                        $ov = is_array($opt) ? ($opt['value'] ?? $opt['label'] ?? '') : (string) $opt;
+                        $ol = is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : (string) $opt;
+                      @endphp
+                      <option value="{{ $ov }}" @selected((string)$val === (string)$ov)>{{ $ol }}</option>
+                    @endforeach
+                  </select>
+                @else
+                  <input
+                    type="{{ $field->input_type === 'number' ? 'number' : ($field->input_type === 'date' ? 'date' : 'text') }}"
+                    name="{{ $fname }}"
+                    class="form-control"
+                    value="{{ $val }}"
+                    @if($field->is_required) required @endif>
+                @endif
+              </div>
+            @endforeach
           </div>
         @endif
       </div>

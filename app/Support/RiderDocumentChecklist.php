@@ -39,15 +39,12 @@ class RiderDocumentChecklist
     public static function buildRow(RiderDocumentType $type, Collection $files): array
     {
         $isDual = $type->type === 'dual';
-        $label = trim((string) ($type->label ?: ''));
-        if ($label === '' && $isDual) {
-            $label = trim((string) ($type->front_label ?: $type->key));
-            $label = preg_replace('/\s*\(\s*(Front|Back)\s*\)\s*$/i', '', $label) ?: $label;
-        } elseif ($label === '') {
-            $label = trim((string) ($type->key ?: ''));
-        }
+        $label = self::cleanDocumentLabel(
+            $type->label ?: '',
+            $isDual ? ($type->front_label ?: $type->key) : ($type->key ?: '')
+        );
         if ($label === '') {
-            $label = ucfirst($type->key);
+            $label = ucfirst((string) $type->key);
         }
 
         if ($isDual) {
@@ -158,6 +155,25 @@ class RiderDocumentChecklist
 
             return str_contains($name, strtolower($type->key));
         });
+    }
+
+    /**
+     * Document display name without side suffixes like "( First Page )" / "( Front )".
+     */
+    public static function cleanDocumentLabel(?string $label, ?string $fallback = ''): string
+    {
+        $text = trim((string) ($label !== null && trim($label) !== '' ? $label : $fallback));
+        if ($text === '') {
+            return '';
+        }
+
+        $cleaned = preg_replace(
+            '/\s*\(\s*(Front|Back|First\s*Page|Second\s*Page|Page\s*[12]|1st\s*Page|2nd\s*Page)\s*\)\s*$/iu',
+            '',
+            $text
+        );
+
+        return trim((string) ($cleaned !== null && $cleaned !== '' ? $cleaned : $text));
     }
 
     /**

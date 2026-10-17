@@ -89,6 +89,17 @@ $editDeleteFlags = $editDeleteFlags ?? \App\Models\VoucherType::getEditDeleteFla
       @if($vf('trans_date'))<div class="col-auto text-muted">Date: {{ \Carbon\Carbon::parse($voucher->trans_date)->format('d M Y') }}</div>@endif
       @if($vf('billing_month') && $voucher->billing_month)<div class="col-auto text-muted">Billing Month: {{ \Carbon\Carbon::parse($voucher->billing_month)->format('M Y') }}</div>@endif
       @if($vf('amount'))<div class="col-auto fw-semibold">Amount: {{ \App\Helpers\Currency::format($voucher->amount, 2) }}</div>@endif
+      @php
+        $trfBankCharges = $voucher->voucher_type === 'TRF'
+          ? round((float) $voucher->transactions->sum(function ($line) {
+              $narration = (string) ($line->narration ?? '');
+              return str_starts_with($narration, 'Bank charges for') ? (float) ($line->debit ?? 0) : 0;
+            }), 2)
+          : 0;
+      @endphp
+      @if($trfBankCharges > 0)
+      <div class="col-auto text-muted">Bank Charges: {{ \App\Helpers\Currency::format($trfBankCharges, 2) }}</div>
+      @endif
       @if($vf('reference_number') && $voucher->reference_number)
       <div class="col-12 text-muted small">Reference Number: {{ $voucher->reference_number }}</div>
       @endif

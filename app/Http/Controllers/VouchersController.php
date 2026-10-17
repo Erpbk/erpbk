@@ -205,7 +205,9 @@ class VouchersController extends Controller
 
 
       /** @var Vouchers $vouchers */
-      if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
+      if ($request->voucher_type === 'TRF') {
+        $result = $voucherService->FundsTransfer($request);
+      } elseif ($request->voucher_type === 'JV') {
         if (!$this->debitEqualsCredit($request)) {
           return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
         }
@@ -252,6 +254,8 @@ class VouchersController extends Controller
 
       //$vouchers = Vouchers::create($input);
       return $result;
+    } catch (\Illuminate\Validation\ValidationException $e) {
+      return response()->json(['errors' => $e->errors()], 422);
     } catch (\Exception $e) {
       // Log the error for debugging
       \Log::error('Voucher store error: ' . $e->getMessage(), [
@@ -396,7 +400,13 @@ class VouchersController extends Controller
       return response()->json(['errors' => ['error' => 'This voucher type is not allowed to be edited in the Vouchers module.']], 403);
     }
 
-    if (in_array($request->voucher_type, ['JV', 'TRF'], true)) {
+    if ($request->voucher_type === 'TRF') {
+      try {
+        $voucherService->FundsTransfer($request);
+      } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json(['errors' => $e->errors()], 422);
+      }
+    } elseif ($request->voucher_type === 'JV') {
       if (!$this->debitEqualsCredit($request)) {
         return response()->json(['errors' => ['error' => 'Total debit and credit must be equal.']], 422);
       }

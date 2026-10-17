@@ -10,6 +10,9 @@ $voucherType = $vt ?? request('vt');
 <input type="hidden" name="v_trans_code" value="{{@$vouchers->trans_code??0}}">
 <input type="hidden" name="voucher_type" id="voucher_type" value="{{$voucherType}}">
 
+@if($voucherType == 'TRF')
+    @include('vouchers.transfer_fields')
+@else
 <div class="row mt-0 mb-2">
 
     <div class="form-group col-md-3">
@@ -95,11 +98,6 @@ $voucherType = $vt ?? request('vt');
     @include("vouchers.default_fields")
     @endif
 
-    @if($voucherType == 'TRF')
-    @php($accounts = \App\Models\Accounts::bankAccountsDropdown())
-    @include("vouchers.default_fields")
-    @endif
-
     @if($voucherType == 'LV')
     @php($accounts = \App\Models\Accounts::dropdown(null))
     @include("vouchers.default_fields")
@@ -154,6 +152,7 @@ $voucherType = $vt ?? request('vt');
             @include("vouchers.default_fields")
             @endif --}}
 </div>
+@endif
 {{-- @if($voucherType == 11)
             <h5>Fuel Voucher</h5>
             @include("vouchers.fuel_fields")
@@ -173,6 +172,7 @@ $voucherType = $vt ?? request('vt');
 
 @include('vouchers._custom_fields_section')
 
+@if($voucherType != 'TRF')
 <div class="row">
     <div class="col-md-5"></div>
     <div class="col-md-2 content-right mt-1">Total:&nbsp;<a href="javascript:void(0);" onclick="getTotal();" class="btn btn-default btn-sm"><i class="fa fa-refresh"></i></a></div>
@@ -183,8 +183,7 @@ $voucherType = $vt ?? request('vt');
         <input type="number" class="form-control " id="total_cr" readonly placeholder="Total Cr">
     </div>
 </div>
-
-</div>
+@endif
 
 <script>
     /*  $(document).ready(function() {
@@ -287,6 +286,9 @@ $voucherType = $vt ?? request('vt');
             var base_url = $('#base_url').val();
             getTotal();
             initVoucherSelect2();
+            if (typeof window.initFundsTransferForm === 'function') {
+                window.initFundsTransferForm(document.getElementById('formajax'));
+            }
 
 
 

@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Helpers\Account;
 use App\Helpers\General;
+use App\Models\Accounts as LedgerAccount;
 use App\Models\Accounts\JournalVoucher;
 use App\Models\Accounts\Transaction;
 use App\Models\Accounts\TransactionAccount;
@@ -11,6 +13,10 @@ use App\Models\Sim;
 use App\Models\SimCharge;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Support\GlobalAccounts;
+use App\Support\PublicStorageDisk;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class VoucherService
 {
@@ -137,6 +143,207 @@ class VoucherService
       }
     }
     return $ret;
+  }
+
+  /**
+   * Funds transfer between two bank accounts.
+   * The sender is credited for the transfer plus bank charges. The receiver is
+   * debited for the transfer amount. Bank charges are a separate debit on the
+   * bank charges account, the same way a payment posts that fee as its own line.
+   */
+  public function FundsTransfer($request)
+  {
+    if (! $request->hasFile('attachment')) {
+      $request->files->remove('attachment');
+    } else {
+      $file = $request->file('attachment');
+      if (! $file || ! $file->isValid()) {
+        $request->files->remove('attachment');
+      }
+    }
+
+    $request->validate([
+      'trans_date' => 'required|date',
+      'payment_type' => 'required|integer|in:1,2,3,4',
+      'billing_month' => 'required',
+      'reference_number' => 'required|string|max:255',
+      'branch_id' => 'required|exists:branches,id',
+      'from_account_id' => 'required|integer|exists:accounts,id',
+      'to_account_id' => 'required|integer|different:from_account_id|exists:accounts,id',
+      'amount' => 'required|numeric|min:0.01',
+      'bank_charges' => 'nullable|numeric|min:0',
+      'description' => 'nullable|string|max:1000',
+      'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+    ], [
+      'trans_date.required' => 'Transaction date is required',
+      'payment_type.required' => 'Payment mode is required',
+      'payment_type.in' => 'Please select a payment mode',
+      'reference_number.required' => 'Reference number is required',
+      'branch_id.required' => 'Please select a branch',
+      'from_account_id.required' => 'Please select a sending account',
+      'to_account_id.required' => 'Please select a receiving account',
+      'to_account_id.different' => 'Sending and receiving accounts must be different',
+      'amount.required' => 'Transfer amount is required',
+      'amount.min' => 'Transfer amount must be greater than zero',
+      'bank_charges.min' => 'Bank charges cannot be negative',
+    ]);
+
+    $fromAccountId = (int) $request->input('from_account_id');
+    $toAccountId = (int) $request->input('to_account_id');
+    $transferAmount = round((float) $request->input('amount'), 2);
+    $bankCharges = round(max(0, (float) $request->input('bank_charges', 0)), 2);
+    $totalAmount = round($transferAmount + $bankCharges, 2);
+    $billingMonth = $this->normalizeBillingMonth($request->billing_month ?? $request->input('billing_month'));
+    $description = trim((string) $request->input('description', ''));
+    if ($description === '') {
+      $description = 'Funds Transfer';
+    }
+    $branchId = $request->input('branch_id');
+
+    $bankParentId = (int) GlobalAccounts::id('BANK');
+    $bankAccounts = LedgerAccount::query()
+      ->whereIn('id', [$fromAccountId, $toAccountId])
+      ->get()
+      ->keyBy('id');
+
+    foreach (['from_account_id' => $fromAccountId, 'to_account_id' => $toAccountId] as $field => $accountId) {
+      $account = $bankAccounts->get($accountId);
+      if (! $account || (int) $account->parent_id !== $bankParentId || $account->account_type !== 'Asset') {
+        throw ValidationException::withMessages([
+          $field => 'Select a bank account.',
+        ]);
+      }
+    }
+
+    $bankChargesAccountId = null;
+    if ($bankCharges > 0.009) {
+      try {
+        $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
+      } catch (GlobalAccountNotConfiguredException $e) {
+        throw ValidationException::withMessages([
+          'bank_charges' => 'Bank charges account is not configured. Set it in Global Accounts before entering bank charges.',
+        ]);
+      }
+    }
+
+    $transCodeId = $request->input('v_trans_code');
+    $isUpdate = ! ($transCodeId === null || $transCodeId === '' || (int) $transCodeId === 0);
+
+    return DB::transaction(function () use (
+      $request,
+      $fromAccountId,
+      $toAccountId,
+      $transferAmount,
+      $bankCharges,
+      $totalAmount,
+      $billingMonth,
+      $description,
+      $branchId,
+      $bankChargesAccountId,
+      $transCodeId,
+      $isUpdate
+    ) {
+      $payload = [
+        'trans_date' => $request->input('trans_date'),
+        'payment_type' => $request->input('payment_type'),
+        'billing_month' => $billingMonth,
+        'reference_number' => $request->input('reference_number'),
+        'branch_id' => $branchId,
+        'voucher_type' => 'TRF',
+        'remarks' => 'Funds Transfer',
+        'amount' => $totalAmount,
+        'payment_from' => $fromAccountId,
+        'payment_to' => $toAccountId,
+        'custom_field_values' => $request->input('custom_field_values', $request->input('voucher_custom_fields', [])),
+      ];
+
+      if ($isUpdate) {
+        $voucher = Vouchers::where('trans_code', $transCodeId)->first();
+        if (! $voucher) {
+          throw ValidationException::withMessages([
+            'error' => 'Funds transfer voucher was not found.',
+          ]);
+        }
+        $payload['Updated_By'] = auth()->id();
+        $voucher->update($payload);
+        Transactions::where('trans_code', $transCodeId)->delete();
+        $transCode = $transCodeId;
+      } else {
+        $transCode = Account::trans_code();
+        $payload['Created_By'] = auth()->id();
+        $payload['trans_code'] = $transCode;
+        $payload['status'] = 1;
+        $voucher = Vouchers::create($payload);
+      }
+
+      $senderNarration = $description;
+      if ($bankCharges > 0.009) {
+        $senderNarration = trim($description.' | Bank charges '.number_format($bankCharges, 2));
+      }
+
+      $this->TransactionService->recordTransaction([
+        'account_id' => $fromAccountId,
+        'reference_id' => $voucher->id,
+        'reference_type' => 'Voucher',
+        'trans_code' => $transCode,
+        'trans_date' => $payload['trans_date'],
+        'narration' => $senderNarration,
+        'credit' => $totalAmount,
+        'billing_month' => $billingMonth,
+        'branch_id' => $branchId,
+      ], true);
+
+      $this->TransactionService->recordTransaction([
+        'account_id' => $toAccountId,
+        'reference_id' => $voucher->id,
+        'reference_type' => 'Voucher',
+        'trans_code' => $transCode,
+        'trans_date' => $payload['trans_date'],
+        'narration' => $description,
+        'debit' => $transferAmount,
+        'billing_month' => $billingMonth,
+        'branch_id' => $branchId,
+      ], true);
+
+      if ($bankCharges > 0.009 && $bankChargesAccountId) {
+        $this->TransactionService->recordTransaction([
+          'account_id' => $bankChargesAccountId,
+          'reference_id' => $voucher->id,
+          'reference_type' => 'Voucher',
+          'trans_code' => $transCode,
+          'trans_date' => $payload['trans_date'],
+          'narration' => 'Bank charges for ( '.$description.' )',
+          'debit' => $bankCharges,
+          'billing_month' => $billingMonth,
+          'branch_id' => $branchId,
+        ], true);
+      }
+
+      if ($request->hasFile('attachment')) {
+        $file = $request->file('attachment');
+        $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName()) ?: 'document';
+        $fileName = time().'_'.$safeBase;
+        $oldFile = $voucher->attach_file ? basename((string) $voucher->attach_file) : null;
+        PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
+        if ($oldFile && $oldFile !== $fileName) {
+          PublicStorageDisk::delete('vouchers/'.$oldFile);
+        }
+        $voucher->attach_file = $fileName;
+        $voucher->save();
+      }
+
+      return $voucher;
+    });
+  }
+
+  private function normalizeBillingMonth($value): string
+  {
+    $value = trim((string) $value);
+    if (preg_match('/^(\d{4}-\d{2})/', $value, $matches)) {
+      return $matches[1].'-01';
+    }
+
+    return date('Y-m-01');
   }
 
   public function InvoiceVoucher($request)

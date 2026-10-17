@@ -663,6 +663,9 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initPaymentFieldsForm === 'function' && $('#modalTopbody [data-payment-fields-init]').length) {
       window.initPaymentFieldsForm(document.getElementById('formajax') || $('#modalTopbody'));
     }
+    if (typeof window.initFundsTransferForm === 'function' && $('#modalTopbody [data-funds-transfer-init]').length) {
+      window.initFundsTransferForm(document.getElementById('formajax') || $('#modalTopbody'));
+    }
     if ($('#modalTopbody .rider-payment-form').length) {
       $('#modalTopTitle').html(
         '<span style="color:#1e4b8f;font-weight:700;">Record Rider Payment</span>' +
@@ -953,6 +956,15 @@ $(document).on('submit', 'form#formajax, form.form-ajax-submit', function (e) {
     $form.find('#payment_amount').length
     && typeof window.validatePaymentForm === 'function'
     && !window.validatePaymentForm()
+  ) {
+    unblock();
+    return false;
+  }
+
+  if (
+    $form.find('[data-funds-transfer-init]').length
+    && typeof window.validateFundsTransferForm === 'function'
+    && !window.validateFundsTransferForm($form)
   ) {
     unblock();
     return false;

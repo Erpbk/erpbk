@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Helpers\Account;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
+use App\Models\BikeHistory;
 use App\Models\BikeMaintenance;
 use App\Models\BikeMaintenanceItem;
+use App\Models\BikeRentCompany;
 use App\Models\Bikes;
 use App\Models\Garages;
 use App\Models\InventoryPurchase;
 use App\Models\Items;
+use App\Models\Riders;
 use App\Models\Transactions;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
@@ -45,11 +48,36 @@ class BikeMaintenanceController extends Controller
     {
         $items = Items::dropdown('garage');
         $bikee = null;
+        if ($request->filled('id')) {
+            $bikee = Bikes::find($request->input('id'));
+        }
         $bikes = Bikes::where('status', 1)->get();
         $garages = Garages::where('status', 1)->get();
 
         return view('bike-maintenance.create_general', compact('items', 'bikee', 'bikes', 'garages'));
+    }
 
+    /**
+     * Assignees (riders + rental companies) for a bike from history and current assignment.
+     */
+    public function getAssignees(Request $request)
+    {
+        $request->validate([
+            'bike_id' => 'required|exists:bikes,id',
+            'maintenance_date' => 'nullable|date',
+            'selected_rider_id' => 'nullable|integer',
+            'selected_rental_company_id' => 'nullable|integer',
+        ]);
+
+        $bike = Bikes::findOrFail($request->input('bike_id'));
+        $payload = $this->buildBikeAssigneesPayload(
+            $bike,
+            $request->input('maintenance_date'),
+            $request->filled('selected_rider_id') ? (int) $request->input('selected_rider_id') : null,
+            $request->filled('selected_rental_company_id') ? (int) $request->input('selected_rental_company_id') : null
+        );
+
+        return response()->json($payload);
     }
 
     /**
@@ -711,6 +739,173 @@ class BikeMaintenanceController extends Controller
 
             return response()->json(['message' => 'Error: '.$e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Build selectable assignee list for maintenance forms.
+     *
+     * @return array{
+     *   success: bool,
+     *   assignees: list<array{key: string, type: string, id: int, label: string, customer_type: ?string}>,
+     *   selected: ?string,
+     *   previous_km: mixed,
+     *   maintenance_km: mixed
+     * }
+     */
+    private function buildBikeAssigneesPayload(
+        Bikes $bike,
+        ?string $maintenanceDate = null,
+        ?int $selectedRiderId = null,
+        ?int $selectedRentalCompanyId = null
+    ): array {
+        $histories = BikeHistory::where('bike_id', $bike->id)
+            ->where(function ($q) {
+                $q->whereNotNull('rider_id')->orWhereNotNull('rental_company_id');
+            })
+            ->orderByDesc('note_date')
+            ->orderByDesc('id')
+            ->get(['rider_id', 'rental_company_id', 'note_date', 'return_date']);
+
+        $riderIds = $histories->pluck('rider_id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        $companyIds = $histories->pluck('rental_company_id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($bike->rider_id) {
+            $riderIds = $riderIds->push((int) $bike->rider_id)->unique()->values();
+        }
+        if ($bike->rental_company_id) {
+            $companyIds = $companyIds->push((int) $bike->rental_company_id)->unique()->values();
+        }
+        if ($selectedRiderId) {
+            $riderIds = $riderIds->push($selectedRiderId)->unique()->values();
+        }
+        if ($selectedRentalCompanyId) {
+            $companyIds = $companyIds->push($selectedRentalCompanyId)->unique()->values();
+        }
+
+        if (! $selectedRiderId && ! $selectedRentalCompanyId) {
+            $party = $this->resolveAssigneeForDate($bike, $histories, $maintenanceDate);
+            $selectedRiderId = $party['rider_id'] ?? null;
+            $selectedRentalCompanyId = $party['rental_company_id'] ?? null;
+        }
+
+        // Prefer one party only when both are sticky
+        if ($selectedRiderId && $selectedRentalCompanyId) {
+            $selectedRentalCompanyId = null;
+        }
+
+        $assignees = [];
+
+        if ($riderIds->isNotEmpty()) {
+            $riders = Riders::whereIn('id', $riderIds)->orderBy('name')->get(['id', 'rider_id', 'name']);
+            foreach ($riders as $rider) {
+                $assignees[] = [
+                    'key' => 'rider:'.$rider->id,
+                    'type' => 'rider',
+                    'id' => (int) $rider->id,
+                    'label' => trim(($rider->rider_id ?? '').' - '.($rider->name ?? ''), ' -'),
+                    'customer_type' => null,
+                ];
+            }
+        }
+
+        if ($companyIds->isNotEmpty()) {
+            $companies = BikeRentCompany::whereIn('id', $companyIds)->orderBy('name')->get(['id', 'name', 'customer_type']);
+            foreach ($companies as $company) {
+                $assignees[] = [
+                    'key' => 'company:'.$company->id,
+                    'type' => 'company',
+                    'id' => (int) $company->id,
+                    'label' => (string) $company->name,
+                    'customer_type' => $company->customer_type,
+                ];
+            }
+        }
+
+        $selected = null;
+        if ($selectedRiderId) {
+            $selected = 'rider:'.$selectedRiderId;
+        } elseif ($selectedRentalCompanyId) {
+            $selected = 'company:'.$selectedRentalCompanyId;
+        }
+
+        $selectedKeys = collect($assignees)->pluck('key');
+        if ($selected && ! $selectedKeys->contains($selected)) {
+            $selected = null;
+        }
+
+        return [
+            'success' => true,
+            'assignees' => $assignees,
+            'selected' => $selected,
+            'previous_km' => $bike->current_km,
+            'maintenance_km' => $bike->maintenance_km,
+        ];
+    }
+
+    /**
+     * Resolve default rider/company for a bike on a given date (or current assignment).
+     *
+     * @param  \Illuminate\Support\Collection<int, BikeHistory>  $histories
+     * @return array{rider_id: ?int, rental_company_id: ?int}
+     */
+    private function resolveAssigneeForDate(Bikes $bike, $histories, ?string $date = null): array
+    {
+        if ($date) {
+            try {
+                $day = Carbon::parse($date)->startOfDay();
+            } catch (\Exception $e) {
+                $day = null;
+            }
+
+            if ($day) {
+                $active = $histories->filter(function ($h) use ($day) {
+                    $start = $h->note_date ? Carbon::parse($h->note_date)->startOfDay() : null;
+                    if ($start && $start->gt($day)) {
+                        return false;
+                    }
+                    if ($h->return_date === null) {
+                        return true;
+                    }
+
+                    return Carbon::parse($h->return_date)->startOfDay()->gte($day);
+                });
+
+                $riderHistory = $active->first(fn ($h) => ! empty($h->rider_id));
+                if ($riderHistory) {
+                    return [
+                        'rider_id' => (int) $riderHistory->rider_id,
+                        'rental_company_id' => null,
+                    ];
+                }
+
+                $companyHistory = $active->first(fn ($h) => ! empty($h->rental_company_id));
+                if ($companyHistory) {
+                    return [
+                        'rider_id' => null,
+                        'rental_company_id' => (int) $companyHistory->rental_company_id,
+                    ];
+                }
+            }
+        }
+
+        if ($bike->rider_id) {
+            return [
+                'rider_id' => (int) $bike->rider_id,
+                'rental_company_id' => null,
+            ];
+        }
+
+        if ($bike->rental_company_id) {
+            return [
+                'rider_id' => null,
+                'rental_company_id' => (int) $bike->rental_company_id,
+            ];
+        }
+
+        return [
+            'rider_id' => null,
+            'rental_company_id' => null,
+        ];
     }
 
     private function validateRequest(Request $request)

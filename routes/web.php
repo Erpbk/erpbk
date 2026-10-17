@@ -329,6 +329,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::resource('bikes', BikesController::class);
 
+    Route::post('bikeMaintenance/getAssignees', [BikeMaintenanceController::class, 'getAssignees'])->name('bikeMaintenance.getAssignees');
     Route::resource('bikeMaintenance', BikeMaintenanceController::class);
     Route::any('bike-maintenance/{bike}/edit', [BikeMaintenanceController::class, 'edit'])->name('bike-maintenance.editForm');
     Route::any('bike-maintenance/{bike}/update', [BikeMaintenanceController::class, 'update'])->name('bike-maintenance.update');

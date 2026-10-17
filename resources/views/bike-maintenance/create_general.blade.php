@@ -7,18 +7,11 @@
             {{-- Bike Information --}}
             <div class="form-group col-md-3">
                 {!! Form::label('bike_info', 'Bike') !!}
-                <select name="bike_id" class="form-control select2 bike" id="bike_select">
+                <select name="bike_id" class="form-control select2 bike" id="bike_select" required>
                     <option value="">Select</option>
                     @foreach($bikes as $bike)
-                    <option value="{{ $bike->id }}"
-                        data-rider="{{ $bike->rider ? ($bike->rider->rider_id .'-'. $bike->rider->name) : ($bike->rentalCompany ? $bike->rentalCompany->name : 'No User Assigned') }}"
-                        data-rider-id="{{ $bike->rider?->id ?? null }}"
-                        data-rental-company-id="{{ $bike->rentalCompany?->id ?? null }}"
-                        data-isgaragecustomer = "{{ ($bike->rentalCompany?->customer_type ) == 'garage' ? 1 : 0 }}"
-                        data-previous-km="{{ $bike->current_km }}"
-                        data-maintenance-km="{{ $bike->maintenance_km }}"
-                        @if($bikee && $bikee->id == $bike->id) selected @endif>
-                            {{ $bike->emirates.'-'.$bike->plate }}
+                    <option value="{{ $bike->id }}" @if($bikee && $bikee->id == $bike->id) selected @endif>
+                        {{ $bike->emirates.'-'.$bike->plate }}
                     </option>
                     @endforeach
                 </select>
@@ -26,10 +19,12 @@
                 {!! Form::hidden('rental_company_id', null, ['id' => 'rental_id_hidden']) !!}
             </div>
 
-            {{-- Rider Information (Read-only) --}}
+            {{-- Assigned users from bike history + current assignment --}}
             <div class="form-group col-md-3">
-                {!! Form::label('rider_info', 'Assigned To') !!}
-                {!! Form::text('rider_info', "No User Assigned", ['class' => 'form-control rider', 'readonly' => true, 'id' => 'rider_info']) !!}
+                {!! Form::label('assignee_select', 'Assigned To') !!}
+                <select id="assignee_select" class="form-control bm-assignee-select" data-placeholder="Select assigned user">
+                    <option value="">No User Assigned</option>
+                </select>
             </div>
 
             {{-- Maintenance Date --}}
@@ -280,42 +275,32 @@
 
 {!! Form::close() !!}
 
-<script>
+@include('bike-maintenance.partials.assignee_select_script')
 
+<script>
 $(document).ready(function() {
-    // Initialize select2
-    $('.select2').select2({
+    $('.select2').not('#assignee_select, .bm-assignee-select').select2({
         allowClear: true,
         dropdownParent: $('#formajax'),
     });
-    
-    // Store jQuery objects for calculations
+
     const previousKm = $('#previous_km');
     const currentKm = $('#current_km');
     const maintenanceKm = $('#maintenance_km');
     const overdueKm = $('#overdue_km');
     const costPerKm = $('#cost_per_km');
     const overdueCost = $('#overdue_cost');
-    const riderInfo = $('#rider_info');
-    const riderIdHidden = $('#rider_id_hidden');
-    const rentalIdHidden = $('#rental_id_hidden');
-    const hasBike = @json(!empty($bikee));
-    
-    function calculateOverdue() {
+
+    window.calculateOverdue = function () {
         const prev = parseFloat(previousKm.val());
         const current = parseFloat(currentKm.val());
         const maintenanceInterval = parseFloat(maintenanceKm.val());
         overdueCost.val('');
         overdueKm.val('');
-        
+
         if (!isNaN(prev) && !isNaN(current) && !isNaN(maintenanceInterval)) {
-            // Calculate overdue: Current - Previous - Maintenance Interval
             const overdue = current - prev - maintenanceInterval;
-            
-            // Only show positive overdue (if overdue > 0)
             overdueKm.val(overdue > 0 ? overdue.toFixed(3) : '0.000');
-            
-            // Calculate total cost if cost per km is provided
             const cost = parseFloat(costPerKm.val()) || 0;
             if (cost && overdue > 0) {
                 overdueCost.val((overdue * cost).toFixed(2));
@@ -323,16 +308,13 @@ $(document).ready(function() {
                 overdueCost.val('0.00');
             }
         }
-    }
-    
-    // Add event listeners to all calculation fields
-    previousKm.on('input change', calculateOverdue);
-    currentKm.on('input change', calculateOverdue);
-    maintenanceKm.on('input change', calculateOverdue);
-    costPerKm.on('input change', calculateOverdue);
-    
-    // Initial calculations
-    calculateOverdue();
+    };
+
+    previousKm.on('input change', window.calculateOverdue);
+    currentKm.on('input change', window.calculateOverdue);
+    maintenanceKm.on('input change', window.calculateOverdue);
+    costPerKm.on('input change', window.calculateOverdue);
+    window.calculateOverdue();
 
     function toggleOdometerFields() {
         const type = $('#maintenance_type').val();
@@ -361,71 +343,47 @@ $(document).ready(function() {
         setItemTotal($(this));
     });
     setTotal();
-    
+
     $('#formajax').on('submit', function () {
-
         $('.charge_to').each(function () {
-            $(this).prop('disabled', false); // temporarily enable
+            $(this).prop('disabled', false);
         });
-
     });
 
-    $(document).on('change', '#bike_select', function(){
-        console.log('bike select change triggered');
-        const selectedOption = $(this).find('option:selected');
-        const riderData = selectedOption.data('rider');
-        const riderId = selectedOption.data('rider-id');
-        const rentalId = selectedOption.data('rental-company-id');
-        const previousKmData = selectedOption.data('previous-km');
-        const maintenanceKmData = selectedOption.data('maintenance-km');
-        const isGarageCustomer = selectedOption.data('isgaragecustomer') == 1; // Convert to boolean
-        
-        // Update rider information
-        riderInfo.val(riderData);
-        riderIdHidden.val(riderId);
-        rentalIdHidden.val(rentalId);
-        previousKm.val(previousKmData);
-        maintenanceKm.val(maintenanceKmData);
-        
-        calculateOverdue();
-        toggleRiderChargeOption(isGarageCustomer);
-        $(this).select2('close');
-    });
-    
-    toggleRiderChargeOption();
-    if($('#bike_select').val() && hasBike) {
-        console.log('triggering bike select change');
-        $('#bike_select').trigger('change');
-
-    }
-
-    function toggleRiderChargeOption(garageCustomer = false) {
-        const riderText = $('#rider_info').val().trim();
-        const noRider = riderText === 'No User Assigned';
+    window.toggleRiderChargeOption = function (garageCustomer = false, noAssignee = false, preserveChargeTo = false) {
         $('select[name="charge_to[]"]').each(function () {
             const riderOption = $(this).find('option[value="User"]');
             const companyOption = $(this).find('option[value="Company"]');
 
-            if (noRider) {
+            if (noAssignee) {
                 riderOption.prop('disabled', true);
-                $(this).val('Company').trigger('change');
+                if (!preserveChargeTo || $(this).val() === 'User') {
+                    $(this).val('Company').trigger('change');
+                }
             } else {
                 riderOption.prop('disabled', false);
             }
 
-            if(garageCustomer) {
+            if (garageCustomer) {
                 companyOption.prop('disabled', true);
-                $(this).val('User').trigger('change');
-            }else {
+                if (!preserveChargeTo || $(this).val() !== 'User') {
+                    $(this).val('User').trigger('change');
+                }
+            } else {
                 companyOption.prop('disabled', false);
             }
 
-            if(!noRider && !garageCustomer) {
+            if (!preserveChargeTo && !noAssignee && !garageCustomer) {
                 $(this).val('').trigger('change');
             }
         });
-    }
+    };
+
+    BikeMaintenanceAssignees.bind({
+        bikeSelect: '#bike_select',
+        onBikeLoaded: function () {
+            window.calculateOverdue();
+        }
+    });
 });
-
-
 </script>

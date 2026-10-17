@@ -15,11 +15,14 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
                         <label class="form-label">Bike</label>
                         {!! Form::text('bike_info', $bike->emirates .'-'. $bike->plate, ['class'=>'form-control', 'readonly' => true ]) !!}
                         <input type="hidden" name="bike_id" value="{{ $bike->id }}"/>
+                        {!! Form::hidden('rider_id', null, ['id' => 'rider_id_hidden']) !!}
+                        {!! Form::hidden('rental_company_id', null, ['id' => 'rental_id_hidden']) !!}
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label">Rider</label>
-                        {!! Form::hidden('rider_id',$bike->rider? $bike->rider->id : null) !!}
-                        {!! Form::text('rider_info', $bike->rider? $bike->rider->rider_id.'-'.$bike->rider->name : 'No Rider Assigned', ['class' => 'form-control', 'readonly' => true]) !!}
+                        <label class="form-label">Assigned To</label>
+                        <select id="assignee_select" class="form-control bm-assignee-select" data-placeholder="Select assigned user">
+                            <option value="">No User Assigned</option>
+                        </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Maintenance Date</label>
@@ -244,6 +247,8 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
     {!! Form::submit('Save Maintenance Record', ['class' => 'btn btn-primary']) !!}
 </div>
 
+@include('bike-maintenance.partials.assignee_select_script')
+
 <script>
 $(document).ready(function() {
     function syncSummaryDisplay() {
@@ -264,7 +269,7 @@ $(document).ready(function() {
         window.setTotal._invPatched = true;
     }
 
-    $('.select2').select2({
+    $('.select2').not('#assignee_select, .bm-assignee-select').select2({
         dropdownParent: $('#formajax'),
         allowClear: true
     });
@@ -275,7 +280,7 @@ $(document).ready(function() {
     const costPerKm = $('#cost_per_km');
     const overdueCost = $('#overdue_cost');
 
-    function calculateOverdue() {
+    window.calculateOverdue = function () {
         const prev = parseFloat(previousKm.val()) ;
         const current = parseFloat(currentKm.val()) ;
         const maintenanceInterval = parseFloat(maintenanceKm.val());
@@ -292,13 +297,13 @@ $(document).ready(function() {
                 overdueCost.val('0.00');
             }
         }
-    }
+    };
 
-    previousKm.on('input change', calculateOverdue);
-    currentKm.on('input change', calculateOverdue);
-    maintenanceKm.on('input change', calculateOverdue);
-    costPerKm.on('input change', calculateOverdue);
-    calculateOverdue();
+    previousKm.on('input change', window.calculateOverdue);
+    currentKm.on('input change', window.calculateOverdue);
+    maintenanceKm.on('input change', window.calculateOverdue);
+    costPerKm.on('input change', window.calculateOverdue);
+    window.calculateOverdue();
 
     function toggleOdometerFields() {
         const type = $('#maintenance_type').val();
@@ -328,24 +333,37 @@ $(document).ready(function() {
     });
     setTotal();
     syncSummaryDisplay();
-    toggleRiderChargeOption();
-});
 
-function toggleRiderChargeOption() {
-    const riderText = $('#rider_info').val().trim();
-    const noRider = riderText === 'No Rider Assigned';
+    window.toggleRiderChargeOption = function (garageCustomer = false, noAssignee = false, preserveChargeTo = false) {
+        $('select[name="charge_to[]"]').each(function () {
+            const riderOption = $(this).find('option[value="User"]');
+            const companyOption = $(this).find('option[value="Company"]');
 
-    $('select[name="charge_to[]"]').each(function () {
-        const riderOption = $(this).find('option[value="User"]');
-
-        if (noRider) {
-            riderOption.prop('disabled', true);
-            if ($(this).val() === 'User') {
-                $(this).val('').trigger('change');
+            if (noAssignee) {
+                riderOption.prop('disabled', true);
+                if (!preserveChargeTo && $(this).val() === 'User') {
+                    $(this).val('').trigger('change');
+                }
+            } else {
+                riderOption.prop('disabled', false);
             }
-        } else {
-            riderOption.prop('disabled', false);
+
+            if (garageCustomer) {
+                companyOption.prop('disabled', true);
+                if (!preserveChargeTo && $(this).val() !== 'User') {
+                    $(this).val('User').trigger('change');
+                }
+            } else {
+                companyOption.prop('disabled', false);
+            }
+        });
+    };
+
+    BikeMaintenanceAssignees.bind({
+        fixedBikeId: @json($bike->id),
+        onBikeLoaded: function () {
+            window.calculateOverdue();
         }
     });
-}
+});
 </script>

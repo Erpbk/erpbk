@@ -18,26 +18,32 @@
 
 <style>
   .nr-page-header { margin-bottom: 1.5rem; }
-  .nr-module-card { border: 0; box-shadow: 0 0.125rem 0.5rem rgba(34, 48, 62, 0.08); overflow: hidden; }
-  .nr-module-toggle {
-    width: 100%;
-    background: linear-gradient(180deg, rgba(105, 108, 255, 0.06), transparent);
+  .nr-tabs-card {
     border: 0;
-    border-bottom: 1px solid rgba(67, 89, 113, 0.1);
-    text-align: left;
-    padding: 1rem 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    color: inherit;
+    box-shadow: 0 0.125rem 0.5rem rgba(34, 48, 62, 0.08);
+    overflow: hidden;
   }
-  .nr-module-toggle:hover { background: rgba(105, 108, 255, 0.08); }
-  .nr-module-toggle .nr-chevron {
-    transition: transform .2s ease;
+  .nr-tabs-card .nav-tabs {
+    padding: 0.75rem 1rem 0;
+    gap: 0.25rem;
+    border-bottom: 1px solid rgba(67, 89, 113, 0.12);
+    background: linear-gradient(180deg, rgba(105, 108, 255, 0.05), transparent);
+    flex-wrap: wrap;
+  }
+  .nr-tabs-card .nav-tabs .nav-link {
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0.5rem 0.5rem 0 0;
     color: #697a8d;
+    font-weight: 500;
+    padding: 0.7rem 1rem;
   }
-  .nr-module-toggle[aria-expanded="false"] .nr-chevron { transform: rotate(-90deg); }
+  .nr-tabs-card .nav-tabs .nav-link:hover { color: #696cff; background: rgba(105, 108, 255, 0.06); }
+  .nr-tabs-card .nav-tabs .nav-link.active {
+    color: #696cff;
+    background: transparent;
+    border-bottom-color: #696cff;
+  }
   .nr-rule {
     border: 1px solid rgba(67, 89, 113, 0.12);
     border-radius: 0.75rem;
@@ -52,8 +58,37 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem 1rem;
-    padding: 1rem 1.25rem;
+    padding: 0.85rem 1.1rem;
+  }
+  .nr-rule.is-open .nr-rule-head {
     border-bottom: 1px solid rgba(67, 89, 113, 0.08);
+  }
+  .nr-rule-toggle {
+    flex: 1 1 14rem;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    color: inherit;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .nr-rule-toggle:focus-visible { outline: 2px solid rgba(105, 108, 255, 0.45); outline-offset: 2px; border-radius: 0.35rem; }
+  .nr-rule-toggle .nr-chevron {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+    color: #697a8d;
+    transition: transform .2s ease;
+  }
+  .nr-rule-toggle[aria-expanded="true"] .nr-chevron { transform: rotate(180deg); }
+  .nr-rule-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
   }
   .nr-rule-body { padding: 1.25rem; }
   .nr-section-title {
@@ -195,43 +230,56 @@
         </div>
     @endif
 
-    @forelse($typesByModule as $moduleKey => $moduleTypes)
-        @php
-            $moduleRuleCount = 0;
-            $moduleEnabledCount = 0;
-            foreach ($moduleTypes as $tk => $td) {
-                $r = $rulesByKey->get($tk);
-                if (!$r) continue;
-                $moduleRuleCount++;
-                if ($r->enabled) $moduleEnabledCount++;
-            }
-            $collapseId = 'nr-module-' . preg_replace('/[^a-zA-Z0-9_-]/', '-', $moduleKey);
-            $isFirstModule = $loop->first;
-        @endphp
-        <div class="card nr-module-card mb-3">
-            <button type="button"
-                    class="nr-module-toggle"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#{{ $collapseId }}"
-                    aria-expanded="{{ $isFirstModule ? 'true' : 'false' }}"
-                    aria-controls="{{ $collapseId }}">
-                <div class="d-flex align-items-center gap-2 min-w-0">
-                    <span class="avatar avatar-sm rounded bg-label-primary flex-shrink-0">
-                        <i class="ti ti-folder ti-sm"></i>
-                    </span>
-                    <div class="min-w-0">
-                        <h5 class="mb-0 text-truncate">{{ __($registry->moduleLabel($moduleKey)) }}</h5>
-                        <div class="text-muted small">
-                            {{ $moduleRuleCount }} {{ __('rules') }}
-                            · {{ $moduleEnabledCount }} {{ __('enabled') }}
-                        </div>
-                    </div>
-                </div>
-                <i class="ti ti-chevron-down ti-md nr-chevron"></i>
-            </button>
+    @php
+        $requestedModule = preg_replace('/[^a-zA-Z0-9_-]/', '', (string) request('module', ''));
+        $moduleKeys = array_keys((array) $typesByModule);
+        $activeModule = in_array($requestedModule, $moduleKeys, true)
+            ? $requestedModule
+            : ($moduleKeys[0] ?? null);
+    @endphp
 
-            <div id="{{ $collapseId }}" class="collapse {{ $isFirstModule ? 'show' : '' }}">
-                <div class="card-body">
+    @if($moduleKeys === [])
+        <div class="card">
+            <div class="card-body text-center text-muted py-5">
+                <i class="ti ti-bell-off ti-lg mb-2 d-block"></i>
+                {{ __('No notification types are registered yet.') }}
+            </div>
+        </div>
+    @else
+    <div class="card nr-tabs-card">
+        <ul class="nav nav-tabs" role="tablist">
+            @foreach($typesByModule as $moduleKey => $moduleTypes)
+                @php
+                    $tabId = 'nr-tab-' . preg_replace('/[^a-zA-Z0-9_-]/', '-', $moduleKey);
+                    $isActiveTab = $moduleKey === $activeModule;
+                @endphp
+                <li class="nav-item" role="presentation">
+                    <button type="button"
+                            class="nav-link {{ $isActiveTab ? 'active' : '' }}"
+                            id="{{ $tabId }}-btn"
+                            data-bs-toggle="tab"
+                            data-bs-target="#{{ $tabId }}"
+                            data-module-key="{{ $moduleKey }}"
+                            role="tab"
+                            aria-controls="{{ $tabId }}"
+                            aria-selected="{{ $isActiveTab ? 'true' : 'false' }}">
+                        {{ __($registry->moduleLabel($moduleKey)) }}
+                    </button>
+                </li>
+            @endforeach
+        </ul>
+
+        <div class="tab-content card-body">
+            @foreach($typesByModule as $moduleKey => $moduleTypes)
+                @php
+                    $tabId = 'nr-tab-' . preg_replace('/[^a-zA-Z0-9_-]/', '-', $moduleKey);
+                    $isActiveTab = $moduleKey === $activeModule;
+                @endphp
+                <div class="tab-pane fade {{ $isActiveTab ? 'show active' : '' }}"
+                     id="{{ $tabId }}"
+                     role="tabpanel"
+                     aria-labelledby="{{ $tabId }}-btn"
+                     tabindex="0">
                     <div class="d-flex flex-column gap-3">
                         @foreach($moduleTypes as $typeKey => $typeDef)
                             @php
@@ -239,6 +287,8 @@
                                 if (!$rule) { continue; }
                                 $config = is_array($rule->config) ? $rule->config : ($typeDef['default_config'] ?? []);
                                 $daysBefore = $config['days_before'] ?? [3];
+                                $remindOptions = is_array($typeDef['remind_options'] ?? null) ? $typeDef['remind_options'] : [];
+                                $remindIntervals = array_values(array_map('strval', $config['remind_intervals'] ?? ($typeDef['default_config']['remind_intervals'] ?? ['once'])));
                                 $displayBanner = !empty($config['display_banner']);
                                 $ruleStatuses = array_values(array_map('strval', $config['statuses'] ?? ($typeDef['default_config']['statuses'] ?? [])));
                                 $statusOptions = array_values(array_map('strval', $typeDef['status_options'] ?? []));
@@ -271,64 +321,82 @@
                                 $bothCount = count($bothIds);
                                 $inAppOnlyCount = count($inAppOnlyIds);
                                 $emailOnlyCount = count($emailOnlyIds) + count($externalEmails);
+                                $ruleCollapseId = 'nr-rule-' . $rule->id;
                             @endphp
                             <div class="nr-rule {{ $rule->enabled ? '' : 'is-disabled' }}" data-rule-card="{{ $rule->id }}">
                                 <form method="post" action="{{ route('settings-panel.notification-rules.update', $rule) }}">
                                     @csrf
                                     @method('PUT')
+                                    <input type="hidden" name="return_module" value="{{ $moduleKey }}">
 
                                     <div class="nr-rule-head">
-                                        <div class="min-w-0">
-                                            <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
-                                                <h6 class="mb-0">{{ __($typeDef['label'] ?? $typeKey) }}</h6>
-                                                <span class="badge {{ $triggerBadge[$trigger] ?? 'bg-label-secondary' }}">
-                                                    {{ $triggerLabels[$trigger] ?? ucfirst($trigger) }}
-                                                </span>
-                                                <span class="badge {{ $rule->enabled ? 'bg-label-success' : 'bg-label-secondary' }}" data-enabled-badge>
-                                                    {{ $rule->enabled ? __('On') : __('Off') }}
-                                                </span>
-                                                @if($displayBanner)
-                                                    <span class="badge bg-label-info">
-                                                        <i class="ti ti-marquee-2 me-1"></i>{{ __('Banner') }}
+                                        <button type="button"
+                                                class="nr-rule-toggle"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#{{ $ruleCollapseId }}"
+                                                aria-expanded="false"
+                                                aria-controls="{{ $ruleCollapseId }}">
+                                            <div class="min-w-0">
+                                                <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+                                                    <h6 class="mb-0">{{ __($typeDef['label'] ?? $typeKey) }}</h6>
+                                                    <span class="badge {{ $triggerBadge[$trigger] ?? 'bg-label-secondary' }}">
+                                                        {{ $triggerLabels[$trigger] ?? ucfirst($trigger) }}
                                                     </span>
-                                                @endif
+                                                    <span class="badge {{ $rule->enabled ? 'bg-label-success' : 'bg-label-secondary' }}" data-enabled-badge>
+                                                        {{ $rule->enabled ? __('On') : __('Off') }}
+                                                    </span>
+                                                    @if($displayBanner)
+                                                        <span class="badge bg-label-info">
+                                                            <i class="ti ti-marquee-2 me-1"></i>{{ __('Banner') }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                                <div class="nr-summary">
+                                                    @if(($typeDef['trigger'] ?? '') === 'scheduled' && !empty($daysBefore))
+                                                        <span class="badge bg-label-secondary">
+                                                            <i class="ti ti-calendar-event me-1"></i>
+                                                            {{ __('Days') }}:
+                                                            {{ collect($daysBefore)->map(fn ($d) => (int) $d === 0 ? __('Today') : $d)->implode(', ') }}
+                                                        </span>
+                                                    @endif
+                                                    @if($remindOptions !== [] && $remindIntervals !== [])
+                                                        <span class="badge bg-label-secondary text-truncate" style="max-width: 16rem;"
+                                                              title="{{ collect($remindIntervals)->map(fn ($k) => __($remindOptions[$k] ?? $k))->implode(', ') }}">
+                                                            <i class="ti ti-bell-ringing me-1"></i>
+                                                            {{ __('Remind') }}:
+                                                            {{ collect($remindIntervals)->map(fn ($k) => __($remindOptions[$k] ?? $k))->implode(', ') }}
+                                                        </span>
+                                                    @endif
+                                                    @if($statusOptions !== [] && $ruleStatuses !== [])
+                                                        <span class="badge bg-label-secondary text-truncate" style="max-width: 14rem;" title="{{ implode(', ', $ruleStatuses) }}">
+                                                            <i class="ti ti-flag me-1"></i>{{ implode(', ', $ruleStatuses) }}
+                                                        </span>
+                                                    @endif
+                                                    @if($bothCount)
+                                                        <span class="badge bg-label-primary">
+                                                            <i class="ti ti-bell me-1"></i><i class="ti ti-mail me-1"></i>{{ $bothCount }}
+                                                        </span>
+                                                    @endif
+                                                    @if($inAppOnlyCount)
+                                                        <span class="badge bg-label-info">
+                                                            <i class="ti ti-bell me-1"></i>{{ $inAppOnlyCount }}
+                                                        </span>
+                                                    @endif
+                                                    @if($emailOnlyCount)
+                                                        <span class="badge bg-label-warning">
+                                                            <i class="ti ti-mail me-1"></i>{{ $emailOnlyCount }}
+                                                        </span>
+                                                    @endif
+                                                    @if($emailEntitled)
+                                                        <span class="badge bg-label-secondary text-truncate" style="max-width: 16rem;" title="{{ $fromSummary }}">
+                                                            <i class="ti ti-send me-1"></i>{{ $fromSummary }}
+                                                        </span>
+                                                    @endif
+                                                </div>
                                             </div>
-                                            <div class="nr-summary">
-                                                @if(($typeDef['trigger'] ?? '') === 'scheduled' && !empty($daysBefore))
-                                                    <span class="badge bg-label-secondary">
-                                                        <i class="ti ti-calendar-event me-1"></i>
-                                                        {{ __('Days') }}:
-                                                        {{ collect($daysBefore)->map(fn ($d) => (int) $d === 0 ? __('Today') : $d)->implode(', ') }}
-                                                    </span>
-                                                @endif
-                                                @if($statusOptions !== [] && $ruleStatuses !== [])
-                                                    <span class="badge bg-label-secondary text-truncate" style="max-width: 14rem;" title="{{ implode(', ', $ruleStatuses) }}">
-                                                        <i class="ti ti-flag me-1"></i>{{ implode(', ', $ruleStatuses) }}
-                                                    </span>
-                                                @endif
-                                                @if($bothCount)
-                                                    <span class="badge bg-label-primary">
-                                                        <i class="ti ti-bell me-1"></i><i class="ti ti-mail me-1"></i>{{ $bothCount }}
-                                                    </span>
-                                                @endif
-                                                @if($inAppOnlyCount)
-                                                    <span class="badge bg-label-info">
-                                                        <i class="ti ti-bell me-1"></i>{{ $inAppOnlyCount }}
-                                                    </span>
-                                                @endif
-                                                @if($emailOnlyCount)
-                                                    <span class="badge bg-label-warning">
-                                                        <i class="ti ti-mail me-1"></i>{{ $emailOnlyCount }}
-                                                    </span>
-                                                @endif
-                                                @if($emailEntitled)
-                                                    <span class="badge bg-label-secondary text-truncate" style="max-width: 16rem;" title="{{ $fromSummary }}">
-                                                        <i class="ti ti-send me-1"></i>{{ $fromSummary }}
-                                                    </span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        <div class="d-flex flex-wrap align-items-center gap-3">
+                                            <i class="ti ti-chevron-down ti-md nr-chevron"></i>
+                                        </button>
+                                        <div class="nr-rule-actions">
                                             <div class="form-check form-switch mb-0">
                                                 <input class="form-check-input" type="checkbox" role="switch"
                                                        id="banner_{{ $rule->id }}" name="display_banner" value="1"
@@ -345,6 +413,7 @@
                                         </div>
                                     </div>
 
+                                    <div id="{{ $ruleCollapseId }}" class="collapse" data-rule-collapse>
                                     <div class="nr-rule-body">
                                         <div class="row g-4">
                                             @if(($typeDef['trigger'] ?? '') === 'scheduled')
@@ -366,6 +435,23 @@
                                                             </label>
                                                         @endforeach
                                                     </div>
+                                                </div>
+                                            @endif
+
+                                            @if($remindOptions !== [])
+                                                <div class="col-12">
+                                                    <div class="nr-section-title">{{ __('Remind me') }}</div>
+                                                    <div class="nr-chip-group">
+                                                        @foreach($remindOptions as $intervalKey => $intervalLabel)
+                                                            <label class="nr-chip">
+                                                                <input type="checkbox" name="remind_intervals[]" value="{{ $intervalKey }}"
+                                                                       id="remind_{{ $rule->id }}_{{ $intervalKey }}"
+                                                                       @checked(in_array($intervalKey, $remindIntervals, true))>
+                                                                <span>{{ __($intervalLabel) }}</span>
+                                                            </label>
+                                                        @endforeach
+                                                    </div>
+                                                    <div class="nr-hint">{{ __('Select one or more reminder schedules while the cheque stays overdue.') }}</div>
                                                 </div>
                                             @endif
 
@@ -502,21 +588,16 @@
                                             </button>
                                         </div>
                                     </div>
+                                    </div>
                                 </form>
                             </div>
                         @endforeach
                     </div>
                 </div>
-            </div>
+            @endforeach
         </div>
-    @empty
-        <div class="card">
-            <div class="card-body text-center text-muted py-5">
-                <i class="ti ti-bell-off ti-lg mb-2 d-block"></i>
-                {{ __('No notification types are registered yet.') }}
-            </div>
-        </div>
-    @endforelse
+    </div>
+    @endif
 </div>
 
 <script>
@@ -567,10 +648,37 @@
     });
   }
 
+  function initRuleCollapse(root) {
+    root.querySelectorAll('[data-rule-collapse]').forEach(function (panel) {
+      var card = panel.closest('[data-rule-card]');
+      if (!card) return;
+      panel.addEventListener('show.bs.collapse', function () {
+        card.classList.add('is-open');
+      });
+      panel.addEventListener('hide.bs.collapse', function () {
+        card.classList.remove('is-open');
+      });
+    });
+  }
+
+  function initModuleTabs(root) {
+    root.querySelectorAll('[data-module-key]').forEach(function (btn) {
+      btn.addEventListener('shown.bs.tab', function () {
+        var key = btn.getAttribute('data-module-key') || '';
+        if (!key || !window.history || !window.history.replaceState) return;
+        var url = new URL(window.location.href);
+        url.searchParams.set('module', key);
+        window.history.replaceState({}, '', url.toString());
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initUserSearch(document);
     initMutualExclusive(document);
     initEnableToggles(document);
+    initRuleCollapse(document);
+    initModuleTabs(document);
   });
 })();
 </script>

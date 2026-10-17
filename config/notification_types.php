@@ -33,6 +33,13 @@ return [
             'evaluator' => \App\Services\Notifications\Types\Cheques\ChequeOverdueEvaluator::class,
             'default_config' => [
                 'statuses' => ['Issued'],
+                'remind_intervals' => ['once'],
+            ],
+            'remind_options' => [
+                'once' => 'Only once',
+                'every_3_days' => 'Every 3 days',
+                'weekly' => 'Weekly',
+                'monthly' => 'Monthly',
             ],
             'status_options' => ['Issued', 'Cleared', 'Returned', 'Stop Payment', 'Lost'],
             'default_recipient_config' => [

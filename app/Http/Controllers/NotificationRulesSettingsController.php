@@ -119,11 +119,15 @@ class NotificationRulesSettingsController extends Controller
         $enabled = $request->boolean('enabled');
         $displayBanner = $request->boolean('display_banner');
 
+        $remindOptionKeys = array_keys($typeDef['remind_options'] ?? []);
+
         $validated = $request->validate([
             'enabled' => 'nullable|boolean',
             'display_banner' => 'nullable|boolean',
             'days_before' => 'nullable|array',
             'days_before.*' => 'integer|min:0|max:365',
+            'remind_intervals' => 'nullable|array',
+            'remind_intervals.*' => ['string', Rule::in($remindOptionKeys)],
             'both_user_ids' => 'nullable|array',
             'both_user_ids.*' => ['integer', Rule::in($allowedUserIds)],
             'in_app_only_user_ids' => 'nullable|array',
@@ -165,6 +169,14 @@ class NotificationRulesSettingsController extends Controller
             $config['days_before'] = $days !== [] ? $days : [3];
         }
 
+        if (! empty($typeDef['remind_options'])) {
+            $intervals = array_values(array_unique(array_map('strval', $validated['remind_intervals'] ?? [])));
+            $intervals = array_values(array_intersect($intervals, $remindOptionKeys));
+            $config['remind_intervals'] = $intervals !== []
+                ? $intervals
+                : ($typeDef['default_config']['remind_intervals'] ?? ['once']);
+        }
+
         if (! empty($typeDef['status_options'])) {
             $statuses = array_values(array_unique(array_map('strval', $validated['statuses'] ?? [])));
             $allowedStatuses = $typeDef['status_options'];
@@ -188,8 +200,14 @@ class NotificationRulesSettingsController extends Controller
             'recipient_config' => $buckets,
         ]);
 
+        $returnModule = trim((string) $request->input('return_module', ''));
+        $returnModule = preg_replace('/[^a-zA-Z0-9_-]/', '', $returnModule) ?: null;
+
         return redirect()
-            ->route('settings-panel.notification-rules.index')
+            ->route(
+                'settings-panel.notification-rules.index',
+                array_filter(['module' => $returnModule])
+            )
             ->with('success', __('Notification rule updated.'));
     }
 

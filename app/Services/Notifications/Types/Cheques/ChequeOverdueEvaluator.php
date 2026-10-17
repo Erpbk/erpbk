@@ -10,6 +10,9 @@ use Carbon\Carbon;
 
 class ChequeOverdueEvaluator implements ConditionEvaluator
 {
+    /** @var list<string> */
+    private const INTERVALS = ['once', 'every_3_days', 'weekly', 'monthly'];
+
     public function evaluate(int $companyId, NotificationRule $rule): iterable
     {
         $config = is_array($rule->config) ? $rule->config : [];
@@ -18,20 +21,35 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
             $statuses = ['Issued'];
         }
 
+        $intervals = $config['remind_intervals'] ?? ['once'];
+        if (! is_array($intervals) || $intervals === []) {
+            $intervals = ['once'];
+        }
+        $intervals = array_values(array_intersect(self::INTERVALS, array_map('strval', $intervals)));
+        if ($intervals === []) {
+            $intervals = ['once'];
+        }
+
         $company = Company::query()->find($companyId);
         $slug = $company?->slug;
-        $today = Carbon::today()->toDateString();
+        $today = Carbon::today()->startOfDay();
 
         $cheques = Cheques::query()
             ->where('company_id', $companyId)
             ->whereIn('status', $statuses)
             ->whereNotNull('cheque_date')
-            ->whereDate('cheque_date', '<', $today)
+            ->whereDate('cheque_date', '<', $today->toDateString())
             ->get();
 
         foreach ($cheques as $cheque) {
-            $due = Carbon::parse($cheque->cheque_date)->format('d-M-Y');
-            $dueKey = Carbon::parse($cheque->cheque_date)->toDateString();
+            $dueDate = Carbon::parse($cheque->cheque_date)->startOfDay();
+            $due = $dueDate->format('d-M-Y');
+            $dueKey = $dueDate->toDateString();
+            $daysOverdue = (int) $dueDate->diffInDays($today);
+            if ($daysOverdue < 1) {
+                continue;
+            }
+
             $amount = number_format((float) $cheque->amount, 2);
             $number = $cheque->cheque_number ?: ('#'.$cheque->id);
 
@@ -49,27 +67,103 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
                 ];
             }
 
-            yield [
-                'source' => $cheque,
-                'title' => 'Cheque Overdue',
-                'body' => "Cheque {$number} for PKR {$amount} was due on {$due} and is still pending.",
-                'severity' => 'critical',
-                'action_url' => $actionUrl,
-                'data' => array_merge([
-                    'cheque_id' => $cheque->id,
-                    'cheque_number' => $cheque->cheque_number,
-                    'amount' => $cheque->amount,
-                    'cheque_date' => $dueKey,
-                ], $actionMeta),
-                // One overdue notice per due-date (idempotent across daily runs)
-                'dedupe_context' => [
-                    'overdue' => $dueKey,
-                ],
-                'recipient_context' => [
-                    'created_by' => $cheque->created_by,
-                    'owner_id' => $cheque->created_by,
-                ],
+            $baseData = array_merge([
+                'cheque_id' => $cheque->id,
+                'cheque_number' => $cheque->cheque_number,
+                'amount' => $cheque->amount,
+                'cheque_date' => $dueKey,
+                'days_overdue' => $daysOverdue,
+            ], $actionMeta);
+
+            $recipientContext = [
+                'created_by' => $cheque->created_by,
+                'owner_id' => $cheque->created_by,
             ];
+
+            foreach ($intervals as $interval) {
+                $occurrence = $this->occurrenceFor($interval, $daysOverdue);
+                if ($occurrence === null) {
+                    continue;
+                }
+
+                [$title, $body] = $this->messageFor(
+                    $interval,
+                    $number,
+                    $amount,
+                    $due,
+                    $daysOverdue
+                );
+
+                $dedupe = ['overdue' => $dueKey];
+                // Keep legacy fingerprint for "once" so existing notices stay deduped.
+                if ($interval !== 'once') {
+                    $dedupe['interval'] = $interval;
+                    $dedupe['n'] = $occurrence;
+                }
+
+                yield [
+                    'source' => $cheque,
+                    'title' => $title,
+                    'body' => $body,
+                    'severity' => 'critical',
+                    'action_url' => $actionUrl,
+                    'data' => array_merge($baseData, [
+                        'remind_interval' => $interval,
+                    ]),
+                    'dedupe_context' => $dedupe,
+                    'recipient_context' => $recipientContext,
+                ];
+            }
         }
+    }
+
+    /**
+     * @return int|null Occurrence number when this interval should fire today, else null
+     */
+    private function occurrenceFor(string $interval, int $daysOverdue): ?int
+    {
+        return match ($interval) {
+            'once' => 1,
+            'every_3_days' => ($daysOverdue >= 3 && $daysOverdue % 3 === 0)
+                ? (int) ($daysOverdue / 3)
+                : null,
+            'weekly' => ($daysOverdue >= 7 && $daysOverdue % 7 === 0)
+                ? (int) ($daysOverdue / 7)
+                : null,
+            'monthly' => ($daysOverdue >= 30 && $daysOverdue % 30 === 0)
+                ? (int) ($daysOverdue / 30)
+                : null,
+            default => null,
+        };
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function messageFor(
+        string $interval,
+        string $number,
+        string $amount,
+        string $due,
+        int $daysOverdue
+    ): array {
+        $pending = "Cheque {$number} for PKR {$amount} was due on {$due} and is still pending";
+
+        return match ($interval) {
+            'every_3_days' => [
+                'Cheque Overdue Reminder',
+                "{$pending} ({$daysOverdue} days overdue). This is your every-3-days reminder.",
+            ],
+            'weekly' => [
+                'Cheque Overdue Weekly Reminder',
+                "{$pending} ({$daysOverdue} days overdue). This is your weekly reminder.",
+            ],
+            'monthly' => [
+                'Cheque Overdue Monthly Reminder',
+                "{$pending} ({$daysOverdue} days overdue). This is your monthly reminder.",
+            ],
+            default => [
+                'Cheque Overdue',
+                "{$pending}.",
+            ],
+        };
     }
 }

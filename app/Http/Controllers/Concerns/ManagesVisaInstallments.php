@@ -122,22 +122,16 @@ trait ManagesVisaInstallments
     protected function installmentPermissionMap(): array
     {
         return [
-            'view' => ['visa_expense_view', 'installment_view'],
-            'create' => ['visa_expense_create', 'installment_create'],
-            'edit' => ['visa_expense_edit', 'installment_edit'],
-            'delete' => ['visa_expense_delete', 'installment_delete'],
+            'view' => ['visa_expense_installments_view'],
+            'create' => ['visa_expense_installments_create'],
+            'edit' => ['visa_expense_installments_edit'],
+            'delete' => ['visa_expense_installments_delete'],
         ];
     }
 
     protected function installmentAllows(string $action): bool
     {
-        foreach ($this->installmentPermissionMap()[$action] ?? [] as $perm) {
-            if (user_can($perm)) {
-                return true;
-            }
-        }
-
-        return false;
+        return \App\Support\VisaExpenseAccess::canManageInstallments($action);
     }
 
     protected function expenseAccountBaseQuery()

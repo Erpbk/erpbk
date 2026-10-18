@@ -121,7 +121,14 @@ return [
         ],
         'visa_expense' => [
             'model' => visa_expenses::class,
-            'permissions' => ['agreements_view', 'agreements_generate', 'agreements_edit', 'visaexpense_view'],
+            'permissions' => [
+                'agreements_view',
+                'agreements_generate',
+                'agreements_edit',
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
             'label_field' => 'detail',
             'code_field' => 'trans_code',
             'email_field' => 'email',

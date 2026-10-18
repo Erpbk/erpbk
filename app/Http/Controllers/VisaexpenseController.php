@@ -28,6 +28,7 @@ use App\Models\ExpenseAccount;
 use App\Models\Settings;
 use App\Repositories\VisaExpensesRepository;
 use App\Services\TransactionService;
+use App\Support\VisaExpenseAccess;
 use App\Support\VisaRenewalCategoryService;
 use App\Support\LicenseCategoryService;
 use App\Support\CompanyContext;
@@ -61,7 +62,8 @@ class VisaexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!user_can('visaexpense_view')) {
+        if (!VisaExpenseAccess::canManageAccounts('view')
+            && !VisaExpenseAccess::canManageEntries('view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -504,6 +506,10 @@ class VisaexpenseController extends AppBaseController
 
     public function accountcreate(Request $request, $company_slug)
     {
+        if (!VisaExpenseAccess::canManageAccounts('create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'person_key' => ['required', 'string', 'regex:/^(rider|employee):\d+$/'],
             'renewal_category_id' => 'required|exists:visa_renewal_categories,id',
@@ -655,6 +661,10 @@ class VisaexpenseController extends AppBaseController
 
     public function editaccount(Request $request)
     {
+        if (!VisaExpenseAccess::canManageAccounts('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $request->validate([
             'id' => 'required|exists:expense_accounts,id',
             'person_key' => ['required', 'string', 'regex:/^(rider|employee):\d+$/'],
@@ -693,6 +703,10 @@ class VisaexpenseController extends AppBaseController
 
     public function deleteaccount($company_slug, $id)
     {
+        if (!VisaExpenseAccess::canManageAccounts('delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $account = ExpenseAccount::query()->visa()->findOrFail($id);
 
         $hasInstallments = visa_installment_plan::where('rider_id', $id)->exists();
@@ -714,7 +728,9 @@ class VisaexpenseController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!user_can('visaexpense_view')) {
+        if (!VisaExpenseAccess::canManageEntries('view')
+            && !VisaExpenseAccess::canManageInstallments('view')
+            && !VisaExpenseAccess::canManageAccounts('view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -739,7 +755,7 @@ class VisaexpenseController extends AppBaseController
                 ->with('error', 'Please log in to access this page.');
         }
 
-        if (!user_can('visaexpense_view')) {
+        if (!VisaExpenseAccess::visibleInRiderTab()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -964,6 +980,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function create($company_slug, $id)
     {
+        if (!VisaExpenseAccess::canManageEntries('create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $data = ExpenseAccount::query()->visa()->with('renewalCategory')->where('id', $id)->firstOrFail();
         $activeRenewalCategory = VisaRenewalCategoryService::resolveCategoryForAccount($data);
         $visaStatuses = VisaRenewalCategoryService::activeStatusesForCategory((int) $activeRenewalCategory->id);
@@ -976,6 +996,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function store(Request $request)
     {
+        if (!VisaExpenseAccess::canManageEntries('create')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $expenseAccount = ExpenseAccount::query()->visa()->findOrFail($request->rider_id);
         $renewalCategoryId = (int) ($expenseAccount->renewal_category_id ?? VisaRenewalCategoryService::defaultCategory()->id);
 
@@ -1064,7 +1088,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function payForm(Request $request, $company_slug, $id)
     {
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1311,6 +1335,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function edit(string $company_slug, string $id)
     {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $visaExpenses = visa_expenses::find($id);
         $data = ExpenseAccount::query()->visa()->where('id', $visaExpenses->expense_account_id ?? $visaExpenses->rider_id)->first();
         if (empty($visaExpenses)) {
@@ -1330,6 +1358,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function update(Request $request)
     {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         DB::beginTransaction();
 
         try {
@@ -1389,7 +1421,7 @@ class VisaexpenseController extends AppBaseController
 
     public function inlineUpdate(Request $request)
     {
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1420,7 +1452,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function editVoucherCreditForm(Request $request, $company_slug, $visaExpense)
     {
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1490,7 +1522,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function updateVoucherCredit(Request $request, $company_slug)
     {
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -1593,7 +1625,7 @@ class VisaexpenseController extends AppBaseController
      */
     public function fileUpload(Request $request, $company_slug, $id)
     {
-        if (! user_can('visaexpense_edit')) {
+        if (! VisaExpenseAccess::canManageEntries('edit')) {
             return response()->json(['message' => 'Unauthorized action.'], 403);
         }
 
@@ -1658,6 +1690,10 @@ class VisaexpenseController extends AppBaseController
      */
     public function destroy($company_slug, string $id)
     {
+        if (!VisaExpenseAccess::canManageEntries('delete')) {
+            abort(403, 'Unauthorized action.');
+        }
+
         $visaExpenses = visa_expenses::find($id);
 
         return $this->destroyExpenseEntry(

@@ -1,4 +1,4 @@
-@php
+﻿@php
 $showVisaSection = !empty($showVisaExpenseSection);
 $visaAccount = $visaAccount ?? null;
 $visaExpenseData = $visaExpenseData ?? collect();
@@ -21,6 +21,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
 @if($showVisaSection && $visaAccount)
 {{-- Category switching is handled by the dynamic top tabs; no inline Switch buttons. --}}
 
+@can('visa_expense_entries_view')
 <div class="card exp-card mb-4">
   <div class="section-header">
     <div class="section-icon">
@@ -29,7 +30,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
     <div class="flex-grow-1">
       <h5>{{ $visaCategoryName }}</h5>
     </div>
-    @can('visaexpense_create')
+    @can('visa_expense_entries_create')
     <a class="btn btn-sm btn-exp-primary action-btn show-modal"
       href="javascript:void(0);"
       data-action="{{ route('VisaExpense.create', ['id' => $visaAccount->id]) }}"
@@ -73,7 +74,9 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
     @include('visa_expenses.table', ['data' => $visaExpenseData, 'account' => $visaAccount])
   </div>
 </div>
+@endcan
 
+@can('visa_expense_installments_view')
 <div class="card exp-card mb-4">
   <div class="section-header">
     <div class="section-icon">
@@ -83,7 +86,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
       <h5>Installments of loans</h5>
     </div>
     <div class="d-flex gap-2">
-      @can('visa_expense_create')
+      @can('visa_expense_installments_create')
       <a class="btn btn-sm btn-exp-primary action-btn show-modal"
         href="javascript:void(0);"
         data-action="{{ route('Installments.createInstallmentPlanForm', $visaAccount->id) }}"
@@ -145,4 +148,5 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
     ])
   </div>
 </div>
+@endcan
 @endif

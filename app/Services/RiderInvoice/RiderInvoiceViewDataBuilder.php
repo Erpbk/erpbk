@@ -120,12 +120,14 @@ class RiderInvoiceViewDataBuilder
      * Pull rider-account ledger nets for the invoice billing month, grouped by reference_type.
      * Debit surplus = deduction; credit surplus = addition.
      *
-     * @return array{deductions: list<array{label: string, amount: float}>, additions: list<array{label: string, amount: float}>}
+     * @return array{
+     *     deductions: list<array{label: string, description: string, amount: float}>,
+     *     additions: list<array{label: string, description: string, amount: float}>
+     * }
      */
-    private function ledgerAdjustmentsForMonth(?int $accountId, string $monthStart): array
+    public function ledgerAdjustmentsForMonth(?int $accountId, string $monthStart): array
     {
-        $deductionsByLabel = [];
-        $additionsByLabel = [];
+        $buckets = [];
 
         if (! $accountId) {
             return ['deductions' => [], 'additions' => []];
@@ -138,13 +140,11 @@ class RiderInvoiceViewDataBuilder
                 $query->whereNull('reference_type')
                     ->orWhereNotIn('reference_type', self::EXCLUDED_REFERENCE_TYPES);
             })
-            ->selectRaw('reference_type, SUM(debit) as debit_sum, SUM(credit) as credit_sum')
-            ->groupBy('reference_type')
-            ->get();
+            ->get(['reference_type', 'narration', 'debit', 'credit']);
 
         foreach ($rows as $row) {
-            $debit = (float) ($row->debit_sum ?? 0);
-            $credit = (float) ($row->credit_sum ?? 0);
+            $debit = (float) ($row->debit ?? 0);
+            $credit = (float) ($row->credit ?? 0);
             $net = round($debit - $credit, 2);
 
             if (abs($net) < 0.005) {
@@ -152,28 +152,129 @@ class RiderInvoiceViewDataBuilder
             }
 
             $label = self::ledgerEntryLabel(trim((string) ($row->reference_type ?? '')));
-
-            if ($net > 0) {
-                $deductionsByLabel[$label] = ($deductionsByLabel[$label] ?? 0) + $net;
-            } else {
-                $additionsByLabel[$label] = ($additionsByLabel[$label] ?? 0) + abs($net);
+            if (! isset($buckets[$label])) {
+                $buckets[$label] = [
+                    'net' => 0.0,
+                    'narrations' => [],
+                ];
+            }
+            $buckets[$label]['net'] = round($buckets[$label]['net'] + $net, 2);
+            $narration = trim((string) ($row->narration ?? ''));
+            if ($narration !== '') {
+                $buckets[$label]['narrations'][$narration] = true;
             }
         }
 
         $deductions = [];
-        foreach ($deductionsByLabel as $label => $amount) {
-            $deductions[] = ['label' => $label, 'amount' => round((float) $amount, 2)];
-        }
-
         $additions = [];
-        foreach ($additionsByLabel as $label => $amount) {
-            $additions[] = ['label' => $label, 'amount' => round((float) $amount, 2)];
+        foreach ($buckets as $label => $bucket) {
+            $net = round((float) $bucket['net'], 2);
+            if (abs($net) < 0.005) {
+                continue;
+            }
+            $description = implode('; ', array_keys($bucket['narrations']));
+            if ($description === '') {
+                $description = $label;
+            }
+            $entry = [
+                'label' => $label,
+                'description' => $description,
+                'amount' => abs($net),
+            ];
+            if ($net > 0) {
+                $deductions[] = $entry;
+            } else {
+                $additions[] = $entry;
+            }
         }
 
         return [
             'deductions' => $deductions,
             'additions' => $additions,
         ];
+    }
+
+    /**
+     * Breakdown used by the rider payment form when an invoice is selected.
+     * Uses the same ledger / outstanding math as the rider invoice show page
+     * so deductions and previous balance are not double-counted.
+     *
+     * @return array{
+     *     billing_month_label: string,
+     *     invoice_total: float,
+     *     previous_balance: float,
+     *     deductions: list<array{name: string, description: string, amount: float}>,
+     *     additions: list<array{name: string, description: string, amount: float}>,
+     *     month_deductions_total: float,
+     *     month_additions_total: float,
+     *     total_deductions: float,
+     *     total_additions: float,
+     *     paid_amount: float,
+     *     final_amount: float,
+     *     payable: float
+     * }
+     */
+    public function paymentFormBreakdown(RiderInvoices $riderInvoice): array
+    {
+        $riderInvoice->loadMissing(['rider.account', 'items']);
+        $monthStart = date('Y-m-01', strtotime((string) $riderInvoice->billing_month));
+        $accountId = $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null;
+        $ledger = $this->ledgerAdjustmentsForMonth($accountId, $monthStart);
+
+        // Use model accessors so sequential payment-form balances stay consistent
+        // with the Remaining Amount column (avoids double-counting prior months).
+        $payable = round((float) $riderInvoice->balance, 2);
+        $previous = round((float) $riderInvoice->previous_balance, 2);
+        $paid = round((float) $riderInvoice->paid_amount, 2);
+        $invoiceTotal = $this->invoiceItemsTotal($riderInvoice);
+        $monthDeductionsTotal = round((float) array_sum(array_column($ledger['deductions'], 'amount')), 2);
+        $monthAdditionsTotal = round((float) array_sum(array_column($ledger['additions'], 'amount')), 2);
+
+        $mapLines = static function (array $rows): array {
+            $out = [];
+            foreach ($rows as $row) {
+                $out[] = [
+                    'name' => (string) ($row['label'] ?? 'Other'),
+                    'description' => (string) ($row['description'] ?? ($row['label'] ?? 'Other')),
+                    'amount' => round((float) ($row['amount'] ?? 0), 2),
+                ];
+            }
+
+            return $out;
+        };
+
+        $totalDeductions = round($monthDeductionsTotal + ($previous > 0 ? $previous : 0), 2);
+        $totalAdditions = round($monthAdditionsTotal + ($previous < 0 ? abs($previous) : 0), 2);
+
+        return [
+            'billing_month_label' => $riderInvoice->billing_month
+                ? date('M Y', strtotime((string) $riderInvoice->billing_month))
+                : '—',
+            'invoice_total' => $invoiceTotal,
+            'previous_balance' => $previous,
+            'deductions' => $mapLines($ledger['deductions']),
+            'additions' => $mapLines($ledger['additions']),
+            'month_deductions_total' => $monthDeductionsTotal,
+            'month_additions_total' => $monthAdditionsTotal,
+            'total_deductions' => $totalDeductions,
+            'total_additions' => $totalAdditions,
+            'paid_amount' => $paid,
+            'final_amount' => round($payable + $paid, 2),
+            'payable' => $payable,
+        ];
+    }
+
+    /**
+     * @param  iterable<int, RiderInvoices>|null  $invoices
+     */
+    public function attachPaymentFormBreakdowns($invoices): void
+    {
+        foreach (collect($invoices ?? []) as $invoice) {
+            if (! $invoice instanceof RiderInvoices) {
+                continue;
+            }
+            $invoice->setAttribute('payment_breakdown', $this->paymentFormBreakdown($invoice));
+        }
     }
 
     /**
@@ -375,16 +476,25 @@ class RiderInvoiceViewDataBuilder
     /**
      * Outstanding amounts as shown on the Rider Invoice (after deductions/additions).
      *
-     * @return array{final_amount: float, paid_amount: float, balance: float}
+     * @return array{
+     *     final_amount: float,
+     *     paid_amount: float,
+     *     balance: float,
+     *     deductions: float,
+     *     previous_balance: float
+     * }
      */
     public function outstandingAmounts(RiderInvoices $riderInvoice): array
     {
         $data = $this->build($riderInvoice);
+        $monthDeductions = round((float) array_sum(array_column($data['ledger_deductions'] ?? [], 'amount')), 2);
 
         return [
             'final_amount' => (float) $data['finalAmount'],
             'paid_amount' => (float) $data['paid_amount'],
             'balance' => (float) $data['rider_balance_final'],
+            'deductions' => $monthDeductions,
+            'previous_balance' => (float) ($data['rider_balance'] ?? 0),
         ];
     }
 
@@ -418,7 +528,13 @@ class RiderInvoiceViewDataBuilder
     }
 
     /**
-     * @return array{final_amount: float, paid_amount: float, balance: float}
+     * @return array{
+     *     final_amount: float,
+     *     paid_amount: float,
+     *     balance: float,
+     *     deductions: float,
+     *     previous_balance: float
+     * }
      */
     public function outstandingAmountsForPeriod(RiderInvoices $riderInvoice, ?string $afterBillingMonth = null): array
     {
@@ -435,12 +551,14 @@ class RiderInvoiceViewDataBuilder
                 'final_amount' => $itemsTotal,
                 'paid_amount' => 0.0,
                 'balance' => $itemsTotal,
+                'deductions' => 0.0,
+                'previous_balance' => 0.0,
             ];
         }
 
         $accountId = $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null;
         $ledger = $this->ledgerAdjustmentsForMonth($accountId, $monthStart);
-        $monthDeductions = (float) array_sum(array_column($ledger['deductions'], 'amount'));
+        $monthDeductions = round((float) array_sum(array_column($ledger['deductions'], 'amount')), 2);
         $monthAdditions = (float) array_sum(array_column($ledger['additions'], 'amount'));
 
         $carry = 0.0;
@@ -462,6 +580,8 @@ class RiderInvoiceViewDataBuilder
             'final_amount' => $finalAmount,
             'paid_amount' => $paidAmount,
             'balance' => round($finalAmount - $paidAmount, 2),
+            'deductions' => $monthDeductions,
+            'previous_balance' => $carry,
         ];
     }
 

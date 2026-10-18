@@ -26,7 +26,7 @@
          <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}" data-row-id="{{ $r->id }}">
             @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
-               @can('visa_expense_edit')
+               @can('visa_expense_entries_edit')
                @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="date">
                   <i class="fa fa-edit text-primary"></i>
@@ -41,7 +41,7 @@
             </td>@endif
             @if($vf('billing_month'))<td>
                <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</span>
-               @can('visa_expense_edit')
+               @can('visa_expense_entries_edit')
                @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
                   <i class="fa fa-edit text-primary"></i>
@@ -59,7 +59,7 @@
             </td>@endif
             @if($vf('amount'))<td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
-               @can('visa_expense_edit')
+               @can('visa_expense_entries_edit')
                @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
                   <i class="fa fa-edit text-primary"></i>
@@ -77,7 +77,7 @@
             @if($vf('expiry_date'))<td>
                @if($r->expiry_date)
                <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
-               @can('visa_expense_edit')
+               @can('visa_expense_entries_edit')
                @if(!$rowPendingDeletion)
                <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
                   <i class="fa fa-edit text-primary"></i>
@@ -137,7 +137,7 @@
                      @include('delete_requests._pending_badge', ['model' => $voucher])
                   </span>@if(!$loop->last), @endif
                   @endforeach
-                  @can('visa_expense_edit')
+                  @can('visa_expense_entries_edit')
                   @if(!$rowPendingDeletion)
                   <a href="javascript:void(0);"
                      class="show-modal text-body-secondary"
@@ -179,7 +179,7 @@
                      'module' => 'visa_expense',
                      'recordId' => $r->id,
                      ])
-                     @can('visa_expense_edit')
+                     @can('visa_expense_entries_edit')
                      @if($r->vouchers->isNotEmpty() && !$rowPendingDeletion)
                      <a href="javascript:void(0);"
                         data-size="md"
@@ -202,7 +202,7 @@
                         Edit
                      </a>
                      @endcan
-                     @can('visa_expense_delete')
+                     @can('visa_expense_entries_delete')
                      <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.delete', $r->id) }}" class='dropdown-item confirm-modal js-delete-visa-expense' data-size="lg" data-title="Delete Sim">
                         delete
                      </a>

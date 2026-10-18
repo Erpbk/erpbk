@@ -500,6 +500,16 @@ class RoleFieldAccess
             return true;
         }
 
+        if (self::userHasRemappedAbility($ability, $names)) {
+            return true;
+        }
+
+        // Exact leaf exists in the DB but the user does not hold it — deny.
+        // (Legacy flat names that no longer exist fall through to module bridging below.)
+        if (self::permissionExists($ability)) {
+            return false;
+        }
+
         if (preg_match('/^(.+)_(view|create|edit|delete)$/', $ability, $m)) {
             $moduleId = self::moduleId($m[1]);
             if ($moduleId === null) {
@@ -511,6 +521,77 @@ class RoleFieldAccess
         }
 
         return ! self::permissionExists($ability);
+    }
+
+    /**
+     * Legacy / alias ability names remapped onto one or more concrete leaf permissions.
+     * Used so flat checks (e.g. installment_view) do not grant every Visa Expense subcategory.
+     *
+     * @return array<string, string|list<string>>
+     */
+    protected static function abilityRemap(): array
+    {
+        return [
+            'visaexpense_view' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
+            'visaexpense_create' => [
+                'visa_expense_account_creation_create',
+                'visa_expense_entries_create',
+            ],
+            'visaexpense_edit' => [
+                'visa_expense_account_creation_edit',
+                'visa_expense_entries_edit',
+            ],
+            'visaexpense_delete' => [
+                'visa_expense_account_creation_delete',
+                'visa_expense_entries_delete',
+            ],
+            'visa_expense_view' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
+            'visa_expense_create' => [
+                'visa_expense_account_creation_create',
+                'visa_expense_entries_create',
+            ],
+            'visa_expense_edit' => [
+                'visa_expense_account_creation_edit',
+                'visa_expense_entries_edit',
+            ],
+            'visa_expense_delete' => [
+                'visa_expense_account_creation_delete',
+                'visa_expense_entries_delete',
+            ],
+            'installment_view' => 'visa_expense_installments_view',
+            'installment_create' => 'visa_expense_installments_create',
+            'installment_edit' => 'visa_expense_installments_edit',
+            'installment_delete' => 'visa_expense_installments_delete',
+            'visaloan_create' => 'visa_expense_installments_create',
+            'visaloan_edit' => 'visa_expense_installments_edit',
+        ];
+    }
+
+    /**
+     * @param  list<string>  $names
+     */
+    protected static function userHasRemappedAbility(string $ability, array $names): bool
+    {
+        $remap = self::abilityRemap()[$ability] ?? null;
+        if ($remap === null) {
+            return false;
+        }
+
+        foreach ((array) $remap as $target) {
+            if (in_array($target, $names, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -540,8 +621,8 @@ class RoleFieldAccess
             'sim_invoice' => 'Sims',
             'bike_registration' => 'Bikes',
             'loan_installment' => 'Loans',
-            'installment' => 'Visa Expense',
-            'visaloan' => 'Visa Expense',
+            // installment / visaloan flat tokens are remapped in abilityRemap() to
+            // visa_expense_installments_* so they do not grant Account/Entries access.
             'billing_invoice' => 'Bike On Rent',
             'leasing_company_invoice' => 'Leasing Companies',
             'vat_return' => 'Vat',
@@ -645,12 +726,17 @@ class RoleFieldAccess
             return null;
         }
 
+        $names = self::permissionNamesForUser($user);
+
+        // Legacy aliases (installment_*, visaexpense_*, …) before Spatie / module bridging.
+        if (self::userHasRemappedAbility($ability, $names)) {
+            return true;
+        }
+
         // Real, currently-defined permission -> let Spatie's own check decide.
         if (self::permissionExists($ability)) {
             return null;
         }
-
-        $names = self::permissionNamesForUser($user);
 
         $direct = self::directAbilityMap();
         if (isset($direct[$ability])) {

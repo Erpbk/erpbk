@@ -1,4 +1,4 @@
-@php
+﻿@php
 $accountId = $account->rider_id;
 $categoryId = (int) ($activeRenewalCategory->id ?? 0);
 $categoryExpenseQuery = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
@@ -102,6 +102,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
   <div id="pane-visa" class="{{ $activeTab === 'visa' ? '' : 'd-none' }}">
 
     {{-- ── Visa Expenses card ── --}}
+    @can('visa_expense_entries_view')
     <div class="card exp-card mb-4">
       <div class="section-header">
         <div class="section-icon">
@@ -110,7 +111,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         <div class="flex-grow-1">
           <h5>{{ $activeCategoryName }}</h5>
         </div>
-        @can('visaexpense_create')
+        @can('visa_expense_entries_create')
         <a class="btn btn-sm btn-exp-primary action-btn show-modal"
           href="javascript:void(0);"
           data-action="{{ route('VisaExpense.create', ['id' => $account->id]) }}"
@@ -156,8 +157,10 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         @include('visa_expenses.table', ['data' => $data])
       </div>
     </div>
+    @endcan
 
     {{-- ── Visa Installments card ── --}}
+    @can('visa_expense_installments_view')
     <div class="card exp-card mb-4">
       <div class="section-header">
         <div class="section-icon">
@@ -167,7 +170,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           <h5>Installments of loans</h5>
         </div>
         <div class="d-flex gap-2">
-          @can('visa_expense_create')
+          @can('visa_expense_installments_create')
           <a class="btn btn-sm btn-exp-primary action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}"
@@ -231,6 +234,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         ])
       </div>
     </div>
+    @endcan
 
   </div>{{-- /pane-visa --}}
 

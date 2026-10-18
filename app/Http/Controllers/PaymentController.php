@@ -314,6 +314,7 @@ class PaymentController extends Controller
                 if (! empty($existingInvoices)) {
                     $this->normalizeRiderPaymentFormBalances($existingInvoices);
                 }
+                $this->attachRiderPaymentFormBreakdowns($invoices, $existingInvoices);
             }
 
             return view('payments.create', compact(
@@ -1555,6 +1556,8 @@ class PaymentController extends Controller
                 'final_amount' => $itemsTotal,
                 'paid_amount' => $paid,
                 'balance' => $remaining,
+                'deductions' => (float) ($invoice->deductions_total ?? 0),
+                'previous_balance' => (float) ($invoice->previous_balance ?? 0),
             ]);
         }
     }
@@ -2311,6 +2314,7 @@ class PaymentController extends Controller
             if (! empty($existingInvoices)) {
                 $this->normalizeRiderPaymentFormBalances($existingInvoices);
             }
+            $this->attachRiderPaymentFormBreakdowns($invoices, $existingInvoices);
         }
 
         $banks = Banks::active()->get();
@@ -2329,5 +2333,20 @@ class PaymentController extends Controller
             'lockedPayee',
             'preferredPayeeAccountId'
         );
+    }
+
+    /**
+     * Attach invoice / deduction / previous-balance breakdown for the rider payment UI.
+     *
+     * @param  iterable<int, RiderInvoices>|null  $invoices
+     * @param  iterable<int, RiderInvoices>|null  $existingInvoices
+     */
+    private function attachRiderPaymentFormBreakdowns($invoices, $existingInvoices = null): void
+    {
+        $builder = app(RiderInvoiceViewDataBuilder::class);
+        $builder->attachPaymentFormBreakdowns($invoices);
+        if (! empty($existingInvoices)) {
+            $builder->attachPaymentFormBreakdowns($existingInvoices);
+        }
     }
 }

@@ -24,7 +24,7 @@
         <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
             <td>
                 <span id="date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                @can('visa_expense_edit')
+                @can('visa_expense_installments_edit')
                 @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
@@ -54,7 +54,7 @@
             </td>
             <td>
                 <span id="billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                @can('visa_expense_edit')
+                @can('visa_expense_installments_edit')
                 @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
@@ -70,7 +70,7 @@
             </td>
             <td>
                 <span id="amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                @can('visa_expense_edit')
+                @can('visa_expense_installments_edit')
                 @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
@@ -87,7 +87,7 @@
             </td>
             <td class="text-start" style="min-width: 260px;">
                 <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                @can('visa_expense_edit')
+                @can('visa_expense_installments_edit')
                 @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                     <i class="fa fa-edit text-primary"></i>
@@ -123,7 +123,7 @@
                             'module' => 'installments',
                             'recordId' => $installment->id,
                         ])
-                        @canany(['visa_expense_edit', 'visa_expense_create'])
+                        @canany(['visa_expense_installments_edit', 'visa_expense_installments_create'])
                         @if($installment->status === 'pending')
                         <a href="javascript:void(0);"
                             onclick="markAsPaid({{ $installment->id }})"
@@ -139,7 +139,7 @@
                         @endif
                         <div class="dropdown-divider"></div>
                         @endcanany
-                        @can('visa_expense_delete')
+                        @can('visa_expense_installments_delete')
                         <a href="javascript:void(0);"
                             onclick='confirmDeleteProtected("{{ route('Installments.deleteInstallment', ['id' => $installment->id]) }}")'
                             class='dropdown-item waves-effect text-danger'>

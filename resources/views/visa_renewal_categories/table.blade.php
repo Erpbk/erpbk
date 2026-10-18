@@ -1,4 +1,4 @@
-@php
+﻿@php
 $routePrefix = $routePrefix ?? 'settings-panel.visa-renewal-categories';
 $embeddedManager = $embeddedManager ?? false;
 $returnTo = $returnTo ?? null;
@@ -37,7 +37,7 @@ $returnTo = $returnTo ?? null;
                 </td>
                 <td>
                     <div class="visa-row-actions">
-                        @can('visa_expense_edit')
+                        @can('visa_expense_account_creation_edit')
                         @if($embeddedManager)
                         <button type="button"
                             class="visa-icon-btn visa-icon-btn-edit js-visa-renewal-edit-btn"
@@ -53,7 +53,7 @@ $returnTo = $returnTo ?? null;
                         </button>
                         @endif
                         @endcan
-                        @can('visa_expense_delete')
+                        @can('visa_expense_account_creation_delete')
                         @if(!$category->is_default)
                         <button type="button"
                             class="visa-icon-btn visa-icon-btn-delete js-visa-renewal-delete-btn"

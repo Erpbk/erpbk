@@ -111,7 +111,7 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
                 <td>{{ $status->display_order }}</td>
                 <td>
                     <div class="visa-row-actions">
-                        @can('visa_expense_edit')
+                        @can('visa_expense_entries_edit')
                         @if($embeddedVisaStatusManager)
                         <button
                             type="button"
@@ -142,7 +142,7 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
                             <i class="ti ti-{{ $status->is_active ? 'player-pause' : 'player-play' }}"></i>
                         </a>
                         @endcan
-                        @can('visa_expense_delete')
+                        @can('visa_expense_entries_delete')
                         <button
                             type="button"
                             class="visa-icon-btn visa-icon-btn-delete js-visa-status-delete-btn"

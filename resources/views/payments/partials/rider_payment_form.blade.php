@@ -25,38 +25,6 @@ $payeeCode = $m[1];
 }
 }
 
-// Notes / terms — same resolution order as rider invoice show.
-$invoiceDefaults = \App\Support\InvoiceModuleDefaults::all('rider_invoices');
-$partyRider = null;
-if (! empty($lockedPayee['entity_id'])) {
-$partyRider = \App\Models\Riders::find($lockedPayee['entity_id']);
-}
-$contextInvoice = $openedInvoice
-?? (isset($payment) && ! empty($existingInvoices) ? collect($existingInvoices)->first() : null);
-
-$resolveInternalNotes = static function ($invoice = null, $rider = null) use ($invoiceDefaults) {
-return trim((string) (
-($invoice->notes ?? null)
-?: ($invoice->customer_note ?? null)
-?: ($rider->invoice_note ?? null)
-?: ($invoiceDefaults['notes'] ?? null)
-?: ''
-));
-};
-$resolveTerms = static function ($invoice = null, $rider = null) use ($invoiceDefaults) {
-return trim((string) (
-($invoice->terms_and_conditions ?? null)
-?: ($rider->terms_and_conditions ?? null)
-?: ($invoiceDefaults['terms_and_conditions'] ?? null)
-?: ''
-));
-};
-$termsLabel = $partyRider
-? $partyRider->resolvedTermsAndConditionsLabel()
-: 'Terms & Conditions';
-$internalNotesLabel = 'Internal Notes';
-$defaultInternalNotes = $resolveInternalNotes($contextInvoice, $partyRider);
-$defaultTerms = $resolveTerms($contextInvoice, $partyRider);
 @endphp
 
 <div class="rider-payment-form"
@@ -275,8 +243,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                         $invoiceBillingMonth = $invoice->billing_month
                         ? date('Y-m', strtotime($invoice->billing_month))
                         : '';
-                        $rowNotes = $resolveInternalNotes($invoice, $invoice->rider ?? $partyRider);
-                        $rowTerms = $resolveTerms($invoice, $invoice->rider ?? $partyRider);
+                        $rowBreakdown = $invoice->payment_breakdown ?? null;
                         @endphp
                         <tr data-invoice-id="{{ $invoice->id }}"
                             data-balance="{{ $existingBalance }}"
@@ -287,8 +254,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                             data-billing-month="{{ $invoiceBillingMonth }}"
                             data-customer-id="{{ optional($invoice->rider)->id }}"
                             data-customer-name="{{ optional($invoice->rider)->name }}"
-                            data-internal-notes="{{ e($rowNotes) }}"
-                            data-terms-conditions="{{ e($rowTerms) }}">
+                            data-payment-breakdown="{{ $rowBreakdown ? json_encode($rowBreakdown, JSON_UNESCAPED_UNICODE) : '' }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" checked>
                             </td>
@@ -314,8 +280,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                         $invoiceBillingMonth = $invoice->billing_month
                         ? date('Y-m', strtotime($invoice->billing_month))
                         : '';
-                        $rowNotes = $resolveInternalNotes($invoice, $invoice->rider ?? $partyRider);
-                        $rowTerms = $resolveTerms($invoice, $invoice->rider ?? $partyRider);
+                        $rowBreakdown = $invoice->payment_breakdown ?? null;
                         @endphp
                         <tr data-invoice-id="{{ $invoice->id }}"
                             data-balance="{{ $invoice->balance }}"
@@ -325,8 +290,7 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                             data-billing-month="{{ $invoiceBillingMonth }}"
                             data-customer-id="{{ optional($invoice->rider)->id }}"
                             data-customer-name="{{ optional($invoice->rider)->name }}"
-                            data-internal-notes="{{ e($rowNotes) }}"
-                            data-terms-conditions="{{ e($rowTerms) }}">
+                            data-payment-breakdown="{{ $rowBreakdown ? json_encode($rowBreakdown, JSON_UNESCAPED_UNICODE) : '' }}">
                             <td class="text-center">
                                 <input type="checkbox" name="invoice_ids[]" value="{{ $invoice->id }}" class="invoice-checkbox" {{ (string) $openedInvoiceId === (string) $invoice->id ? 'checked' : '' }}>
                             </td>
@@ -356,29 +320,57 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
     <div class="alert alert-light border mt-4 mb-0">No unpaid invoices found for this rider.</div>
     @endif
 
-    {{-- Internal Notes (left of totals) + Summary; Terms full width below --}}
-    <div class="rpf-section mt-4"
-        id="rpf-notes-terms"
-        data-default-notes="{{ e($defaultInternalNotes) }}"
-        data-default-terms="{{ e($defaultTerms) }}"
-        data-notes-label="{{ e($internalNotesLabel) }}"
-        data-terms-label="{{ e($termsLabel) }}">
-        <div class="row g-3 align-items-stretch">
-            <div class="col-lg-7">
-                <div class="rpf-note-box h-100">
-                    <div class="rpf-note-title" id="rpf-notes-label">{{ $internalNotesLabel }}</div>
-                    <div class="rpf-note-body">
-                        <textarea
-                            name="internal_notes"
-                            id="rpf-internal-notes"
-                            class="form-control rpf-note-textarea"
-                            rows="5"
-                            placeholder="Enter internal notes...">{{ old('internal_notes', $defaultInternalNotes) }}</textarea>
-                    </div>
-                </div>
+    {{-- Deductions / Additions (Rider Invoice table style) + Payment Summary --}}
+    <div class="rpf-section mt-4" id="rpf-payment-breakdown" aria-live="polite">
+        <div class="rpf-adj-stack d-none" id="rpf-adj-panels">
+            <div class="rpf-inv-tbl-wrap">
+                <table class="rpf-inv-items-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2" class="rpf-inv-sec-header">Deductions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpf-deductions-body">
+                        <tr>
+                            <td colspan="2" class="rpf-adj-empty">Select an invoice to load deductions.</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr class="rpf-inv-accent-total">
+                            <td>Total Deductions</td>
+                            <td class="rpf-inv-num" id="rpf-total-deductions">-0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
             </div>
+
+            <div class="rpf-inv-tbl-wrap d-none" id="rpf-additions-wrap">
+                <table class="rpf-inv-items-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2" class="rpf-inv-sec-header">Additions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rpf-additions-body"></tbody>
+                    <tfoot>
+                        <tr class="rpf-inv-accent-total">
+                            <td>Total Additions</td>
+                            <td class="rpf-inv-num" id="rpf-total-additions">+0.00</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="rpf-adj-payable">
+                Net Payable: <strong>{{ $currency }} <span id="rpf-breakdown-payable">0.00</span></strong>
+                <span class="rpf-breakdown-month text-muted" id="rpf-breakdown-month"></span>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-lg-7"></div>
             <div class="col-lg-5">
-                <div class="rpf-summary h-100">
+                <div class="rpf-summary">
                     <div class="rpf-summary-row">
                         <span>Payment Amount:</span>
                         <span>{{ $currency }} <span id="display_amount">0.00</span></span>
@@ -408,22 +400,6 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
                         Total Payment: {{ $currency }} <span id="total_debit">0.00</span>
                     </div>
                     <span id="display_charges" class="d-none">0.00</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="rpf-note-box">
-                    <div class="rpf-note-title" id="rpf-terms-label">{{ $termsLabel }}</div>
-                    <div class="rpf-note-body rpf-note-body-wide">
-                        <textarea
-                            name="terms_and_conditions"
-                            id="rpf-terms-conditions"
-                            class="form-control rpf-note-textarea"
-                            rows="4"
-                            placeholder="Enter terms &amp; conditions...">{{ old('terms_and_conditions', $defaultTerms) }}</textarea>
-                    </div>
                 </div>
             </div>
         </div>
@@ -583,47 +559,6 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
         margin-bottom: 0.65rem;
     }
 
-    .rpf-note-box {
-        border: 1px solid var(--rpf-border);
-        border-radius: 0.45rem;
-        background: #f7faff;
-        min-height: 120px;
-        height: 100%;
-        overflow: hidden;
-    }
-
-    .rpf-note-title {
-        padding: 0.55rem 0.85rem;
-        background: #e8eef8;
-        color: var(--rpf-blue);
-        font-weight: 700;
-        font-size: 0.82rem;
-        border-bottom: 1px solid var(--rpf-border);
-    }
-
-    .rpf-note-body {
-        padding: 0.55rem 0.65rem 0.65rem;
-    }
-
-    .rpf-note-body-wide {
-        padding: 0.55rem 0.65rem 0.65rem;
-    }
-
-    .rpf-note-textarea {
-        border: 1px solid var(--rpf-border) !important;
-        border-radius: 0.3rem !important;
-        font-size: 0.86rem;
-        color: #334155;
-        line-height: 1.45;
-        resize: vertical;
-        min-height: 110px;
-        background: #fff;
-    }
-
-    .rpf-note-body-wide .rpf-note-textarea {
-        min-height: 96px;
-    }
-
     .rpf-summary.h-100 {
         display: flex;
         flex-direction: column;
@@ -631,6 +566,90 @@ $defaultTerms = $resolveTerms($contextInvoice, $partyRider);
 
     .rpf-summary.h-100 .rpf-summary-total {
         margin-top: auto;
+    }
+
+    /* Match Rider Invoice deductions / additions tables */
+    .rpf-adj-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .rpf-inv-tbl-wrap {
+        width: 100%;
+        border: 1px solid #c5d8f0;
+        border-radius: 6px;
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .rpf-inv-items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+        color: #0f172a;
+    }
+
+    .rpf-inv-items-table th,
+    .rpf-inv-items-table td {
+        border: 1px solid #e2e8f0;
+        padding: 8px 10px;
+        font-size: 12px;
+        vertical-align: middle;
+    }
+
+    .rpf-inv-sec-header,
+    .rpf-inv-accent-total td {
+        background: #eef4fc !important;
+        color: #0f172a !important;
+        font-weight: 700;
+        text-align: left;
+    }
+
+    .rpf-inv-sec-header {
+        text-align: left;
+        font-size: 12px;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .rpf-inv-items-table tbody td:first-child,
+    .rpf-inv-accent-total td:first-child {
+        text-align: left;
+        width: 70%;
+    }
+
+    .rpf-inv-num,
+    .rpf-inv-items-table tbody td:last-child,
+    .rpf-inv-accent-total td:last-child {
+        text-align: right !important;
+        font-weight: 600;
+        width: 30%;
+        white-space: nowrap;
+    }
+
+    .rpf-inv-accent-total td {
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    .rpf-adj-empty {
+        text-align: center !important;
+        color: #6b7280;
+        font-weight: 500 !important;
+    }
+
+    .rpf-adj-payable {
+        font-size: 0.9rem;
+        color: var(--rpf-blue);
+        font-weight: 600;
+        padding: 0.15rem 0.1rem 0;
+    }
+
+    .rpf-adj-payable .rpf-breakdown-month:not(:empty)::before {
+        content: '·';
+        margin: 0 0.35rem;
     }
 
     .rpf-invoice-scroll {

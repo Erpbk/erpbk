@@ -392,12 +392,159 @@
       return parseFloat($selected.attr('data-ledger-balance')) || 0;
     }
 
+    function parsePaymentBreakdown($row) {
+      if (!$row || !$row.length) {
+        return null;
+      }
+      var raw = $row.attr('data-payment-breakdown');
+      if (!raw) {
+        // jQuery .data() may already have decoded/parsed the attribute.
+        var fromData = $row.data('paymentBreakdown') || $row.data('payment-breakdown');
+        if (fromData && typeof fromData === 'object') {
+          return fromData;
+        }
+        if (typeof fromData === 'string' && fromData) {
+          raw = fromData;
+        } else {
+          return null;
+        }
+      }
+      if (typeof raw === 'object') {
+        return raw;
+      }
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        // Recover from accidental HTML double-encoding (&quot; → ").
+        try {
+          var textarea = document.createElement('textarea');
+          textarea.innerHTML = raw;
+          return JSON.parse(textarea.value);
+        } catch (e2) {
+          return null;
+        }
+      }
+    }
+
+    function moneyText(amount) {
+      var value = parseFloat(amount);
+      if (isNaN(value)) {
+        value = 0;
+      }
+      return value.toFixed(2);
+    }
+
+    function escapeHtml(text) {
+      return $('<div>').text(text == null ? '' : String(text)).html();
+    }
+
+    function formatSignedMoney(amount, sign) {
+      var value = Math.abs(parseFloat(amount) || 0);
+      return sign + moneyText(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function updateRiderPaymentBreakdown() {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+      var $panels = $ctx.find('#rpf-adj-panels');
+      if (!$panels.length) {
+        return;
+      }
+      var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
+      var breakdown = parsePaymentBreakdown($checked);
+      if (!$checked.length || !breakdown) {
+        $panels.addClass('d-none');
+        return;
+      }
+
+      $panels.removeClass('d-none');
+      $ctx.find('#rpf-breakdown-month').text(breakdown.billing_month_label || '');
+      $ctx.find('#rpf-breakdown-payable').text(moneyText(breakdown.payable));
+
+      var previous = parseFloat(breakdown.previous_balance) || 0;
+      var deductions = Array.isArray(breakdown.deductions) ? breakdown.deductions : [];
+      var additions = Array.isArray(breakdown.additions) ? breakdown.additions : [];
+      var monthDeductions = parseFloat(breakdown.month_deductions_total) || 0;
+      var monthAdditions = parseFloat(breakdown.month_additions_total) || 0;
+      var totalDeductions = !isNaN(parseFloat(breakdown.total_deductions))
+        ? parseFloat(breakdown.total_deductions)
+        : (monthDeductions + (previous > 0 ? previous : 0));
+      var totalAdditions = !isNaN(parseFloat(breakdown.total_additions))
+        ? parseFloat(breakdown.total_additions)
+        : (monthAdditions + (previous < 0 ? Math.abs(previous) : 0));
+
+      var deductionRows = '';
+      if (previous > 0.009) {
+        deductionRows += '<tr><td>Previous Balance (Deduction)</td>'
+          + '<td class="rpf-inv-num">' + formatSignedMoney(previous, '-') + '</td></tr>';
+      }
+      deductions.forEach(function (line) {
+        deductionRows += '<tr><td>' + escapeHtml(line.name || 'Deduction') + '</td>'
+          + '<td class="rpf-inv-num">' + formatSignedMoney(line.amount, '-') + '</td></tr>';
+      });
+      if (!deductionRows) {
+        deductionRows = '<tr><td colspan="2" class="rpf-adj-empty">No ledger deductions for this billing month</td></tr>';
+      }
+      $ctx.find('#rpf-deductions-body').html(deductionRows);
+      $ctx.find('#rpf-total-deductions').text(formatSignedMoney(totalDeductions, '-'));
+
+      var additionRows = '';
+      if (previous < -0.009) {
+        additionRows += '<tr><td>Previous Balance (Addition)</td>'
+          + '<td class="rpf-inv-num">' + formatSignedMoney(Math.abs(previous), '+') + '</td></tr>';
+      }
+      additions.forEach(function (line) {
+        additionRows += '<tr><td>' + escapeHtml(line.name || 'Addition') + '</td>'
+          + '<td class="rpf-inv-num">' + formatSignedMoney(line.amount, '+') + '</td></tr>';
+      });
+
+      var $additionsWrap = $ctx.find('#rpf-additions-wrap');
+      if (additionRows) {
+        $additionsWrap.removeClass('d-none');
+        $ctx.find('#rpf-additions-body').html(additionRows);
+        $ctx.find('#rpf-total-additions').text(formatSignedMoney(totalAdditions, '+'));
+      } else {
+        $additionsWrap.addClass('d-none');
+        $ctx.find('#rpf-additions-body').empty();
+        $ctx.find('#rpf-total-additions').text('+0.00');
+      }
+    }
+
+    function applyPayableFromSelectedInvoice($row) {
+      if (!isRiderOnlyPayment || !isPaymentCreateType() || preservePrimaryAmount) {
+        return;
+      }
+      if (!$row || !$row.length) {
+        return;
+      }
+      var breakdown = parsePaymentBreakdown($row);
+      var payable = breakdown
+        ? (parseFloat(breakdown.payable) || 0)
+        : (parseFloat($row.data('balance')) || 0);
+      payable = Math.max(0, payable);
+      var $paymentInput = $row.find('.payment-amount');
+      payable = capAmountToBalance($paymentInput, payable);
+      if (payable > 0.009) {
+        $paymentInput.val(payable.toFixed(2));
+        applyPrimaryAmountDisplay(payable);
+      } else {
+        $paymentInput.val('');
+        applyPrimaryAmountDisplay(0);
+      }
+      $paymentInput.trigger('change');
+    }
+
     function updateRiderBalanceDueDisplay() {
       if (!isRiderOnlyPayment) {
         return;
       }
       var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
       var remaining = $checked.length ? (parseFloat($checked.data('balance')) || 0) : 0;
+      var breakdown = parsePaymentBreakdown($checked);
+      if (breakdown && !isNaN(parseFloat(breakdown.payable))) {
+        remaining = parseFloat(breakdown.payable) || 0;
+      }
       $ctx.find('#rider_balance_due').text(remaining.toFixed(2));
       $ctx.find('#rider_ledger_due').text(resolvePayeeLedgerBalance().toFixed(2));
 
@@ -414,32 +561,8 @@
         $paymentAmount.removeAttr('max');
         $paymentAmount.removeAttr('data-invoice-max');
       }
-    }
 
-    function updateRiderNotesAndTermsDisplay(force) {
-      if (!isRiderOnlyPayment) {
-        return;
-      }
-      var $panel = $ctx.find('#rpf-notes-terms');
-      var $notesField = $ctx.find('#rpf-internal-notes');
-      var $termsField = $ctx.find('#rpf-terms-conditions');
-      if (!$panel.length || !$notesField.length) {
-        return;
-      }
-      // Keep in-progress typing unless invoice selection forced a reload.
-      if (!force && ($notesField.data('user-edited') || $termsField.data('user-edited'))) {
-        return;
-      }
-      var $checked = $ctx.find('#invoices-table tbody tr:visible .invoice-checkbox:checked').first().closest('tr');
-      var notes = $checked.length
-        ? ($checked.attr('data-internal-notes') || '')
-        : ($panel.attr('data-default-notes') || '');
-      var terms = $checked.length
-        ? ($checked.attr('data-terms-conditions') || '')
-        : ($panel.attr('data-default-terms') || '');
-
-      $notesField.val(notes).data('user-edited', false);
-      $termsField.val(terms).data('user-edited', false);
+      updateRiderPaymentBreakdown();
     }
 
     function applyInvoiceDateFromSelection() {
@@ -452,7 +575,6 @@
       $ctx.find('#date_of_invoice, [name="date_of_invoice"]').val(invoiceDate || '');
       syncBillingMonthFromSelectedInvoice();
       updateRiderBalanceDueDisplay();
-      updateRiderNotesAndTermsDisplay(false);
     }
 
     function filterInvoiceRows(options) {
@@ -575,17 +697,8 @@
           // Advance loan uses the primary amount; line amount is reference-only (0).
           $paymentInput.val('0.00');
         } else if (isRiderOnlyPayment && isPaymentCreateType()) {
-          // Rider payment: never auto-fill the remaining/invoice amount.
-          // If the user already typed a primary amount, mirror it onto the line (capped).
-          if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
-            if (paymentAmount > 0.009) {
-              var mirrored = capAmountToBalance($paymentInput, paymentAmount);
-              $paymentInput.val(mirrored.toFixed(2));
-              $paymentInput.trigger('change');
-            } else {
-              $paymentInput.val('');
-            }
-          }
+          // Auto-fill payable from invoice total − deductions − previous balance − paid.
+          applyPayableFromSelectedInvoice($row);
         } else if (!$paymentInput.val() || parseFloat($paymentInput.val()) === 0) {
           var balanceDue = parseFloat($row.data('balance')) || 0;
           var fillAmount = balanceDue;
@@ -635,23 +748,21 @@
 
       if (isRiderOnlyPayment) {
         syncRiderInvoiceRowVisibility();
-        updateRiderNotesAndTermsDisplay(true);
         updateRiderBalanceDueDisplay();
+        updateRiderPaymentBreakdown();
       }
 
       updateTotalPayment();
       validatePaymentDistribution();
       updateSelectAllState();
       applyInvoiceDateFromSelection();
-      if (isRiderPayment && !advanceLoan) {
+      if (isRiderPayment && !advanceLoan && !(isRiderOnlyPayment && isPaymentCreateType())) {
         syncRiderPaymentAmountFromInvoices();
       } else if (advanceLoan) {
         validatePaymentDistribution();
+      } else if (isRiderOnlyPayment && isPaymentCreateType()) {
+        validatePaymentDistribution();
       }
-    });
-
-    $ctx.on('input.paymentFields', '#rpf-internal-notes, #rpf-terms-conditions', function () {
-      $(this).data('user-edited', true);
     });
 
     $ctx.on('keyup.paymentFields change.paymentFields', '.payment-amount', function () {
@@ -800,6 +911,10 @@
       updateSelectAllState();
       calculateTotals();
       applyInvoiceDateFromSelection();
+      if (isRiderOnlyPayment) {
+        updateRiderBalanceDueDisplay();
+        updateRiderPaymentBreakdown();
+      }
       // After all invoice sync, put the DB primary amount back on edit.
       restoreSavedPrimaryAmount();
     }, 100);

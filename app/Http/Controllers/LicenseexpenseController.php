@@ -744,7 +744,7 @@ class LicenseexpenseController extends AppBaseController
         if (
             ! $riderId
             || ! CompanyModuleVisibility::enabled('visa_expense')
-            || ! user_can('visaexpense_view')
+            || ! \App\Support\VisaExpenseAccess::visibleInRiderTab()
         ) {
             return $empty;
         }

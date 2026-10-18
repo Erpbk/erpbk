@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\VisaRenewalCategory;
 use App\Models\VisaStatus;
 use App\Support\CompanyAuthRedirect;
+use App\Support\VisaExpenseAccess;
 use App\Support\VisaRenewalCategoryService;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +28,7 @@ class VisaStatusController extends Controller
         }
 
         // Check permissions
-        if (!user_can('visaexpense_view')) {
+        if (!VisaExpenseAccess::canManageEntries('view')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -108,7 +109,7 @@ class VisaStatusController extends Controller
     public function create(Request $request)
     {
         // Check permissions
-        if (!user_can('visaexpense_create')) {
+        if (!VisaExpenseAccess::canManageEntries('create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -138,12 +139,12 @@ class VisaStatusController extends Controller
             return redirect()->route($this->visaStatusesIndexRoute());
         }
 
-        if (!user_can('visaexpense_view')) {
+        if (!VisaExpenseAccess::canManageEntries('view')) {
             abort(403, 'Unauthorized action.');
         }
 
         // If user can edit, send them to edit page; otherwise back to index.
-        if (user_can('visaexpense_edit')) {
+        if (VisaExpenseAccess::canManageEntries('edit')) {
             return redirect()->route($this->visaStatusesRouteBase() . '.edit', ['visa_status' => $id]);
         }
 
@@ -159,7 +160,7 @@ class VisaStatusController extends Controller
     public function store(Request $request)
     {
         // Check permissions
-        if (!user_can('visaexpense_create')) {
+        if (!VisaExpenseAccess::canManageEntries('create')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -236,7 +237,7 @@ class VisaStatusController extends Controller
     public function edit($company_slug, $id)
     {
         // Check permissions
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -258,7 +259,7 @@ class VisaStatusController extends Controller
     public function update(Request $request, $company_slug, $id)
     {
         // Check permissions
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -324,7 +325,7 @@ class VisaStatusController extends Controller
     public function destroy(Request $request, $company_slug, $id)
     {
         // Check permissions
-        if (!user_can('visaexpense_delete')) {
+        if (!VisaExpenseAccess::canManageEntries('delete')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -385,7 +386,7 @@ class VisaStatusController extends Controller
     public function toggleActive($company_slug, $id)
     {
         // Check permissions
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -408,7 +409,7 @@ class VisaStatusController extends Controller
      */
     public function reorder(Request $request)
     {
-        if (!user_can('visaexpense_edit')) {
+        if (!VisaExpenseAccess::canManageEntries('edit')) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -1,4 +1,4 @@
-@extends('riders.view')
+﻿@extends('riders.view')
 @section('title','Visa installment plan')
 @section('page_content')
 
@@ -10,7 +10,7 @@
                     href="{{ route('VisaExpense.generatentries' , $account->id) }}" data-size="lg" data-title="Visa Expense">
                     <i class="fa fa-arrow-left me-2"></i>Back
                 </a>
-                @can('visa_expense_create')
+                @can('visa_expense_installments_create')
                 <a class="btn btn-success action-btn show-modal"
                     href="javascript:void(0);" data-action="{{ route('VisaExpense.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
                     <i class="fa fa-plus me-2"></i>Installment Plan

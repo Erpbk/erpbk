@@ -188,10 +188,12 @@
     }
 
     /**
-     * Advance Loan is only available when the selected rider has no payable invoices
-     * in the Payment Voucher table. Hide/show the option as the payee changes.
+     * Payment Type options depend on the selected rider's payable invoices:
+     * - has invoices  → Payment only (Advance Loan hidden)
+     * - no invoices   → Advance Loan only (Payment hidden)
+     * - no payee yet  → both options visible
      */
-    function selectedRiderHasInvoices() {
+    function selectedPayeeState() {
       var selectedCustomerId = getSelectedCustomerId();
       var selectedCustomerName = getSelectedCustomerName();
       var $payee = $ctx.find('#payee_account_id, [name="payee_account_id"]').first();
@@ -199,12 +201,12 @@
       var hasPayee = !!(selectedCustomerId || selectedCustomerName || payeeValue);
 
       if (!hasPayee) {
-        return false;
+        return { hasPayee: false, hasInvoices: false };
       }
 
       var $rows = $ctx.find('#invoices-table tbody tr');
       if (!$rows.length) {
-        return false;
+        return { hasPayee: true, hasInvoices: false };
       }
 
       var found = false;
@@ -232,7 +234,27 @@
         }
       });
 
-      return found;
+      return { hasPayee: true, hasInvoices: found };
+    }
+
+    function ensurePaymentTypeOption($typeSelect, value, label, dataKey) {
+      var $opt = $typeSelect.find('option[value="' + value + '"]');
+      if ($opt.length) {
+        return $opt;
+      }
+      var optionHtml = $typeSelect.data(dataKey) || ('<option value="' + value + '">' + label + '</option>');
+      $typeSelect.append(optionHtml);
+      return $typeSelect.find('option[value="' + value + '"]');
+    }
+
+    function removePaymentTypeOption($typeSelect, value, dataKey) {
+      var $opt = $typeSelect.find('option[value="' + value + '"]');
+      if ($opt.length) {
+        if (!$typeSelect.data(dataKey)) {
+          $typeSelect.data(dataKey, $opt.prop('outerHTML'));
+        }
+        $opt.remove();
+      }
     }
 
     function syncAdvanceLoanOptionVisibility() {
@@ -245,25 +267,31 @@
         return;
       }
 
-      var riderHasInvoices = selectedRiderHasInvoices();
-      var $advanceOpt = $typeSelect.find('option[value="advance_loan"]');
-      var wasAdvanceLoan = ($typeSelect.val() || '') === 'advance_loan';
+      var state = selectedPayeeState();
+      var currentVal = $typeSelect.val() || '';
+      var nextVal = currentVal;
 
-      if (riderHasInvoices) {
-        if ($advanceOpt.length) {
-          if (!$typeSelect.data('advanceLoanOptionHtml')) {
-            $typeSelect.data('advanceLoanOptionHtml', $advanceOpt.prop('outerHTML'));
-          }
-          $advanceOpt.remove();
-        }
-        if (wasAdvanceLoan || !$typeSelect.val()) {
-          $typeSelect.val('payment');
-          applyCreatePaymentTypeUi();
-        }
-      } else if (!$advanceOpt.length) {
-        var optionHtml = $typeSelect.data('advanceLoanOptionHtml')
-          || '<option value="advance_loan">Advance Loan</option>';
-        $typeSelect.append(optionHtml);
+      if (!state.hasPayee) {
+        ensurePaymentTypeOption($typeSelect, 'payment', 'Payment', 'paymentOptionHtml');
+        ensurePaymentTypeOption($typeSelect, 'advance_loan', 'Advance Loan', 'advanceLoanOptionHtml');
+      } else if (state.hasInvoices) {
+        // Rider has invoices: Payment only.
+        ensurePaymentTypeOption($typeSelect, 'payment', 'Payment', 'paymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'advance_loan', 'advanceLoanOptionHtml');
+        nextVal = 'payment';
+      } else {
+        // Rider has no invoices: Advance Loan only.
+        ensurePaymentTypeOption($typeSelect, 'advance_loan', 'Advance Loan', 'advanceLoanOptionHtml');
+        removePaymentTypeOption($typeSelect, 'payment', 'paymentOptionHtml');
+        nextVal = 'advance_loan';
+      }
+
+      if (nextVal && nextVal !== currentVal) {
+        $typeSelect.val(nextVal);
+        applyCreatePaymentTypeUi();
+      } else if (!$typeSelect.val() && nextVal) {
+        $typeSelect.val(nextVal);
+        applyCreatePaymentTypeUi();
       }
 
       if ($typeSelect.hasClass('select2-hidden-accessible')) {
@@ -1083,6 +1111,12 @@
     }
 
     if (isRiderOnly && createType === 'payment') {
+      var hasPayeeForPayment = !!($('#payee_account_id, [name="payee_account_id"]').val());
+      if (hasPayeeForPayment && $('#invoices-table tbody tr:visible').length === 0) {
+        alert('Payment is not available when the selected rider has no unpaid invoices. Please use Advance Loan instead.');
+        $('#create_payment_type').addClass('is-invalid');
+        return false;
+      }
       if ($checkedInvoices.length !== 1) {
         alert('Please select exactly one invoice for payment');
         return false;

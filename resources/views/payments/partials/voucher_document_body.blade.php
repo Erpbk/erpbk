@@ -179,7 +179,7 @@
     border: none;
     border-bottom: 1px solid var(--rpv-line);
     padding: {{ $isPdf ? '7px 6px' : '10px 10px' }};
-    text-align: left;
+    text-align: center;
     font-weight: 700;
     font-size: {{ $isPdf ? '9px' : '10.5px' }};
     letter-spacing: 0.04em;
@@ -194,7 +194,7 @@
 }
 .rpv-table tbody tr:last-child td { border-bottom: none; }
 .rpv-table tbody tr:nth-child(even) td { background: #fafbfc; }
-.rpv-table .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpv-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .rpv-table .pay { font-weight: 700; }
 .rpv-table tfoot td {
     background: var(--rpv-soft);
@@ -203,6 +203,9 @@
     border-top: 1px solid var(--rpv-line);
     border-bottom: none;
     padding: {{ $isPdf ? '7px 6px' : '10px' }};
+}
+.rpv-table tfoot td.rpv-allocated {
+    text-align: right !important;
 }
 .rpv-table .empty { text-align: center; color: #94a3b8; }
 .rpv-bottom { width: 100%; border-collapse: collapse; margin-top: {{ $isPdf ? '10px' : '14px' }}; }
@@ -320,8 +323,12 @@
                                 <td class="v">{{ $billingMonth }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Paid By:</td>
+                                <td class="k">Paid By (Account):</td>
                                 <td class="v">{{ $paidBy }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Created By:</td>
+                                <td class="v">{{ $createdBy ?? '—' }}</td>
                             </tr>
                         </table>
                     </div>
@@ -367,8 +374,6 @@
                         <th>Invoice #</th>
                         <th>Billing Month</th>
                         <th class="num">Total Amount</th>
-                        <th class="num">Previously Paid</th>
-                        <th class="num">Balance Due</th>
                         <th class="num">Payment</th>
                     </tr>
                 </thead>
@@ -377,21 +382,20 @@
                         <tr>
                             <td>{{ $row['invoice_number'] }}</td>
                             <td>{{ $row['billing_month'] }}</td>
-                            <td class="num">{{ $money($row['total']) }}</td>
-                            <td class="num">{{ $money($row['previously_paid']) }}</td>
-                            <td class="num">{{ $money($row['balance_due']) }}</td>
-                            <td class="num pay">{{ $money($row['payment']) }}</td>
+                            <td class="num">{{ number_format((float) $row['total'], 2) }}</td>
+                            <td class="num pay">{{ number_format((float) $row['payment'], 2) }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="empty">No invoice allocation</td>
+                            <td colspan="4" class="empty">No invoice allocation</td>
                         </tr>
                     @endforelse
                 </tbody>
                 <tfoot>
                     <tr>
-                        <td colspan="5" class="num">Total Allocated:</td>
-                        <td class="num">{{ $money($allocatedTotal) }}</td>
+                        <td colspan="4" class="rpv-allocated">
+                            Total Allocated: {{ number_format((float) $allocatedTotal, 2) }}
+                        </td>
                     </tr>
                 </tfoot>
             </table>

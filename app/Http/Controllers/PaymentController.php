@@ -1859,6 +1859,17 @@ class PaymentController extends Controller
             ]);
         }
 
+        // Advance Loan is only allowed when the selected rider has no payable invoices.
+        $payeeAccountId = (int) $request->input('payee_account_id');
+        $riderId = $payeeAccountId > 0
+            ? (int) Accounts::where('id', $payeeAccountId)->value('ref_id')
+            : 0;
+        if ($riderId > 0 && RiderInvoices::payable()->where('rider_id', $riderId)->exists()) {
+            throw ValidationException::withMessages([
+                'create_payment_type' => 'Advance Loan is not available when the selected rider has unpaid invoices. Please use Payment instead.',
+            ]);
+        }
+
         // Normalize / fill billing month before validation (type=month must be Y-m).
         $billingMonthInput = $request->input('billing_month');
         if (blank($billingMonthInput) && $invoice && $invoice->billing_month) {

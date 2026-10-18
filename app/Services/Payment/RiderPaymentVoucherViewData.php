@@ -41,6 +41,7 @@ class RiderPaymentVoucherViewData
         $rider = $this->resolveRider($payment);
         $createdByName = $this->userName($payment->created_by);
         $currencyCode = Currency::code();
+        $paidByAccount = $this->payingAccountLabel($payment);
 
         $amountInWords = Account::convertNumberToWord(number_format($totalAmount, 2, '.', ''));
         if (is_string($amountInWords) && $amountInWords !== '') {
@@ -74,7 +75,8 @@ class RiderPaymentVoucherViewData
             'billingMonth' => $payment->billing_month
                 ? Common::MonthFormat($payment->billing_month)
                 : '—',
-            'paidBy' => $createdByName ?: '—',
+            'paidBy' => $paidByAccount,
+            'createdBy' => $createdByName ?: '—',
             'paymentMode' => $payment->amount_type ?: '—',
             'paymentType' => 'Payment',
             'paymentAmount' => $paymentAmount,
@@ -226,6 +228,37 @@ class RiderPaymentVoucherViewData
         }
 
         return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Bank / cash account used to pay the rider (same as the form "Paid By" field).
+     */
+    private function payingAccountLabel(Payment $payment): string
+    {
+        $payment->loadMissing(['bank.account']);
+        $bank = $payment->bank;
+        if (! $bank) {
+            return '—';
+        }
+
+        $account = $bank->account;
+        if ($account) {
+            $code = trim((string) ($account->account_code ?? ''));
+            $name = trim((string) ($account->name ?? $bank->name ?? ''));
+            if ($code !== '' && $name !== '') {
+                return $code.'-'.$name;
+            }
+            if ($name !== '') {
+                return $name;
+            }
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        $bankName = trim((string) ($bank->name ?? ''));
+
+        return $bankName !== '' ? $bankName : '—';
     }
 
     private function userName(mixed $userId): ?string

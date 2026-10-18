@@ -187,6 +187,90 @@
       }
     }
 
+    /**
+     * Advance Loan is only available when the selected rider has no payable invoices
+     * in the Payment Voucher table. Hide/show the option as the payee changes.
+     */
+    function selectedRiderHasInvoices() {
+      var selectedCustomerId = getSelectedCustomerId();
+      var selectedCustomerName = getSelectedCustomerName();
+      var $payee = $ctx.find('#payee_account_id, [name="payee_account_id"]').first();
+      var payeeValue = $payee.length ? String($payee.val() || '') : '';
+      var hasPayee = !!(selectedCustomerId || selectedCustomerName || payeeValue);
+
+      if (!hasPayee) {
+        return false;
+      }
+
+      var $rows = $ctx.find('#invoices-table tbody tr');
+      if (!$rows.length) {
+        return false;
+      }
+
+      var found = false;
+      $rows.each(function () {
+        var $row = $(this);
+        var invoiceCustomerId = $row.data('customer-id');
+        var invoiceCustomerName = $row.data('customer-name');
+        var matches = false;
+
+        if (selectedCustomerId && invoiceCustomerId) {
+          matches = String(invoiceCustomerId) === String(selectedCustomerId);
+        }
+        if (!matches && selectedCustomerName && invoiceCustomerName) {
+          matches = String(invoiceCustomerName).toLowerCase() === String(selectedCustomerName).toLowerCase();
+        }
+        // Locked payee with no customer metadata: treat any row as belonging to that payee
+        // when the form was scoped to a single rider (no selectable payee options).
+        if (!matches && !selectedCustomerId && !selectedCustomerName && payeeValue && $payee.is('input')) {
+          matches = true;
+        }
+
+        if (matches) {
+          found = true;
+          return false;
+        }
+      });
+
+      return found;
+    }
+
+    function syncAdvanceLoanOptionVisibility() {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+
+      var $typeSelect = $ctx.find('#create_payment_type');
+      if (!$typeSelect.length) {
+        return;
+      }
+
+      var riderHasInvoices = selectedRiderHasInvoices();
+      var $advanceOpt = $typeSelect.find('option[value="advance_loan"]');
+      var wasAdvanceLoan = ($typeSelect.val() || '') === 'advance_loan';
+
+      if (riderHasInvoices) {
+        if ($advanceOpt.length) {
+          if (!$typeSelect.data('advanceLoanOptionHtml')) {
+            $typeSelect.data('advanceLoanOptionHtml', $advanceOpt.prop('outerHTML'));
+          }
+          $advanceOpt.remove();
+        }
+        if (wasAdvanceLoan || !$typeSelect.val()) {
+          $typeSelect.val('payment');
+          applyCreatePaymentTypeUi();
+        }
+      } else if (!$advanceOpt.length) {
+        var optionHtml = $typeSelect.data('advanceLoanOptionHtml')
+          || '<option value="advance_loan">Advance Loan</option>';
+        $typeSelect.append(optionHtml);
+      }
+
+      if ($typeSelect.hasClass('select2-hidden-accessible')) {
+        $typeSelect.trigger('change.select2');
+      }
+    }
+
     function invoiceAmountCap($input) {
       // Prefer explicit invoice total (TOTAL AMOUNT), not remaining balance.
       var maxBalance = parseFloat($input.attr('data-max'));
@@ -595,6 +679,7 @@
         updateTotalPayment();
         validatePaymentDistribution();
         applyInvoiceDateFromSelection();
+        syncAdvanceLoanOptionVisibility();
         return;
       }
 
@@ -636,6 +721,7 @@
       updateTotalPayment();
       validatePaymentDistribution();
       applyInvoiceDateFromSelection();
+      syncAdvanceLoanOptionVisibility();
       if (isRiderPayment && !options.skipSelectionSync) {
         syncRiderPaymentAmountFromInvoices();
       }
@@ -652,6 +738,15 @@
       filterInvoiceRows();
       updateRiderBalanceDueDisplay();
     });
+    // Select2 may fire these instead of native change in modals.
+    $ctx.on(
+      'select2:select.paymentFields select2:clear.paymentFields',
+      '#payee_account_id, [name="payee_account_id"]',
+      function () {
+        filterInvoiceRows();
+        updateRiderBalanceDueDisplay();
+      }
+    );
 
     function onCreatePaymentTypeChanged() {
       applyCreatePaymentTypeUi();
@@ -894,6 +989,8 @@
       var $payeeSelect = $ctx.find('#payee_account_id, [name="payee_account_id"]');
       if ($payeeSelect.val() || isRiderPayment) {
         filterInvoiceRows();
+      } else {
+        syncAdvanceLoanOptionVisibility();
       }
       var openedInvoiceId = $ctx.find('[data-opened-invoice-id]').attr('data-opened-invoice-id');
       if (openedInvoiceId) {
@@ -944,6 +1041,13 @@
     }
 
     if (isRiderOnly && createType === 'advance_loan') {
+      // Mirror UI rule: Advance Loan is unavailable when the selected rider has invoices.
+      var hasPayeeSelected = !!($('#payee_account_id, [name="payee_account_id"]').val());
+      if (hasPayeeSelected && $('#invoices-table tbody tr:visible').length > 0) {
+        alert('Advance Loan is not available when the selected rider has unpaid invoices. Please use Payment instead.');
+        $('#create_payment_type').addClass('is-invalid');
+        return false;
+      }
       if (!$('#billing_month').val()) {
         alert('Billing month is required for Advance Loan');
         $('#billing_month').addClass('is-invalid');

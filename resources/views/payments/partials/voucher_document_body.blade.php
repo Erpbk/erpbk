@@ -380,7 +380,6 @@
                 </td>
                 <td class="rpv-hdr-brand">
                     <div class="rpv-company">{{ $companyName }}</div>
-                    <div class="rpv-title">{{ $documentTitle }}</div>
                     @if($companyTrn !== '' || $companyPhone !== '' || $companyEmail !== '')
                     <div class="rpv-meta">
                         @if($companyTrn !== '')TRN: {{ $companyTrn }}@endif
@@ -442,10 +441,6 @@
                             <tr>
                                 <td class="k">Payment Type:</td>
                                 <td class="v">{{ $paymentType }}</td>
-                            </tr>
-                            <tr>
-                                <td class="k">Payment Amount:</td>
-                                <td class="v">{{ $money($paymentAmount) }}</td>
                             </tr>
                             @if((float) ($bankCharges ?? 0) > 0)
                             <tr>

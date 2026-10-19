@@ -1414,27 +1414,38 @@ $(document).ready(function () {
       return;
     }
 
-    // Destroy select2 and clean up in the cloned row
-    if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
-      newRow.find('.select2').select2('destroy');
-    }
-    newRow
-      .find('select')
-      .removeAttr('data-select2-id')
-      .removeClass('select2-hidden-accessible')
-      .next('.select2')
-      .remove();
+    // Strip Select2 artifacts from the clone. Select2 stamps data-select2-id on
+    // options after a choice is made; cloning those IDs breaks the new dropdown
+    // (selection does not show / updates the wrong row).
+    newRow.find('select').each(function () {
+      var $select = $(this);
+      if (window.jQuery && $.fn && $.fn.select2 && $select.data('select2')) {
+        $select.select2('destroy');
+      }
+      $select
+        .removeAttr('data-select2-id')
+        .removeAttr('aria-hidden')
+        .removeAttr('tabindex')
+        .removeClass('select2-hidden-accessible');
+      $select.find('option').removeAttr('data-select2-id').prop('selected', false);
+      $select.find('option:first').prop('selected', true);
+    });
+    newRow.find('.select2-container').remove();
+
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
-    newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
+    newRow.find('select').val('');
     // Reset amount field to default value and remove data attribute
     newRow.find('.amount').attr('data-numeric-value', '0');
 
     // Set default values for qty, rate, discount, tax
     newRow.find('.qty').val('1');
     newRow.find('.rate').val('0');
+    newRow.find('.vat').val('0');
+    newRow.find('.vat_amount').val('0');
     newRow.find('.discount').val('0');
     newRow.find('.tax').val('0');
+    newRow.find('.amount').val('0.00');
 
     // Append the new row to the container
     $('#rows-container').append(newRow);

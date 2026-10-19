@@ -44,12 +44,7 @@ class RiderPaymentVoucherViewData
         $currencyCode = Currency::code();
         $paidByAccount = $this->payingAccountLabel($payment);
 
-        $amountInWords = Account::convertNumberToWord(number_format($totalAmount, 2, '.', ''));
-        if (is_string($amountInWords) && $amountInWords !== '') {
-            $amountInWords = ucwords(strtolower($amountInWords)).' Only';
-        } else {
-            $amountInWords = '—';
-        }
+        $amountInWords = $this->amountInWords($totalAmount);
 
         $referenceDisplay = $payment->reference
             ?: ($allocations->first()['invoice_number'] ?? null);
@@ -96,8 +91,31 @@ class RiderPaymentVoucherViewData
                 : null,
             'attachmentName' => $payment->attachment ? basename((string) $payment->attachment) : null,
             'isRiderPayment' => $this->isRiderPayment($payment),
+            'riderModuleLabel' => \App\Models\Settings::getMenuLabel('riders'),
             'formatMoney' => static fn (float $amount) => $currencyCode.' '.number_format($amount, 2),
         ];
+    }
+
+    private function amountInWords(float $amount): string
+    {
+        $normalized = number_format(abs($amount), 2, '.', '');
+        [$whole, $fraction] = array_pad(explode('.', $normalized, 2), 2, '00');
+
+        $wholeWords = Account::convertNumberToWord($whole);
+        if (! is_string($wholeWords) || $wholeWords === '') {
+            return '—';
+        }
+
+        $text = ucwords(strtolower($wholeWords));
+        $fractionInt = (int) $fraction;
+        if ($fractionInt > 0) {
+            $fracWords = Account::convertNumberToWord((string) $fractionInt);
+            if (is_string($fracWords) && $fracWords !== '') {
+                $text .= ' and '.ucwords(strtolower($fracWords));
+            }
+        }
+
+        return $text.' Only';
     }
 
     /**

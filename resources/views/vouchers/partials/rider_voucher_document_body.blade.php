@@ -9,6 +9,12 @@
     $showSignature = !empty($settings['show_signature']);
     $logoSrc = $logoSrc ?? ($brand['logo_src'] ?? ($brand['logo_url'] ?? null));
     $voucherNo = $voucherNo ?? ($referenceNo ?? '—');
+    $companyTrn = trim((string) ($companyTrn ?? (\App\Helpers\Common::getSetting('vat_number') ?? '')));
+    $companyPhone = trim((string) ($companyPhone ?? ($brand['phone'] ?? '')));
+    $companyEmail = trim((string) ($companyEmail ?? ($brand['email'] ?? '')));
+    $companyAddress = trim((string) ($companyAddress ?? ($brand['address'] ?? '')));
+    $riderModuleLabel = trim((string) ($riderModuleLabel ?? \App\Models\Settings::getMenuLabel('riders')));
+    $riderModuleSingular = \Illuminate\Support\Str::singular($riderModuleLabel !== '' ? $riderModuleLabel : 'Rider');
 @endphp
 
 {{-- Reuse Payment Voucher chrome (same classes / look) --}}
@@ -30,93 +36,254 @@
     line-height: 1.45;
 }
 .rpv-doc * { box-sizing: border-box; }
-.rpv-accent { height: {{ $isPdf ? '4px' : '5px' }}; background: var(--rpv-blue); }
+.rpv-accent {
+    height: {{ $isPdf ? '4px' : '5px' }};
+    background: var(--rpv-blue);
+}
 .rpv-sheet { padding: {{ $isPdf ? '14px 16px 16px' : '26px 30px 24px' }}; }
-.rpv-hdr { width: 100%; border-collapse: collapse; margin: 0 0 {{ $isPdf ? '14px' : '18px' }}; }
+.rpv-hdr {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 {{ $isPdf ? '14px' : '18px' }};
+}
 .rpv-hdr td {
-    border: none; vertical-align: middle; padding: 0 0 {{ $isPdf ? '12px' : '16px' }};
+    border: none;
+    vertical-align: middle;
+    padding: 0 0 {{ $isPdf ? '12px' : '16px' }};
     border-bottom: 2px solid var(--rpv-blue);
 }
-.rpv-hdr-logo { width: 28%; text-align: left; }
-.rpv-hdr-brand { width: 44%; text-align: center; padding-left: 8px; padding-right: 8px; }
-.rpv-hdr-right { width: 28%; text-align: right; }
+.rpv-hdr-logo {
+    width: 28%;
+    text-align: left;
+}
+.rpv-hdr-brand {
+    width: 44%;
+    text-align: center;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.rpv-hdr-right {
+    width: 28%;
+    text-align: right;
+}
 .rpv-logo {
-    display: block; max-width: {{ $isPdf ? '150px' : '180px' }}; max-height: {{ $isPdf ? '52px' : '60px' }};
-    width: auto; height: auto; object-fit: contain; object-position: left center; margin: 0;
+    display: block;
+    max-width: {{ $isPdf ? '150px' : '180px' }};
+    max-height: {{ $isPdf ? '52px' : '60px' }};
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    object-position: left center;
+    margin: 0;
 }
 .rpv-company {
-    font-size: {{ $isPdf ? '17px' : '20px' }}; font-weight: 700; color: var(--rpv-blue);
-    line-height: 1.2; letter-spacing: -0.01em; text-align: center;
+    font-size: {{ $isPdf ? '16px' : '18px' }};
+    font-weight: 700;
+    color: var(--rpv-blue);
+    line-height: 1.25;
+    letter-spacing: 0;
+    text-align: center;
+    margin: 0;
 }
 .rpv-title {
-    display: block; margin-top: 6px; font-size: {{ $isPdf ? '10px' : '11px' }};
-    letter-spacing: 0.16em; color: var(--rpv-blue); font-weight: 700; text-transform: uppercase; text-align: center;
+    display: block;
+    margin-top: {{ $isPdf ? '4px' : '5px' }};
+    font-size: {{ $isPdf ? '10px' : '11px' }};
+    letter-spacing: 0.16em;
+    color: var(--rpv-blue);
+    font-weight: 600;
+    text-transform: uppercase;
+    text-align: center;
 }
+.rpv-meta {
+    display: block;
+    margin-top: {{ $isPdf ? '4px' : '5px' }};
+    font-size: {{ $isPdf ? '9.5px' : '11px' }};
+    font-weight: 400;
+    color: #666666;
+    line-height: 1.4;
+    text-align: center;
+}
+.rpv-meta + .rpv-meta { margin-top: 2px; }
 .rpv-ref-label {
-    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b;
-    margin-bottom: 6px; font-weight: 600;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 6px;
+    font-weight: 600;
 }
 .rpv-ref-box {
-    display: inline-block; min-width: 148px; border: 1px solid var(--rpv-line); background: var(--rpv-soft);
-    padding: 9px 14px; font-weight: 700; font-size: {{ $isPdf ? '13px' : '15px' }};
-    letter-spacing: 0.03em; color: var(--rpv-blue); text-align: center; border-radius: {{ $isPdf ? '0' : '8px' }};
+    display: inline-block;
+    min-width: 148px;
+    border: 1px solid var(--rpv-line);
+    background: var(--rpv-soft);
+    padding: 9px 14px;
+    font-weight: 700;
+    font-size: {{ $isPdf ? '13px' : '15px' }};
+    letter-spacing: 0.03em;
+    color: var(--rpv-blue);
+    text-align: center;
+    border-radius: {{ $isPdf ? '0' : '8px' }};
 }
-.rpv-split { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0 0 {{ $isPdf ? '12px' : '14px' }}; table-layout: fixed; }
-.rpv-split-cell { width: 50%; vertical-align: top; border: none; padding: 0; }
+.rpv-split {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0 0 {{ $isPdf ? '12px' : '14px' }};
+    table-layout: fixed;
+}
+.rpv-split-cell {
+    width: 50%;
+    vertical-align: top;
+    border: none;
+    padding: 0;
+}
 .rpv-split-cell:first-child { padding-right: {{ $isPdf ? '6px' : '8px' }}; }
 .rpv-split-cell:last-child { padding-left: {{ $isPdf ? '6px' : '8px' }}; }
 .rpv-card {
-    background: var(--rpv-soft); border: 1px solid var(--rpv-line); border-top: 3px solid var(--rpv-blue);
-    border-radius: {{ $isPdf ? '0' : '8px' }}; padding: {{ $isPdf ? '2px 12px 4px' : '4px 14px 6px' }};
+    background: var(--rpv-soft);
+    border: 1px solid var(--rpv-line);
+    border-top: 3px solid var(--rpv-blue);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    padding: {{ $isPdf ? '2px 12px 4px' : '4px 14px 6px' }};
+    height: 100%;
 }
-.rpv-kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rpv-kv {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
 .rpv-kv td {
-    border: none; border-bottom: 1px solid rgba(197, 216, 240, 0.85);
-    padding: {{ $isPdf ? '5px 0' : '7px 0' }}; vertical-align: middle; font-size: {{ $isPdf ? '11px' : '13px' }};
+    border: none;
+    border-bottom: 1px solid rgba(197, 216, 240, 0.85);
+    padding: {{ $isPdf ? '5px 0' : '7px 0' }};
+    vertical-align: middle;
+    font-size: {{ $isPdf ? '11px' : '13px' }};
 }
 .rpv-kv tr:last-child td { border-bottom: none; }
-.rpv-kv .k { color: #64748b; font-weight: 500; width: 42%; text-align: left; padding-right: 8px; white-space: nowrap; }
-.rpv-kv .v { color: #0f172a; font-weight: 700; width: 58%; text-align: right; word-break: break-word; }
+.rpv-kv .k {
+    color: #64748b;
+    font-weight: 500;
+    width: 42%;
+    text-align: left;
+    padding-right: 8px;
+    white-space: nowrap;
+}
+.rpv-kv .v {
+    color: #0f172a;
+    font-weight: 700;
+    width: 58%;
+    text-align: right;
+    word-break: break-word;
+}
 .rpv-kv .v-link { color: var(--rpv-blue); }
 .rpv-box {
-    border: 1px solid var(--rpv-line); border-top: 3px solid var(--rpv-blue); border-radius: {{ $isPdf ? '0' : '8px' }};
-    padding: {{ $isPdf ? '8px 12px' : '12px 14px' }}; margin: 0 0 {{ $isPdf ? '12px' : '14px' }}; background: #f8fafc;
+    border: 1px solid var(--rpv-line);
+    border-top: 3px solid var(--rpv-blue);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    padding: {{ $isPdf ? '8px 12px' : '12px 14px' }};
+    margin: 0 0 {{ $isPdf ? '12px' : '14px' }};
+    background: #f8fafc;
 }
 .rpv-box-title {
-    font-size: {{ $isPdf ? '9px' : '10px' }}; font-weight: 700; color: var(--rpv-blue);
-    margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: {{ $isPdf ? '9px' : '10px' }};
+    font-weight: 700;
+    color: var(--rpv-blue);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
-.rpv-box-body { font-size: {{ $isPdf ? '11px' : '13px' }}; color: #334155; white-space: pre-wrap; }
-.rpv-bottom { width: 100%; border-collapse: collapse; margin-top: {{ $isPdf ? '10px' : '14px' }}; }
-.rpv-bottom td { border: none; vertical-align: top; padding: 0; }
+.rpv-box-body {
+    font-size: {{ $isPdf ? '11px' : '13px' }};
+    color: #334155;
+    white-space: pre-wrap;
+}
+.rpv-bottom {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: {{ $isPdf ? '10px' : '14px' }};
+}
+.rpv-bottom td {
+    border: none;
+    vertical-align: top;
+    padding: 0;
+}
 .rpv-bottom-sum { width: {{ $isPdf ? '48%' : '320px' }}; }
 .rpv-summary {
-    width: 100%; border-collapse: collapse; border: 1px solid var(--rpv-line);
-    border-radius: {{ $isPdf ? '0' : '8px' }}; overflow: hidden; font-size: {{ $isPdf ? '11px' : '13px' }};
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid var(--rpv-line);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    overflow: hidden;
+    font-size: {{ $isPdf ? '11px' : '13px' }};
 }
-.rpv-summary td { padding: {{ $isPdf ? '5px 10px' : '8px 14px' }}; border: none; border-bottom: 1px solid #e8eef5; }
-.rpv-summary .k { color: #64748b; font-weight: 500; text-align: left; }
-.rpv-summary .v { font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpv-summary td {
+    padding: {{ $isPdf ? '5px 10px' : '8px 14px' }};
+    border: none;
+    border-bottom: 1px solid #e8eef5;
+}
+.rpv-summary .k {
+    color: #64748b;
+    font-weight: 500;
+    text-align: left;
+}
+.rpv-summary .v {
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
 .rpv-summary tr:last-child td { border-bottom: none; }
 .rpv-summary-total td {
-    background: var(--rpv-blue); color: #fff !important; font-weight: 700; border-bottom: none;
+    background: var(--rpv-blue);
+    color: #fff !important;
+    font-weight: 700;
+    border-bottom: none;
     padding: {{ $isPdf ? '8px 10px' : '11px 14px' }};
 }
 .rpv-meta-box {
-    border: 1px solid var(--rpv-line); border-radius: {{ $isPdf ? '0' : '8px' }};
-    padding: {{ $isPdf ? '8px 12px' : '10px 14px' }}; margin-top: {{ $isPdf ? '10px' : '12px' }};
-    font-size: {{ $isPdf ? '11px' : '12.5px' }}; color: #334155;
+    border: 1px solid var(--rpv-line);
+    border-radius: {{ $isPdf ? '0' : '8px' }};
+    padding: {{ $isPdf ? '8px 12px' : '10px 14px' }};
+    margin-top: {{ $isPdf ? '10px' : '12px' }};
+    font-size: {{ $isPdf ? '11px' : '12.5px' }};
+    color: #334155;
 }
 .rpv-meta-box strong {
-    color: var(--rpv-blue); margin-right: 6px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--rpv-blue);
+    margin-right: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     font-size: {{ $isPdf ? '10px' : '11px' }};
 }
-.rpv-meta-box a { color: var(--rpv-blue); font-weight: 600; text-decoration: none; }
-.rpv-sigs { margin-top: {{ $isPdf ? '28px' : '36px' }}; width: 100%; border-collapse: collapse; }
-.rpv-sig { width: 50%; text-align: center; vertical-align: bottom; padding: 0 18px; border: none; }
-.rpv-sig-line { border-top: 1px solid #94a3b8; margin: {{ $isPdf ? '36px' : '48px' }} 8px 8px; }
+.rpv-meta-box a {
+    color: var(--rpv-blue);
+    font-weight: 600;
+    text-decoration: none;
+}
+.rpv-sigs {
+    margin-top: {{ $isPdf ? '28px' : '36px' }};
+    width: 100%;
+    border-collapse: collapse;
+}
+.rpv-sig {
+    width: 50%;
+    text-align: center;
+    vertical-align: bottom;
+    padding: 0 18px;
+    border: none;
+}
+.rpv-sig-line {
+    border-top: 1px solid #94a3b8;
+    margin: {{ $isPdf ? '36px' : '48px' }} 8px 8px;
+}
 .rpv-sig-label {
-    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #475569;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #475569;
 }
 @media print {
     .voucher-posted-transactions,
@@ -131,12 +298,23 @@
             <tr>
                 <td class="rpv-hdr-logo">
                     @if(!empty($logoSrc))
-                        <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="rpv-logo">
+                    <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="rpv-logo">
                     @endif
                 </td>
                 <td class="rpv-hdr-brand">
                     <div class="rpv-company">{{ $companyName }}</div>
                     <div class="rpv-title">{{ $documentTitle }}</div>
+                    @if($companyTrn !== '' || $companyPhone !== '' || $companyEmail !== '')
+                    <div class="rpv-meta">
+                        @if($companyTrn !== '')TRN: {{ $companyTrn }}@endif
+                        @if($companyTrn !== '' && $companyPhone !== '') · @endif
+                        @if($companyPhone !== '')Tel: {{ $companyPhone }}@endif
+                        @if($companyEmail !== ''){{ ($companyTrn !== '' || $companyPhone !== '') ? ' ' : '' }}{{ $companyEmail }}@endif
+                    </div>
+                    @endif
+                    @if($companyAddress !== '')
+                    <div class="rpv-meta">{{ $companyAddress }}</div>
+                    @endif
                 </td>
                 <td class="rpv-hdr-right">
                     <div class="rpv-ref-label">Voucher No.</div>
@@ -155,11 +333,11 @@
                                 <td class="v">{{ $voucherDate }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Payee (Rider):</td>
+                                <td class="k">Payee:</td>
                                 <td class="v v-link">{{ $payeeName }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Rider Code:</td>
+                                <td class="k">{{ $riderModuleSingular }} Code:</td>
                                 <td class="v">{{ $riderCode }}</td>
                             </tr>
                             <tr>
@@ -172,7 +350,7 @@
                             </tr>
                             <tr>
                                 <td class="k">Created By:</td>
-                                <td class="v">{{ $createdBy }}</td>
+                                <td class="v">{{ $createdBy ?? '—' }}</td>
                             </tr>
                         </table>
                     </div>
@@ -180,10 +358,6 @@
                 <td class="rpv-split-cell">
                     <div class="rpv-card">
                         <table class="rpv-kv" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td class="k">Voucher No.:</td>
-                                <td class="v">{{ $voucherNo }}</td>
-                            </tr>
                             <tr>
                                 <td class="k">Voucher Type:</td>
                                 <td class="v">{{ $voucherTypeLabel }}</td>
@@ -236,35 +410,35 @@
         <div class="rpv-meta-box rpv-attachments no-print">
             <strong>Attachments:</strong>
             @if(!empty($attachmentUrl))
-                <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
+            <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
             @else
-                No attachment
+            No attachment
             @endif
         </div>
         @endunless
 
         @if($showSignature)
-            <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td class="rpv-sig">
-                        <div class="rpv-sig-line"></div>
-                        <div class="rpv-sig-label">{{ $settings['payer_signature_label'] ?? 'Paid By' }}</div>
-                    </td>
-                    <td class="rpv-sig">
-                        <div class="rpv-sig-line"></div>
-                        <div class="rpv-sig-label">{{ $settings['rider_signature_label'] ?? 'Received By' }}</div>
-                    </td>
-                </tr>
-            </table>
+        <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="rpv-sig">
+                    <div class="rpv-sig-line"></div>
+                    <div class="rpv-sig-label">{{ $settings['payer_signature_label'] ?? 'Paid By' }}</div>
+                </td>
+                <td class="rpv-sig">
+                    <div class="rpv-sig-line"></div>
+                    <div class="rpv-sig-label">{{ $settings['rider_signature_label'] ?? 'Received By' }}</div>
+                </td>
+            </tr>
+        </table>
         @endif
 
         @unless($isPrint)
-            @include('vouchers.partials.posted_transactions', [
-                'transactions' => $postedTransactions ?? collect(),
-                'voucherType' => $voucher->voucher_type ?? null,
-                'finDetail' => $finDetail ?? null,
-                'showPostedTransactions' => true,
-            ])
+        @include('vouchers.partials.posted_transactions', [
+            'transactions' => $postedTransactions ?? collect(),
+            'voucherType' => $voucher->voucher_type ?? null,
+            'finDetail' => $finDetail ?? null,
+            'showPostedTransactions' => true,
+        ])
         @endunless
     </div>
 </div>

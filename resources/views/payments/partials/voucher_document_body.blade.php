@@ -9,6 +9,12 @@
     $showSignature = !empty($settings['show_signature']);
     $logoSrc = $logoSrc ?? ($brand['logo_src'] ?? ($brand['logo_url'] ?? null));
     $voucherNo = $voucherNo ?? ($referenceNo ?? '—');
+    $companyTrn = trim((string) ($companyTrn ?? (\App\Helpers\Common::getSetting('vat_number') ?? '')));
+    $companyPhone = trim((string) ($companyPhone ?? ($brand['phone'] ?? '')));
+    $companyEmail = trim((string) ($companyEmail ?? ($brand['email'] ?? '')));
+    $companyAddress = trim((string) ($companyAddress ?? ($brand['address'] ?? '')));
+    $riderModuleLabel = trim((string) ($riderModuleLabel ?? \App\Models\Settings::getMenuLabel('riders')));
+    $riderModuleSingular = \Illuminate\Support\Str::singular($riderModuleLabel !== '' ? $riderModuleLabel : 'Rider');
 @endphp
 
 <style>
@@ -48,16 +54,31 @@
     background: var(--rpv-blue);
 }
 .rpv-sheet { padding: {{ $isPdf ? '14px 16px 16px' : '26px 30px 24px' }}; }
-.rpv-hdr { width: 100%; border-collapse: collapse; margin: 0 0 {{ $isPdf ? '14px' : '18px' }}; }
+.rpv-hdr {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 0 {{ $isPdf ? '14px' : '18px' }};
+}
 .rpv-hdr td {
     border: none;
     vertical-align: middle;
     padding: 0 0 {{ $isPdf ? '12px' : '16px' }};
     border-bottom: 2px solid var(--rpv-blue);
 }
-.rpv-hdr-logo { width: 28%; text-align: left; }
-.rpv-hdr-brand { width: 44%; text-align: center; padding-left: 8px; padding-right: 8px; }
-.rpv-hdr-right { width: 28%; text-align: right; }
+.rpv-hdr-logo {
+    width: 28%;
+    text-align: left;
+}
+.rpv-hdr-brand {
+    width: 44%;
+    text-align: center;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+.rpv-hdr-right {
+    width: 28%;
+    text-align: right;
+}
 .rpv-logo {
     display: block;
     max-width: {{ $isPdf ? '150px' : '180px' }};
@@ -69,23 +90,34 @@
     margin: 0;
 }
 .rpv-company {
-    font-size: {{ $isPdf ? '17px' : '20px' }};
+    font-size: {{ $isPdf ? '16px' : '18px' }};
     font-weight: 700;
     color: var(--rpv-blue);
-    line-height: 1.2;
-    letter-spacing: -0.01em;
+    line-height: 1.25;
+    letter-spacing: 0;
     text-align: center;
+    margin: 0;
 }
 .rpv-title {
     display: block;
-    margin-top: 6px;
+    margin-top: {{ $isPdf ? '4px' : '5px' }};
     font-size: {{ $isPdf ? '10px' : '11px' }};
     letter-spacing: 0.16em;
     color: var(--rpv-blue);
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     text-align: center;
 }
+.rpv-meta {
+    display: block;
+    margin-top: {{ $isPdf ? '4px' : '5px' }};
+    font-size: {{ $isPdf ? '9.5px' : '11px' }};
+    font-weight: 400;
+    color: #666666;
+    line-height: 1.4;
+    text-align: center;
+}
+.rpv-meta + .rpv-meta { margin-top: 2px; }
 .rpv-ref-label {
     font-size: 10px;
     letter-spacing: 0.12em;
@@ -107,8 +139,19 @@
     text-align: center;
     border-radius: {{ $isPdf ? '0' : '8px' }};
 }
-.rpv-split { width: 100%; border-collapse: separate; border-spacing: 0; margin: 0 0 {{ $isPdf ? '12px' : '14px' }}; table-layout: fixed; }
-.rpv-split-cell { width: 50%; vertical-align: top; border: none; padding: 0; }
+.rpv-split {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 0 0 {{ $isPdf ? '12px' : '14px' }};
+    table-layout: fixed;
+}
+.rpv-split-cell {
+    width: 50%;
+    vertical-align: top;
+    border: none;
+    padding: 0;
+}
 .rpv-split-cell:first-child { padding-right: {{ $isPdf ? '6px' : '8px' }}; }
 .rpv-split-cell:last-child { padding-left: {{ $isPdf ? '6px' : '8px' }}; }
 .rpv-card {
@@ -117,8 +160,13 @@
     border-top: 3px solid var(--rpv-blue);
     border-radius: {{ $isPdf ? '0' : '8px' }};
     padding: {{ $isPdf ? '2px 12px 4px' : '4px 14px 6px' }};
+    height: 100%;
 }
-.rpv-kv { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.rpv-kv {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
 .rpv-kv td {
     border: none;
     border-bottom: 1px solid rgba(197, 216, 240, 0.85);
@@ -159,7 +207,11 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
-.rpv-box-body { font-size: {{ $isPdf ? '11px' : '13px' }}; color: #334155; white-space: pre-wrap; }
+.rpv-box-body {
+    font-size: {{ $isPdf ? '11px' : '13px' }};
+    color: #334155;
+    white-space: pre-wrap;
+}
 .rpv-table-wrap {
     border: 1px solid var(--rpv-line);
     border-top: 3px solid var(--rpv-blue);
@@ -194,7 +246,11 @@
 }
 .rpv-table tbody tr:last-child td { border-bottom: none; }
 .rpv-table tbody tr:nth-child(even) td { background: #fafbfc; }
-.rpv-table .num { text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpv-table .num {
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
 .rpv-table .pay { font-weight: 700; }
 .rpv-table tfoot td {
     background: var(--rpv-soft);
@@ -204,12 +260,21 @@
     border-bottom: none;
     padding: {{ $isPdf ? '7px 6px' : '10px' }};
 }
-.rpv-table tfoot td.rpv-allocated {
-    text-align: right !important;
+.rpv-table tfoot td.rpv-allocated { text-align: right !important; }
+.rpv-table .empty {
+    text-align: center;
+    color: #94a3b8;
 }
-.rpv-table .empty { text-align: center; color: #94a3b8; }
-.rpv-bottom { width: 100%; border-collapse: collapse; margin-top: {{ $isPdf ? '10px' : '14px' }}; }
-.rpv-bottom td { border: none; vertical-align: top; padding: 0; }
+.rpv-bottom {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: {{ $isPdf ? '10px' : '14px' }};
+}
+.rpv-bottom td {
+    border: none;
+    vertical-align: top;
+    padding: 0;
+}
 .rpv-bottom-sum { width: {{ $isPdf ? '48%' : '320px' }}; }
 .rpv-summary {
     width: 100%;
@@ -224,8 +289,17 @@
     border: none;
     border-bottom: 1px solid #e8eef5;
 }
-.rpv-summary .k { color: #64748b; font-weight: 500; text-align: left; }
-.rpv-summary .v { font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rpv-summary .k {
+    color: #64748b;
+    font-weight: 500;
+    text-align: left;
+}
+.rpv-summary .v {
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
 .rpv-summary tr:last-child td { border-bottom: none; }
 .rpv-summary-total td {
     background: var(--rpv-blue);
@@ -249,7 +323,11 @@
     letter-spacing: 0.04em;
     font-size: {{ $isPdf ? '10px' : '11px' }};
 }
-.rpv-meta-box a { color: var(--rpv-blue); font-weight: 600; text-decoration: none; }
+.rpv-meta-box a {
+    color: var(--rpv-blue);
+    font-weight: 600;
+    text-decoration: none;
+}
 .rpv-sigs {
     margin-top: {{ $isPdf ? '28px' : '36px' }};
     width: 100%;
@@ -275,8 +353,16 @@
 }
 @media print {
     .rpv-toolbar { display: none !important; }
-    .rpv-page { max-width: none; margin: 0; }
-    .rpv-doc { box-shadow: none !important; border: none !important; max-width: none; border-radius: 0; }
+    .rpv-page {
+        max-width: none;
+        margin: 0;
+    }
+    .rpv-doc {
+        box-shadow: none !important;
+        border: none !important;
+        max-width: none;
+        border-radius: 0;
+    }
     .voucher-posted-transactions,
     .rpv-attachments { display: none !important; }
 }
@@ -289,12 +375,23 @@
             <tr>
                 <td class="rpv-hdr-logo">
                     @if(!empty($logoSrc))
-                        <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="rpv-logo">
+                    <img src="{{ $logoSrc }}" alt="{{ $companyName }}" class="rpv-logo">
                     @endif
                 </td>
                 <td class="rpv-hdr-brand">
                     <div class="rpv-company">{{ $companyName }}</div>
                     <div class="rpv-title">{{ $documentTitle }}</div>
+                    @if($companyTrn !== '' || $companyPhone !== '' || $companyEmail !== '')
+                    <div class="rpv-meta">
+                        @if($companyTrn !== '')TRN: {{ $companyTrn }}@endif
+                        @if($companyTrn !== '' && $companyPhone !== '') · @endif
+                        @if($companyPhone !== '')Tel: {{ $companyPhone }}@endif
+                        @if($companyEmail !== ''){{ ($companyTrn !== '' || $companyPhone !== '') ? ' ' : '' }}{{ $companyEmail }}@endif
+                    </div>
+                    @endif
+                    @if($companyAddress !== '')
+                    <div class="rpv-meta">{{ $companyAddress }}</div>
+                    @endif
                 </td>
                 <td class="rpv-hdr-right">
                     <div class="rpv-ref-label">Voucher No.</div>
@@ -309,20 +406,12 @@
                     <div class="rpv-card">
                         <table class="rpv-kv" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td class="k">Payment Date:</td>
-                                <td class="v">{{ $paymentDate }}</td>
-                            </tr>
-                            <tr>
-                                <td class="k">Payee (Rider):</td>
+                                <td class="k">Payee ({{ $riderModuleSingular }}):</td>
                                 <td class="v v-link">{{ $payeeName }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Rider Code:</td>
+                                <td class="k">{{ $riderModuleSingular }} Code:</td>
                                 <td class="v">{{ $riderCode }}</td>
-                            </tr>
-                            <tr>
-                                <td class="k">Billing Month:</td>
-                                <td class="v">{{ $billingMonth }}</td>
                             </tr>
                             <tr>
                                 <td class="k">Paid By (Account):</td>
@@ -339,8 +428,12 @@
                     <div class="rpv-card">
                         <table class="rpv-kv" cellpadding="0" cellspacing="0">
                             <tr>
-                                <td class="k">Voucher No.:</td>
-                                <td class="v">{{ $voucherNo }}</td>
+                                <td class="k">Payment Date:</td>
+                                <td class="v">{{ $paymentDate }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Billing Month:</td>
+                                <td class="v">{{ $billingMonth }}</td>
                             </tr>
                             <tr>
                                 <td class="k">Payment Mode:</td>
@@ -354,10 +447,12 @@
                                 <td class="k">Payment Amount:</td>
                                 <td class="v">{{ $money($paymentAmount) }}</td>
                             </tr>
+                            @if((float) ($bankCharges ?? 0) > 0)
                             <tr>
                                 <td class="k">Bank Charges:</td>
                                 <td class="v">{{ $money($bankCharges) }}</td>
                             </tr>
+                            @endif
                         </table>
                     </div>
                 </td>
@@ -381,16 +476,16 @@
                 </thead>
                 <tbody>
                     @forelse($allocations as $row)
-                        <tr>
-                            <td>{{ $row['invoice_number'] }}</td>
-                            <td>{{ $row['billing_month'] }}</td>
-                            <td class="num">{{ number_format((float) $row['total'], 2) }}</td>
-                            <td class="num pay">{{ number_format((float) $row['payment'], 2) }}</td>
-                        </tr>
+                    <tr>
+                        <td>{{ $row['invoice_number'] }}</td>
+                        <td>{{ $row['billing_month'] }}</td>
+                        <td class="num">{{ number_format((float) $row['total'], 2) }}</td>
+                        <td class="num pay">{{ number_format((float) $row['payment'], 2) }}</td>
+                    </tr>
                     @empty
-                        <tr>
-                            <td colspan="4" class="empty">No invoice allocation</td>
-                        </tr>
+                    <tr>
+                        <td colspan="4" class="empty">No invoice allocation</td>
+                    </tr>
                     @endforelse
                 </tbody>
                 <tfoot>
@@ -420,10 +515,12 @@
                             <td class="k">Difference:</td>
                             <td class="v">{{ $money($difference) }}</td>
                         </tr>
+                        @if((float) ($bankCharges ?? 0) > 0)
                         <tr>
                             <td class="k">Bank Charges:</td>
                             <td class="v">{{ $money($bankCharges) }}</td>
                         </tr>
+                        @endif
                         <tr class="rpv-summary-total">
                             <td>Total Payment:</td>
                             <td class="v">{{ $money($totalPayment) }}</td>
@@ -440,42 +537,42 @@
         <div class="rpv-meta-box rpv-attachments no-print">
             <strong>Attachments:</strong>
             @if(!empty($attachmentUrl))
-                <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
+            <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
             @else
-                No attachment
+            No attachment
             @endif
         </div>
         @endif
 
         @if($showNotes)
-            <div class="rpv-box" style="margin-top:14px;">
-                <div class="rpv-box-title">{{ $settings['internal_notes_label'] ?? 'Internal Notes' }}</div>
-                <div class="rpv-box-body">{{ $internalNotes }}</div>
-            </div>
+        <div class="rpv-box" style="margin-top:14px;">
+            <div class="rpv-box-title">{{ $settings['internal_notes_label'] ?? 'Internal Notes' }}</div>
+            <div class="rpv-box-body">{{ $internalNotes }}</div>
+        </div>
         @endif
 
         @if($showSignature)
-            <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                    <td class="rpv-sig">
-                        <div class="rpv-sig-line"></div>
-                        <div class="rpv-sig-label">{{ $settings['payer_signature_label'] ?? 'Paid By' }}</div>
-                    </td>
-                    <td class="rpv-sig">
-                        <div class="rpv-sig-line"></div>
-                        <div class="rpv-sig-label">{{ $settings['rider_signature_label'] ?? 'Received By' }}</div>
-                    </td>
-                </tr>
-            </table>
+        <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+                <td class="rpv-sig">
+                    <div class="rpv-sig-line"></div>
+                    <div class="rpv-sig-label">{{ $settings['payer_signature_label'] ?? 'Paid By' }}</div>
+                </td>
+                <td class="rpv-sig">
+                    <div class="rpv-sig-line"></div>
+                    <div class="rpv-sig-label">{{ $settings['rider_signature_label'] ?? 'Received By' }}</div>
+                </td>
+            </tr>
+        </table>
         @endif
 
         {{-- Screen-only: posted ledger lines (hidden for print + PDF) --}}
         @if(!$isPdf && !request()->boolean('print'))
-            @include('vouchers.partials.posted_transactions', [
-                'transactions' => $postedTransactions ?? collect(),
-                'voucherType' => $payment->voucher->voucher_type ?? 'PV',
-                'showPostedTransactions' => true,
-            ])
+        @include('vouchers.partials.posted_transactions', [
+            'transactions' => $postedTransactions ?? collect(),
+            'voucherType' => $payment->voucher->voucher_type ?? 'PV',
+            'showPostedTransactions' => true,
+        ])
         @endif
     </div>
 </div>

@@ -303,8 +303,20 @@ class VouchersController extends Controller
       }
     }
 
+    $riderDoc = app(\App\Services\Voucher\RiderModuleVoucherViewData::class);
+
     if (request()->ajax() || request()->wantsJson()) {
       return view('vouchers.show_modal', compact('voucher', 'editDeleteFlags'));
+    }
+
+    if ($riderDoc->supports($voucher)) {
+      $doc = $riderDoc->build($voucher);
+
+      if (request()->boolean('print') || request()->get('print')) {
+        return view('vouchers.rider_voucher_print', array_merge($doc, ['doc' => $doc]));
+      }
+
+      return view('vouchers.rider_voucher_document', array_merge($doc, ['doc' => $doc]));
     }
 
     return view('vouchers.show', compact('voucher'));

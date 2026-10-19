@@ -277,6 +277,8 @@
     .rpv-toolbar { display: none !important; }
     .rpv-page { max-width: none; margin: 0; }
     .rpv-doc { box-shadow: none !important; border: none !important; max-width: none; border-radius: 0; }
+    .voucher-posted-transactions,
+    .rpv-attachments { display: none !important; }
 }
 </style>
 
@@ -434,18 +436,16 @@
         <div class="rpv-meta-box">
             <strong>Amount in Words:</strong> {{ $amountInWords }}
         </div>
-        <div class="rpv-meta-box">
+        @if(!$isPdf && !request()->boolean('print'))
+        <div class="rpv-meta-box rpv-attachments no-print">
             <strong>Attachments:</strong>
             @if(!empty($attachmentUrl))
-                @if($isPdf)
-                    {{ $attachmentName ?? 'Attachment' }}
-                @else
-                    <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
-                @endif
+                <a href="{{ $attachmentUrl }}" target="_blank" rel="noopener">{{ $attachmentName ?? 'View attachment' }}</a>
             @else
                 No attachment
             @endif
         </div>
+        @endif
 
         @if($showNotes)
             <div class="rpv-box" style="margin-top:14px;">
@@ -467,6 +467,15 @@
                     </td>
                 </tr>
             </table>
+        @endif
+
+        {{-- Screen-only: posted ledger lines (hidden for print + PDF) --}}
+        @if(!$isPdf && !request()->boolean('print'))
+            @include('vouchers.partials.posted_transactions', [
+                'transactions' => $postedTransactions ?? collect(),
+                'voucherType' => $payment->voucher->voucher_type ?? 'PV',
+                'showPostedTransactions' => true,
+            ])
         @endif
     </div>
 </div>

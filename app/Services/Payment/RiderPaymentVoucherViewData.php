@@ -9,6 +9,7 @@ use App\Helpers\General;
 use App\Models\Payment;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
+use App\Models\Transactions;
 use App\Models\User;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
@@ -26,7 +27,7 @@ class RiderPaymentVoucherViewData
      */
     public function build(Payment $payment): array
     {
-        $payment->loadMissing(['payeeAccount', 'bank.account', 'voucher', 'branch']);
+        $payment->loadMissing(['payeeAccount', 'bank.account', 'voucher.transactions.account', 'branch']);
 
         $settings = RiderPaymentVoucherDefaults::all();
         $brand = $this->branding->forCompany(CompanyContext::id() ?? $payment->company_id);
@@ -88,6 +89,7 @@ class RiderPaymentVoucherViewData
             'narration' => trim((string) ($payment->description ?? '')) ?: '—',
             'internalNotes' => trim((string) ($payment->internal_notes ?? '')),
             'allocations' => $allocations,
+            'postedTransactions' => $this->postedTransactions($payment),
             'amountInWords' => $amountInWords,
             'attachmentUrl' => $payment->attachment
                 ? url('storage/vouchers/'.ltrim((string) $payment->attachment, '/'))
@@ -96,6 +98,38 @@ class RiderPaymentVoucherViewData
             'isRiderPayment' => $this->isRiderPayment($payment),
             'formatMoney' => static fn (float $amount) => $currencyCode.' '.number_format($amount, 2),
         ];
+    }
+
+    /**
+     * Ledger lines posted for this payment (voucher trans_code or PV reference).
+     *
+     * @return Collection<int, Transactions>
+     */
+    private function postedTransactions(Payment $payment): Collection
+    {
+        $payment->loadMissing(['voucher.transactions.account']);
+
+        $viaVoucher = $payment->voucher?->transactions;
+        if ($viaVoucher && $viaVoucher->isNotEmpty()) {
+            return $viaVoucher->values();
+        }
+
+        $transCode = $payment->voucher?->trans_code;
+        if ($transCode) {
+            $byCode = Transactions::with('account')
+                ->where('trans_code', $transCode)
+                ->orderBy('id')
+                ->get();
+            if ($byCode->isNotEmpty()) {
+                return $byCode;
+            }
+        }
+
+        return Transactions::with('account')
+            ->where('reference_type', 'PV')
+            ->where('reference_id', $payment->id)
+            ->orderBy('id')
+            ->get();
     }
 
     public function isRiderPayment(Payment $payment): bool

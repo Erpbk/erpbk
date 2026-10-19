@@ -60,7 +60,8 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
 </div>
 @endif
 
-<div class="mb-3" @if($lockVoucherType) style="display:none;" @endif>
+{{-- Keep select in DOM for JS when type is locked/preselected, but never show a redundant picker/readonly field. --}}
+<div class="mb-3" @if($lockVoucherType || $editMode) style="display:none;" @endif>
     <label class="form-label">Voucher Type</label>
     <select id="voucherType" class="form-select form-select-sm select2" {{ ($editMode || $lockVoucherType) ? 'disabled' : '' }}>
         <option value="">Select</option>
@@ -69,12 +70,6 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
         @endforeach
     </select>
 </div>
-@if($lockVoucherType)
-<div class="mb-3">
-    <label class="form-label">Voucher Type</label>
-    <input type="text" class="form-control form-control-sm" value="{{ $voucherTypes[$preselectedType] ?? $preselectedType }}" readonly>
-</div>
-@endif
 
 <input type="hidden" id="reload_page" value="1">
 <input type="hidden" id="rider_id" value="{{ $rider?->id ?? '' }}">
@@ -329,7 +324,7 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
                     const inner = originalForm ? originalForm.innerHTML : temp.innerHTML;
                     const action = isEdit ? (typeToEditAction[type] || '#') : (typeToAction[type] || '#');
 
-                    container.innerHTML = '<form id="formajax" method="post" action="' + action + '"></form>';
+                    container.innerHTML = '<form id="formajax" method="post" action="' + action + '" enctype="multipart/form-data"></form>';
                     const form = container.querySelector('#formajax');
                     form.innerHTML = inner;
 
@@ -342,6 +337,19 @@ $lockVoucherType = $preselectedType !== '' && ! $editMode;
                     }
 
                     initLoadedForm(form, temp);
+
+                    const $party = $(form).find('[data-uvf-party-voucher="1"]').first();
+                    if ($party.length) {
+                        const partyTitle = $party.data('modal-title') || 'Voucher';
+                        const partySubtitle = $party.data('modal-subtitle') || '';
+                        $('#modalTopTitle').html(
+                            '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
+                            (partySubtitle
+                                ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
+                                : '')
+                        );
+                        $(form).find('[data-rpf-inline-header]').addClass('d-none');
+                    }
                 })
                 .catch(() => {
                     container.innerHTML = '<div class="alert alert-danger">Failed to load form.</div>';

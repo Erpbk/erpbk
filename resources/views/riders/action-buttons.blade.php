@@ -75,9 +75,14 @@ $visibleProfileVoucherTypes[$code] = $label;
                 'company_slug' => $companySlug,
                 ]));
                 $itemTitle = $isPaymentVoucher ? 'Record Rider Payment' : $label;
-                $itemDesc = $isPaymentVoucher
-                ? 'Record payment against an unpaid rider invoice'
-                : 'Open ' . $label . ' voucher form';
+                $itemDesc = match ($code) {
+                'PAY' => 'Record payment against an unpaid rider invoice',
+                'COD' => 'Record a COD entry for this rider',
+                'PN' => 'Record a penalty entry for this rider',
+                'INC' => 'Record an incentive entry for this rider',
+                'VC' => 'Record vendor charges for this rider',
+                default => 'Open ' . $label . ' voucher form',
+                };
                 @endphp
                 <a class="action-dropdown-item show-modal" href="javascript:void(0);"
                     data-size="xl"

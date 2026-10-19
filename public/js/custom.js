@@ -666,10 +666,35 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initFundsTransferForm === 'function' && $('#modalTopbody [data-funds-transfer-init]').length) {
       window.initFundsTransferForm(document.getElementById('formajax') || $('#modalTopbody'));
     }
-    if ($('#modalTopbody .rider-payment-form').length) {
+    if ($('#modalTopbody [data-uvf-party-voucher="1"]').length) {
+      var $partyForm = $('#modalTopbody [data-uvf-party-voucher="1"]').first();
+      var partyTitle = $partyForm.data('modal-title') || 'Voucher';
+      var partySubtitle = $partyForm.data('modal-subtitle') || '';
       $('#modalTopTitle').html(
-        '<span style="color:#1e4b8f;font-weight:700;">Record Rider Payment</span>' +
-          '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">Allocate a payment to rider invoices</div>'
+        '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
+          (partySubtitle
+            ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
+            : '')
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    } else if ($('#modalTopbody .rider-payment-form').length) {
+      var $rpf = $('#modalTopbody .rider-payment-form').first();
+      var rpfTitle = $rpf.data('modal-title') || 'Record Rider Payment';
+      var rpfSubtitle = $rpf.data('modal-subtitle') || 'Allocate a payment to rider invoices';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + rpfTitle + '</span>' +
+          '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + rpfSubtitle + '</div>'
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    } else if ($('#modalTopbody [data-uvf-journal="1"]').length) {
+      var $journalForm = $('#modalTopbody [data-uvf-journal="1"]').first();
+      var journalTitle = $journalForm.data('modal-title') || 'Journal Voucher';
+      var journalSubtitle = $journalForm.data('modal-subtitle') || '';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + journalTitle + '</span>' +
+          (journalSubtitle
+            ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + journalSubtitle + '</div>'
+            : '')
       );
       $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
     }
@@ -1372,6 +1397,10 @@ $(document).ready(function () {
     });
   }
 
+  function uvfLineRowSelector() {
+    return '#rows-container .row, #rows-container tr.uvf-line-row';
+  }
+
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
     // SIM invoices use a dedicated add-row handler.
@@ -1379,8 +1408,11 @@ $(document).ready(function () {
       return;
     }
     event.preventDefault();
-    // Clone the first row
-    const newRow = $('#rows-container .row:first').clone();
+    // Clone the first row (legacy .row or UVF table tr)
+    const newRow = $(uvfLineRowSelector()).first().clone();
+    if (!newRow.length) {
+      return;
+    }
 
     // Destroy select2 and clean up in the cloned row
     if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
@@ -1409,9 +1441,10 @@ $(document).ready(function () {
 
     // Reinitialize select2 for the newly added select element
     if (window.jQuery && $.fn && $.fn.select2) {
-      $('.select2').select2({
-        dropdownParent: $('#modalTopbody'),
-        allowClear: true
+      newRow.find('select.select2').select2({
+        dropdownParent: $('#modalTopbody').length ? $('#modalTopbody') : $(document.body),
+        allowClear: true,
+        width: '100%'
       });
     }
 
@@ -1429,8 +1462,8 @@ $(document).ready(function () {
     if ($(this).closest('.invoice-item-row').length) {
       return;
     }
-    if ($('#rows-container .row').length > 1) {
-      $(this).closest('.row').remove();
+    if ($(uvfLineRowSelector()).length > 1) {
+      $(this).closest('.row, tr.uvf-line-row').remove();
       // Recalculate total after removing row
       if (typeof getTotal === 'function') {
         getTotal();

@@ -749,7 +749,7 @@ class PaymentController extends Controller
 
     public function show(Request $request, $comapny_slug, $id)
     {
-        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($id);
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher.transactions.account'])->find($id);
         if (empty($payment)) {
             if ($request->ajax()) {
                 return response('Payment not found', 404);
@@ -778,7 +778,7 @@ class PaymentController extends Controller
 
     public function pdf($comapny_slug, $id)
     {
-        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($id);
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher.transactions.account'])->find($id);
         if (empty($payment)) {
             Flash::error('Payment not found');
 

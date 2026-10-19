@@ -3266,7 +3266,10 @@ class RidersController extends AppBaseController
         'trans_date' => $request->trans_date ?? date('Y-m-d'),
         'voucher_type' => 'COD', // COD
         'payment_type' => $request->payment_type ?? 1, // Default to Cash
-        'payment_from' => GlobalAccounts::id('COD_ACCOUNT'),
+        // Prefer configured COD_ACCOUNT; otherwise the selected credit account / COD_PARENT.
+        'payment_from' => GlobalAccounts::idOrNull('COD_ACCOUNT')
+          ?: (int) $creditAccountId
+          ?: GlobalAccounts::id('COD_PARENT'),
         'billing_month' => $this->normalizeBillingMonth($request->billing_month ?? null),
         'amount' => $riderAmount,
         'remarks' => 'COD Amount to Rider',
@@ -3862,7 +3865,8 @@ class RidersController extends AppBaseController
       : null;
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
-    $requireRiderSelect = true;
+    // Only show the Rider picker when opening without a known rider (e.g. global create).
+    $requireRiderSelect = empty($rider);
 
     return view('riders.voucher-modal', compact(
       'rider',

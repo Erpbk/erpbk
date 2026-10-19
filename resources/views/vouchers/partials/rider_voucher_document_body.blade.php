@@ -5,7 +5,7 @@
     $blue = $brand['primary_color'] ?? '#1e4b8f';
     $blueSoft = $brand['primary_soft'] ?? '#eef4fc';
     $blueLine = $brand['border_color'] ?? '#c5d8f0';
-    $money = $formatMoney ?? static fn ($n) => ($currencyCode ?? '').' '.number_format((float) $n, 2);
+    $money = $formatMoney ?? static fn ($n) => \App\Helpers\Currency::format((float) $n);
     $showSignature = !empty($settings['show_signature']);
     $logoSrc = $logoSrc ?? ($brand['logo_src'] ?? ($brand['logo_url'] ?? null));
     $voucherNo = $voucherNo ?? ($referenceNo ?? '—');

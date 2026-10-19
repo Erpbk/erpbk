@@ -92,7 +92,7 @@ class RiderPaymentVoucherViewData
             'attachmentName' => $payment->attachment ? basename((string) $payment->attachment) : null,
             'isRiderPayment' => $this->isRiderPayment($payment),
             'riderModuleLabel' => \App\Models\Settings::getMenuLabel('riders'),
-            'formatMoney' => static fn (float $amount) => $currencyCode.' '.number_format($amount, 2),
+            'formatMoney' => static fn (float $amount) => Currency::format($amount),
         ];
     }
 

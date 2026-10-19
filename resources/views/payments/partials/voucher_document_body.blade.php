@@ -2,20 +2,26 @@
     $isPdf = !empty($isPdf);
     $brand = $brand ?? [];
     $blue = $brand['primary_color'] ?? '#1e4b8f';
-    $blueSoft = $brand['primary_soft'] ?? '#eef4fc';
+    $blueSoft = '#e3e4f9';
     $blueLine = $brand['border_color'] ?? '#c5d8f0';
-    $money = $formatMoney ?? static fn ($n) => ($currencyCode ?? '').' '.number_format((float) $n, 2);
+    $money = $formatMoney ?? static fn ($n) => \App\Helpers\Currency::format((float) $n);
     $showNotes = !empty($settings['show_internal_notes']) && trim((string) ($internalNotes ?? '')) !== '';
     $showSignature = !empty($settings['show_signature']);
     $logoSrc = $logoSrc ?? ($brand['logo_src'] ?? ($brand['logo_url'] ?? null));
     $voucherNo = $voucherNo ?? ($referenceNo ?? '—');
+    $invoiceNumbers = collect($allocations ?? [])
+        ->pluck('invoice_number')
+        ->map(static fn ($n) => trim((string) $n))
+        ->filter()
+        ->unique()
+        ->values();
+    $invoiceDisplay = $invoiceNumbers->isNotEmpty() ? $invoiceNumbers->implode(', ') : '—';
     $companyTrn = trim((string) ($companyTrn ?? (\App\Helpers\Common::getSetting('vat_number') ?? '')));
     $companyPhone = trim((string) ($companyPhone ?? ($brand['phone'] ?? '')));
     $companyEmail = trim((string) ($companyEmail ?? ($brand['email'] ?? '')));
     $companyAddress = trim((string) ($companyAddress ?? ($brand['address'] ?? '')));
     $riderModuleLabel = trim((string) ($riderModuleLabel ?? \App\Models\Settings::getMenuLabel('riders')));
     $riderModuleSingular = \Illuminate\Support\Str::singular($riderModuleLabel !== '' ? $riderModuleLabel : 'Rider');
-    $payToLabel = 'Paid To ('.$riderModuleSingular.')';
     $payeeDisplay = trim((string) ($payeeName ?? ''));
     $payeeLen = mb_strlen($payeeDisplay);
     $payeeFontSize = $payeeLen > 40
@@ -112,10 +118,10 @@
 .rpv-meta + .rpv-meta { margin-top: 2px; }
 .rpv-badge {
     display: inline-block;
-    background: var(--rpv-blue);
-    color: #fff;
+    background: #e3e4f9;
+    color: #0f172a;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     letter-spacing: 1px;
     text-transform: uppercase;
     padding: 7px 14px;
@@ -181,16 +187,17 @@
 .rpv-split--xl-left .rpv-split-cell:last-child .rpv-kv .k { width: 48%; }
 .rpv-split--xl-left .rpv-split-cell:last-child .rpv-kv .v { width: 52%; }
 .rpv-card {
-    background: var(--rpv-soft);
+    background: #fff;
     border: 1px solid var(--rpv-line);
     border-top: 3px solid var(--rpv-blue);
     border-radius: 8px;
-    padding: 4px 14px 6px;
+    padding: 0;
     height: 100%;
+    overflow: hidden;
 }
 .rpv-doc--pdf .rpv-card {
     border-radius: 0;
-    padding: 2px 12px 4px;
+    padding: 0;
 }
 .rpv-kv {
     width: 100%;
@@ -200,12 +207,33 @@
 .rpv-kv td {
     border: none;
     border-bottom: 1px solid rgba(197, 216, 240, 0.85);
-    padding: 7px 0;
+    padding: 7px 14px;
     vertical-align: middle;
     font-size: 13px;
+    background: #fff;
 }
-.rpv-doc--pdf .rpv-kv td { padding: 5px 0; font-size: 11px; }
+.rpv-doc--pdf .rpv-kv td { padding: 5px 12px; font-size: 11px; }
 .rpv-kv tr:last-child td { border-bottom: none; }
+.rpv-kv tr.rpv-kv-head td {
+    background: var(--rpv-soft);
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rpv-line);
+    font-weight: 700;
+}
+.rpv-doc--pdf .rpv-kv tr.rpv-kv-head td {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+.rpv-kv .rpv-kv-head-title {
+    color: var(--rpv-blue);
+    font-weight: 700 !important;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    text-align: left;
+}
+.rpv-doc--pdf .rpv-kv .rpv-kv-head-title { font-size: 10px; }
 .rpv-kv .k {
     color: #64748b;
     font-weight: 500;
@@ -258,15 +286,15 @@
 }
 .rpv-doc--pdf .rpv-box-body { font-size: 11px; }
 .rpv-table-wrap {
-    border: 1px solid var(--rpv-line);
+    border: 1px solid #d8dce8;
     border-top: 3px solid var(--rpv-blue);
     border-radius: 8px;
     overflow: hidden;
-    margin: 0 0 4px;
+    margin: 0 0 14px;
 }
 .rpv-doc--pdf .rpv-table-wrap {
     border-radius: 0;
-    margin: 0 0 10px;
+    margin: 0 0 12px;
 }
 .rpv-table {
     width: 100%;
@@ -276,113 +304,105 @@
 }
 .rpv-doc--pdf .rpv-table { font-size: 10px; }
 .rpv-table th {
-    background: var(--rpv-soft);
+    background: #e3e4f9;
     color: #0f172a;
     border: none;
-    border-bottom: 1px solid var(--rpv-line);
-    padding: 10px;
+    padding: 11px 12px;
     text-align: center;
     font-weight: 700;
-    font-size: 10.5px;
+    font-size: 11px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
-.rpv-doc--pdf .rpv-table th { padding: 7px 6px; font-size: 9px; }
+.rpv-doc--pdf .rpv-table th { padding: 8px 8px; font-size: 9.5px; }
 .rpv-table td {
     border: none;
     border-bottom: 1px solid #e8eef5;
-    padding: 9px 10px;
+    padding: 11px 12px;
     vertical-align: middle;
     text-align: center;
     color: #0f172a;
+    background: #fff;
 }
-.rpv-doc--pdf .rpv-table td { padding: 6px; }
+.rpv-doc--pdf .rpv-table td { padding: 7px 8px; }
 .rpv-table tbody tr:last-child td { border-bottom: none; }
-.rpv-table tbody tr:nth-child(even) td { background: #fafbfc; }
 .rpv-table .num {
-    text-align: center;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-}
-.rpv-table .pay { font-weight: 700; }
-.rpv-table tfoot td {
-    background: var(--rpv-soft);
-    font-weight: 700;
-    color: var(--rpv-blue);
-    border-top: 1px solid var(--rpv-line);
-    border-bottom: none;
-    padding: 10px;
-}
-.rpv-doc--pdf .rpv-table tfoot td { padding: 7px 6px; }
-.rpv-table tfoot td.rpv-allocated {
-    padding: 10px;
-}
-.rpv-table tfoot td.rpv-allocated-spacer {
-    text-align: left;
-}
-.rpv-table tfoot td.rpv-allocated-label {
-    text-align: left !important;
-    white-space: nowrap;
-}
-.rpv-table tfoot td.rpv-allocated-val {
-    text-align: center !important;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-}
-.rpv-table .empty { text-align: center; color: #94a3b8; }
-.rpv-bottom {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 14px;
-}
-.rpv-doc--pdf .rpv-bottom { margin-top: 10px; }
-.rpv-bottom td { border: none; vertical-align: top; padding: 0; }
-.rpv-bottom-sum { width: 320px; }
-.rpv-doc--pdf .rpv-bottom-sum { width: 48%; }
-.rpv-summary {
-    width: 100%;
-    border-collapse: collapse;
-    border: 1px solid var(--rpv-line);
-    border-radius: 8px;
-    overflow: hidden;
-    font-size: 13px;
-}
-.rpv-doc--pdf .rpv-summary { border-radius: 0; font-size: 11px; }
-.rpv-summary td {
-    padding: 8px 14px;
-    border: none;
-    border-bottom: 1px solid #e8eef5;
-}
-.rpv-doc--pdf .rpv-summary td { padding: 5px 10px; }
-.rpv-summary .k { color: #64748b; font-weight: 500; text-align: left; }
-.rpv-summary .v {
-    font-weight: 700;
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
-.rpv-summary tr:last-child td { border-bottom: none; }
-.rpv-summary-total td {
-    background: var(--rpv-blue);
-    color: #fff !important;
-    font-weight: 700;
-    border-bottom: none;
-    padding: 11px 14px;
-}
-.rpv-doc--pdf .rpv-summary-total td { padding: 8px 10px; }
-.rpv-meta-box {
-    border: 1px solid var(--rpv-line);
+.rpv-table .sno { width: 64px; text-align: center; }
+.rpv-table .pay { font-weight: 600; }
+.rpv-table .empty { text-align: center; color: #94a3b8; }
+.rpv-total-paid {
+    width: 360px;
+    max-width: 100%;
+    margin: 0 0 14px auto;
+    background: #e3e4f9;
+    color: #0f172a;
     border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    box-sizing: border-box;
+}
+.rpv-doc--pdf .rpv-total-paid {
+    width: 48%;
+    margin: 0 0 12px auto;
+    border-radius: 0;
     padding: 10px 14px;
-    margin-top: 12px;
+    display: table;
+}
+.rpv-total-paid-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #0f172a;
+    white-space: nowrap;
+}
+.rpv-total-paid-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+.rpv-doc--pdf .rpv-total-paid-label,
+.rpv-doc--pdf .rpv-total-paid-val {
+    display: table-cell;
+    vertical-align: middle;
+}
+.rpv-doc--pdf .rpv-total-paid-label { font-size: 11px; }
+.rpv-doc--pdf .rpv-total-paid-val { font-size: 13px; }
+.rpv-doc .app-currency-icon {
+    display: inline-block;
+    height: 1em;
+    width: auto;
+    max-width: 1.75em;
+    object-fit: contain;
+    vertical-align: -0.15em;
+}
+.rpv-meta-box {
+    border: 1px solid #d5d8ec;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-top: 0;
+    margin-bottom: 12px;
     font-size: 12.5px;
     color: #334155;
+    background: #e3e4f9;
 }
 .rpv-doc--pdf .rpv-meta-box {
     border-radius: 0;
     padding: 8px 12px;
-    margin-top: 10px;
+    margin-bottom: 10px;
     font-size: 11px;
+}
+.rpv-meta-box.rpv-attachments {
+    background: #fff;
+    border-color: var(--rpv-line);
 }
 .rpv-meta-box strong {
     color: var(--rpv-blue);
@@ -390,6 +410,7 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     font-size: 11px;
+    font-weight: 700;
 }
 .rpv-doc--pdf .rpv-meta-box strong { font-size: 10px; }
 .rpv-meta-box a { color: var(--rpv-blue); font-weight: 600; text-decoration: none; }
@@ -453,7 +474,7 @@
         margin-bottom: 10px;
     }
     .rpv-doc--screen .rpv-split-cell:last-child { margin-bottom: 0; }
-    .rpv-doc--screen .rpv-bottom-sum { width: 100%; }
+    .rpv-doc--screen .rpv-total-paid { width: 100%; }
     .rpv-doc--screen .rpv-kv .k { width: 42%; }
     .rpv-doc--screen .rpv-kv .v { width: 58%; }
     .rpv-doc--screen .rpv-company { font-size: 15px; }
@@ -482,56 +503,65 @@
         print-color-adjust: exact !important;
     }
     .rpv-badge {
-        background: var(--rpv-blue) !important;
-        color: #fff !important;
+        background: #e3e4f9 !important;
+        color: #0f172a !important;
         border-radius: 6px !important;
     }
     .rpv-card {
-        background: var(--rpv-soft) !important;
+        background: #fff !important;
         border: 1px solid var(--rpv-line) !important;
         border-top: 3px solid var(--rpv-blue) !important;
     }
-    .rpv-box,
-    .rpv-meta-box {
+    .rpv-kv td {
+        background: #fff !important;
+    }
+    .rpv-kv tr.rpv-kv-head td {
+        background: var(--rpv-soft) !important;
+        font-weight: 700 !important;
+    }
+    .rpv-kv .rpv-kv-head-title {
+        font-weight: 700 !important;
+    }
+    .rpv-box {
         background: #f8fafc !important;
         border: 1px solid var(--rpv-line) !important;
-    }
-    .rpv-box { border-top: 3px solid var(--rpv-blue) !important; }
-    .rpv-table-wrap {
-        border: 1px solid var(--rpv-line) !important;
         border-top: 3px solid var(--rpv-blue) !important;
     }
-    .rpv-table th,
-    .rpv-table tfoot td {
-        background: var(--rpv-soft) !important;
-        color: var(--rpv-blue) !important;
+    .rpv-meta-box {
+        background: #e3e4f9 !important;
+        border: 1px solid #d5d8ec !important;
+    }
+    .rpv-meta-box.rpv-attachments {
+        background: #fff !important;
+        border: 1px solid var(--rpv-line) !important;
+    }
+    .rpv-table-wrap {
+        border: 1px solid #d8dce8 !important;
+        border-top: 3px solid var(--rpv-blue) !important;
     }
     .rpv-table th {
+        background: #e3e4f9 !important;
         color: #0f172a !important;
         text-align: center !important;
     }
     .rpv-table tbody td {
         text-align: center !important;
+        background: #fff !important;
     }
-    .rpv-table tfoot td.rpv-allocated-label {
-        text-align: left !important;
-        color: var(--rpv-blue) !important;
+    .rpv-table .num {
+        text-align: right !important;
     }
-    .rpv-table tfoot td.rpv-allocated-val {
-        text-align: center !important;
-        color: var(--rpv-blue) !important;
+    .rpv-total-paid {
+        background: #e3e4f9 !important;
+        color: #0f172a !important;
     }
-    .rpv-summary {
-        border: 1px solid var(--rpv-line) !important;
-    }
-    .rpv-summary-total td {
-        background: var(--rpv-blue) !important;
-        color: #fff !important;
+    .rpv-total-paid-label,
+    .rpv-total-paid-val {
+        color: #0f172a !important;
     }
     .voucher-posted-transactions,
     .rpv-attachments,
-    .no-print,
-    .rpv-diff-row { display: none !important; }
+    .no-print { display: none !important; }
 }
 </style>
 
@@ -571,10 +601,6 @@
                             <td class="k">Date</td>
                             <td class="v">{{ $paymentDate }}</td>
                         </tr>
-                        <tr>
-                            <td class="k">Billing</td>
-                            <td class="v">{{ $billingMonth }}</td>
-                        </tr>
                     </table>
                 </td>
             </tr>
@@ -585,17 +611,24 @@
                 <td class="rpv-split-cell">
                     <div class="rpv-card">
                         <table class="rpv-kv" cellpadding="0" cellspacing="0">
+                            <tr class="rpv-kv-head">
+                                <td colspan="2" class="rpv-kv-head-title"><strong>Paid To</strong></td>
+                            </tr>
                             <tr>
-                                <td class="k">{{ $payToLabel }}:</td>
+                                <td class="k">{{ $riderModuleSingular }} Name:</td>
                                 <td class="v v-link v-nowrap"@if($payeeFontSize) style="font-size: {{ $payeeFontSize }};"@endif title="{{ $payeeDisplay }}">{{ $payeeDisplay !== '' ? $payeeDisplay : '—' }}</td>
                             </tr>
                             <tr>
-                                <td class="k">{{ $riderModuleSingular }} Code:</td>
+                                <td class="k">{{ $riderModuleSingular }} ID:</td>
                                 <td class="v">{{ $riderCode }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Paid By:</td>
-                                <td class="v">{{ $paidBy }}</td>
+                                <td class="k">Invoice #:</td>
+                                <td class="v">{{ $invoiceDisplay }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Created By:</td>
+                                <td class="v">{{ $createdBy ?? '—' }}</td>
                             </tr>
                         </table>
                     </div>
@@ -603,6 +636,9 @@
                 <td class="rpv-split-cell">
                     <div class="rpv-card">
                         <table class="rpv-kv" cellpadding="0" cellspacing="0">
+                            <tr class="rpv-kv-head">
+                                <td colspan="2" class="rpv-kv-head-title"><strong>Payment Detail</strong></td>
+                            </tr>
                             <tr>
                                 <td class="k">Payment Mode:</td>
                                 <td class="v">{{ $paymentMode }}</td>
@@ -612,8 +648,12 @@
                                 <td class="v">{{ $paymentType }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Created By:</td>
-                                <td class="v">{{ $createdBy ?? '—' }}</td>
+                                <td class="k">Billing Month:</td>
+                                <td class="v">{{ $billingMonth }}</td>
+                            </tr>
+                            <tr>
+                                <td class="k">Paid By:</td>
+                                <td class="v">{{ $paidBy ?? '—' }}</td>
                             </tr>
                             @if((float) ($bankCharges ?? 0) > 0)
                             <tr>
@@ -636,18 +676,18 @@
             <table class="rpv-table">
                 <thead>
                     <tr>
+                        <th class="sno">S.No</th>
                         <th>Invoice #</th>
                         <th>Billing Month</th>
-                        <th class="num">Total Amount</th>
-                        <th class="num">Payment</th>
+                        <th class="num">Amount Paid</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($allocations as $row)
                     <tr>
+                        <td class="sno">{{ $loop->iteration }}</td>
                         <td>{{ $row['invoice_number'] }}</td>
                         <td>{{ $row['billing_month'] }}</td>
-                        <td class="num">{{ number_format((float) $row['total'], 2) }}</td>
                         <td class="num pay">{{ number_format((float) $row['payment'], 2) }}</td>
                     </tr>
                     @empty
@@ -656,50 +696,16 @@
                     </tr>
                     @endforelse
                 </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="2" class="rpv-allocated rpv-allocated-spacer"></td>
-                        <td class="rpv-allocated rpv-allocated-label">Total Amount</td>
-                        <td class="rpv-allocated rpv-allocated-val">{{ number_format((float) $allocatedTotal, 2) }}</td>
-                    </tr>
-                </tfoot>
             </table>
         </div>
 
-        <table class="rpv-bottom" cellpadding="0" cellspacing="0">
-            <tr>
-                <td></td>
-                <td class="rpv-bottom-sum">
-                    <table class="rpv-summary" cellpadding="0" cellspacing="0">
-                        <tr>
-                            <td class="k">Payment Amount:</td>
-                            <td class="v">{{ $money($paymentAmount) }}</td>
-                        </tr>
-                        <tr>
-                            <td class="k">Invoice Allocation:</td>
-                            <td class="v">{{ $money($allocatedTotal) }}</td>
-                        </tr>
-                        <tr class="rpv-diff-row no-print">
-                            <td class="k">Difference:</td>
-                            <td class="v">{{ $money($difference) }}</td>
-                        </tr>
-                        @if((float) ($bankCharges ?? 0) > 0)
-                        <tr>
-                            <td class="k">Bank Charges:</td>
-                            <td class="v">{{ $money($bankCharges) }}</td>
-                        </tr>
-                        @endif
-                        <tr class="rpv-summary-total">
-                            <td>Total Payment:</td>
-                            <td class="v">{{ $money($totalPayment) }}</td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
+        <div class="rpv-total-paid">
+            <span class="rpv-total-paid-label">Total Paid Amount</span>
+            <span class="rpv-total-paid-val">{{ $money($allocatedTotal) }}</span>
+        </div>
 
         <div class="rpv-meta-box">
-            <strong>Amount in Words:</strong> {{ $amountInWords }}
+            <strong>Amount in Words</strong> {{ $amountInWords }}
         </div>
         @if(!$isPdf && !request()->boolean('print'))
         <div class="rpv-meta-box rpv-attachments no-print">

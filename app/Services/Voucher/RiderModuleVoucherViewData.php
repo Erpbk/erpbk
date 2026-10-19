@@ -108,7 +108,7 @@ class RiderModuleVoucherViewData
             'finDetail' => $typeCode === 'RFV'
                 ? company_table('rta_fines')->where('id', $voucher->ref_id)->first()
                 : null,
-            'formatMoney' => static fn (float $n) => $currencyCode.' '.number_format($n, 2),
+            'formatMoney' => static fn (float $n) => Currency::format($n),
         ];
     }
 

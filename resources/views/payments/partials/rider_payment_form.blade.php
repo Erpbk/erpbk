@@ -63,7 +63,11 @@ $payeeCode = $m[1];
                 </div>
 
                 <div class="form-group col-md-6">
-                    <label class="rpf-label">Payee (Rider) <span class="text-danger">*</span></label>
+                    @php
+                        $__riderModuleLabel = trim((string) (\App\Models\Settings::getMenuLabel('riders') ?? ''));
+                        $__riderModuleSingular = \Illuminate\Support\Str::singular($__riderModuleLabel !== '' ? $__riderModuleLabel : 'Rider');
+                    @endphp
+                    <label class="rpf-label">Paid To ({{ $__riderModuleSingular }}) <span class="text-danger">*</span></label>
                     @if(!empty($lockedPayee))
                     {!! Form::hidden('payee_account_id', $lockedPayee['account_id'], [
                     'data-customer-id' => $lockedPayee['entity_id'] ?? '',

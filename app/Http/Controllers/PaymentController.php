@@ -773,7 +773,12 @@ class PaymentController extends Controller
             return view('payments.show_fields')->with('payment', $payment);
         }
 
-        return view('payments.show', $viewData->build($payment));
+        $data = $viewData->build($payment);
+        if ($request->boolean('print')) {
+            return response()->view('payments.voucher_print', $data);
+        }
+
+        return view('payments.show', $data);
     }
 
     public function pdf($comapny_slug, $id)

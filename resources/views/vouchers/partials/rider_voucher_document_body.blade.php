@@ -13,8 +13,15 @@
     $companyPhone = trim((string) ($companyPhone ?? ($brand['phone'] ?? '')));
     $companyEmail = trim((string) ($companyEmail ?? ($brand['email'] ?? '')));
     $companyAddress = trim((string) ($companyAddress ?? ($brand['address'] ?? '')));
-    $riderModuleLabel = trim((string) ($riderModuleLabel ?? \App\Models\Settings::getMenuLabel('riders')));
-    $riderModuleSingular = \Illuminate\Support\Str::singular($riderModuleLabel !== '' ? $riderModuleLabel : 'Rider');
+$riderModuleLabel = trim((string) ($riderModuleLabel ?? \App\Models\Settings::getMenuLabel('riders')));
+$riderModuleSingular = \Illuminate\Support\Str::singular($riderModuleLabel !== '' ? $riderModuleLabel : 'Rider');
+$payeeDisplay = trim((string) ($payeeName ?? ''));
+$payeeLen = mb_strlen($payeeDisplay);
+$payeeFontSize = $payeeLen > 36
+    ? ($isPdf ? '8.5px' : '10px')
+    : ($payeeLen > 28
+        ? ($isPdf ? '9.5px' : '11px')
+        : ($payeeLen > 22 ? ($isPdf ? '10.5px' : '12px') : null));
 @endphp
 
 {{-- Reuse Payment Voucher chrome (same classes / look) --}}
@@ -175,9 +182,16 @@
     font-weight: 700;
     width: 58%;
     text-align: right;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: normal;
 }
 .rpv-kv .v-link { color: var(--rpv-blue); }
+.rpv-kv .v-nowrap {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
 .rpv-box {
     border: 1px solid var(--rpv-line);
     border-top: 3px solid var(--rpv-blue);
@@ -334,7 +348,7 @@
                             </tr>
                             <tr>
                                 <td class="k">Payee:</td>
-                                <td class="v v-link">{{ $payeeName }}</td>
+                                <td class="v v-link v-nowrap"@if($payeeFontSize) style="font-size: {{ $payeeFontSize }};"@endif title="{{ $payeeDisplay }}">{{ $payeeDisplay !== '' ? $payeeDisplay : '—' }}</td>
                             </tr>
                             <tr>
                                 <td class="k">{{ $riderModuleSingular }} Code:</td>

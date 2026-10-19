@@ -104,21 +104,47 @@
   #voucherPanel .offcanvas-body { flex: 1 1 auto; overflow-y: auto; min-height: 0; }
   #voucherPanel .voucher-panel-footer { flex-shrink: 0; border-top: 1px solid var(--bs-border-color); padding: 0.75rem 1rem; text-align: left; background: var(--bs-body-bg); }
 
-  @media (max-width: 768px) {
+  /* Fold / tablet (< 1200): All Vouchers numbers on the left; module nav stays closed. */
+  @media (max-width: 1199.98px) {
     body.voucher-panels-open {
       --voucher-menu-offset: 0px;
+      --voucher-list-width: min(300px, 36vw);
     }
+    /* Do not force the module menu open — it would cover the voucher list. */
+    body.voucher-panels-open #layout-menu.layout-menu,
     body.voucher-panels-open #layout-menu.menu-vertical {
-      width: 16.25rem !important;
-      max-width: 16.25rem !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+      transform: translateX(-100%) !important;
+      z-index: 1 !important;
     }
-    body.voucher-panels-open #voucherPanel.voucher-panel-offcanvas.offcanvas-end { left: 0 !important; width: 100% !important; }
-    body.voucher-panels-open .offcanvas-backdrop { left: 0 !important; width: 100% !important; }
-    .voucher-list-sidebar-backdrop { left: 0; width: 100%; }
+    body.voucher-panels-open .voucher-list-sidebar-wrapper.visible {
+      left: 0 !important;
+      width: var(--voucher-list-width) !important;
+      max-width: 42% !important;
+      z-index: 1090 !important;
+      display: flex !important;
+    }
+    .voucher-list-sidebar-backdrop {
+      left: var(--voucher-list-width) !important;
+      width: calc(100% - var(--voucher-list-width)) !important;
+    }
+    body.voucher-panels-open #voucherPanel.voucher-panel-offcanvas.offcanvas-end {
+      left: var(--voucher-list-width) !important;
+      right: 0 !important;
+      width: calc(100% - var(--voucher-list-width)) !important;
+      min-width: 0;
+    }
+    body.voucher-panels-open .offcanvas-backdrop {
+      left: var(--voucher-list-width) !important;
+      width: calc(100% - var(--voucher-list-width)) !important;
+    }
   }
   @media (max-width: 576px) {
-    #voucherPanel.voucher-panel-offcanvas.offcanvas-end { width: 100% !important; min-width: 0; }
-    .voucher-list-sidebar-wrapper { left: 0; width: 100% !important; max-width: none !important; }
+    body.voucher-panels-open {
+      --voucher-list-width: min(260px, 78vw);
+    }
+    #voucherPanel.voucher-panel-offcanvas.offcanvas-end { min-width: 0; }
   }
 </style>
 <div class="offcanvas offcanvas-end voucher-panel-offcanvas" data-bs-scroll="true" data-bs-backdrop="true" tabindex="-1" id="voucherPanel" aria-labelledby="voucherPanelTitle">

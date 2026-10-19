@@ -1,5 +1,13 @@
 // Right Side Modal Handler - Slide in from right
 $(document).ready(function () {
+  // Phones + foldables (< 1200px): keep overlay sidebar closed by default.
+  closeModuleMenuOnSmallScreens();
+  var __sidebarCloseResizeTimer = null;
+  $(window).on('resize.erpCloseSidebar', function () {
+    clearTimeout(__sidebarCloseResizeTimer);
+    __sidebarCloseResizeTimer = setTimeout(closeModuleMenuOnSmallScreens, 150);
+  });
+
   // Keep action menus above cards/tables: .table-responsive uses overflow which
   // otherwise clips Bootstrap dropdowns (e.g. one-row Agreements list).
   (function enableFixedDropdownMenus() {
@@ -724,10 +732,33 @@ $('#modalTop').on('hidden.bs.modal', function () {
 
 var __voucherMenuState = null;
 
+function isLayoutSmallScreen() {
+  if (window.Helpers && typeof window.Helpers.isSmallScreen === 'function') {
+    return !!window.Helpers.isSmallScreen();
+  }
+  return (window.innerWidth || document.documentElement.clientWidth || 0) < 1200;
+}
+
+function closeModuleMenuOnSmallScreens() {
+  if (!isLayoutSmallScreen()) {
+    return;
+  }
+  // Overlay/offcanvas menu must stay closed on phones + foldables (< 1200px).
+  $('html').removeClass('layout-menu-expanded');
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(true, false);
+    } catch (e) {
+      // ignore
+    }
+  }
+  syncVoucherMenuOffset();
+}
+
 function syncVoucherMenuOffset() {
   var menu = document.getElementById('layout-menu');
   var offsetPx = 0;
-  if (menu && !$('.layout-wrapper').hasClass('layout-without-menu') && window.innerWidth > 768) {
+  if (menu && !$('.layout-wrapper').hasClass('layout-without-menu') && !isLayoutSmallScreen()) {
     var width = menu.getBoundingClientRect().width;
     offsetPx = width > 40 ? Math.round(width) : Math.round(16.25 * 16);
   }
@@ -747,7 +778,13 @@ function ensureModuleMenuVisibleForVouchers() {
     };
   }
 
-  // Show the same full module sidebar used on the parent module page.
+  // Desktop: keep module menu visible beside vouchers.
+  // Mobile / fold (< 1200): keep overlay menu closed so voucher looks like desktop content.
+  if (isLayoutSmallScreen()) {
+    closeModuleMenuOnSmallScreens();
+    return;
+  }
+
   $('html, .layout-wrapper').removeClass('layout-menu-collapsed');
   if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
     try {
@@ -804,7 +841,8 @@ $('body').on('click', '.show-voucher-panel', function (e) {
     $('#vouchers_list_sidebar_url').val() ||
     ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
 
-  // Module sidebar + All Vouchers stay visible beside the voucher detail.
+  // Module nav: open on desktop, closed on mobile/fold.
+  // Voucher numbers list (left): always shown beside the detail panel.
   ensureModuleMenuVisibleForVouchers();
   if (listSidebar.length && listBody.length) {
     listSidebar.addClass('visible').attr('aria-hidden', 'false');

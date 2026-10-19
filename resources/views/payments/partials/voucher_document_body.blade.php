@@ -257,6 +257,14 @@
     text-overflow: ellipsis;
     max-width: 100%;
 }
+.rpv-doc--pdf .rpv-kv .v-nowrap {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+}
 .rpv-box {
     border: 1px solid var(--rpv-line);
     border-top: 3px solid var(--rpv-blue);
@@ -419,7 +427,9 @@
     width: 100%;
     border-collapse: collapse;
 }
+.rpv-sigs-print-only { display: none; }
 .rpv-doc--pdf .rpv-sigs { margin-top: 28px; }
+.rpv-doc--pdf .rpv-sigs-print-only { display: table; }
 .rpv-sig {
     width: 50%;
     text-align: center;
@@ -562,6 +572,19 @@
     .voucher-posted-transactions,
     .rpv-attachments,
     .no-print { display: none !important; }
+    .rpv-sigs-print-only {
+        display: table !important;
+        width: 100% !important;
+        margin-top: 36px !important;
+    }
+    .rpv-kv .v-nowrap {
+        white-space: normal !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        word-break: break-word !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.35 !important;
+    }
 }
 </style>
 
@@ -615,19 +638,19 @@
                                 <td colspan="2" class="rpv-kv-head-title"><strong>Paid To</strong></td>
                             </tr>
                             <tr>
-                                <td class="k">{{ $riderModuleSingular }} Name:</td>
+                                <td class="k">{{ $riderModuleSingular }} Name</td>
                                 <td class="v v-link v-nowrap"@if($payeeFontSize) style="font-size: {{ $payeeFontSize }};"@endif title="{{ $payeeDisplay }}">{{ $payeeDisplay !== '' ? $payeeDisplay : '—' }}</td>
                             </tr>
                             <tr>
-                                <td class="k">{{ $riderModuleSingular }} ID:</td>
+                                <td class="k">{{ $riderModuleSingular }} ID</td>
                                 <td class="v">{{ $riderCode }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Invoice #:</td>
+                                <td class="k">Invoice No</td>
                                 <td class="v">{{ $invoiceDisplay }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Created By:</td>
+                                <td class="k">Created By</td>
                                 <td class="v">{{ $createdBy ?? '—' }}</td>
                             </tr>
                         </table>
@@ -640,24 +663,24 @@
                                 <td colspan="2" class="rpv-kv-head-title"><strong>Payment Detail</strong></td>
                             </tr>
                             <tr>
-                                <td class="k">Payment Mode:</td>
+                                <td class="k">Payment Mode</td>
                                 <td class="v">{{ $paymentMode }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Payment Type:</td>
+                                <td class="k">Payment Type</td>
                                 <td class="v">{{ $paymentType }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Billing Month:</td>
+                                <td class="k">Billing Month</td>
                                 <td class="v">{{ $billingMonth }}</td>
                             </tr>
                             <tr>
-                                <td class="k">Paid By:</td>
+                                <td class="k">Paid By</td>
                                 <td class="v">{{ $paidBy ?? '—' }}</td>
                             </tr>
                             @if((float) ($bankCharges ?? 0) > 0)
                             <tr>
-                                <td class="k">Bank Charges:</td>
+                                <td class="k">Bank Charges</td>
                                 <td class="v">{{ $money($bankCharges) }}</td>
                             </tr>
                             @endif
@@ -725,8 +748,7 @@
         </div>
         @endif
 
-        @if($showSignature)
-        <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
+        <table class="rpv-sigs{{ $showSignature ? '' : ' rpv-sigs-print-only' }}" width="100%" cellpadding="0" cellspacing="0">
             <tr>
                 <td class="rpv-sig">
                     <div class="rpv-sig-line"></div>
@@ -738,7 +760,6 @@
                 </td>
             </tr>
         </table>
-        @endif
 
         @if(!$isPdf && !request()->boolean('print'))
         @include('vouchers.partials.posted_transactions', [

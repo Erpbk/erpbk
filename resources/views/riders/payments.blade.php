@@ -106,7 +106,7 @@
                         <label for="amount_type">Payment Mode</label>
                         <select class="form-control" id="amount_type" name="amount_type">
                             <option value="">Select</option>
-                            @foreach(['Cash', 'Online', 'Cheque', 'Credit'] as $mode)
+                            @foreach(['Cash', 'Online', 'Cheque', 'Credit', 'C3 Advance Payment', 'Salaries Payment'] as $mode)
                             <option value="{{ $mode }}" {{ request('amount_type') == $mode ? 'selected' : '' }}>{{ $mode }}</option>
                             @endforeach
                         </select>

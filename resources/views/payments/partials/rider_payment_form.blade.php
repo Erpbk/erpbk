@@ -100,7 +100,15 @@ $payeeCode = $m[1];
                 <div class="form-group col-md-6">
                     <label for="amount_type" class="rpf-label">Payment Mode <span class="text-danger">*</span></label>
                     {!! Form::select('amount_type',
-                    ['' => 'Select payment mode', 'Cash' => 'Cash', 'Online' => 'Online', 'Cheque' => 'Cheque', 'Credit' => 'Credit'],
+                    [
+                        '' => 'Select payment mode',
+                        'Cash' => 'Cash',
+                        'Online' => 'Online',
+                        'Cheque' => 'Cheque',
+                        'Credit' => 'Credit',
+                        'C3 Advance Payment' => 'C3 Advance Payment',
+                        'Salaries Payment' => 'Salaries Payment',
+                    ],
                     old('amount_type', isset($payment) ? $payment->amount_type : ''),
                     ['class' => 'form-control select2 rpf-input', 'id' => 'amount_type', 'required' => true]
                     ) !!}

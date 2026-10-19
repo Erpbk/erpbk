@@ -357,7 +357,7 @@ class PaymentController extends Controller
 
         $rules = [
             'reference' => 'nullable|string|max:255',
-            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
+            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit,C3 Advance Payment,Salaries Payment',
             'bank_id' => 'required|numeric|exists:banks,id',
             'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
@@ -832,7 +832,7 @@ class PaymentController extends Controller
 
         $rules = [
             'reference' => 'nullable|string|max:255',
-            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
+            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit,C3 Advance Payment,Salaries Payment',
             'bank_id' => 'required|numeric|exists:banks,id',
             'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
@@ -1899,7 +1899,7 @@ class PaymentController extends Controller
         $this->validate($request, [
             'create_payment_type' => 'required|in:advance_loan',
             'reference' => 'nullable|string|max:255',
-            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
+            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit,C3 Advance Payment,Salaries Payment',
             'bank_id' => 'required|numeric|exists:banks,id',
             'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',

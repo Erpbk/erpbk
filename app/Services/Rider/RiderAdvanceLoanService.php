@@ -219,6 +219,8 @@ class RiderAdvanceLoanService
             'Cheque' => 2,
             'Online' => 3,
             'Credit' => 4,
+            'C3 Advance Payment' => 3,
+            'Salaries Payment' => 3,
             default => 1,
         };
     }

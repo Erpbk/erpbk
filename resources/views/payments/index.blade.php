@@ -1,7 +1,7 @@
 @extends('banks.viewindex')
 @section('page_content')
 @php
-    $banks = $banks ?? \App\Models\Banks::active()->get();
+$banks = $banks ?? \App\Models\Banks::active()->get();
 @endphp
 <style>
     .filter-sidebar {
@@ -16,7 +16,11 @@
         z-index: 1050;
         overflow-y: auto;
     }
-    .filter-sidebar.open { right: 0; }
+
+    .filter-sidebar.open {
+        right: 0;
+    }
+
     .filter-header {
         padding: 15px 20px;
         border-bottom: 1px solid #dee2e6;
@@ -25,7 +29,11 @@
         align-items: center;
         background: #f8f9fa;
     }
-    .filter-body { padding: 20px; }
+
+    .filter-body {
+        padding: 20px;
+    }
+
     .filter-overlay {
         position: fixed;
         top: 0;
@@ -38,9 +46,22 @@
         visibility: hidden;
         transition: opacity 0.3s ease;
     }
-    .filter-overlay.show { opacity: 1; visibility: visible; }
-    .card-search { max-width: 300px; }
-    .btn-close { border: none; background: none; font-size: 1.2rem; cursor: pointer; }
+
+    .filter-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+
+    .card-search {
+        max-width: 300px;
+    }
+
+    .btn-close {
+        border: none;
+        background: none;
+        font-size: 1.2rem;
+        cursor: pointer;
+    }
 </style>
 <div class="content px-3">
 
@@ -71,7 +92,7 @@
                         <label for="amount_type">Payment Mode</label>
                         <select class="form-control" id="amount_type" name="amount_type">
                             <option value="">Select</option>
-                            @foreach(['Cash', 'Online', 'Cheque', 'Credit', 'C3 Advance Payment', 'Salaries Payment'] as $mode)
+                            @foreach(['Cash', 'Online', 'Cheque', 'Credit'] as $mode)
                             <option value="{{ $mode }}" {{ request('amount_type') == $mode ? 'selected' : '' }}>{{ $mode }}</option>
                             @endforeach
                         </select>

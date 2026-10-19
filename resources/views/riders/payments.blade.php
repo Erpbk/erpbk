@@ -68,8 +68,8 @@
 @endpush
 @section('content')
 @php
-    $__companySlug = \App\Support\CompanyRouteContext::slug();
-    $banks = $banks ?? \App\Models\Banks::active()->get();
+$__companySlug = \App\Support\CompanyRouteContext::slug();
+$banks = $banks ?? \App\Models\Banks::active()->get();
 @endphp
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
@@ -106,7 +106,7 @@
                         <label for="amount_type">Payment Mode</label>
                         <select class="form-control" id="amount_type" name="amount_type">
                             <option value="">Select</option>
-                            @foreach(['Cash', 'Online', 'Cheque', 'Credit', 'C3 Advance Payment', 'Salaries Payment'] as $mode)
+                            @foreach(['Cash', 'Online', 'Cheque', 'Credit'] as $mode)
                             <option value="{{ $mode }}" {{ request('amount_type') == $mode ? 'selected' : '' }}>{{ $mode }}</option>
                             @endforeach
                         </select>

@@ -62,11 +62,13 @@
     }
 
     function isAdvanceLoanType() {
-      return getCreatePaymentType() === 'advance_loan';
+      var type = getCreatePaymentType();
+      return type === 'advance_payment' || type === 'advance_loan';
     }
 
     function isPaymentCreateType() {
-      return getCreatePaymentType() === 'payment';
+      var type = getCreatePaymentType();
+      return type === 'salary_payment' || type === 'payment' || type === 'c3';
     }
 
     function enforceSingleInvoiceSelection($keepCheckbox) {
@@ -168,7 +170,7 @@
 
       $selectAll.addClass('d-none').hide().prop('checked', false).prop('disabled', true);
 
-      if (type === 'advance_loan') {
+      if (isAdvanceLoanType()) {
         $billingGroup.css('display', '').removeClass('d-none').show();
         $billingInput.prop('disabled', false).prop('required', true);
         if (!normalizeMonthValue($billingInput.val())) {
@@ -176,7 +178,7 @@
         } else {
           setBillingMonthValue($billingInput.val());
         }
-      } else if (type === 'payment') {
+      } else if (isPaymentCreateType()) {
         $billingGroup.hide();
         // Hidden required fields block HTML5 submit — always clear required when hidden.
         $billingInput.prop('required', false);
@@ -272,18 +274,29 @@
       var nextVal = currentVal;
 
       if (!state.hasPayee) {
-        ensurePaymentTypeOption($typeSelect, 'payment', 'Payment', 'paymentOptionHtml');
-        ensurePaymentTypeOption($typeSelect, 'advance_loan', 'Advance Loan', 'advanceLoanOptionHtml');
-      } else if (state.hasInvoices) {
-        // Rider has invoices: Payment only.
-        ensurePaymentTypeOption($typeSelect, 'payment', 'Payment', 'paymentOptionHtml');
-        removePaymentTypeOption($typeSelect, 'advance_loan', 'advanceLoanOptionHtml');
-        nextVal = 'payment';
-      } else {
-        // Rider has no invoices: Advance Loan only.
-        ensurePaymentTypeOption($typeSelect, 'advance_loan', 'Advance Loan', 'advanceLoanOptionHtml');
+        ensurePaymentTypeOption($typeSelect, 'salary_payment', 'Salary Payment', 'salaryPaymentOptionHtml');
+        ensurePaymentTypeOption($typeSelect, 'advance_payment', 'Advance Payment', 'advancePaymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'c3', 'c3OptionHtml');
         removePaymentTypeOption($typeSelect, 'payment', 'paymentOptionHtml');
-        nextVal = 'advance_loan';
+        removePaymentTypeOption($typeSelect, 'advance_loan', 'advanceLoanOptionHtml');
+      } else if (state.hasInvoices) {
+        // Rider has invoices: Salary Payment only.
+        ensurePaymentTypeOption($typeSelect, 'salary_payment', 'Salary Payment', 'salaryPaymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'advance_payment', 'advancePaymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'advance_loan', 'advanceLoanOptionHtml');
+        removePaymentTypeOption($typeSelect, 'payment', 'paymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'c3', 'c3OptionHtml');
+        if (currentVal !== 'salary_payment') {
+          nextVal = 'salary_payment';
+        }
+      } else {
+        // Rider has no invoices: Advance Payment only.
+        ensurePaymentTypeOption($typeSelect, 'advance_payment', 'Advance Payment', 'advancePaymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'c3', 'c3OptionHtml');
+        removePaymentTypeOption($typeSelect, 'salary_payment', 'salaryPaymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'payment', 'paymentOptionHtml');
+        removePaymentTypeOption($typeSelect, 'advance_loan', 'advanceLoanOptionHtml');
+        nextVal = 'advance_payment';
       }
 
       if (nextVal && nextVal !== currentVal) {
@@ -429,7 +442,13 @@
       var totalPayment = parseFloat($ctx.find('#total_invoice_payment').text()) || 0;
       var difference = paymentAmount - totalPayment;
 
-      $ctx.find('#payment_difference').text(currency + ' ' + difference.toFixed(2));
+      var $diff = $ctx.find('#payment_difference');
+      var $diffAmt = $diff.find('[data-payment-diff-amount]');
+      if ($diffAmt.length) {
+        $diffAmt.text(difference.toFixed(2));
+      } else {
+        $diff.text(currency + ' ' + difference.toFixed(2));
+      }
 
       if (Math.abs(difference) < 0.01) {
         $ctx.find('#payment_difference').removeClass('text-danger').removeClass('text-warning').addClass('text-success');
@@ -1053,7 +1072,9 @@
       || $('[data-rider-payment="1"]').length > 0
       || ['rider', 'employee'].indexOf(invoiceType) !== -1;
     var isRiderOnly = $('[data-rider-payment="1"]').length > 0 || invoiceType === 'rider';
-    var createType = $('#create_payment_type').length ? ($('#create_payment_type').val() || '') : 'payment';
+    var createType = $('#create_payment_type').length ? ($('#create_payment_type').val() || '') : 'salary_payment';
+    var isAdvanceCreate = createType === 'advance_payment' || createType === 'advance_loan';
+    var isInvoiceCreate = createType === 'salary_payment' || createType === 'payment' || createType === 'c3';
     var $checkedInvoices = $('.invoice-checkbox:checked');
 
     if (isRiderOnly && $('#create_payment_type').length && !createType) {
@@ -1068,22 +1089,22 @@
       return false;
     }
 
-    if (isRiderOnly && createType === 'advance_loan') {
-      // Mirror UI rule: Advance Loan is unavailable when the selected rider has invoices.
+    if (isRiderOnly && isAdvanceCreate) {
+      // Mirror UI rule: Advance Payment is unavailable when the selected rider has invoices.
       var hasPayeeSelected = !!($('#payee_account_id, [name="payee_account_id"]').val());
       if (hasPayeeSelected && $('#invoices-table tbody tr:visible').length > 0) {
-        alert('Advance Loan is not available when the selected rider has unpaid invoices. Please use Payment instead.');
+        alert('Advance Payment is not available when the selected rider has unpaid invoices. Please use C3 or Salary Payment instead.');
         $('#create_payment_type').addClass('is-invalid');
         return false;
       }
       if (!$('#billing_month').val()) {
-        alert('Billing month is required for Advance Loan');
+        alert('Billing month is required for Advance Payment');
         $('#billing_month').addClass('is-invalid');
         return false;
       }
-      // Invoice selection is optional for Advance Loan.
+      // Invoice selection is optional for Advance Payment.
       if ($checkedInvoices.length > 1) {
-        alert('Please select at most one invoice for the advance loan');
+        alert('Please select at most one invoice for the advance payment');
         return false;
       }
       $('.is-invalid').removeClass('is-invalid');
@@ -1110,10 +1131,10 @@
       }
     }
 
-    if (isRiderOnly && createType === 'payment') {
+    if (isRiderOnly && isInvoiceCreate) {
       var hasPayeeForPayment = !!($('#payee_account_id, [name="payee_account_id"]').val());
       if (hasPayeeForPayment && $('#invoices-table tbody tr:visible').length === 0) {
-        alert('Payment is not available when the selected rider has no unpaid invoices. Please use Advance Loan instead.');
+        alert('C3 / Salary Payment is not available when the selected rider has no unpaid invoices. Please use Advance Payment instead.');
         $('#create_payment_type').addClass('is-invalid');
         return false;
       }

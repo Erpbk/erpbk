@@ -22,6 +22,7 @@ class Payment extends BaseModel
         'bank_charges_account',
         'bank_id',
         'amount_type',
+        'payment_kind',
         'payee_account_id',
         'amount',
         'voucher_id',

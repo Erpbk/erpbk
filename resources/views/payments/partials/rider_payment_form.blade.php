@@ -1,6 +1,8 @@
 @php
-$currency = \App\Helpers\Currency::code();
-$hideBillingMonthForRiderPayment = ! isset($payment) && ($defaultCreatePaymentType === 'payment');
+$currencyMark = \App\Helpers\Currency::mark();
+$currencySymbol = \App\Helpers\Currency::symbol();
+$hideBillingMonthForRiderPayment = ! isset($payment)
+    && in_array($defaultCreatePaymentType, ['payment', 'salary_payment', 'c3', ''], true);
 $banks = $banks ?? \App\Models\Banks::active()->get();
 
 $selectedPayeeId = old(
@@ -64,8 +66,8 @@ $payeeCode = $m[1];
 
                 <div class="form-group col-md-6">
                     @php
-                        $__riderModuleLabel = trim((string) (\App\Models\Settings::getMenuLabel('riders') ?? ''));
-                        $__riderModuleSingular = \Illuminate\Support\Str::singular($__riderModuleLabel !== '' ? $__riderModuleLabel : 'Rider');
+                    $__riderModuleLabel = trim((string) (\App\Models\Settings::getMenuLabel('riders') ?? ''));
+                    $__riderModuleSingular = \Illuminate\Support\Str::singular($__riderModuleLabel !== '' ? $__riderModuleLabel : 'Rider');
                     @endphp
                     <label class="rpf-label">Paid To ({{ $__riderModuleSingular }}) <span class="text-danger">*</span></label>
                     @if(!empty($lockedPayee))
@@ -100,15 +102,7 @@ $payeeCode = $m[1];
                 <div class="form-group col-md-6">
                     <label for="amount_type" class="rpf-label">Payment Mode <span class="text-danger">*</span></label>
                     {!! Form::select('amount_type',
-                    [
-                        '' => 'Select payment mode',
-                        'Cash' => 'Cash',
-                        'Online' => 'Online',
-                        'Cheque' => 'Cheque',
-                        'Credit' => 'Credit',
-                        'C3 Advance Payment' => 'C3 Advance Payment',
-                        'Salaries Payment' => 'Salaries Payment',
-                    ],
+                    ['' => 'Select payment mode', 'Cash' => 'Cash', 'Online' => 'Online', 'Cheque' => 'Cheque', 'Credit' => 'Credit'],
                     old('amount_type', isset($payment) ? $payment->amount_type : ''),
                     ['class' => 'form-control select2 rpf-input', 'id' => 'amount_type', 'required' => true]
                     ) !!}
@@ -118,7 +112,11 @@ $payeeCode = $m[1];
                 <div class="form-group col-md-6">
                     <label for="create_payment_type" class="rpf-label">Payment Type <span class="text-danger">*</span></label>
                     {!! Form::select('create_payment_type',
-                    ['' => 'Select payment type', 'payment' => 'Payment', 'advance_loan' => 'Advance Loan'],
+                    [
+                        '' => 'Select payment type',
+                        'advance_payment' => 'Advance Payment',
+                        'salary_payment' => 'Salary Payment',
+                    ],
                     $defaultCreatePaymentType,
                     ['class' => 'form-control select2 rpf-input', 'id' => 'create_payment_type', 'required' => true]
                     ) !!}
@@ -131,7 +129,7 @@ $payeeCode = $m[1];
                     'class' => 'form-control rpf-input',
                     'id' => 'billing_month',
                     'maxlength' => 255,
-                    'required' => $defaultCreatePaymentType === 'advance_loan',
+                    'required' => in_array($defaultCreatePaymentType, ['advance_loan', 'advance_payment'], true),
                     ]) !!}
                 </div>
 
@@ -155,7 +153,7 @@ $payeeCode = $m[1];
                 <div class="form-group col-md-6">
                     <label for="payment_amount" class="rpf-label">Payment Amount <span class="text-danger">*</span></label>
                     <div class="input-group rpf-amount-group">
-                        <span class="input-group-text">{{ $currency }}</span>
+                        <span class="input-group-text">{!! $currencyMark !!}</span>
                         {!! Form::number(
                         'amount',
                         old('amount', $savedPrimaryAmount),
@@ -172,10 +170,10 @@ $payeeCode = $m[1];
                     </div>
                     <div class="rpf-balance-meta" id="rider_balance_due_wrap">
                         <div class="rpf-balance-due">
-                            Remaining: {{ $currency }} <span id="rider_balance_due">0.00</span>
+                            Remaining: {!! $currencyMark !!} <span id="rider_balance_due">0.00</span>
                         </div>
                         <div class="rpf-ledger-due">
-                            Total Due Balance: {{ $currency }} <span id="rider_ledger_due">0.00</span>
+                            Total Due Balance: {!! $currencyMark !!} <span id="rider_ledger_due">0.00</span>
                         </div>
                     </div>
                 </div>
@@ -326,7 +324,7 @@ $payeeCode = $m[1];
             </table>
         </div>
         <div class="rpf-table-footer">
-            Total selected payment: <strong>{{ $currency }} <span id="total-selected-payment">0.00</span></strong>
+            Total selected payment: <strong>{!! $currencyMark !!} <span id="total-selected-payment">0.00</span></strong>
         </div>
     </div>
     @else
@@ -376,7 +374,7 @@ $payeeCode = $m[1];
             </div>
 
             <div class="rpf-adj-payable">
-                Net Payable: <strong>{{ $currency }} <span id="rpf-breakdown-payable">0.00</span></strong>
+                Net Payable: <strong>{!! $currencyMark !!} <span id="rpf-breakdown-payable">0.00</span></strong>
                 <span class="rpf-breakdown-month text-muted" id="rpf-breakdown-month"></span>
             </div>
         </div>
@@ -387,20 +385,20 @@ $payeeCode = $m[1];
                 <div class="rpf-summary">
                     <div class="rpf-summary-row">
                         <span>Payment Amount:</span>
-                        <span>{{ $currency }} <span id="display_amount">0.00</span></span>
+                        <span>{!! $currencyMark !!} <span id="display_amount">0.00</span></span>
                     </div>
                     <div class="rpf-summary-row">
                         <span>Invoice Allocation:</span>
-                        <span>{{ $currency }} <span id="total_invoice_payment">0.00</span></span>
+                        <span>{!! $currencyMark !!} <span id="total_invoice_payment">0.00</span></span>
                     </div>
                     <div class="rpf-summary-row">
                         <span>Difference:</span>
-                        <span id="payment_difference" class="text-success">{{ $currency }} 0.00</span>
+                        <span id="payment_difference" class="text-success">{!! $currencyMark !!} <span data-payment-diff-amount>0.00</span></span>
                     </div>
                     <div class="rpf-summary-row rpf-summary-charges">
                         <span>Bank Charges:</span>
                         <div class="input-group input-group-sm rpf-charges-group">
-                            <span class="input-group-text">{{ $currency }}</span>
+                            <span class="input-group-text">{!! $currencyMark !!}</span>
                             {!! Form::number('bank_charges', old('bank_charges', isset($payment) ? $payment->bank_charges : 0), [
                             'class' => 'form-control bank_charges',
                             'step' => 'any',
@@ -411,7 +409,7 @@ $payeeCode = $m[1];
                         </div>
                     </div>
                     <div class="rpf-summary-total">
-                        Total Payment: {{ $currency }} <span id="total_debit">0.00</span>
+                        Total Payment: {!! $currencyMark !!} <span id="total_debit">0.00</span>
                     </div>
                     <span id="display_charges" class="d-none">0.00</span>
                 </div>
@@ -423,7 +421,7 @@ $payeeCode = $m[1];
 {{-- Boot marker only: JS lives in public/js/payment-fields.js --}}
 <div
     data-payment-fields-init
-    data-currency="{{ $currency }}"
+    data-currency="{{ $currencySymbol }}"
     @if($savedPrimaryAmount !==null)
     data-preserve-payment-amount="1"
     data-saved-payment-amount="{{ number_format($savedPrimaryAmount, 2, '.', '') }}"

@@ -3,9 +3,19 @@ $(document).ready(function () {
   // Phones + foldables (< 1200px): keep overlay sidebar closed by default.
   closeModuleMenuOnSmallScreens();
   var __sidebarCloseResizeTimer = null;
+  var __lastSidebarWasSmall = isLayoutSmallScreen();
   $(window).on('resize.erpCloseSidebar', function () {
     clearTimeout(__sidebarCloseResizeTimer);
-    __sidebarCloseResizeTimer = setTimeout(closeModuleMenuOnSmallScreens, 150);
+    __sidebarCloseResizeTimer = setTimeout(function () {
+      var isSmall = isLayoutSmallScreen();
+      // Only force-close when crossing into the small breakpoint (desktop → mobile),
+      // or while voucher panels need the overlay menu shut. Do not close on every
+      // mobile resize (URL bar / keyboard) — that fights the hamburger toggle.
+      if (isSmall && (!__lastSidebarWasSmall || document.body.classList.contains('voucher-panels-open'))) {
+        closeModuleMenuOnSmallScreens();
+      }
+      __lastSidebarWasSmall = isSmall;
+    }, 150);
   });
 
   // Keep action menus above cards/tables: .table-responsive uses overflow which

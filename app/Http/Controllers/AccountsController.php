@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\AccountsDataTable;
 use App\Helpers\IConstants;
 use App\Http\Requests\CreateAccountsRequest;
 use App\Http\Requests\UpdateAccountsRequest;
@@ -39,77 +38,161 @@ class AccountsController extends AppBaseController
   }
 
   /**
-   * Display a listing of the Accounts (Chart of Accounts view).
+   * Chart of Accounts lives on accounts.tree — redirect so manual/bookmark
+   * access to the resource index cannot open the unused index UI.
    */
   public function index(Request $request)
   {
-    if (!user_can('account_view')) {
+    if (! user_can('account_view')) {
       abort(403, 'Unauthorized action.');
     }
-    $search = trim((string) $request->get('search'));
-    $query = Accounts::query()
+
+    return redirect()->route('accounts.tree', [
+      'company_slug' => CompanyRouteContext::slug(),
+    ]);
+  }
+
+  /**
+   * Build nested children from a parent_id → accounts map (O(n)).
+   */
+  private function buildChildrenFromMap(int $parentId, $byParent)
+  {
+    return ($byParent[$parentId] ?? collect())
+      ->sortBy('account_code')
+      ->values()
+      ->map(function ($child) use ($byParent) {
+        $child->setRelation('children', $this->buildChildrenFromMap((int) $child->id, $byParent));
+
+        return $child;
+      });
+  }
+
+  private function rootAccountsQuery()
+  {
+    return Accounts::with('branch')
+      ->withCount('directChildren')
       ->where(function ($q) {
         $q->whereNull('parent_id')->orWhere('parent_id', 0);
       })
       ->orderBy('account_code');
-    if ($search !== '') {
-      $query->where(function ($q) use ($search) {
-        $q->where('name', 'like', '%' . $search . '%')
-          ->orWhere('account_code', 'like', '%' . $search . '%')
-          ->orWhere('account_type', 'like', '%' . $search . '%');
-      });
+  }
+
+  private function assertCanViewCoa(): void
+  {
+    if (! auth()->user()?->can('accounts_coa_view') && ! user_can('account_view')) {
+      abort(403, 'Unauthorized action.');
     }
-    $accounts = $query->get()->map(fn($account) => (object) ['account' => $account, 'depth' => 0]);
-    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
-
-    return view('accounts.index', compact('accounts', 'globalLinkedAccountIds'));
   }
 
-  /**
-   * Build children collection for a parent from a keyed collection of all accounts.
-   */
-  private function buildChildren($parentId, $all)
+  public function tree($company_slug)
   {
-    return $all->where('parent_id', $parentId)->sortBy('account_code')->values()->map(function ($child) use ($all) {
-      $child->setRelation('children', $this->buildChildren($child->id, $all));
-      return $child;
-    });
-  }
+    $this->assertCanViewCoa();
 
-  /**
-   * Flatten account tree into a list with depth for hierarchical display.
-   *
-   * @param \Illuminate\Support\Collection $nodes
-   * @param string|null $search
-   * @param int $depth
-   * @return \Illuminate\Support\Collection
-   */
-  private function flattenAccountTree($nodes, $search = null, $depth = 0)
-  {
-    $result = collect();
-    foreach ($nodes as $account) {
-      $match = !$search || stripos($account->name, $search) !== false
-        || stripos((string)($account->account_code ?? ''), $search) !== false
-        || stripos((string)($account->account_type ?? ''), $search) !== false;
-      if ($match) {
-        $result->push((object)['account' => $account, 'depth' => $depth]);
-      }
-      $children = $account->relationLoaded('children') ? $account->children : collect();
-      $result = $result->merge($this->flattenAccountTree($children, $search, $depth + 1));
-    }
-    return $result;
-  }
-  public function tree($company_slug, AccountsDataTable $accountsDataTable)
-  {
-    $accounts = Accounts::with('branch')
-      ->where(function ($q) {
-        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->orderBy('account_code')
-      ->get();
+    // Roots only — children are lazy-loaded on expand (avoids multi-MB HTML).
+    $accounts = $this->rootAccountsQuery()->get();
     $globalLinkedAccountIds = $this->globalLinkedAccountIds();
 
     return view('accounts.tree', compact('accounts', 'globalLinkedAccountIds'));
+  }
+
+  /**
+   * Direct children rows for a parent account (lazy tree expand).
+   */
+  public function treeChildren($company_slug, $id)
+  {
+    $this->assertCanViewCoa();
+
+    $parent = Accounts::query()->findOrFail($id);
+    $depth = max(1, (int) request('depth', 1));
+    $children = Accounts::with('branch')
+      ->withCount('directChildren')
+      ->where('parent_id', $parent->id)
+      ->orderBy('account_code')
+      ->get();
+
+    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
+    $html = '';
+    foreach ($children as $account) {
+      $html .= view('accounts.account_table_row', [
+        'account' => $account,
+        'depth' => $depth,
+        'parentName' => $parent->name,
+        'globalLinkedAccountIds' => $globalLinkedAccountIds,
+        'forceVisible' => true,
+      ])->render();
+    }
+
+    return response()->json(['html' => $html]);
+  }
+
+  /**
+   * Search COA — returns tbody HTML for matches + ancestors only.
+   */
+  public function treeSearch(Request $request, $company_slug)
+  {
+    $this->assertCanViewCoa();
+
+    $q = trim((string) $request->get('q', ''));
+    $globalLinkedAccountIds = $this->globalLinkedAccountIds();
+
+    if ($q === '') {
+      $accounts = $this->rootAccountsQuery()->get();
+
+      return response()->json([
+        'html' => view('accounts.tree_tbody', [
+          'accounts' => $accounts,
+          'globalLinkedAccountIds' => $globalLinkedAccountIds,
+          'includeChildren' => false,
+        ])->render(),
+      ]);
+    }
+
+    $matched = Accounts::query()
+      ->where(function ($query) use ($q) {
+        $query->where('name', 'like', '%' . $q . '%')
+          ->orWhere('account_code', 'like', '%' . $q . '%')
+          ->orWhere('account_type', 'like', '%' . $q . '%');
+      })
+      ->limit(300)
+      ->get(['id', 'parent_id']);
+
+    if ($matched->isEmpty()) {
+      return response()->json([
+        'html' => '<tr><td colspan="9" class="text-center text-muted py-4">No accounts match your search.</td></tr>',
+      ]);
+    }
+
+    $neededIds = [];
+    foreach ($matched as $row) {
+      $neededIds[(int) $row->id] = true;
+    }
+
+    $idParentMap = Accounts::query()->pluck('parent_id', 'id');
+    foreach ($matched as $row) {
+      $pid = $row->parent_id;
+      while (! empty($pid) && (int) $pid !== 0) {
+        $pid = (int) $pid;
+        $neededIds[$pid] = true;
+        $pid = $idParentMap[$pid] ?? null;
+      }
+    }
+
+    $subset = Accounts::with('branch')
+      ->withCount('directChildren')
+      ->whereIn('id', array_keys($neededIds))
+      ->orderBy('account_code')
+      ->get();
+
+    $byParent = $subset->groupBy(fn ($a) => (int) ($a->parent_id ?? 0));
+    $accounts = $this->buildChildrenFromMap(0, $byParent);
+
+    return response()->json([
+      'html' => view('accounts.tree_tbody', [
+        'accounts' => $accounts,
+        'globalLinkedAccountIds' => $globalLinkedAccountIds,
+        'includeChildren' => true,
+      ])->render(),
+    ]);
   }
 
 
@@ -432,8 +515,6 @@ class AccountsController extends AppBaseController
       return response($message, 422);
     }
 
-    $currency = $request->get('currency', 'bcy');
-
     $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
 
     $perPage = (int) $request->get('per_page', 25);
@@ -447,7 +528,7 @@ class AccountsController extends AppBaseController
 
     $ledgerUrl = route('accounts.ledger', ['company_slug' => CompanyRouteContext::slug()]) . '?account=' . $account->id;
 
-    $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'currency', 'ledgerUrl'))->render();
+    $html = view('accounts.detail_panel', compact('account', 'closingBalance', 'ledgerPaginator', 'ledgerUrl'))->render();
 
     if ($request->wantsJson() || $request->ajax()) {
       return response()->json(['html' => $html, 'account_id' => $account->id]);
@@ -483,7 +564,6 @@ class AccountsController extends AppBaseController
       ], 422);
     }
 
-    $currency = $request->get('currency', 'bcy');
     $perPage = (int) $request->get('per_page', 25);
     $perPage = max(10, min(100, $perPage));
     $page = (int) $request->get('page', 1);

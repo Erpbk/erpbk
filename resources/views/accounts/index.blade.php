@@ -281,9 +281,8 @@
     var ledgerPlaceholder = document.getElementById('chartLedgerPlaceholder');
     var ledgerContent = document.getElementById('chartLedgerContent');
 
-    function loadLedger(accountId, currency) {
-      currency = currency || 'bcy';
-      var url = detailUrl + '/' + accountId + '?currency=' + encodeURIComponent(currency);
+    function loadLedger(accountId) {
+      var url = detailUrl + '/' + accountId;
       ledgerPlaceholder.style.display = 'none';
       ledgerContent.style.display = 'block';
       ledgerContent.innerHTML = '<div class="text-center py-5 text-muted"><i class="fa fa-spinner fa-spin fa-2x"></i><p class="mt-2">Loading ledger...</p></div>';
@@ -310,16 +309,6 @@
               ledgerPlaceholder.style.display = 'block';
               document.querySelectorAll('#chartAccountsTbody tr.selected').forEach(function(r) {
                 r.classList.remove('selected');
-              });
-            });
-            ledgerContent.querySelectorAll('.chart-filter-currency').forEach(function(btn) {
-              btn.addEventListener('click', function() {
-                ledgerContent.querySelectorAll('.chart-filter-currency').forEach(function(b) {
-                  b.classList.remove('active');
-                });
-                this.classList.add('active');
-                var aid = ledgerContent.querySelector('.chart-account-detail-panel') && ledgerContent.querySelector('.chart-account-detail-panel').getAttribute('data-account-id');
-                if (aid) loadLedger(aid, this.getAttribute('data-currency'));
               });
             });
             ledgerContent.querySelectorAll('.delete-account').forEach(function(link) {
@@ -389,13 +378,12 @@
       var paginationEl = document.getElementById('ledgerPagination');
       if (!paginationEl) return;
       var accountId = paginationEl.getAttribute('data-account-id');
-      var currency = paginationEl.getAttribute('data-currency') || 'bcy';
       var perPage = paginationEl.getAttribute('data-per-page') || '25';
       var page = btn.getAttribute('data-page');
       if (!page || !accountId) return;
       var tbody = document.getElementById('ledgerTableBody');
       if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>';
-      fetch(ledgerEntriesBaseUrl + '/' + accountId + '/ledger-entries?page=' + page + '&per_page=' + perPage + '&currency=' + currency, {
+      fetch(ledgerEntriesBaseUrl + '/' + accountId + '/ledger-entries?page=' + page + '&per_page=' + perPage, {
           headers: {
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'

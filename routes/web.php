@@ -972,6 +972,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::get('detail/{id}/ledger-entries', [AccountsController::class, 'ledgerEntries'])->name('accounts.ledgerEntries');
         Route::resource('accounts', AccountsController::class)->parameters(['accounts' => 'id']);
         Route::get('tree', [AccountsController::class, 'tree'])->name('accounts.tree');
+        Route::get('tree/search', [AccountsController::class, 'treeSearch'])->name('accounts.treeSearch');
+        Route::get('tree/children/{id}', [AccountsController::class, 'treeChildren'])->name('accounts.treeChildren');
         // Accounts Trash Routes
         Route::get('trash', [AccountsController::class, 'trash'])->name('accounts.trash');
         Route::post('trash/{id}/restore', [AccountsController::class, 'restoreTrash'])->name('accounts.restore');

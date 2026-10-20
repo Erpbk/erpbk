@@ -899,7 +899,7 @@ $homeLink = $isAdminLogin
   <ul class="menu-sub">
 
     @can('accounts_coa_view')
-    <li class="menu-item {{ Route::is('accounts.tree') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('accounts.tree', 'accounts.index') ? 'active' : '' }}">
       <a href="{{ route('accounts.tree') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'chart_of_accounts'])
         <div>{{ $menuLabels['chart_of_accounts'] ?? 'Chart Of Accounts' }}</div>

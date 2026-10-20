@@ -97,11 +97,19 @@
   }
 
   .entity-view-card-section-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #1f2937;
+    display: block;
+    width: 100%;
     margin: 0 0 0.85rem;
-    letter-spacing: -.01em;
+    padding: 0.7rem 1.15rem;
+    background: #e3e4f9 !important;
+    border: 1px solid #d8daf0;
+    border-radius: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.45px;
+    text-transform: uppercase;
+    color: var(--company-brand-primary, #4338ca);
   }
 
   .entity-view-card-photo {
@@ -164,6 +172,32 @@
 
   .entity-view-card .user-avatar-section>.card-body {
     padding-top: 3.85rem !important;
+  }
+
+  .entity-view-card--no-avatar {
+    border-top: 3px solid #e3e4f9 !important;
+  }
+
+  .entity-view-card--no-avatar .entity-view-card-hero {
+    min-height: 0;
+    height: auto;
+    padding: 0.65rem 0.85rem 0.5rem;
+    align-items: flex-start;
+    background: #e3e4f9 !important;
+    border-bottom: 1px solid #d8daf0;
+  }
+
+  .entity-view-card--no-avatar .entity-view-card-hero::before {
+    display: none;
+  }
+
+  .entity-view-card--no-avatar .user-avatar-section>.card-body {
+    padding-top: 0.85rem !important;
+  }
+
+  .entity-view-card--no-avatar .entity-view-card-photo-wrap,
+  .entity-view-card--no-avatar .entity-view-card-photo-icon {
+    display: none !important;
   }
 
   .entity-view-card .user-info h6 {

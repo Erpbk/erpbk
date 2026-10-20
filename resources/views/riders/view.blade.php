@@ -967,44 +967,49 @@
   .rider-info-section .rider-info-group>.card,
   .rider-info-section [data-rfp-entity="rider"]>.card {
     background: #fff;
-    border: 1px solid #e6ebf2;
+    border: 1px solid #d8daf0 !important;
+    border-top: 3px solid #e3e4f9 !important;
     border-radius: 0.9rem;
     box-shadow: 0 2px 14px rgba(16, 24, 40, 0.06);
     margin-bottom: 1rem;
     overflow: hidden;
   }
 
+  /* Section titles like voucher "PAID TO" banner */
   .rider-info-section .rider-info-group>.card>.card-header,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-header {
-    background: transparent;
-    border-bottom: 0;
-    padding: 1.05rem 1.25rem 0.35rem;
-    color: #1e3a5f;
-    font-size: 0.95rem;
+    background: #e3e4f9 !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #d8daf0 !important;
+    border-radius: 0;
+    padding: 0.7rem 1.15rem;
+    color: var(--company-brand-primary, #4338ca);
+    font-size: 0.72rem;
+    margin: 0;
   }
 
   .rider-info-section .rider-info-group>.card>.card-header b,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-header b {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
+    display: block;
+    width: 100%;
+    margin: 0;
     font-weight: 700;
-    letter-spacing: -0.01em;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    letter-spacing: 0.45px;
+    text-transform: uppercase;
+    color: var(--company-brand-primary, #4338ca);
   }
 
   .rider-info-section .rider-info-group>.card>.card-header b::before,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-header b::before {
-    content: '';
-    width: 3px;
-    height: 0.95rem;
-    border-radius: 999px;
-    background: #3b6fd9;
-    flex: 0 0 auto;
+    content: none;
+    display: none;
   }
 
   .rider-info-section .rider-info-group>.card>.card-body,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-body {
-    padding: 0.45rem 1.25rem 1.2rem;
+    padding: 0.85rem 1.25rem 1.2rem;
   }
 
   /*

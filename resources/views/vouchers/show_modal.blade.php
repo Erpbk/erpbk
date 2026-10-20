@@ -108,6 +108,7 @@ $voucher_number = $doc['voucherNo']
       'voucherType' => $voucher->voucher_type,
       'finDetail' => $fin_detail,
       'showPostedTransactions' => true,
+      'includeInPrint' => true,
     ])
     <div class="row g-3 mb-3 no-print">
       <div class="col-md-4"><hr class="my-0"><span class="small text-muted">Authorized Signature</span></div>

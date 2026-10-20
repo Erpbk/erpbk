@@ -1,12 +1,12 @@
-@push('third_party_stylesheets')
+﻿@push('third_party_stylesheets')
 @endpush
 @php
 $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
 $installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
 $installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
 $installmentPaymentReceivingRoute = $installmentPaymentReceivingRoute ?? 'Installments.paymentReceivingModal';
-$canEditInstallment = $canEditInstallment ?? user_can('visa_expense_edit');
-$canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_delete');
+$canEditInstallment = $canEditInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('edit');
+$canDeleteInstallment = $canDeleteInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('delete');
 $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
 @endphp
 <div id="visa-installments-inline-edit-scope">

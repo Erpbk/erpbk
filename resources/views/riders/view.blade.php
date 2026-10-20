@@ -1362,7 +1362,6 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
                   @if(\App\Support\CompanyModuleVisibility::enabled('visa_expense'))
                   @if(\App\Support\VisaExpenseAccess::visibleInRiderTab())
                   @isset($result)
-                  @can('visa_expense_view')
                   @php
                   // Prefer a dedicated visa expense account (module=visa / renewal category).
                   $visaExpenseAccount = ($account ?? null) && (($account->module ?? 'visa') === 'visa')
@@ -1392,7 +1391,6 @@ $riderVisaExpiringCount = $visaExpiryCounts['expiring'];
                     </a>
                   </li>
                   @endif
-                  @endcan
                   @endif
                   @endif
                   @endif

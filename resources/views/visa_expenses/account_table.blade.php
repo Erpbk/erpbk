@@ -217,7 +217,7 @@ $groupedPersons = collect($data->items())->groupBy(
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
-                  @can('visa_expense_view')
+                  @canany(['visa_expense_entries_view', 'visa_expense_installments_view', 'visa_expense_account_creation_view'])
                   <a href="{{ $overviewUrl }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye me-1"></i> View All Visa History
                   </a>
@@ -226,8 +226,8 @@ $groupedPersons = collect($data->items())->groupBy(
                      <i class="fa fa-passport me-1 text-muted"></i> {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
                   </a>
                   @endforeach
-                  @endcan
-                  @can('visa_expense_edit')
+                  @endcanany
+                  @can('visa_expense_account_creation_edit')
                   <div class="dropdown-divider"></div>
                   @foreach($personAccounts as $acct)
                   <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $acct->id }}" class='dropdown-item waves-effect'>
@@ -235,7 +235,7 @@ $groupedPersons = collect($data->items())->groupBy(
                   </a>
                   @endforeach
                   @endcan
-                  @can('visa_expense_delete')
+                  @can('visa_expense_account_creation_delete')
                   <div class="dropdown-divider"></div>
                   @foreach($personAccounts as $acct)
                   <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.deleteaccount', $acct->id) }}" class='dropdown-item waves-effect js-delete-expense-account text-danger'>

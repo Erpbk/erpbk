@@ -155,7 +155,7 @@ class PaymentController extends Controller
             }
             $invoiceQuery = EmployeeInvoices::with(['employee.account', 'items'])
                 ->payable()
-                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'));
+                ->whereHas('employee', fn($q) => $q->whereNotNull('account_id'));
             // Scope invoices only when opened for a specific employee (locked payee).
             if ($employeeId) {
                 $invoiceQuery->where('employee_id', $employeeId);
@@ -188,7 +188,7 @@ class PaymentController extends Controller
             }
             $invoiceQuery = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()
-                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'));
+                ->whereHas('rider', fn($q) => $q->whereNotNull('account_id'));
             // Scope invoices only when opened for a specific rider (locked payee).
             if ($riderId) {
                 $invoiceQuery->where('rider_id', $riderId);
@@ -314,6 +314,7 @@ class PaymentController extends Controller
                 if (! empty($existingInvoices)) {
                     $this->normalizeRiderPaymentFormBalances($existingInvoices);
                 }
+                $this->attachRiderPaymentFormBreakdowns($invoices, $existingInvoices);
             }
 
             return view('payments.create', compact(
@@ -346,13 +347,13 @@ class PaymentController extends Controller
 
         if (
             $request->input('invoice_type') === 'rider'
-            && $request->input('create_payment_type') === 'advance_loan'
+            && in_array($request->input('create_payment_type'), ['advance_loan', 'advance_payment'], true)
         ) {
             return $this->storeRiderAdvanceLoanFromPaymentForm($request);
         }
 
         $isRiderPaymentCreate = $request->input('invoice_type') === 'rider'
-            && in_array($request->input('create_payment_type', 'payment'), ['payment', ''], true);
+            && in_array($request->input('create_payment_type', 'salary_payment'), ['payment', 'salary_payment', 'c3', ''], true);
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -373,7 +374,7 @@ class PaymentController extends Controller
         ];
 
         if ($isRiderPaymentCreate) {
-            $rules['create_payment_type'] = 'nullable|in:payment';
+            $rules['create_payment_type'] = 'nullable|in:payment,salary_payment,c3';
             $rules['internal_notes'] = 'nullable|string|max:500';
             $rules['terms_and_conditions'] = 'nullable|string';
         }
@@ -396,6 +397,15 @@ class PaymentController extends Controller
 
         // For rider Payment type: derive billing month from the selected invoice.
         if ($isRiderPaymentCreate) {
+            $payeeAccountId = (int) $request->input('payee_account_id');
+            $riderId = $payeeAccountId > 0
+                ? (int) Accounts::where('id', $payeeAccountId)->value('ref_id')
+                : 0;
+            if ($riderId > 0 && ! RiderInvoices::payable()->where('rider_id', $riderId)->exists()) {
+                throw ValidationException::withMessages([
+                    'create_payment_type' => 'Salary Payment is not available when the selected rider has no unpaid invoices. Please use Advance Payment instead.',
+                ]);
+            }
             $this->applyRiderPaymentInvoiceRules($request);
         }
 
@@ -435,6 +445,10 @@ class PaymentController extends Controller
 
         $input = $request->all();
         $input['created_by'] = auth()->id();
+        $createPaymentType = (string) $request->input('create_payment_type', 'salary_payment');
+        $input['payment_kind'] = in_array($createPaymentType, ['salary_payment', 'payment', 'c3'], true)
+            ? ($createPaymentType === 'payment' ? 'salary_payment' : $createPaymentType)
+            : ($createPaymentType !== '' ? $createPaymentType : 'salary_payment');
         $billingMonthRaw = (string) ($input['billing_month'] ?? $request->input('billing_month') ?? '');
         if (preg_match('/^\d{4}-\d{2}-\d{2}/', $billingMonthRaw)) {
             $input['billing_month'] = substr($billingMonthRaw, 0, 10);
@@ -514,8 +528,10 @@ class PaymentController extends Controller
 
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
-                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
-                            && count($invoiceIds) === 1) {
+                        if (
+                            ! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                            && count($invoiceIds) === 1
+                        ) {
                             // Single-invoice payments may omit per-row amounts (exclude bank charges)
                             $invoicePaymentAmount = $paymentAmount;
                         }
@@ -546,8 +562,10 @@ class PaymentController extends Controller
                     $invoiceRefs = [];
                     foreach ($invoices as $invoice) {
                         $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
-                        if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
-                            && count($invoiceIds) === 1) {
+                        if (
+                            ! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                            && count($invoiceIds) === 1
+                        ) {
                             // Single-invoice payments may omit per-row amounts (exclude bank charges)
                             $invoicePaymentAmount = $paymentAmount;
                         }
@@ -572,17 +590,17 @@ class PaymentController extends Controller
                             $invoiceUpdate['terms_and_conditions'] = $request->input('terms_and_conditions');
                         }
                         $invoice->update($invoiceUpdate);
-                        $invoiceRefs[] = 'Rider Invoice #'.$invoice->id;
+                        $invoiceRefs[] = 'Rider Invoice #' . $invoice->id;
                     }
 
                     if ($invoiceRefs !== []) {
                         $tag = implode(', ', $invoiceRefs);
                         $desc = trim((string) $payment->description);
                         if ($desc === '') {
-                            $payment->description = 'Payment against '.$tag;
+                            $payment->description = 'Payment against ' . $tag;
                             $payment->save();
                         } elseif (! str_contains($desc, 'Rider Invoice #')) {
-                            $payment->description = $desc.' | '.$tag;
+                            $payment->description = $desc . ' | ' . $tag;
                             $payment->save();
                         }
                     }
@@ -739,7 +757,7 @@ class PaymentController extends Controller
 
     public function show(Request $request, $comapny_slug, $id)
     {
-        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($id);
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher.transactions.account'])->find($id);
         if (empty($payment)) {
             if ($request->ajax()) {
                 return response('Payment not found', 404);
@@ -763,12 +781,17 @@ class PaymentController extends Controller
             return view('payments.show_fields')->with('payment', $payment);
         }
 
-        return view('payments.show', $viewData->build($payment));
+        $data = $viewData->build($payment);
+        if ($request->boolean('print')) {
+            return response()->view('payments.voucher_print', $data);
+        }
+
+        return view('payments.show', $data);
     }
 
     public function pdf($comapny_slug, $id)
     {
-        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher'])->find($id);
+        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher.transactions.account'])->find($id);
         if (empty($payment)) {
             Flash::error('Payment not found');
 
@@ -779,7 +802,7 @@ class PaymentController extends Controller
         abort_unless($viewData->isRiderPayment($payment), 404);
 
         $data = $viewData->build($payment);
-        $filename = 'Payment-Voucher-'.preg_replace('/[^A-Za-z0-9\-_]/', '', (string) ($data['referenceNo'] ?? $payment->id)).'.pdf';
+        $filename = 'Payment-Voucher-' . preg_replace('/[^A-Za-z0-9\-_]/', '', (string) ($data['referenceNo'] ?? $payment->id)) . '.pdf';
 
         return InvoicePdf::download('payments.pdf', $data, $filename);
     }
@@ -1070,8 +1093,10 @@ class PaymentController extends Controller
 
                 foreach ($invoices as $invoice) {
                     $invoicePaymentAmount = floatval($paymentAmounts[$invoice->id] ?? 0);
-                    if (! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
-                        && count($invoiceIds) === 1) {
+                    if (
+                        ! $this->isNonZeroInvoiceAllocation($invoicePaymentAmount)
+                        && count($invoiceIds) === 1
+                    ) {
                         // Single-invoice payments may omit per-row amounts (exclude bank charges)
                         $invoicePaymentAmount = $paymentAmount;
                     }
@@ -1389,7 +1414,7 @@ class PaymentController extends Controller
             ->values()
             ->all();
         $submittedIds = collect($submittedInvoiceIds)
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -1555,6 +1580,8 @@ class PaymentController extends Controller
                 'final_amount' => $itemsTotal,
                 'paid_amount' => $paid,
                 'balance' => $remaining,
+                'deductions' => (float) ($invoice->deductions_total ?? 0),
+                'previous_balance' => (float) ($invoice->previous_balance ?? 0),
             ]);
         }
     }
@@ -1596,14 +1623,16 @@ class PaymentController extends Controller
 
         $paymentAmount = round((float) $request->input('amount', 0), 2);
         $bankCharges = round((float) $request->input('bank_charges', 0), 2);
-        $lineAmount = round((float) ($request->input('payment_amounts.'.$invoiceId) ?? $paymentAmount), 2);
+        $lineAmount = round((float) ($request->input('payment_amounts.' . $invoiceId) ?? $paymentAmount), 2);
         if ($lineAmount < 0.01) {
             $lineAmount = $paymentAmount;
         }
 
         // If the line mistakenly includes bank charges, strip them before invoice checks.
-        if ($bankCharges > 0.009 && $lineAmount > $paymentAmount + 0.009
-            && $lineAmount <= $paymentAmount + $bankCharges + 0.01) {
+        if (
+            $bankCharges > 0.009 && $lineAmount > $paymentAmount + 0.009
+            && $lineAmount <= $paymentAmount + $bankCharges + 0.01
+        ) {
             $lineAmount = $paymentAmount;
         }
 
@@ -1614,7 +1643,7 @@ class PaymentController extends Controller
 
         if ($paymentAmount > $invoiceTotal + 0.01 || $lineAmount > $invoiceTotal + 0.01) {
             throw ValidationException::withMessages([
-                'amount' => 'Payment amount cannot exceed the selected invoice amount ('.number_format($invoiceTotal, 2).')',
+                'amount' => 'Payment amount cannot exceed the selected invoice amount (' . number_format($invoiceTotal, 2) . ')',
             ]);
         }
 
@@ -1641,8 +1670,8 @@ class PaymentController extends Controller
         float $bankCharges = 0.0
     ): void {
         $invoiceIds = collect($request->input('invoice_ids', []))
-            ->filter(static fn ($id) => $id !== null && $id !== '')
-            ->map(static fn ($id) => (string) $id)
+            ->filter(static fn($id) => $id !== null && $id !== '')
+            ->map(static fn($id) => (string) $id)
             ->values();
 
         if ($invoiceIds->isEmpty()) {
@@ -1742,7 +1771,7 @@ class PaymentController extends Controller
 
         $riderNarration = $desc;
         if ($bankCharges > 0.009) {
-            $riderNarration = trim($desc.' | Bank charges '.number_format($bankCharges, 2));
+            $riderNarration = trim($desc . ' | Bank charges ' . number_format($bankCharges, 2));
         }
 
         // 1. Debit payee (rider) — payment + bank charges in one entry
@@ -1785,7 +1814,7 @@ class PaymentController extends Controller
                 'debit' => 0,
                 'billing_month' => $billingMonth,
                 'branch_id' => $branchId,
-                'narration' => 'Bank charges for ( '.$desc.' )',
+                'narration' => 'Bank charges for ( ' . $desc . ' )',
             ]);
         }
     }
@@ -1819,7 +1848,7 @@ class PaymentController extends Controller
             ->groupBy('account_id')
             ->selectRaw('account_id, COALESCE(SUM(debit - credit), 0) as balance')
             ->pluck('balance', 'account_id')
-            ->map(static fn ($balance) => round((float) $balance, 2))
+            ->map(static fn($balance) => round((float) $balance, 2))
             ->all();
     }
 
@@ -1856,6 +1885,17 @@ class PaymentController extends Controller
             ]);
         }
 
+        // Advance Loan is only allowed when the selected rider has no payable invoices.
+        $payeeAccountId = (int) $request->input('payee_account_id');
+        $riderId = $payeeAccountId > 0
+            ? (int) Accounts::where('id', $payeeAccountId)->value('ref_id')
+            : 0;
+        if ($riderId > 0 && RiderInvoices::payable()->where('rider_id', $riderId)->exists()) {
+            throw ValidationException::withMessages([
+                'create_payment_type' => 'Advance Payment is not available when the selected rider has unpaid invoices. Please use Salary Payment instead.',
+            ]);
+        }
+
         // Normalize / fill billing month before validation (type=month must be Y-m).
         $billingMonthInput = $request->input('billing_month');
         if (blank($billingMonthInput) && $invoice && $invoice->billing_month) {
@@ -1869,7 +1909,7 @@ class PaymentController extends Controller
         }
 
         $this->validate($request, [
-            'create_payment_type' => 'required|in:advance_loan',
+            'create_payment_type' => 'required|in:advance_loan,advance_payment',
             'reference' => 'nullable|string|max:255',
             'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
             'bank_id' => 'required|numeric|exists:banks,id',
@@ -1901,7 +1941,7 @@ class PaymentController extends Controller
         $attachFile = null;
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $fileName = time().'_'.$file->getClientOriginalName();
+            $fileName = time() . '_' . $file->getClientOriginalName();
             PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
             $attachFile = $fileName;
         }
@@ -1931,7 +1971,7 @@ class PaymentController extends Controller
                 'invoice_id' => $invoice ? $invoiceId : null,
                 'debit_narration' => $request->input('description') ?: 'Advance Loan Received',
                 'credit_narration' => $request->input('description')
-                    ? ('Advance Loan: '.$request->input('description'))
+                    ? ('Advance Loan: ' . $request->input('description'))
                     : null,
                 'remarks' => 'Advance Loan to Rider',
                 'custom_field_values' => $request->input('voucher_custom_fields', []),
@@ -2223,7 +2263,7 @@ class PaymentController extends Controller
                 ->get();
             $invoices = EmployeeInvoices::with(['employee.account', 'items'])
                 ->payable()
-                ->whereHas('employee', fn ($q) => $q->whereNotNull('account_id'))
+                ->whereHas('employee', fn($q) => $q->whereNotNull('account_id'))
                 ->whereNotIn('id', $invoiceIds)
                 ->orderBy('billing_month', 'desc')
                 ->get();
@@ -2277,7 +2317,7 @@ class PaymentController extends Controller
                 ->get();
             $invoices = RiderInvoices::with(['rider.account', 'items'])
                 ->payable()
-                ->whereHas('rider', fn ($q) => $q->whereNotNull('account_id'))
+                ->whereHas('rider', fn($q) => $q->whereNotNull('account_id'))
                 ->whereNotIn('id', $invoiceIds)
                 ->orderBy('billing_month', 'desc')
                 ->get();
@@ -2311,6 +2351,7 @@ class PaymentController extends Controller
             if (! empty($existingInvoices)) {
                 $this->normalizeRiderPaymentFormBalances($existingInvoices);
             }
+            $this->attachRiderPaymentFormBreakdowns($invoices, $existingInvoices);
         }
 
         $banks = Banks::active()->get();
@@ -2329,5 +2370,20 @@ class PaymentController extends Controller
             'lockedPayee',
             'preferredPayeeAccountId'
         );
+    }
+
+    /**
+     * Attach invoice / deduction / previous-balance breakdown for the rider payment UI.
+     *
+     * @param  iterable<int, RiderInvoices>|null  $invoices
+     * @param  iterable<int, RiderInvoices>|null  $existingInvoices
+     */
+    private function attachRiderPaymentFormBreakdowns($invoices, $existingInvoices = null): void
+    {
+        $builder = app(RiderInvoiceViewDataBuilder::class);
+        $builder->attachPaymentFormBreakdowns($invoices);
+        if (! empty($existingInvoices)) {
+            $builder->attachPaymentFormBreakdowns($existingInvoices);
+        }
     }
 }

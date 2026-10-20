@@ -151,13 +151,16 @@ return [
         [
             'key' => 'visa_expense',
             'visibility' => 'visa expense',
-            'permission' => 'visa_expense_view',
+            'permission' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+            ],
             'icon' => 'ti-credit-card',
         ],
         [
             'key' => 'installments',
             'visibility' => 'installments',
-            'permission' => 'visa_expense_view',
+            'permission' => 'visa_expense_installments_view',
             'icon' => 'ti-calendar-dollar',
         ],
         [

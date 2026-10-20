@@ -1,4 +1,4 @@
-@php
+﻿@php
 $categories = $categories ?? collect();
 $returnTo = $returnTo ?? '';
 $companySlug = $companySlug ?? (request()->route('company_slug') ?? session('company_slug'));
@@ -10,7 +10,7 @@ $hideTable = $hideTable ?? false;
 @if(! $hideTable)
 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
     <p class="text-muted small mb-0">Create a <strong>Visa Category</strong> first, then add statuses under that category. Duplicate status names are allowed only across different categories.</p>
-    @can('visa_expense_create')
+    @can('visa_expense_account_creation_create')
     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
         <i class="ti ti-plus me-1"></i> Add Category
     </button>

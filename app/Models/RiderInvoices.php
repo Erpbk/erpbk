@@ -62,14 +62,26 @@ class RiderInvoices extends BaseModel
     ];
 
     /**
-     * Cached outstanding summary for accessors (balance / paid_amount).
+     * Cached outstanding summary for accessors (balance / paid_amount / deductions).
      *
-     * @var array{final_amount: float, paid_amount: float, balance: float}|null
+     * @var array{
+     *     final_amount: float,
+     *     paid_amount: float,
+     *     balance: float,
+     *     deductions?: float,
+     *     previous_balance?: float
+     * }|null
      */
     protected $outstandingSummaryCache = null;
 
     /**
-     * @param  array{final_amount: float, paid_amount: float, balance: float}  $summary
+     * @param  array{
+     *     final_amount: float,
+     *     paid_amount: float,
+     *     balance: float,
+     *     deductions?: float,
+     *     previous_balance?: float
+     * }  $summary
      */
     public function setOutstandingSummary(array $summary): void
     {
@@ -94,7 +106,29 @@ class RiderInvoices extends BaseModel
     }
 
     /**
-     * @return array{final_amount: float, paid_amount: float, balance: float}
+     * Month ledger deductions applied against this invoice period.
+     */
+    public function getDeductionsTotalAttribute(): float
+    {
+        return (float) ($this->outstandingSummary()['deductions'] ?? 0);
+    }
+
+    /**
+     * Previous / carry-forward ledger balance before this invoice period.
+     */
+    public function getPreviousBalanceAttribute(): float
+    {
+        return (float) ($this->outstandingSummary()['previous_balance'] ?? 0);
+    }
+
+    /**
+     * @return array{
+     *     final_amount: float,
+     *     paid_amount: float,
+     *     balance: float,
+     *     deductions?: float,
+     *     previous_balance?: float
+     * }
      */
     protected function outstandingSummary(): array
     {

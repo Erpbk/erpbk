@@ -297,7 +297,7 @@ $attendanceRefType = $attendanceRefType ?? null;
                   @endforelse
                 </select>
               </div>
-              @can('visa_expense_create')
+              @can('visa_expense_entries_create')
               <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaStatusModal" id="btnAddVisaStatusForCategory">
                 <i class="ti ti-plus me-1"></i> Add Status
               </button>

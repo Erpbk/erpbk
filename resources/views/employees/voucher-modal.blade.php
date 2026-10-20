@@ -222,7 +222,7 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                     const inner = originalForm ? originalForm.innerHTML : temp.innerHTML;
                     const action = isEdit ? (typeToEditAction[type] || '#') : (typeToAction[type] || '#');
 
-                    container.innerHTML = '<form id="formajax" method="post" action="' + action + '"></form>';
+                    container.innerHTML = '<form id="formajax" method="post" action="' + action + '" enctype="multipart/form-data"></form>';
                     const form = container.querySelector('#formajax');
                     form.innerHTML = inner;
 
@@ -235,6 +235,19 @@ $editMode = isset($voucher_id) && isset($voucher_type);
                     }
 
                     initLoadedForm(form, temp);
+
+                    const $party = $(form).find('[data-uvf-party-voucher="1"]').first();
+                    if ($party.length) {
+                        const partyTitle = $party.data('modal-title') || 'Voucher';
+                        const partySubtitle = $party.data('modal-subtitle') || '';
+                        $('#modalTopTitle').html(
+                            '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
+                            (partySubtitle
+                                ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
+                                : '')
+                        );
+                        $(form).find('[data-rpf-inline-header]').addClass('d-none');
+                    }
                 })
                 .catch(() => {
                     container.innerHTML = '<div class="alert alert-danger">Failed to load form.</div>';

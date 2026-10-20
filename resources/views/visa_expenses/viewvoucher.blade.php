@@ -166,7 +166,7 @@ $riderUnpaidTotal = company_table('visa_expenses')
                                             </a>
                                         @empty
                                             <span class="text-muted">No file attached</span>
-                                            @can('visa_expense_edit')
+                                            @can('visa_expense_entries_edit')
                                             @if($data->vouchers->isNotEmpty())
                                             <a href="javascript:void(0);"
                                                class="btn btn-sm btn-outline-secondary show-modal ms-1"

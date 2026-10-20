@@ -9,6 +9,7 @@ use App\Helpers\General;
 use App\Models\Payment;
 use App\Models\RiderInvoices;
 use App\Models\Riders;
+use App\Models\Transactions;
 use App\Models\User;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
@@ -26,7 +27,7 @@ class RiderPaymentVoucherViewData
      */
     public function build(Payment $payment): array
     {
-        $payment->loadMissing(['payeeAccount', 'bank.account', 'voucher', 'branch']);
+        $payment->loadMissing(['payeeAccount', 'bank.account', 'voucher.transactions.account', 'branch']);
 
         $settings = RiderPaymentVoucherDefaults::all();
         $brand = $this->branding->forCompany(CompanyContext::id() ?? $payment->company_id);
@@ -41,19 +42,15 @@ class RiderPaymentVoucherViewData
         $rider = $this->resolveRider($payment);
         $createdByName = $this->userName($payment->created_by);
         $currencyCode = Currency::code();
+        $paidByAccount = $this->payingAccountLabel($payment);
 
-        $amountInWords = Account::convertNumberToWord(number_format($totalAmount, 2, '.', ''));
-        if (is_string($amountInWords) && $amountInWords !== '') {
-            $amountInWords = ucwords(strtolower($amountInWords)).' Only';
-        } else {
-            $amountInWords = '—';
-        }
+        $amountInWords = $this->amountInWords($totalAmount);
 
         $referenceDisplay = $payment->reference
             ?: ($allocations->first()['invoice_number'] ?? null);
         $voucherId = $payment->voucher_id ?: $payment->id;
         $voucherType = $payment->voucher->voucher_type ?? 'PV';
-        $voucherNo = $voucherType.'-'.$voucherId;
+        $voucherNo = $voucherType . '-' . $voucherId;
 
         return [
             'payment' => $payment,
@@ -74,9 +71,15 @@ class RiderPaymentVoucherViewData
             'billingMonth' => $payment->billing_month
                 ? Common::MonthFormat($payment->billing_month)
                 : '—',
-            'paidBy' => $createdByName ?: '—',
+            'paidBy' => $paidByAccount,
+            'createdBy' => $createdByName ?: '—',
             'paymentMode' => $payment->amount_type ?: '—',
-            'paymentType' => 'Payment',
+            'paymentType' => match ((string) ($payment->payment_kind ?? '')) {
+                'advance_payment', 'advance_loan' => 'Advance Payment',
+                'salary_payment' => 'Salary Payment',
+                'c3' => 'C3',
+                default => 'Payment',
+            },
             'paymentAmount' => $paymentAmount,
             'bankCharges' => $bankCharges,
             'totalPayment' => $totalAmount,
@@ -86,14 +89,70 @@ class RiderPaymentVoucherViewData
             'narration' => trim((string) ($payment->description ?? '')) ?: '—',
             'internalNotes' => trim((string) ($payment->internal_notes ?? '')),
             'allocations' => $allocations,
+            'postedTransactions' => $this->postedTransactions($payment),
             'amountInWords' => $amountInWords,
             'attachmentUrl' => $payment->attachment
-                ? url('storage/vouchers/'.ltrim((string) $payment->attachment, '/'))
+                ? url('storage/vouchers/' . ltrim((string) $payment->attachment, '/'))
                 : null,
             'attachmentName' => $payment->attachment ? basename((string) $payment->attachment) : null,
             'isRiderPayment' => $this->isRiderPayment($payment),
-            'formatMoney' => static fn (float $amount) => $currencyCode.' '.number_format($amount, 2),
+            'riderModuleLabel' => \App\Models\Settings::getMenuLabel('riders'),
+            'formatMoney' => static fn(float $amount) => Currency::format($amount),
         ];
+    }
+
+    private function amountInWords(float $amount): string
+    {
+        $normalized = number_format(abs($amount), 2, '.', '');
+        [$whole, $fraction] = array_pad(explode('.', $normalized, 2), 2, '00');
+
+        $wholeWords = Account::convertNumberToWord($whole);
+        if (! is_string($wholeWords) || $wholeWords === '') {
+            return '—';
+        }
+
+        $text = ucwords(strtolower($wholeWords));
+        $fractionInt = (int) $fraction;
+        if ($fractionInt > 0) {
+            $fracWords = Account::convertNumberToWord((string) $fractionInt);
+            if (is_string($fracWords) && $fracWords !== '') {
+                $text .= ' and ' . ucwords(strtolower($fracWords));
+            }
+        }
+
+        return $text . ' Only';
+    }
+
+    /**
+     * Ledger lines posted for this payment (voucher trans_code or PV reference).
+     *
+     * @return Collection<int, Transactions>
+     */
+    private function postedTransactions(Payment $payment): Collection
+    {
+        $payment->loadMissing(['voucher.transactions.account']);
+
+        $viaVoucher = $payment->voucher?->transactions;
+        if ($viaVoucher && $viaVoucher->isNotEmpty()) {
+            return $viaVoucher->values();
+        }
+
+        $transCode = $payment->voucher?->trans_code;
+        if ($transCode) {
+            $byCode = Transactions::with('account')
+                ->where('trans_code', $transCode)
+                ->orderBy('id')
+                ->get();
+            if ($byCode->isNotEmpty()) {
+                return $byCode;
+            }
+        }
+
+        return Transactions::with('account')
+            ->where('reference_type', 'PV')
+            ->where('reference_id', $payment->id)
+            ->orderBy('id')
+            ->get();
     }
 
     public function isRiderPayment(Payment $payment): bool
@@ -107,7 +166,7 @@ class RiderPaymentVoucherViewData
         $ref = (string) ($payment->reference ?? '');
         $desc = (string) ($payment->description ?? '');
 
-        return (bool) preg_match('/RINV/i', $ref.' '.$desc);
+        return (bool) preg_match('/RINV/i', $ref . ' ' . $desc);
     }
 
     private function resolveRider(Payment $payment): ?Riders
@@ -203,7 +262,7 @@ class RiderPaymentVoucherViewData
      */
     private function referencePatterns(Payment $payment): array
     {
-        $haystack = trim(($payment->reference ?? '').' '.($payment->description ?? ''));
+        $haystack = trim(($payment->reference ?? '') . ' ' . ($payment->description ?? ''));
         if ($haystack === '') {
             return [];
         }
@@ -226,6 +285,37 @@ class RiderPaymentVoucherViewData
         }
 
         return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Bank / cash account used to pay the rider (same as the form "Paid By" field).
+     */
+    private function payingAccountLabel(Payment $payment): string
+    {
+        $payment->loadMissing(['bank.account']);
+        $bank = $payment->bank;
+        if (! $bank) {
+            return '—';
+        }
+
+        $account = $bank->account;
+        if ($account) {
+            $code = trim((string) ($account->account_code ?? ''));
+            $name = trim((string) ($account->name ?? $bank->name ?? ''));
+            if ($code !== '' && $name !== '') {
+                return $code . '-' . $name;
+            }
+            if ($name !== '') {
+                return $name;
+            }
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        $bankName = trim((string) ($bank->name ?? ''));
+
+        return $bankName !== '' ? $bankName : '—';
     }
 
     private function userName(mixed $userId): ?string

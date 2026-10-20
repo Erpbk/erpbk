@@ -84,18 +84,18 @@ class RiderAdvanceLoanService
 
         $remarks = $data['remarks'] ?? 'Advance Loan to Rider';
         if ($invoice) {
-            $invoiceLabel = $invoice->invoice_number ?: ('#'.$invoice->id);
+            $invoiceLabel = $invoice->invoice_number ?: ('#' . $invoice->id);
             $monthLabel = $invoice->billing_month
                 ? date('M Y', strtotime((string) $invoice->billing_month))
                 : date('M Y', strtotime($billingMonth));
-            $remarks = trim($remarks.' | Invoice '.$invoiceLabel.' ('.$monthLabel.')');
+            $remarks = trim($remarks . ' | Invoice ' . $invoiceLabel . ' (' . $monthLabel . ')');
         }
 
         $transCode = Account::trans_code();
         $transDate = $data['trans_date'] ?? date('Y-m-d');
         $debitNarration = $data['debit_narration'] ?? 'Advance Loan Received';
         $creditNarration = $data['credit_narration']
-            ?? ('Advance Loan Given to '.($riderAccount->name ?? 'Rider'));
+            ?? ('Advance Loan Given to ' . ($riderAccount->name ?? 'Rider'));
         $bankChargesAccountId = $bankCharges > 0
             ? GlobalAccounts::account('BANK_CHARGES')->id
             : null;
@@ -139,7 +139,7 @@ class RiderAdvanceLoanService
             $riderDebit = round($amount + $bankCharges, 2);
             $riderNarration = $debitNarration;
             if ($bankCharges > 0.009) {
-                $riderNarration = trim($debitNarration.' | Bank charges '.number_format($bankCharges, 2));
+                $riderNarration = trim($debitNarration . ' | Bank charges ' . number_format($bankCharges, 2));
             }
 
             // 1. Debit rider — amount + bank charges in one entry
@@ -178,7 +178,7 @@ class RiderAdvanceLoanService
                     'reference_type' => 'AL',
                     'trans_code' => $transCode,
                     'trans_date' => $transDate,
-                    'narration' => 'Bank charges for ( '.$debitNarration.' )',
+                    'narration' => 'Bank charges for ( ' . $debitNarration . ' )',
                     'credit' => $bankCharges,
                     'billing_month' => $billingMonth,
                     'Created_By' => auth()->id(),
@@ -199,7 +199,7 @@ class RiderAdvanceLoanService
             return date('Y-m-01');
         }
         if (preg_match('/^\d{4}-\d{2}$/', (string) $input)) {
-            return $input.'-01';
+            return $input . '-01';
         }
         $ts = strtotime((string) $input);
         if ($ts !== false) {

@@ -10,180 +10,180 @@ $voucherType = $vt ?? request('vt');
 <input type="hidden" name="v_trans_code" value="{{@$vouchers->trans_code??0}}">
 <input type="hidden" name="voucher_type" id="voucher_type" value="{{$voucherType}}">
 
+@php
+$voucherTypeLabel = \App\Helpers\General::voucherType($voucherType);
+$currencyCode = \App\Helpers\Currency::code();
+@endphp
+
 @if($voucherType == 'TRF')
     @include('vouchers.transfer_fields')
 @else
-<div class="row mt-0 mb-2">
+<div class="uvf-form"
+    data-uvf-journal="1"
+    data-modal-title="{{ $voucherTypeLabel }}"
+    data-modal-subtitle="Post balanced debit and credit lines">
 
-    <div class="form-group col-md-3">
-        <label for="exampleInputEmail1">Date</label>
-
-        <input type="date" name="trans_date" class="form-control " placeholder="Transaction Date" value="@isset($vouchers->trans_date){{date('Y-m-d',strtotime($vouchers->trans_date)) }}@else{{date('Y-m-d')}}@endisset">
+    <div class="rpf-header" data-rpf-inline-header>
+        <h4 class="rpf-title">{{ $voucherTypeLabel }}</h4>
+        <p class="rpf-subtitle">Post balanced debit and credit lines</p>
     </div>
 
-    {{-- <div class="form-group col-md-3">
-                <label for="exampleInputEmail1">Posting Date</label>
-                <input  name="posting_date" class="form-control  date" placeholder="Posting Date" value="{{ date('Y-m-d') }}">
-</div> --}}
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="row g-3">
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="trans_date">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="trans_date" id="trans_date" class="form-control rpf-input" placeholder="Transaction Date" value="@isset($vouchers->trans_date){{date('Y-m-d',strtotime($vouchers->trans_date)) }}@else{{date('Y-m-d')}}@endisset">
+                </div>
 
-{{-- @if(in_array($voucherType,['LV']))
-            <div class="form-group col-md-3">
-                <label for="exampleInputEmail1">Bank/Cash A/C</label>
-                {!! Form::select('payment_from',\App\Models\Accounts::dropdown(ga_id('BANK')),null ,['class' => 'form-control  select2 ','id'=>'payment_from']) !!}
+                @if (!in_array($voucherType, ['VC', 'COD', 'PN', 'INC', 'PAY'], true))
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="payment_type">Payment Type</label>
+                    {!! Form::select('payment_type', App\Helpers\Account::payment_type_list(), null, ['class' => 'form-select select2 rpf-input', 'id' => 'payment_type']) !!}
+                </div>
+                @endif
+
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="billing_month">Billing Month <span class="text-danger">*</span></label>
+                    <input type="month" name="billing_month" id="billing_month" class="form-control rpf-input" value="@isset($vouchers->billing_month){{date('Y-m',strtotime($vouchers->billing_month)) }}@endisset" required>
+                </div>
+
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="reference_number">Reference <span class="text-danger">*</span></label>
+                    <input type="text" name="reference_number" class="form-control rpf-input" id="reference_number" value="@isset($vouchers->reference_number){{$vouchers->reference_number}}@endisset" placeholder="Reference Number" required>
+                </div>
+
+                @if(isset($rider) && $rider)
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="branch_id">Branch</label>
+                    @php
+                        $branchid = $rider->branch_id ?? null;
+                        $branch = auth()->user()->branchByid($branchid);
+                    @endphp
+                    <input type="hidden" name="branch_id" value="{{ $branchid }}" />
+                    <input type="text" class="form-control rpf-input bg-light" value="{{ $branch ? $branch->name : 'No Branch Found' }}" readonly />
+                </div>
+                @elseif(auth()->user()->hasMultiplebranches())
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="branch_id">Branch</label>
+                    <select class="form-control select2 rpf-input" id="branch_id" name="branch_id" required>
+                        @foreach(auth()->user()->branchDropdown() as $id => $name)
+                        <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }} @isset($vouchers->branch_id){{ $vouchers->branch_id == $id ? 'selected' : ''}} @endisset>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @else
+                <div class="form-group col-md-6">
+                    <label class="rpf-label" for="branch_id">Branch</label>
+                    @php
+                        $branchids = app('user_branches') ?? [];
+                        $branchid = $branchids[0] ?? null;
+                        $branch = auth()->user()->branchByid($branchid);
+                    @endphp
+                    <input type="hidden" name="branch_id" value="{{ $branchid }}" />
+                    <input type="text" class="form-control rpf-input bg-light" value="{{ $branch ? $branch->name : 'No Branch Found' }}" readonly />
+                </div>
+                @endif
             </div>
-            @endif --}}
-{{-- @if($voucherType==9)
-            <input type="hidden" name="payment_from" value="811" /><!--Sim Bike and Vendor Charges Account ID-->
-            @endif
-           --}}
-    @if ($voucherType == 'VC' || $voucherType == 'COD' || $voucherType == 'PN' || $voucherType == 'INC' || $voucherType == 'PAY')
-    @else
-    <div class="form-group col-md-2">
-        <label for="exampleInputEmail1">Payment Type</label>
-        {!! Form::select('payment_type',App\Helpers\Account::payment_type_list(),null ,['class' => 'form-select form-select-sm select2 ','id'=>'payment_type']) !!}
-    </div>
-    @endif
-
-    <div class="form-group col-md-2">
-        <label for="exampleInputEmail1">Billing Month</label>
-        {{-- {!! Form::select('billing_month',App\Helpers\CommonHelper::BillingMonth(),null ,['class' => 'form-control  select2 ','id'=>'billing_month']) !!}
-    --}} <input type="month" name="billing_month" class="form-control " value="@isset($vouchers->billing_month){{date('Y-m',strtotime($vouchers->billing_month)) }}@endisset" required>
-    </div>
-
-    <div class="form-group col-md-2">
-        <label for="reference_number">Reference Number <span class="text-danger">*</span></label>
-        <input type="text" name="reference_number" class="form-control" id="reference_number" value="@isset($vouchers->reference_number){{$vouchers->reference_number}}@endisset" placeholder="Reference Number" required>
-    </div>
-    @if(isset($rider) && $rider)
-    <div class="form-group col-md-3">
-        <label for="branch_id">Branch</label>
-        @php
-            $branchid = $rider->branch_id ?? null;
-            $branch = auth()->user()->branchByid($branchid);
-        @endphp
-        <input type="hidden" name="branch_id" value="{{ $branchid }}" />
-        <input type="text" class="form-control" value="{{ $branch ? $branch->name : 'No Branch Found' }}" readonly />
-    </div>
-    @else
-        @if(auth()->user()->hasMultiplebranches())
-        <div class="form-group col-md-3">
-            <label for="branch_id">Branch</label>
-            <select class="form-control select2" id="branch_id" name="branch_id" required >
-                @foreach(auth()->user()->branchDropdown() as $id => $name)
-                <option value="{{ $id }}" {{ request('branch_id') == $id ? 'selected' : '' }} @isset($vouchers->branch_id){{ $vouchers->branch_id == $id ? 'selected' : ''}} @endisset>{{ $name }}</option>
-                @endforeach
-            </select>
         </div>
-        @else
-        <div class="form-group col-md-3">
-            <label for="branch_id">Branch</label>
-            @php
-                $branchids = app('user_branches') ?? [];
-                $branchid = $branchids[0] ?? null;
-                $branch = auth()->user()->branchByid($branchid);
-            @endphp
-            <input type="hidden" name="branch_id" value="{{ $branchid }}" />
-            <input type="text" class="form-control" value="{{ $branch ? $branch->name : 'No Branch Found' }}" readonly />
+        <div class="col-lg-4">
+            <div class="rpf-attach-box">
+                @include('partials.universal_document_upload', [
+                    'name' => 'attachment',
+                    'label' => null,
+                    'required' => false,
+                    'inputClass' => 'form-control',
+                    'showHint' => true,
+                    'variant' => 'dropzone',
+                    'uploadLabel' => 'Upload File',
+                    'existingUrl' => !empty($vouchers?->attach_file) ? url('storage/vouchers/' . ltrim($vouchers->attach_file, '/')) : null,
+                    'existingName' => !empty($vouchers?->attach_file) ? basename($vouchers->attach_file) : null,
+                ])
+                <div class="rpf-attach-hint">Multiple pages combined into one PDF.</div>
+            </div>
         </div>
+    </div>
+
+    <div class="rpf-section mt-4">
+        <h6 class="rpf-section-title">Ledger Lines</h6>
+
+        @if($voucherType == 'JV' || $voucherType == 'RFV')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields")
         @endif
-    @endif
 
+        @if($voucherType == 'LV')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields")
+        @endif
+
+        @if($voucherType == 'VL')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.visaloan_fields")
+        @endif
+
+        @if($voucherType == 'AL')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+        @endif
+
+        @if($voucherType == 'COD')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+        @endif
+
+        @if($voucherType == 'PN')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+        @endif
+
+        @if($voucherType == 'INC')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+        @endif
+
+        @if($voucherType == 'PAY')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+        @endif
+
+        @if($voucherType == 'VC')
+        @php($accounts = \App\Models\Accounts::dropdown(null))
+        @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
+        @endif
+    </div>
+
+    <div class="rpf-section mt-3">
+        <div class="row g-3">
+            <div class="col-lg-7"></div>
+            <div class="col-lg-5">
+                <div class="rpf-summary">
+                    <div class="rpf-summary-row">
+                        <span>Total Dr:</span>
+                        <span>{{ $currencyCode }} <span id="uvf_total_dr_display">0.00</span></span>
+                    </div>
+                    <div class="rpf-summary-row">
+                        <span>Total Cr:</span>
+                        <span>{{ $currencyCode }} <span id="uvf_total_cr_display">0.00</span></span>
+                    </div>
+                    <div class="rpf-summary-row">
+                        <span>Difference:</span>
+                        <span id="uvf_diff_display" class="text-success">{{ $currencyCode }} 0.00</span>
+                    </div>
+                    <div class="rpf-summary-total">
+                        Balanced when difference is 0.00
+                    </div>
+                </div>
+                <input type="hidden" class="form-control" id="total_dr" readonly>
+                <input type="hidden" class="form-control" id="total_cr" readonly>
+            </div>
+        </div>
+    </div>
 </div>
-<div class="scrollbar">
-
-    <h5>{{\App\Helpers\General::voucherType($voucherType)}}</h5>
-
-    @if($voucherType == 'JV' || $voucherType == 'RFV')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields")
-    @endif
-
-    @if($voucherType == 'LV')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields")
-    @endif
-
-    @if($voucherType == 'VL')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.visaloan_fields")
-    @endif
-
-    @if($voucherType == 'AL')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
-    @if($voucherType == 'COD')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
-    @if($voucherType == 'PN')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
-    @if($voucherType == 'INC')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
-    @if($voucherType == 'PAY')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
-    @if($voucherType == 'VC')
-    @php($accounts = \App\Models\Accounts::dropdown(null))
-    @include("vouchers.default_fields", ['bank_accounts' => $bank_accounts ?? \App\Models\Accounts::bankAccountsDropdown()])
-    @endif
-
-
-    {{-- @if($voucherType == 5)
-            <h5>Invoice Voucher</h5>
-            @include("vouchers.invoice_fields")
-            @endif
-            @if($voucherType == 9)
-            <h5>Vendor Charges Voucher</h5>
-            @include("vouchers.sim_fields")
-            @endif
-            @if(in_array($voucherType,[10,11,8,12,13,14,15,16]))
-
-            @include("vouchers.default_fields")
-            @endif --}}
-</div>
+@include('partials.uvf_styles')
 @endif
-{{-- @if($voucherType == 11)
-            <h5>Fuel Voucher</h5>
-            @include("vouchers.fuel_fields")
-            @endif
-            @if($voucherType == 8)
-            <h5>RTA Fine Voucher</h5>
-            @include("vouchers.rta_fields")
-            @endif
-            @if($voucherType == 12)
-            <h5>Advance Issue Voucher</h5>
-            @include("vouchers.default_fields")
-            @endif
-            @if($voucherType == 13)
-            <h5>Advance Repay Voucher</h5>
-            @include("vouchers.default_fields")
-            @endif --}}
 
 @include('vouchers._custom_fields_section')
-
-@if($voucherType != 'TRF')
-<div class="row">
-    <div class="col-md-5"></div>
-    <div class="col-md-2 content-right mt-1">Total:&nbsp;<a href="javascript:void(0);" onclick="getTotal();" class="btn btn-default btn-sm"><i class="fa fa-refresh"></i></a></div>
-    <div class="form-group col-md-2">
-        <input type="number" class="form-control " id="total_dr" readonly placeholder="Total Dr">
-    </div>
-    <div class="form-group col-md-2">
-        <input type="number" class="form-control " id="total_cr" readonly placeholder="Total Cr">
-    </div>
-</div>
-@endif
 
 <script>
     /*  $(document).ready(function() {
@@ -227,6 +227,17 @@ $voucherType = $vt ?? request('vt');
             dr_sum = Math.round((dr_sum + Number.EPSILON) * 100) / 100;
             $scope.find("#total_cr").val(cr_sum.toFixed(2));
             $scope.find("#total_dr").val(dr_sum.toFixed(2));
+            $scope.find("#uvf_total_dr_display").text(dr_sum.toFixed(2));
+            $scope.find("#uvf_total_cr_display").text(cr_sum.toFixed(2));
+            var diff = Math.round((dr_sum - cr_sum + Number.EPSILON) * 100) / 100;
+            var currency = @json($currencyCode ?? \App\Helpers\Currency::code());
+            var $diff = $scope.find("#uvf_diff_display");
+            if ($diff.length) {
+                $diff
+                    .text(currency + ' ' + Math.abs(diff).toFixed(2))
+                    .toggleClass('text-success', Math.abs(diff) < 0.005)
+                    .toggleClass('text-danger', Math.abs(diff) >= 0.005);
+            }
         };
 
         window.fetch_invoices = function fetch_invoices(g) {
@@ -353,7 +364,7 @@ $voucherType = $vt ?? request('vt');
 
             $(document).on('click', '#add-new-row', function() {
                 setTimeout(function() {
-                    initVoucherSelect2($('#rows-container .row:last'));
+                    initVoucherSelect2($('#rows-container .row:last, #rows-container tr.uvf-line-row:last').last());
                 }, 0);
             });
         }); // End of $(document).ready

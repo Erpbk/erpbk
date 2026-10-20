@@ -51,6 +51,10 @@
             #btns {
                 display: none;
             }
+            .voucher-posted-transactions,
+            .no-print {
+                display: none !important;
+            }
 
             @page {
                 margin: 0 0.10cm;
@@ -120,59 +124,20 @@
                 <td style="padding: 3px;width: 65%;text-align: left;">&nbsp;</td>
             </tr>
         </table>
-        <table style="width: 100%; font-family: sans-serif;text-align: left;border: 1px solid #000; border-collapse: collapse; margin-top: 20px;font-size: 12px;">
-            <thead>
-                <tr style="border: 1px solid #000;">
-                    <th style="border: 1px solid #000; padding: 10px;width: 20px;">Sr</th>
-                    <th style="border: 1px solid #000; padding: 10px;">Account Name</th>
-                    <th style="border: 1px solid #000; padding: 10px;">Particulars</th>
-                    <th style="border: 1px solid #000; padding: 10px;text-align: center;">Debit</th>
-                    <th style="border: 1px solid #000; padding: 10px;text-align: center;">Credit</th>
-                </tr>
-            </thead>
-            <tbody>
-                @php
-                $totalD = 0;
-                $totalC = 0;
-                $fin_detail = company_table('rta_fines')->where('id' , $voucher->ref_id)->first();
-                @endphp
-                @foreach($voucher->transactions as $item)
-                <tr>
-                    <td style="padding: 5px;border:1px solid;text-align:center;">{{ $i+=1 }}</td>
-                    <td style="padding: 5px;border:1px solid">
-                        {{@$item->account->account_code}}-{{@$item->account->name}}
-                    </td>
-                    @if($voucher->voucher_type == 'RFV')
-                    <td style="padding: 5px;border:1px solid;text-align: left">{!! $item->narration !!}
-                        <b>Ticket No:</b>{{$fin_detail->ticket_no ?? ''}},<b>Bike No:</b>{{ $fin_detail->plate_no ?? '' }}, @if ($fin_detail && $fin_detail->trip_date) {{ \Carbon\Carbon::parse($fin_detail->trip_date)->format('d M Y') }} @else N/A @endif
-                    </td>
-                    @else
-                    <td style="padding: 5px;border:1px solid;text-align: left">{!! $item->narration !!}</td>
-                    @endif
-                    <td style="padding:5px;border:1px solid;text-align: center;">{{ $item->debit }}</td>
-                    <td style="padding:5px;border:1px solid;text-align: center;">{{ $item->credit }}</td>
-                </tr>
-                @php
-                $totalD+=$item->debit;
-                $totalC+=$item->credit;
-                @endphp
-                @endforeach
-            </tbody>
-            <tfoot>
-                <tr style="border-top: 1px solid #000;">
-                    <td colspan="2" style="padding: 10px;text-align: center;"></td>
-                    <th style="padding: 10px;text-align: right;">Sub Total:</th>
-                    <th style="padding: 10px;text-align: center;">{{ \App\Helpers\Account::show_bal_format($totalD) }}</th>
-                    <th style="padding: 10px;text-align: center;">{{ \App\Helpers\Account::show_bal_format($totalC) }}</th>
-                </tr>
-                <tr style="border-top: 1px solid #000; background-color: #dfdfdf;">
-                    <td colspan="2" style="padding: 10px;text-align: center;"></td>
-                    <th style="padding: 10px;text-align: right;">Total:</th>
-                    <th style="padding: 10px;text-align: center;">{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalD) }}</th>
-                    <th style="padding: 10px;text-align: center;">{{ \App\Helpers\Currency::symbol() }} {{ \App\Helpers\Account::show_bal_format($totalC) }}</th>
-                </tr>
-            </tfoot>
-        </table>
+        {{-- Posted transactions: screen view only (excluded from print / PDF download) --}}
+        @unless(request()->boolean('print') || request()->get('print'))
+            @php
+                $fin_detail = $voucher->voucher_type === 'RFV'
+                    ? company_table('rta_fines')->where('id', $voucher->ref_id)->first()
+                    : null;
+            @endphp
+            @include('vouchers.partials.posted_transactions', [
+                'transactions' => $voucher->transactions,
+                'voucherType' => $voucher->voucher_type,
+                'finDetail' => $fin_detail,
+                'showPostedTransactions' => true,
+            ])
+        @endunless
         <div id="btns" style="margin-top: 50px">
             <button class="btn btn-sm btn-outline-danger" type="button" onClick="window.print()"><i class="fa fa-file-pdf-o"></i> Print</button>
         </div>

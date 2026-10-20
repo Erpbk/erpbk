@@ -148,7 +148,15 @@ return [
             'submodules' => ['Salik', 'Payment'],
         ],
 
-        ['parent' => 'Visa Expense', 'slug' => 'visa_expense', 'submodules' => []],
+        [
+            'parent' => 'Visa Expense',
+            'slug' => 'visa_expense',
+            'submodules' => [
+                'Account Creation',
+                'Entries',
+                'Installments',
+            ],
+        ],
         ['parent' => 'License Expense', 'slug' => 'license_expense', 'submodules' => []],
         ['parent' => 'Legal Case', 'slug' => 'legal_case', 'submodules' => []],
         ['parent' => 'Passport Handover', 'slug' => 'passport_handover', 'submodules' => []],

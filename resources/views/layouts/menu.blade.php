@@ -536,7 +536,7 @@ $homeLink = $isAdminLogin
 @endif
 @endif
 @if(\App\Support\CompanyModuleVisibility::enabled('installments'))
-@can('installment_view')
+@can('visa_expense_installments_view')
 <li class="menu-item {{ Route::is('Installments*') ? 'active' : '' }}">
   <a href="{{ route('Installments.index') }}" class="menu-link">
     @include('layouts.partials.module_menu_icon', ['key' => 'installments'])

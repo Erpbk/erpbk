@@ -131,16 +131,58 @@ class TenantModulePermissionsSync
 
     /**
      * Migrate legacy permission assignments when module structure changes.
+     *
+     * Map values may be a single new permission name or a list of names (one-to-many).
      */
     public static function migrateLegacyPermissionAssignments(): void
     {
         $permissionMap = [
-            'visaloan_create' => 'visa_expense_create',
-            'visaloan_edit' => 'visa_expense_edit',
-            'visaexpense_view' => 'visa_expense_view',
-            'visaexpense_create' => 'visa_expense_create',
-            'visaexpense_edit' => 'visa_expense_edit',
-            'visaexpense_delete' => 'visa_expense_delete',
+            'visaloan_create' => 'visa_expense_installments_create',
+            'visaloan_edit' => 'visa_expense_installments_edit',
+            'visaexpense_view' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
+            'visaexpense_create' => [
+                'visa_expense_account_creation_create',
+                'visa_expense_entries_create',
+                'visa_expense_installments_create',
+            ],
+            'visaexpense_edit' => [
+                'visa_expense_account_creation_edit',
+                'visa_expense_entries_edit',
+                'visa_expense_installments_edit',
+            ],
+            'visaexpense_delete' => [
+                'visa_expense_account_creation_delete',
+                'visa_expense_entries_delete',
+                'visa_expense_installments_delete',
+            ],
+            'visa_expense_view' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
+            'visa_expense_create' => [
+                'visa_expense_account_creation_create',
+                'visa_expense_entries_create',
+                'visa_expense_installments_create',
+            ],
+            'visa_expense_edit' => [
+                'visa_expense_account_creation_edit',
+                'visa_expense_entries_edit',
+                'visa_expense_installments_edit',
+            ],
+            'visa_expense_delete' => [
+                'visa_expense_account_creation_delete',
+                'visa_expense_entries_delete',
+                'visa_expense_installments_delete',
+            ],
+            'installment_view' => 'visa_expense_installments_view',
+            'installment_create' => 'visa_expense_installments_create',
+            'installment_edit' => 'visa_expense_installments_edit',
+            'installment_delete' => 'visa_expense_installments_delete',
             'billing_invoice_view' => 'bike_on_rent_invoices_view',
             'billing_invoice_create' => 'bike_on_rent_invoices_create',
             'billing_invoice_edit' => 'bike_on_rent_invoices_edit',
@@ -198,21 +240,199 @@ class TenantModulePermissionsSync
             'smis_export_data_create' => 'sims_export_data_create',
         ];
 
-        foreach ($permissionMap as $oldName => $newName) {
-            $oldPermission = Permission::query()->where('name', $oldName)->where('guard_name', 'web')->first();
-            $newPermission = Permission::query()->where('name', $newName)->where('guard_name', 'web')->first();
-            if (! $oldPermission || ! $newPermission) {
+        self::copyPermissionAssignments($permissionMap);
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * Snapshot role / model permission pivots for the given permission names (before a sync
+     * deletes those rows), then re-apply onto the mapped new permission names after sync.
+     *
+     * @param  array<string, string|list<string>>  $permissionMap
+     * @return array{role: array<int, list<string>>, model: list<array{model_type: string, model_id: int|string, permissions: list<string>}>}
+     */
+    public static function capturePermissionAssignments(array $permissionMap): array
+    {
+        $tableNames = config('permission.table_names');
+        $permissionsTable = $tableNames['permissions'] ?? 'permissions';
+        $roleHasPermissions = $tableNames['role_has_permissions'] ?? 'role_has_permissions';
+        $modelHasPermissions = $tableNames['model_has_permissions'] ?? 'model_has_permissions';
+
+        $roleGrants = [];
+        $modelGrants = [];
+
+        foreach ($permissionMap as $oldName => $newNames) {
+            $old = DB::table($permissionsTable)->where('name', $oldName)->where('guard_name', 'web')->first();
+            if (! $old) {
                 continue;
             }
 
-            foreach (Role::query()->where('guard_name', 'web')->get() as $role) {
-                if ($role->hasPermissionTo($oldPermission) && ! $role->hasPermissionTo($newPermission)) {
-                    $role->givePermissionTo($newPermission);
+            $targets = array_values(array_unique(array_filter(array_map('strval', (array) $newNames))));
+            if ($targets === []) {
+                continue;
+            }
+
+            if (Schema::hasTable($roleHasPermissions)) {
+                foreach (DB::table($roleHasPermissions)->where('permission_id', $old->id)->pluck('role_id') as $roleId) {
+                    $roleId = (int) $roleId;
+                    $roleGrants[$roleId] = array_values(array_unique(array_merge($roleGrants[$roleId] ?? [], $targets)));
+                }
+            }
+
+            if (Schema::hasTable($modelHasPermissions)) {
+                foreach (DB::table($modelHasPermissions)->where('permission_id', $old->id)->get() as $row) {
+                    $key = $row->model_type . '|' . $row->model_id;
+                    if (! isset($modelGrants[$key])) {
+                        $modelGrants[$key] = [
+                            'model_type' => (string) $row->model_type,
+                            'model_id' => $row->model_id,
+                            'permissions' => [],
+                        ];
+                    }
+                    $modelGrants[$key]['permissions'] = array_values(array_unique(array_merge(
+                        $modelGrants[$key]['permissions'],
+                        $targets
+                    )));
+                }
+            }
+        }
+
+        return [
+            'role' => $roleGrants,
+            'model' => array_values($modelGrants),
+        ];
+    }
+
+    /**
+     * @param  array{role?: array<int, list<string>>, model?: list<array{model_type: string, model_id: int|string, permissions: list<string>}>}  $captured
+     */
+    public static function applyCapturedPermissionAssignments(array $captured): void
+    {
+        $tableNames = config('permission.table_names');
+        $permissionsTable = $tableNames['permissions'] ?? 'permissions';
+        $roleHasPermissions = $tableNames['role_has_permissions'] ?? 'role_has_permissions';
+        $modelHasPermissions = $tableNames['model_has_permissions'] ?? 'model_has_permissions';
+
+        $permissionIds = DB::table($permissionsTable)
+            ->where('guard_name', 'web')
+            ->pluck('id', 'name');
+
+        if (Schema::hasTable($roleHasPermissions)) {
+            foreach ($captured['role'] ?? [] as $roleId => $permNames) {
+                foreach ($permNames as $permName) {
+                    $permId = $permissionIds[$permName] ?? null;
+                    if (! $permId) {
+                        continue;
+                    }
+                    DB::table($roleHasPermissions)->insertOrIgnore([
+                        'permission_id' => (int) $permId,
+                        'role_id' => (int) $roleId,
+                    ]);
+                }
+            }
+        }
+
+        if (Schema::hasTable($modelHasPermissions)) {
+            foreach ($captured['model'] ?? [] as $row) {
+                foreach ($row['permissions'] ?? [] as $permName) {
+                    $permId = $permissionIds[$permName] ?? null;
+                    if (! $permId) {
+                        continue;
+                    }
+                    DB::table($modelHasPermissions)->insertOrIgnore([
+                        'permission_id' => (int) $permId,
+                        'model_type' => $row['model_type'],
+                        'model_id' => $row['model_id'],
+                    ]);
                 }
             }
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+    }
+
+    /**
+     * Visa Expense flat → Account Creation / Entries / Installments submodule split.
+     *
+     * @return array<string, string|list<string>>
+     */
+    public static function visaExpenseSubmodulePermissionMap(): array
+    {
+        return [
+            'visa_expense_view' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
+            'visa_expense_create' => [
+                'visa_expense_account_creation_create',
+                'visa_expense_entries_create',
+                'visa_expense_installments_create',
+            ],
+            'visa_expense_edit' => [
+                'visa_expense_account_creation_edit',
+                'visa_expense_entries_edit',
+                'visa_expense_installments_edit',
+            ],
+            'visa_expense_delete' => [
+                'visa_expense_account_creation_delete',
+                'visa_expense_entries_delete',
+                'visa_expense_installments_delete',
+            ],
+            'visaexpense_view' => [
+                'visa_expense_account_creation_view',
+                'visa_expense_entries_view',
+                'visa_expense_installments_view',
+            ],
+            'visaexpense_create' => [
+                'visa_expense_account_creation_create',
+                'visa_expense_entries_create',
+                'visa_expense_installments_create',
+            ],
+            'visaexpense_edit' => [
+                'visa_expense_account_creation_edit',
+                'visa_expense_entries_edit',
+                'visa_expense_installments_edit',
+            ],
+            'visaexpense_delete' => [
+                'visa_expense_account_creation_delete',
+                'visa_expense_entries_delete',
+                'visa_expense_installments_delete',
+            ],
+            'installment_view' => 'visa_expense_installments_view',
+            'installment_create' => 'visa_expense_installments_create',
+            'installment_edit' => 'visa_expense_installments_edit',
+            'installment_delete' => 'visa_expense_installments_delete',
+            'visaloan_create' => 'visa_expense_installments_create',
+            'visaloan_edit' => 'visa_expense_installments_edit',
+        ];
+    }
+
+    /**
+     * @param  array<string, string|list<string>>  $permissionMap
+     */
+    protected static function copyPermissionAssignments(array $permissionMap): void
+    {
+        foreach ($permissionMap as $oldName => $newNames) {
+            $oldPermission = Permission::query()->where('name', $oldName)->where('guard_name', 'web')->first();
+            if (! $oldPermission) {
+                continue;
+            }
+
+            foreach ((array) $newNames as $newName) {
+                $newPermission = Permission::query()->where('name', $newName)->where('guard_name', 'web')->first();
+                if (! $newPermission) {
+                    continue;
+                }
+
+                foreach (Role::query()->where('guard_name', 'web')->get() as $role) {
+                    if ($role->hasPermissionTo($oldPermission) && ! $role->hasPermissionTo($newPermission)) {
+                        $role->givePermissionTo($newPermission);
+                    }
+                }
+            }
+        }
     }
 
     protected static function giveTreeToAdminRoles(int $permissionId): void

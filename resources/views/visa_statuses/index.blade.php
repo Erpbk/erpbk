@@ -1,4 +1,4 @@
-@extends($layout ?? 'layouts.app')
+﻿@extends($layout ?? 'layouts.app')
 
 @push('third_party_stylesheets')
 <style>
@@ -282,7 +282,7 @@ $addStatusUrl = $selectedCategoryId
                     <h4><i class="ti ti-category me-1"></i> Visa Categories</h4>
                     <p class="visa-panel-subtitle mb-0">Select a category to manage its statuses</p>
                 </div>
-                @can('visa_expense_create')
+                @can('visa_expense_entries_create')
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
                     <i class="ti ti-plus"></i>
                 </button>
@@ -314,7 +314,7 @@ $addStatusUrl = $selectedCategoryId
                         <span class="visa-cat-count">{{ (int) ($category->visa_statuses_count ?? 0) }} status{{ (int) ($category->visa_statuses_count ?? 0) === 1 ? '' : 'es' }}</span>
                     </span>
                     <span class="d-flex align-items-center gap-1">
-                        @can('visa_expense_edit')
+                        @can('visa_expense_entries_edit')
                         <button type="button" class="visa-icon-btn visa-icon-btn-edit js-visa-renewal-edit-btn"
                             title="Edit category"
                             data-bs-toggle="modal"
@@ -328,7 +328,7 @@ $addStatusUrl = $selectedCategoryId
                             <i class="ti ti-pencil"></i>
                         </button>
                         @endcan
-                        @can('visa_expense_delete')
+                        @can('visa_expense_entries_delete')
                         @if(! $category->is_default)
                         <button type="button"
                             class="visa-icon-btn visa-icon-btn-delete js-visa-renewal-delete-btn"
@@ -346,7 +346,7 @@ $addStatusUrl = $selectedCategoryId
                     <div class="visa-empty-icon"><i class="ti ti-folder-plus"></i></div>
                     <h5 class="mb-1">No visa categories yet</h5>
                     <p class="text-muted small mb-3">Create a visa category first. Statuses can only be added after a category exists.</p>
-                    @can('visa_expense_create')
+                    @can('visa_expense_entries_create')
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createVisaRenewalCategoryModal">
                         Create Visa Category
                     </button>
@@ -375,7 +375,7 @@ $addStatusUrl = $selectedCategoryId
                     <button type="button" class="btn btn-outline-secondary btn-sm openFilterSidebar" @disabled(! $selectedCategoryId)>
                         <i class="fa fa-search me-1"></i> Filter
                     </button>
-                    @can('visa_expense_create')
+                    @can('visa_expense_entries_create')
                     <a class="btn btn-primary btn-sm js-visa-status-add-btn {{ $selectedCategoryId ? '' : 'disabled' }}" href="{{ $addStatusUrl }}" id="visa-add-status-btn">
                         Add Status
                     </a>

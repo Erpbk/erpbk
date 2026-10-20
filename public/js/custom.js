@@ -1,5 +1,23 @@
 // Right Side Modal Handler - Slide in from right
 $(document).ready(function () {
+  // Phones + foldables (< 1200px): keep overlay sidebar closed by default.
+  closeModuleMenuOnSmallScreens();
+  var __sidebarCloseResizeTimer = null;
+  var __lastSidebarWasSmall = isLayoutSmallScreen();
+  $(window).on('resize.erpCloseSidebar', function () {
+    clearTimeout(__sidebarCloseResizeTimer);
+    __sidebarCloseResizeTimer = setTimeout(function () {
+      var isSmall = isLayoutSmallScreen();
+      // Only force-close when crossing into the small breakpoint (desktop → mobile),
+      // or while voucher panels need the overlay menu shut. Do not close on every
+      // mobile resize (URL bar / keyboard) — that fights the hamburger toggle.
+      if (isSmall && (!__lastSidebarWasSmall || document.body.classList.contains('voucher-panels-open'))) {
+        closeModuleMenuOnSmallScreens();
+      }
+      __lastSidebarWasSmall = isSmall;
+    }, 150);
+  });
+
   // Keep action menus above cards/tables: .table-responsive uses overflow which
   // otherwise clips Bootstrap dropdowns (e.g. one-row Agreements list).
   (function enableFixedDropdownMenus() {
@@ -666,10 +684,35 @@ $('body').on('click', '.show-modal', function () {
     if (typeof window.initFundsTransferForm === 'function' && $('#modalTopbody [data-funds-transfer-init]').length) {
       window.initFundsTransferForm(document.getElementById('formajax') || $('#modalTopbody'));
     }
-    if ($('#modalTopbody .rider-payment-form').length) {
+    if ($('#modalTopbody [data-uvf-party-voucher="1"]').length) {
+      var $partyForm = $('#modalTopbody [data-uvf-party-voucher="1"]').first();
+      var partyTitle = $partyForm.data('modal-title') || 'Voucher';
+      var partySubtitle = $partyForm.data('modal-subtitle') || '';
       $('#modalTopTitle').html(
-        '<span style="color:#1e4b8f;font-weight:700;">Record Rider Payment</span>' +
-          '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">Allocate a payment to rider invoices</div>'
+        '<span style="color:#1e4b8f;font-weight:700;">' + partyTitle + '</span>' +
+          (partySubtitle
+            ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + partySubtitle + '</div>'
+            : '')
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    } else if ($('#modalTopbody .rider-payment-form').length) {
+      var $rpf = $('#modalTopbody .rider-payment-form').first();
+      var rpfTitle = $rpf.data('modal-title') || 'Record Rider Payment';
+      var rpfSubtitle = $rpf.data('modal-subtitle') || 'Allocate a payment to rider invoices';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + rpfTitle + '</span>' +
+          '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + rpfSubtitle + '</div>'
+      );
+      $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
+    } else if ($('#modalTopbody [data-uvf-journal="1"]').length) {
+      var $journalForm = $('#modalTopbody [data-uvf-journal="1"]').first();
+      var journalTitle = $journalForm.data('modal-title') || 'Journal Voucher';
+      var journalSubtitle = $journalForm.data('modal-subtitle') || '';
+      $('#modalTopTitle').html(
+        '<span style="color:#1e4b8f;font-weight:700;">' + journalTitle + '</span>' +
+          (journalSubtitle
+            ? '<div style="font-size:0.85rem;color:#3a6db5;font-weight:400;margin-top:2px;">' + journalSubtitle + '</div>'
+            : '')
       );
       $('#modalTopbody [data-rpf-inline-header]').addClass('d-none');
     }
@@ -699,10 +742,33 @@ $('#modalTop').on('hidden.bs.modal', function () {
 
 var __voucherMenuState = null;
 
+function isLayoutSmallScreen() {
+  if (window.Helpers && typeof window.Helpers.isSmallScreen === 'function') {
+    return !!window.Helpers.isSmallScreen();
+  }
+  return (window.innerWidth || document.documentElement.clientWidth || 0) < 1200;
+}
+
+function closeModuleMenuOnSmallScreens() {
+  if (!isLayoutSmallScreen()) {
+    return;
+  }
+  // Overlay/offcanvas menu must stay closed on phones + foldables (< 1200px).
+  $('html').removeClass('layout-menu-expanded');
+  if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
+    try {
+      window.Helpers.setCollapsed(true, false);
+    } catch (e) {
+      // ignore
+    }
+  }
+  syncVoucherMenuOffset();
+}
+
 function syncVoucherMenuOffset() {
   var menu = document.getElementById('layout-menu');
   var offsetPx = 0;
-  if (menu && !$('.layout-wrapper').hasClass('layout-without-menu') && window.innerWidth > 768) {
+  if (menu && !$('.layout-wrapper').hasClass('layout-without-menu') && !isLayoutSmallScreen()) {
     var width = menu.getBoundingClientRect().width;
     offsetPx = width > 40 ? Math.round(width) : Math.round(16.25 * 16);
   }
@@ -722,7 +788,13 @@ function ensureModuleMenuVisibleForVouchers() {
     };
   }
 
-  // Show the same full module sidebar used on the parent module page.
+  // Desktop: keep module menu visible beside vouchers.
+  // Mobile / fold (< 1200): keep overlay menu closed so voucher looks like desktop content.
+  if (isLayoutSmallScreen()) {
+    closeModuleMenuOnSmallScreens();
+    return;
+  }
+
   $('html, .layout-wrapper').removeClass('layout-menu-collapsed');
   if (window.Helpers && typeof window.Helpers.setCollapsed === 'function') {
     try {
@@ -779,7 +851,8 @@ $('body').on('click', '.show-voucher-panel', function (e) {
     $('#vouchers_list_sidebar_url').val() ||
     ($('#base_url').val() || '').replace(/\/$/, '') + '/vouchers/list-sidebar';
 
-  // Module sidebar + All Vouchers stay visible beside the voucher detail.
+  // Module nav: open on desktop, closed on mobile/fold.
+  // Voucher numbers list (left): always shown beside the detail panel.
   ensureModuleMenuVisibleForVouchers();
   if (listSidebar.length && listBody.length) {
     listSidebar.addClass('visible').attr('aria-hidden', 'false');
@@ -1372,6 +1445,10 @@ $(document).ready(function () {
     });
   }
 
+  function uvfLineRowSelector() {
+    return '#rows-container .row, #rows-container tr.uvf-line-row';
+  }
+
   // Add new row by cloning the first row
   $(document).on('click', '#add-new-row', function (event) {
     // SIM invoices use a dedicated add-row handler.
@@ -1379,39 +1456,54 @@ $(document).ready(function () {
       return;
     }
     event.preventDefault();
-    // Clone the first row
-    const newRow = $('#rows-container .row:first').clone();
-
-    // Destroy select2 and clean up in the cloned row
-    if (window.jQuery && $.fn && $.fn.select2 && newRow.find('.select2').data('select2')) {
-      newRow.find('.select2').select2('destroy');
+    // Clone the first row (legacy .row or UVF table tr)
+    const newRow = $(uvfLineRowSelector()).first().clone();
+    if (!newRow.length) {
+      return;
     }
-    newRow
-      .find('select')
-      .removeAttr('data-select2-id')
-      .removeClass('select2-hidden-accessible')
-      .next('.select2')
-      .remove();
+
+    // Strip Select2 artifacts from the clone. Select2 stamps data-select2-id on
+    // options after a choice is made; cloning those IDs breaks the new dropdown
+    // (selection does not show / updates the wrong row).
+    newRow.find('select').each(function () {
+      var $select = $(this);
+      if (window.jQuery && $.fn && $.fn.select2 && $select.data('select2')) {
+        $select.select2('destroy');
+      }
+      $select
+        .removeAttr('data-select2-id')
+        .removeAttr('aria-hidden')
+        .removeAttr('tabindex')
+        .removeClass('select2-hidden-accessible');
+      $select.find('option').removeAttr('data-select2-id').prop('selected', false);
+      $select.find('option:first').prop('selected', true);
+    });
+    newRow.find('.select2-container').remove();
+
     // Clear input, textarea, and select values in the cloned row
     newRow.find('input, textarea').val(''); // Clear inputs and textareas
-    newRow.find('select').val(null).trigger('change'); // Reset the select value and trigger change
+    newRow.find('select').val('');
     // Reset amount field to default value and remove data attribute
     newRow.find('.amount').attr('data-numeric-value', '0');
 
     // Set default values for qty, rate, discount, tax
     newRow.find('.qty').val('1');
     newRow.find('.rate').val('0');
+    newRow.find('.vat').val('0');
+    newRow.find('.vat_amount').val('0');
     newRow.find('.discount').val('0');
     newRow.find('.tax').val('0');
+    newRow.find('.amount').val('0.00');
 
     // Append the new row to the container
     $('#rows-container').append(newRow);
 
     // Reinitialize select2 for the newly added select element
     if (window.jQuery && $.fn && $.fn.select2) {
-      $('.select2').select2({
-        dropdownParent: $('#modalTopbody'),
-        allowClear: true
+      newRow.find('select.select2').select2({
+        dropdownParent: $('#modalTopbody').length ? $('#modalTopbody') : $(document.body),
+        allowClear: true,
+        width: '100%'
       });
     }
 
@@ -1429,8 +1521,8 @@ $(document).ready(function () {
     if ($(this).closest('.invoice-item-row').length) {
       return;
     }
-    if ($('#rows-container .row').length > 1) {
-      $(this).closest('.row').remove();
+    if ($(uvfLineRowSelector()).length > 1) {
+      $(this).closest('.row, tr.uvf-line-row').remove();
       // Recalculate total after removing row
       if (typeof getTotal === 'function') {
         getTotal();

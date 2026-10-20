@@ -211,6 +211,11 @@ return [
 
         ['parent' => 'Documents', 'slug' => 'documents', 'submodules' => []],
         ['parent' => 'Vouchers', 'slug' => 'vouchers', 'submodules' => []],
+        [
+            'parent' => 'Voucher Signature Assignment',
+            'slug' => 'voucher_signature_assignment',
+            'submodules' => [],
+        ],
 
         [
             'parent' => 'Accounts',

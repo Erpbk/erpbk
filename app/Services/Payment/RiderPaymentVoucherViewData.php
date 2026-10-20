@@ -12,6 +12,7 @@ use App\Models\Riders;
 use App\Models\Transactions;
 use App\Models\User;
 use App\Services\Agreements\AgreementPdfBranding;
+use App\Services\Voucher\VoucherSignatureResolver;
 use App\Support\CompanyContext;
 use App\Support\RiderPaymentVoucherDefaults;
 use Illuminate\Support\Collection;
@@ -19,7 +20,8 @@ use Illuminate\Support\Collection;
 class RiderPaymentVoucherViewData
 {
     public function __construct(
-        protected AgreementPdfBranding $branding
+        protected AgreementPdfBranding $branding,
+        protected VoucherSignatureResolver $signatureResolver
     ) {}
 
     /**
@@ -98,6 +100,10 @@ class RiderPaymentVoucherViewData
             'isRiderPayment' => $this->isRiderPayment($payment),
             'riderModuleLabel' => \App\Models\Settings::getMenuLabel('riders'),
             'formatMoney' => static fn(float $amount) => Currency::format($amount),
+            'signatureSlots' => $this->signatureResolver->slotsFor(
+                $voucherType,
+                CompanyContext::id() ?? $payment->company_id
+            ),
         ];
     }
 

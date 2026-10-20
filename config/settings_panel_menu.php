@@ -258,6 +258,18 @@ return [
             'icon' => 'ti-ticket',
         ],
         [
+            'key' => 'voucher_signature_assignment',
+            'visibility' => 'vouchers',
+            'permission' => [
+                'voucher_signature_assignment_view',
+                'voucher_signature_assignment_edit',
+                'vouchers_view',
+                'vouchers_edit',
+            ],
+            'icon' => 'ti-writing-sign',
+            'settings' => 'voucher_signature_assignment',
+        ],
+        [
             'key' => 'accounts',
             'visibility' => 'accounts',
             'permission' => ['accounts_coa_view', 'accounts_ledger_view'],

@@ -81,6 +81,12 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::put('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'updateField'])->name('settings-panel.voucher-settings.update-field');
     Route::delete('voucher-settings/fields/{id}', [App\Http\Controllers\VoucherSettingsController::class, 'destroyField'])->name('settings-panel.voucher-settings.destroy-field');
     Route::post('voucher-settings/fields/reorder', [App\Http\Controllers\VoucherSettingsController::class, 'reorderFields'])->name('settings-panel.voucher-settings.reorder-fields');
+    // Voucher Signature Assignment (per-type print/display signature slots)
+    Route::get('voucher-signature-assignment', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'index'])->name('settings-panel.voucher-signature-assignment.index');
+    Route::post('voucher-signature-assignment/module-label', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'storeModuleLabel'])->name('settings-panel.voucher-signature-assignment.store-module-label');
+    Route::get('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'configure'])->name('settings-panel.voucher-signature-assignment.configure');
+    Route::post('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'save'])->name('settings-panel.voucher-signature-assignment.save');
+    Route::delete('voucher-signature-assignment/{code}', [App\Http\Controllers\VoucherSignatureAssignmentController::class, 'clear'])->name('settings-panel.voucher-signature-assignment.clear');
     // Rider Settings (categories + fixed rider fields + rider custom fields)
     Route::get('rider-settings', [App\Http\Controllers\RiderSettingsController::class, 'index'])->name('settings-panel.rider-settings.index');
     Route::post('rider-settings/module-label', [App\Http\Controllers\RiderSettingsController::class, 'storeModuleLabel'])->name('settings-panel.rider-settings.store-module-label');

@@ -590,6 +590,18 @@
             </div>
             @endif
 
+            @php
+                $signatureSlots = $signatureSlots
+                    ?? app(\App\Services\Voucher\VoucherSignatureResolver::class)
+                        ->slotsFor((string) ($voucher->voucher_type ?? ''));
+            @endphp
+            @if($signatureSlots->isNotEmpty())
+                @include('vouchers.partials.signature_block', [
+                    'signatureSlots' => $signatureSlots,
+                    'signatureVariant' => 'cv',
+                    'signaturePerRow' => 3,
+                ])
+            @else
             <table class="cv-sigs" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                     <td class="cv-sig">
@@ -606,6 +618,7 @@
                     </td>
                 </tr>
             </table>
+            @endif
         </div>
     </div>
 

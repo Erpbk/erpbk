@@ -751,23 +751,40 @@
     border-top: 1px solid #eef0f3;
     display: flex;
     flex-direction: column;
-    gap: 0.85rem;
+    gap: 0.95rem;
   }
 
   .entity-view-card #rider-status-cards .rider-status-group-label {
-    font-size: 0.68rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.92rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #94a3b8;
-    margin-bottom: 0.4rem;
-    padding-left: 0.1rem;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: #1e3a5f;
+    margin-bottom: 0.55rem;
+    padding-left: 0;
+  }
+
+  .entity-view-card #rider-status-cards .rider-status-group-label::before {
+    content: '';
+    width: 3px;
+    height: 0.95rem;
+    border-radius: 999px;
+    background: #3b6fd9;
+    flex: 0 0 auto;
   }
 
   .entity-view-card #rider-status-cards .rider-status-group-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.45rem;
+    gap: 0.55rem;
+  }
+
+  /* Last odd card spans full width (e.g. Travel Ban) */
+  .entity-view-card #rider-status-cards .rider-status-group-grid > .status-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .entity-view-card #rider-status-cards .status-card {
@@ -776,8 +793,9 @@
     width: 100%;
     flex: unset;
     padding: 0;
-    background: #f8fafc;
-    border: 1px solid #e8edf3;
+    background: #fff;
+    border: 1px solid #e3ebf5;
+    border-left: 3px solid #3b6fd9;
     border-radius: 0.65rem;
     box-shadow: none;
     color: #1e293b;
@@ -786,22 +804,29 @@
   }
 
   .entity-view-card #rider-status-cards .status-card-main {
-    display: flex;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon spacer toggle"
+      "content content content";
     align-items: center;
-    gap: 0.45rem;
-    padding: 0.55rem 0.55rem 0.55rem 0.5rem;
+    column-gap: 0.45rem;
+    row-gap: 0.4rem;
+    padding: 0.65rem 0.7rem 0.7rem;
   }
 
   .entity-view-card #rider-status-cards .status-card:hover {
     transform: none;
-    background: #fff;
+    background: #f8fafc;
     border-color: #c5d0de;
+    border-left-color: #3b6fd9;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
   .entity-view-card #rider-status-cards .status-card.active {
     background: linear-gradient(135deg, #1e4b8e 0%, #2a5fa8 100%);
     border-color: #1e4b8e;
+    border-left-color: #93c5fd;
     box-shadow: 0 4px 12px rgba(30, 75, 142, 0.22);
     color: #fff;
   }
@@ -811,45 +836,46 @@
   }
 
   .entity-view-card #rider-status-cards .status-icon {
-    flex: 0 0 1.7rem;
-    width: 1.7rem;
-    height: 1.7rem;
-    font-size: 0.8rem;
+    grid-area: icon;
+    flex: 0 0 1.55rem;
+    width: 1.55rem;
+    height: 1.55rem;
+    font-size: 0.85rem;
     margin-bottom: 0;
-    border-radius: 0.45rem;
-    background: #fff;
-    color: #64748b;
-    border: 1px solid #e8edf3;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: #3b6fd9;
+    border: 0;
   }
 
   .entity-view-card #rider-status-cards .status-card.active .status-icon {
-    background: rgba(255, 255, 255, 0.18);
-    border-color: rgba(255, 255, 255, 0.28);
+    background: transparent;
+    border-color: transparent;
     color: #fff;
   }
 
   .entity-view-card #rider-status-cards .status-content {
-    flex: 1;
+    grid-area: content;
     min-width: 0;
     margin-bottom: 0;
   }
 
   .entity-view-card #rider-status-cards .status-title {
-    font-size: 0.72rem;
-    font-weight: 650;
-    line-height: 1.2;
+    font-size: 0.84rem;
+    font-weight: 700;
+    line-height: 1.25;
     color: #1e293b;
-    margin-bottom: 0.05rem;
+    margin-bottom: 0.1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .entity-view-card #rider-status-cards .status-subtitle {
-    font-size: 0.6rem;
+    font-size: 0.68rem;
     font-weight: 500;
     color: #94a3b8;
-    line-height: 1.15;
+    line-height: 1.2;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -864,32 +890,42 @@
   }
 
   .entity-view-card #rider-status-cards .status-toggle {
+    grid-area: toggle;
     flex: 0 0 auto;
     margin: 0;
+    justify-self: end;
   }
 
   .entity-view-card #rider-status-cards .toggle-switch {
-    width: 34px;
-    height: 18px;
-    background: #dbe3ee;
+    width: 36px;
+    height: 20px;
+    background: #d1d9e6;
     border-radius: 999px;
   }
 
   .entity-view-card #rider-status-cards .toggle-slider {
     top: 2px;
     left: 2px;
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
   }
 
   .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch {
-    background: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.92);
   }
 
   .entity-view-card #rider-status-cards .status-checkbox:checked+.toggle-switch .toggle-slider {
     background: #1e4b8e;
     transform: translateX(16px);
+  }
+
+  .entity-view-card #rider-status-cards .status-card:not(.active) .status-checkbox:checked+.toggle-switch {
+    background: #3b6fd9;
+  }
+
+  .entity-view-card #rider-status-cards .status-card:not(.active) .status-checkbox:checked+.toggle-switch .toggle-slider {
+    background: #fff;
   }
 
   .entity-view-card #rider-status-cards .status-card.disabled {
@@ -901,6 +937,10 @@
   @media (max-width: 575.98px) {
     .entity-view-card #rider-status-cards .rider-status-group-grid {
       grid-template-columns: 1fr;
+    }
+
+    .entity-view-card #rider-status-cards .rider-status-group-grid > .status-card:last-child:nth-child(odd) {
+      grid-column: auto;
     }
   }
 
@@ -927,7 +967,7 @@
   .rider-info-section .rider-info-group>.card,
   .rider-info-section [data-rfp-entity="rider"]>.card {
     background: #fff;
-    border: 1px solid #e9ecef;
+    border: 1px solid #e6ebf2;
     border-radius: 0.9rem;
     box-shadow: 0 2px 14px rgba(16, 24, 40, 0.06);
     margin-bottom: 1rem;
@@ -938,31 +978,138 @@
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-header {
     background: transparent;
     border-bottom: 0;
-    padding: 1.1rem 1.25rem 0.25rem;
-    color: #2c3345;
+    padding: 1.05rem 1.25rem 0.35rem;
+    color: #1e3a5f;
     font-size: 0.95rem;
+  }
+
+  .rider-info-section .rider-info-group>.card>.card-header b,
+  .rider-info-section [data-rfp-entity="rider"]>.card>.card-header b {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .rider-info-section .rider-info-group>.card>.card-header b::before,
+  .rider-info-section [data-rfp-entity="rider"]>.card>.card-header b::before {
+    content: '';
+    width: 3px;
+    height: 0.95rem;
+    border-radius: 999px;
+    background: #3b6fd9;
+    flex: 0 0 auto;
   }
 
   .rider-info-section .rider-info-group>.card>.card-body,
   .rider-info-section [data-rfp-entity="rider"]>.card>.card-body {
-    padding: 0.5rem 1.25rem 1.15rem;
+    padding: 0.45rem 1.25rem 1.2rem;
+  }
+
+  /*
+   * Prefer up to 4 fields per row. Long values keep their content width
+   * (no shrink/ellipsis), so the next field wraps to the next row.
+   */
+  .rider-info-section .rider-info-fields,
+  .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row,
+  .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row {
+    --rider-info-gap-x: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.85rem var(--rider-info-gap-x);
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .rider-info-section .rider-info-field,
+  .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group,
+  .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group {
+    flex: 1 1 calc((100% - (3 * var(--rider-info-gap-x))) / 4);
+    width: auto;
+    max-width: 100%;
+    min-width: min(100%, max-content);
+    margin: 0;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .rider-info-section .rider-info-field.is-multiline,
+  .rider-info-section .rider-info-field.is-full-row,
+  .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group.col-md-12,
+  .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group.col-md-12 {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
+  }
+
+  @media (max-width: 991.98px) {
+    .rider-info-section .rider-info-field:not(.is-full-row):not(.is-multiline),
+    .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group:not(.col-md-12),
+    .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group:not(.col-md-12) {
+      flex-basis: calc((100% - var(--rider-info-gap-x)) / 2);
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .rider-info-section .rider-info-field,
+    .rider-info-section .rider-info-group .card-body:not(.edit-form) > .row > .form-group,
+    .rider-info-section [data-rfp-entity="rider"] > .card > .card-body:not(.edit-form) > .row > .form-group {
+      flex-basis: 100%;
+      width: 100%;
+      min-width: 100%;
+      max-width: 100%;
+    }
   }
 
   .rider-info-field label,
-  .rider-info-section .form-group label {
+  .rider-info-section .card-body:not(.edit-form) .form-group label {
     display: block;
-    font-size: 0.75rem;
-    font-weight: 500 !important;
-    color: #8b8d97;
-    margin-bottom: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 600 !important;
+    color: #6b7280;
+    margin-bottom: 0.28rem;
+    letter-spacing: 0.01em;
   }
 
-  .rider-info-field p,
-  .rider-info-section .form-group p {
+  .rider-info-field-value,
+  .rider-info-section .card-body:not(.edit-form) .form-group > p {
+    display: block;
+    width: 100%;
+    min-width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: #f4f7fb;
+    border: 1px solid #e3ebf5;
+    border-left: 3px solid #3b6fd9;
+    border-radius: 0.55rem;
     font-size: 0.9rem;
     font-weight: 600;
-    color: #2c3345;
-    margin-bottom: 0.85rem;
+    color: #1e293b;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+  }
+
+  .rider-info-field.is-multiline .rider-info-field-value,
+  .rider-info-field.is-full-row .rider-info-field-value,
+  .rider-info-section .card-body:not(.edit-form) .form-group.col-md-12 > p {
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    word-break: break-word;
+  }
+
+  .rider-info-field-value .rider-doc-expiry-badge,
+  .rider-info-section .card-body:not(.edit-form) .form-group > p .rider-doc-expiry-badge {
+    white-space: nowrap;
   }
 </style>
 @php

@@ -20,6 +20,7 @@ $finDetail = $finDetail ?? ($fin_detail ?? null);
 
 $totalDebit = 0.0;
 $totalCredit = 0.0;
+$currencyMark = \App\Helpers\Currency::mark();
 @endphp
 
 @if($showPostedTransactions && $transactions->isNotEmpty())
@@ -74,8 +75,8 @@ $totalCredit = 0.0;
             <tfoot>
                 <tr>
                     <td colspan="2" class="text-end vpt-total-label">Total</td>
-                    <td class="text-end vpt-total-val">{{ number_format($totalDebit, 2) }}</td>
-                    <td class="text-end vpt-total-val">{{ number_format($totalCredit, 2) }}</td>
+                    <td class="text-end vpt-total-val"><span class="vpt-currency">{!! $currencyMark !!}</span>{{ number_format($totalDebit, 2) }}</td>
+                    <td class="text-end vpt-total-val"><span class="vpt-currency">{!! $currencyMark !!}</span>{{ number_format($totalCredit, 2) }}</td>
                 </tr>
             </tfoot>
         </table>
@@ -87,6 +88,7 @@ $totalCredit = 0.0;
     --vpt-blue: #1e4b8f;
     --vpt-soft: #eef4fc;
     --vpt-line: #c5d4eb;
+    --vpt-radius: 10px;
     margin-top: 1.25rem;
     margin-bottom: 0.5rem;
     -webkit-print-color-adjust: exact;
@@ -98,9 +100,15 @@ $totalCredit = 0.0;
     font-size: 0.82rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.35rem;
-    border-bottom: 2px solid var(--vpt-blue);
+    margin-bottom: 0.55rem;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+.voucher-posted-transactions .table-responsive {
+    border: 1px solid var(--vpt-line);
+    border-radius: var(--vpt-radius);
+    overflow: hidden;
+    background: #fff;
 }
 .voucher-posted-transactions .vpt-table {
     width: 100%;
@@ -109,8 +117,7 @@ $totalCredit = 0.0;
     font-size: 0.88rem;
     color: #0f172a;
     margin-bottom: 0;
-    border: 1px solid var(--vpt-line);
-    border-top: 3px solid var(--vpt-blue);
+    border: none;
 }
 .voucher-posted-transactions .vpt-table col.col-account { width: 34%; }
 .voucher-posted-transactions .vpt-table col.col-narration { width: 40%; }
@@ -123,8 +130,8 @@ $totalCredit = 0.0;
     font-size: 0.72rem;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    padding: 0.6rem 0.75rem;
-    border: 1px solid var(--vpt-blue);
+    padding: 0.65rem 0.75rem;
+    border: none;
     white-space: nowrap;
     text-align: left;
     -webkit-print-color-adjust: exact !important;
@@ -167,6 +174,23 @@ $totalCredit = 0.0;
     font-weight: 800;
     color: #0f172a;
 }
+.voucher-posted-transactions .vpt-currency {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 0.28em;
+    font-size: 0.9em;
+    font-weight: 700;
+    color: inherit;
+    vertical-align: baseline;
+}
+.voucher-posted-transactions .vpt-currency .app-currency-icon {
+    display: inline-block;
+    height: 0.9em;
+    width: auto;
+    max-width: 1.4em;
+    object-fit: contain;
+    vertical-align: -0.12em;
+}
 @if($includeInPrint)
 @media print {
     .voucher-posted-transactions.vpt-print-ready,
@@ -174,6 +198,10 @@ $totalCredit = 0.0;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
+    }
+    .voucher-posted-transactions.vpt-print-ready .table-responsive {
+        border-radius: var(--vpt-radius) !important;
+        overflow: hidden;
     }
     .voucher-posted-transactions.vpt-print-ready .vpt-table thead th {
         background: var(--vpt-blue) !important;

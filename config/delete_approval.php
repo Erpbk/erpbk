@@ -184,7 +184,7 @@ return [
         'employees' => [
             'model' => \App\Models\Employee::class,
             'name' => 'Employees',
-            'display_columns' => ['employee_id', 'name', 'email'],
+            'display_columns' => ['employee_id', 'name', 'company_email'],
             'show_route' => 'employees.show',
         ],
         'fixed_assets' => [

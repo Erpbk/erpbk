@@ -238,13 +238,8 @@ class BanksController extends AppBaseController
       return delete_error_response('Bank not found!', route('banks.index'), 404);
     }
 
-    // Check if bank has transactions
-    $transactionCount = $banks->transactions()->count();
-    if ($transactionCount > 0) {
-      return delete_error_response(
-        'Cannot delete bank. Bank has ' . $transactionCount . ' transaction(s). Please deactivate instead.',
-        route('banks.index')
-      );
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($banks), 'Bank')) {
+      return delete_error_response($blockReason, route('banks.index'));
     }
 
     // Track cascaded deletions

@@ -8,7 +8,7 @@ $__companySlug = \App\Support\CompanyRouteContext::slug();
 $globalLinkedAccountIds = $globalLinkedAccountIds ?? [];
 $isGlobalLinked = isset($globalLinkedAccountIds[$account->id]);
 @endphp
-<tr class="chart-account-row {{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-search="{{ $searchText }}" {{ $depth > 0 ? 'style="display:none;"' : '' }}>
+<tr class="chart-account-row {{ $depth > 0 ? 'child-row' : '' }}" data-account-id="{{ $account->id }}" data-parent-id="{{ $account->parent_id ?? '' }}" data-depth="{{ $depth }}" data-has-children="{{ $hasChildren ? '1' : '0' }}" data-search="{{ $searchText }}" {{ $depth > 0 ? 'style="display:none;"' : '' }}>
   <td class="align-middle" data-col="account-name">
     <div class="d-flex align-items-center">
       @if($depth > 0)

@@ -285,6 +285,10 @@ class LoansController extends AppBaseController
             return response()->json(['message' => 'Active loans cannot be deleted.'], 422);
         }
 
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($loan), 'Loan')) {
+            return delete_error_response($blockReason, route('loans.index'));
+        }
+
         DB::beginTransaction();
         try {
             $installments = $loan->installments()->get();

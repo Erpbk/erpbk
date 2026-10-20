@@ -16,6 +16,7 @@ use App\Models\LeasingCompanyInvoice;
 use App\Models\Garages;
 use App\Models\Recruiters;
 use App\Models\Riders;
+use App\Models\Employee;
 use App\Models\Bikes;
 use App\Models\Sims;
 use App\Models\SimCompany;
@@ -155,6 +156,12 @@ class TrashController extends Controller
             'name' => 'Riders',
             'icon' => 'fa-motorcycle',
             'display_columns' => ['rider_id', 'name', 'personal_contact'],
+        ],
+        'employees' => [
+            'model' => Employee::class,
+            'name' => 'Employees',
+            'icon' => 'fa-user-tie',
+            'display_columns' => ['employee_id', 'name', 'company_email'],
         ],
         'bikes' => [
             'model' => Bikes::class,
@@ -855,6 +862,12 @@ class TrashController extends Controller
 
                 if ($record->attachment && Storage::disk('public')->exists($record->attachment)) {
                     Storage::disk('public')->delete($record->attachment);
+                }
+            }
+
+            if ($module === 'employees' && $record instanceof Employee && $record->profile_image) {
+                if (Storage::disk('public')->exists($record->profile_image)) {
+                    Storage::disk('public')->delete($record->profile_image);
                 }
             }
 

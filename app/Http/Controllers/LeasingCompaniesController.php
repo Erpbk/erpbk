@@ -207,13 +207,8 @@ class LeasingCompaniesController extends AppBaseController
             return delete_error_response('Company not found!', route('leasingCompanies.index'), 404);
         }
 
-        // Check if leasing company has transactions - protect from deletion
-        $transactionCount = $leasingCompanies->transactions()->count();
-        if ($transactionCount > 0) {
-            return delete_error_response(
-                'Cannot delete leasing company. Company has '.$transactionCount.' transaction(s). Please deactivate instead.',
-                route('leasingCompanies.index')
-            );
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($leasingCompanies), 'Leasing company')) {
+            return delete_error_response($blockReason, route('leasingCompanies.index'));
         }
 
         // Check if leasing company has assigned bikes - protect from deletion

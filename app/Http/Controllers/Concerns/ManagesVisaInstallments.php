@@ -2131,6 +2131,7 @@ trait ManagesVisaInstallments
             $items = Accounts::select('id', \DB::raw("CONCAT(account_code, ' - ', name) AS label"))
                 ->where('account_type', 'Asset')
                 ->where('parent_id', $bankParentId)
+                ->leafOnly()
                 ->orderBy('account_code')
                 ->pluck('label', 'id');
             if ($items->isNotEmpty()) {
@@ -2152,6 +2153,7 @@ trait ManagesVisaInstallments
             $items = Accounts::select('id', \DB::raw("CONCAT(account_code, ' - ', name) AS label"))
                 ->where('account_type', 'Asset')
                 ->where('parent_id', $bankParent->id)
+                ->leafOnly()
                 ->orderBy('account_code')
                 ->pluck('label', 'id');
             if ($items->isNotEmpty()) {
@@ -2166,6 +2168,7 @@ trait ManagesVisaInstallments
                 $q->where('account_code', 'like', 'BK%')
                     ->orWhere('account_code', 'like', 'CB%');
             })
+            ->leafOnly()
             ->orderBy('account_code')
             ->pluck('label', 'id');
         if ($items->isNotEmpty()) {

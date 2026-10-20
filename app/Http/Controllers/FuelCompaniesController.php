@@ -257,23 +257,8 @@ class FuelCompaniesController extends AppBaseController
             return delete_error_response('Fuel company not found!', route('fuelCompanies.index'), 404);
         }
 
-        if ($fuelCompany->transactions()->count() > 0) {
-            return delete_error_response(
-                'Cannot delete fuel company. It has ' . $fuelCompany->transactions()->count() . ' transaction(s). Please deactivate instead.',
-                route('fuelCompanies.index')
-            );
-        }
-
-        if ($fuelCompany->account) {
-            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $fuelCompany->account->id)
-                ->count();
-            if ($ledgerEntriesCount > 0) {
-                return delete_error_response(
-                    "Cannot delete fuel company. The linked account has {$ledgerEntriesCount} ledger entry(ies).",
-                    route('fuelCompanies.index')
-                );
-            }
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($fuelCompany), 'Fuel company')) {
+            return delete_error_response($blockReason, route('fuelCompanies.index'));
         }
 
         $cascadedItems = [];

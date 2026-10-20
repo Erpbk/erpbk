@@ -33,11 +33,12 @@ use App\Support\CompanyScope;
 use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\EmployeeHistoryLogger;
 use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
 
 class EmployeeController extends Controller
 {
-    use AppliesModuleTopBarFilters, GlobalPagination;
+    use AppliesModuleTopBarFilters, GlobalPagination, TracksCascadingDeletions;
 
     public function __construct()
     {
@@ -1416,24 +1417,83 @@ class EmployeeController extends Controller
      */
     public function destroy($comapny_slug, Employee $employee)
     {
-        if (Transactions::where('account_id', $employee->account_id)->count() > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete employee with existing financial transactions. Please remove related transactions first.',
-            ], 400);
+        $cascadedItems = [];
+        $employeeId = $employee->id;
+        $employeeName = trim(($employee->employee_id ? $employee->employee_id . ' - ' : '') . ($employee->name ?? 'Employee'));
+        $relatedAccount = $employee->account;
+        if (! $relatedAccount && $employee->account_id) {
+            $relatedAccount = Accounts::find($employee->account_id);
+        }
+        if (! $relatedAccount) {
+            $relatedAccount = Accounts::where('ref_name', 'employee')->where('ref_id', $employee->id)->first();
         }
 
-        // Delete profile image
-        if ($employee->profile_image) {
-            Storage::disk('public')->delete($employee->profile_image);
+        // Block before any delete request / soft-delete: do not queue approval when the account has activity.
+        if ($blockReason = linked_account_delete_block_reason(
+            $relatedAccount?->id ?? resolve_linked_account_id($employee),
+            'Employee'
+        )) {
+            return delete_error_response($blockReason, route('employees.index'));
         }
 
+        $willQueue = \App\Services\DeleteRequestService::enabled()
+            && ! \App\Services\DeleteRequestService::shouldBypassApproval();
+
+        if (! $willQueue && Schema::hasColumn('employees', 'deleted_by')) {
+            $employee->deleted_by = Auth::id();
+            $employee->save();
+        }
+
+        // Soft-delete (or queue a delete request when approval is enabled).
+        // Do not remove profile image here — keep it for restore; purge on permanent delete.
         $employee->delete();
 
-        return delete_json_response(
-            'Employee',
-            route('settings-panel.trash.index') . '?module=employees'
-        );
+        if ($relatedAccount) {
+            $relatedAccount->delete();
+
+            if (! request()->attributes->get('delete_approval_created')) {
+                $cascadedItems[] = [
+                    'model' => 'Accounts',
+                    'id' => $relatedAccount->id,
+                    'name' => $relatedAccount->name,
+                ];
+
+                $this->trackCascadeDeletion(
+                    Employee::class,
+                    $employeeId,
+                    $employeeName,
+                    Accounts::class,
+                    $relatedAccount->id,
+                    $relatedAccount->name,
+                    'hasOne',
+                    'account',
+                    'soft'
+                );
+            }
+        }
+
+        $cascadeMessage = '';
+        if (! empty($cascadedItems)) {
+            $parts = array_map(fn ($item) => "{$item['model']}: {$item['name']}", $cascadedItems);
+            $cascadeMessage = ' (Also deleted: ' . implode(', ', $parts) . ')';
+        }
+
+        $trashUrl = route('settings-panel.trash.index') . '?module=employees';
+        if (wants_delete_json()) {
+            $response = delete_json_response('Employee', $trashUrl);
+            if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+                $data = $response->getData(true);
+                $data['message'] = 'Employee moved to Recycle Bin' . $cascadeMessage
+                    . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+                $response->setData($data);
+            }
+
+            return $response;
+        }
+
+        Flash::success('Employee moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+
+        return redirect(route('employees.index'));
     }
 
     public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)

@@ -444,6 +444,11 @@
         document.querySelectorAll('.view-ledger').forEach(function(el) {
             el.addEventListener('click', function(e) {
                 e.stopPropagation();
+                var tr = this.closest('tr');
+                // Parent accounts have no postings — do not open details panel.
+                if (tr && tr.getAttribute('data-has-children') === '1') {
+                    return;
+                }
                 loadLedgerIntoPanel(this.getAttribute('data-id'));
             });
         });

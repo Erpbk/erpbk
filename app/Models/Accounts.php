@@ -119,10 +119,20 @@ class Accounts extends BaseModel
   {
     return $this->belongsTo(self::class, 'parent_id');
   }
+
   public function children()
   {
     return $this->hasMany(self::class, 'parent_id')->with('children'); // Recursive relationship
   }
+
+  /**
+   * Direct children only (no recursive eager load) — used by leafOnly scope.
+   */
+  public function directChildren()
+  {
+    return $this->hasMany(self::class, 'parent_id');
+  }
+
   public function visa_expenses()
   {
     return $this->hasMany(visa_expenses::class, 'rider_id', 'id');
@@ -139,27 +149,70 @@ class Accounts extends BaseModel
   }
 
   /**
-   * Dropdown of accounts for selects (e.g. vouchers, ledger).
-   * When $parent_id is null, returns all accounts (same set as Chart of Accounts), ordered by account_code.
-   * When $parent_id is set, returns only direct children of that parent.
+   * Accounts with no children (postable / selectable in ledgers and vouchers).
    */
-  public static function dropdown($parent_id)
+  public function scopeLeafOnly(Builder $query): Builder
   {
-    if ($parent_id) {
-      $query = self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))->where('parent_id', $parent_id)->orderBy('account_code')->pluck('full_name', 'id')->prepend('Select', '');
-    } else {
-      $query = self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))->orderBy('account_code')->pluck('full_name', 'id')->prepend('Select', '');
+    return $query->whereDoesntHave('directChildren');
+  }
+
+  public function hasChildren(): bool
+  {
+    if ($this->relationLoaded('directChildren')) {
+      return $this->directChildren->isNotEmpty();
     }
-    return $query;
+
+    if ($this->relationLoaded('children')) {
+      return $this->children->isNotEmpty();
+    }
+
+    return $this->directChildren()->exists();
+  }
+
+  public function isParent(): bool
+  {
+    return $this->hasChildren();
+  }
+
+  /**
+   * Dropdown of accounts for selects (e.g. vouchers, ledger).
+   * By default returns leaf accounts only (no children).
+   * When $parent_id is set, returns leaf children of that parent.
+   * Pass $leafOnly = false for Chart of Accounts parent pickers.
+   *
+   * @param  mixed  $parent_id
+   * @param  bool  $leafOnly
+   * @param  array<int, int|string>  $includeIds  Always include these ids (edit-form legacy)
+   */
+  public static function dropdown($parent_id = null, bool $leafOnly = true, array $includeIds = [])
+  {
+    $query = self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
+      ->orderBy('account_code');
+
+    if ($parent_id) {
+      $query->where('parent_id', $parent_id);
+    }
+
+    if ($leafOnly) {
+      $includeIds = array_values(array_filter(array_map('intval', $includeIds)));
+      if ($includeIds !== []) {
+        $query->where(function ($q) use ($includeIds) {
+          $q->leafOnly()->orWhereIn('id', $includeIds);
+        });
+      } else {
+        $query->leafOnly();
+      }
+    }
+
+    return $query->pluck('full_name', 'id')->prepend('Select', '');
   }
 
   public static function customDropdown($accountIds)
   {
-
-    $query = self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))->whereIn('id', $accountIds)->pluck('full_name', 'id');
-
-
-    return $query;
+    return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
+      ->whereIn('id', $accountIds)
+      ->leafOnly()
+      ->pluck('full_name', 'id');
   }
 
   public static function bankAccountsDropdown()
@@ -167,19 +220,21 @@ class Accounts extends BaseModel
     return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
       ->where('parent_id', \App\Support\GlobalAccounts::id('BANK'))
+      ->leafOnly()
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
   }
 
   /**
    * Dropdown for Bank and Cash accounts (for voucher credit field).
-   * Returns accounts under Bank (994) and Cash (1643) parent accounts.
+   * Returns leaf accounts under the Bank parent.
    */
   public static function bankAndCashDropdown()
   {
     return self::select('id', \DB::raw("CONCAT(account_code, '-', name) as full_name"))
       ->where('account_type', 'Asset')
       ->where('parent_id', \App\Support\GlobalAccounts::id('BANK'))
+      ->leafOnly()
       ->pluck('full_name', 'id')
       ->prepend('Select', '');
   }

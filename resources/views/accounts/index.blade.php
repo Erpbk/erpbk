@@ -490,6 +490,10 @@
             r.classList.remove('selected');
           });
           tr.classList.add('selected');
+          // Parent accounts have no postings — do not open details panel.
+          if (tr.getAttribute('data-has-children') === '1') {
+            return;
+          }
           loadLedger(id);
           return;
         }
@@ -507,6 +511,9 @@
           });
           var tr = tbody.querySelector('tr[data-account-id="' + id + '"]');
           if (tr) tr.classList.add('selected');
+          if (tr && tr.getAttribute('data-has-children') === '1') {
+            return;
+          }
           loadLedger(id);
         }
       }

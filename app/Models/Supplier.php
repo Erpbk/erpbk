@@ -84,17 +84,8 @@ class Supplier extends BaseModel
      */
     public function cannotBeDeletedReason(): ?string
     {
-        if ($this->account_id) {
-            $transactionCount = Transactions::withTrashed()
-                ->withoutGlobalScope('branch')
-                ->where('account_id', $this->account_id)
-                ->count();
-
-            if ($transactionCount > 0) {
-                return 'Cannot delete supplier. This supplier\'s account has '
-                    . $transactionCount
-                    . ' transaction(s). Deactivate the supplier instead.';
-            }
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($this), 'Supplier')) {
+            return $blockReason;
         }
 
         $invoiceCount = $this->invoices()->where('is_invoice', true)->count();

@@ -434,6 +434,16 @@ class ReceiptController extends Controller
             $query->whereIn('id', $ids->unique()->filter()->values());
         }
 
+        // Leaf accounts only for posting; keep current payer even if it is a legacy parent.
+        $currentPayerId = $receipt?->payer_account_id ? (int) $receipt->payer_account_id : null;
+        if ($currentPayerId) {
+            $query->where(function ($q) use ($currentPayerId) {
+                $q->leafOnly()->orWhere('id', $currentPayerId);
+            });
+        } else {
+            $query->leafOnly();
+        }
+
         $accounts = $query->get();
 
         if ($receipt?->payer_account_id && ! $accounts->contains('id', (int) $receipt->payer_account_id)) {

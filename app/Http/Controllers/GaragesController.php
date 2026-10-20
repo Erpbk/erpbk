@@ -229,6 +229,10 @@ class GaragesController extends AppBaseController
       return delete_error_response('Garage not found!', route('garages.index'), 404);
     }
 
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($garages), 'Garage')) {
+      return delete_error_response($blockReason, route('garages.index'));
+    }
+
     $this->garagesRepository->delete($id);
 
     $trashUrl = route('settings-panel.trash.index') . '?module=garages';

@@ -210,25 +210,8 @@ class SimCompaniesController extends AppBaseController
             return response()->json(['errors' => ['error' => 'SIM company not found!']], 422);
         }
 
-        if ($simCompany->transactions()->count() > 0) {
-            return response()->json([
-                'errors' => [
-                    'error' => 'Cannot delete SIM company. It has ' . $simCompany->transactions()->count() . ' transaction(s). Please deactivate instead.',
-                ],
-            ], 422);
-        }
-
-        if ($simCompany->account) {
-            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $simCompany->account->id)
-                ->count();
-            if ($ledgerEntriesCount > 0) {
-                return response()->json([
-                    'errors' => [
-                        'error' => "Cannot delete SIM company. The linked account has {$ledgerEntriesCount} ledger entry(ies).",
-                    ],
-                ], 422);
-            }
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($simCompany), 'SIM company')) {
+            return delete_error_response($blockReason, route('simCompanies.index'));
         }
 
         $willQueue = \App\Services\DeleteRequestService::enabled()

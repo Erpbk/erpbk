@@ -193,24 +193,10 @@ class SupplierController extends AppBaseController
       return delete_error_response('Supplier not found!', route('suppliers.index'), 404);
     }
 
-    // Check if supplier has transactions - protect from deletion
+    // Block before delete request / soft-delete when account or invoices block deletion.
     $blockReason = $supplier->cannotBeDeletedReason();
     if ($blockReason) {
       return delete_error_response($blockReason, route('suppliers.index'));
-    }
-
-    // Check if supplier account has ledger entries before deletion
-    if ($supplier->account) {
-      $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-        ->where('account_id', $supplier->account->id)
-        ->count();
-
-      if ($ledgerEntriesCount > 0) {
-        return delete_error_response(
-          "Cannot delete supplier. The supplier account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.",
-          route('suppliers.index')
-        );
-      }
     }
 
     $cascadedItems = [];

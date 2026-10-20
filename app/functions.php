@@ -303,3 +303,62 @@ if (! function_exists('delete_error_response')) {
             : redirect()->back();
     }
 }
+
+if (! function_exists('resolve_linked_account_id')) {
+    /**
+     * Resolve Chart of Accounts id from a model that stores account_id / account relation.
+     */
+    function resolve_linked_account_id($model): ?int
+    {
+        if (! $model) {
+            return null;
+        }
+
+        if (! empty($model->account_id)) {
+            return (int) $model->account_id;
+        }
+
+        if (isset($model->account) && $model->account && ! empty($model->account->id)) {
+            return (int) $model->account->id;
+        }
+
+        return null;
+    }
+}
+
+if (! function_exists('linked_account_delete_block_reason')) {
+    /**
+     * Block soft-delete / delete-request when a linked COA account has activity.
+     * Ignores branch scope so approval is never queued for blocked records.
+     */
+    function linked_account_delete_block_reason(?int $accountId, string $entityLabel = 'Record'): ?string
+    {
+        if (! $accountId) {
+            return null;
+        }
+
+        $transactionCount = \App\Models\Transactions::withoutGlobalScope('branch')
+            ->where('account_id', $accountId)
+            ->count();
+
+        if ($transactionCount > 0) {
+            return $entityLabel . ' cannot be deleted. The linked account has '
+                . $transactionCount
+                . ' transaction(s). Remove related transactions first.';
+        }
+
+        if (\Illuminate\Support\Facades\Schema::hasTable('ledger_entries')) {
+            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
+                ->where('account_id', $accountId)
+                ->count();
+
+            if ($ledgerEntriesCount > 0) {
+                return $entityLabel . ' cannot be deleted. The linked account has '
+                    . $ledgerEntriesCount
+                    . ' ledger entry(ies).';
+            }
+        }
+
+        return null;
+    }
+}

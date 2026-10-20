@@ -317,6 +317,11 @@ class AccountsController extends AppBaseController
       );
     }
 
+    // Block before delete request / soft-delete when this COA account has activity.
+    if ($blockReason = linked_account_delete_block_reason((int) $accounts->id, 'Account')) {
+      return delete_error_response($blockReason, route('accounts.index'));
+    }
+
     // Track cascaded deletions for referenced records
     $cascadedItems = [];
 
@@ -417,6 +422,16 @@ class AccountsController extends AppBaseController
     if (!$account) {
       abort(404);
     }
+
+    if ($account->isParent()) {
+      $message = 'Parent accounts do not have ledger details. Select a child account instead.';
+      if ($request->wantsJson() || $request->ajax()) {
+        return response()->json(['message' => $message, 'html' => '<div class="text-muted p-4">' . e($message) . '</div>'], 422);
+      }
+
+      return response($message, 422);
+    }
+
     $currency = $request->get('currency', 'bcy');
 
     $closingBalance = (float) Transactions::where('account_id', $account->id)->sum(DB::raw('debit - credit'));
@@ -452,6 +467,22 @@ class AccountsController extends AppBaseController
     if (!$account) {
       abort(404);
     }
+
+    if ($account->isParent()) {
+      return response()->json([
+        'message' => 'Parent accounts do not have ledger details. Select a child account instead.',
+        'html' => '<tr><td colspan="6" class="text-center text-muted py-3">Parent accounts do not have ledger entries.</td></tr>',
+        'pagination' => [
+          'current_page' => 1,
+          'last_page' => 1,
+          'per_page' => 25,
+          'total' => 0,
+          'from' => null,
+          'to' => null,
+        ],
+      ], 422);
+    }
+
     $currency = $request->get('currency', 'bcy');
     $perPage = (int) $request->get('per_page', 25);
     $perPage = max(10, min(100, $perPage));

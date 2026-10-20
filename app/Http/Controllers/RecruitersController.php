@@ -229,12 +229,8 @@ class RecruitersController extends AppBaseController
             return delete_error_response('Recruiter not found!', route('recruiters.index'), 404);
         }
 
-        // Check if recruiter has transactions - protect from deletion
-        if ($recruiter->transactions()->count() > 0) {
-            return delete_error_response(
-                'Cannot delete recruiter. Recruiter has ' . $recruiter->transactions()->count() . ' transaction(s). Please deactivate instead.',
-                route('recruiters.index')
-            );
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($recruiter), 'Recruiter')) {
+            return delete_error_response($blockReason, route('recruiters.index'));
         }
 
         // Check if recruiter has active riders
@@ -244,20 +240,6 @@ class RecruitersController extends AppBaseController
                 "Cannot delete recruiter. Recruiter has {$activeRidersCount} active rider(s). Please reassign riders first.",
                 route('recruiters.index')
             );
-        }
-
-        // Check if recruiter account has ledger entries before deletion
-        if ($recruiter->account) {
-            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $recruiter->account->id)
-                ->count();
-
-            if ($ledgerEntriesCount > 0) {
-                return delete_error_response(
-                    "Cannot delete recruiter. The recruiter account has {$ledgerEntriesCount} ledger entry(ies). Please clear these first.",
-                    route('recruiters.index')
-                );
-            }
         }
 
         // Track cascaded deletions

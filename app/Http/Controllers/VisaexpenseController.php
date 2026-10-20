@@ -1583,6 +1583,7 @@ class VisaexpenseController extends AppBaseController
         return Accounts::query()
             ->where('status', 1)
             ->where('parent_id', $bank->id)
+            ->leafOnly()
             ->orderBy('id')
             ->pluck('name', 'id');
     }

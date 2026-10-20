@@ -246,10 +246,9 @@ class BikeRentCompaniesController extends AppBaseController
         }
         $this->authorizeCustomer('delete', $bikeRentCompany);
 
-        if ($bikeRentCompany->transactions()->count() > 0) {
-            return delete_error_response(
-                'Cannot delete this Customer. It has ' . $bikeRentCompany->transactions()->count() . ' transaction(s). Please deactivate instead.'
-            );
+        $entityLabel = $bikeRentCompany->customer_type === 'garage' ? 'Garage customer' : 'Bike on rent customer';
+        if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($bikeRentCompany), $entityLabel)) {
+            return delete_error_response($blockReason);
         }
 
         $assignedBikes = Bikes::query()->where('rental_company_id', $bikeRentCompany->id)->count();
@@ -257,17 +256,6 @@ class BikeRentCompaniesController extends AppBaseController
             return delete_error_response(
                 'Cannot delete this Customer. It has ' . $assignedBikes . ' assigned bike(s). Unassign them first.'
             );
-        }
-
-        if ($bikeRentCompany->account) {
-            $ledgerEntriesCount = \App\Support\CompanyQuery::table('ledger_entries')
-                ->where('account_id', $bikeRentCompany->account->id)
-                ->count();
-            if ($ledgerEntriesCount > 0) {
-                return delete_error_response(
-                    "Cannot delete this record. The linked account has {$ledgerEntriesCount} ledger entry(ies)."
-                );
-            }
         }
 
         $willQueue = \App\Services\DeleteRequestService::enabled()

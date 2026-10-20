@@ -1018,20 +1018,14 @@ class RidersController extends AppBaseController
 
     $isAdministrator = Auth::user()?->isAdmin() === true;
 
-    // Non-administrators cannot delete a rider that still has ledger or related records.
+    // Block before any delete request / soft-delete when the linked account has activity.
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($riders), 'Rider')) {
+      return delete_error_response($blockReason, route('riders.index'));
+    }
+
+    // Non-administrators cannot delete a rider that still has related records.
     // Administrators may proceed and also remove the Chart of Accounts account (soft delete).
     if (! $isAdministrator) {
-      // Check if rider account has any transactions (like Banks does)
-      if ($riders->account_id) {
-        $accountTransactions = Transactions::where('account_id', $riders->account_id)->count();
-        if ($accountTransactions > 0) {
-          return delete_error_response(
-            'Cannot delete rider. The rider account has ' . $accountTransactions . ' transaction(s). Please remove all transactions first.',
-            route('riders.index')
-          );
-        }
-      }
-
       // Check if rider has any vouchers (by ref_id or rider_id)
       $vouchersCount = Vouchers::where(function ($query) use ($id) {
         $query->where('ref_id', $id)->orWhere('rider_id', $id);

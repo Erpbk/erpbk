@@ -83,7 +83,13 @@
         font-weight: 600;
     }
 
-    .rpf-balance-due {
+    .rpf-balance-due.is-positive,
+    .rpf-balance-due.text-success {
+        color: #16a34a;
+    }
+
+    .rpf-balance-due.is-negative,
+    .rpf-balance-due.text-danger {
         color: #dc2626;
     }
 

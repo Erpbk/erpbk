@@ -122,6 +122,24 @@ class RiderInvoices extends BaseModel
     }
 
     /**
+     * Same-month ledger deductions plus previous balance (when owed by the rider).
+     */
+    public function getTotalDeductionsAttribute(): float
+    {
+        $previous = $this->previous_balance;
+
+        return round($this->deductions_total + ($previous > 0 ? $previous : 0), 2);
+    }
+
+    /**
+     * Invoice total after deductions/additions — payable salary before payments.
+     */
+    public function getFinalAmountAttribute(): float
+    {
+        return (float) ($this->outstandingSummary()['final_amount'] ?? 0);
+    }
+
+    /**
      * @return array{
      *     final_amount: float,
      *     paid_amount: float,

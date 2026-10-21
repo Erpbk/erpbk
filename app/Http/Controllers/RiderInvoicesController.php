@@ -105,6 +105,13 @@ class RiderInvoicesController extends AppBaseController
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+        $data->load(['rider', 'items']);
+
+        // Prefetch deduction / payable figures used by the listing columns.
+        $invoiceBuilder = app(RiderInvoiceViewDataBuilder::class);
+        foreach ($data as $invoice) {
+            $invoice->setOutstandingSummary($invoiceBuilder->outstandingAmounts($invoice));
+        }
 
         // ✅ Billing month ka check for total calculation
         $billingMonth = $request->has('billing_month') && ! empty($request->billing_month)

@@ -572,7 +572,10 @@ class EmployeeController extends Controller
 
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-        $query = Employee::query()->with('branch', 'department', 'nationality');
+        // Index lists live employees only — never soft-deleted / recycle-bin rows.
+        $query = Employee::query()
+            ->whereNull('employees.deleted_at')
+            ->with('branch', 'department', 'nationality');
         $this->applyEmployeeIndexFilters($query, $request);
         $query->orderBy('name');
         $data = $this->applyPagination($query, $paginationParams);

@@ -100,6 +100,57 @@ class TrashController extends Controller
             ->where('related_id', $id)
             ->delete();
     }
+
+    /**
+     * Cascade parent that caused this related soft-delete (if any).
+     */
+    private function cascadedByPrimary(string $modelClass, $id): ?DeletionCascade
+    {
+        return DeletionCascade::getPrimaryDeletion($modelClass, $id);
+    }
+
+    /**
+     * IDs of this model that were soft-deleted only as cascade children.
+     *
+     * @return array<int, int|string>
+     */
+    private function cascadedRelatedIdsForModel(string $modelClass): array
+    {
+        return DeletionCascade::query()
+            ->where('related_model', $modelClass)
+            ->pluck('related_id')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function cascadeChildBlockedMessage(DeletionCascade $causedBy): string
+    {
+        $primaryLabel = class_basename($causedBy->primary_model);
+        $primaryName = $causedBy->primary_name
+            ? " \"{$causedBy->primary_name}\""
+            : '';
+
+        return "This record was deleted with {$primaryLabel}{$primaryName} (#{$causedBy->primary_id}). "
+            . 'Restore or permanently delete that primary record instead.';
+    }
+
+    private function rejectCascadeChildOperation(Request $request, DeletionCascade $causedBy)
+    {
+        $message = $this->cascadeChildBlockedMessage($causedBy);
+
+        if ($request->ajax() || $request->wantsJson() || $request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+            ], 422);
+        }
+
+        Flash::error($message);
+
+        return redirect()->route('settings-panel.trash.index');
+    }
+
     /**
      * List of models that support soft deletes
      */
@@ -238,12 +289,6 @@ class TrashController extends Controller
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'rider_id', 'billing_month', 'total_amount', 'status'],
         ],
-        'rta_account' => [
-            'model' => Accounts::class,
-            'name' => 'RTA Account',
-            'icon' => 'fa-file-invoice',
-            'display_columns' => ['id', 'name', 'account_code', 'account_type'],
-        ],
         'rta_fines' => [
             'model' => RtaFines::class,
             'name' => 'RTA Fines',
@@ -255,12 +300,6 @@ class TrashController extends Controller
             'name' => 'Salik',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
-        ],
-        'salik_accounts' => [
-            'model' => Accounts::class,
-            'name' => 'Salik Account',
-            'icon' => 'fa-file-invoice',
-            'display_columns' => ['id', 'name', 'account_code', 'account_type'],
         ],
         'vouchers' => [
             'model' => Vouchers::class,
@@ -370,14 +409,13 @@ class TrashController extends Controller
                     // Check force delete permission
                     $canForceDelete = auth()->user()->can('settings_recycle_bin_delete');
 
-                    // Get cascade information - check if this was deleted as a cascade
-                    $causedBy = DeletionCascade::where('related_model', $config['model'])
-                        ->where('related_id', $record->id)
-                        ->with('deletedByUser')
-                        ->orderBy('created_at', 'desc')
-                        ->first();
+                    // Cascade children are restored/purged only via their primary — hide them here.
+                    $causedBy = $this->cascadedByPrimary($config['model'], $record->id);
+                    if ($causedBy) {
+                        continue;
+                    }
 
-                    // Get what this deletion cascaded to
+                    // Get what this deletion cascaded to (shown as a hint on the primary row)
                     $cascadedTo = DeletionCascade::where('primary_model', $config['model'])
                         ->where('primary_id', $record->id)
                         ->with('deletedByUser')
@@ -386,9 +424,7 @@ class TrashController extends Controller
 
                     // Get the user who deleted this record
                     $deletedByUser = null;
-                    if ($causedBy && $causedBy->deletedByUser) {
-                        $deletedByUser = $causedBy->deletedByUser;
-                    } elseif (isset($record->deleted_by) && $record->deleted_by) {
+                    if (isset($record->deleted_by) && $record->deleted_by) {
                         $deletedByUser = \App\Models\User::find($record->deleted_by);
                     }
 
@@ -402,7 +438,7 @@ class TrashController extends Controller
                         'deleted_at' => $record->deleted_at,
                         'can_restore' => $canRestore,
                         'can_force_delete' => $canForceDelete,
-                        'caused_by' => $causedBy,
+                        'caused_by' => null,
                         'cascaded_to' => $cascadedTo,
                         'deleted_by_user' => $deletedByUser,
                     ];
@@ -493,6 +529,10 @@ class TrashController extends Controller
         if (!$record) {
             Flash::error('Record not found in trash.');
             return redirect()->route('settings-panel.trash.index');
+        }
+
+        if ($causedBy = $this->cascadedByPrimary($config['model'], $id)) {
+            return $this->rejectCascadeChildOperation($request, $causedBy);
         }
 
         if (DeleteRequestService::hasPending($record)) {
@@ -679,6 +719,10 @@ class TrashController extends Controller
         if (!$record) {
             Flash::error('Record not found in trash.');
             return redirect()->route('settings-panel.trash.index');
+        }
+
+        if ($causedBy = $this->cascadedByPrimary($config['model'], $id)) {
+            return $this->rejectCascadeChildOperation($request, $causedBy);
         }
 
         if (DeleteRequestService::hasPending($record)) {
@@ -1044,8 +1088,13 @@ class TrashController extends Controller
             $model = $config['model'];
 
             try {
-                // Use Eloquent to count soft-deleted records for current company
-                $count = $this->applyTrashModuleConstraints($this->trashedQuery($model), $config)->count();
+                // Count soft-deleted primaries only (exclude cascade children)
+                $query = $this->applyTrashModuleConstraints($this->trashedQuery($model), $config);
+                $cascadedIds = $this->cascadedRelatedIdsForModel($model);
+                if (! empty($cascadedIds)) {
+                    $query->whereNotIn((new $model)->getQualifiedKeyName(), $cascadedIds);
+                }
+                $count = $query->count();
 
                 if ($count > 0) {
                     $stats[] = [

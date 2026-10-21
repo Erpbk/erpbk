@@ -124,12 +124,7 @@ class PaymentDeletionService
                 ? Cheques::find($chequeId)
                 : Cheques::where('voucher_id', $payment->voucher_id)->first();
             if ($cheque) {
-                $cheque->update([
-                    'status' => 'Issued',
-                    'cleared_date' => null,
-                    'billing_month' => null,
-                    'voucher_id' => null,
-                ]);
+                $cheque->recalculateClearState(excludePaymentId: (int) $payment->id);
             }
         }
 

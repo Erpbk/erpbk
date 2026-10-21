@@ -1,19 +1,29 @@
-<form action="{{ route('cheques.update-status', $cheque->id) }}" id="formajax" method="POST" class="row g-3">
+@php
+    $remaining = $cheque->remainingAmount();
+    $clearedAmount = round((float) $cheque->cleared_amount, 2);
+    $hasClears = $clearedAmount > 0.00001;
+@endphp
+<form action="{{ route('cheques.update-status', $cheque->id) }}" id="formajax" method="POST" class="row g-3" enctype="multipart/form-data">
     @csrf
     
     <!-- Current Status Info -->
     <div class="col-12 mb-3">
         <div class="alert alert-info p-2">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                     <strong class="me-2">Cheque:</strong> 
                     <span class="fw-bold">{{ $cheque->cheque_number }}</span>
                     <span class="badge bg-secondary ms-2">{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</span>
+                    @if($hasClears)
+                        <span class="badge bg-info text-dark ms-1">Cleared {{ \App\Helpers\Currency::format($clearedAmount, 2) }}</span>
+                        <span class="badge bg-warning text-dark ms-1">Remaining {{ \App\Helpers\Currency::format($remaining, 2) }}</span>
+                    @endif
                 </div>
                 <div class="text-end">
                     @php
                         $badgeClasses = [
                             'Issued' => 'bg-primary',
+                            'Partially Cleared' => 'bg-info',
                             'Cleared' => 'bg-success',
                             'Returned' => 'bg-danger',
                             'Stop Payment' => 'bg-warning',
@@ -32,9 +42,9 @@
         <div class="alert alert-danger p-2">
             <i class="fas fa-info-circle me-2"></i>
             @if($cheque->type == 'receievable')
-                Marking this cheque as <strong>Cleared</strong> will automatically generate a receipt of <strong>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</strong> from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name }}</strong>. Please ensure the Cheque reflects the correct payment details.
+                Recording a clear will generate a receipt for the entered amount from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name }}</strong>. Remaining balance: <strong>{{ \App\Helpers\Currency::format($remaining, 2) }}</strong>.
             @else
-                Marking this cheque as <strong>Cleared</strong> will automatically generate a payment of <strong>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</strong> from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name}}</strong>. Please ensure the Cheque reflects the correct payment details.
+                Recording a clear will generate a payment for the entered amount from <strong>{{ $cheque->payer->account_code .'-'. $cheque->payer->name }}</strong> to <strong>{{ $cheque->payee->account_code .'-'. $cheque->payee->name}}</strong>. Remaining balance: <strong>{{ \App\Helpers\Currency::format($remaining, 2) }}</strong>.
             @endif
         </div>
     </div>
@@ -45,47 +55,57 @@
             <label class="form-label fw-medium required">New Status</label>
             <select name="status" class="form-select status-select select2" required>
                 <option value="">Select Status</option>
-                <option value="Cleared" {{ $cheque->status == 'Cleared' ? 'selected' : '' }}>Cleared</option>
-                <option value="Returned" {{ $cheque->status == 'Returned' ? 'selected' : '' }}>Returned</option>
-                <option value="Stop Payment" {{ $cheque->status == 'Stop Payment' ? 'selected' : '' }}>Stop Payment</option>
-                <option value="Lost" {{ $cheque->status == 'Lost' ? 'selected' : '' }}>Lost</option>
+                <option value="Cleared">{{ $hasClears ? 'Clear Partial / Remaining' : 'Cleared' }}</option>
+                @unless($hasClears)
+                    <option value="Returned">Returned</option>
+                    <option value="Stop Payment">Stop Payment</option>
+                    <option value="Lost">Lost</option>
+                @endunless
             </select>
         </div>
     </div>
     
     <!-- Cleared Date Field -->
-    <div class="col-md-6 date-field cleared-date" style="{{ $cheque->status != 'Cleared' ? 'display: none;' : '' }}">
+    <div class="col-md-6 date-field cleared-date" style="display: none;">
         <label class="form-label fw-medium required">Cleared Date</label>
         <input type="date" name="cleared_date" class="form-control" 
                value="{{ $cheque->cleared_date ? \Carbon\Carbon::parse($cheque->cleared_date)->format('Y-m-d') : '' }}">
     </div>
 
-    <div class="col-md-6 bank" style="{{ $cheque->status != 'Cleared' ? 'display: none;' : '' }}">
+    <div class="col-md-6 bank" style="display: none;">
         {!! Form::label('bank', 'Bank', ['class' => ['form-label', 'fw-medium', 'required']]) !!}
-        <select name="bank_id" class="form-control select2" required>
+        <select name="bank_id" class="form-control select2">
             <option value="">Select</option>
             @foreach(\App\Models\Banks::where('status', 1)->get() as $bank)
             <option value="{{ $bank->id }}" @if($cheque->bank_id == $bank->id) selected @endif>{{ $bank->name }}</option>
             @endforeach
         </select>
     </div>
+
+    <div class="col-md-6 clear-amount-field" style="display: none;">
+        <label class="form-label fw-medium required">Clear Amount</label>
+        <input type="number" name="clear_amount" class="form-control" step="0.01" min="0.01"
+               max="{{ $remaining }}" value="{{ number_format($remaining, 2, '.', '') }}"
+               placeholder="Amount to clear">
+        <div class="form-text">Max remaining: {{ \App\Helpers\Currency::format($remaining, 2) }}</div>
+    </div>
     
     <!-- Returned Date Field -->
-    <div class="col-md-6 date-field returned-date" style="{{ $cheque->status != 'Returned' ? 'display: none;' : '' }}">
+    <div class="col-md-6 date-field returned-date" style="display: none;">
         <label class="form-label fw-medium required">Returned Date</label>
         <input type="date" name="returned_date" class="form-control" 
                value="{{ $cheque->returned_date ? \Carbon\Carbon::parse($cheque->returned_date)->format('Y-m-d') : '' }}">
     </div>
     
     <!-- Stop Payment Date Field -->
-    <div class="col-md-6 date-field stop-date" style="{{ $cheque->status != 'Stop Payment' ? 'display: none;' : '' }}">
+    <div class="col-md-6 date-field stop-date" style="display: none;">
         <label class="form-label fw-medium required">Stop Payment Date</label>
         <input type="date" name="stop_payment_date" class="form-control" 
                value="{{ $cheque->stop_payment_date ? \Carbon\Carbon::parse($cheque->stop_payment_date)->format('Y-m-d') : '' }}">
     </div>
     
     <!-- Return Reason Field -->
-    <div class="col-md-6 return-reason-field" style="{{ $cheque->status != 'Returned' ? 'display: none;' : '' }}">
+    <div class="col-md-6 return-reason-field" style="display: none;">
         <label class="form-label fw-medium required">Return Reason</label>
         <input type="text" name="return_reason" class="form-control" 
                value="{{ $cheque->return_reason ?? '' }}" 
@@ -93,22 +113,35 @@
     </div>
     
     <!-- Stop Payment Reason Field -->
-    <div class="col-md-6 stop-payment-reason-field" style="{{ $cheque->status != 'Stop Payment' ? 'display: none;' : '' }}">
+    <div class="col-md-6 stop-payment-reason-field" style="display: none;">
         <label class="form-label fw-medium required">Stop Payment Reason</label>
         <input type="text" name="stop_payment_reason" class="form-control" 
                value="{{ $cheque->stop_payment_reason ?? '' }}" 
                placeholder="Enter reason for stop payment">
     </div>
 
-    <div class="col-md-6 billing-month-field" style="{{ $cheque->status != 'Cleared' ? 'display: none;' : '' }}">
+    <div class="col-md-6 billing-month-field" style="display: none;">
         <label class="form-label fw-medium required">Billing Month</label>
         <input type="month" name="billing_month" class="form-control" 
                value="{{ $cheque->billing_month ? \Carbon\Carbon::parse($cheque->billing_month)->format('Y-m') : '' }}">
     </div>
 
-    <div class="col-md-12 description-field" style="{{ $cheque->status != 'Cleared' ? 'display: none;' : '' }}">
+    <div class="col-md-12 description-field" style="display: none;">
         <label class="form-label fw-medium required">Description</label>
         <textarea name="description" class="form-control" rows="3" placeholder="description Required..." >{{ $cheque->description ?? old('description') }}</textarea>
+    </div>
+
+    <div class="col-md-6 clear-attachment-field" style="display: none;">
+        @include('partials.universal_document_upload', [
+            'name' => 'attachment',
+            'label' => 'Attachment',
+            'required' => true,
+            'accept' => '.pdf,.jpg,.jpeg,.png',
+            'inputClass' => 'form-control',
+            'errorKey' => 'attachment',
+            'showHint' => true,
+        ])
+        <div class="form-text">Stored on the payment/receipt voucher. Accepted: PDF, JPG, JPEG, PNG - Max(2MB)</div>
     </div>
     
     <!-- Form Actions -->
@@ -133,7 +166,7 @@ $(document).ready(function() {
         const status = $(this).val();
         
         // Hide all fields first
-        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field').hide();
+        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field, .clear-amount-field, .clear-attachment-field').hide();
         
         // Show relevant fields based on status
         if (status === 'Cleared') {
@@ -142,6 +175,8 @@ $(document).ready(function() {
             $('.clear-alert').show();
             $('.description-field').show();
             $('.bank').show();
+            $('.clear-amount-field').show();
+            $('.clear-attachment-field').show();
         } else if (status === 'Returned') {
             $('.returned-date').show();
             $('.return-reason-field').show();
@@ -154,77 +189,27 @@ $(document).ready(function() {
         if (status === 'Returned') {
             $('[name="returned_date"]').attr('required', true);
             $('[name="return_reason"]').attr('required', true);
-            $('[name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"]').removeAttr('required');
+            $('[name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
         } else if (status === 'Stop Payment') {
             $('[name="stop_payment_date"]').attr('required', true);
             $('[name="stop_payment_reason"]').attr('required', true);
-            $('[name="returned_date"], [name="return_reason"], [name="billing_month"], [name="cleared_date"], [name="description"]').removeAttr('required');
+            $('[name="returned_date"], [name="return_reason"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
         } else if (status === 'Cleared') {
             $('[name="cleared_date"]').attr('required', true);
             $('[name="billing_month"]').attr('required', true);
             $('[name="description"]').attr('required', true);
+            $('[name="clear_amount"]').attr('required', true);
+            $('[name="bank_id"]').attr('required', true);
+            $('[name="attachment"]').attr('required', true);
             $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"]').removeAttr('required');
         } else {
-            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"]').removeAttr('required');
+            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
         }
     });
-    
-    // // Form submission
-    // $('#statusChangeForm').on('submit', function(e) {
-    //     e.preventDefault();
-    //     const form = $(this);
-    //     const btn = form.find('button[type="submit"]');
-    //     const original = btn.html();
-        
-    //     btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Saving...');
-        
-    //     $.ajax({
-    //         url: "{{ route('cheques.update-status', $cheque->id) }}",
-    //         method: 'POST',
-    //         data: form.serialize(),
-    //         success: function(response) {
-    //             if (response.success) {
-    //                 // Show success message
-    //                 Swal.fire({
-    //                     icon: 'success',
-    //                     title: 'Success!',
-    //                     text: response.message,
-    //                     timer: 2000,
-    //                     showConfirmButton: false
-    //                 }).then(() => {
-    //                     // Close modal and reload
-    //                     $('#statusChangeModal').modal('hide');
-    //                     location.reload();
-    //                 });
-    //             } else {
-    //                 Swal.fire({
-    //                     icon: 'error',
-    //                     title: 'Error!',
-    //                     text: response.message
-    //                 });
-    //                 btn.prop('disabled', false).html(original);
-    //             }
-    //         },
-    //         error: function(xhr) {
-    //             let errorMessage = 'An error occurred. Please try again.';
-                
-    //             if (xhr.responseJSON && xhr.responseJSON.message) {
-    //                 errorMessage = xhr.responseJSON.message;
-    //             } else if (xhr.responseJSON && xhr.responseJSON.errors) {
-    //                 // Handle validation errors
-    //                 const errors = xhr.responseJSON.errors;
-    //                 errorMessage = Object.values(errors).flat().join('<br>');
-    //             }
-                
-    //             Swal.fire({
-    //                 icon: 'error',
-    //                 title: 'Error!',
-    //                 html: errorMessage
-    //             });
-    //             btn.prop('disabled', false).html(original);
-    //         }
-    //     });
-    // });
+
+    @if($hasClears)
+    $('.status-select').val('Cleared').trigger('change');
+    @endif
 });
 </script>
 

@@ -217,4 +217,15 @@ class ResourceLinks
         // Matches {"id":123 or "id": 123 in JSON
         return '"id":'.$invoiceId;
     }
+
+    /**
+     * Query payments/receipts linked to a cheque via resource_links.cheque_id.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
+     */
+    public static function scopeForChequeId($query, int $chequeId)
+    {
+        return $query->where('resource_links->cheque_id', $chequeId);
+    }
 }

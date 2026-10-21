@@ -9,9 +9,13 @@
         </div>
         <div class="text-end">
             <div class="fw-bold text-success fs-4 mb-1">{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</div>
+            @if(round((float) ($cheque->cleared_amount ?? 0), 2) > 0)
+                <div class="text-muted small mb-1">Cleared: {{ \App\Helpers\Currency::format($cheque->cleared_amount, 2) }}</div>
+            @endif
             @php
                 $badgeClasses = [
                     'Issued' => 'bg-primary',
+                    'Partially Cleared' => 'bg-info',
                     'Cleared' => 'bg-success',
                     'Returned' => 'bg-danger',
                     'Stop Payment' => 'bg-warning',
@@ -186,10 +190,13 @@
                     <h6 class="mb-0 fw-semibold">Document Links</h6>
                 </div>
                 <div class="d-grid gap-2">
-                    @if($cheque->voucher_id)
                     @php
                       $__companySlug = \App\Support\CompanyRouteContext::slug();
-                      $chequeVoucherShowParams = ['voucher' => $cheque->voucher_id];
+                      $showClearVouchers = $cheque->linkedClearVouchers();
+                    @endphp
+                    @forelse($showClearVouchers as $clearVoucher)
+                    @php
+                      $chequeVoucherShowParams = ['voucher' => $clearVoucher->id];
                       if (!empty($__companySlug)) {
                         $chequeVoucherShowParams['company_slug'] = $__companySlug;
                       }
@@ -201,11 +208,12 @@
                        data-collapse-sidebar="1">
                         <span class="d-flex align-items-center">
                             <i class="fas fa-file-invoice me-2"></i>
-                            <span>View Voucher</span>
+                            <span>View {{ ($clearVoucher->voucher_type ?? 'V') . '-' . $clearVoucher->id }}</span>
                         </span>
                         <i class="fas fa-external-link-alt"></i>
                     </a>
-                    @endif
+                    @empty
+                    @endforelse
                     
                     @if($cheque->attachment)
                     <a href="{{ storage_url('vouchers/' . $cheque->attachment) }}" 

@@ -57,6 +57,7 @@ class ChequesController extends Controller
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
+        Cheques::attachClearVouchersTo($data);
 
         return view('cheques.index', array_merge(
             compact('data', 'totals'),
@@ -361,18 +362,41 @@ class ChequesController extends Controller
     {
         $cheque = Cheques::find($id);
         if ($cheque) {
+            if (in_array($cheque->status, ['Cleared', 'Partially Cleared'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cleared or partially cleared cheques cannot be deleted. Delete the related payment/receipt vouchers first.',
+                ], 422);
+            }
 
             DB::beginTransaction();
             try {
-                if ($cheque->voucher_id) {
-                    Transactions::where('trans_code', $cheque->voucher->trans_code)->delete();
-                    $cheque->voucher->delete();
-                    if ($cheque->type === 'payable') {
-                        Payment::where('voucher_id', $cheque->voucher_id)->delete();
-                    } else {
-                        Receipt::where('voucher_id', $cheque->voucher_id)->delete();
+                $docs = $cheque->linkedClearDocumentsQuery()->get();
+                foreach ($docs as $doc) {
+                    if ($doc->voucher_id) {
+                        $voucher = Vouchers::find($doc->voucher_id);
+                        if ($voucher) {
+                            Transactions::where('trans_code', $voucher->trans_code)->delete();
+                            $voucher->delete();
+                        }
+                    }
+                    $doc->delete();
+                }
+
+                // Legacy single voucher_id with no resource_links matches
+                if ($cheque->voucher_id && $docs->where('voucher_id', $cheque->voucher_id)->isEmpty()) {
+                    $voucher = Vouchers::find($cheque->voucher_id);
+                    if ($voucher) {
+                        Transactions::where('trans_code', $voucher->trans_code)->delete();
+                        if ($cheque->type === 'payable') {
+                            Payment::where('voucher_id', $cheque->voucher_id)->delete();
+                        } else {
+                            Receipt::where('voucher_id', $cheque->voucher_id)->delete();
+                        }
+                        $voucher->delete();
                     }
                 }
+
                 $cheque->delete();
                 DB::commit();
                 if ($cheque->attachment) {
@@ -403,29 +427,53 @@ class ChequesController extends Controller
     public function statusForm(Request $request, $comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
+        $changeable = ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'];
+        if (! in_array($cheque->status, $changeable, true)) {
+            abort(403, 'Status cannot be changed for fully cleared cheques.');
+        }
+
         return view('cheques.changeStatus', compact('cheque'));
     }
 
     public function updateStatus(Request $request, $comapny_slug, $id)
     {
         $cheque = Cheques::findOrFail($id);
-        if (!$cheque) {
+
+        $changeable = ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'];
+        if (! in_array($cheque->status, $changeable, true)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cheque not found.'
-            ], 404);
+                'message' => 'Fully cleared cheques cannot change status.',
+            ], 422);
         }
 
-        // Validate the request
+        $remaining = $cheque->remainingAmount();
+        $hasClears = $cheque->status === 'Partially Cleared'
+            || round((float) $cheque->cleared_amount, 2) > 0.00001;
+
+        // Partially cleared (or any cheque with clear docs): only further clear allowed.
+        $allowedStatuses = $hasClears
+            ? ['Cleared']
+            : ['Cleared', 'Returned', 'Stop Payment', 'Lost'];
+
+        if ($hasClears && in_array($request->status, ['Returned', 'Stop Payment', 'Lost'], true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Returned, Stop Payment, and Lost are not allowed while the cheque has clear payments. Delete related vouchers first.',
+            ], 422);
+        }
+
         $rules = [
-            'status' => 'required|in:Issued,Cleared,Returned,Stop Payment,Lost',
+            'status' => 'required|in:'.implode(',', $allowedStatuses),
         ];
 
-        // Add conditional validation
         if ($request->status === 'Cleared') {
             $rules['cleared_date'] = 'required|date';
             $rules['billing_month'] = 'required|date_format:Y-m';
             $rules['bank_id'] = 'required|exists:banks,id';
+            $rules['clear_amount'] = 'required|numeric|gt:0|lte:'.$remaining;
+            $rules['description'] = 'nullable|string|max:255';
+            $rules['attachment'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:2048';
         } elseif ($request->status === 'Returned') {
             $rules['returned_date'] = 'required|date';
             $rules['return_reason'] = 'required|string|max:255';
@@ -436,31 +484,64 @@ class ChequesController extends Controller
 
         $validated = $request->validate($rules);
 
+        if ($hasClears && $validated['status'] !== 'Cleared') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Delete existing clear payments/receipts before changing to another status.',
+            ], 422);
+        }
+
         DB::beginTransaction();
         try {
-
             $updateData = [
-                'status' => $validated['status'],
                 'updated_by' => Auth::id(),
             ];
 
             if ($validated['status'] === 'Returned') {
+                $updateData['status'] = 'Returned';
                 $updateData['returned_date'] = $validated['returned_date'];
                 $updateData['return_reason'] = $validated['return_reason'];
             } elseif ($validated['status'] === 'Stop Payment') {
+                $updateData['status'] = 'Stop Payment';
                 $updateData['stop_payment_date'] = $validated['stop_payment_date'];
                 $updateData['stop_payment_reason'] = $validated['stop_payment_reason'];
+            } elseif ($validated['status'] === 'Lost') {
+                $updateData['status'] = 'Lost';
             } elseif ($validated['status'] === 'Cleared') {
+                $clearAmount = round((float) $validated['clear_amount'], 2);
+                if ($clearAmount > $remaining + 0.00001) {
+                    throw new \InvalidArgumentException('Clear amount exceeds remaining cheque balance.');
+                }
+
+                $description = $validated['description'] ?? $cheque->description;
                 $updateData['cleared_date'] = $validated['cleared_date'];
-                $updateData['billing_month'] = $validated['billing_month'] . '-01';
+                $updateData['billing_month'] = $validated['billing_month'].'-01';
                 $updateData['bank_id'] = $validated['bank_id'];
+                if ($description !== null) {
+                    $updateData['description'] = $description;
+                }
+
+                $voucherAttachment = $cheque->attachment;
+                if ($request->hasFile('attachment')) {
+                    $file = $request->file('attachment');
+                    $voucherAttachment = time().'_'.$file->getClientOriginalName();
+                    PublicStorageDisk::storeUploadedFile($file, 'vouchers', $voucherAttachment);
+                }
+
                 $bank = Banks::findOrFail($updateData['bank_id']);
+                $newCleared = round((float) $cheque->cleared_amount + $clearAmount, 2);
+                $chequeAmount = round((float) $cheque->amount, 2);
+                $updateData['cleared_amount'] = min($newCleared, $chequeAmount);
+                $updateData['status'] = ($newCleared + 0.00001 >= $chequeAmount)
+                    ? 'Cleared'
+                    : 'Partially Cleared';
+
                 if ($cheque->type === 'payable') {
-                    $paymentData = [
+                    $payment = Payment::create([
                         'payee_account_id' => $cheque->payee_account,
-                        'amount' => $cheque->amount,
+                        'amount' => $clearAmount,
                         'date_of_payment' => $validated['cleared_date'],
-                        'reference' => 'Cheque Cleared: ' . $cheque->cheque_number,
+                        'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
                         'resource_links' => ResourceLinks::build(
                             null,
                             [],
@@ -471,32 +552,29 @@ class ChequesController extends Controller
                         ),
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
-                        'billing_month' => $validated['billing_month'] . '-01',
-                        'description' => $cheque->description,
+                        'billing_month' => $validated['billing_month'].'-01',
+                        'description' => $description,
                         'bank_charges' => 0,
                         'status' => '1',
-                        'attachment' => $cheque->attachment,
+                        'attachment' => $voucherAttachment,
                         'branch_id' => $cheque->branch_id,
                         'created_by' => Auth::id(),
-                    ];
-                    $payment = Payment::create($paymentData);
+                    ]);
                     $transCode = \App\Helpers\Account::trans_code();
 
-                    // Credit the BANK account
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $payment->date_of_payment,
                         'reference_id' => $payment->id,
                         'reference_type' => 'PV',
                         'account_id' => $bank->account_id,
-                        'credit' => $cheque->amount,
+                        'credit' => $clearAmount,
                         'debit' => 0,
                         'billing_month' => $payment->billing_month,
-                        'narration' => $cheque->description,
+                        'narration' => $description,
                         'branch_id' => $cheque->branch_id,
                     ]);
 
-                    // Debit payee account 
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $payment->date_of_payment,
@@ -504,44 +582,37 @@ class ChequesController extends Controller
                         'reference_type' => 'PV',
                         'account_id' => $cheque->payee_account,
                         'credit' => 0,
-                        'debit' => $cheque->amount,
+                        'debit' => $clearAmount,
                         'billing_month' => $payment->billing_month,
                         'branch_id' => $cheque->branch_id,
-                        'narration' => $cheque->description,
+                        'narration' => $description,
                     ]);
 
-
-                    // voucher
-                    $voucherData = [
+                    $voucher = Vouchers::create([
                         'trans_date' => $payment->date_of_payment,
                         'trans_code' => $transCode,
                         'billing_month' => $payment->billing_month,
                         'payment_from' => $bank->account_id,
                         'payment_to' => $cheque->payee_account,
-                        'amount' => $cheque->amount,
+                        'amount' => $clearAmount,
                         'voucher_type' => 'PV',
                         'remarks' => 'Payment Voucher',
                         'ref_id' => $payment->id,
                         'Created_By' => Auth::id(),
                         'status' => 1,
-                        'attach_file' => $cheque->attachment,
+                        'attach_file' => $voucherAttachment,
                         'branch_id' => $cheque->branch_id,
                         'custom_field_values' => [],
-                    ];
-
-                    $voucher = Vouchers::create($voucherData);
-
-                    // Update payment with voucher info and detailed account data
-                    $payment->update([
-                        'voucher_id' => $voucher->id,
                     ]);
+
+                    $payment->update(['voucher_id' => $voucher->id]);
                     $updateData['voucher_id'] = $voucher->id;
                 } else {
-                    $receiptData = [
+                    $receipt = Receipt::create([
                         'payer_account_id' => $cheque->payer_account,
-                        'amount' => $cheque->amount,
+                        'amount' => $clearAmount,
                         'date_of_receipt' => $validated['cleared_date'],
-                        'reference' => 'Cheque Cleared: ' . $cheque->cheque_number,
+                        'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
                         'resource_links' => ResourceLinks::build(
                             null,
                             [],
@@ -553,16 +624,15 @@ class ChequesController extends Controller
                         'account_id' => $bank->account_id,
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
-                        'billing_month' => $validated['billing_month'] . '-01',
-                        'description' => $cheque->description,
+                        'billing_month' => $validated['billing_month'].'-01',
+                        'description' => $description,
                         'status' => '1',
-                        'attachment' => $cheque->attachment,
+                        'attachment' => $voucherAttachment,
                         'branch_id' => $cheque->branch_id,
                         'created_by' => Auth::id(),
-                    ];
-                    $receipt = Receipt::create($receiptData);
+                    ]);
                     $transCode = \App\Helpers\Account::trans_code();
-                    // Debit the BANK account
+
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $receipt->date_of_receipt,
@@ -570,52 +640,46 @@ class ChequesController extends Controller
                         'reference_type' => 'RV',
                         'account_id' => $bank->account_id,
                         'credit' => 0,
-                        'debit' => $cheque->amount,
+                        'debit' => $clearAmount,
                         'billing_month' => $receipt->billing_month,
                         'branch_id' => $cheque->branch_id,
-                        'narration' => $cheque->description,
+                        'narration' => $description,
                     ]);
 
-                    // Credit payer account 
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $receipt->date_of_receipt,
                         'reference_id' => $receipt->id,
                         'reference_type' => 'RV',
                         'account_id' => $cheque->payer_account,
-                        'credit' => $cheque->amount,
+                        'credit' => $clearAmount,
                         'debit' => 0,
                         'billing_month' => $receipt->billing_month,
                         'branch_id' => $cheque->branch_id,
-                        'narration' => $cheque->description,
+                        'narration' => $description,
                     ]);
 
-
-                    // voucher
-                    $voucherData = [
+                    $voucher = Vouchers::create([
                         'trans_date' => $receipt->date_of_receipt,
                         'trans_code' => $transCode,
                         'billing_month' => $receipt->billing_month,
                         'payment_from' => $cheque->payer_account,
                         'payment_to' => $bank->account_id,
-                        'amount' => $cheque->amount,
+                        'amount' => $clearAmount,
                         'voucher_type' => 'RV',
                         'remarks' => 'Receipt Voucher',
                         'ref_id' => $receipt->id,
                         'Created_By' => Auth::id(),
                         'status' => 1,
-                        'attach_file' => $cheque->attachment,
+                        'attach_file' => $voucherAttachment,
                         'branch_id' => $cheque->branch_id,
                         'custom_field_values' => [],
-                    ];
-                    $voucher = Vouchers::create($voucherData);
-                    $receipt->update([
-                        'voucher_id' => $voucher->id,
                     ]);
+                    $receipt->update(['voucher_id' => $voucher->id]);
                     $updateData['voucher_id'] = $voucher->id;
                 }
             }
-            // Update cheque
+
             $cheque->update($updateData);
 
             DB::commit();
@@ -627,11 +691,11 @@ class ChequesController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Cheque status update failed: ' . $e->getMessage());
+            \Log::error('Cheque status update failed: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update cheque status. Please try again.' . $e->getMessage(),
+                'message' => 'Failed to update cheque status. Please try again.'.$e->getMessage(),
             ], 500);
         }
     }

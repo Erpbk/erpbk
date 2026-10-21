@@ -479,6 +479,7 @@ class BanksController extends AppBaseController
 
     // Apply pagination using the trait
     $data = $query->get();
+    Cheques::attachClearVouchersTo($data);
     return view('banks.cheques', compact('data', 'banks'));
   }
 }

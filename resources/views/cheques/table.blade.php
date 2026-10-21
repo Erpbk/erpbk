@@ -9,6 +9,7 @@
             @if($vf('type'))<th title="Type" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
             <th title="Sender/Receiver" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Sender/Receiver: activate to sort column ascending">Sender/Reciever</th>
             @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
+            @if($vf('cleared_amount'))<th title="Cleared Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Cleared Amount: activate to sort column ascending">Cleared Amount</th>@endif
             @if($vf('voucher_id'))<th title="Voucher No" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher: activate to sort column ascending">Voucher</th>@endif
             @if($vf('attachment'))<th title="Attachmnet" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Attachment: activate to sort column ascending">Attachment</th>@endif
             @if($vf('description'))<th title="Description" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Description: activate to sort column ascending">Description</th>@endif
@@ -69,11 +70,26 @@
                 @endif
             </td>
             @if($vf('amount'))<td>{{ \App\Helpers\Currency::format($cheque->amount, 2) }}</td>@endif
+            @if($vf('cleared_amount'))<td>{{ \App\Helpers\Currency::format($cheque->cleared_amount ?? 0, 2) }}</td>@endif
             @if($vf('voucher_id'))<td>
-                @if($cheque->voucher_id)
-                    <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($cheque->voucher_id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
-                        {{ $cheque->voucher->voucher_type . '-'. $cheque->voucher_id }}
-                    </a>
+                @php
+                    $clearVouchers = $cheque->relationLoaded('clear_vouchers')
+                        ? $cheque->getRelation('clear_vouchers')
+                        : collect();
+                    if ($clearVouchers->isEmpty() && $cheque->voucher_id && $cheque->relationLoaded('voucher') && $cheque->voucher) {
+                        $clearVouchers = collect([$cheque->voucher]);
+                    } elseif ($clearVouchers->isEmpty() && $cheque->voucher_id) {
+                        $clearVouchers = collect([$cheque->voucher])->filter();
+                    }
+                @endphp
+                @if($clearVouchers->isNotEmpty())
+                    <div class="d-flex flex-column gap-1">
+                        @foreach($clearVouchers as $clearVoucher)
+                            <a href="javascript:void(0);" data-action="{{ route('vouchers.show', $voucherShowParams($clearVoucher->id)) }}" class="text-primary show-voucher-panel" data-title="Voucher Against Cheque#{{ $cheque->cheque_number }}" data-collapse-sidebar="1">
+                                {{ ($clearVoucher->voucher_type ?? 'V') . '-' . $clearVoucher->id }}
+                            </a>
+                        @endforeach
+                    </div>
                 @else
                     -
                 @endif
@@ -91,6 +107,7 @@
             @php
                 $badge=[
                     'Issued' => 'primary',
+                    'Partially Cleared' => 'info',
                     'Cleared' => 'success',
                     'Returned' => 'danger',
                     'Stop Payment' => 'warning',
@@ -114,22 +131,24 @@
                         'recordId' => $cheque->id,
                     ])
                     @can('cash_&_banks_cheques_edit')
-                        @if($cheque->status != 'Cleared')
+                        @if(!in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Edit {{ ucwords($cheque->type) }} Cheque" data-action="{{ route('cheques.edit', $cheque->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
                         @endif
-                        @if($cheque->status == 'Issued')
+                        @if(in_array($cheque->status, ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'], true))
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
                             <i class="fa fa-exchange-alt my-1"></i> Change Status
                         </a>
                         @endif
                     @endcan
                     @can('cash_&_banks_cheques_delete')
-                    <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
-                        data-url="{{ route('cheques.destroy', $cheque->id) }}">
-                        <i class="fa fa-trash my-1"></i> Delete
-                    </a>
+                        @if(!in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect delete-cheque' 
+                            data-url="{{ route('cheques.destroy', $cheque->id) }}">
+                            <i class="fa fa-trash my-1"></i> Delete
+                        </a>
+                        @endif
                     @endcan
                 </div>
                 </div>

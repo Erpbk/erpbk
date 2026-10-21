@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\Transactions;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
+use App\Support\ResourceLinks;
 use Illuminate\Support\Facades\DB;
 
 class EmployeeInvoiceViewDataBuilder
@@ -403,17 +404,31 @@ class EmployeeInvoiceViewDataBuilder
         $partialSum = round((float) array_sum($partials), 2);
         $allocatedPaymentIds = array_values(array_filter(array_map('intval', array_keys($partials))));
 
+        $linked = 0.0;
         $legacy = 0.0;
         if ($accountId) {
+            $invoiceId = (int) $employeeInvoice->id;
+            $linkedQuery = Payment::where('payee_account_id', $accountId)
+                ->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+            if ($allocatedPaymentIds !== []) {
+                $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+            }
+            $linked = round((float) $linkedQuery->sum('amount'), 2);
+
             $legacyQuery = Payment::where('payee_account_id', $accountId)
                 ->whereDate('billing_month', $monthStart);
             if ($allocatedPaymentIds !== []) {
                 $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
             }
+            // Avoid double-counting payments already counted via resource_links.
+            $legacyQuery->where(function ($q) use ($invoiceId) {
+                $q->whereNull('resource_links')
+                    ->orWhere('resource_links', 'not like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+            });
             $legacy = round((float) $legacyQuery->sum('amount'), 2);
         }
 
-        return round($partialSum + $legacy, 2);
+        return round($partialSum + $linked + $legacy, 2);
     }
 
     private function invoiceItemsTotal(EmployeeInvoices $employeeInvoice): float

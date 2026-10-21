@@ -18,6 +18,7 @@ class Payment extends BaseModel
         'company_id',
         'branch_id',
         'reference',
+        'resource_links',
         'bank_charges',
         'bank_charges_account',
         'bank_id',
@@ -35,6 +36,10 @@ class Payment extends BaseModel
         'created_by',
         'updated_by',
         'attachment',
+    ];
+
+    protected $casts = [
+        'resource_links' => 'array',
     ];
 
     public static array $rules = [

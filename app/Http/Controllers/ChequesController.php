@@ -17,6 +17,7 @@ use App\Services\Cheques\ChequeTopDateFilterService;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
 use App\Support\PublicStorageDisk;
+use App\Support\ResourceLinks;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -460,6 +461,14 @@ class ChequesController extends Controller
                         'amount' => $cheque->amount,
                         'date_of_payment' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: ' . $cheque->cheque_number,
+                        'resource_links' => ResourceLinks::build(
+                            null,
+                            [],
+                            [],
+                            null,
+                            (int) $cheque->id,
+                            ResourceLinks::SOURCE_CHEQUE_CLEAR
+                        ),
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
                         'billing_month' => $validated['billing_month'] . '-01',
@@ -533,6 +542,14 @@ class ChequesController extends Controller
                         'amount' => $cheque->amount,
                         'date_of_receipt' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: ' . $cheque->cheque_number,
+                        'resource_links' => ResourceLinks::build(
+                            null,
+                            [],
+                            [],
+                            null,
+                            (int) $cheque->id,
+                            ResourceLinks::SOURCE_CHEQUE_CLEAR
+                        ),
                         'account_id' => $bank->account_id,
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',

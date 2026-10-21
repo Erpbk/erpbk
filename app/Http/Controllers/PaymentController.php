@@ -26,6 +26,7 @@ use App\Services\Payment\RiderPaymentVoucherViewData;
 use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Support\InvoicePdf;
+use App\Support\ResourceLinks;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
 use Carbon\Carbon;
@@ -443,7 +444,7 @@ class PaymentController extends Controller
         }
         $payingAccountId = $bank->account_id;
 
-        $input = $request->all();
+        $input = $request->except(['resource_links']);
         $input['created_by'] = auth()->id();
         $createPaymentType = (string) $request->input('create_payment_type', 'salary_payment');
         $input['payment_kind'] = in_array($createPaymentType, ['salary_payment', 'payment', 'c3'], true)
@@ -648,6 +649,15 @@ class PaymentController extends Controller
                         }
                     }
                 }
+
+                $this->persistPaymentResourceLinks(
+                    $payment,
+                    $invoiceType,
+                    (array) $invoiceIds,
+                    (array) ($paymentAmounts ?? []),
+                    $paymentAmount,
+                    ResourceLinks::SOURCE_PAYMENT_FORM
+                );
             }
 
             $transCode = Account::trans_code();
@@ -914,7 +924,8 @@ class PaymentController extends Controller
             }
 
             // Prepare data for payment update (keep existing attachment unless a new file is uploaded)
-            $input = $request->except(['attachment']);
+            // resource_links is rebuilt on allocation sync — never take from the form.
+            $input = $request->except(['attachment', 'resource_links']);
             $input['branch_id'] = Accounts::where('id', $input['payee_account_id'])->value('branch_id');
             $input['amount'] = $totalAmount;
             $input['updated_by'] = auth()->id();
@@ -924,14 +935,16 @@ class PaymentController extends Controller
             $paid = null;
             $employeeInvoicesToRefresh = collect();
             $originalReference = (string) ($payment->reference ?? '');
+            $originalResourceLinks = is_array($payment->resource_links) ? $payment->resource_links : null;
             $salaryBalancesBefore = [];
 
             $payment->fill($input);
             // updated_by is always stamped; ignore it so attachment-only edits do not
             // look like payment/invoice changes and wipe invoice statuses.
+            // resource_links is rebuilt explicitly on allocation sync — ignore fill noise.
             $meaningfulDirty = array_values(array_diff(
                 array_keys($payment->getDirty()),
-                ['updated_by', 'updated_at']
+                ['updated_by', 'updated_at', 'resource_links']
             ));
             $paymentHasChanges = $meaningfulDirty !== [];
             $hasNewAttachment = $request->hasFile('attachment');
@@ -940,6 +953,7 @@ class PaymentController extends Controller
                 && $this->invoiceAllocationsChanged(
                     $payment,
                     $originalReference,
+                    $originalResourceLinks,
                     $input['invoice_type'] ?? null,
                     (array) $request->input('invoice_ids', []),
                     (array) $request->input('payment_amounts', []),
@@ -983,63 +997,31 @@ class PaymentController extends Controller
                     $salaryBalancesBefore = $this->captureInvoiceBalances($previewInvoices, $payment);
                 }
 
-                // Use the reference from before fill(), so invoices removed on this edit are reverted.
-                $invoice_numbers = $originalReference === '' ? [] : explode(' ', $originalReference);
-                $invoiceIds = [];
-                if ($input['invoice_type'] == 'leasingCompany') {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        $id = LeasingCompanyInvoice::getIdFromInvoiceNumber($invoice_number);
-                        if ($id) {
-                            $invoiceIds[] = $id;
-                        }
-                    }
-
-                    // Get existing invoices and revert their status
+                // Prefer durable resource_links (pre-fill); fall back to legacy reference parse.
+                $revertType = ResourceLinks::invoiceType($originalResourceLinks)
+                    ?? ($input['invoice_type'] ?? null);
+                $invoiceIds = $this->linkedInvoiceIdsFromPayment(
+                    $originalResourceLinks,
+                    $originalReference,
+                    $revertType
+                );
+                if ($revertType == 'leasingCompany') {
                     $existingInvoices = LeasingCompanyInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
-                } elseif ($input['invoice_type'] == 'employee') {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        $id = EmployeeInvoices::getIdFromInvoiceNumber($invoice_number);
-                        if ($id) {
-                            $invoiceIds[] = $id;
-                        }
-                    }
-
-                    // Get existing invoices and revert their status
+                } elseif ($revertType == 'employee') {
                     $existingInvoices = EmployeeInvoices::with(['employee.account', 'items'])->whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
-                } elseif ($input['invoice_type'] == 'sim') {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        $id = SimInvoice::getIdFromInvoiceNumber($invoice_number);
-                        if ($id) {
-                            $invoiceIds[] = $id;
-                        }
-                    }
-
+                } elseif ($revertType == 'sim') {
                     $existingInvoices = SimInvoice::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
-                } elseif ($input['invoice_type'] == 'rider') {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        if (preg_match('/RINV-?0*(\d+)/i', $invoice_number, $matches)) {
-                            $invoiceIds[] = (int) $matches[1];
-                        }
-                    }
-
+                } elseif ($revertType == 'rider') {
                     $existingInvoices = RiderInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 3;
                     $pending = 0;
                 } else {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        $id = SupplierInvoices::getIdFromInvoiceNumber($invoice_number);
-                        if ($id) {
-                            $invoiceIds[] = $id;
-                        }
-                    }
-
-                    // Get existing invoices and revert their status
                     $existingInvoices = SupplierInvoices::whereIn('id', $invoiceIds)->get();
                     $partial = 'partially_paid';
                     $pending = 'unpaid';
@@ -1143,6 +1125,15 @@ class PaymentController extends Controller
                     }
                     $invoice->save();
                 }
+
+                $this->persistPaymentResourceLinks(
+                    $payment,
+                    $input['invoice_type'] ?? null,
+                    (array) $invoiceIds,
+                    (array) $paymentAmounts,
+                    $paymentAmount,
+                    ResourceLinks::SOURCE_PAYMENT_FORM
+                );
             }
 
             // Save payment if it has changes
@@ -1400,21 +1391,29 @@ class PaymentController extends Controller
      * Whether submitted invoice IDs / line amounts differ from what is already stored
      * on this payment. Omitted or zero line amounts (common on attachment-only saves)
      * are not treated as a change unless a single-invoice fallback amount differs.
+     *
+     * @param  array<string, mixed>|null  $originalResourceLinks
      */
     private function invoiceAllocationsChanged(
         Payment $payment,
         string $originalReference,
+        ?array $originalResourceLinks,
         ?string $invoiceType,
         array $submittedInvoiceIds,
         array $paymentAmounts,
         float $paymentAmount
     ): bool {
-        $originalIds = collect($this->invoiceIdsFromPaymentReference($originalReference, $invoiceType))
+        $linkType = ResourceLinks::invoiceType($originalResourceLinks) ?? $invoiceType;
+        $originalIds = collect($this->linkedInvoiceIdsFromPayment(
+            $originalResourceLinks,
+            $originalReference,
+            $linkType
+        ))
             ->sort()
             ->values()
             ->all();
         $submittedIds = collect($submittedInvoiceIds)
-            ->map(fn($id) => (int) $id)
+            ->map(fn ($id) => (int) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -1441,9 +1440,14 @@ class PaymentController extends Controller
             return true;
         }
 
+        $linkAmounts = ResourceLinks::amountsByInvoiceId($originalResourceLinks);
+
         foreach ($invoices as $invoice) {
             $partial = $invoice->partial_paid_amount ?? [];
             $existing = floatval($partial[$payment->id] ?? $partial[(string) $payment->id] ?? 0);
+            if ($existing < 0.01 && isset($linkAmounts[(int) $invoice->id])) {
+                $existing = (float) $linkAmounts[(int) $invoice->id];
+            }
             $submittedAmt = floatval(
                 $paymentAmounts[$invoice->id] ?? $paymentAmounts[(string) $invoice->id] ?? 0
             );
@@ -1463,6 +1467,75 @@ class PaymentController extends Controller
         }
 
         return false;
+    }
+
+    /**
+     * Resolve linked invoice IDs from durable resource_links, with legacy reference fallback.
+     *
+     * @param  array<string, mixed>|null  $resourceLinks
+     * @return list<int>
+     */
+    private function linkedInvoiceIdsFromPayment(
+        ?array $resourceLinks,
+        string $reference,
+        ?string $invoiceType
+    ): array {
+        $fromLinks = ResourceLinks::invoiceIds($resourceLinks);
+        if ($fromLinks !== []) {
+            return $fromLinks;
+        }
+
+        return $this->invoiceIdsFromPaymentReference($reference, $invoiceType);
+    }
+
+    /**
+     * Persist durable payment→invoice links (does not clear links when invoice_ids empty).
+     *
+     * @param  list<int|string>  $invoiceIds
+     * @param  array<int|string, mixed>  $paymentAmounts
+     */
+    private function persistPaymentResourceLinks(
+        Payment $payment,
+        ?string $invoiceType,
+        array $invoiceIds,
+        array $paymentAmounts,
+        float $fallbackAmount,
+        string $source
+    ): void {
+        $ids = array_values(array_filter(array_map('intval', $invoiceIds)));
+        $amounts = [];
+        foreach ($ids as $id) {
+            $amt = floatval($paymentAmounts[$id] ?? $paymentAmounts[(string) $id] ?? 0);
+            if (! $this->isNonZeroInvoiceAllocation($amt) && count($ids) === 1) {
+                $amt = $fallbackAmount;
+            }
+            $amounts[$id] = $amt;
+        }
+
+        $invoices = match ($invoiceType) {
+            'leasingCompany' => LeasingCompanyInvoice::whereIn('id', $ids)->get(),
+            'employee' => EmployeeInvoices::whereIn('id', $ids)->get(),
+            'sim' => SimInvoice::whereIn('id', $ids)->get(),
+            'rider' => RiderInvoices::whereIn('id', $ids)->get(),
+            'supplier' => SupplierInvoices::whereIn('id', $ids)->get(),
+            default => $invoiceType
+                ? SupplierInvoices::whereIn('id', $ids)->get()
+                : collect(),
+        };
+
+        $chequeId = ResourceLinks::chequeId(
+            is_array($payment->resource_links) ? $payment->resource_links : null
+        );
+
+        $payment->resource_links = ResourceLinks::build(
+            $invoiceType,
+            $ids,
+            $amounts,
+            $invoices,
+            $chequeId,
+            $source
+        );
+        $payment->save();
     }
 
     /**

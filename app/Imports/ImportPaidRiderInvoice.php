@@ -13,6 +13,7 @@ use App\Models\Vouchers;
 use App\Support\CompanyContext;
 use App\Support\ExcelDate;
 use App\Support\ExcelSlashDateFormat;
+use App\Support\ResourceLinks;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -224,6 +225,14 @@ class ImportPaidRiderInvoice implements ToCollection
             'company_id' => $companyId,
             'branch_id' => $branchId,
             'reference' => $invoice->invoice_number,
+            'resource_links' => ResourceLinks::build(
+                'rider',
+                [(int) $invoice->id],
+                [(int) $invoice->id => $paymentAmount],
+                collect([$invoice]),
+                null,
+                ResourceLinks::SOURCE_IMPORT
+            ),
             'bank_charges' => 0,
             'bank_id' => $bank->id,
             'amount_type' => 'Online',

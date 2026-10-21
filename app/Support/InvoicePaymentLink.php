@@ -28,6 +28,19 @@ class InvoicePaymentLink
             }
         }
 
+        if (isset($invoice->id)) {
+            $invoiceId = (int) $invoice->id;
+            $fromLinks = Payment::query()
+                ->whereNotNull('resource_links')
+                ->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%')
+                ->when($payeeAccountId, fn ($q) => $q->where('payee_account_id', $payeeAccountId))
+                ->orderByDesc('id')
+                ->value('id');
+            if ($fromLinks) {
+                return (int) $fromLinks;
+            }
+        }
+
         $patterns = self::referencePatterns($invoice);
         if ($patterns === []) {
             return null;

@@ -10,6 +10,7 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
+use App\Support\ResourceLinks;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -427,11 +428,12 @@ class RiderInvoiceViewDataBuilder
             ->values();
 
         $voucherIdsFromPayments = collect();
-        if ($accountId && $patterns !== []) {
+        if ($accountId) {
             $voucherIdsFromPayments = Payment::query()
                 ->where('payee_account_id', $accountId)
                 ->whereNotNull('voucher_id')
-                ->where(function ($q) use ($patterns) {
+                ->where(function ($q) use ($patterns, $invoiceId) {
+                    $q->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
                     foreach ($patterns as $pattern) {
                         $q->orWhere('reference', 'like', '%'.$pattern.'%')
                             ->orWhere('description', 'like', '%'.$pattern.'%');
@@ -618,27 +620,27 @@ class RiderInvoiceViewDataBuilder
             return round($paid, 2);
         }
 
+        $invoiceId = (int) $riderInvoice->id;
         $patterns = array_values(array_filter([
             $riderInvoice->invoice_number ?? null,
-            'Rider Invoice #'.$riderInvoice->id,
-            'Invoice #'.$riderInvoice->id,
-            'RINV-'.str_pad((string) $riderInvoice->id, 4, '0', STR_PAD_LEFT),
+            'Rider Invoice #'.$invoiceId,
+            'Invoice #'.$invoiceId,
+            'RINV-'.str_pad((string) $invoiceId, 4, '0', STR_PAD_LEFT),
         ]));
 
         $linked = 0.0;
-        if ($patterns !== []) {
-            $linkedQuery = Payment::where('payee_account_id', $accountId)
-                ->where(function ($q) use ($patterns) {
-                    foreach ($patterns as $pattern) {
-                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
-                            ->orWhere('description', 'like', '%'.$pattern.'%');
-                    }
-                });
-            if ($allocatedPaymentIds !== []) {
-                $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
-            }
-            $linked = (float) $linkedQuery->sum('amount');
+        $linkedQuery = Payment::where('payee_account_id', $accountId)
+            ->where(function ($q) use ($patterns, $invoiceId) {
+                $q->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                foreach ($patterns as $pattern) {
+                    $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                        ->orWhere('description', 'like', '%'.$pattern.'%');
+                }
+            });
+        if ($allocatedPaymentIds !== []) {
+            $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
         }
+        $linked = (float) $linkedQuery->sum('amount');
 
         if ($linked >= 0.01) {
             $paid += $linked;

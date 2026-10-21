@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Services\Voucher\VoucherSignatureResolver;
 use App\Support\CompanyContext;
+use App\Support\ResourceLinks;
 use App\Support\RiderPaymentVoucherDefaults;
 use Illuminate\Support\Collection;
 
@@ -201,7 +202,12 @@ class RiderPaymentVoucherViewData
     {
         $paymentId = (int) $payment->id;
         $rows = collect();
-        $invoiceIds = $this->invoiceIdsFromReference($payment);
+        $links = is_array($payment->resource_links) ? $payment->resource_links : null;
+        $linkAmounts = ResourceLinks::amountsByInvoiceId($links);
+        $invoiceIds = ResourceLinks::invoiceIds($links);
+        if ($invoiceIds === []) {
+            $invoiceIds = $this->invoiceIdsFromReference($payment);
+        }
 
         $query = RiderInvoices::query()->with(['items', 'rider']);
         if ($invoiceIds !== []) {
@@ -220,6 +226,9 @@ class RiderPaymentVoucherViewData
         foreach ($invoices as $invoice) {
             $partial = $invoice->partial_paid_amount ?? [];
             $thisPayment = round((float) ($partial[$paymentId] ?? $partial[(string) $paymentId] ?? 0), 2);
+            if ($thisPayment < 0.01 && isset($linkAmounts[(int) $invoice->id])) {
+                $thisPayment = (float) $linkAmounts[(int) $invoice->id];
+            }
 
             // Fallback: if invoice matched by reference but no partial map, use full net payment once.
             if ($thisPayment < 0.01 && $invoices->count() === 1) {

@@ -13,6 +13,7 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\DeleteRequest;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
+use App\Support\ResourceLinks;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -115,8 +116,13 @@ class PaymentDeletionService
      */
     public static function applyRelatedCleanup(Payment $payment): void
     {
-        if ($payment->amount_type == 'Cheque') {
-            $cheque = Cheques::where('voucher_id', $payment->voucher_id)->first();
+        $links = is_array($payment->resource_links) ? $payment->resource_links : null;
+        $chequeId = ResourceLinks::chequeId($links);
+
+        if ($payment->amount_type == 'Cheque' || $chequeId) {
+            $cheque = $chequeId
+                ? Cheques::find($chequeId)
+                : Cheques::where('voucher_id', $payment->voucher_id)->first();
             if ($cheque) {
                 $cheque->update([
                     'status' => 'Issued',
@@ -127,8 +133,143 @@ class PaymentDeletionService
             }
         }
 
+        $invoiceType = ResourceLinks::invoiceType($links);
+        $invoiceIds = ResourceLinks::invoiceIds($links);
         $reference = (string) ($payment->reference ?? '');
 
+        if ($invoiceIds === []) {
+            // Legacy: discover invoices from free-text reference.
+            static::cleanupFromLegacyReference($payment, $reference);
+
+            return;
+        }
+
+        match ($invoiceType) {
+            'leasingCompany' => static::revertLeasingCompanyInvoices($payment, $invoiceIds),
+            'supplier' => static::revertSupplierInvoices($payment, $invoiceIds),
+            'employee' => static::revertEmployeeInvoices($payment, $invoiceIds),
+            'rider' => static::revertRiderInvoices($payment, $invoiceIds),
+            'sim' => static::revertSimInvoices($payment, $invoiceIds),
+            default => static::cleanupFromLegacyReference($payment, $reference),
+        };
+    }
+
+    /**
+     * @param  list<int>  $invoiceIds
+     */
+    private static function revertLeasingCompanyInvoices(Payment $payment, array $invoiceIds): void
+    {
+        $invoices = LeasingCompanyInvoice::with('leasingCompany')
+            ->whereIn('id', $invoiceIds)
+            ->get();
+        foreach ($invoices as $invoice) {
+            $partialAmount = $invoice->partial_paid_amount ?? [];
+            unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+            $invoice->partial_paid_amount = $partialAmount;
+            $invoice->status = count($partialAmount) < 1 ? 0 : 3;
+            $invoice->save();
+        }
+    }
+
+    /**
+     * @param  list<int>  $invoiceIds
+     */
+    private static function revertSupplierInvoices(Payment $payment, array $invoiceIds): void
+    {
+        $invoices = SupplierInvoices::with('supplier')
+            ->where('is_invoice', true)
+            ->whereIn('id', $invoiceIds)
+            ->get();
+        foreach ($invoices as $invoice) {
+            $partialAmount = $invoice->partial_paid_amount ?? [];
+            unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+            $invoice->partial_paid_amount = $partialAmount;
+            $invoice->status = count($partialAmount) < 1 ? 'unpaid' : 'partially_paid';
+            $invoice->save();
+        }
+    }
+
+    /**
+     * @param  list<int>  $invoiceIds
+     */
+    private static function revertEmployeeInvoices(Payment $payment, array $invoiceIds): void
+    {
+        $invoices = EmployeeInvoices::with(['employee.account', 'items'])
+            ->whereIn('id', $invoiceIds)
+            ->get();
+        $builder = app(EmployeeInvoiceViewDataBuilder::class);
+        foreach ($invoices as $invoice) {
+            $partialAmount = $invoice->partial_paid_amount ?? [];
+            $hadAllocation = array_key_exists($payment->id, $partialAmount)
+                || array_key_exists((string) $payment->id, $partialAmount);
+            unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+            $invoice->partial_paid_amount = $partialAmount;
+            $invoice->clearOutstandingSummary();
+
+            if ($hadAllocation || $partialAmount !== []) {
+                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
+            } else {
+                // Legacy payments without per-invoice allocations.
+                $accountId = $invoice->employee?->account_id;
+                $monthStart = date('Y-m-01', strtotime($invoice->billing_month));
+                $paidExcluding = 0.0;
+                if ($accountId) {
+                    $paidExcluding = round((float) Payment::where('payee_account_id', $accountId)
+                        ->whereDate('billing_month', $monthStart)
+                        ->where('id', '!=', $payment->id)
+                        ->sum('amount'), 2);
+                }
+                $finalAmount = (float) $builder->outstandingAmounts($invoice)['final_amount'];
+                $remaining = round($finalAmount - $paidExcluding, 2);
+                if ($remaining <= 0.01) {
+                    $invoice->status = 1;
+                } elseif ($paidExcluding > 0.01) {
+                    $invoice->status = 3;
+                } else {
+                    $invoice->status = 0;
+                }
+            }
+            $invoice->save();
+        }
+    }
+
+    /**
+     * @param  list<int>  $invoiceIds
+     */
+    private static function revertRiderInvoices(Payment $payment, array $invoiceIds): void
+    {
+        $invoices = RiderInvoices::with(['rider.account', 'items'])
+            ->whereIn('id', $invoiceIds)
+            ->get();
+        foreach ($invoices as $invoice) {
+            $partialAmount = $invoice->partial_paid_amount ?? [];
+            unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+            $invoice->partial_paid_amount = $partialAmount;
+            $invoice->clearOutstandingSummary();
+            $invoice->status = count($partialAmount) < 1 ? 0 : 3;
+            $invoice->save();
+        }
+    }
+
+    /**
+     * @param  list<int>  $invoiceIds
+     */
+    private static function revertSimInvoices(Payment $payment, array $invoiceIds): void
+    {
+        $invoices = SimInvoice::with('company')
+            ->whereIn('id', $invoiceIds)
+            ->get();
+        foreach ($invoices as $invoice) {
+            $partialAmount = $invoice->partial_paid_amount ?? [];
+            unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
+            $invoice->partial_paid_amount = $partialAmount;
+            $invoice->status = count($partialAmount) < 1 ? 0 : 3;
+            $invoice->save();
+        }
+    }
+
+    private static function cleanupFromLegacyReference(Payment $payment, string $reference): void
+    {
         if (str_contains($reference, 'LCI')) {
             $invoiceIds = [];
             foreach (explode(' ', $reference) as $invoice_number) {
@@ -137,16 +278,7 @@ class PaymentDeletionService
                     $invoiceIds[] = $id;
                 }
             }
-            $invoices = LeasingCompanyInvoice::with('leasingCompany')
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            foreach ($invoices as $invoice) {
-                $partialAmount = $invoice->partial_paid_amount ?? [];
-                unset($partialAmount[$payment->id]);
-                $invoice->partial_paid_amount = $partialAmount;
-                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
-                $invoice->save();
-            }
+            static::revertLeasingCompanyInvoices($payment, $invoiceIds);
         }
 
         if (str_contains($reference, 'SUP')) {
@@ -157,17 +289,7 @@ class PaymentDeletionService
                     $invoiceIds[] = $id;
                 }
             }
-            $invoices = SupplierInvoices::with('supplier')
-                ->where('is_invoice', true)
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            foreach ($invoices as $invoice) {
-                $partialAmount = $invoice->partial_paid_amount ?? [];
-                unset($partialAmount[$payment->id]);
-                $invoice->partial_paid_amount = $partialAmount;
-                $invoice->status = count($partialAmount) < 1 ? 'unpaid' : 'partially_paid';
-                $invoice->save();
-            }
+            static::revertSupplierInvoices($payment, $invoiceIds);
         }
 
         if (str_contains($reference, 'EMP_INV')) {
@@ -178,43 +300,7 @@ class PaymentDeletionService
                     $invoiceIds[] = $id;
                 }
             }
-            $invoices = EmployeeInvoices::with(['employee.account', 'items'])
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            $builder = app(EmployeeInvoiceViewDataBuilder::class);
-            foreach ($invoices as $invoice) {
-                $partialAmount = $invoice->partial_paid_amount ?? [];
-                $hadAllocation = array_key_exists($payment->id, $partialAmount)
-                    || array_key_exists((string) $payment->id, $partialAmount);
-                unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
-                $invoice->partial_paid_amount = $partialAmount;
-                $invoice->clearOutstandingSummary();
-
-                if ($hadAllocation || $partialAmount !== []) {
-                    $invoice->status = count($partialAmount) < 1 ? 0 : 3;
-                } else {
-                    // Legacy payments without per-invoice allocations.
-                    $accountId = $invoice->employee?->account_id;
-                    $monthStart = date('Y-m-01', strtotime($invoice->billing_month));
-                    $paidExcluding = 0.0;
-                    if ($accountId) {
-                        $paidExcluding = round((float) Payment::where('payee_account_id', $accountId)
-                            ->whereDate('billing_month', $monthStart)
-                            ->where('id', '!=', $payment->id)
-                            ->sum('amount'), 2);
-                    }
-                    $finalAmount = (float) $builder->outstandingAmounts($invoice)['final_amount'];
-                    $remaining = round($finalAmount - $paidExcluding, 2);
-                    if ($remaining <= 0.01) {
-                        $invoice->status = 1;
-                    } elseif ($paidExcluding > 0.01) {
-                        $invoice->status = 3;
-                    } else {
-                        $invoice->status = 0;
-                    }
-                }
-                $invoice->save();
-            }
+            static::revertEmployeeInvoices($payment, $invoiceIds);
         }
 
         if (str_contains($reference, 'RINV')) {
@@ -224,17 +310,7 @@ class PaymentDeletionService
                     $invoiceIds[] = (int) $matches[1];
                 }
             }
-            $invoices = RiderInvoices::with(['rider.account', 'items'])
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            foreach ($invoices as $invoice) {
-                $partialAmount = $invoice->partial_paid_amount ?? [];
-                unset($partialAmount[$payment->id], $partialAmount[(string) $payment->id]);
-                $invoice->partial_paid_amount = $partialAmount;
-                $invoice->clearOutstandingSummary();
-                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
-                $invoice->save();
-            }
+            static::revertRiderInvoices($payment, $invoiceIds);
         }
 
         if (str_contains($reference, 'SIMI')) {
@@ -245,16 +321,7 @@ class PaymentDeletionService
                     $invoiceIds[] = $id;
                 }
             }
-            $invoices = SimInvoice::with('company')
-                ->whereIn('id', $invoiceIds)
-                ->get();
-            foreach ($invoices as $invoice) {
-                $partialAmount = $invoice->partial_paid_amount ?? [];
-                unset($partialAmount[$payment->id]);
-                $invoice->partial_paid_amount = $partialAmount;
-                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
-                $invoice->save();
-            }
+            static::revertSimInvoices($payment, $invoiceIds);
         }
     }
 }

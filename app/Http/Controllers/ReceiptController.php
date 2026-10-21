@@ -16,6 +16,7 @@ use App\Models\Vouchers;
 use App\Repositories\ReceiptsRepository;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
+use App\Support\ResourceLinks;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -185,7 +186,7 @@ class ReceiptController extends Controller
             return redirect()->back()->withInput();
         }
 
-        $input = $request->all();
+        $input = $request->except(['resource_links']);
 
         $input['created_by'] = auth()->id();
         $input['billing_month'] = $input['billing_month'].'-01';
@@ -236,6 +237,14 @@ class ReceiptController extends Controller
                         }
                     }
                 }
+
+                $this->persistReceiptResourceLinks(
+                    $receipt,
+                    $input['invoice_type'] == 'customer' ? 'customer' : 'leasingBilling',
+                    (array) $invoiceIds,
+                    (array) ($paymentAmounts ?? []),
+                    ResourceLinks::SOURCE_RECEIPT_FORM
+                );
             }
 
             $transCode = Account::trans_code();
@@ -515,40 +524,36 @@ class ReceiptController extends Controller
             DB::beginTransaction();
 
             // Prepare data for receipt update
-            $input = $request->all();
+            // resource_links is rebuilt on allocation sync — never take from the form.
+            $input = $request->except(['resource_links']);
             $input['billing_month'] = $input['billing_month'].'-01';
             $input['branch_id'] = Accounts::where('id', $input['payer_account_id'])->value('branch_id');
             $input['updated_by'] = auth()->id();
             $pending = null;
             $partial = null;
             $paid = null;
+            $originalReference = (string) ($receipt->reference ?? '');
+            $originalResourceLinks = is_array($receipt->resource_links) ? $receipt->resource_links : null;
             if ($request->has('invoice_ids') && count($input['invoice_ids']) > 0) {
                 $paymentAmounts = $request->input('payment_amounts');
                 $totalPayment = array_sum($paymentAmounts);
                 if ($totalPayment > $input['amount']) {
                     throw new \Exception('Total payment amount for selected invoices cannot exceed the receipt amount.');
                 }
-                $invoice_numbers = explode(' ', $receipt->reference);
-                $invoiceIds = [];
-                if ($input['invoice_type'] == 'customer') {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
-                        if ($id) {
-                            $invoiceIds[] = $id;
-                        }
-                    }
+                $revertType = ResourceLinks::invoiceType($originalResourceLinks)
+                    ?? (($input['invoice_type'] ?? null) == 'customer' ? 'customer' : 'leasingBilling');
+                $invoiceIds = $this->linkedInvoiceIdsFromReceipt(
+                    $originalResourceLinks,
+                    $originalReference,
+                    $revertType
+                );
+                if ($revertType === 'customer') {
                     $existingInvoices = CustomerInvoices::with('customer')
                         ->whereIn('id', $invoiceIds)
                         ->get();
                     $pending = 'pending';
                     $partial = 'partially_paid';
                 } else {
-                    foreach ($invoice_numbers as $invoice_number) {
-                        $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
-                        if ($id) {
-                            $invoiceIds[] = $id;
-                        }
-                    }
                     $existingInvoices = LeasingCompanyBillingInvoice::with('customer')
                         ->whereIn('id', $invoiceIds)
                         ->get();
@@ -557,7 +562,7 @@ class ReceiptController extends Controller
                 }
                 foreach ($existingInvoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$receipt->id]); // Remove payment for this receipt
+                    unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
                     $invoice->partial_paid_amount = $partialAmount;
                     if (count($partialAmount) < 1) {
                         $invoice->status = $pending; // Revert to pending if no payments left
@@ -608,6 +613,14 @@ class ReceiptController extends Controller
                         }
                     }
                 }
+
+                $this->persistReceiptResourceLinks(
+                    $receipt,
+                    $input['invoice_type'] == 'customer' ? 'customer' : 'leasingBilling',
+                    (array) $invoiceIds,
+                    (array) ($paymentAmounts ?? []),
+                    ResourceLinks::SOURCE_RECEIPT_FORM
+                );
             }
 
             // Save receipt if it has changes
@@ -727,9 +740,12 @@ class ReceiptController extends Controller
         } else {
             Transactions::where('trans_code', $receipt->voucher->trans_code)->delete();
             Vouchers::where('id', $receipt->voucher_id)->delete();
-            if ($receipt->amount_type == 'Cheque') {
-                // Also delete associated cheque record if receipt was created by cheque
-                $cheque = Cheques::where('voucher_id', $receipt->voucher_id)->first();
+            $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
+            $chequeId = ResourceLinks::chequeId($links);
+            if ($receipt->amount_type == 'Cheque' || $chequeId) {
+                $cheque = $chequeId
+                    ? Cheques::find($chequeId)
+                    : Cheques::where('voucher_id', $receipt->voucher_id)->first();
                 if ($cheque) {
                     $cheque->update([
                         'status' => 'Issued',
@@ -739,47 +755,42 @@ class ReceiptController extends Controller
                     ]);
                 }
             }
-            if (str_contains($receipt->reference, 'CI-')) {
-                $invoice_numbers = explode(' ', $receipt->reference);
-                $invoiceIds = [];
-                foreach ($invoice_numbers as $invoice_number) {
-                    $id = CustomerInvoices::getIdFromInvoiceNumber($invoice_number);
-                    if ($id) {
-                        $invoiceIds[] = $id;
-                    }
+
+            $invoiceType = ResourceLinks::invoiceType($links);
+            $customerIds = $invoiceType === 'customer'
+                ? ResourceLinks::invoiceIds($links)
+                : [];
+            $billingIds = $invoiceType === 'leasingBilling'
+                ? ResourceLinks::invoiceIds($links)
+                : [];
+
+            // Legacy fallback when resource_links is empty.
+            if ($customerIds === [] && $billingIds === [] && is_string($receipt->reference)) {
+                if (str_contains($receipt->reference, 'CI-')) {
+                    $customerIds = $this->invoiceIdsFromReceiptReference($receipt->reference, 'customer');
                 }
-                $invoices = CustomerInvoices::whereIn('id', $invoiceIds)->get();
+                if (str_contains($receipt->reference, 'LBI-')) {
+                    $billingIds = $this->invoiceIdsFromReceiptReference($receipt->reference, 'leasingBilling');
+                }
+            }
+
+            if ($customerIds !== []) {
+                $invoices = CustomerInvoices::whereIn('id', $customerIds)->get();
                 foreach ($invoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$receipt->id]); // Remove payment for this receipt
+                    unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
                     $invoice->partial_paid_amount = $partialAmount;
-                    if (count($partialAmount) < 1) {
-                        $invoice->status = 'pending'; // Revert to pending if no payments left
-                    } else {
-                        $invoice->status = 'partially_paid';
-                    }
+                    $invoice->status = count($partialAmount) < 1 ? 'pending' : 'partially_paid';
                     $invoice->save();
                 }
             }
-            if (str_contains($receipt->reference, 'LBI-')) {
-                $invoice_numbers = explode(' ', $receipt->reference);
-                $invoiceIds = [];
-                foreach ($invoice_numbers as $invoice_number) {
-                    $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoice_number);
-                    if ($id) {
-                        $invoiceIds[] = $id;
-                    }
-                }
-                $invoices = LeasingCompanyBillingInvoice::whereIn('id', $invoiceIds)->get();
+            if ($billingIds !== []) {
+                $invoices = LeasingCompanyBillingInvoice::whereIn('id', $billingIds)->get();
                 foreach ($invoices as $invoice) {
                     $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$receipt->id]); // Remove payment for this receipt
+                    unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
                     $invoice->partial_paid_amount = $partialAmount;
-                    if (count($partialAmount) < 1) {
-                        $invoice->status = 0; // Revert to pending if no payments left
-                    } else {
-                        $invoice->status = 3;
-                    }
+                    $invoice->status = count($partialAmount) < 1 ? 0 : 3;
                     $invoice->save();
                 }
             }
@@ -810,5 +821,84 @@ class ReceiptController extends Controller
         $receipt->billing_month = Carbon::parse($receipt->billing_month)->format('Y-m');
 
         return view('receipts.create', compact('receipt', 'banks'));
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $resourceLinks
+     * @return list<int>
+     */
+    private function linkedInvoiceIdsFromReceipt(
+        ?array $resourceLinks,
+        string $reference,
+        ?string $invoiceType
+    ): array {
+        $fromLinks = ResourceLinks::invoiceIds($resourceLinks);
+        if ($fromLinks !== []) {
+            return $fromLinks;
+        }
+
+        return $this->invoiceIdsFromReceiptReference($reference, $invoiceType);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function invoiceIdsFromReceiptReference(string $reference, ?string $invoiceType): array
+    {
+        if ($reference === '') {
+            return [];
+        }
+
+        $invoiceIds = [];
+        foreach (explode(' ', $reference) as $invoiceNumber) {
+            if ($invoiceType === 'customer') {
+                $id = CustomerInvoices::getIdFromInvoiceNumber($invoiceNumber);
+            } else {
+                $id = LeasingCompanyBillingInvoice::getIdFromInvoiceNumber($invoiceNumber);
+            }
+            if ($id) {
+                $invoiceIds[] = (int) $id;
+            }
+        }
+
+        return array_values(array_unique($invoiceIds));
+    }
+
+    /**
+     * @param  list<int|string>  $invoiceIds
+     * @param  array<int|string, mixed>  $paymentAmounts
+     */
+    private function persistReceiptResourceLinks(
+        Receipt $receipt,
+        ?string $invoiceType,
+        array $invoiceIds,
+        array $paymentAmounts,
+        string $source
+    ): void {
+        $ids = array_values(array_filter(array_map('intval', $invoiceIds)));
+        $amounts = [];
+        foreach ($ids as $id) {
+            $amounts[$id] = floatval($paymentAmounts[$id] ?? $paymentAmounts[(string) $id] ?? 0);
+        }
+
+        $invoices = $invoiceType === 'customer'
+            ? CustomerInvoices::whereIn('id', $ids)->get()
+            : ($invoiceType === 'leasingBilling'
+                ? LeasingCompanyBillingInvoice::whereIn('id', $ids)->get()
+                : collect());
+
+        $chequeId = ResourceLinks::chequeId(
+            is_array($receipt->resource_links) ? $receipt->resource_links : null
+        );
+
+        $receipt->resource_links = ResourceLinks::build(
+            $invoiceType,
+            $ids,
+            $amounts,
+            $invoices,
+            $chequeId,
+            $source
+        );
+        $receipt->save();
     }
 }

@@ -15,6 +15,7 @@ class Receipt extends BaseModel
     public $fillable = [
         'branch_id',
         'reference',
+        'resource_links',
         'account_id',
         'bank_id',
         'payer_account_id',
@@ -28,6 +29,10 @@ class Receipt extends BaseModel
         'status',
         'created_by',
         'updated_by',
+    ];
+
+    protected $casts = [
+        'resource_links' => 'array',
     ];
 
     public static array $rules = [

@@ -114,7 +114,7 @@ class BikeMaintenanceController extends Controller
             }
 
             $maintenance->update(['total_cost' => $maintenance->cost]);
-            $this->syncBikeMeterFields($bike, $maintenanceKm);
+            BikeMaintenance::syncBikeMeterFieldsForBike($bike, $maintenanceKm);
             $data = $this->billData($maintenance);
             if (! empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
@@ -215,9 +215,12 @@ class BikeMaintenanceController extends Controller
         try {
             $this->validateFinancials($request);
             [$validated, $maintenanceKm] = $this->applyMaintenanceTypeRules($validated, $bike);
-            $this->restoreInventoryQuantities($maintenance->id);
+            $maintenance->restoreInventoryQuantities();
             $maintenance->update($validated);
-            BikeMaintenanceItem::where('bike_maintenance_id', $maintenance->id)->delete();
+            // Hard-delete: line items are rebuilt from the form and are not meant to be restored.
+            BikeMaintenanceItem::withTrashed()
+                ->where('bike_maintenance_id', $maintenance->id)
+                ->forceDelete();
 
             $rows = $this->buildMaintenanceItemRows($request, $maintenance, $bike, $garage);
             if (! empty($rows)) {
@@ -225,17 +228,21 @@ class BikeMaintenanceController extends Controller
             }
 
             $maintenance->update(['total_cost' => $maintenance->cost]);
-            $this->syncBikeMeterFields($bike, $maintenanceKm);
+            BikeMaintenance::syncBikeMeterFieldsForBike($bike, $maintenanceKm);
             $data = $this->billData($maintenance);
             if (! empty($data['missing'])) {
                 throw new \Exception(implode('. ', $data['missing']));
             }
-            $transcode = Transactions::where('reference_type', 'Bike Maintenance')
+            $transcode = Transactions::withTrashed()
+                ->where('reference_type', 'Bike Maintenance')
                 ->where('reference_id', $maintenance->id)
+                ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
                 ->value('trans_code');
-            Transactions::where('reference_type', 'Bike Maintenance')
+            // Hard-delete: ledger lines are rebuilt on edit and are not meant to be restored.
+            Transactions::withTrashed()
+                ->where('reference_type', 'Bike Maintenance')
                 ->where('reference_id', $maintenance->id)
-                ->delete();
+                ->forceDelete();
             $this->chargeInvoice($maintenance, $data, $transcode);
             DB::commit();
             if ($oldpath) {
@@ -608,7 +615,7 @@ class BikeMaintenanceController extends Controller
             'vat_account' => $vatAccount,
             'garage_account' => $garageAccount,
             'overdue_amount' => $overdueAmount,
-            'description' => "Maintenance Performed on bike: {$maintenance->bike->emirates}-{$maintenance->bike->plate}",
+            'description' => "Maintenance Performed on bike: {$maintenance->bike->emirates}-{$maintenance->bike->plate}, Notes: {$maintenance->description}",
             'missing' => $missing,
         ];
     }
@@ -713,31 +720,35 @@ class BikeMaintenanceController extends Controller
      */
     public function destroy($company_slug, BikeMaintenance $bikeMaintenance)
     {
-        DB::beginTransaction();
+        $trashUrl = route('settings-panel.trash.index').'?module=bike_maintenance';
+
         try {
-
-            $this->restoreInventoryQuantities($bikeMaintenance->id);
-            BikeMaintenanceItem::where('bike_maintenance_id', $bikeMaintenance->id)->delete();
-            Transactions::where('reference_type', 'Bike Maintenance')
-                ->where('reference_id', $bikeMaintenance->id)
-                ->delete();
-
-            $path = $bikeMaintenance->attachment;
-            $bike = $bikeMaintenance->bike;
+            // Delete first: when delete-approval is enabled this only queues a request
+            // and the record stays intact, so related items/ledger must not be touched yet.
             $bikeMaintenance->delete();
-            $this->syncBikeMeterFields($bike);
-            if ($path) {
-                Storage::delete($path);
+
+            if (request()->attributes->get('delete_approval_created')) {
+                return delete_json_response('Bike maintenance', $trashUrl);
             }
 
+            DB::beginTransaction();
+            $bikeMaintenance->finalizeSoftDeletion(auth()->id());
             DB::commit();
 
-            return response()->json(['message' => 'Maintenance Record Deleted Successfully'], 200);
+            return delete_json_response('Bike maintenance', $trashUrl);
         } catch (\Exception $e) {
-            DB::rollBack();
-            \Log::error('error occured while deleteing maintenance record', ['error' => $e->getMessage(), 'trace: ' => $e->getTrace()]);
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            if (method_exists($bikeMaintenance, 'trashed') && $bikeMaintenance->trashed()) {
+                $bikeMaintenance->restore();
+            }
+            \Log::error('error occured while deleteing maintenance record', [
+                'error' => $e->getMessage(),
+                'trace: ' => $e->getTrace(),
+            ]);
 
-            return response()->json(['message' => 'Error: '.$e->getMessage()], 500);
+            return delete_error_response('Error: '.$e->getMessage(), null, 500);
         }
     }
 
@@ -958,7 +969,7 @@ class BikeMaintenanceController extends Controller
     /**
      * Apply Scheduled vs Repairs rules for odometer / overdue fields.
      * maintenance_type is form-only and is not persisted.
-     * Bike meter fields are synced separately via syncBikeMeterFields().
+     * Bike meter fields are synced separately via BikeMaintenance::syncBikeMeterFieldsForBike().
      *
      * @return array{0: array, 1: float|int|string|null} [validated, maintenanceKmForBikeSync]
      */
@@ -985,36 +996,6 @@ class BikeMaintenanceController extends Controller
         $validated['overdue_paidby'] = $this->resolveOverduePaidBy($validated);
 
         return [$validated, $maintenanceKm];
-    }
-
-    /**
-     * Rebuild bike meter fields from scheduled maintenance history.
-     * bikes.current_km  = latest scheduled reading
-     * bikes.previous_km = scheduled reading before that
-     * Repairs (current_km = 0) are ignored.
-     */
-    private function syncBikeMeterFields(Bikes $bike, $maintenanceKm = null): void
-    {
-        $scheduled = BikeMaintenance::where('bike_id', $bike->id)
-            ->where('current_km', '>', 0)
-            ->orderByDesc('maintenance_date')
-            ->orderByDesc('id')
-            ->limit(2)
-            ->get();
-
-        $latest = $scheduled->get(0);
-        $prior = $scheduled->get(1);
-
-        $data = [
-            'current_km' => $latest?->current_km,
-            'previous_km' => $prior?->current_km ?? ($latest?->previous_km),
-        ];
-
-        if ($maintenanceKm !== null) {
-            $data['maintenance_km'] = $maintenanceKm;
-        }
-
-        $bike->update($data);
     }
 
     private function stats($maintenances)
@@ -1108,17 +1089,4 @@ class BikeMaintenanceController extends Controller
         return view('bike-maintenance.sticker', compact('sticker'));
     }
 
-    private function restoreInventoryQuantities($maintenanceId)
-    {
-        $oldItems = BikeMaintenanceItem::where('bike_maintenance_id', $maintenanceId)
-            ->whereNotNull('inventory_purchase_id')
-            ->get();
-
-        foreach ($oldItems as $oldItem) {
-            $purchase = InventoryPurchase::find($oldItem->inventory_purchase_id);
-            if ($purchase) {
-                $purchase->increment('remaining_quantity', $oldItem->quantity);
-            }
-        }
-    }
 }

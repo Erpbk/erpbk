@@ -216,8 +216,6 @@
                             <label for="bike_assignment_status">Filter by Status</label>
                             <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
                                 <option value="" selected>Select</option>
-                                <option value="Active" {{ request('bike_assignment_status') == 'Active' ? 'selected' : '' }}>Active</option>
-                                <option value="Inactive" {{ request('bike_assignment_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
                                 @foreach(($riderTopStatusFilterOptions ?? []) as $statusOption)
                                 <option value="{{ $statusOption['value'] }}" {{ request('bike_assignment_status') == $statusOption['value'] ? 'selected' : '' }}>
                                     {{ $statusOption['label'] }}

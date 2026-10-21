@@ -85,6 +85,12 @@ return [
             'display_columns' => ['plate', 'model', 'chassis_number'],
             'show_route' => 'bikes.show',
         ],
+        'bike_maintenance' => [
+            'model' => \App\Models\BikeMaintenance::class,
+            'name' => 'Bike Maintenance',
+            'display_columns' => ['id', 'maintenance_date', 'bike_id', 'total_cost'],
+            'show_route' => 'bike-maintenance.invoice',
+        ],
         'sims' => [
             'model' => \App\Models\Sims::class,
             'name' => 'SIM Cards',

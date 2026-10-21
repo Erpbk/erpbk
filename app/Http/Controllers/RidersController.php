@@ -98,9 +98,16 @@ class RidersController extends AppBaseController
    */
   private function riderTopStatusFilterOptions(): array
   {
+    $builtInLabels = Riders::employmentStatusFilterLabels();
+    $builtInKeys = array_map('strtolower', $builtInLabels);
+    $builtInOptions = array_map(
+      static fn (string $label): array => ['value' => $label, 'label' => $label],
+      $builtInLabels
+    );
+
     $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
     if (! $category) {
-      return [];
+      return $builtInOptions;
     }
 
     $options = RiderTopOption::withoutGlobalScope('company')
@@ -114,12 +121,10 @@ class RidersController extends AppBaseController
       || RiderStatusPermissionSync::userHasAnyVisibleStatusPermission($options);
 
     if (! $canSeeBar) {
-      return [];
+      return $builtInOptions;
     }
 
-    $reserved = ['active', 'inactive'];
-
-    return RiderStatusPermissionSync::filterOptionsForTopBar($options)
+    $dynamic = RiderStatusPermissionSync::filterOptionsForTopBar($options)
       ->map(function ($option) {
         $name = trim((string) $option->name);
 
@@ -128,11 +133,13 @@ class RidersController extends AppBaseController
           'label' => $name,
         ];
       })
-      ->filter(function (array $row) use ($reserved) {
-        return $row['value'] !== '' && ! in_array(strtolower($row['value']), $reserved, true);
+      ->filter(function (array $row) use ($builtInKeys) {
+        return $row['value'] !== '' && ! in_array(strtolower($row['value']), $builtInKeys, true);
       })
       ->values()
       ->all();
+
+    return array_values(array_merge($builtInOptions, $dynamic));
   }
 
   /**
@@ -150,7 +157,7 @@ class RidersController extends AppBaseController
       return;
     }
 
-    $isHardcodedLifecycle = in_array($status, ['Active', 'Inactive'], true);
+    $isHardcodedLifecycle = in_array($status, Riders::employmentStatusFilterLabels(), true);
     if (! $isHardcodedLifecycle && ! RiderStatusPermissionSync::canAccessStatusName($status)) {
       // Unauthorized status filters are omitted from the sidebar; ignore crafted values.
       return;

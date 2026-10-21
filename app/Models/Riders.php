@@ -172,6 +172,69 @@ class Riders extends BaseModel
   }
 
   /**
+   * Built-in employment/lifecycle labels used by status filters (Active, Inactive, Vacation, Absconded).
+   *
+   * @return list<string>
+   */
+  public static function employmentStatusFilterLabels(): array
+  {
+    $labels = [];
+    $seen = [];
+
+    foreach ([1, 3, 4, 5] as $code) {
+      $label = trim((string) (self::employmentStatusDisplay($code)['label'] ?? ''));
+      $key = strtolower($label);
+      if ($label === '' || in_array($key, $seen, true)) {
+        continue;
+      }
+      $seen[] = $key;
+      $labels[] = $label;
+    }
+
+    return $labels;
+  }
+
+  /**
+   * Status filter dropdown options: built-in employment labels, then active rider_status top options.
+   *
+   * @return list<array{value: string, label: string}>
+   */
+  public static function statusFilterOptions(): array
+  {
+    $options = [];
+    $seen = [];
+
+    foreach (self::employmentStatusFilterLabels() as $label) {
+      $key = strtolower($label);
+      $seen[] = $key;
+      $options[] = ['value' => $label, 'label' => $label];
+    }
+
+    $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
+    if (! $category) {
+      return $options;
+    }
+
+    $dynamic = RiderTopOption::where('category_id', $category->id)
+      ->where('is_active', true)
+      ->orderBy('display_order')
+      ->orderBy('id')
+      ->get(['name']);
+
+    foreach ($dynamic as $option) {
+      $name = trim((string) $option->name);
+      $key = strtolower($name);
+      if ($name === '' || in_array($key, $seen, true)) {
+        continue;
+      }
+      $seen[] = $key;
+      $options[] = ['value' => $name, 'label' => $name];
+    }
+
+    return $options;
+  }
+
+  /**
    * Whether a view-card option should update riders.status (bike assignment column).
    */
   public static function topOptionAffectsEmploymentStatus(?string $optionName): bool

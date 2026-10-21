@@ -18,6 +18,7 @@ use App\Models\Recruiters;
 use App\Models\Riders;
 use App\Models\Employee;
 use App\Models\Bikes;
+use App\Models\BikeMaintenance;
 use App\Models\Sims;
 use App\Models\SimCompany;
 use App\Models\BikeRentCompany;
@@ -168,6 +169,12 @@ class TrashController extends Controller
             'name' => 'Bikes',
             'icon' => 'fa-motorcycle',
             'display_columns' => ['plate', 'model', 'chassis_number'],
+        ],
+        'bike_maintenance' => [
+            'model' => BikeMaintenance::class,
+            'name' => 'Bike Maintenance',
+            'icon' => 'fa-wrench',
+            'display_columns' => ['id', 'maintenance_date', 'bike_id', 'total_cost'],
         ],
         'sims' => [
             'model' => Sims::class,
@@ -595,6 +602,10 @@ class TrashController extends Controller
                 $restoredItems = array_merge($restoredItems, $record->restoreRelatedRecords());
             }
 
+            if ($module === 'bike_maintenance' && $record instanceof BikeMaintenance) {
+                $restoredItems = array_merge($restoredItems, $record->restoreRelatedRecords());
+            }
+
             if (in_array($module, ['visa_expenses', 'license_expenses'], true)) {
                 $restoredItems = array_merge(
                     $restoredItems,
@@ -696,7 +707,7 @@ class TrashController extends Controller
             // Check for business constraints before permanent deletion
             // Check constraint tables directly from database
             // Fuel/voucher/invoice children are not keyed by the parent id as account_id/customer_id.
-            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
+            if (! in_array($module, ['fuel_cards', 'fuel_data', 'vouchers', 'sim_invoices', 'supplier_invoices', 'bike_maintenance', 'visa_expenses', 'license_expenses', 'visa_installment_plans', 'license_installment_plans'], true)) {
                 $constraintTables = [
                     'transactions' => ['account_id', 'customer_id', 'vendor_id', 'supplier_id'],
                     'invoices' => ['customer_id', 'vendor_id'],
@@ -872,6 +883,10 @@ class TrashController extends Controller
             }
 
             if ($module === 'supplier_invoices' && $record instanceof SupplierInvoices) {
+                $deletedItems = array_merge($deletedItems, $record->purgeRelatedRecords());
+            }
+
+            if ($module === 'bike_maintenance' && $record instanceof BikeMaintenance) {
                 $deletedItems = array_merge($deletedItems, $record->purgeRelatedRecords());
             }
 

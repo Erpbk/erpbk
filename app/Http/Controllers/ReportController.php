@@ -6,8 +6,6 @@ use App\Helpers\General;
 use App\Models\FuelCards;
 use App\Models\FuelData;
 use App\Models\Riders;
-use App\Models\RiderTopCategory;
-use App\Models\RiderTopOption;
 use App\Models\Transactions;
 use App\Services\FuelMonthlyLedgerService;
 use Illuminate\Http\Request;
@@ -1173,41 +1171,7 @@ class ReportController extends Controller
    */
   private function riderStatusFilterOptions(): array
   {
-    $options = [];
-    $seen = [];
-
-    foreach ([1, 3, 4, 5] as $code) {
-      $label = trim((string) (Riders::employmentStatusDisplay($code)['label'] ?? ''));
-      $key = strtolower($label);
-      if ($label === '' || in_array($key, $seen, true)) {
-        continue;
-      }
-      $seen[] = $key;
-      $options[] = ['value' => $label, 'label' => $label];
-    }
-
-    $category = RiderTopCategory::where('rider_column', 'rider_status')->first();
-    if (! $category) {
-      return $options;
-    }
-
-    $dynamic = RiderTopOption::where('category_id', $category->id)
-      ->where('is_active', true)
-      ->orderBy('display_order')
-      ->orderBy('id')
-      ->get(['name']);
-
-    foreach ($dynamic as $option) {
-      $name = trim((string) $option->name);
-      $key = strtolower($name);
-      if ($name === '' || in_array($key, $seen, true)) {
-        continue;
-      }
-      $seen[] = $key;
-      $options[] = ['value' => $name, 'label' => $name];
-    }
-
-    return $options;
+    return Riders::statusFilterOptions();
   }
 
   /**

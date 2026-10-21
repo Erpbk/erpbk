@@ -18,14 +18,25 @@ class BlockPendingDeletionEdits
         }
 
         $routeName = (string) ($request->route()?->getName() ?? '');
-        if ($routeName === '' || ! preg_match('/\.(edit|update)$/', $routeName)) {
+        $isBikeMaintenanceEdit = in_array($routeName, [
+            'bike-maintenance.editForm',
+            'bike-maintenance.update',
+            'bikeMaintenance.edit',
+            'bikeMaintenance.update',
+        ], true);
+
+        if ($routeName === '' || (! preg_match('/\.(edit|update)$/', $routeName) && ! $isBikeMaintenanceEdit)) {
             return $next($request);
         }
 
-        $showRoute = preg_replace('/\.(edit|update)$/', '.show', $routeName);
+        $showRoute = $isBikeMaintenanceEdit
+            ? 'bike-maintenance.invoice'
+            : preg_replace('/\.(edit|update)$/', '.show', $routeName);
         $id = $request->route('id')
             ?? $request->route('rider')
             ?? $request->route('employee')
+            ?? $request->route('bikeMaintenance')
+            ?? $request->route('maintenance')
             ?? $request->route('bike');
 
         if (is_object($id) && method_exists($id, 'getKey')) {

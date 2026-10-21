@@ -864,9 +864,24 @@ class DeleteRequestService
             static::finalizeApprovedSupplierInvoiceDeletion($deleteRequest, $model, $admin);
         }
 
+        if ($deleteRequest->module_key === 'bike_maintenance' && $model instanceof \App\Models\BikeMaintenance) {
+            static::finalizeApprovedBikeMaintenanceDeletion($deleteRequest, $model, $admin);
+        }
+
         if ($deleteRequest->module_key === 'suppliers' && $model instanceof \App\Models\Supplier) {
             static::finalizeApprovedSupplierDeletion($deleteRequest, $model, $admin);
         }
+    }
+
+    /**
+     * After bike-maintenance approval: soft-delete line items + ledger and return stock.
+     */
+    protected static function finalizeApprovedBikeMaintenanceDeletion(
+        DeleteRequest $deleteRequest,
+        \App\Models\BikeMaintenance $maintenance,
+        ?User $admin
+    ): void {
+        $maintenance->finalizeSoftDeletion($admin?->id);
     }
 
     /**

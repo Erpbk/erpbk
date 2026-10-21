@@ -35,8 +35,8 @@
          <td>
             {{ company_table('customers')->where('id' , $rider->customer_id)->first()->name ?? '-'}}
          </td>
-         <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
-         <td>{{ \App\Helpers\Currency::format($r->final_amount, 2) }}</td>
+         <td>{{ number_format((float) $r->total_amount, 2) }}</td>
+         <td>{{ number_format((float) $r->final_amount, 2) }}</td>
          <td>
             @if($r->isPaid())
             <span class="invoice-status-badge invoice-status-paid">Paid</span>

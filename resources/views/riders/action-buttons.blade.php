@@ -30,33 +30,33 @@ $visibleProfileVoucherTypes[$code] = $label;
 }
 @endphp
 @if(!$isRiderEditPage && isset($result))
-<div class="card-footer border-top fixed-footer mt-3" style="padding-top: 25px;">
-    <div class="d-flex justify-content-start gap-2 flex-wrap align-items-center">
+<div class="card-footer border-top fixed-footer mt-3 rider-profile-actions">
+    <div class="rider-profile-actions-grid">
         @if($riderPendingDeletion)
         @include('delete_requests._pending_badge', ['model' => $riderModel])
         <span class="text-muted small">This record is locked pending delete approval.</span>
         @else
         @can('riders_rider_edit')
-        <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-outline-primary waves-effect waves-light">
-            <i class="fa fa-edit"></i>&nbsp;Edit Profile
+        <a href="{{ route('riders.edit', ['company_slug' => $companySlug, 'rider' => $result['id']]) }}" class="btn btn-sm btn-outline-primary waves-effect waves-light">
+            <i class="fa fa-edit"></i><span>Edit</span>
         </a>
         @endcan
         @can('email_create')
         <a href="javascript:void(0);" data-action="{{ route('rider.sendemail', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md"
             data-title="{{ $result['name'] . ' (' . $result['rider_id'] . ')' }}"
-            class="btn btn-outline-warning show-modal text-nowrap">
-            <i class="fas fa-envelope"></i>&nbsp;Send Email
+            class="btn btn-sm btn-outline-warning show-modal text-nowrap">
+            <i class="fas fa-envelope"></i><span>Email</span>
         </a>
         @endcan
         @can('riders_timeline_create')
-        <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md" data-title="Add Timeline" class="btn btn-outline-success text-nowrap show-modal">
-            <i class="fas fa-chart-bar"></i>&nbsp;Add Timeline
+        <a href="javascript:void(0);" data-action="{{ route('rider.job_status', ['company_slug' => $companySlug, 'id' => $result['id']]) }}" data-size="md" data-title="Add Timeline" class="btn btn-sm btn-outline-success text-nowrap show-modal">
+            <i class="fas fa-chart-bar"></i><span>Timeline</span>
         </a>
         @endcan
         @if(!empty($visibleProfileVoucherTypes))
         <div class="action-dropdown-container rider-profile-voucher-dropdown">
-            <button type="button" class="btn btn-outline-secondary text-nowrap" id="riderProfileVoucherBtn">
-                <i class="ti ti-file-invoice"></i>&nbsp;Vouchers
+            <button type="button" class="btn btn-sm btn-outline-secondary text-nowrap w-100" id="riderProfileVoucherBtn">
+                <i class="ti ti-file-invoice"></i><span>Vouchers</span>
                 <i class="ti ti-chevron-up ms-1"></i>
             </button>
             <div class="action-dropdown-menu" id="riderProfileVoucherDropdown">
@@ -102,6 +102,42 @@ $visibleProfileVoucherTypes[$code] = $label;
     </div>
 </div>
 <style>
+    .rider-profile-actions {
+        padding: 0.65rem 0.75rem !important;
+    }
+
+    .rider-profile-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.4rem;
+        align-items: stretch;
+        width: 100%;
+        max-width: 420px;
+    }
+
+    .rider-profile-actions-grid > .btn,
+    .rider-profile-actions-grid > .rider-profile-voucher-dropdown {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .rider-profile-actions-grid .btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+        padding: 0.3rem 0.45rem !important;
+        font-size: 0.68rem !important;
+        font-weight: 600 !important;
+        line-height: 1.2 !important;
+        white-space: nowrap;
+    }
+
+    .rider-profile-actions-grid .btn i {
+        font-size: 0.75rem;
+        margin: 0 !important;
+    }
+
     /* Keep menu above page cards; fixed positioning avoids footer overflow clipping */
     .rider-profile-voucher-dropdown .action-dropdown-menu {
         position: fixed;

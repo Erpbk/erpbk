@@ -431,7 +431,16 @@ $payeeFontSize = $payeeLen > 36
         </div>
         @endunless
 
-        @if($showSignature)
+        @php
+            $configuredSignatureSlots = collect($signatureSlots ?? []);
+        @endphp
+        @if($configuredSignatureSlots->isNotEmpty())
+            @include('vouchers.partials.signature_block', [
+                'signatureSlots' => $configuredSignatureSlots,
+                'signatureVariant' => 'rpv',
+                'signaturePerRow' => 4,
+            ])
+        @elseif($showSignature)
         <table class="rpv-sigs" width="100%" cellpadding="0" cellspacing="0">
             <tr>
                 <td class="rpv-sig">

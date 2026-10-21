@@ -1786,14 +1786,25 @@ class RidersController extends AppBaseController
 
     $data = $query->orderBy('date', 'desc')->get();
 
-    // Calculate totals from database
+    // Match Valid Day badge logic used in the activities table.
+    $dayStatus = static function ($item): string {
+      $orders = (float) ($item->delivered_orders ?? 0);
+      $hours = (float) ($item->login_hr ?? 0);
+      if ($hours == 0.0) {
+        return 'off';
+      }
+      if (($orders >= 5 && $hours >= 10) || ($orders >= 10)) {
+        return 'valid';
+      }
+
+      return 'invalid';
+    };
+
     $totals = [
       'working_days' => $data->count(),
-      'valid_days' => $data->where('delivery_rating', 'Yes')->count(),
-      'invalid_days' => $data->where('delivery_rating', 'No')->count(),
-      'off_days' => $data->filter(function ($item) {
-        return $item->delivery_rating != 'Yes' && $item->delivery_rating != 'No';
-      })->count(),
+      'valid_days' => $data->filter(fn ($item) => $dayStatus($item) === 'valid')->count(),
+      'invalid_days' => $data->filter(fn ($item) => $dayStatus($item) === 'invalid')->count(),
+      'off_days' => $data->filter(fn ($item) => $dayStatus($item) === 'off')->count(),
       'total_orders' => $data->sum('delivered_orders'),
       'total_rejected' => $data->sum('rejected_orders'),
       'total_hours' => $data->sum('login_hr'),

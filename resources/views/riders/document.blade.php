@@ -3,10 +3,12 @@
 @section('page_content')
 @php
   $checklist = $checklist ?? [];
+  $allFiles = collect($files ?? []);
   $uploadedCount = isset($uploadedCount) ? (int) $uploadedCount : collect($checklist)->where('status', 'complete')->count();
   $pendingCount = isset($pendingCount) ? (int) $pendingCount : collect($checklist)->whereIn('status', ['missing', 'partial'])->count();
   $expiringCount = 0;
   $expiredCount = 0;
+  $checklistFileIds = [];
   foreach ($checklist as $row) {
     $checkFiles = array_filter([
       $row['file'] ?? null,
@@ -14,6 +16,9 @@
       $row['back_file'] ?? null,
     ]);
     foreach ($checkFiles as $f) {
+      if (!empty($f->id)) {
+        $checklistFileIds[] = (int) $f->id;
+      }
       $meta = \App\Support\RiderDocumentReplacement::expiryMetaForFile($f, $riders);
       $status = $meta['status'] ?? 'none';
       if (in_array($status, ['expired'], true)) {
@@ -23,24 +28,36 @@
       }
     }
   }
+  $extraFiles = $allFiles->filter(function ($f) use ($checklistFileIds) {
+    return !in_array((int) ($f->id ?? 0), $checklistFileIds, true);
+  })->values();
+  foreach ($extraFiles as $f) {
+    $meta = \App\Support\RiderDocumentReplacement::expiryMetaForFile($f, $riders);
+    $status = $meta['status'] ?? 'none';
+    if (in_array($status, ['expired'], true)) {
+      $expiredCount++;
+    } elseif (in_array($status, ['expiring', 'critical', 'warning'], true)) {
+      $expiringCount++;
+    }
+  }
 @endphp
 
 <div class="card-action mb-0">
   @can('riders_documents_view')
   <div class="card rider-docs-card mb-4">
     <div class="card-header rider-docs-header border-bottom">
-      <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 w-100">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 w-100">
         <div class="min-w-0">
-          <div class="d-flex align-items-center gap-2 mb-1">
+          <div class="d-flex align-items-center gap-2">
             <span class="rider-docs-icon">
               <i class="ti ti-folder-open"></i>
             </span>
-            <div>
-              <h5 class="mb-0 fw-semibold">Documents</h5>
-              <div class="text-muted small">Configured rider documents — upload from checklist</div>
+            <div class="min-w-0">
+              <h5 class="mb-0 fw-semibold rider-docs-title">Documents</h5>
+              <div class="text-muted rider-docs-subtitle">Checklist uploads and additional documents by name</div>
             </div>
           </div>
-          <div class="d-flex flex-wrap gap-2 mt-3">
+          <div class="d-flex flex-wrap gap-1 mt-2">
             <span class="rider-docs-stat">
               <span class="rider-docs-stat-dot is-uploaded"></span>
               <strong>{{ $uploadedCount }}</strong> complete
@@ -49,6 +66,12 @@
               <span class="rider-docs-stat-dot is-pending"></span>
               <strong>{{ $pendingCount }}</strong> pending
             </span>
+            @if($extraFiles->isNotEmpty())
+            <span class="rider-docs-stat">
+              <span class="rider-docs-stat-dot is-uploaded"></span>
+              <strong>{{ $extraFiles->count() }}</strong> other
+            </span>
+            @endif
             @if($expiringCount > 0)
             <span class="rider-docs-stat">
               <span class="rider-docs-stat-dot is-expiring"></span>
@@ -64,7 +87,7 @@
           </div>
         </div>
 
-        <div class="d-flex flex-wrap align-items-center gap-2 ms-auto">
+        <div class="d-flex flex-wrap align-items-center gap-2 ms-auto rider-docs-toolbar">
           <div class="rider-docs-search input-group input-group-sm">
             <span class="input-group-text bg-white border-end-0">
               <i class="ti ti-search text-muted"></i>
@@ -72,12 +95,22 @@
             <input type="text"
               class="form-control border-start-0"
               id="file-search"
-              placeholder="Search documents..."
+              placeholder="Search..."
               autocomplete="off">
             <button class="btn btn-outline-secondary" type="button" id="clear-search" title="Clear search">
               <i class="ti ti-x"></i>
             </button>
           </div>
+
+          @can('riders_documents_create')
+          <a class="btn btn-sm btn-primary show-modal rider-docs-upload-btn"
+            href="javascript:void(0);"
+            data-action="{{ route('files.create', ['type_id' => $riders->id, 'type' => 'rider']) }}"
+            data-size="lg"
+            data-title="Add Document">
+            <i class="ti ti-plus me-1"></i>Add Document
+          </a>
+          @endcan
         </div>
       </div>
     </div>
@@ -206,14 +239,92 @@
             </td>
           </tr>
           @empty
+          @if($extraFiles->isEmpty())
           <tr>
             <td colspan="6" class="text-center py-5">
               <i class="ti ti-folder-off fs-2 text-muted d-block mb-2"></i>
               <div class="fw-medium">No document types configured</div>
-              <div class="text-muted small">Add document types in Rider Document Settings</div>
+              <div class="text-muted small mb-3">Add document types in Rider Document Settings, or upload a document by name</div>
+              @can('riders_documents_create')
+              <a class="btn btn-sm btn-primary show-modal rider-docs-upload-btn"
+                href="javascript:void(0);"
+                data-action="{{ route('files.create', ['type_id' => $riders->id, 'type' => 'rider']) }}"
+                data-size="lg"
+                data-title="Add Document">
+                <i class="ti ti-plus me-1"></i>Add Document
+              </a>
+              @endcan
             </td>
           </tr>
+          @endif
           @endforelse
+
+          @foreach($extraFiles as $riderFile)
+          @php
+            $docBadge = \App\Support\RiderDocumentReplacement::expiryMetaForFile($riderFile, $riders);
+            $displayName = ucwords(str_replace('_', ' ', (string) ($riderFile->name ?? 'Document')));
+            $fileUrl = storage_url($riderFile->type . '/' . $riderFile->type_id . '/' . $riderFile->file_name);
+            $ext = strtolower((string) ($riderFile->file_type ?? pathinfo((string) $riderFile->file_name, PATHINFO_EXTENSION)));
+            $iconClass = match (true) {
+              in_array($ext, ['pdf'], true) => 'ti-file-type-pdf text-danger',
+              in_array($ext, ['doc', 'docx'], true) => 'ti-file-type-doc text-primary',
+              in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true) => 'ti-photo text-success',
+              default => 'ti-file-text text-secondary',
+            };
+          @endphp
+          <tr class="file-row is-complete" data-name="{{ strtolower($displayName . ' ' . ($riderFile->name ?? '')) }}">
+            <td class="row-counter text-center text-muted">{{ $counter++ }}</td>
+            <td class="text-start">
+              <div class="d-flex align-items-center gap-2">
+                <span class="rider-docs-file-icon">
+                  <i class="ti {{ $iconClass }}"></i>
+                </span>
+                <div class="min-w-0">
+                  <a href="{{ $fileUrl }}" target="_blank" rel="noopener" class="rider-docs-name fw-medium">
+                    {{ $displayName }}
+                  </a>
+                  <div class="text-muted small">
+                    Additional document
+                    @if(!empty($riderFile->updated_at))
+                      · {{ \App\Helpers\General::DateFormat($riderFile->updated_at) }}
+                    @endif
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-label-secondary">Other</span>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-label-success">Uploaded</span>
+            </td>
+            <td class="text-center">
+              @include('riders._document_expiry_badge', ['badge' => $docBadge])
+            </td>
+            <td class="text-end">
+              <div class="rider-docs-actions d-inline-flex align-items-center justify-content-end gap-1">
+                @if(auth()->user()?->can('riders_documents_edit') || auth()->user()?->can('riders_documents_create') || auth()->user()?->can('documents_edit'))
+                <a class="btn btn-sm btn-outline-primary show-modal"
+                  href="javascript:void(0);"
+                  data-action="{{ route('files.edit', $riderFile->id) }}"
+                  data-size="lg"
+                  data-title="Edit Document"
+                  title="Edit">
+                  <i class="ti ti-edit"></i>
+                </a>
+                @endif
+                @can('riders_documents_delete')
+                <a href="javascript:void(0);"
+                  data-url="{{ route('files.destroy', $riderFile->id) }}"
+                  class="btn btn-sm btn-outline-danger delete-file"
+                  title="Delete">
+                  <i class="ti ti-trash"></i>
+                </a>
+                @endcan
+              </div>
+            </td>
+          </tr>
+          @endforeach
         </tbody>
       </table>
 
@@ -241,6 +352,35 @@
 
 <script type="text/javascript">
   $(document).ready(function() {
+    $(document).on('click', '.delete-file', function(e) {
+      e.preventDefault();
+      const url = $(this).data('url');
+      if (!url) return;
+
+      Swal.fire({
+        title: 'Delete document?',
+        text: 'This cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, delete it'
+      }).then((result) => {
+        if (!result.isConfirmed) return;
+        $.ajax({
+          url: url,
+          type: 'DELETE',
+          data: { _token: '{{ csrf_token() }}' },
+          success: function() {
+            Swal.fire('Deleted!', 'Document has been deleted.', 'success').then(() => location.reload());
+          },
+          error: function() {
+            Swal.fire('Error!', 'Failed to delete document.', 'error');
+          }
+        });
+      });
+    });
+
     $(document).on('click', '.delete-doc-type', function(e) {
       e.preventDefault();
       const ids = String($(this).data('ids') || '').split(',').filter(Boolean);
@@ -330,13 +470,13 @@
 
   .rider-docs-header {
     background: #fff;
-    padding: 1.15rem 1.25rem;
+    padding: 0.85rem 1rem;
   }
 
   .rider-docs-icon {
-    width: 2.35rem;
-    height: 2.35rem;
-    border-radius: 0.65rem;
+    width: 1.85rem;
+    height: 1.85rem;
+    border-radius: 0.45rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -346,24 +486,34 @@
   }
 
   .rider-docs-icon i {
-    font-size: 1.15rem;
+    font-size: 0.95rem;
+  }
+
+  .rider-docs-title {
+    font-size: 1rem;
+    line-height: 1.2;
+  }
+
+  .rider-docs-subtitle {
+    font-size: 0.72rem;
+    line-height: 1.25;
   }
 
   .rider-docs-stat {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.28rem 0.65rem;
+    gap: 0.3rem;
+    padding: 0.15rem 0.45rem;
     border-radius: 999px;
     background: #f8fafc;
     border: 1px solid #eef2f7;
     color: #475569;
-    font-size: 0.78rem;
+    font-size: 0.7rem;
   }
 
   .rider-docs-stat-dot {
-    width: 0.45rem;
-    height: 0.45rem;
+    width: 0.4rem;
+    height: 0.4rem;
     border-radius: 50%;
     background: #94a3b8;
   }
@@ -373,9 +523,36 @@
   .rider-docs-stat-dot.is-expiring { background: #f97316; }
   .rider-docs-stat-dot.is-expired { background: #ef4444; }
 
+  .rider-docs-toolbar {
+    flex-shrink: 0;
+  }
+
   .rider-docs-search {
-    min-width: 220px;
-    max-width: 280px;
+    width: 180px;
+    min-width: 160px;
+    max-width: 200px;
+  }
+
+  .rider-docs-search .form-control,
+  .rider-docs-search .input-group-text,
+  .rider-docs-search .btn {
+    height: 1.85rem;
+    min-height: 1.85rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  .rider-docs-search .input-group-text {
+    padding-left: 0.5rem;
+    padding-right: 0.35rem;
+    border-color: #ced4da;
+  }
+
+  .rider-docs-search .form-control {
+    padding-left: 0.25rem;
+    padding-right: 0.5rem;
   }
 
   .rider-docs-search .form-control:focus {
@@ -383,8 +560,17 @@
     border-color: #ced4da;
   }
 
-  .rider-docs-search .input-group-text {
-    border-color: #ced4da;
+  .rider-docs-search .btn {
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rider-docs-search .btn i,
+  .rider-docs-search .input-group-text i {
+    font-size: 0.85rem;
   }
 
   .rider-docs-table thead th {
@@ -475,10 +661,44 @@
     background: #fff;
   }
 
+  .rider-docs-upload-btn {
+    white-space: nowrap;
+    float: none;
+    margin: 0;
+    height: 1.85rem;
+    min-height: 1.85rem;
+    padding: 0 0.65rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.375rem;
+    position: static;
+    overflow: visible;
+  }
+
+  .rider-docs-upload-btn::before {
+    display: none;
+  }
+
+  .rider-docs-upload-btn i {
+    font-size: 0.85rem;
+  }
+
   @media (max-width: 576px) {
     .rider-docs-search {
+      width: 100%;
       min-width: 100%;
       max-width: 100%;
+    }
+
+    .rider-docs-upload-btn {
+      width: 100%;
+    }
+
+    .rider-docs-toolbar {
+      width: 100%;
     }
   }
 </style>

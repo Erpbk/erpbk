@@ -6,6 +6,7 @@
     'name' => 'not-set',
     'subtitle' => null,
     'photo' => null,
+    'showAvatar' => true,
     'editUrl' => null,
     'editHref' => null,
     'editTitle' => 'Edit',
@@ -15,7 +16,7 @@
     'sectionTitle' => 'Basic Information',
 ])
 
-<div class="card entity-view-card mb-6">
+<div {{ $attributes->class(['card entity-view-card mb-6', 'entity-view-card--no-avatar' => ! $showAvatar]) }}>
     <div class="user-avatar-section">
         <div class="entity-view-card-hero">
             @if($editHref)
@@ -39,6 +40,7 @@
                 <span @if($statusId) id="{{ $statusId }}" @endif class="entity-view-card-active {{ $isActive ? '' : 'is-inactive' }} {{ $statusClass }}">{{ $statusLabel }}</span>
                 {{ $statusExtra ?? '' }}
             </div>
+            @if($showAvatar)
             <div class="entity-view-card-photo-wrap">
                 @if($photo)
                     <img src="{{ $photo }}" id="output" class="entity-view-card-photo" alt="{{ $name }}" />
@@ -49,6 +51,7 @@
                     </div>
                 @endif
             </div>
+            @endif
         </div>
         <div class="card-body pt-3">
             <div class="user-info text-center mb-3">

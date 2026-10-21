@@ -4,35 +4,38 @@
         $fn = $item->kind === 'fixed' ? $item->field_key : ('cf_' . $item->field->id);
         return field_visible('bike', (string) $fn);
     });
+    $showMulkiyaActions = $loop->first;
 @endphp
 @if($rfpGroupVisible)
-<div class="col-12">
+<div class="col-12 bike-info-group">
     <div class="card border mb-4">
-        <div class="card-header d-flex align-items-center justify-content-between flex-wrap ps-2">
+        <div class="card-header bike-category-header">
             <b>{{ $group->category->label }}</b>
-            <div class="d-flex align-items-center ms-auto">
+            @if($showMulkiyaActions)
+            <div class="bike-category-header-actions">
                 @php
                 $mulkiyaAuthorized = auth()->user()->can('bikes_documents_create');
                 @endphp
                 @if($mulkiyaFile)
-                <a href="{{ storage_url($mulkiyaFile->type . '/' . $mulkiyaFile->type_id . '/' . $mulkiyaFile->file_name) }}" target="_blank" class="btn btn-light btn-sm">
-                    <i class="ti ti-download"></i> Mulkiya
+                <a href="{{ storage_url($mulkiyaFile->type . '/' . $mulkiyaFile->type_id . '/' . $mulkiyaFile->file_name) }}" target="_blank" class="btn btn-light bike-header-btn">
+                    <i class="ti ti-download"></i><span>Mulkiya</span>
                 </a>
                 @elseif($mulkiyaAuthorized)
-                <a class="btn btn-light btn-sm show-modal"
+                <a class="btn btn-light bike-header-btn show-modal"
                     href="javascript:void(0);"
                     data-action="{{ route('files.create', ['type_id' => $bikes->id, 'type' => 'bike', 'suggested_name' => 'Mulkiya']) }}"
                     data-size="sm"
                     data-title="Upload File">
-                    <i class="ti ti-upload"></i> Upload Mulkiya
+                    <i class="ti ti-upload"></i><span>Upload</span>
                 </a>
                 @else
-                <span class="small text-white-50">No Mulkiya</span>
+                <span class="bike-header-muted">No Mulkiya</span>
                 @endif
             </div>
+            @endif
         </div>
         <div class="card-body">
-            <div class="row">
+            <div class="row bike-info-fields">
                 @php
                 $isNoteOrDetailField = function ($item) {
                     $key = strtolower((string) ($item->field_key ?? ''));

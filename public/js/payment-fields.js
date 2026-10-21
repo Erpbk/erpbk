@@ -187,6 +187,8 @@
         $billingGroup.hide();
         $billingInput.prop('required', false);
       }
+
+      lockRiderPrimaryPaymentAmount();
     }
 
     /**
@@ -498,13 +500,34 @@
         return;
       }
 
-      // Create mode: raise primary amount to cover invoice lines, never lower it.
-      if (total > existing + 0.009) {
-        applyPrimaryAmountDisplay(total);
-      } else {
-        applyPrimaryAmountDisplay(existing);
-      }
+      // Create mode: keep the top Payment Amount in sync with table line totals.
+      applyPrimaryAmountDisplay(total);
       validatePaymentDistribution();
+    }
+
+    function applySignedAmountClass($el, amount) {
+      if (!$el || !$el.length) {
+        return;
+      }
+      $el.removeClass('text-success text-danger is-positive is-negative');
+      if (amount < -0.009) {
+        $el.addClass('text-danger is-negative');
+      } else {
+        $el.addClass('text-success is-positive');
+      }
+    }
+
+    function lockRiderPrimaryPaymentAmount() {
+      if (!isRiderOnlyPayment) {
+        return;
+      }
+      var $amount = $ctx.find('#payment_amount');
+      // Salary/invoice payments: amount comes from the table. Advance: user types it.
+      if (isPaymentCreateType() || (!$ctx.find('#create_payment_type').length && $ctx.find('#invoices-table').length)) {
+        $amount.prop('readonly', true).attr('readonly', 'readonly').addClass('bg-light');
+      } else {
+        $amount.prop('readonly', false).removeAttr('readonly').removeClass('bg-light');
+      }
     }
 
     function resolvePayeeLedgerBalance() {
@@ -677,6 +700,9 @@
         remaining = parseFloat(breakdown.payable) || 0;
       }
       $ctx.find('#rider_balance_due').text(remaining.toFixed(2));
+      applySignedAmountClass($ctx.find('.rpf-balance-due'), remaining);
+      applySignedAmountClass($ctx.find('#rider_balance_due'), remaining);
+
       $ctx.find('#rider_ledger_due').text(resolvePayeeLedgerBalance().toFixed(2));
 
       // Cap primary payment amount to invoice TOTAL AMOUNT (not remaining).
@@ -907,7 +933,7 @@
       }
     });
 
-    $ctx.on('keyup.paymentFields change.paymentFields', '.payment-amount', function () {
+    $ctx.on('keyup.paymentFields change.paymentFields input.paymentFields', '.payment-amount', function () {
       var enteredAmount = parseFloat($(this).val()) || 0;
       var paymentAmount = parseFloat($ctx.find('#payment_amount').val()) || 0;
       var total = updateTotalPayment();
@@ -947,6 +973,9 @@
       validatePaymentDistribution();
       if (isRiderPayment && !isAdvanceLoanType()) {
         syncRiderPaymentAmountFromInvoices();
+      }
+      if (isRiderOnlyPayment) {
+        updateRiderBalanceDueDisplay();
       }
     });
 
@@ -1032,6 +1061,7 @@
     });
 
     setTimeout(function () {
+      lockRiderPrimaryPaymentAmount();
       applyCreatePaymentTypeUi();
       var $payeeSelect = $ctx.find('#payee_account_id, [name="payee_account_id"]');
       if ($payeeSelect.val() || isRiderPayment) {
@@ -1061,6 +1091,7 @@
       }
       // After all invoice sync, put the DB primary amount back on edit.
       restoreSavedPrimaryAmount();
+      lockRiderPrimaryPaymentAmount();
     }, 100);
   };
 

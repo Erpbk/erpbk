@@ -1,48 +1,97 @@
 @extends('riders.view')
 @section('page_content')
 <style>
-  /* Totals cards */
+  .rider-activities-page .card-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    background: #e3e4f9 !important;
+    border-bottom: 1px solid #d8daf0 !important;
+    padding: 0.55rem 0.85rem !important;
+  }
+
+  .rider-activities-page .card-action-title {
+    margin: 0 !important;
+    font-size: 0.72rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.45px;
+    text-transform: uppercase;
+    color: var(--company-brand-primary, #4338ca) !important;
+  }
+
+  .rider-activities-page .card-action-title i {
+    font-size: 0.95rem !important;
+    color: inherit !important;
+  }
+
+  .rider-activities-toolbar {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+
+  .rider-activities-toolbar .form-control {
+    min-height: 1.7rem;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.72rem;
+    width: auto;
+  }
+
+  .rider-activities-toolbar .btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.5rem !important;
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    min-height: 1.7rem;
+    border-radius: 0.35rem !important;
+  }
+
   .totals-cards {
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.45rem;
   }
 
   .total-card {
-    flex: 1 1 0;
     background: #fff;
     border: 1px solid #e5e7eb;
-    border-left-width: 4px;
-    border-radius: 8px;
-    padding: 8px 10px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    border-left-width: 3px;
+    border-radius: 0.5rem;
+    padding: 0.45rem 0.55rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    min-width: 0;
   }
 
   .total-card .label {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
+    font-size: 0.62rem;
     text-transform: uppercase;
     letter-spacing: .3px;
     color: #6b7280;
-    margin-bottom: 4px;
+    margin-bottom: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .total-card .label i {
-    font-size: 11px;
+    font-size: 0.7rem;
   }
 
   .total-card .value {
-    font-size: 16px;
+    font-size: 0.95rem;
     font-weight: 700;
     color: #111827;
-  }
-
-  .total-card .sub {
-    font-size: 11px;
-    color: #9ca3af;
-    margin-top: 2px;
+    line-height: 1.2;
   }
 
   .total-delivered {
@@ -70,71 +119,118 @@
     background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), rgba(245, 158, 11, 0.02));
   }
 
-  /* Table header bold */
-  #dataTableBuilder thead th,
-  #dataTableBuilder tfoot th {
-    font-weight: bold;
+  .rider-activities-page #dataTableBuilder {
+    margin-bottom: 0;
+  }
+
+  .rider-activities-page #dataTableBuilder thead th,
+  .rider-activities-page #dataTableBuilder tfoot th {
+    font-weight: 700;
+    font-size: 0.72rem;
+    white-space: nowrap;
+    padding: 0.45rem 0.35rem;
+    vertical-align: middle;
+  }
+
+  .rider-activities-page #dataTableBuilder tbody td {
+    padding: 0.4rem 0.35rem;
+    vertical-align: middle;
+    font-size: 0.78rem;
+  }
+
+  .rider-activities-page #dataTableBuilder tbody tr + tr td {
+    border-top: 1px solid #eef0f3;
+  }
+
+  .rider-activities-page .badge {
+    font-size: 0.65rem;
+    padding: 0.2rem 0.4rem;
+  }
+
+  .rider-activities-page .status-cell {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    line-height: 1.15;
+  }
+
+  .rider-activities-page .status-cell small {
+    font-size: 0.62rem;
+  }
+
+  @media (max-width: 1199.98px) {
+    .totals-cards {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 767.98px) {
+    .totals-cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 </style>
-<div class="card card-action mb-0">
-  <div class="card-header align-items-center d-flex justify-content-between">
-    <h5 class="card-action-title mb-0"><i class="ti ti-calendar-check ti-lg text-body me-2"></i>Activities</h5>
-    <div class="d-flex align-items-center gap-2">
+<div class="card card-action mb-0 rider-activities-page">
+  <div class="card-header">
+    <h5 class="card-action-title mb-0"><i class="ti ti-calendar-check me-1"></i>Activities</h5>
+    <div class="rider-activities-toolbar">
       <form action="" method="get" class="mb-0">
-        <input type="month" name="month" value="{{request('month')??date('Y-m')}}" class="form-control" onchange="form.submit();" />
+        <input type="month" name="month" value="{{ request('month') ?? date('Y-m') }}" class="form-control" onchange="this.form.submit();" />
       </form>
       <a href="{{ route('riders.activities.pdf', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')]) }}"
-        class="btn btn-sm btn-primary" style="padding: 1px 12px 1px 0px;" target="_blank">
-        <i class="fa fa-file-pdf"></i> Download PDF
+        class="btn btn-sm btn-primary" target="_blank">
+        <i class="fa fa-file-pdf"></i> PDF
       </a>
       <a href="{{ route('riders.activities.print', ['id' => $filters['rider_id'], 'month' => request('month') ?? date('Y-m')]) }}"
-        class="btn btn-sm btn-info" style="padding: 1px 12px 1px 0px;" target="_blank">
+        class="btn btn-sm btn-info" target="_blank">
         <i class="fa fa-print"></i> Print
       </a>
     </div>
   </div>
-  <div class="card-body pt-0 px-2">
+  <div class="card-body pt-2 px-2">
     @push('third_party_stylesheets')
     @include('layouts.datatables_css')
     @endpush
-    <div class="card-body px-0 pt-0">
+    <div class="px-1 pt-0">
       <div id="totalsBar" class="mb-2">
         <div class="totals-cards">
           <div class="total-card total-delivered">
             <div class="label"><i class="fa fa-check-circle"></i> Working Days</div>
-            <div class="value" id="working_days">{{ $totals['working_days'] ?? 0 }}</div>
-          </div>
-          <div class="total-card total-rejected">
-            <div class="label"><i class="fa fa-times-circle"></i> Valid Days</div>
-            <div class="value" id="valid_days">{{ $totals['valid_days'] ?? 0 }}</div>
-          </div>
-          <div class="total-card total-hours">
-            <div class="label"><i class="fa fa-clock"></i> Invalid Days</div>
-            <div class="value" id="invalid_days">{{ $totals['invalid_days'] ?? 0 }}</div>
-          </div>
-          <div class="total-card total-ontime">
-            <div class="label"><i class="fa fa-percent"></i> Off Days</div>
-            <div class="value" id="off_days">{{ $totals['off_days'] ?? 0 }}</div>
+            <div class="value" id="working_days">{{ (int) ($totals['working_days'] ?? 0) }}</div>
           </div>
           <div class="total-card total-valid-days">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Orders</div>
-            <div class="value" id="total_orders">{{ number_format($totals['total_orders'] ?? 0) }}</div>
-          </div>
-          <div class="total-card total-ontime">
-            <div class="label"><i class="fa fa-calendar-check"></i>OnTime%</div>
-            <div class="value" id="avg_ontime">{{ number_format($totals['avg_ontime'] ?? 0, 2) }}%</div>
+            <div class="label"><i class="fa fa-calendar-check"></i> Valid Days</div>
+            <div class="value" id="valid_days">{{ (int) ($totals['valid_days'] ?? 0) }}</div>
           </div>
           <div class="total-card total-rejected">
-            <div class="label"><i class="fa fa-calendar-check"></i>Rejection</div>
-            <div class="value" id="total_rejected">{{ number_format($totals['total_rejected'] ?? 0) }}</div>
+            <div class="label"><i class="fa fa-times-circle"></i> Invalid Days</div>
+            <div class="value" id="invalid_days">{{ (int) ($totals['invalid_days'] ?? 0) }}</div>
+          </div>
+          <div class="total-card total-ontime">
+            <div class="label"><i class="fa fa-moon"></i> Off Days</div>
+            <div class="value" id="off_days">{{ (int) ($totals['off_days'] ?? 0) }}</div>
+          </div>
+          <div class="total-card total-valid-days">
+            <div class="label"><i class="fa fa-box"></i> Total Orders</div>
+            <div class="value" id="total_orders">{{ number_format((float) ($totals['total_orders'] ?? 0)) }}</div>
+          </div>
+          <div class="total-card total-ontime">
+            <div class="label"><i class="fa fa-percent"></i> OnTime%</div>
+            <div class="value" id="avg_ontime">{{ number_format((float) ($totals['avg_ontime'] ?? 0), 2) }}%</div>
+          </div>
+          <div class="total-card total-rejected">
+            <div class="label"><i class="fa fa-ban"></i> Rejection</div>
+            <div class="value" id="total_rejected">{{ number_format((float) ($totals['total_rejected'] ?? 0)) }}</div>
           </div>
           <div class="total-card total-hours">
-            <div class="label"><i class="fa fa-calendar-check"></i>Total Hours</div>
-            <div class="value" id="total_hours">{{ number_format($totals['total_hours'] ?? 0, 2) }}</div>
+            <div class="label"><i class="fa fa-clock"></i> Total Hours</div>
+            <div class="value" id="total_hours">{{ number_format((float) ($totals['total_hours'] ?? 0), 2) }}</div>
           </div>
         </div>
       </div>
-      <table id="dataTableBuilder" class="table table-striped dataTable text-center" width="100%">
+      <div class="table-responsive">
+      <table id="dataTableBuilder" class="table table-sm text-center mb-0" width="100%">
         <thead class="text-center">
           <tr role="row">
             <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-sort="descending" aria-label="Date: activate to sort column ascending">Date</th>
@@ -153,14 +249,25 @@
         </thead>
         <tbody>
           @foreach($data as $r)
+          @php
+            $rowOrders = (float) ($r->delivered_orders ?? 0);
+            $rowHours = (float) ($r->login_hr ?? 0);
+            if ($rowHours == 0.0) {
+              $rowDayType = 'off';
+            } elseif (($rowOrders >= 5 && $rowHours >= 10) || ($rowOrders >= 10)) {
+              $rowDayType = 'valid';
+            } else {
+              $rowDayType = 'invalid';
+            }
+          @endphp
           <tr class="text-center"
             data-delivered="{{ $r->delivered_orders ?? 0 }}"
             data-rejected="{{ $r->rejected_orders ?? 0 }}"
             data-hours="{{ $r->login_hr ?? 0 }}"
             data-ontime="{{ $r->ontime_orders_percentage ?? 0 }}"
-            data-valid="{{ $r->delivery_rating == 'Yes' ? 1 : 0 }}"
-            data-invalid="{{ $r->delivery_rating == 'No' ? 1 : 0 }}"
-            data-off="{{ ($r->delivery_rating != 'Yes' && $r->delivery_rating != 'No') ? 1 : 0 }}">
+            data-valid="{{ $rowDayType === 'valid' ? 1 : 0 }}"
+            data-invalid="{{ $rowDayType === 'invalid' ? 1 : 0 }}"
+            data-off="{{ $rowDayType === 'off' ? 1 : 0 }}">
             <td>{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</td>
             <td>{{ \Carbon\Carbon::parse($r->date)->format('l') }}</td>
             <td>{{ $r->d_rider_id }}</td>
@@ -192,10 +299,10 @@
             : 'Days in current status';
             @endphp
             <td class="text-center">
-              <div class="d-inline-flex flex-column align-items-center gap-1">
+              <div class="status-cell">
                 <span class="badge {{ $badgeClass }}">{{ $statusText }}</span>
                 @if($statusDaysInfo['days'] !== null)
-                <small class="text-muted lh-1" title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
+                <small class="text-muted" title="{{ $statusDaysTitle }}">{{ (int) $statusDaysInfo['days'] }} {{ (int) $statusDaysInfo['days'] === 1 ? 'day' : 'days' }}</small>
                 @endif
               </div>
             </td>
@@ -226,8 +333,7 @@
           @endforeach
         </tbody>
       </table>
-
-
+      </div>
     </div>
   </div>
 </div>

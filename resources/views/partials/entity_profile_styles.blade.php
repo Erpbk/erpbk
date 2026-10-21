@@ -97,11 +97,19 @@
   }
 
   .entity-view-card-section-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #1f2937;
+    display: block;
+    width: 100%;
     margin: 0 0 0.85rem;
-    letter-spacing: -.01em;
+    padding: 0.7rem 1.15rem;
+    background: #e3e4f9 !important;
+    border: 1px solid #d8daf0;
+    border-radius: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.45px;
+    text-transform: uppercase;
+    color: var(--company-brand-primary, #4338ca);
   }
 
   .entity-view-card-photo {
@@ -166,6 +174,32 @@
     padding-top: 3.85rem !important;
   }
 
+  .entity-view-card--no-avatar {
+    border-top: 3px solid #e3e4f9 !important;
+  }
+
+  .entity-view-card--no-avatar .entity-view-card-hero {
+    min-height: 0;
+    height: auto;
+    padding: 0.65rem 0.85rem 0.5rem;
+    align-items: flex-start;
+    background: #e3e4f9 !important;
+    border-bottom: 1px solid #d8daf0;
+  }
+
+  .entity-view-card--no-avatar .entity-view-card-hero::before {
+    display: none;
+  }
+
+  .entity-view-card--no-avatar .user-avatar-section>.card-body {
+    padding-top: 0.85rem !important;
+  }
+
+  .entity-view-card--no-avatar .entity-view-card-photo-wrap,
+  .entity-view-card--no-avatar .entity-view-card-photo-icon {
+    display: none !important;
+  }
+
   .entity-view-card .user-info h6 {
     font-size: 1.05rem;
     margin-bottom: 0.2rem;
@@ -180,12 +214,13 @@
 
   .entity-view-card .user_list {
     display: flex;
-    align-items: center;
-    gap: 0.7rem;
+    align-items: flex-start;
+    gap: 0.65rem;
     border: 0;
     background: transparent;
-    padding: 0.7rem 0;
+    padding: 0.45rem 0;
     margin: 0;
+    width: 100%;
   }
 
   .entity-view-card .user_list+.user_list {
@@ -193,12 +228,13 @@
   }
 
   .entity-view-card .user_list .icons {
-    flex: 0 0 2.35rem;
-    width: 2.35rem;
-    height: 2.35rem;
+    flex: 0 0 2.2rem;
+    width: 2.2rem;
+    height: 2.2rem;
+    margin-top: 1.15rem;
     border-radius: 50%;
-    background: #f1f5f9;
-    color: #64748b;
+    background: #e8f0fb;
+    color: #3b6fd9;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -213,62 +249,49 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
-    row-gap: 0.12rem;
+    row-gap: 0.22rem;
     flex: 1;
     min-width: 0;
   }
 
   .entity-view-card .user_list_content span {
-    color: #8b8d97;
-    font-size: 0.8125rem;
-    font-weight: 500;
+    color: #5b6b86;
+    font-size: 0.72rem;
+    font-weight: 600;
     line-height: 1.3;
+    letter-spacing: 0.01em;
+    text-align: left;
+    justify-self: start;
   }
 
-  .entity-view-card .user_list_content b,
-  .entity-view-card .user_list_content a {
-    color: #1f2937;
+  .entity-view-card .user_list_content b {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0.48rem 0.7rem;
+    background: #f4f7fb;
+    border: 1px solid #e3ebf5;
+    border-left: 3px solid #3b6fd9;
+    border-radius: 0.5rem;
+    color: #1e293b;
     font-weight: 700;
     font-size: 0.875rem;
-    line-height: 1.3;
-    text-decoration: none;
+    line-height: 1.35;
+    text-align: left;
+    justify-self: stretch;
     word-break: break-word;
+    box-sizing: border-box;
+  }
+
+  .entity-view-card .user_list_content b a {
+    color: inherit;
+    font-weight: inherit;
+    text-decoration: none;
   }
 
   .entity-view-card .user_list_content .is-phone,
   .entity-view-card .user_list_content .is-phone a {
     color: #2f6fed;
-  }
-
-  @media (max-width: 1600px) {
-    .entity-view-card .user_list {
-      align-items: flex-start;
-      width: 100%;
-    }
-
-    .entity-view-card .user_list .icons {
-      align-items: center;
-      padding-top: 0;
-    }
-
-    .entity-view-card .user_list_content {
-      grid-template-columns: minmax(0, 1fr);
-      align-items: stretch;
-      row-gap: 0.15rem;
-      width: 100%;
-    }
-
-    .entity-view-card .user_list_content span {
-      justify-self: start;
-      text-align: left;
-    }
-
-    .entity-view-card .user_list_content b,
-    .entity-view-card .user_list_content a {
-      justify-self: end;
-      text-align: right;
-      overflow-wrap: anywhere;
-    }
   }
 
   .entity-profile-tabs .nav-pills .nav-link {

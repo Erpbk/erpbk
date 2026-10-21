@@ -9,13 +9,14 @@
   $themePrimaryLight = $companyBrand['primary_light'] ?? '#f8fafc';
   $themePrimaryMuted = $companyBrand['primary_muted'] ?? $themePrimarySoft;
   $themeAccentSoft = $companyBrand['accent_soft'] ?? '#eef2ff';
-  $themeOnPrimary = $companyBrand['text_on_primary'] ?? '#ffffff';
+  // Always white button/on-primary text — never contrast-derived brand text color.
+  $themeOnPrimary = '#ffffff';
   $themeBorder = $companyBrand['border_color'] ?? $themePrimarySoft;
 @endphp
 <style id="company-brand-theme">
   /*
    * Beat Vuexy theme-default hardcoded #3c0cab primary accents with company brand colors.
-   * Semantic success/info/warning/danger buttons are left unchanged.
+   * Filled button label text is always white (not dynamic brand contrast color).
    */
   :root,
   [data-bs-theme="light"],
@@ -77,7 +78,7 @@
 
   .bg-label-hover-primary:hover {
     background-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   .bg-gradient-primary {
@@ -91,7 +92,7 @@
   .btn-primary.focus,
   .btn-primary.disabled,
   .btn-primary:disabled {
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
     background-color: {{ $themePrimary }} !important;
     border-color: {{ $themePrimary }} !important;
   }
@@ -103,9 +104,43 @@
   .btn-primary.active,
   .btn-primary.show.dropdown-toggle,
   .show > .btn-primary.dropdown-toggle {
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
     background-color: {{ $themeSecondary }} !important;
     border-color: {{ $themeSecondary }} !important;
+  }
+
+  /* Solid buttons: always white label text (no dynamic contrast color) */
+  .btn-success,
+  .btn-danger,
+  .btn-warning,
+  .btn-info,
+  .btn-dark,
+  .btn-secondary,
+  .btn-success:hover,
+  .btn-danger:hover,
+  .btn-warning:hover,
+  .btn-info:hover,
+  .btn-dark:hover,
+  .btn-secondary:hover,
+  .btn-success:focus,
+  .btn-danger:focus,
+  .btn-warning:focus,
+  .btn-info:focus,
+  .btn-dark:focus,
+  .btn-secondary:focus,
+  .btn-success:active,
+  .btn-danger:active,
+  .btn-warning:active,
+  .btn-info:active,
+  .btn-dark:active,
+  .btn-secondary:active,
+  .btn-success.active,
+  .btn-danger.active,
+  .btn-warning.active,
+  .btn-info.active,
+  .btn-dark.active,
+  .btn-secondary.active {
+    color: #ffffff !important;
   }
 
   .btn-group .btn-primary,
@@ -131,7 +166,7 @@
   .btn-outline-primary:active,
   .btn-outline-primary.active,
   .btn-outline-primary.dropdown-toggle.show {
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
     background-color: {{ $themePrimary }} !important;
     border-color: {{ $themePrimary }} !important;
   }
@@ -148,7 +183,7 @@
   .btn-label-primary.active,
   .btn-label-primary.show.dropdown-toggle,
   .show > .btn-label-primary.dropdown-toggle {
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
     background: {{ $themePrimary }} !important;
   }
 
@@ -171,7 +206,7 @@
   .pagination .page-item.active > .page-link {
     background-color: {{ $themePrimary }} !important;
     border-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   .page-link {
@@ -186,7 +221,7 @@
   .nav-pills .nav-link.active:hover,
   .nav-pills .nav-link.active:focus {
     background-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   .nav-tabs .nav-link.active,
@@ -202,7 +237,7 @@
   .dropdown-item.active,
   .dropdown-item:active {
     background-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   .dropdown-notifications-item:not(.mark-as-read) .dropdown-notifications-read span {
@@ -229,7 +264,7 @@
   button.list-group-item-primary.active {
     background-color: {{ $themePrimary }} !important;
     border-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   .table-primary {
@@ -293,7 +328,7 @@
   .select2-container--default .select2-results__option--highlighted[aria-selected],
   .select2-container--default .select2-results__option--highlighted[aria-selected]:hover {
     background-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   .select2-container--default.select2-container--focus .select2-selection--single,
@@ -320,7 +355,7 @@
   .dt-button.btn-primary {
     background-color: {{ $themePrimary }} !important;
     border-color: {{ $themePrimary }} !important;
-    color: {{ $themeOnPrimary }} !important;
+    color: #ffffff !important;
   }
 
   /* —— Dashboard / card bottom accent borders (Vuexy card-border-shadow-*) —— */

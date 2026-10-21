@@ -107,6 +107,7 @@ return [
         'employee_settings'  => 'Employee Settings',
         'bike_settings'      => 'Bike Settings',
         'voucher_settings'   => 'Voucher Settings',
+        'voucher_signature_assignment' => 'Voucher Signature Assignment',
         'vat_settings'       => 'VAT Settings',
         'account_fields'     => 'Account Fields',
     ],

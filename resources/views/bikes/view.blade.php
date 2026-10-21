@@ -5,863 +5,644 @@
 @push('third_party_stylesheets')
 <link href="https://fonts.googleapis.com/css2?family=Rockwell:wght@400;700&display=swap" rel="stylesheet">
 <style>
-    .bike-info-sidebar {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 24px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-        width: 100%;
-        max-width: 420px;
-        margin: 0 auto;
+  .bike-plate-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 0.75rem 0 0.35rem;
+  }
+
+  .number-plate {
+    display: inline-block;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'Rockwell', 'Rockwell Condensed', 'Bodoni MT', serif;
+    font-weight: bold;
+    text-align: center;
+    min-width: 160px;
+    max-width: 100%;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid #000;
+    background: linear-gradient(to bottom, #fff, #f0f0f0);
+    color: #000;
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .plate-arabic-corner,
+  .plate-bike-code-corner {
+    position: absolute;
+    top: 5px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1;
+    color: #000;
+    max-width: 40%;
+    word-break: break-word;
+  }
+
+  .plate-arabic-corner { left: 16px; text-align: left; }
+  .plate-bike-code-corner { right: 16px; text-align: right; text-transform: uppercase; }
+
+  .number-plate .plate-number {
+    font-size: 1.35rem;
+    letter-spacing: 1px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    font-weight: 800;
+    line-height: 1.2;
+  }
+
+  .number-plate .plate-emirate-english {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .bike-actions-compact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+    align-items: stretch;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eef0f3;
+  }
+
+  .bike-actions-compact .btn,
+  .bike-actions-compact .btn.btn-sm {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 100%;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.3rem 0.45rem !important;
+    font-size: 0.62rem !important;
+    font-weight: 600 !important;
+    line-height: 1.15 !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-radius: 0.35rem !important;
+  }
+
+  /* Odd last button spans full row so both columns stay aligned */
+  .bike-actions-compact .btn:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .bike-actions-compact .btn i {
+    font-size: 0.72rem !important;
+    margin: 0 !important;
+    flex: 0 0 auto;
+  }
+
+  .bike-info-section.card {
+    background: transparent;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .bike-info-section > .card,
+  .bike-info-section .card.card-action {
+    background: #fff !important;
+    border: 1px solid #d8daf0 !important;
+    border-top: 3px solid #e3e4f9 !important;
+    border-radius: 0.9rem;
+    box-shadow: 0 2px 14px rgba(16, 24, 40, 0.06);
+    overflow: hidden;
+  }
+
+  /* Section titles like voucher "PAID TO" banner (same as rider view) */
+  .bike-info-section .card-header,
+  .bike-info-section .card.card-action > .card-header,
+  .bike-info-section .card-action .card-header {
+    background: #e3e4f9 !important;
+    border-top: 0 !important;
+    border-bottom: 1px solid #d8daf0 !important;
+    border-radius: 0 !important;
+    padding: 0.7rem 1.15rem !important;
+    color: var(--company-brand-primary, #4338ca) !important;
+    font-size: 0.72rem !important;
+    margin: 0 !important;
+  }
+
+  .bike-info-section .card-header b,
+  .bike-info-section .card-action-title,
+  .bike-info-section h5.card-action-title {
+    display: block !important;
+    width: 100%;
+    margin: 0 !important;
+    font-weight: 700 !important;
+    font-size: 0.72rem !important;
+    line-height: 1.3 !important;
+    letter-spacing: 0.45px !important;
+    text-transform: uppercase !important;
+    color: var(--company-brand-primary, #4338ca) !important;
+  }
+
+  .bike-info-section .card-header b::before,
+  .bike-info-section .card-action-title::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .bike-info-section .bike-info-fields,
+  .bike-info-section .card-body > .row {
+    --bike-info-gap-x: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 0.85rem var(--bike-info-gap-x);
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .bike-info-section .bike-info-field,
+  .bike-info-section .card-body > .row > .form-group {
+    flex: 1 1 calc((100% - (3 * var(--bike-info-gap-x))) / 4);
+    width: auto;
+    max-width: 100%;
+    min-width: min(100%, max-content);
+    margin: 0;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .bike-info-section .bike-info-field.is-full-row,
+  .bike-info-section .card-body > .row > .form-group.col-md-12 {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .bike-info-section .form-group label,
+  .bike-info-section .bike-info-field label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600 !important;
+    color: #6b7280;
+    margin-bottom: 0.28rem;
+  }
+
+  .bike-info-section .form-group > p,
+  .bike-info-section .bike-info-field-value {
+    display: block;
+    width: 100%;
+    min-width: max-content;
+    max-width: 100%;
+    margin: 0;
+    padding: 0.5rem 0.75rem;
+    background: #f4f7fb;
+    border: 1px solid #e3ebf5;
+    border-left: 3px solid #3b6fd9;
+    border-radius: 0.55rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
+  }
+
+  .bike-profile-tabs .nav-pills .nav-link {
+    background: transparent !important;
+    border-radius: 0;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    box-shadow: none !important;
+  }
+
+  .bike-profile-tabs .nav-pills .nav-link.active {
+    color: #1e4b8e !important;
+    background: transparent !important;
+    border-bottom-color: #1e4b8e;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+    70% { transform: scale(1.02); box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  }
+
+  .bike-expiry-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .bike-expiry-badge.is-expired {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+    animation: pulse 1s infinite;
+  }
+
+  .bike-expiry-badge.is-expiring {
+    background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+    animation: pulse 1.5s infinite;
+  }
+
+  @media (max-width: 991.98px) {
+    .bike-info-section .bike-info-field,
+    .bike-info-section .card-body > .row > .form-group {
+      flex-basis: calc((100% - var(--bike-info-gap-x)) / 2);
+    }
+  }
+
+  @media (max-width: 575.98px) {
+    .bike-info-section .bike-info-field,
+    .bike-info-section .card-body > .row > .form-group {
+      flex-basis: 100%;
+      width: 100%;
+      min-width: 100%;
     }
 
-    .bike-header-compact {
-        text-align: center;
-        margin-bottom: 20px;
-        width: 100%;
-        overflow: hidden;
-    }
-
-    .vehicle-type {
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 12px;
-        line-height: 1.2;
-        word-break: break-word;
-    }
-
-    /* Number Plate Container */
-    .plate-container {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-        margin: 0 auto;
-        max-width: 100%;
-        overflow: hidden;
-    }
-
-    /* Number Plate Styles -style for all emirates */
-    .number-plate {
-        display: inline-block;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-family: 'Rockwell', 'Rockwell Condensed', 'Bodoni MT', serif;
-        font-weight: bold;
-        text-align: center;
-        min-width: 160px;
-        max-width: 90%;
-        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
-        border: 1px solid #000000;
-        background: linear-gradient(to bottom, #ffffff, #f0f0f0);
-        color: #000000;
-        box-sizing: border-box;
-        margin: 0 auto;
-        position: relative;
-    }
-
-    /* Arabic emirate name - top left corner */
-    .plate-arabic-corner {
-        position: absolute;
-        top: 5px;
-        left: 20px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        line-height: 1;
-        color: #000000;
-        font-family: 'Rockwell', 'Rockwell Condensed', 'Bodoni MT', serif;
-        text-align: left;
-        max-width: 40%;
-        word-break: break-word;
-    }
-
-    /* Vehicle code - top right corner */
-    .plate-bike-code-corner {
-        position: absolute;
-        top: 5px;
-        right: 20px;
-        font-size: 0.9rem;
-        color: #000000;
-        font-weight: 600;
-        line-height: 1;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        text-align: right;
-        max-width: 40%;
-        word-break: break-word;
-    }
-
-    .number-plate .plate-number {
-        font-size: 1.4rem;
-        letter-spacing: 1px;
-        margin-top: 12px;
-        /* Added margin for corner elements */
-        margin-bottom: 4px;
-        color: #000000;
-        font-weight: 800;
-        line-height: 1.2;
-        word-break: break-word;
-        overflow-wrap: break-word;
-    }
-
-    .number-plate .plate-emirate-english {
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        color: #000000;
-        font-weight: 600;
-        line-height: 1;
-        word-break: break-word;
-        overflow-wrap: break-word;
-    }
-
-    /* Default Plate Design */
-    .plate-default {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-        color: white;
-        border-color: #000000;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        display: inline-block;
-        max-width: 90%;
-        box-sizing: border-box;
-        margin: 0 auto;
-        word-break: break-word;
-    }
-
-    /* Basic Information Section - Matching rider profile style */
-    .basic-information {
-        margin-top: 20px;
-        width: 100%;
-        overflow: hidden;
-    }
-
-    .basic-information h3 {
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #dce1e6;
-    }
-
-    .info-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        width: 100%;
-    }
-
-    .info-item {
-        display: flex;
-        align-items: center;
-        margin-bottom: 6px;
-        padding-bottom: 10px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-
-    .info-icon {
-        width: 20px;
-        height: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 12px;
-        color: #6c757d;
-        font-size: 0.9rem;
-        flex-shrink: 0;
-    }
-
-    .info-content {
-        flex: 1;
-        min-width: 0;
-        text-align: start;
-        /* Prevents content overflow */
-    }
-
-    .info-label {
-        font-size: 0.875rem;
-        color: #6c757d;
-        display: block;
-        margin-bottom: 2px;
-        word-break: break-word;
-    }
-
-    .info-value {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #495057;
-        display: block;
-        word-break: break-word;
-        overflow-wrap: break-word;
-        line-height: 1.3;
-    }
-
-    .info-value.status-badge {
-        display: inline-block;
-        padding: 8px 14px;
-        border-radius: 8px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-align: center;
-        margin-top: 4px;
-        min-width: 100px;
-        max-width: 100%;
-    }
-
-    .status-badge.Active {
-        color: #059669;
-        background: #f0fdf4;
-        border: 1px solid #44bd97;
-    }
-
-    .status-badge.Return {
-        color: #ffc107;
-        background: #faf4de;
-        border: 1px solid #dbba56;
-    }
-
-    .status-badge.Absconded {
-        color: #dc2626;
-        background: #fef2f2;
-        border: 1px solid #d67676;
-    }
-
-    .status-badge.Vacation {
-        color: #0dcaf0;
-        background: #defafa;
-        border: 1px solid #84cbd9;
-    }
-
-    /* Default to gray if warehouse doesn't match specific names */
-    .status-badge.warehouse-default {
-        color: #41464b;
-        background: #e2e3e5;
-        border: 1px solid #c4c8cb;
-    }
-
-    /* Action Buttons */
     .bike-actions-compact {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        justify-content: center;
-        margin-top: 24px;
-        padding-top: 24px;
-        border-top: 2px solid #dce1e6;
-        width: 100%;
-        box-sizing: border-box;
+      grid-template-columns: 1fr;
     }
 
-    .btn-compact {
-        flex: 1;
-        min-width: 120px;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.6rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 6px;
-        transition: all 0.2s ease;
-        text-decoration: none;
-        border: 1px solid transparent;
-        cursor: pointer;
-        box-sizing: border-box;
-        max-width: 100%;
-        word-break: break-word;
+    .bike-actions-compact .btn:last-child:nth-child(odd) {
+      grid-column: auto;
     }
-
-    .btn-compact i {
-        font-size: 0.9rem;
-    }
-
-    .btn-edit-compact {
-        background: linear-gradient(135deg, #024baa 0%, #4f46e5 100%);
-        color: white;
-        border-color: #024baa;
-    }
-
-    .btn-edit-compact:hover {
-        background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-    }
-
-    .btn-assign-compact {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        color: white;
-        border-color: #10b981;
-    }
-
-    .btn-assign-compact:hover {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-    }
-
-    .btn-view-assignment {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        color: white;
-        border-color: #f59e0b;
-    }
-
-    .btn-view-assignment:hover {
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-        color: white;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-    }
-
-    .road-status-container {
-        text-align: center;
-        margin: 15px 0 20px 0;
-        width: 100%;
-    }
-
-    .road-status-container .status-days {
-        display: block;
-        margin-top: 4px;
-        font-size: 0.75rem;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .bike-info-sidebar {
-            padding: 20px 15px;
-            max-width: 100%;
-            border-radius: 10px;
-        }
-
-        .bike-header-compact {
-            padding-left: 5px;
-            padding-right: 5px;
-        }
-
-        .bike-actions-compact {
-            flex-direction: column;
-            gap: 6px;
-            /* Smaller gap on mobile */
-        }
-
-        .btn-compact {
-            min-width: 100%;
-            padding: 7px 10px;
-            /* Further reduced for mobile */
-            font-size: 0.8rem;
-        }
-
-        .vehicle-type {
-            font-size: 1.1rem;
-            /* Adjusted for mobile */
-        }
-
-        .number-plate {
-            min-width: 140px;
-            padding: 6px 10px;
-            max-width: 85%;
-        }
-
-        .plate-arabic-corner,
-        .plate-bike-code-corner {
-            font-size: 0.6rem;
-            top: 3px;
-        }
-
-        .plate-arabic-corner {
-            left: 6px;
-        }
-
-        .plate-bike-code-corner {
-            right: 6px;
-        }
-
-        .number-plate .plate-number {
-            font-size: 1.2rem;
-            margin-top: 10px;
-        }
-
-        .number-plate .plate-emirate-english {
-            font-size: 0.7rem;
-        }
-
-        .plate-default {
-            max-width: 85%;
-            padding: 6px 12px;
-        }
-
-        /* Mobile responsive for info items */
-        .info-item {
-            flex-wrap: wrap;
-        }
-
-        .info-icon {
-            width: 18px;
-            height: 18px;
-            font-size: 0.8rem;
-        }
-
-        .info-label {
-            font-size: 0.8rem;
-        }
-
-        .info-value {
-            font-size: 0.9rem;
-        }
-
-        .info-value.status-badge {
-            font-size: 0.9rem;
-            padding: 6px 12px;
-            min-width: 90px;
-        }
-    }
-
-    @media (min-width: 769px) and (max-width: 992px) {
-        .bike-info-sidebar {
-            max-width: 440px;
-        }
-
-        .number-plate {
-            min-width: 170px;
-            max-width: 85%;
-        }
-
-        .btn-compact {
-            min-width: 130px;
-            /* Adjusted for medium screens */
-        }
-    }
-
-    @media (min-width: 993px) {
-        .bike-info-sidebar {
-            max-width: 420px;
-        }
-
-        .number-plate {
-            min-width: 180px;
-            max-width: 85%;
-        }
-
-        .btn-compact {
-            min-width: 120px;
-            /* Adjusted for large screens */
-        }
-    }
-
-    @keyframes pulse {
-        0% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
-        }
-
-
-        70% {
-            transform: scale(1.02);
-            box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
-        }
-
-
-        100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
-        }
-    }
-
-    /* Extra small devices */
-    @media (max-width: 480px) {
-        .bike-info-sidebar {
-            padding: 15px 10px;
-        }
-
-        .vehicle-type {
-            font-size: 1.1rem;
-            /* Adjusted for mobile */
-        }
-
-        .number-plate {
-            min-width: 130px;
-            padding: 5px 8px;
-            max-width: 80%;
-        }
-
-        .plate-arabic-corner,
-        .plate-bike-code-corner {
-            font-size: 0.55rem;
-            top: 2px;
-        }
-
-        .plate-arabic-corner {
-            left: 5px;
-        }
-
-        .plate-bike-code-corner {
-            right: 5px;
-        }
-
-        .number-plate .plate-number {
-            font-size: 1.1rem;
-            margin-top: 8px;
-        }
-
-        .btn-compact {
-            padding: 6px 8px;
-            font-size: 0.75rem;
-        }
-
-        .btn-compact i {
-            font-size: 0.8rem;
-        }
-
-        .info-value.status-badge {
-            font-size: 0.85rem;
-            padding: 5px 10px;
-            min-width: 80px;
-        }
-    }
+  }
 </style>
 @endpush
 
 @section('content')
-<div class="row">
-    <div class="col-xl-3 col-md-3 col-lg-4 order-1 order-md-0">
-        <!-- Single container - no nested card -->
-        <div class="bike-info-sidebar">
-            <!-- Header with Model Type and Emirates -->
-            <div class="bike-header-compact">
-                <div class="vehicle-type">
-                    {{ $bikes->model_type ?? 'Vehicle' }}
-                </div>
-                <!-- Number Plate Display -->
-                @php
-                $emirateCode = strtolower(trim($bikes->emirates ?? ''));
-                $plateNumber = $bikes->plate ?? '00000';
-                $bikeCode = $bikes->bike_code ?? 'N/A';
+@include('partials.entity_profile_styles')
+<style>
+  /* Page-level overrides so Vuexy card/btn styles cannot win */
+  .bike-view-layout .entity-view-card--no-avatar {
+    border-top: 3px solid #e3e4f9 !important;
+  }
+  .bike-view-layout .entity-view-card--no-avatar .entity-view-card-hero {
+    background: #e3e4f9 !important;
+    min-height: 0 !important;
+    padding: 0.65rem 0.85rem 0.5rem !important;
+  }
+  .bike-view-layout .entity-view-card--no-avatar .entity-view-card-hero::before,
+  .bike-view-layout .entity-view-card--no-avatar .entity-view-card-photo-wrap,
+  .bike-view-layout .entity-view-card--no-avatar .entity-view-card-photo-icon {
+    display: none !important;
+  }
+  .bike-view-layout .entity-view-card-section-title {
+    background: #e3e4f9 !important;
+    text-transform: uppercase !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.45px !important;
+  }
+  .bike-info-section .card.card-action,
+  .bike-info-section > .card {
+    border: 1px solid #d8daf0 !important;
+    border-top: 3px solid #e3e4f9 !important;
+  }
+  .bike-info-section .card-header {
+    background: #e3e4f9 !important;
+  }
+  .bike-actions-compact {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.4rem !important;
+  }
+  .bike-actions-compact .btn {
+    width: 100% !important;
+    padding: 0.3rem 0.45rem !important;
+    font-size: 0.62rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
 
-                // Define emirate names in Arabic and English
-                $emiratesData = [
-                'dxb' => ['arabic' => 'دبي', 'english' => 'DUBAI'],
-                'auh' => ['arabic' => 'أبوظبي', 'english' => 'ABU DHABI'],
-                'shj' => ['arabic' => 'الشارقة', 'english' => 'SHARJAH'],
-                'rak' => ['arabic' => 'رأس الخــيمة', 'english' => 'RAS AL KHAIMAH'],
-                'fuj' => ['arabic' => 'الفجيرة', 'english' => 'FUJAIRAH'],
-                'ajm' => ['arabic' => 'عجمان', 'english' => 'AJMAN'],
-                'uaq' => ['arabic' => 'أم القيوين', 'english' => 'UMM AL QUWAIN'],
-                '-' => ['arabic' => 'غير محدد', 'english' => 'UNSPECIFIED'],
-                ];
+  .bike-info-section .bike-category-header,
+  .bike-info-section .card-header.bike-category-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+    background: #e3e4f9 !important;
+    border-bottom: 1px solid #d8daf0 !important;
+    padding: 0.45rem 0.85rem !important;
+    min-height: 2.1rem;
+  }
 
-                $currentEmirate = $emiratesData[$emirateCode] ?? $emiratesData['-'];
+  .bike-info-section .bike-category-header b {
+    margin: 0 !important;
+    flex: 1 1 auto;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-                // Map warehouse names to status classes
-                $warehouse = $bikes->warehouse ?? '';
-                $warehouseClass = 'warehouse-default';
+  .bike-category-header-actions {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
 
-                if (strtolower($warehouse) == 'active') {
-                $warehouseClass = 'Active';
-                } elseif (strtolower($warehouse) == 'return') {
-                $warehouseClass = 'Return';
-                } elseif (strtolower($warehouse) == 'absconded') {
-                $warehouseClass = 'Absconded';
-                } elseif (strtolower($warehouse) == 'vacation') {
-                $warehouseClass = 'Vacation';
-                }elseif (strtolower($warehouse) == 'inactive') {
-                $warehouseClass = 'Off Road';
-                }
-                @endphp
+  .bike-header-btn,
+  .bike-info-section .bike-header-btn.btn,
+  .bike-info-section .bike-header-btn.btn-sm {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.2rem;
+    padding: 0.15rem 0.4rem !important;
+    font-size: 0.62rem !important;
+    font-weight: 600 !important;
+    line-height: 1.15 !important;
+    border-radius: 0.3rem !important;
+    min-height: 0 !important;
+    white-space: nowrap;
+  }
 
+  .bike-header-btn i {
+    font-size: 0.7rem !important;
+    margin: 0 !important;
+  }
 
+  .bike-header-muted {
+    font-size: 0.62rem;
+    color: #64748b;
+    white-space: nowrap;
+  }
+</style>
+@php
+  $companySlug = request()->route('company_slug');
+  $emirateCode = strtolower(trim($bikes->emirates ?? ''));
+  $plateNumber = $bikes->plate ?? '00000';
+  $bikeCode = $bikes->bike_code ?? 'N/A';
+  $emiratesData = [
+    'dxb' => ['arabic' => 'دبي', 'english' => 'DUBAI'],
+    'auh' => ['arabic' => 'أبوظبي', 'english' => 'ABU DHABI'],
+    'shj' => ['arabic' => 'الشارقة', 'english' => 'SHARJAH'],
+    'rak' => ['arabic' => 'رأس الخــيمة', 'english' => 'RAS AL KHAIMAH'],
+    'fuj' => ['arabic' => 'الفجيرة', 'english' => 'FUJAIRAH'],
+    'ajm' => ['arabic' => 'عجمان', 'english' => 'AJMAN'],
+    'uaq' => ['arabic' => 'أم القيوين', 'english' => 'UMM AL QUWAIN'],
+    '-' => ['arabic' => 'غير محدد', 'english' => 'UNSPECIFIED'],
+  ];
+  $currentEmirate = $emiratesData[$emirateCode] ?? $emiratesData['-'];
+  $roadStatus = $bikes->road_status ?? ['label' => 'Unknown', 'class' => 'road-offroad', 'days' => null, 'title' => ''];
+  $roadLabel = (string) ($roadStatus['label'] ?? 'Unknown');
+  $roadLower = strtolower($roadLabel);
+  $isOnRoad = str_contains($roadLower, 'on road') || $roadLower === 'active';
+  $statusClass = $isOnRoad ? '' : (str_contains($roadLower, 'vacation') ? 'is-vacation' : 'is-inactive');
 
-                <div class="plate-container">
-                    @if($currentEmirate)
-                    <!-- Unified RAK-style plate for all emirates -->
-                    <div class="number-plate ">
-                        <!-- Arabic emirate name - top left corner -->
-                        <div class="plate-arabic-corner">{{ $currentEmirate['arabic'] }}</div>
+  $rider = $bikes->rider;
+  $company = $bikes->rentalCompany;
+  $assigneeName = $rider->name ?? $company->name ?? 'Not Assigned';
+  if ($rider) {
+    $assigneeHtml = '<a href="' . e(route('riders.show', $rider->id)) . '">' . e($assigneeName) . '</a>';
+  } elseif ($company) {
+    $assigneeRoute = ($company->customer_type ?? '') === 'garage'
+      ? route('garage_customer.bikes', $company->id)
+      : route('bikeRentCompanies.bikes', $company->id);
+    $assigneeHtml = '<a href="' . e($assigneeRoute) . '">' . e($assigneeName) . '</a>';
+  } else {
+    $assigneeHtml = e($assigneeName);
+  }
 
-                        <!-- Vehicle code - top right corner -->
-                        @if($bikeCode != 'N/A')
-                        <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
-                        @endif
+  $branchValue = $bikes->branch
+    ? trim($bikes->branch->name . ' ( ' . $bikes->branch->code . ' )')
+    : null;
+  $leasingValue = $bikes->leasingCompany->name ?? null;
 
-                        <!-- Plate number - center -->
-                        <div class="plate-number">{{ $plateNumber }}</div>
+  $expiryRaw = $bikes->expiry_date ?? null;
+  $expiryDate = $expiryRaw ? \Carbon\Carbon::parse($expiryRaw)->format('d M Y') : null;
+  $isExpired = false;
+  $isExpiring = false;
+  if ($expiryRaw) {
+    $expiry = \Carbon\Carbon::parse($expiryRaw)->startOfDay();
+    $now = \Carbon\Carbon::now()->startOfDay();
+    if ($expiry->lt($now)) {
+      $isExpired = true;
+    } elseif ($expiry->diffInDays($now) <= 30) {
+      $isExpiring = true;
+    }
+  }
+  if ($expiryDate && $isExpired) {
+    $expiryHtml = '<span class="bike-expiry-badge is-expired">' . e($expiryDate) . '</span>';
+  } elseif ($expiryDate && $isExpiring) {
+    $expiryHtml = '<span class="bike-expiry-badge is-expiring">' . e($expiryDate) . ' (SOON!)</span>';
+  } else {
+    $expiryHtml = e($expiryDate ?: 'N/A');
+  }
 
-                        <!-- English emirate name - bottom center -->
-                        <div class="plate-emirate-english">{{ $currentEmirate['english'] }}</div>
-                    </div>
-                    @else
-                    <!-- Default Badge for other emirates -->
-                    <div class="number-plate ">
+  $bikeWarehouse = (string) ($bikes->warehouse ?? '');
+  $warehousesHideLeasingReturnBtn = ['Active', 'Absconded', 'Theft', 'Total Loss'];
+  $leasedReturnCompleted = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_date')
+    && !empty($bikes->leased_return_date);
+  $showLeasingReturnToCompany = !empty($bikes->company)
+    && \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by')
+    && !in_array($bikeWarehouse, $warehousesHideLeasingReturnBtn, true)
+    && !$leasedReturnCompleted;
+  $hideAssignForWarehouse = ['Total Loss'];
+  $showAssignRiderBlock = !in_array($bikeWarehouse, $hideAssignForWarehouse, true);
+  $showChangeProject = !empty($bikes->rider_id)
+    && strtolower($bikeWarehouse) === 'active'
+    && !$leasedReturnCompleted;
 
-                        <!-- Vehicle code - top right corner -->
-                        @if($bikeCode != 'N/A')
-                        <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
-                        @endif
-                        @if($plateNumber)
-                        <!-- Plate number - center -->
-                        <div class="plate-number">{{ $plateNumber }}</div>
-                        @else
-                        <div class="plate-number">N/A</div>
-                        @endif
-                    </div>
-                    @endif
-                </div>
-                <div class="road-status-container">
-                    @include('bikes.partials.road_status_badge', ['bike' => $bikes])
-                </div>
+  $leasingReturnHtml = null;
+  if (\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by')) {
+    $lrDisplay = $bikes->leasedReturnDisplay();
+    $lrByFmt = $bikes->leased_return_by ? \Carbon\Carbon::parse($bikes->leased_return_by)->format('d M Y') : null;
+    $lrDoneFmt = $bikes->leased_return_date ? \Carbon\Carbon::parse($bikes->leased_return_date)->format('d M Y') : null;
+    $parts = ['<span class="badge ' . e($lrDisplay['badge']) . '">' . e($lrDisplay['label']) . '</span>'];
+    if (\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_company_id') && $bikes->leased_return_company_id && $bikes->leasedReturnCompany) {
+      $parts[] = '<div>Return to: ' . e($bikes->leasedReturnCompany->name) . '</div>';
+    }
+    if ($lrByFmt) {
+      $parts[] = '<div>Return by: ' . e($lrByFmt) . '</div>';
+    }
+    if ($lrDoneFmt) {
+      $parts[] = '<div>Returned: ' . e($lrDoneFmt) . '</div>';
+    }
+    if (!$lrByFmt && !$lrDoneFmt) {
+      $parts[] = '<span class="text-muted">No dates recorded</span>';
+    }
+    $leasingReturnHtml = implode('', $parts);
+  }
+@endphp
 
-                <!-- Basic Information Section - Matching rider profile style -->
-                <div class="basic-information">
-                    <h3></h3>
-                    <ul class="info-list">
+<div class="row mb-5 bike-view-layout">
+  <div class="col-xl-3 col-md-5 col-lg-5 order-1">
+    <x-entity-profile-card
+      icon="ti ti-motorbike"
+      :show-avatar="false"
+      :is-active="$isOnRoad"
+      :status-label="$roadLabel"
+      :status-class="$statusClass"
+      :name="$bikes->model_type ?? ($bikes->plate ?? 'Vehicle')"
+      :subtitle="$bikeCode !== 'N/A' ? $bikeCode : ($bikes->plate ?? null)"
+      :edit-href="user_can('bikes_bike_edit') ? route('bikes.edit', $bikes->id) : null"
+      edit-title="Edit Vehicle Details"
+      section-title="Basic Information">
+      <x-slot name="statusExtra">
+        @if(($roadStatus['days'] ?? null) !== null)
+          <small class="entity-view-card-id" title="Days since status change">
+            {{ (int) $roadStatus['days'] }} {{ (int) $roadStatus['days'] === 1 ? 'day' : 'days' }}
+          </small>
+        @endif
+      </x-slot>
 
-                        <!-- Leasing Company -->
-                        <li class="info-item">
-                            <div class="info-icon">
-                                <i class="ti ti-building"></i>
-                            </div>
-                            <div class="info-content">
-                                <span class="info-label">Branch</span>
-                                <span class="info-value">
-                                    {{ $bikes->branch ?  $bikes->branch->name .' ( '.$bikes->branch->code.' )' : 'N/A' }}
-                                </span>
-                            </div>
-                        </li>
-
-                        <li class="info-item">
-                            <div class="info-icon">
-                                <i class="ti ti-user"></i>
-                            </div>
-                            <div class="info-content">
-                                @php
-                                $rider = $bikes->rider;
-                                $company = $bikes->rentalCompany;
-                                $Name = $rider->name ?? $company->name ?? 'Not Assigned';
-                                @endphp
-                                <span class="info-label">Driver / Customer</span>
-                                @if($rider)
-                                <a href="{{ route('riders.show', $rider->id) }}">{{ $Name }}</a>
-                                @elseif($company)
-                                <a href="{{ ($company->customer_type ?? '') === 'garage' ? route('garage_customer.bikes', $company->id) : route('bikeRentCompanies.bikes', $company->id) }}">{{ $Name }}</a>
-                                @else
-                                <span>{{ $Name }}</span>
-                                @endif
-                            </div>
-                        </li>
-
-                        <!-- Leasing Company -->
-                        <li class="info-item">
-                            <div class="info-icon">
-                                <i class="ti ti-building"></i>
-                            </div>
-                            <div class="info-content">
-                                <span class="info-label">Leasing Company</span>
-                                <span class="info-value">
-                                    {{ $bikes->leasingCompany->name ?? 'N/A' }}
-                                </span>
-                            </div>
-                        </li>
-
-                        <!-- Vehicle Expiry -->
-                        <li class="info-item">
-                            <div class="info-icon">
-                                <i class="ti ti-calendar-stats"></i>
-                            </div>
-                            <div class="info-content">
-                                <span class="info-label">Vehicle Expiry</span>
-                                @php
-                                $expiryDate = $bikes->expiry_date? \Carbon\Carbon::parse($bikes->expiry_date)->format('d M Y') : null;
-                                $isExpiring = false;
-                                $isExpired = false;
-
-                                if ($expiryDate) {
-                                $expiry = \Carbon\Carbon::parse($expiryDate);
-                                $now = \Carbon\Carbon::now();
-
-                                if ($expiry->isPast()) {
-                                $isExpired = true;
-                                } elseif ($expiry->diffInDays($now) <= 30) {
-                                    $isExpiring=true;
-                                    }
-                                    }
-                                    @endphp
-
-                                    @if($expiryDate)
-                                    @if($isExpired)
-                                    <span class="info-value status-badge Expired" style="animation: pulse 1s infinite; background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%); color: white; border: 2px solid #b91c1c;">
-                                    {{ $expiryDate }}
-                                    </span>
-                                    @elseif($isExpiring)
-                                    <span class="info-value status-badge Expiring" style="animation: pulse 1.5s infinite; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); color: white; border: 2px solid #d97706;">
-                                        {{ $expiryDate }} (SOON!)
-                                    </span>
-                                    @else
-                                    <span class="info-value">{{ $expiryDate }}</span>
-                                    @endif
-                                    @else
-                                    <span class="info-value">N/A</span>
-                                    @endif
-                            </div>
-                        </li>
-
-                        @if(\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by') )
-                        @php
-                        $lrDisplay = $bikes->leasedReturnDisplay();
-                        $lrByFmt = $bikes->leased_return_by
-                        ? \Carbon\Carbon::parse($bikes->leased_return_by)->format('d M Y')
-                        : null;
-                        $lrDoneFmt = $bikes->leased_return_date
-                        ? \Carbon\Carbon::parse($bikes->leased_return_date)->format('d M Y')
-                        : null;
-                        @endphp
-                        <li class="info-item">
-                            <div class="info-icon">
-                                <i class="ti ti-arrow-back-up"></i>
-                            </div>
-                            <div class="info-content">
-                                <span class="info-label">Leasing return</span>
-                                <span class="badge {{ $lrDisplay['badge'] }} mb-1">{{ $lrDisplay['label'] }}</span>
-                                <div class="info-value" style="font-size: 0.75rem;">
-                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_company_id') && $bikes->leased_return_company_id && $bikes->leasedReturnCompany)
-                                    <div>Return to: {{ $bikes->leasedReturnCompany->name }}</div>
-                                    @endif
-                                    @if($lrByFmt)
-                                    <div>Return by: {{ $lrByFmt }}</div>
-                                    @endif
-                                    @if($lrDoneFmt)
-                                    <div>Returned: {{ $lrDoneFmt }}</div>
-                                    @endif
-                                    @if(!$lrByFmt && !$lrDoneFmt)
-                                    <span class="text-muted">No dates recorded</span>
-                                    @endif
-                                </div>
-                            </div>
-                        </li>
-                        @endif
-
-                    </ul>
-                </div>
-
-                @php
-                $bikeWarehouse = (string) ($bikes->warehouse ?? '');
-                $warehousesHideLeasingReturnBtn = ['Active', 'Absconded', 'Theft', 'Total Loss'];
-                $leasedReturnCompleted = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_date')
-                && !empty($bikes->leased_return_date);
-                $showLeasingReturnToCompany = !empty($bikes->company)
-                && \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_by')
-                && !in_array($bikeWarehouse, $warehousesHideLeasingReturnBtn, true)
-                && !$leasedReturnCompleted;
-                $hideAssignForWarehouse = ['Total Loss'];
-                $showAssignRiderBlock = !in_array($bikeWarehouse, $hideAssignForWarehouse, true);
-                $showChangeProject = !empty($bikes->rider_id)
-                && strtolower($bikeWarehouse) === 'active'
-                && !$leasedReturnCompleted;
-                @endphp
-
-                <!-- Action Buttons - Smaller size -->
-                <div class="bike-actions-compact">
-                    @can('bikes_bike_edit')
-                    <a href="{{ route('bikes.edit', $bikes->id) }}"
-                        class="btn-compact btn-edit-compact show-modal"
-                        data-title="Edit Vehicle #{{ $bikes->plate }}">
-                        <i class="fas fa-edit"></i>
-                        <span>Edit Details</span>
-                    </a>
-                    @endcan
-                    @canany(['bikes_assign_edit', 'bikes_assign_create', 'bikes_bike_edit'])
-                    @if($showLeasingReturnToCompany)
-                    <a href="javascript:void(0);"
-                        class="btn-compact btn-edit-compact show-modal"
-                        data-size="lg"
-                        data-title="Return to leasing company — {{ $bikes->plate }}"
-                        data-action="{{ route('bikes.leasingReturn', $bikes->id) }}">
-                        <i class="fas fa-building"></i>
-                        <span>Return to company</span>
-                    </a>
-                    @endif
-                    @endcanany
-                    @canany(['bikes_assign_create', 'bikes_assign_edit'])
-                    @if($showAssignRiderBlock)
-                    @if($bikes->rider_id || $bikes->rental_company_id)
-                    <a href="javascript:void(0);"
-                        class="btn-compact btn-view-assignment show-modal"
-                        data-size="xl"
-                        data-title="Assigned Rider Details"
-                        data-action="{{ route('bikes.assignrider', $bikes->id) }}">
-                        <i class="fas fa-user-check"></i>
-                        <span>Change Status</span>
-                    </a>
-                    @if($showChangeProject)
-                    <a href="javascript:void(0);"
-                        class="btn-compact btn-edit-compact show-modal"
-                        data-size="md"
-                        data-title="Change Project — {{ $bikes->plate }}"
-                        data-action="{{ route('bikes.change_project', $bikes->id) }}">
-                        <i class="fas fa-exchange-alt"></i>
-                        <span>Change Project</span>
-                    </a>
-                    @endif
-                    @else
-                    <a href="javascript:void(0);"
-                        class="btn-compact btn-assign-compact show-modal"
-                        data-size="xl"
-                        data-title="Assign Rider to Vehicle #{{ $bikes->plate }}"
-                        data-action="{{ route('bikes.assign_rider', $bikes->id) }}">
-                        <i class="fas fa-user-plus"></i>
-                        <span>Assign Rider</span>
-                    </a>
-                    @endif
-                    @endif
-                    @endcanany
-                </div>
-            </div>
+      <x-slot name="afterHero">
+        <div class="bike-plate-wrap">
+          <div class="number-plate">
+            @if($currentEmirate)
+              <div class="plate-arabic-corner">{{ $currentEmirate['arabic'] }}</div>
+            @endif
+            @if($bikeCode !== 'N/A')
+              <div class="plate-bike-code-corner">{{ $bikeCode }}</div>
+            @endif
+            <div class="plate-number">{{ $plateNumber }}</div>
+            @if($currentEmirate)
+              <div class="plate-emirate-english">{{ $currentEmirate['english'] }}</div>
+            @endif
+          </div>
         </div>
-    </div>
-    <div class="col-xl-9 col-md-9 col-lg-8 order-0 order-md-1">
-        <div class="nav-align-top">
-            <ul class="nav nav-pills flex-column flex-md-row flex-wrap mb-3 row-gap-2">
-                <li class="nav-item"><a class="nav-link @if(Route::is('bikes.show')) active @endif " href="{{route('bikes.show',$bikes->id)}}"><i class="ti ti-motorbike ti-sm me-1_5 mx-2"></i> Vehicle</a></li>
-                @can('bikes_assign_view')
-                <li class="nav-item">
-                    <a href="{{route('bikeHistories.index', ['bike_id'=>$bikes->id])}}" class="nav-link @if(Route::is('bikeHistories.index')) active @endif"><i class="fa fa-list-check"></i>&nbsp;History</a>
-                </li>
-                @endcan
-                @can('bikes_documents_view')
-                <li class="nav-item">
-                    <a href="{{route('bikes.files',$bikes->id)}}" class="nav-link @if(Route::is('bikes.files')) active @endif"><i class="fa fa-file-lines"></i>&nbsp;Files</a>
-                </li>
-                @endcan
-                @can('bikes_maintenance_view')
-                <li class="nav-item">
-                    <a href="{{route('bikes.maintenance',$bikes->id)}}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif"><i class="fa fa-wrench"></i>&nbsp;Maintenance</a>
-                </li>
-                @endcan
-                @can('bikes_bike_view')
-                <li class="nav-item">
-                    <a href="{{ route('bikes.fines', $bikes->id) }}" class="nav-link @if(Route::is('bikes.fines')) active @endif"><i class="fa fa-file-invoice-dollar"></i>&nbsp;Fines</a>
-                </li>
-                <li class="nav-item">
-                    <a href="{{ route('bikes.saliks', $bikes->id) }}" class="nav-link @if(Route::is('bikes.saliks')) active @endif"><i class="fa fa-road"></i>&nbsp;Saliks</a>
-                </li>
-                @endcan
-                @can('bikes_registration_view')
-                @php
-                $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');
-                @endphp
-                @if($bikeRegistrationExpenseAccountId)
-                <li class="nav-item">
-                    <a href="{{ route('BikeRegistration.generatentries', $bikeRegistrationExpenseAccountId) }}" class="nav-link @if(Route::is('BikeRegistration.generatentries')) active @endif"><i class="fa fa-id-card"></i>&nbsp;Registration</a>
-                </li>
+        <div class="text-center mb-2">
+          @include('bikes.partials.road_status_badge', ['bike' => $bikes])
+        </div>
+      </x-slot>
+
+      <x-entity-profile-info-row icon="ti ti-building" label="Branch" :value="$branchValue" />
+      <x-entity-profile-info-row icon="ti ti-user" label="Driver / Customer" :value="$assigneeHtml" :html="true" />
+      <x-entity-profile-info-row icon="ti ti-building-community" label="Leasing Company" :value="$leasingValue" />
+      <x-entity-profile-info-row icon="ti ti-calendar-stats" label="Vehicle Expiry" :value="$expiryHtml" :html="true" />
+      @if($leasingReturnHtml)
+        <x-entity-profile-info-row icon="ti ti-arrow-back-up" label="Leasing return" :value="$leasingReturnHtml" :html="true" />
+      @endif
+
+      <x-slot name="footer">
+        <div class="bike-actions-compact">
+          @can('bikes_bike_edit')
+            <a href="{{ route('bikes.edit', $bikes->id) }}"
+              class="btn btn-primary btn-sm show-modal"
+              data-title="Edit Vehicle #{{ $bikes->plate }}">
+              <i class="ti ti-edit"></i><span>Edit</span>
+            </a>
+          @endcan
+          @canany(['bikes_assign_edit', 'bikes_assign_create', 'bikes_bike_edit'])
+            @if($showLeasingReturnToCompany)
+              <a href="javascript:void(0);"
+                class="btn btn-primary btn-sm show-modal"
+                data-size="lg"
+                data-title="Return to leasing company — {{ $bikes->plate }}"
+                data-action="{{ route('bikes.leasingReturn', $bikes->id) }}">
+                <i class="ti ti-building"></i><span>Return</span>
+              </a>
+            @endif
+          @endcanany
+          @canany(['bikes_assign_create', 'bikes_assign_edit'])
+            @if($showAssignRiderBlock)
+              @if($bikes->rider_id || $bikes->rental_company_id)
+                <a href="javascript:void(0);"
+                  class="btn btn-warning btn-sm show-modal"
+                  data-size="xl"
+                  data-title="Assigned Rider Details"
+                  data-action="{{ route('bikes.assignrider', $bikes->id) }}">
+                  <i class="ti ti-user-check"></i><span>Status</span>
+                </a>
+                @if($showChangeProject)
+                  <a href="javascript:void(0);"
+                    class="btn btn-primary btn-sm show-modal"
+                    data-size="md"
+                    data-title="Change Project — {{ $bikes->plate }}"
+                    data-action="{{ route('bikes.change_project', $bikes->id) }}">
+                    <i class="ti ti-arrows-exchange"></i><span>Project</span>
+                  </a>
                 @endif
-                @endcan
-            </ul>
+              @else
+                <a href="javascript:void(0);"
+                  class="btn btn-success btn-sm show-modal"
+                  data-size="xl"
+                  data-title="Assign Rider to Vehicle #{{ $bikes->plate }}"
+                  data-action="{{ route('bikes.assign_rider', $bikes->id) }}">
+                  <i class="ti ti-user-plus"></i><span>Assign</span>
+                </a>
+              @endif
+            @endif
+          @endcanany
         </div>
-        <div class="card mb-5" id="cardBody" style="height:660px !important;overflow: auto;">
-            @yield('page_content')
+      </x-slot>
+    </x-entity-profile-card>
+  </div>
+
+  <div class="col-xl-9 col-md-7 col-lg-7 order-2 position-relative">
+    <div class="nav-align-top bike-profile-tabs entity-profile-tabs mb-3 mb-md-4">
+      <div class="card">
+        <div class="card-body p-2">
+          <ul class="nav nav-pills flex-nowrap mb-0 overflow-auto" id="mainNavigation">
+            <li class="nav-item">
+              <a class="nav-link @if(Route::is('bikes.show')) active @endif" href="{{ route('bikes.show', $bikes->id) }}">
+                <i class="ti ti-motorbike ti-sm me-1_5"></i>Vehicle
+              </a>
+            </li>
+            @can('bikes_assign_view')
+            <li class="nav-item">
+              <a href="{{ route('bikeHistories.index', ['bike_id' => $bikes->id]) }}" class="nav-link @if(Route::is('bikeHistories.index')) active @endif">
+                <i class="ti ti-history ti-sm me-1_5"></i>History
+              </a>
+            </li>
+            @endcan
+            @can('bikes_documents_view')
+            <li class="nav-item">
+              <a href="{{ route('bikes.files', $bikes->id) }}" class="nav-link @if(Route::is('bikes.files')) active @endif">
+                <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
+              </a>
+            </li>
+            @endcan
+            @can('bikes_maintenance_view')
+            <li class="nav-item">
+              <a href="{{ route('bikes.maintenance', $bikes->id) }}" class="nav-link @if(Route::is('bikes.maintenance')) active @endif">
+                <i class="ti ti-tool ti-sm me-1_5"></i>Maintenance
+              </a>
+            </li>
+            @endcan
+            @can('bikes_bike_view')
+            <li class="nav-item">
+              <a href="{{ route('bikes.fines', $bikes->id) }}" class="nav-link @if(Route::is('bikes.fines')) active @endif">
+                <i class="ti ti-receipt ti-sm me-1_5"></i>Fines
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{{ route('bikes.saliks', $bikes->id) }}" class="nav-link @if(Route::is('bikes.saliks')) active @endif">
+                <i class="ti ti-road ti-sm me-1_5"></i>Saliks
+              </a>
+            </li>
+            @endcan
+            @can('bikes_registration_view')
+            @php
+              $bikeRegistrationExpenseAccountId = \App\Models\BikeRegistrationAccount::where('bike_id', $bikes->id)->value('id');
+            @endphp
+            @if($bikeRegistrationExpenseAccountId)
+            <li class="nav-item">
+              <a href="{{ route('BikeRegistration.generatentries', $bikeRegistrationExpenseAccountId) }}" class="nav-link @if(Route::is('BikeRegistration.generatentries')) active @endif">
+                <i class="ti ti-id ti-sm me-1_5"></i>Registration
+              </a>
+            </li>
+            @endif
+            @endcan
+          </ul>
         </div>
+      </div>
     </div>
+
+    <div class="card bike-info-section mb-5" id="cardBody" style="margin-top: 0; position: relative;">
+      @yield('page_content')
+    </div>
+  </div>
 </div>
 @endsection

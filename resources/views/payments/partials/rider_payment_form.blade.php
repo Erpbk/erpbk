@@ -158,12 +158,13 @@ $payeeCode = $m[1];
                         'amount',
                         old('amount', $savedPrimaryAmount),
                         [
-                        'class' => 'form-control cr_amount rpf-input',
+                        'class' => 'form-control cr_amount rpf-input' . (in_array($defaultCreatePaymentType, ['payment', 'salary_payment', 'c3', ''], true) ? ' bg-light' : ''),
                         'step' => 'any',
                         'placeholder' => '0.00',
                         'id' => 'payment_amount',
                         'required' => true,
                         'min' => '0',
+                        'readonly' => in_array($defaultCreatePaymentType, ['payment', 'salary_payment', 'c3', ''], true),
                         'data-saved-amount' => $savedPrimaryAmount !== null ? number_format($savedPrimaryAmount, 2, '.', '') : null,
                         ]
                         ) !!}
@@ -273,7 +274,7 @@ $payeeCode = $m[1];
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                             <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-end">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                            <td class="text-end text-danger">{{ number_format($existingBalance, 2) }}</td>
+                            <td class="text-end {{ $existingBalance < 0 ? 'text-danger' : 'text-success' }}">{{ number_format($existingBalance, 2) }}</td>
                             <td>
                                 <input type="number" name="payment_amounts[{{ $invoice->id }}]"
                                     class="form-control payment-amount rpf-line-amount"
@@ -309,7 +310,7 @@ $payeeCode = $m[1];
                             <td>{{ $invoice->invoice_number ?? $invoice->id }}</td>
                             <td>{{ $invoice->billing_month ? date('M Y', strtotime($invoice->billing_month)) : '-' }}</td>
                             <td class="text-end">{{ number_format($invoice->total ?? $invoice->total_amount, 2) }}</td>
-                            <td class="text-end text-danger">{{ number_format($invoice->balance ?? 0, 2) }}</td>
+                            <td class="text-end {{ ($invoice->balance ?? 0) < 0 ? 'text-danger' : 'text-success' }}">{{ number_format($invoice->balance ?? 0, 2) }}</td>
                             <td>
                                 <input type="number" name="payment_amounts[{{ $invoice->id }}]"
                                     class="form-control payment-amount rpf-line-amount"

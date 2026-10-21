@@ -748,6 +748,16 @@
         </div>
         @endif
 
+        @php
+            $configuredSignatureSlots = collect($signatureSlots ?? []);
+        @endphp
+        @if($configuredSignatureSlots->isNotEmpty())
+            @include('vouchers.partials.signature_block', [
+                'signatureSlots' => $configuredSignatureSlots,
+                'signatureVariant' => 'rpv',
+                'signaturePerRow' => 4,
+            ])
+        @else
         <table class="rpv-sigs{{ $showSignature ? '' : ' rpv-sigs-print-only' }}" width="100%" cellpadding="0" cellspacing="0">
             <tr>
                 <td class="rpv-sig">
@@ -760,6 +770,7 @@
                 </td>
             </tr>
         </table>
+        @endif
 
         @if(!$isPdf && !request()->boolean('print'))
         @include('vouchers.partials.posted_transactions', [

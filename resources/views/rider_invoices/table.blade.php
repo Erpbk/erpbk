@@ -12,9 +12,8 @@
          <th title="Rider" class="sorting" rowspan="1" colspan="1">Rider</th>
          <th title="Descriptions" class="sorting" rowspan="1" colspan="1">Descriptions</th>
          <th title="Zone" class="sorting" rowspan="1" colspan="1">Project</th>
-         <th title="Subtotal" class="sorting" rowspan="1" colspan="1">Subtotal</th>
-         <th title="Vat" class="sorting" rowspan="1" colspan="1">Vat</th>
-         <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Total Amount</th>
+         <th title="Invoice Amount" class="sorting" rowspan="1" colspan="1">Invoice Amount</th>
+         <th title="Payable Salary" class="sorting" rowspan="1" colspan="1">Payable Salary</th>
          <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Status</th>
          <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
       </tr>
@@ -36,9 +35,8 @@
          <td>
             {{ company_table('customers')->where('id' , $rider->customer_id)->first()->name ?? '-'}}
          </td>
-         <td>{{ \App\Helpers\Currency::format($r->subtotal, 2) }}</td>
-         <td>{{ $r->vat }}</td>
-         <td>{{ \App\Helpers\Currency::format($r->total_amount, 2) }}</td>
+         <td>{{ number_format((float) $r->total_amount, 2) }}</td>
+         <td>{{ number_format((float) $r->final_amount, 2) }}</td>
          <td>
             @if($r->isPaid())
             <span class="invoice-status-badge invoice-status-paid">Paid</span>

@@ -24,7 +24,8 @@ class RiderModuleVoucherViewData
     public const RIDER_DOCUMENT_TYPES = ['COD', 'PN', 'INC', 'VC', 'AL', 'PAY'];
 
     public function __construct(
-        protected AgreementPdfBranding $branding
+        protected AgreementPdfBranding $branding,
+        protected VoucherSignatureResolver $signatureResolver
     ) {}
 
     public function supports(Vouchers $voucher): bool
@@ -109,6 +110,10 @@ class RiderModuleVoucherViewData
                 ? company_table('rta_fines')->where('id', $voucher->ref_id)->first()
                 : null,
             'formatMoney' => static fn (float $n) => Currency::format($n),
+            'signatureSlots' => $this->signatureResolver->slotsFor(
+                $typeCode,
+                CompanyContext::id() ?? $voucher->company_id
+            ),
         ];
     }
 

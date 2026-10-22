@@ -61,7 +61,10 @@ class RiderInvoicesController extends AppBaseController
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
-        $data->load(['rider', 'items']);
+        if (method_exists($data, 'withQueryString')) {
+            $data->withQueryString();
+        }
+        $data->load(['rider.customer', 'items']);
 
         // Prefetch deduction / payable figures used by the listing columns.
         $invoiceBuilder = app(RiderInvoiceViewDataBuilder::class);
@@ -140,6 +143,11 @@ class RiderInvoicesController extends AppBaseController
         }
         if ($request->filled('rider_id')) {
             $query->where('rider_id', $request->rider_id);
+        }
+        if ($request->filled('customer_id')) {
+            $query->whereHas('rider', function ($riderQuery) use ($request) {
+                $riderQuery->where('customer_id', $request->customer_id);
+            });
         }
         if ($request->filled('billing_month')) {
             $billingMonth = Carbon::parse($request->billing_month);

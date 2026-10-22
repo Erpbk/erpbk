@@ -1821,9 +1821,9 @@ class PaymentController extends Controller
 
     /**
      * Post PV ledger lines:
-     * 1) Debit rider for payment + bank charges (single clubbed entry)
-     * 2) Credit bank for payment amount
-     * 3) Credit bank charges account (when charges apply)
+     * 1) Debit payee for payment amount only (receiver gets payment)
+     * 2) Credit bank for payment + bank charges (we pay both)
+     * 3) Debit bank charges account (when charges apply)
      */
     private function postPaymentLedgerEntries(
         int $transCode,
@@ -1840,14 +1840,14 @@ class PaymentController extends Controller
     ): void {
         $paymentAmount = round($paymentAmount, 2);
         $bankCharges = round(max(0, $bankCharges), 2);
-        $riderDebit = round($paymentAmount + $bankCharges, 2);
+        $bankCredit = round($paymentAmount + $bankCharges, 2);
 
-        $riderNarration = $desc;
+        $bankNarration = $desc;
         if ($bankCharges > 0.009) {
-            $riderNarration = trim($desc . ' | Bank charges ' . number_format($bankCharges, 2));
+            $bankNarration = trim($desc . ' | Bank charges ' . number_format($bankCharges, 2));
         }
 
-        // 1. Debit payee (rider) — payment + bank charges in one entry
+        // 1. Debit payee — payment amount only
         Transactions::create([
             'trans_code' => $transCode,
             'trans_date' => $date,
@@ -1855,27 +1855,27 @@ class PaymentController extends Controller
             'reference_type' => 'PV',
             'account_id' => $payeeAccountId,
             'credit' => 0,
-            'debit' => $riderDebit,
+            'debit' => $paymentAmount,
             'billing_month' => $billingMonth,
             'branch_id' => $branchId,
-            'narration' => $riderNarration,
+            'narration' => $desc,
         ]);
 
-        // 2. Credit bank for the payment amount
+        // 2. Credit bank for payment + bank charges
         Transactions::create([
             'trans_code' => $transCode,
             'trans_date' => $date,
             'reference_id' => $paymentId,
             'reference_type' => 'PV',
             'account_id' => $payingAccountId,
-            'credit' => $paymentAmount,
+            'credit' => $bankCredit,
             'debit' => 0,
             'billing_month' => $billingMonth,
-            'narration' => $desc,
+            'narration' => $bankNarration,
             'branch_id' => $branchId,
         ]);
 
-        // 3. Credit bank charges account
+        // 3. Debit bank charges account
         if ($bankCharges > 0.009 && $bankChargesAccountId) {
             Transactions::create([
                 'trans_code' => $transCode,
@@ -1883,8 +1883,8 @@ class PaymentController extends Controller
                 'reference_id' => $paymentId,
                 'reference_type' => 'PV',
                 'account_id' => $bankChargesAccountId,
-                'credit' => $bankCharges,
-                'debit' => 0,
+                'credit' => 0,
+                'debit' => $bankCharges,
                 'billing_month' => $billingMonth,
                 'branch_id' => $branchId,
                 'narration' => 'Bank charges for ( ' . $desc . ' )',

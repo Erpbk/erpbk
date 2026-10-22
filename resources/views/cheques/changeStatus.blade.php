@@ -89,6 +89,15 @@
                placeholder="Amount to clear">
         <div class="form-text">Max remaining: {{ \App\Helpers\Currency::format($remaining, 2) }}</div>
     </div>
+
+    @if($cheque->type === 'payable')
+    <div class="col-md-6 bank-charges-field" style="display: none;">
+        <label class="form-label fw-medium">Bank Charges</label>
+        <input type="number" name="bank_charges" class="form-control" step="0.01" min="0"
+               value="0" placeholder="0.00">
+        <div class="form-text">Optional. Paid from our bank with the clear amount; posted to bank charges.</div>
+    </div>
+    @endif
     
     <!-- Returned Date Field -->
     <div class="col-md-6 date-field returned-date" style="display: none;">
@@ -166,7 +175,7 @@ $(document).ready(function() {
         const status = $(this).val();
         
         // Hide all fields first
-        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field, .clear-amount-field, .clear-attachment-field').hide();
+        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field, .clear-amount-field, .bank-charges-field, .clear-attachment-field').hide();
         
         // Show relevant fields based on status
         if (status === 'Cleared') {
@@ -176,6 +185,9 @@ $(document).ready(function() {
             $('.description-field').show();
             $('.bank').show();
             $('.clear-amount-field').show();
+            @if($cheque->type === 'payable')
+            $('.bank-charges-field').show();
+            @endif
             $('.clear-attachment-field').show();
         } else if (status === 'Returned') {
             $('.returned-date').show();

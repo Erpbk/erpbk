@@ -116,13 +116,19 @@ class RiderAdvanceLoanService
             $creditNarration,
             $invoiceId
         ) {
+            $totalWithCharges = round($amount + $bankCharges, 2);
+            $bankNarration = $creditNarration;
+            if ($bankCharges > 0.009) {
+                $bankNarration = trim($creditNarration . ' | Bank charges ' . number_format($bankCharges, 2));
+            }
+
             $voucher = Vouchers::create([
                 'trans_date' => $transDate,
                 'voucher_type' => 'AL',
                 'payment_type' => $data['payment_type'] ?? 1,
                 'payment_from' => $bankAccountId,
                 'billing_month' => $billingMonth,
-                'amount' => $amount,
+                'amount' => $totalWithCharges,
                 'remarks' => $remarks,
                 'ref_id' => $riderAccount->ref_id,
                 'rider_id' => $riderAccount->ref_id,
@@ -136,41 +142,35 @@ class RiderAdvanceLoanService
                 'attach_file' => $data['attach_file'] ?? null,
             ]);
 
-            $riderDebit = round($amount + $bankCharges, 2);
-            $riderNarration = $debitNarration;
-            if ($bankCharges > 0.009) {
-                $riderNarration = trim($debitNarration . ' | Bank charges ' . number_format($bankCharges, 2));
-            }
-
-            // 1. Debit rider — amount + bank charges in one entry
+            // 1. Debit rider — loan amount only (receiver gets amount)
             Transactions::create([
                 'account_id' => $riderAccountId,
                 'reference_id' => $voucher->id,
                 'reference_type' => 'AL',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => $riderNarration,
-                'debit' => $riderDebit,
+                'narration' => $debitNarration,
+                'debit' => $amount,
                 'branch_id' => $data['branch_id'] ?? null,
                 'billing_month' => $billingMonth,
                 'created_By' => auth()->id(),
             ]);
 
-            // 2. Credit bank for the loan amount
+            // 2. Credit bank for loan amount + bank charges (we pay both)
             Transactions::create([
                 'account_id' => $bankAccountId,
                 'reference_id' => $voucher->id,
                 'reference_type' => 'AL',
                 'trans_code' => $transCode,
                 'trans_date' => $transDate,
-                'narration' => $creditNarration,
-                'credit' => $amount,
+                'narration' => $bankNarration,
+                'credit' => $totalWithCharges,
                 'billing_month' => $billingMonth,
                 'Created_By' => auth()->id(),
                 'branch_id' => $data['branch_id'] ?? null,
             ]);
 
-            // 3. Credit bank charges account
+            // 3. Debit bank charges account
             if ($bankCharges > 0.009 && $bankChargesAccountId) {
                 Transactions::create([
                     'account_id' => $bankChargesAccountId,
@@ -179,7 +179,7 @@ class RiderAdvanceLoanService
                     'trans_code' => $transCode,
                     'trans_date' => $transDate,
                     'narration' => 'Bank charges for ( ' . $debitNarration . ' )',
-                    'credit' => $bankCharges,
+                    'debit' => $bankCharges,
                     'billing_month' => $billingMonth,
                     'Created_By' => auth()->id(),
                     'branch_id' => $data['branch_id'] ?? null,

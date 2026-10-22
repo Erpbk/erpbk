@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Models\Cheques;
 use App\Models\Banks;
 use App\Models\Accounts;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
 use App\Services\Cheques\ChequeTopDateFilterService;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
+use App\Support\GlobalAccounts;
 use App\Support\PublicStorageDisk;
 use App\Support\ResourceLinks;
 use Illuminate\Support\Facades\Auth;
@@ -472,6 +474,9 @@ class ChequesController extends Controller
             $rules['billing_month'] = 'required|date_format:Y-m';
             $rules['bank_id'] = 'required|exists:banks,id';
             $rules['clear_amount'] = 'required|numeric|gt:0|lte:'.$remaining;
+            if ($cheque->type === 'payable') {
+                $rules['bank_charges'] = 'nullable|numeric|min:0';
+            }
             $rules['description'] = 'nullable|string|max:255';
             $rules['attachment'] = 'required|file|mimes:pdf,jpg,jpeg,png|max:2048';
         } elseif ($request->status === 'Returned') {
@@ -509,8 +514,17 @@ class ChequesController extends Controller
                 $updateData['status'] = 'Lost';
             } elseif ($validated['status'] === 'Cleared') {
                 $clearAmount = round((float) $validated['clear_amount'], 2);
+                // Bank charges apply only to payable clears (payments). Receipts never record them.
+                $bankCharges = $cheque->type === 'payable'
+                    ? round(max(0, (float) ($validated['bank_charges'] ?? 0)), 2)
+                    : 0.0;
                 if ($clearAmount > $remaining + 0.00001) {
                     throw new \InvalidArgumentException('Clear amount exceeds remaining cheque balance.');
+                }
+
+                $bankChargesAccountId = null;
+                if ($bankCharges > 0.009) {
+                    $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
                 }
 
                 $description = $validated['description'] ?? $cheque->description;
@@ -536,10 +550,16 @@ class ChequesController extends Controller
                     ? 'Cleared'
                     : 'Partially Cleared';
 
+                $totalWithCharges = round($clearAmount + $bankCharges, 2);
+                $bankNarration = $description;
+                if ($bankCharges > 0.009) {
+                    $bankNarration = trim(($description ?? '').' | Bank charges '.number_format($bankCharges, 2));
+                }
+
                 if ($cheque->type === 'payable') {
                     $payment = Payment::create([
                         'payee_account_id' => $cheque->payee_account,
-                        'amount' => $clearAmount,
+                        'amount' => $totalWithCharges,
                         'date_of_payment' => $validated['cleared_date'],
                         'reference' => 'Cheque Cleared: '.$cheque->cheque_number,
                         'resource_links' => ResourceLinks::build(
@@ -554,7 +574,8 @@ class ChequesController extends Controller
                         'amount_type' => 'Cheque',
                         'billing_month' => $validated['billing_month'].'-01',
                         'description' => $description,
-                        'bank_charges' => 0,
+                        'bank_charges' => $bankCharges,
+                        'bank_charges_account' => $bankChargesAccountId,
                         'status' => '1',
                         'attachment' => $voucherAttachment,
                         'branch_id' => $cheque->branch_id,
@@ -562,19 +583,7 @@ class ChequesController extends Controller
                     ]);
                     $transCode = \App\Helpers\Account::trans_code();
 
-                    Transactions::create([
-                        'trans_code' => $transCode,
-                        'trans_date' => $payment->date_of_payment,
-                        'reference_id' => $payment->id,
-                        'reference_type' => 'PV',
-                        'account_id' => $bank->account_id,
-                        'credit' => $clearAmount,
-                        'debit' => 0,
-                        'billing_month' => $payment->billing_month,
-                        'narration' => $description,
-                        'branch_id' => $cheque->branch_id,
-                    ]);
-
+                    // Receiver gets clear amount only
                     Transactions::create([
                         'trans_code' => $transCode,
                         'trans_date' => $payment->date_of_payment,
@@ -588,13 +597,42 @@ class ChequesController extends Controller
                         'narration' => $description,
                     ]);
 
+                    // We pay clear amount + bank charges from our bank
+                    Transactions::create([
+                        'trans_code' => $transCode,
+                        'trans_date' => $payment->date_of_payment,
+                        'reference_id' => $payment->id,
+                        'reference_type' => 'PV',
+                        'account_id' => $bank->account_id,
+                        'credit' => $totalWithCharges,
+                        'debit' => 0,
+                        'billing_month' => $payment->billing_month,
+                        'narration' => $bankNarration,
+                        'branch_id' => $cheque->branch_id,
+                    ]);
+
+                    if ($bankCharges > 0.009 && $bankChargesAccountId) {
+                        Transactions::create([
+                            'trans_code' => $transCode,
+                            'trans_date' => $payment->date_of_payment,
+                            'reference_id' => $payment->id,
+                            'reference_type' => 'PV',
+                            'account_id' => $bankChargesAccountId,
+                            'credit' => 0,
+                            'debit' => $bankCharges,
+                            'billing_month' => $payment->billing_month,
+                            'branch_id' => $cheque->branch_id,
+                            'narration' => 'Bank charges for ( '.($description ?? '').' )',
+                        ]);
+                    }
+
                     $voucher = Vouchers::create([
                         'trans_date' => $payment->date_of_payment,
                         'trans_code' => $transCode,
                         'billing_month' => $payment->billing_month,
                         'payment_from' => $bank->account_id,
                         'payment_to' => $cheque->payee_account,
-                        'amount' => $clearAmount,
+                        'amount' => $totalWithCharges,
                         'voucher_type' => 'PV',
                         'remarks' => 'Payment Voucher',
                         'ref_id' => $payment->id,
@@ -689,6 +727,20 @@ class ChequesController extends Controller
                 'message' => 'Cheque status updated successfully!',
                 'reload' => true,
             ]);
+        } catch (GlobalAccountNotConfiguredException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\InvalidArgumentException $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Cheque status update failed: '.$e->getMessage());

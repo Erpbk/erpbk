@@ -54,7 +54,11 @@ class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, W
             $rider?->customer?->name ?? '',
             number_format((float) $invoice->total_amount, 2, '.', ''),
             number_format((float) $invoice->final_amount, 2, '.', ''),
-            $invoice->isPaid() ? 'Paid' : 'Unpaid',
+            match ($invoice->paymentStatusKey()) {
+                'paid' => 'Paid',
+                'partial' => 'Partially Paid',
+                default => 'Unpaid',
+            },
         ];
     }
 

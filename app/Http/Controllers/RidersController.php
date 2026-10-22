@@ -881,7 +881,7 @@ class RidersController extends AppBaseController
     );
 
     // Get dropdown data for edit forms
-    $countries = Countries::pluck('name', 'id')->prepend('Select', '');
+    $countries = Countries::query()->orderBy('name')->pluck('name', 'id')->prepend('Select', '');
     $vendors = Vendors::pluck('name', 'id')->prepend('Select', '');
     $customers = Customers::pluck('name', 'id')->prepend('Select', '');
 

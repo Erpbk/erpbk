@@ -67,13 +67,14 @@ $expiryBadge = ($docFieldMeta && ($docFieldMeta['role'] ?? '') === 'expiry' && i
   }
   }
 
-  if (!empty($parsedOptions)) {
+  // Nationality always uses the full countries table (ignore custom option overrides).
+  if (($spec['dropdown'] ?? '') === 'countries') {
+  $opts = \App\Models\Countries::list()->toArray();
+  } elseif (!empty($parsedOptions)) {
   foreach ($parsedOptions as $opt) {
   // Store both key and label as the same value for now.
   $opts[$opt] = $opt;
   }
-  } elseif (($spec['dropdown'] ?? '') === 'countries') {
-  $opts = \App\Models\Countries::list()->toArray();
   } elseif (($spec['dropdown'] ?? '') === 'vendors') {
   $opts = \App\Models\Vendors::dropdown();
   } elseif (($spec['dropdown'] ?? '') === 'recruiters') {
@@ -120,12 +121,12 @@ $expiryBadge = ($docFieldMeta && ($docFieldMeta['role'] ?? '') === 'expiry' && i
     {!! Form::label('field_' . $item->field_key, $item->label, ['class' => 'form-check-label fw-bold pt-0' . ($req ? ' required' : '')]) !!}
   </div>
   @else
-  {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), $req ? ['class' => 'required fw-bold'] : []) !!}
-  @if ($expiryBadge)
-  <span class="ms-1">
-    @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
-  </span>
-  @endif
+  <div class="d-flex align-items-center flex-wrap gap-1 mb-1">
+    {!! Form::label($item->field_key, $item->label . ($req ? ':' : ''), ($req ? ['class' => 'required fw-bold mb-0'] : ['class' => 'mb-0'])) !!}
+    @if ($expiryBadge)
+      @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
+    @endif
+  </div>
   @if ($item->field_key === 'rider_id')
   {!! Form::text($item->field_key, $value, ['class' => 'form-control', 'id' => 'rider_id_field'] + array_filter(['required' => $req, 'maxlength' => $spec['maxlength'] ?? null, 'placeholder' => $spec['placeholder'] ?? null]) + $readonlyAttrs + $docInputAttrs) !!}
   <div class="invalid-feedback" id="rider_id_error" style="display: none;"></div>

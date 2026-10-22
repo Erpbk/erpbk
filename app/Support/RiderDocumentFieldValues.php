@@ -578,17 +578,18 @@ class RiderDocumentFieldValues
             }
         }
 
+        $dropdown = (string) ($spec['dropdown'] ?? '');
+        // Nationality always uses the full countries table (ignore custom option overrides).
+        if ($dropdown === 'countries') {
+            return Countries::list()->toArray();
+        }
+
         if ($parsedOptions !== []) {
             foreach ($parsedOptions as $opt) {
                 $opts[$opt] = $opt;
             }
 
             return $opts;
-        }
-
-        $dropdown = (string) ($spec['dropdown'] ?? '');
-        if ($dropdown === 'countries') {
-            return Countries::list()->toArray();
         }
         if ($dropdown === 'vendors') {
             return Vendors::dropdown() ?: [];

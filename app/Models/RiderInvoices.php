@@ -190,11 +190,65 @@ class RiderInvoices extends BaseModel
 
     /**
      * True when this invoice is marked paid (1) or legacy partial (3).
-     * Ignore paid_amount — that figure is all rider payments for the month, not this invoice.
+     * Used for edit-lock / payment-link actions — not the listing badge.
      */
     public function isPaid(): bool
     {
         return in_array((int) $this->status, [1, 3], true);
+    }
+
+    /**
+     * True when the full payable salary has been paid (or status is fully paid).
+     */
+    public function isFullyPaid(): bool
+    {
+        if ((int) ($this->status ?? 0) === 1) {
+            return true;
+        }
+
+        $payable = round((float) $this->final_amount, 2);
+        $paid = round((float) $this->paid_amount, 2);
+        $balance = round((float) $this->balance, 2);
+
+        // Positive payable salary: paid in full when payments cover it (or balance cleared).
+        if ($payable > 0.005) {
+            return $paid + 0.005 >= $payable || $balance <= 0.005;
+        }
+
+        // Zero / credit payable: treat as paid only when marked paid or balance is cleared after payment.
+        return $paid >= 0.005 && $balance <= 0.005;
+    }
+
+    /**
+     * True when some amount has been paid but payable salary is not fully covered.
+     */
+    public function isPartiallyPaid(): bool
+    {
+        if ($this->isFullyPaid()) {
+            return false;
+        }
+
+        if ((int) ($this->status ?? 0) === 3) {
+            return true;
+        }
+
+        return round((float) $this->paid_amount, 2) >= 0.005;
+    }
+
+    /**
+     * Listing / export badge key: paid | partial | unpaid.
+     */
+    public function paymentStatusKey(): string
+    {
+        if ($this->isFullyPaid()) {
+            return 'paid';
+        }
+
+        if ($this->isPartiallyPaid()) {
+            return 'partial';
+        }
+
+        return 'unpaid';
     }
 
     /**

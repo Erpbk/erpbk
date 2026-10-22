@@ -54,11 +54,7 @@
          <td>{{ number_format((float) $r->total_amount, 2) }}</td>
          <td>{{ number_format((float) $r->final_amount, 2) }}</td>
          <td>
-            @if($r->isPaid())
-            <span class="invoice-status-badge invoice-status-paid">Paid</span>
-            @else
-            <span class="invoice-status-badge invoice-status-unpaid">Unpaid</span>
-            @endif
+            @include('invoices.partials.status_badge', ['status' => $r->paymentStatusKey()])
          </td>
          <td>
             <div class="dropdown">

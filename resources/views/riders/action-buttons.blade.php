@@ -107,17 +107,18 @@ $visibleProfileVoucherTypes[$code] = $label;
     }
 
     .rider-profile-actions-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 0.4rem;
-        align-items: stretch;
-        width: 100%;
-        max-width: 420px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        align-items: center;
+        width: auto;
+        max-width: 100%;
     }
 
-    .rider-profile-actions-grid > .btn,
-    .rider-profile-actions-grid > .rider-profile-voucher-dropdown {
-        width: 100%;
+    .rider-profile-actions-grid>.btn,
+    .rider-profile-actions-grid>.rider-profile-voucher-dropdown {
+        flex: 0 0 auto;
+        width: auto;
         min-width: 0;
     }
 
@@ -125,12 +126,13 @@ $visibleProfileVoucherTypes[$code] = $label;
         display: inline-flex !important;
         align-items: center;
         justify-content: center;
-        gap: 0.3rem;
-        padding: 0.3rem 0.45rem !important;
-        font-size: 0.68rem !important;
+        gap: 0.25rem;
+        padding: 0.2rem 1.5rem !important;
+        font-size: 0.72rem !important;
         font-weight: 600 !important;
-        line-height: 1.2 !important;
+        line-height: 2 !important;
         white-space: nowrap;
+        width: auto !important;
     }
 
     .rider-profile-actions-grid .btn i {

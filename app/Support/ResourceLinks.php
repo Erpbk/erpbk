@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Schema;
+
 /**
  * Durable document→invoice/cheque links stored on payments and receipts.
  *
@@ -216,6 +218,57 @@ class ResourceLinks
     {
         // Matches {"id":123 or "id": 123 in JSON
         return '"id":'.$invoiceId;
+    }
+
+    /**
+     * True when the given table has the resource_links column (migration applied).
+     */
+    public static function columnExists(string $table = 'payments'): bool
+    {
+        static $cache = [];
+        if (! array_key_exists($table, $cache)) {
+            $cache[$table] = Schema::hasTable($table) && Schema::hasColumn($table, 'resource_links');
+        }
+
+        return $cache[$table];
+    }
+
+    /**
+     * Add an orWhere constraint matching resource_links invoice id when the column exists.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>|\Illuminate\Database\Query\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>|\Illuminate\Database\Query\Builder
+     */
+    public static function orWhereContainsInvoiceId($query, int $invoiceId, string $table = 'payments')
+    {
+        if (! self::columnExists($table)) {
+            return $query;
+        }
+
+        return $query->orWhere(
+            'resource_links',
+            'like',
+            '%'.self::containsInvoiceIdPayload($invoiceId).'%'
+        );
+    }
+
+    /**
+     * Add a where constraint matching resource_links invoice id when the column exists.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>|\Illuminate\Database\Query\Builder  $query
+     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>|\Illuminate\Database\Query\Builder
+     */
+    public static function whereContainsInvoiceId($query, int $invoiceId, string $table = 'payments')
+    {
+        if (! self::columnExists($table)) {
+            return $query;
+        }
+
+        return $query->where(
+            'resource_links',
+            'like',
+            '%'.self::containsInvoiceIdPayload($invoiceId).'%'
+        );
     }
 
     /**

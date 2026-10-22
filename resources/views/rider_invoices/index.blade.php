@@ -90,8 +90,8 @@
                         <a class="action-dropdown-item" href="{{ route('riderInvoices.importPaid') }}">
                             <i class="ti ti-plus"></i>
                             <div>
-                                <div class="action-dropdown-item-text">Paid Vouchers</div>
-                                <div class="action-dropdown-item-desc">Import Payment vouchers</div>
+                                <div class="action-dropdown-item-text">Salary Payments</div>
+                                <div class="action-dropdown-item-desc">Import rider salary payments</div>
                             </div>
                         </a>
                         @endcan
@@ -195,6 +195,9 @@
                 <button id="deleteSelectedBtn" class="btn btn-danger me-2" style="display: none;" onclick="deleteSelectedInvoices()">
                     <i class="fa fa-trash"></i> Delete Selected
                 </button>
+                <a id="exportRiderInvoicesBtn" href="{{ route('riderInvoices.export', request()->except(['page', '_token'])) }}" class="btn btn-success me-2">
+                    <i class="fa fa-file-excel"></i> Export
+                </a>
                 <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
             </div>
         </div>
@@ -302,9 +305,13 @@
                         $('#current-month-total').text('Current Month Total: ' + data.currentMonthTotal);
                     }
 
-                    // Update URL
+                    // Update URL + export link so export uses the same filters
                     let newUrl = "{{ route('riderInvoices.index') }}" + (formData ? '?' + formData : '');
                     history.pushState(null, '', newUrl);
+                    $('#exportRiderInvoicesBtn').attr(
+                        'href',
+                        "{{ route('riderInvoices.export') }}" + (formData ? '?' + formData : '')
+                    );
 
                     // Loader timing
                     const elapsed = Date.now() - loaderStartTime;

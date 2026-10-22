@@ -43,11 +43,12 @@ class ImportPaidRiderInvoice implements ToCollection
     private function defaultColumnMap(): array
     {
         return [
+            'invoice_number' => 1,
             'rider_id' => 2,
             'billing_month' => 11,
             'account_code' => 33,
             'amount' => 4,
-            'payment_date' => 1,
+            'payment_date' => 3,
             'description' => 5,
         ];
     }
@@ -87,15 +88,17 @@ class ImportPaidRiderInvoice implements ToCollection
         foreach ($rows->skip(1) as $rowIndex => $row) {
             $excelRow = is_numeric($rowIndex) ? ((int) $rowIndex + 1) : ($this->importedCount + count($this->skippedLog) + 2);
 
-            $riderIdRaw = $this->cell($row, 'rider_id');
-            $billingRaw = $this->cell($row, 'billing_month');
+            $invoiceNumberRaw = $this->cell($row, 'invoice_number');
+            $riderIdRaw = $this->isMapped('rider_id') ? $this->cell($row, 'rider_id') : null;
+            $billingRaw = $this->isMapped('billing_month') ? $this->cell($row, 'billing_month') : null;
             $accountCodeRaw = $this->cell($row, 'account_code');
             $amountRaw = $this->cell($row, 'amount');
             $paymentDateRaw = $this->cell($row, 'payment_date');
             $descriptionRaw = $this->cell($row, 'description');
 
             if (
-                $this->isBlank($riderIdRaw)
+                $this->isBlank($invoiceNumberRaw)
+                && $this->isBlank($riderIdRaw)
                 && $this->isBlank($billingRaw)
                 && $this->isBlank($accountCodeRaw)
                 && $this->isBlank($amountRaw)
@@ -108,11 +111,8 @@ class ImportPaidRiderInvoice implements ToCollection
             try {
                 DB::beginTransaction();
 
-                if ($this->isBlank($riderIdRaw)) {
-                    throw new \RuntimeException('Rider ID is missing.');
-                }
-                if ($this->isBlank($billingRaw)) {
-                    throw new \RuntimeException('Billing month is missing.');
+                if ($this->isBlank($invoiceNumberRaw)) {
+                    throw new \RuntimeException('Invoice number is missing.');
                 }
                 if ($this->isBlank($accountCodeRaw)) {
                     throw new \RuntimeException('Paying account code is missing.');
@@ -127,30 +127,68 @@ class ImportPaidRiderInvoice implements ToCollection
                     throw new \RuntimeException('Description is missing.');
                 }
 
-                $riderId = trim((string) $riderIdRaw);
-                $rider = Riders::where('rider_id', $riderId)->first();
+                $invoice = $this->resolveInvoiceByNumber(trim((string) $invoiceNumberRaw));
+                if (! $invoice) {
+                    throw new \RuntimeException('Invoice '.trim((string) $invoiceNumberRaw).' was not found.');
+                }
+
+                $invoice->loadMissing(['rider.account', 'items']);
+                $rider = $invoice->rider;
                 if (! $rider) {
-                    throw new \RuntimeException('Rider ID '.$riderId.' does not exist.');
+                    throw new \RuntimeException('Invoice '.$invoice->invoice_number.' has no rider.');
                 }
                 if (empty($rider->account_id)) {
-                    throw new \RuntimeException('Rider '.$riderId.' has no account.');
+                    throw new \RuntimeException('Rider '.$rider->rider_id.' has no account.');
                 }
 
-                $billingMonth = $this->parseBillingMonth($billingRaw);
-                if (! $billingMonth) {
-                    throw new \RuntimeException('Invalid billing month.');
+                if ($this->isMapped('rider_id') && ! $this->isBlank($riderIdRaw)) {
+                    $mappedRiderId = trim((string) $riderIdRaw);
+                    if (strcasecmp((string) $rider->rider_id, $mappedRiderId) !== 0) {
+                        throw new \RuntimeException(
+                            'Rider ID '.$mappedRiderId.' does not match invoice '.$invoice->invoice_number
+                            .' (expected '.$rider->rider_id.').'
+                        );
+                    }
                 }
 
-                $invoice = RiderInvoices::query()
-                    ->where('rider_id', $rider->id)
-                    ->whereYear('billing_month', (int) $billingMonth->format('Y'))
-                    ->whereMonth('billing_month', (int) $billingMonth->format('m'))
-                    ->payable()
-                    ->orderByDesc('id')
-                    ->first();
+                if ($this->isMapped('billing_month') && ! $this->isBlank($billingRaw)) {
+                    $billingMonth = $this->parseBillingMonth($billingRaw);
+                    if (! $billingMonth) {
+                        throw new \RuntimeException('Invalid billing month.');
+                    }
+                    $invoiceMonth = Carbon::parse($invoice->billing_month);
+                    if (
+                        (int) $billingMonth->format('Y') !== (int) $invoiceMonth->format('Y')
+                        || (int) $billingMonth->format('m') !== (int) $invoiceMonth->format('m')
+                    ) {
+                        throw new \RuntimeException(
+                            'Billing month '.$billingMonth->format('M Y')
+                            .' does not match invoice '.$invoice->invoice_number
+                            .' ('.$invoiceMonth->format('M Y').').'
+                        );
+                    }
+                }
 
-                if (! $invoice) {
-                    throw new \RuntimeException('No unpaid invoice found for rider '.$riderId.' in '.$billingMonth->format('M Y').'.');
+                // Already paid / settled invoices must not create a payment.
+                if ((int) $invoice->status === 1) {
+                    throw new \RuntimeException(
+                        'Invoice '.$invoice->invoice_number.' is already fully paid. Payment was not stored.'
+                    );
+                }
+
+                $isPayable = $invoice->status === null || in_array((int) $invoice->status, [0, 3], true);
+                if (! $isPayable) {
+                    throw new \RuntimeException(
+                        'Invoice '.$invoice->invoice_number.' cannot receive a payment. Payment was not stored.'
+                    );
+                }
+
+                $invoice->clearOutstandingSummary();
+                $balanceBefore = round((float) ($invoice->balance ?? 0), 2);
+                if ($balanceBefore <= 0.01) {
+                    throw new \RuntimeException(
+                        'Invoice '.$invoice->invoice_number.' has no outstanding balance. Payment was not stored.'
+                    );
                 }
 
                 $payingAccount = $this->findPayingAccountByCode(trim((string) $accountCodeRaw));
@@ -167,6 +205,12 @@ class ImportPaidRiderInvoice implements ToCollection
                 if ($paymentAmount < 0.01) {
                     throw new \RuntimeException('Payment amount must be greater than 0.');
                 }
+                if ($paymentAmount > $balanceBefore + 0.01) {
+                    throw new \RuntimeException(
+                        'Payment amount exceeds outstanding balance ('
+                        .number_format($balanceBefore, 2).') for invoice '.$invoice->invoice_number.'.'
+                    );
+                }
 
                 $paymentDate = $this->resolvePaymentDate($row);
                 $description = $this->resolveDescription($row);
@@ -178,13 +222,9 @@ class ImportPaidRiderInvoice implements ToCollection
                     $payingAccount,
                     $paymentAmount,
                     $paymentDate,
-                    $description
+                    $description,
+                    $balanceBefore
                 );
-
-                $invoice->update([
-                    'status' => 1,
-                    'updated_by' => Auth::id(),
-                ]);
 
                 DB::commit();
                 $this->importedCount++;
@@ -199,7 +239,31 @@ class ImportPaidRiderInvoice implements ToCollection
     }
 
     /**
-     * Create the same Payment + PV voucher used when recording an individual rider invoice payment.
+     * Resolve a rider invoice from RINV-00012, RINV-12, or a bare numeric id.
+     */
+    private function resolveInvoiceByNumber(string $raw): ?RiderInvoices
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return null;
+        }
+
+        $id = null;
+        if (preg_match('/^RINV-?0*(\d+)$/i', $raw, $m)) {
+            $id = (int) $m[1];
+        } elseif (preg_match('/^0*(\d+)$/', $raw, $m)) {
+            $id = (int) $m[1];
+        }
+
+        if ($id === null || $id <= 0) {
+            return null;
+        }
+
+        return RiderInvoices::query()->lockForUpdate()->find($id);
+    }
+
+    /**
+     * Create the same Payment + PV voucher used when recording a manual rider salary payment.
      */
     private function createInvoicePayment(
         RiderInvoices $invoice,
@@ -208,7 +272,8 @@ class ImportPaidRiderInvoice implements ToCollection
         Accounts $payingAccount,
         float $paymentAmount,
         Carbon $paymentDate,
-        string $description
+        string $description,
+        float $balanceBefore
     ): void {
         $payeeAccount = Accounts::find($rider->account_id);
         $companyId = $invoice->company_id ?? $rider->company_id ?? CompanyContext::id();
@@ -220,6 +285,14 @@ class ImportPaidRiderInvoice implements ToCollection
         $invoiceDate = $invoice->inv_date
             ? Carbon::parse($invoice->inv_date)->format('Y-m-d')
             : $paymentDate->format('Y-m-d');
+
+        $invoiceTag = 'Rider Invoice #'.$invoice->id;
+        $description = trim($description);
+        if ($description === '') {
+            $description = 'Payment against '.$invoiceTag;
+        } elseif (! str_contains($description, 'Rider Invoice #')) {
+            $description = $description.' | '.$invoiceTag;
+        }
 
         $payment = Payment::create([
             'company_id' => $companyId,
@@ -236,6 +309,7 @@ class ImportPaidRiderInvoice implements ToCollection
             'bank_charges' => 0,
             'bank_id' => $bank->id,
             'amount_type' => 'Online',
+            'payment_kind' => 'salary_payment',
             'payee_account_id' => $rider->account_id,
             'amount' => $paymentAmount,
             'date_of_invoice' => $invoiceDate,
@@ -285,7 +359,7 @@ class ImportPaidRiderInvoice implements ToCollection
             'payment_from' => $payingAccount->id,
             'amount' => $paymentAmount,
             'voucher_type' => 'PV',
-            'remarks' => 'Payment Voucher',
+            'remarks' => 'Salary Payment',
             'ref_id' => $payment->id,
             'rider_id' => $rider->id,
             'Created_By' => Auth::id(),
@@ -296,6 +370,23 @@ class ImportPaidRiderInvoice implements ToCollection
         $payment->update([
             'voucher_id' => $voucher->id,
         ]);
+
+        $partialAmount = $invoice->partial_paid_amount ?? [];
+        if (! is_array($partialAmount)) {
+            $partialAmount = [];
+        }
+        $partialAmount[(string) $payment->id] = $paymentAmount;
+
+        // Full settlement of outstanding → invoice paid (status 1); otherwise partial (3).
+        $fullyPaid = round($paymentAmount, 2) >= round($balanceBefore - 0.01, 2);
+
+        $invoice->update([
+            'status' => $fullyPaid ? 1 : 3,
+            'partial_paid_amount' => $partialAmount,
+            'updated_by' => Auth::id(),
+        ]);
+
+        $invoice->clearOutstandingSummary();
     }
 
     private function findPayingAccountByCode(string $accountCode): ?Accounts

@@ -46,8 +46,14 @@
             $viewVoucherAction = $isRiderPaymentRow
                 ? route('payments.show', array_filter(['payment' => $payment->id, 'company_slug' => $__companySlug]))
                 : ($voucherId ? route('vouchers.show', $voucherShowParams($voucherId)) : null);
+            $riderVoucherLabel = match ((string) ($payment->payment_kind ?? '')) {
+                'salary_payment', 'payment' => 'Salary Payment',
+                'c3' => 'C3',
+                'advance_payment', 'advance_loan' => 'Advance Payment',
+                default => 'Payment Voucher',
+            };
             $viewVoucherTitle = $isRiderPaymentRow
-                ? ('Payment Voucher '.($payment->reference ?: $voucherLabel))
+                ? ($riderVoucherLabel.' '.($payment->reference ?: $voucherLabel))
                 : ('Payment Voucher '.$voucherLabel);
         @endphp
         <tr class="{{ $paymentPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $payment->id }}">

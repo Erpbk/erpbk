@@ -575,11 +575,15 @@ class PaymentController extends Controller
                         }
 
                         $partialAmount = $invoice->partial_paid_amount ?? [];
-                        $partialAmount[$payment->id] = $invoicePaymentAmount;
-                        $balanceBefore = $salaryBalancesBefore[$invoice->id] ?? (float) $invoice->balance;
+                        if (! is_array($partialAmount)) {
+                            $partialAmount = [];
+                        }
+                        $partialAmount[(string) $payment->id] = $invoicePaymentAmount;
+                        $balanceBefore = round((float) ($salaryBalancesBefore[$invoice->id] ?? $invoice->balance ?? 0), 2);
+                        $fullyPaid = round((float) $invoicePaymentAmount, 2) >= round($balanceBefore - 0.01, 2);
 
                         $invoiceUpdate = [
-                            'status' => $invoicePaymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
+                            'status' => $fullyPaid ? 1 : 3,
                             'partial_paid_amount' => $partialAmount,
                             'updated_by' => auth()->id(),
                         ];
@@ -679,7 +683,15 @@ class PaymentController extends Controller
                 (string) $desc
             );
 
-            // Create voucher
+            // Create voucher — rider salary payments use "Salary Payment" on the PV form.
+            $paymentKind = (string) ($payment->payment_kind ?? $input['payment_kind'] ?? '');
+            $voucherRemarks = match ($paymentKind) {
+                'salary_payment', 'payment' => 'Salary Payment',
+                'c3' => 'C3',
+                'advance_payment', 'advance_loan' => 'Advance Payment',
+                default => 'Payment Voucher',
+            };
+
             $voucherData = [
                 'trans_date' => $date,
                 'trans_code' => $transCode,
@@ -688,7 +700,7 @@ class PaymentController extends Controller
                 'payment_from' => $payingAccountId,
                 'amount' => $totalAmount,
                 'voucher_type' => 'PV',
-                'remarks' => 'Payment Voucher',
+                'remarks' => $voucherRemarks,
                 'ref_id' => $payment->id,
                 'Created_By' => auth()->id(),
                 'status' => 1,
@@ -1678,6 +1690,12 @@ class PaymentController extends Controller
             ]);
         }
 
+        if ((int) $invoice->status === 1) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Selected invoice is already fully paid. Payment was not stored.',
+            ]);
+        }
+
         $collection = collect([$invoice]);
         $this->applySequentialSalaryInvoiceBalances($collection, null, 'rider');
         $this->normalizeRiderPaymentFormBalances($collection);
@@ -1690,7 +1708,7 @@ class PaymentController extends Controller
 
         if ($balanceDue <= 0.01) {
             throw ValidationException::withMessages([
-                'invoice_ids' => 'Selected invoice has no outstanding balance',
+                'invoice_ids' => 'Selected invoice has no outstanding balance. Payment was not stored.',
             ]);
         }
 

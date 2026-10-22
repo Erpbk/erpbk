@@ -433,7 +433,7 @@ class RiderInvoiceViewDataBuilder
                 ->where('payee_account_id', $accountId)
                 ->whereNotNull('voucher_id')
                 ->where(function ($q) use ($patterns, $invoiceId) {
-                    $q->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                    ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
                     foreach ($patterns as $pattern) {
                         $q->orWhere('reference', 'like', '%'.$pattern.'%')
                             ->orWhere('description', 'like', '%'.$pattern.'%');
@@ -631,7 +631,7 @@ class RiderInvoiceViewDataBuilder
         $linked = 0.0;
         $linkedQuery = Payment::where('payee_account_id', $accountId)
             ->where(function ($q) use ($patterns, $invoiceId) {
-                $q->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
                 foreach ($patterns as $pattern) {
                     $q->orWhere('reference', 'like', '%'.$pattern.'%')
                         ->orWhere('description', 'like', '%'.$pattern.'%');

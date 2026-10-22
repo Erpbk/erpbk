@@ -55,11 +55,26 @@ class RiderPaymentVoucherViewData
         $voucherType = $payment->voucher->voucher_type ?? 'PV';
         $voucherNo = $voucherType . '-' . $voucherId;
 
+        $paymentKind = (string) ($payment->payment_kind ?? '');
+        $paymentType = match ($paymentKind) {
+            'advance_payment', 'advance_loan' => 'Advance Payment',
+            'salary_payment', 'payment' => 'Salary Payment',
+            'c3' => 'C3',
+            default => 'Payment',
+        };
+        // Full form badge: salary rider PVs show "Salary Payment" (not generic Payment Voucher).
+        $documentTitle = match ($paymentKind) {
+            'salary_payment', 'payment' => 'Salary Payment',
+            'c3' => 'C3',
+            'advance_payment', 'advance_loan' => 'Advance Payment',
+            default => $settings['title'],
+        };
+
         return [
             'payment' => $payment,
             'settings' => $settings,
             'brand' => $brand,
-            'documentTitle' => $settings['title'],
+            'documentTitle' => $documentTitle,
             'companyName' => $brand['name'] ?? ($brand['company_name'] ?? '—'),
             'logoSrc' => $brand['logo_src'] ?? ($brand['logo_url'] ?? null),
             'voucherNo' => $voucherNo,
@@ -77,12 +92,7 @@ class RiderPaymentVoucherViewData
             'paidBy' => $paidByAccount,
             'createdBy' => $createdByName ?: '—',
             'paymentMode' => $payment->amount_type ?: '—',
-            'paymentType' => match ((string) ($payment->payment_kind ?? '')) {
-                'advance_payment', 'advance_loan' => 'Advance Payment',
-                'salary_payment' => 'Salary Payment',
-                'c3' => 'C3',
-                default => 'Payment',
-            },
+            'paymentType' => $paymentType,
             'paymentAmount' => $paymentAmount,
             'bankCharges' => $bankCharges,
             'totalPayment' => $totalAmount,

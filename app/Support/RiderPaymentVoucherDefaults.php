@@ -22,7 +22,7 @@ final class RiderPaymentVoucherDefaults
 
     public const PAYER_SIGNATURE_LABEL_KEY = 'rider_payment_payer_signature_label';
 
-    public const DEFAULT_TITLE = 'PAYMENT VOUCHER';
+    public const DEFAULT_TITLE = 'Salary Payment';
 
     public const DEFAULT_INTERNAL_NOTES_LABEL = 'Internal Notes';
 

@@ -408,12 +408,14 @@ class EmployeeInvoiceViewDataBuilder
         $legacy = 0.0;
         if ($accountId) {
             $invoiceId = (int) $employeeInvoice->id;
-            $linkedQuery = Payment::where('payee_account_id', $accountId)
-                ->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
-            if ($allocatedPaymentIds !== []) {
-                $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+            if (ResourceLinks::columnExists('payments')) {
+                $linkedQuery = Payment::where('payee_account_id', $accountId)
+                    ->where('resource_links', 'like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                if ($allocatedPaymentIds !== []) {
+                    $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+                }
+                $linked = round((float) $linkedQuery->sum('amount'), 2);
             }
-            $linked = round((float) $linkedQuery->sum('amount'), 2);
 
             $legacyQuery = Payment::where('payee_account_id', $accountId)
                 ->whereDate('billing_month', $monthStart);
@@ -421,10 +423,12 @@ class EmployeeInvoiceViewDataBuilder
                 $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
             }
             // Avoid double-counting payments already counted via resource_links.
-            $legacyQuery->where(function ($q) use ($invoiceId) {
-                $q->whereNull('resource_links')
-                    ->orWhere('resource_links', 'not like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
-            });
+            if (ResourceLinks::columnExists('payments')) {
+                $legacyQuery->where(function ($q) use ($invoiceId) {
+                    $q->whereNull('resource_links')
+                        ->orWhere('resource_links', 'not like', '%'.ResourceLinks::containsInvoiceIdPayload($invoiceId).'%');
+                });
+            }
             $legacy = round((float) $legacyQuery->sum('amount'), 2);
         }
 

@@ -9,7 +9,9 @@
          <th title="Invoice Number" class="sorting" rowspan="1" colspan="1">Invoice</th>
          <th title="Inv Date" class="sorting" rowspan="1" colspan="1">Inv Date</th>
          <th title="Billing Month" class="sorting" rowspan="1" colspan="1">Billing Month</th>
+         <th title="Person Code" class="sorting" rowspan="1" colspan="1">Person Code</th>
          <th title="Rider" class="sorting" rowspan="1" colspan="1">Rider</th>
+         <th title="Rider Status" class="sorting" rowspan="1" colspan="1">Rider Status</th>
          <th title="Descriptions" class="sorting" rowspan="1" colspan="1">Descriptions</th>
          <th title="Zone" class="sorting" rowspan="1" colspan="1">Project</th>
          <th title="Invoice Amount" class="sorting" rowspan="1" colspan="1">Invoice Amount</th>
@@ -29,8 +31,21 @@
          <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
          @php
          $rider = company_table('riders')->where('id' , $r->rider_id)->first();
+         $riderStatus = $rider
+            ? \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)
+            : ['label' => '—', 'badge' => 'bg-label-secondary'];
          @endphp
-         <td>{{ $rider->rider_id . '-' . $rider->name }}</td>
+         <td>{{ $rider?->person_code ?? '—' }}</td>
+         <td>
+            @if($rider)
+            <a href="{{ route('rider.ledger', $rider->id) }}" target="_blank">{{ $rider->rider_id . '-' . $rider->name }}</a>
+            @else
+            —
+            @endif
+         </td>
+         <td>
+            <span class="badge {{ $riderStatus['badge'] }}">{{ $riderStatus['label'] }}</span>
+         </td>
          <td>{{ $r->descriptions }}</td>
          <td>
             {{ company_table('customers')->where('id' , $rider->customer_id)->first()->name ?? '-'}}

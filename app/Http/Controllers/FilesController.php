@@ -391,6 +391,19 @@ class FilesController extends AppBaseController
       $input['file_type'] = $extension;
     }
 
+    // Rider typed uploads: always store the canonical type/subtype key as name so
+    // each document type stays unique (never share one file across checklist slots).
+    if ($type === 'rider' && !empty($normalizedFields['document_type_id'])) {
+      $docType = RiderDocumentType::query()->find((int) $normalizedFields['document_type_id']);
+      $subtype = !empty($normalizedFields['document_subtype_id'])
+        ? RiderDocumentTypeSubtype::query()->find((int) $normalizedFields['document_subtype_id'])
+        : null;
+      $canonicalName = RiderDocumentFieldValues::suggestedNameFragment($docType, $subtype);
+      if ($canonicalName) {
+        $input['name'] = $canonicalName;
+      }
+    }
+
     if (array_key_exists('expiry_date', $input) && $input['expiry_date'] === '') {
       $input['expiry_date'] = null;
     }
@@ -411,7 +424,47 @@ class FilesController extends AppBaseController
     }
 
     DB::transaction(function () use ($input, $type, $typeId, $normalizedFields) {
-      $this->filesRepository->create($input);
+      // One file per rider document type/subtype: replace instead of creating duplicates.
+      $existingTyped = null;
+      if (
+        $type === 'rider'
+        && $typeId > 0
+        && !empty($normalizedFields['document_type_id'])
+      ) {
+        $existingQuery = Files::query()
+          ->where('type', 'rider')
+          ->where('type_id', $typeId)
+          ->where('document_type_id', (int) $normalizedFields['document_type_id'])
+          ->orderByDesc('id');
+        if (!empty($normalizedFields['document_subtype_id'])) {
+          $existingQuery->where('document_subtype_id', (int) $normalizedFields['document_subtype_id']);
+        } else {
+          $existingQuery->where(function ($q) {
+            $q->whereNull('document_subtype_id')->orWhere('document_subtype_id', 0);
+          });
+        }
+        $existingTyped = $existingQuery->first();
+      }
+
+      if ($existingTyped) {
+        // Drop previous disk file when replacing with a new upload.
+        if (!empty($input['file_name']) && $existingTyped->file_name && $existingTyped->file_name !== $input['file_name']) {
+          $relativeDir = self::storageRelativePath($existingTyped);
+          foreach (
+            [
+              storage_path('app/' . $relativeDir),
+              storage_path('app/public/' . $relativeDir),
+            ] as $filePath
+          ) {
+            if (is_file($filePath)) {
+              @unlink($filePath);
+            }
+          }
+        }
+        $this->filesRepository->update($input, $existingTyped->id);
+      } else {
+        $this->filesRepository->create($input);
+      }
 
       if ($type === 'rider' && $typeId > 0 && !empty($normalizedFields['document_subtype_id'])) {
         $rider = Riders::find($typeId);
@@ -520,6 +573,17 @@ class FilesController extends AppBaseController
       unset($input['file_name']);
       if (!empty($input['suggested_name'])) {
         $input['name'] = $input['suggested_name'];
+      }
+    }
+
+    if ($type === 'rider' && !empty($normalizedFields['document_type_id'])) {
+      $docType = RiderDocumentType::query()->find((int) $normalizedFields['document_type_id']);
+      $subtype = !empty($normalizedFields['document_subtype_id'])
+        ? RiderDocumentTypeSubtype::query()->find((int) $normalizedFields['document_subtype_id'])
+        : null;
+      $canonicalName = RiderDocumentFieldValues::suggestedNameFragment($docType, $subtype);
+      if ($canonicalName) {
+        $input['name'] = $canonicalName;
       }
     }
 

@@ -12,6 +12,7 @@ class RiderDocumentChecklist
 {
     /**
      * Build checklist rows for the rider Documents page (one row per document type).
+     * Each file is claimed by at most one type/side so one upload cannot fill multiple slots.
      *
      * @return list<array<string, mixed>>
      */
@@ -24,9 +25,10 @@ class RiderDocumentChecklist
             ->orderByDesc('id')
             ->get();
 
+        $claimedIds = [];
         $rows = [];
         foreach ($types as $type) {
-            $rows[] = self::buildRow($type, $files);
+            $rows[] = self::buildRow($type, $files, $claimedIds);
         }
 
         return $rows;
@@ -34,9 +36,10 @@ class RiderDocumentChecklist
 
     /**
      * @param  Collection<int, Files>  $files
+     * @param  array<int, true>  $claimedIds
      * @return array<string, mixed>
      */
-    public static function buildRow(RiderDocumentType $type, Collection $files): array
+    public static function buildRow(RiderDocumentType $type, Collection $files, array &$claimedIds = []): array
     {
         $isDual = $type->type === 'dual';
         $label = self::cleanDocumentLabel(
@@ -48,8 +51,14 @@ class RiderDocumentChecklist
         }
 
         if ($isDual) {
-            $front = self::findFileForSide($files, $type, 'front');
-            $back = self::findFileForSide($files, $type, 'back');
+            $front = self::findFileForSide($files, $type, 'front', $claimedIds);
+            if ($front) {
+                $claimedIds[(int) $front->id] = true;
+            }
+            $back = self::findFileForSide($files, $type, 'back', $claimedIds);
+            if ($back) {
+                $claimedIds[(int) $back->id] = true;
+            }
             $complete = $front && $back;
             $partial = ($front || $back) && !$complete;
 
@@ -68,8 +77,11 @@ class RiderDocumentChecklist
             ];
         }
 
-        $file = self::findFileForSide($files, $type, 'main')
-            ?? self::findFileForType($files, $type);
+        $file = self::findFileForSide($files, $type, 'main', $claimedIds)
+            ?? self::findFileForType($files, $type, $claimedIds);
+        if ($file) {
+            $claimedIds[(int) $file->id] = true;
+        }
 
         return [
             'document_type_id' => $type->id,
@@ -88,73 +100,137 @@ class RiderDocumentChecklist
 
     /**
      * @param  Collection<int, Files>  $files
+     * @param  array<int, true>  $claimedIds
      */
-    public static function findFileForSide(Collection $files, RiderDocumentType $type, string $sideKey): ?Files
-    {
+    public static function findFileForSide(
+        Collection $files,
+        RiderDocumentType $type,
+        string $sideKey,
+        array $claimedIds = []
+    ): ?Files {
+        $available = $files->filter(fn ($f) => !isset($claimedIds[(int) ($f->id ?? 0)]));
+
         $subtypeId = RiderDocumentTypeSubtype::query()
             ->where('document_type_id', $type->id)
             ->where('key', $sideKey)
             ->value('id');
 
+        // 1) Exact subtype (and type when present) — preferred for typed rider-file uploads.
         if ($subtypeId) {
-            $bySubtype = $files->first(fn ($f) => (int) ($f->document_subtype_id ?? 0) === (int) $subtypeId);
+            $bySubtype = $available->first(function ($f) use ($subtypeId, $type) {
+                if ((int) ($f->document_subtype_id ?? 0) !== (int) $subtypeId) {
+                    return false;
+                }
+                $fileTypeId = (int) ($f->document_type_id ?? 0);
+
+                return $fileTypeId === 0 || $fileTypeId === (int) $type->id;
+            });
             if ($bySubtype) {
                 return $bySubtype;
             }
         }
 
-        $byTypeAndName = $files->first(function ($f) use ($type, $sideKey) {
+        // 2) Files explicitly tagged with this document type + side name.
+        $byTypeAndSide = $available->first(function ($f) use ($type, $sideKey) {
             if ((int) ($f->document_type_id ?? 0) !== (int) $type->id) {
                 return false;
             }
-            $name = strtolower((string) ($f->name ?? ''));
-            if ($sideKey === 'front') {
-                return str_contains($name, 'front') || str_contains($name, 'first') || str_ends_with($name, '_front');
-            }
-            if ($sideKey === 'back') {
-                return str_contains($name, 'back') || str_contains($name, 'second') || str_ends_with($name, '_back');
-            }
 
-            return !str_contains($name, 'front') && !str_contains($name, 'back');
+            return self::fileNameMatchesSide($f, $type, $sideKey);
         });
-        if ($byTypeAndName) {
-            return $byTypeAndName;
+        if ($byTypeAndSide) {
+            return $byTypeAndSide;
         }
 
-        return $files->first(function ($f) use ($type, $sideKey) {
-            $name = strtolower((string) ($f->name ?? '') . ' ' . (string) ($f->file_name ?? ''));
-            if (!str_contains($name, strtolower($type->key))) {
+        // 3) Single/main: any file tagged with this document type (ignore loose name matches).
+        if ($sideKey === 'main') {
+            $byType = $available->first(function ($f) use ($type) {
+                if ((int) ($f->document_type_id ?? 0) !== (int) $type->id) {
+                    return false;
+                }
+                $name = strtolower((string) ($f->name ?? ''));
+
+                return !str_ends_with($name, '_front')
+                    && !str_ends_with($name, '_back')
+                    && !str_contains($name, '_front')
+                    && !str_contains($name, '_back');
+            });
+            if (!$byType) {
+                $byType = $available->first(
+                    fn ($f) => (int) ($f->document_type_id ?? 0) === (int) $type->id
+                );
+            }
+            if ($byType) {
+                return $byType;
+            }
+        }
+
+        // 4) Legacy only: untyped files whose stored name exactly equals key / key_side.
+        // Never steal a file already assigned to another document_type_id.
+        return $available->first(function ($f) use ($type, $sideKey) {
+            if ((int) ($f->document_type_id ?? 0) !== 0) {
                 return false;
             }
-            if ($sideKey === 'front') {
-                return str_contains($name, 'front') || str_contains($name, 'first') || str_ends_with(strtolower((string) $f->name), '_front');
-            }
-            if ($sideKey === 'back') {
-                return str_contains($name, 'back') || str_contains($name, 'second') || str_ends_with(strtolower((string) $f->name), '_back');
-            }
 
-            return !str_contains($name, 'front')
-                && !str_contains($name, 'back')
-                && !str_contains($name, 'first')
-                && !str_contains($name, 'second');
+            return self::exactLegacyNameMatch($f, $type, $sideKey);
         });
     }
 
     /**
      * @param  Collection<int, Files>  $files
+     * @param  array<int, true>  $claimedIds
      */
-    public static function findFileForType(Collection $files, RiderDocumentType $type): ?Files
-    {
-        $byType = $files->first(fn ($f) => (int) ($f->document_type_id ?? 0) === (int) $type->id);
+    public static function findFileForType(
+        Collection $files,
+        RiderDocumentType $type,
+        array $claimedIds = []
+    ): ?Files {
+        $available = $files->filter(fn ($f) => !isset($claimedIds[(int) ($f->id ?? 0)]));
+
+        $byType = $available->first(
+            fn ($f) => (int) ($f->document_type_id ?? 0) === (int) $type->id
+        );
         if ($byType) {
             return $byType;
         }
 
-        return $files->first(function ($f) use ($type) {
-            $name = strtolower((string) ($f->name ?? '') . ' ' . (string) ($f->file_name ?? ''));
+        return $available->first(function ($f) use ($type) {
+            if ((int) ($f->document_type_id ?? 0) !== 0) {
+                return false;
+            }
 
-            return str_contains($name, strtolower($type->key));
+            return self::exactLegacyNameMatch($f, $type, 'main');
         });
+    }
+
+    /**
+     * Exact stored-name match for a typed side (no substring / alias matching).
+     */
+    private static function fileNameMatchesSide(Files $file, RiderDocumentType $type, string $sideKey): bool
+    {
+        return self::exactLegacyNameMatch($file, $type, $sideKey);
+    }
+
+    /**
+     * Match only the canonical names written by Add Document / typed upload
+     * (e.g. labor_contract, labor_card_front) — never substring matches like "labor" ⊂ "labor_contract".
+     */
+    private static function exactLegacyNameMatch(Files $file, RiderDocumentType $type, string $sideKey): bool
+    {
+        $name = strtolower(trim((string) ($file->name ?? '')));
+        $key = strtolower(trim((string) ($type->key ?? '')));
+        if ($key === '' || $name === '') {
+            return false;
+        }
+
+        if ($sideKey === 'front') {
+            return $name === $key . '_front' || $name === $key . '_first';
+        }
+        if ($sideKey === 'back') {
+            return $name === $key . '_back' || $name === $key . '_second';
+        }
+
+        return $name === $key || $name === $key . '_main';
     }
 
     /**

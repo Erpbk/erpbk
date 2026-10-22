@@ -325,6 +325,10 @@
                             <span class="v">{{ $party->rider_id ?? '—' }}</span>
                         </div>
                         <div class="party-line">
+                            <span class="k">Person Code</span>
+                            <span class="v">{{ $party->person_code ?? '—' }}</span>
+                        </div>
+                        <div class="party-line">
                             <span class="k">Mobile</span>
                             <span class="v">{{ $party?->sim?->number ?? '—' }}</span>
                         </div>

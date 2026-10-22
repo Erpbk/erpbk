@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\RiderInvoiceExport;
 use App\Helpers\Account;
 use App\Http\Requests\CreateRiderInvoicesRequest;
 use App\Http\Requests\UpdateRiderInvoicesRequest;
@@ -56,52 +57,7 @@ class RiderInvoicesController extends AppBaseController
         // Use global pagination trait
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-        $query = RiderInvoices::query()
-            ->orderBy('billing_month', 'desc')
-            ->orderBy('status', 'asc');
-        $query->whereHas('rider');
-        // Filters
-        if ($request->has('id') && ! empty($request->id)) {
-            $query->where('id', 'like', '%' . $request->id . '%');
-        }
-        if ($request->has('rider_id') && ! empty($request->rider_id)) {
-            $query->where('rider_id', $request->rider_id);
-        }
-        if ($request->has('billing_month') && ! empty($request->billing_month)) {
-            $billingMonth = Carbon::parse($request->billing_month);
-            $query->whereYear('billing_month', $billingMonth->year)
-                ->whereMonth('billing_month', $billingMonth->month);
-        }
-        if ($request->has('zone') && ! empty($request->zone)) {
-            $query->where('zone', $request->zone);
-        }
-        if ($request->has('performance') && ! empty($request->performance)) {
-            $query->where('performance', $request->performance);
-        }
-        if ($request->has('status') && ! empty($request->status)) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('quick_search')) {
-            $search = trim((string) $request->input('quick_search'));
-            $query->where(function ($q) use ($search) {
-                $q->where('rider_invoices.id', 'like', '%'.$search.'%')
-                    ->orWhere('rider_invoices.descriptions', 'like', '%'.$search.'%')
-                    ->orWhere('rider_invoices.zone', 'like', '%'.$search.'%')
-                    ->orWhere('rider_invoices.notes', 'like', '%'.$search.'%')
-                    ->orWhere('rider_invoices.performance', 'like', '%'.$search.'%')
-                    ->orWhereHas('rider', function ($riderQuery) use ($search) {
-                        $riderQuery->where('name', 'like', '%'.$search.'%')
-                            ->orWhere('rider_id', 'like', '%'.$search.'%')
-                            ->orWhereHas('customer', function ($customerQuery) use ($search) {
-                                $customerQuery->where('name', 'like', '%'.$search.'%');
-                            });
-                    });
-
-                if (preg_match('/^(?:RINV-?)?0*(\d+)$/i', $search, $matches)) {
-                    $q->orWhere('rider_invoices.id', (int) $matches[1]);
-                }
-            });
-        }
+        $query = $this->filteredRiderInvoicesQuery($request);
 
         // Apply pagination using the trait
         $data = $this->applyPagination($query, $paginationParams);
@@ -114,7 +70,7 @@ class RiderInvoicesController extends AppBaseController
         }
 
         // ✅ Billing month ka check for total calculation
-        $billingMonth = $request->has('billing_month') && ! empty($request->billing_month)
+        $billingMonth = $request->filled('billing_month')
             ? Carbon::parse($request->billing_month)
             : now();
 
@@ -144,6 +100,85 @@ class RiderInvoicesController extends AppBaseController
             'currentMonthTotal' => $currentMonthTotal,
             'invoiceTemplates' => app(RiderInvoiceTemplateResolver::class)->activeTemplates(),
         ]);
+    }
+
+    /**
+     * Export rider invoices for the selected billing month / active filters.
+     * Uses the same filters as the index listing (no pagination).
+     */
+    public function export(Request $request)
+    {
+        $invoices = $this->filteredRiderInvoicesQuery($request)
+            ->with(['rider.customer'])
+            ->get();
+
+        $invoiceBuilder = app(RiderInvoiceViewDataBuilder::class);
+        foreach ($invoices as $invoice) {
+            $invoice->setOutstandingSummary($invoiceBuilder->outstandingAmounts($invoice));
+        }
+
+        $monthSuffix = $request->filled('billing_month')
+            ? Carbon::parse($request->billing_month)->format('Y_m')
+            : 'all';
+        $filename = 'rider_invoices_'.$monthSuffix.'_'.now()->format('Y_m_d_His').'.xlsx';
+
+        return Excel::download(new RiderInvoiceExport($invoices), $filename);
+    }
+
+    /**
+     * Shared listing/export query with the same filters as the index page.
+     */
+    protected function filteredRiderInvoicesQuery(Request $request)
+    {
+        $query = RiderInvoices::query()
+            ->orderBy('billing_month', 'desc')
+            ->orderBy('status', 'asc')
+            ->whereHas('rider');
+
+        if ($request->filled('id')) {
+            $query->where('id', 'like', '%'.$request->id.'%');
+        }
+        if ($request->filled('rider_id')) {
+            $query->where('rider_id', $request->rider_id);
+        }
+        if ($request->filled('billing_month')) {
+            $billingMonth = Carbon::parse($request->billing_month);
+            $query->whereYear('billing_month', $billingMonth->year)
+                ->whereMonth('billing_month', $billingMonth->month);
+        }
+        if ($request->filled('zone')) {
+            $query->where('zone', $request->zone);
+        }
+        if ($request->filled('performance')) {
+            $query->where('performance', $request->performance);
+        }
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->filled('quick_search')) {
+            $search = trim((string) $request->input('quick_search'));
+            $query->where(function ($q) use ($search) {
+                $q->where('rider_invoices.id', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.descriptions', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.zone', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.notes', 'like', '%'.$search.'%')
+                    ->orWhere('rider_invoices.performance', 'like', '%'.$search.'%')
+                    ->orWhereHas('rider', function ($riderQuery) use ($search) {
+                        $riderQuery->where('name', 'like', '%'.$search.'%')
+                            ->orWhere('rider_id', 'like', '%'.$search.'%')
+                            ->orWhere('person_code', 'like', '%'.$search.'%')
+                            ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                                $customerQuery->where('name', 'like', '%'.$search.'%');
+                            });
+                    });
+
+                if (preg_match('/^(?:RINV-?)?0*(\d+)$/i', $search, $matches)) {
+                    $q->orWhere('rider_invoices.id', (int) $matches[1]);
+                }
+            });
+        }
+
+        return $query;
     }
 
     /**

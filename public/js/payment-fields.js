@@ -303,11 +303,13 @@
 
       if (nextVal && nextVal !== currentVal) {
         $typeSelect.val(nextVal);
-        applyCreatePaymentTypeUi();
       } else if (!$typeSelect.val() && nextVal) {
         $typeSelect.val(nextVal);
-        applyCreatePaymentTypeUi();
       }
+
+      // Always refresh UI (billing month + Payment Amount lock) for the active type.
+      applyCreatePaymentTypeUi();
+      lockRiderPrimaryPaymentAmount();
 
       if ($typeSelect.hasClass('select2-hidden-accessible')) {
         $typeSelect.trigger('change.select2');
@@ -490,6 +492,13 @@
         return;
       }
 
+      // Advance Payment: amount is entered manually — never overwrite from invoice lines.
+      if (isRiderOnlyPayment && isAdvanceLoanType()) {
+        validatePaymentDistribution();
+        lockRiderPrimaryPaymentAmount();
+        return;
+      }
+
       var total = updateTotalPayment();
       var existing = parseFloat($ctx.find('#payment_amount').val()) || 0;
 
@@ -522,11 +531,29 @@
         return;
       }
       var $amount = $ctx.find('#payment_amount');
-      // Salary/invoice payments: amount comes from the table. Advance: user types it.
-      if (isPaymentCreateType() || (!$ctx.find('#create_payment_type').length && $ctx.find('#invoices-table').length)) {
+      if (!$amount.length) {
+        $amount = $('#payment_amount');
+      }
+      if (!$amount.length) {
+        return;
+      }
+      // Advance Payment / Advance Loan: user must type the amount (always editable).
+      // Salary/invoice payments: amount is driven by the invoice table.
+      var lockForSalary = isPaymentCreateType()
+        || (!$ctx.find('#create_payment_type').length && $ctx.find('#invoices-table').length);
+      if (isAdvanceLoanType()) {
+        lockForSalary = false;
+      }
+      if (lockForSalary) {
         $amount.prop('readonly', true).attr('readonly', 'readonly').addClass('bg-light');
       } else {
-        $amount.prop('readonly', false).removeAttr('readonly').removeClass('bg-light');
+        $amount.prop('readonly', false).prop('disabled', false)
+          .removeAttr('readonly').removeAttr('disabled').removeClass('bg-light');
+        // Ensure native flag is cleared (some browsers keep readonly after attr removal).
+        $amount.each(function () {
+          this.readOnly = false;
+          this.disabled = false;
+        });
       }
     }
 
@@ -753,6 +780,7 @@
         validatePaymentDistribution();
         applyInvoiceDateFromSelection();
         syncAdvanceLoanOptionVisibility();
+        lockRiderPrimaryPaymentAmount();
         return;
       }
 
@@ -795,7 +823,8 @@
       validatePaymentDistribution();
       applyInvoiceDateFromSelection();
       syncAdvanceLoanOptionVisibility();
-      if (isRiderPayment && !options.skipSelectionSync) {
+      lockRiderPrimaryPaymentAmount();
+      if (isRiderPayment && !options.skipSelectionSync && !isAdvanceLoanType()) {
         syncRiderPaymentAmountFromInvoices();
       }
     }
@@ -823,17 +852,22 @@
 
     function onCreatePaymentTypeChanged() {
       applyCreatePaymentTypeUi();
+      lockRiderPrimaryPaymentAmount();
       // Re-apply single selection when switching types.
       var $checked = $ctx.find('#invoices-table tbody .invoice-checkbox:checked');
       if ($checked.length > 1) {
         enforceSingleInvoiceSelection($checked.first());
         updateTotalPayment();
         validatePaymentDistribution();
-        if (isRiderPayment) {
+        if (isRiderPayment && !isAdvanceLoanType()) {
           syncRiderPaymentAmountFromInvoices();
         }
       }
       applyInvoiceDateFromSelection();
+      // Advance vouchers: amount is manual — do not overwrite from invoice lines.
+      if (isAdvanceLoanType()) {
+        lockRiderPrimaryPaymentAmount();
+      }
     }
 
     $ctx.on('change.paymentFields', '#create_payment_type', onCreatePaymentTypeChanged);

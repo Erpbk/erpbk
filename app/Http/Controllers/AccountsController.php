@@ -21,6 +21,7 @@ use App\Traits\TracksCascadingDeletions;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 use App\Models\Company;
 use App\Models\GlobalAccount;
 use App\Support\CompanyRouteContext;
@@ -204,15 +205,10 @@ class AccountsController extends AppBaseController
     if (!auth()->user()->hasPermissionTo('accounts_coa_create')) {
       abort(403, 'Unauthorized action.');
     }
-    $parents = Accounts::query()
-      ->where(function ($q) {
-        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->get(['id', 'name', 'parent_id'])
-      ->groupBy('parent_id');
+    [$parents, $parentEligibleIds] = $this->parentAccountOptions();
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-    return view('accounts.create', compact('parents', 'customFields'));
+    return view('accounts.create', compact('parents', 'parentEligibleIds', 'customFields'));
   }
 
   /**
@@ -226,6 +222,9 @@ class AccountsController extends AppBaseController
 
     $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
+    $this->assertEligibleParent(
+      isset($input['parent_id']) && $input['parent_id'] !== '' ? (int) $input['parent_id'] : null
+    );
 
     DB::transaction(function () use ($request, $input): void {
       $accounts = $this->accountsRepository->create($input);
@@ -297,16 +296,10 @@ class AccountsController extends AppBaseController
       return $lockedResponse;
     }
 
-    //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
-    $parents = Accounts::query()
-      ->where(function ($q) {
-        $q->whereNull('parent_id')->orWhere('parent_id', 0);
-      })
-      ->get(['id', 'name', 'parent_id'])
-      ->groupBy('parent_id');
+    [$parents, $parentEligibleIds] = $this->parentAccountOptions((int) $id);
     $customFields = AccountCustomField::orderBy('display_order')->orderBy('id')->get();
 
-    return view('accounts.edit', compact('accounts', 'parents', 'customFields'));
+    return view('accounts.edit', compact('accounts', 'parents', 'parentEligibleIds', 'customFields'));
   }
 
   /**
@@ -339,6 +332,10 @@ class AccountsController extends AppBaseController
 
     $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
+    $this->assertEligibleParent(
+      isset($input['parent_id']) && $input['parent_id'] !== '' ? (int) $input['parent_id'] : null,
+      (int) $id
+    );
     $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
     $accounts = $this->accountsRepository->update($input, $id);
 
@@ -750,5 +747,161 @@ class AccountsController extends AppBaseController
   private function isAccountLinkedToGlobal(Accounts $account): bool
   {
     return GlobalAccount::query()->where('account_id', $account->id)->exists();
+  }
+
+  /**
+   * Eligible COA parents at any depth (not module-linked, no transactions),
+   * plus ancestors for nested dropdown display. On edit, exclude self/descendants.
+   *
+   * @return array{0: \Illuminate\Support\Collection, 1: array<int, true>}
+   */
+  private function parentAccountOptions(?int $excludeId = null): array
+  {
+    $excludeIds = [];
+    if ($excludeId) {
+      $excludeIds = array_merge([$excludeId], $this->descendantAccountIds($excludeId));
+    }
+
+    $eligibleQuery = Accounts::query()
+      ->where(function ($q) {
+        $q->whereNull('ref_name')
+          ->orWhere('ref_name', '')
+          ->orWhereNull('ref_id');
+      })
+      ->where(function ($q) {
+        // Company-owned accounts, or shared fixed/global accounts only (company_id null + is_fixed).
+        $q->whereNotNull('company_id')
+          ->orWhere(function ($shared) {
+            $shared->whereNull('company_id')->where('is_fixed', 1);
+          });
+      })
+      ->whereDoesntHave('transactions')
+      ->when(!empty($excludeIds), fn ($q) => $q->whereNotIn('id', $excludeIds));
+
+    $eligible = $eligibleQuery->get(['id', 'name', 'parent_id']);
+    $eligibleIds = $eligible->pluck('id')->map(fn ($id) => (int) $id)->flip()->all();
+
+    $byId = $eligible->keyBy(fn ($a) => (int) $a->id);
+    $pendingParentIds = $eligible
+      ->pluck('parent_id')
+      ->filter(fn ($pid) => !empty($pid))
+      ->map(fn ($pid) => (int) $pid)
+      ->unique()
+      ->values()
+      ->all();
+
+    while (!empty($pendingParentIds)) {
+      $missing = array_values(array_filter(
+        $pendingParentIds,
+        fn ($pid) => !$byId->has($pid)
+      ));
+      if (empty($missing)) {
+        break;
+      }
+
+      $ancestors = Accounts::query()
+        ->where(function ($q) {
+          $q->whereNotNull('company_id')
+            ->orWhere(function ($shared) {
+              $shared->whereNull('company_id')->where('is_fixed', 1);
+            });
+        })
+        ->whereIn('id', $missing)
+        ->get(['id', 'name', 'parent_id']);
+
+      foreach ($ancestors as $ancestor) {
+        $byId->put((int) $ancestor->id, $ancestor);
+      }
+
+      $pendingParentIds = $ancestors
+        ->pluck('parent_id')
+        ->filter(fn ($pid) => !empty($pid))
+        ->map(fn ($pid) => (int) $pid)
+        ->unique()
+        ->values()
+        ->all();
+    }
+
+    $grouped = $byId->values()->groupBy(function ($account) use ($byId) {
+      $pid = $account->parent_id;
+      if ($pid === null || $pid === '' || (int) $pid === 0) {
+        return '_root_';
+      }
+      $pid = (int) $pid;
+      // Orphaned under missing/soft-deleted parent: show at root for structure
+      return $byId->has($pid) ? $pid : '_root_';
+    });
+
+    return [$grouped, $eligibleIds];
+  }
+
+  /**
+   * @return list<int>
+   */
+  private function descendantAccountIds(int $accountId): array
+  {
+    $ids = [];
+    $frontier = [$accountId];
+
+    while (!empty($frontier)) {
+      $children = Accounts::query()
+        ->whereIn('parent_id', $frontier)
+        ->pluck('id')
+        ->map(fn ($id) => (int) $id)
+        ->all();
+
+      $frontier = array_values(array_diff($children, $ids));
+      $ids = array_merge($ids, $frontier);
+    }
+
+    return $ids;
+  }
+
+  private function assertEligibleParent(?int $parentId, ?int $forAccountId = null): void
+  {
+    if ($parentId === null || $parentId === 0) {
+      return;
+    }
+
+    $parent = Accounts::query()->find($parentId);
+    if (!$parent) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account was not found.',
+      ]);
+    }
+
+    $isSharedNullCompany = $parent->company_id === null || $parent->company_id === '';
+    if ($isSharedNullCompany && !(bool) $parent->is_fixed) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account is not allowed (module-linked or has transactions).',
+      ]);
+    }
+
+    $refName = trim((string) ($parent->ref_name ?? ''));
+    if ($refName !== '' && !empty($parent->ref_id)) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account is not allowed (module-linked or has transactions).',
+      ]);
+    }
+
+    if ($parent->transactions()->exists()) {
+      throw ValidationException::withMessages([
+        'parent_id' => 'Selected parent account is not allowed (module-linked or has transactions).',
+      ]);
+    }
+
+    if ($forAccountId !== null) {
+      if ($parentId === $forAccountId) {
+        throw ValidationException::withMessages([
+          'parent_id' => 'An account cannot be its own parent.',
+        ]);
+      }
+
+      if (in_array($parentId, $this->descendantAccountIds($forAccountId), true)) {
+        throw ValidationException::withMessages([
+          'parent_id' => 'An account cannot be nested under one of its descendants.',
+        ]);
+      }
+    }
   }
 }

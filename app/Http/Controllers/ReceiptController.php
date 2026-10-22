@@ -745,7 +745,9 @@ class ReceiptController extends Controller
             if ($receipt->amount_type == 'Cheque' || $chequeId) {
                 $cheque = $chequeId
                     ? Cheques::find($chequeId)
-                    : Cheques::where('voucher_id', $receipt->voucher_id)->first();
+                    : ($receipt->voucher_id
+                        ? Cheques::findByClearVoucherId((int) $receipt->voucher_id)
+                        : null);
                 if ($cheque) {
                     $cheque->recalculateClearState(excludeReceiptId: (int) $receipt->id);
                 }

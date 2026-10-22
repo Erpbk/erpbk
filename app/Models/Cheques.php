@@ -20,6 +20,7 @@ class Cheques extends BaseModel
         'bank_id',
         'amount',
         'cleared_amount',
+        'payment_reference',
         'payee_account',
         'payee_name',
         'payer_account',
@@ -32,12 +33,13 @@ class Cheques extends BaseModel
         'cleared_date',
         'returned_date',
         'stop_payment_date',
-        'billing_month',
+        'lost_date',
         'status',
         'return_reason',
+        'stop_payment_reason',
+        'lost_note',
         'type',
         'is_security',
-        'voucher_id',
         'cheque_top_option_id',
         'issued_by',
         'created_by',
@@ -50,9 +52,10 @@ class Cheques extends BaseModel
         'cleared_date' => 'datetime',
         'returned_date' => 'datetime',
         'stop_payment_date' => 'datetime',
-        'billing_month' => 'datetime',
+        'lost_date' => 'datetime',
         'amount' => 'decimal:2',
         'cleared_amount' => 'decimal:2',
+        'payment_reference' => 'array',
         'is_security' => 'boolean',
     ];
 
@@ -74,11 +77,6 @@ class Cheques extends BaseModel
     public function bank()
     {
         return $this->belongsTo(Banks::class, 'bank_id');
-    }
-
-    public function voucher()
-    {
-        return $this->belongsTo(Vouchers::class, 'voucher_id');
     }
 
     public function payer()
@@ -153,18 +151,131 @@ class Cheques extends BaseModel
     }
 
     /**
+     * Clear history entries: [{date, amount, voucher_id}, ...]
+     *
+     * @return list<array{date:?string,amount:float,voucher_id:int}>
+     */
+    public function paymentReferenceEntries(): array
+    {
+        $refs = $this->payment_reference;
+        if (! is_array($refs)) {
+            return [];
+        }
+
+        $entries = [];
+        foreach ($refs as $ref) {
+            if (! is_array($ref)) {
+                continue;
+            }
+            $voucherId = (int) ($ref['voucher_id'] ?? 0);
+            $amount = round((float) ($ref['amount'] ?? 0), 2);
+            if ($voucherId <= 0 || $amount < 0.01) {
+                continue;
+            }
+            $date = $ref['date'] ?? null;
+            $entries[] = [
+                'date' => $date ? substr((string) $date, 0, 10) : null,
+                'amount' => $amount,
+                'voucher_id' => $voucherId,
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function paymentReferenceVoucherIds(): array
+    {
+        return collect($this->paymentReferenceEntries())
+            ->pluck('voucher_id')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Clear amount for a payment/receipt (excludes bank charges on payments).
+     */
+    public static function clearAmountFromDocument(Payment|Receipt $doc): float
+    {
+        $amount = round((float) ($doc->amount ?? 0), 2);
+        if ($doc instanceof Payment) {
+            $charges = round((float) ($doc->bank_charges ?? 0), 2);
+
+            return round(max(0, $amount - $charges), 2);
+        }
+
+        return $amount;
+    }
+
+    /**
+     * Build payment_reference entries from linked clear documents (oldest first).
+     *
+     * @return list<array{date:?string,amount:float,voucher_id:int}>
+     */
+    public function buildPaymentReferenceFromDocuments(?int $excludePaymentId = null, ?int $excludeReceiptId = null): array
+    {
+        $docs = $this->linkedClearDocumentsQuery($excludePaymentId, $excludeReceiptId)
+            ->reorder()
+            ->orderBy('id')
+            ->get();
+
+        $entries = [];
+        foreach ($docs as $doc) {
+            $voucherId = (int) ($doc->voucher_id ?? 0);
+            $clearAmount = self::clearAmountFromDocument($doc);
+            if ($voucherId <= 0 || $clearAmount < 0.01) {
+                continue;
+            }
+            $date = $doc instanceof Payment
+                ? ($doc->date_of_payment ?? null)
+                : ($doc->date_of_receipt ?? null);
+            $entries[] = [
+                'date' => $date ? substr((string) $date, 0, 10) : null,
+                'amount' => $clearAmount,
+                'voucher_id' => $voucherId,
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Find cheque that recorded a clear against the given voucher id.
+     */
+    public static function findByClearVoucherId(int $voucherId): ?self
+    {
+        if ($voucherId <= 0) {
+            return null;
+        }
+
+        return static::query()
+            ->whereNotNull('payment_reference')
+            ->whereRaw('JSON_CONTAINS(payment_reference, ?)', [json_encode(['voucher_id' => $voucherId])])
+            ->first();
+    }
+
+    /**
      * Vouchers created from clears against this cheque (latest first).
-     * Falls back to the single voucher_id for legacy rows without resource_links.
      *
      * @return Collection<int, Vouchers>
      */
     public function linkedClearVouchers(): Collection
     {
-        $docs = $this->linkedClearDocumentsQuery()->get(['id', 'amount', 'voucher_id']);
-        $voucherIds = $docs->pluck('voucher_id')->filter()->unique()->values();
+        $voucherIds = collect($this->paymentReferenceVoucherIds());
 
-        if ($voucherIds->isEmpty() && $this->voucher_id) {
-            $voucherIds = collect([(int) $this->voucher_id]);
+        if ($voucherIds->isEmpty()) {
+            $voucherIds = $this->linkedClearDocumentsQuery()
+                ->get(['voucher_id'])
+                ->pluck('voucher_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
         }
 
         if ($voucherIds->isEmpty()) {
@@ -177,40 +288,45 @@ class Cheques extends BaseModel
             ->keyBy('id');
 
         return $voucherIds
+            ->reverse()
+            ->values()
             ->map(fn ($id) => $byId->get((int) $id))
             ->filter()
             ->values();
     }
 
     /**
-     * Recompute cleared_amount / status / voucher_id from remaining linked clear documents.
+     * Recompute payment_reference / cleared_amount / status / cleared_date from remaining linked clears.
      */
     public function recalculateClearState(?int $excludePaymentId = null, ?int $excludeReceiptId = null): void
     {
-        $docs = $this->linkedClearDocumentsQuery($excludePaymentId, $excludeReceiptId)
-            ->get(['id', 'amount', 'voucher_id']);
-
-        $cleared = round((float) $docs->sum('amount'), 2);
+        $entries = $this->buildPaymentReferenceFromDocuments($excludePaymentId, $excludeReceiptId);
+        $cleared = round(array_sum(array_column($entries, 'amount')), 2);
         $chequeAmount = round((float) $this->amount, 2);
-        $latestVoucherId = $docs->first()?->voucher_id;
 
         $update = [
+            'payment_reference' => $entries === [] ? null : $entries,
             'cleared_amount' => $cleared,
-            'voucher_id' => $latestVoucherId,
+            'cleared_date' => null,
         ];
 
         $clearStatuses = ['Issued', 'Partially Cleared', 'Cleared'];
 
         if ($cleared <= 0.00001) {
             $update['cleared_amount'] = 0;
-            $update['voucher_id'] = null;
-            $update['cleared_date'] = null;
-            $update['billing_month'] = null;
+            $update['payment_reference'] = null;
             if (in_array($this->status, $clearStatuses, true)) {
                 $update['status'] = 'Issued';
             }
         } elseif ($cleared + 0.00001 >= $chequeAmount) {
             $update['cleared_amount'] = $chequeAmount;
+            $lastDate = null;
+            foreach ($entries as $entry) {
+                if (! empty($entry['date'])) {
+                    $lastDate = $entry['date'];
+                }
+            }
+            $update['cleared_date'] = $lastDate;
             if (in_array($this->status, $clearStatuses, true)) {
                 $update['status'] = 'Cleared';
             }
@@ -226,9 +342,6 @@ class Cheques extends BaseModel
     /**
      * Batch-attach clear vouchers onto a cheque collection as `clear_vouchers`.
      *
-     * @param  iterable<int, self>  $cheques
-     */
-    /**
      * @param  iterable<int, self>|\Illuminate\Contracts\Pagination\Paginator  $cheques
      */
     public static function attachClearVouchersTo(iterable $cheques): void
@@ -245,47 +358,50 @@ class Cheques extends BaseModel
             return;
         }
 
-        $payableIds = $collection->where('type', 'payable')->pluck('id')->map(fn ($id) => (int) $id)->filter()->values();
-        $receivableIds = $collection->where('type', 'receiveable')->pluck('id')->map(fn ($id) => (int) $id)->filter()->values();
-
-        $hasPaymentLinks = Schema::hasColumn('payments', 'resource_links');
-        $hasReceiptLinks = Schema::hasColumn('receipts', 'resource_links');
-
-        $paymentsByCheque = collect();
-        if ($hasPaymentLinks && $payableIds->isNotEmpty()) {
-            $paymentsByCheque = Payment::query()
-                ->whereIn('resource_links->cheque_id', $payableIds->all())
-                ->get(['id', 'amount', 'voucher_id', 'resource_links'])
-                ->groupBy(fn (Payment $p) => (int) data_get($p->resource_links, 'cheque_id'));
-        }
-
-        $receiptsByCheque = collect();
-        if ($hasReceiptLinks && $receivableIds->isNotEmpty()) {
-            $receiptsByCheque = Receipt::query()
-                ->whereIn('resource_links->cheque_id', $receivableIds->all())
-                ->get(['id', 'amount', 'voucher_id', 'resource_links'])
-                ->groupBy(fn (Receipt $r) => (int) data_get($r->resource_links, 'cheque_id'));
-        }
-
-        $allVoucherIds = $paymentsByCheque->flatten(1)->pluck('voucher_id')
-            ->merge($receiptsByCheque->flatten(1)->pluck('voucher_id'))
-            ->merge($collection->pluck('voucher_id'))
+        $allVoucherIds = $collection
+            ->flatMap(fn (self $cheque) => $cheque->paymentReferenceVoucherIds())
             ->filter()
             ->unique()
             ->values();
+
+        // Fallback for rows not yet backfilled: linked docs
+        if ($allVoucherIds->isEmpty()) {
+            $payableIds = $collection->where('type', 'payable')->pluck('id')->map(fn ($id) => (int) $id)->filter()->values();
+            $receivableIds = $collection->where('type', 'receiveable')->pluck('id')->map(fn ($id) => (int) $id)->filter()->values();
+            $hasPaymentLinks = Schema::hasColumn('payments', 'resource_links');
+            $hasReceiptLinks = Schema::hasColumn('receipts', 'resource_links');
+
+            if ($hasPaymentLinks && $payableIds->isNotEmpty()) {
+                $allVoucherIds = $allVoucherIds->merge(
+                    Payment::query()
+                        ->whereIn('resource_links->cheque_id', $payableIds->all())
+                        ->pluck('voucher_id')
+                );
+            }
+            if ($hasReceiptLinks && $receivableIds->isNotEmpty()) {
+                $allVoucherIds = $allVoucherIds->merge(
+                    Receipt::query()
+                        ->whereIn('resource_links->cheque_id', $receivableIds->all())
+                        ->pluck('voucher_id')
+                );
+            }
+            $allVoucherIds = $allVoucherIds->filter()->unique()->values();
+        }
 
         $vouchersById = $allVoucherIds->isEmpty()
             ? collect()
             : Vouchers::query()->whereIn('id', $allVoucherIds->all())->get()->keyBy('id');
 
         foreach ($collection as $cheque) {
-            $docs = $cheque->type === 'payable'
-                ? ($paymentsByCheque->get((int) $cheque->id) ?? collect())
-                : ($receiptsByCheque->get((int) $cheque->id) ?? collect());
-
-            $ids = $docs->pluck('voucher_id')->filter()->unique()->values();
-            if ($ids->isEmpty() && $cheque->voucher_id) {
-                $ids = collect([(int) $cheque->voucher_id]);
+            $ids = collect($cheque->paymentReferenceVoucherIds());
+            if ($ids->isEmpty()) {
+                $ids = $cheque->linkedClearDocumentsQuery()
+                    ->get(['voucher_id'])
+                    ->pluck('voucher_id')
+                    ->filter()
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values();
             }
 
             $cheque->setRelation(
@@ -295,3 +411,4 @@ class Cheques extends BaseModel
         }
     }
 }
+

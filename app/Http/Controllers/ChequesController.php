@@ -93,7 +93,6 @@ class ChequesController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'issue_date' => 'required|date',
             'cheque_date' => 'nullable|date',
-            'billing_month' => 'nullable|date_format:Y-m',
             'reference' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'attachment' => 'required|file|mimes:pdf,jpg,jpeg,png|max:2048', // 2MB
@@ -124,7 +123,6 @@ class ChequesController extends Controller
                 'amount' => $request['amount'],
                 'issue_date' => $request['issue_date'],
                 'cheque_date' => $request['cheque_date'],
-                'billing_month' => $request['billing_month'],
                 'reference' => $request['reference'],
                 'description' => $request['description'],
                 'status' => 'Issued',
@@ -164,10 +162,6 @@ class ChequesController extends Controller
                 $filename = time() . '_' . $file->getClientOriginalName();
                 PublicStorageDisk::storeUploadedFile($file, 'vouchers', $filename);
                 $chequeData['attachment'] = $filename;
-            }
-
-            if ($request['billing_month']) {
-                $chequeData['billing_month'] = $request['billing_month'] . '-01';
             }
 
             // Create cheque
@@ -257,7 +251,6 @@ class ChequesController extends Controller
             'amount' => 'required|numeric|min:0.01',
             'issue_date' => 'required|date',
             'is_security' => 'nullable|boolean',
-            'billing_month' => 'nullable|date_format:Y-m',
             'reference' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'cheque_date' => 'nullable|date',
@@ -288,7 +281,6 @@ class ChequesController extends Controller
                 'issue_date' => $validated['issue_date'],
                 'cheque_date' => $validated['cheque_date'],
                 'is_security' => $request->has('is_security'),
-                'billing_month' => $validated['billing_month'],
                 'reference' => $validated['reference'],
                 'description' => $validated['description'],
                 'updated_by' => Auth::id(),
@@ -332,10 +324,6 @@ class ChequesController extends Controller
                 $updateData['attachment'] = $filename;
             }
 
-            if ($request['billing_month']) {
-                $updateData['billing_month'] = $validated['billing_month'] . '-01';
-            }
-
             // Update the cheque
             $cheque->update($updateData);
 
@@ -374,8 +362,10 @@ class ChequesController extends Controller
             DB::beginTransaction();
             try {
                 $docs = $cheque->linkedClearDocumentsQuery()->get();
+                $handledVoucherIds = [];
                 foreach ($docs as $doc) {
                     if ($doc->voucher_id) {
+                        $handledVoucherIds[] = (int) $doc->voucher_id;
                         $voucher = Vouchers::find($doc->voucher_id);
                         if ($voucher) {
                             Transactions::where('trans_code', $voucher->trans_code)->delete();
@@ -385,18 +375,22 @@ class ChequesController extends Controller
                     $doc->delete();
                 }
 
-                // Legacy single voucher_id with no resource_links matches
-                if ($cheque->voucher_id && $docs->where('voucher_id', $cheque->voucher_id)->isEmpty()) {
-                    $voucher = Vouchers::find($cheque->voucher_id);
-                    if ($voucher) {
-                        Transactions::where('trans_code', $voucher->trans_code)->delete();
-                        if ($cheque->type === 'payable') {
-                            Payment::where('voucher_id', $cheque->voucher_id)->delete();
-                        } else {
-                            Receipt::where('voucher_id', $cheque->voucher_id)->delete();
-                        }
-                        $voucher->delete();
+                // Clear history voucher ids not covered by linked docs
+                foreach ($cheque->paymentReferenceVoucherIds() as $refVoucherId) {
+                    if (in_array((int) $refVoucherId, $handledVoucherIds, true)) {
+                        continue;
                     }
+                    $voucher = Vouchers::find($refVoucherId);
+                    if (! $voucher) {
+                        continue;
+                    }
+                    Transactions::where('trans_code', $voucher->trans_code)->delete();
+                    if ($cheque->type === 'payable') {
+                        Payment::where('voucher_id', $refVoucherId)->delete();
+                    } else {
+                        Receipt::where('voucher_id', $refVoucherId)->delete();
+                    }
+                    $voucher->delete();
                 }
 
                 $cheque->delete();
@@ -485,6 +479,9 @@ class ChequesController extends Controller
         } elseif ($request->status === 'Stop Payment') {
             $rules['stop_payment_date'] = 'required|date';
             $rules['stop_payment_reason'] = 'required|string|max:255';
+        } elseif ($request->status === 'Lost') {
+            $rules['lost_date'] = 'required|date';
+            $rules['lost_note'] = 'required|string|max:255';
         }
 
         $validated = $request->validate($rules);
@@ -512,6 +509,8 @@ class ChequesController extends Controller
                 $updateData['stop_payment_reason'] = $validated['stop_payment_reason'];
             } elseif ($validated['status'] === 'Lost') {
                 $updateData['status'] = 'Lost';
+                $updateData['lost_date'] = $validated['lost_date'];
+                $updateData['lost_note'] = $validated['lost_note'];
             } elseif ($validated['status'] === 'Cleared') {
                 $clearAmount = round((float) $validated['clear_amount'], 2);
                 // Bank charges apply only to payable clears (payments). Receipts never record them.
@@ -527,34 +526,34 @@ class ChequesController extends Controller
                     $bankChargesAccountId = GlobalAccounts::account('BANK_CHARGES')->id;
                 }
 
-                $description = $validated['description'] ?? $cheque->description;
-                $updateData['cleared_date'] = $validated['cleared_date'];
-                $updateData['billing_month'] = $validated['billing_month'].'-01';
-                $updateData['bank_id'] = $validated['bank_id'];
-                if ($description !== null) {
-                    $updateData['description'] = $description;
-                }
+                // Form bank / description / attachment / billing_month apply only to the
+                // payment or receipt (and its voucher/ledger). Do not overwrite those on the cheque.
+                $description = $validated['description'] ?? null;
+                $billingMonth = $validated['billing_month'].'-01';
 
-                $voucherAttachment = $cheque->attachment;
+                $voucherAttachment = null;
                 if ($request->hasFile('attachment')) {
                     $file = $request->file('attachment');
                     $voucherAttachment = time().'_'.$file->getClientOriginalName();
                     PublicStorageDisk::storeUploadedFile($file, 'vouchers', $voucherAttachment);
                 }
 
-                $bank = Banks::findOrFail($updateData['bank_id']);
+                $bank = Banks::findOrFail($validated['bank_id']);
                 $newCleared = round((float) $cheque->cleared_amount + $clearAmount, 2);
                 $chequeAmount = round((float) $cheque->amount, 2);
                 $updateData['cleared_amount'] = min($newCleared, $chequeAmount);
-                $updateData['status'] = ($newCleared + 0.00001 >= $chequeAmount)
-                    ? 'Cleared'
-                    : 'Partially Cleared';
+                $fullyCleared = ($newCleared + 0.00001 >= $chequeAmount);
+                $updateData['status'] = $fullyCleared ? 'Cleared' : 'Partially Cleared';
+                // cleared_date only when the cheque is totally cleared
+                $updateData['cleared_date'] = $fullyCleared ? $validated['cleared_date'] : null;
 
                 $totalWithCharges = round($clearAmount + $bankCharges, 2);
                 $bankNarration = $description;
                 if ($bankCharges > 0.009) {
                     $bankNarration = trim(($description ?? '').' | Bank charges '.number_format($bankCharges, 2));
                 }
+
+                $paymentRefs = $cheque->paymentReferenceEntries();
 
                 if ($cheque->type === 'payable') {
                     $payment = Payment::create([
@@ -572,7 +571,7 @@ class ChequesController extends Controller
                         ),
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
-                        'billing_month' => $validated['billing_month'].'-01',
+                        'billing_month' => $billingMonth,
                         'description' => $description,
                         'bank_charges' => $bankCharges,
                         'bank_charges_account' => $bankChargesAccountId,
@@ -644,7 +643,11 @@ class ChequesController extends Controller
                     ]);
 
                     $payment->update(['voucher_id' => $voucher->id]);
-                    $updateData['voucher_id'] = $voucher->id;
+                    $paymentRefs[] = [
+                        'date' => $validated['cleared_date'],
+                        'amount' => $clearAmount,
+                        'voucher_id' => (int) $voucher->id,
+                    ];
                 } else {
                     $receipt = Receipt::create([
                         'payer_account_id' => $cheque->payer_account,
@@ -662,7 +665,7 @@ class ChequesController extends Controller
                         'account_id' => $bank->account_id,
                         'bank_id' => $bank->id,
                         'amount_type' => 'Cheque',
-                        'billing_month' => $validated['billing_month'].'-01',
+                        'billing_month' => $billingMonth,
                         'description' => $description,
                         'status' => '1',
                         'attachment' => $voucherAttachment,
@@ -714,8 +717,14 @@ class ChequesController extends Controller
                         'custom_field_values' => [],
                     ]);
                     $receipt->update(['voucher_id' => $voucher->id]);
-                    $updateData['voucher_id'] = $voucher->id;
+                    $paymentRefs[] = [
+                        'date' => $validated['cleared_date'],
+                        'amount' => $clearAmount,
+                        'voucher_id' => (int) $voucher->id,
+                    ];
                 }
+
+                $updateData['payment_reference'] = $paymentRefs;
             }
 
             $cheque->update($updateData);

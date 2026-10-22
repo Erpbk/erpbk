@@ -75,12 +75,7 @@
                 @php
                     $clearVouchers = $cheque->relationLoaded('clear_vouchers')
                         ? $cheque->getRelation('clear_vouchers')
-                        : collect();
-                    if ($clearVouchers->isEmpty() && $cheque->voucher_id && $cheque->relationLoaded('voucher') && $cheque->voucher) {
-                        $clearVouchers = collect([$cheque->voucher]);
-                    } elseif ($clearVouchers->isEmpty() && $cheque->voucher_id) {
-                        $clearVouchers = collect([$cheque->voucher])->filter();
-                    }
+                        : $cheque->linkedClearVouchers();
                 @endphp
                 @if($clearVouchers->isNotEmpty())
                     <div class="d-flex flex-column gap-1">
@@ -137,7 +132,7 @@
                         </a>
                         @endif
                         @if(in_array($cheque->status, ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'], true))
-                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="lg" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
+                        <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
                             <i class="fa fa-exchange-alt my-1"></i> Change Status
                         </a>
                         @endif

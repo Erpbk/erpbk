@@ -98,7 +98,7 @@ class Accounts extends BaseModel
 
   public function transactions()
   {
-    return $this->hasMany(Transactions::class);
+    return $this->hasMany(Transactions::class, 'account_id');
   }
 
   public function globalAccount(): HasOne

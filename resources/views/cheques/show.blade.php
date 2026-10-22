@@ -77,22 +77,16 @@
                     <h6 class="mb-0 fw-semibold">Key Information</h6>
                 </div>
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="border rounded p-2">
                             <div class="text-muted small mb-1">Issue Date</div>
                             <div class="fw-medium">{{ $cheque->issue_date ? \App\Helpers\Common::DateFormat($cheque->issue_date) : '------' }}</div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <div class="border rounded p-2">
                             <div class="text-muted small mb-1">Cheque Date</div>
                             <div class="fw-medium">{{ $cheque->cheque_date ? \App\Helpers\Common::DateFormat($cheque->cheque_date) : '------' }}</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="border rounded p-2">
-                            <div class="text-muted small mb-1">Billing Month</div>
-                            <div class="fw-medium">{{ $cheque->billing_month ? \App\Helpers\Common::MonthFormat($cheque->billing_month) : '------' }}</div>
                         </div>
                     </div>
                 </div>
@@ -123,40 +117,42 @@
                 </div>
                 <div class="timeline-compact">
                     @php
+                        $clearHistory = $cheque->paymentReferenceEntries();
                         $dateItems = [
                             [
                                 'icon' => 'fas fa-paper-plane',
                                 'color' => 'primary',
                                 'date' => $cheque->issue_date,
                                 'title' => 'Issued',
-                                'show' => true
-                            ],
-                            [
-                                'icon' => 'fas fa-check-circle',
-                                'color' => 'success',
-                                'date' => $cheque->cleared_date,
-                                'title' => 'Cleared',
-                                'show' => $cheque->cleared_date
+                                'show' => true,
                             ],
                             [
                                 'icon' => 'fas fa-ban',
                                 'color' => 'warning',
                                 'date' => $cheque->stop_payment_date,
                                 'title' => 'Stop Payment',
-                                'show' => $cheque->stop_payment_date,
-                                'reason' => $cheque->stop_payment_reason ?? null
+                                'show' => (bool) $cheque->stop_payment_date,
+                                'notes' => $cheque->stop_payment_reason ?? null,
                             ],
                             [
                                 'icon' => 'fas fa-times-circle',
                                 'color' => 'danger',
                                 'date' => $cheque->returned_date,
                                 'title' => 'Returned',
-                                'show' => $cheque->returned_date,
-                                'reason' => $cheque->return_reason
-                            ]
+                                'show' => (bool) $cheque->returned_date,
+                                'notes' => $cheque->return_reason,
+                            ],
+                            [
+                                'icon' => 'fas fa-question-circle',
+                                'color' => 'secondary',
+                                'date' => $cheque->lost_date,
+                                'title' => 'Lost',
+                                'show' => (bool) ($cheque->lost_date || $cheque->status === 'Lost'),
+                                'notes' => $cheque->lost_note ?? null,
+                            ],
                         ];
                     @endphp
-                    
+
                     @foreach($dateItems as $item)
                         @if($item['show'])
                         <div class="d-flex align-items-center mb-2">
@@ -170,16 +166,48 @@
                                         <span class="text-muted small">{{ \App\Helpers\Common::DateFormat($item['date']) }}</span>
                                     @endif
                                 </div>
-                                @if(!empty($item['reason']))
-                                    <div class="text-danger small mt-1">
-                                        <i class="fas fa-exclamation-circle me-1"></i>
-                                        {{ $item['reason'] }}
+                                @if(!empty($item['notes']))
+                                    <div class="text-muted small mt-1">
+                                        <i class="fas fa-sticky-note me-1"></i>
+                                        {{ $item['notes'] }}
                                     </div>
                                 @endif
                             </div>
                         </div>
                         @endif
                     @endforeach
+
+                    @foreach($clearHistory as $clearEntry)
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="me-3">
+                                <i class="fas fa-money-check-alt text-info"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between gap-2">
+                                    <span class="fw-medium">
+                                        Clear {{ \App\Helpers\Currency::format($clearEntry['amount'], 2) }}
+                                    </span>
+                                    @if(!empty($clearEntry['date']))
+                                        <span class="text-muted small">{{ \App\Helpers\Common::DateFormat($clearEntry['date']) }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+
+                    @if($cheque->cleared_date && $cheque->status === 'Cleared')
+                        <div class="d-flex align-items-center mb-2">
+                            <div class="me-3">
+                                <i class="fas fa-check-circle text-success"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-medium">Fully Cleared</span>
+                                    <span class="text-muted small">{{ \App\Helpers\Common::DateFormat($cheque->cleared_date) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
 

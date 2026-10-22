@@ -66,13 +66,13 @@
     </div>
     
     <!-- Cleared Date Field -->
-    <div class="col-md-6 date-field cleared-date" style="display: none;">
+    <div class="col-md-3 date-field cleared-date" style="display: none;">
         <label class="form-label fw-medium required">Cleared Date</label>
         <input type="date" name="cleared_date" class="form-control" 
                value="{{ $cheque->cleared_date ? \Carbon\Carbon::parse($cheque->cleared_date)->format('Y-m-d') : '' }}">
     </div>
 
-    <div class="col-md-6 bank" style="display: none;">
+    <div class="col-md-3 bank" style="display: none;">
         {!! Form::label('bank', 'Bank', ['class' => ['form-label', 'fw-medium', 'required']]) !!}
         <select name="bank_id" class="form-control select2">
             <option value="">Select</option>
@@ -82,65 +82,78 @@
         </select>
     </div>
 
-    <div class="col-md-6 clear-amount-field" style="display: none;">
+    <div class="col-md-3 clear-amount-field" style="display: none;">
         <label class="form-label fw-medium required">Clear Amount</label>
         <input type="number" name="clear_amount" class="form-control" step="0.01" min="0.01"
                max="{{ $remaining }}" value="{{ number_format($remaining, 2, '.', '') }}"
                placeholder="Amount to clear">
-        <div class="form-text">Max remaining: {{ \App\Helpers\Currency::format($remaining, 2) }}</div>
     </div>
 
     @if($cheque->type === 'payable')
-    <div class="col-md-6 bank-charges-field" style="display: none;">
+    <div class="col-md-3 bank-charges-field" style="display: none;">
         <label class="form-label fw-medium">Bank Charges</label>
         <input type="number" name="bank_charges" class="form-control" step="0.01" min="0"
                value="0" placeholder="0.00">
-        <div class="form-text">Optional. Paid from our bank with the clear amount; posted to bank charges.</div>
     </div>
     @endif
     
     <!-- Returned Date Field -->
-    <div class="col-md-6 date-field returned-date" style="display: none;">
+    <div class="col-md-3 date-field returned-date" style="display: none;">
         <label class="form-label fw-medium required">Returned Date</label>
         <input type="date" name="returned_date" class="form-control" 
                value="{{ $cheque->returned_date ? \Carbon\Carbon::parse($cheque->returned_date)->format('Y-m-d') : '' }}">
     </div>
     
     <!-- Stop Payment Date Field -->
-    <div class="col-md-6 date-field stop-date" style="display: none;">
+    <div class="col-md-3 date-field stop-date" style="display: none;">
         <label class="form-label fw-medium required">Stop Payment Date</label>
         <input type="date" name="stop_payment_date" class="form-control" 
                value="{{ $cheque->stop_payment_date ? \Carbon\Carbon::parse($cheque->stop_payment_date)->format('Y-m-d') : '' }}">
     </div>
+
+    <!-- Lost Date Field -->
+    <div class="col-md-3 date-field lost-date" style="display: none;">
+        <label class="form-label fw-medium required">Lost Date</label>
+        <input type="date" name="lost_date" class="form-control"
+               value="{{ $cheque->lost_date ? \Carbon\Carbon::parse($cheque->lost_date)->format('Y-m-d') : '' }}">
+    </div>
     
-    <!-- Return Reason Field -->
-    <div class="col-md-6 return-reason-field" style="display: none;">
-        <label class="form-label fw-medium required">Return Reason</label>
+    <!-- Return Status Notes Field -->
+    <div class="col-md-3 return-reason-field" style="display: none;">
+        <label class="form-label fw-medium required">Notes</label>
         <input type="text" name="return_reason" class="form-control" 
                value="{{ $cheque->return_reason ?? '' }}" 
-               placeholder="Enter reason for cheque return">
+               placeholder="Enter status notes">
     </div>
     
-    <!-- Stop Payment Reason Field -->
-    <div class="col-md-6 stop-payment-reason-field" style="display: none;">
-        <label class="form-label fw-medium required">Stop Payment Reason</label>
+    <!-- Stop Payment Status Notes Field -->
+    <div class="col-md-3 stop-payment-reason-field" style="display: none;">
+        <label class="form-label fw-medium required">Notes</label>
         <input type="text" name="stop_payment_reason" class="form-control" 
                value="{{ $cheque->stop_payment_reason ?? '' }}" 
-               placeholder="Enter reason for stop payment">
+               placeholder="Enter status notes">
     </div>
 
-    <div class="col-md-6 billing-month-field" style="display: none;">
+    <!-- Lost Status Notes Field -->
+    <div class="col-md-3 lost-note-field" style="display: none;">
+        <label class="form-label fw-medium required">Notes</label>
+        <input type="text" name="lost_note" class="form-control"
+               value="{{ $cheque->lost_note ?? '' }}"
+               placeholder="Enter status notes">
+    </div>
+
+    <div class="col-md-3 billing-month-field" style="display: none;">
         <label class="form-label fw-medium required">Billing Month</label>
-        <input type="month" name="billing_month" class="form-control" 
-               value="{{ $cheque->billing_month ? \Carbon\Carbon::parse($cheque->billing_month)->format('Y-m') : '' }}">
+        <input type="month" name="billing_month" class="form-control"
+               value="{{ old('billing_month', now()->format('Y-m')) }}">
     </div>
 
-    <div class="col-md-12 description-field" style="display: none;">
+    <div class="col-md-6 description-field" style="display: none;">
         <label class="form-label fw-medium required">Description</label>
         <textarea name="description" class="form-control" rows="3" placeholder="description Required..." >{{ $cheque->description ?? old('description') }}</textarea>
     </div>
 
-    <div class="col-md-6 clear-attachment-field" style="display: none;">
+    <div class="col-md-3 clear-attachment-field" style="display: none;">
         @include('partials.universal_document_upload', [
             'name' => 'attachment',
             'label' => 'Attachment',
@@ -175,7 +188,7 @@ $(document).ready(function() {
         const status = $(this).val();
         
         // Hide all fields first
-        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .billing-month-field, .clear-alert, .description-field, .clear-amount-field, .bank-charges-field, .clear-attachment-field').hide();
+        $('.bank, .date-field, .return-reason-field, .stop-payment-reason-field, .lost-note-field, .billing-month-field, .clear-alert, .description-field, .clear-amount-field, .bank-charges-field, .clear-attachment-field').hide();
         
         // Show relevant fields based on status
         if (status === 'Cleared') {
@@ -195,17 +208,24 @@ $(document).ready(function() {
         } else if (status === 'Stop Payment') {
             $('.stop-date').show();
             $('.stop-payment-reason-field').show();
+        } else if (status === 'Lost') {
+            $('.lost-date').show();
+            $('.lost-note-field').show();
         }
         
-        // Set required attribute for reason fields
+        // Set required attribute for notes/date fields
         if (status === 'Returned') {
             $('[name="returned_date"]').attr('required', true);
             $('[name="return_reason"]').attr('required', true);
-            $('[name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
+            $('[name="stop_payment_reason"], [name="stop_payment_date"], [name="lost_date"], [name="lost_note"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
         } else if (status === 'Stop Payment') {
             $('[name="stop_payment_date"]').attr('required', true);
             $('[name="stop_payment_reason"]').attr('required', true);
-            $('[name="returned_date"], [name="return_reason"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
+            $('[name="returned_date"], [name="return_reason"], [name="lost_date"], [name="lost_note"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
+        } else if (status === 'Lost') {
+            $('[name="lost_date"]').attr('required', true);
+            $('[name="lost_note"]').attr('required', true);
+            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
         } else if (status === 'Cleared') {
             $('[name="cleared_date"]').attr('required', true);
             $('[name="billing_month"]').attr('required', true);
@@ -213,9 +233,9 @@ $(document).ready(function() {
             $('[name="clear_amount"]').attr('required', true);
             $('[name="bank_id"]').attr('required', true);
             $('[name="attachment"]').attr('required', true);
-            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"]').removeAttr('required');
+            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"], [name="lost_date"], [name="lost_note"]').removeAttr('required');
         } else {
-            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
+            $('[name="returned_date"], [name="return_reason"], [name="stop_payment_reason"], [name="stop_payment_date"], [name="lost_date"], [name="lost_note"], [name="billing_month"], [name="cleared_date"], [name="description"], [name="clear_amount"], [name="bank_id"], [name="attachment"]').removeAttr('required');
         }
     });
 

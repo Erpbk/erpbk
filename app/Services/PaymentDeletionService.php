@@ -122,7 +122,9 @@ class PaymentDeletionService
         if ($payment->amount_type == 'Cheque' || $chequeId) {
             $cheque = $chequeId
                 ? Cheques::find($chequeId)
-                : Cheques::where('voucher_id', $payment->voucher_id)->first();
+                : ($payment->voucher_id
+                    ? Cheques::findByClearVoucherId((int) $payment->voucher_id)
+                    : null);
             if ($cheque) {
                 $cheque->recalculateClearState(excludePaymentId: (int) $payment->id);
             }

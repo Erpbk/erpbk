@@ -253,8 +253,8 @@ class BackfillResourceLinksCommand extends Command
     {
         $chequeId = null;
         if ($payment->amount_type === 'Cheque' && $payment->voucher_id) {
-            $chequeId = Cheques::where('voucher_id', $payment->voucher_id)->value('id');
-            $chequeId = $chequeId ? (int) $chequeId : null;
+            $cheque = Cheques::findByClearVoucherId((int) $payment->voucher_id);
+            $chequeId = $cheque?->id ? (int) $cheque->id : null;
         }
 
         if (isset($index[$payment->id])) {
@@ -313,8 +313,8 @@ class BackfillResourceLinksCommand extends Command
     {
         $chequeId = null;
         if ($receipt->amount_type === 'Cheque' && $receipt->voucher_id) {
-            $chequeId = Cheques::where('voucher_id', $receipt->voucher_id)->value('id');
-            $chequeId = $chequeId ? (int) $chequeId : null;
+            $cheque = Cheques::findByClearVoucherId((int) $receipt->voucher_id);
+            $chequeId = $cheque?->id ? (int) $cheque->id : null;
         }
 
         if (isset($index[$receipt->id])) {

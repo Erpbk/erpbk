@@ -224,20 +224,25 @@ class AccountsController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
 
-    $input = $request->except(['custom_field_values']);
+    $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
-    // Set is_locked=1 if parent_id is not set (root account)
 
-    $accounts = $this->accountsRepository->create($input);
-    $accounts->account_code = str_pad($accounts->id, 4, "0", STR_PAD_LEFT);
-    $accounts->is_locked = 0;
-    $accounts->save();
+    DB::transaction(function () use ($request, $input): void {
+      $accounts = $this->accountsRepository->create($input);
+      $accounts->account_code = str_pad($accounts->id, 4, "0", STR_PAD_LEFT);
+      // Manual COA creates stay unlocked (module-created accounts are locked at source).
+      $accounts->is_locked = 0;
+      $accounts->save();
 
-    $storeCustom = \App\Support\RoleFieldAccess::stripNonEditableInput(
-      ['custom_field_values' => $request->input('custom_field_values', [])],
-      'account'
-    )['custom_field_values'] ?? [];
-    $this->saveCustomFieldValues($accounts, $storeCustom);
+      $storeCustom = \App\Support\RoleFieldAccess::stripNonEditableInput(
+        ['custom_field_values' => $request->input('custom_field_values', [])],
+        'account'
+      )['custom_field_values'] ?? [];
+      $this->saveCustomFieldValues($accounts, $storeCustom);
+
+      app(\App\Services\AccountOpeningBalanceJvService::class)
+        ->postForNewAccount($accounts, $accounts->opening_balance);
+    });
 
     return response()->json(['message' => 'Account added successfully.']);
   }
@@ -287,6 +292,11 @@ class AccountsController extends AppBaseController
       }
       abort(403, 'Accounts linked to global accounts can only be managed from the Admin panel.');
     }
+
+    if ($lockedResponse = $this->lockedAccountEditResponse($accounts)) {
+      return $lockedResponse;
+    }
+
     //$parents = Accounts::whereNot('id', $id)->whereNull('parent_account_id')->pluck('account_name', 'id')->prepend('Select', null);
     $parents = Accounts::query()
       ->where(function ($q) {
@@ -321,7 +331,13 @@ class AccountsController extends AppBaseController
       ], 422);
     }
 
-    $input = $request->except(['custom_field_values']);
+    if ($accounts->isLocked()) {
+      return response()->json([
+        'errors' => ['error' => 'This account is locked and cannot be edited.'],
+      ], 422);
+    }
+
+    $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
     $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
     $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
     $accounts = $this->accountsRepository->update($input, $id);
@@ -387,6 +403,13 @@ class AccountsController extends AppBaseController
     if ((bool) $accounts->is_fixed && !Auth::guard('admin')->check()) {
       return delete_error_response(
         'Fixed account can only be deleted from admin panel.',
+        route('accounts.index')
+      );
+    }
+
+    if ($accounts->isLocked()) {
+      return delete_error_response(
+        'This account is locked and cannot be deleted.',
         route('accounts.index')
       );
     }
@@ -467,33 +490,6 @@ class AccountsController extends AppBaseController
 
     Flash::success('Account moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
     return redirect(route('accounts.index'));
-  }
-
-  /**
-   * Toggle lock status for an account (AJAX)
-   */
-  public function toggleLock(Request $request, $company_slug, $id)
-  {
-    $account = $this->findAccessibleAccount($id);
-    if (!$account) {
-      abort(404);
-    }
-
-    if ($this->isAccountLinkedToGlobal($account)) {
-      return response()->json([
-        'errors' => ['error' => 'Accounts linked to global accounts can only be managed from the Admin panel.'],
-      ], 422);
-    }
-
-    $account->is_locked = !$account->is_locked;
-    $account->save();
-    return response()->json([
-      'success' => true,
-      'is_locked' => $account->is_locked,
-      'icon' => $account->is_locked ? 'fa-lock' : 'fa-unlock',
-      'icon_class' => $account->is_locked ? 'text-secondary' : 'text-success',
-      'title' => $account->is_locked ? 'Parent account is locked' : 'Unlocked'
-    ]);
   }
 
   /**
@@ -735,6 +731,20 @@ class AccountsController extends AppBaseController
       ->map(fn($id) => (int) $id)
       ->flip()
       ->all();
+  }
+
+  private function lockedAccountEditResponse(Accounts $account)
+  {
+    if (!$account->isLocked()) {
+      return null;
+    }
+
+    $message = 'This account is locked and cannot be edited.';
+    if (request()->ajax() || request()->wantsJson()) {
+      return response()->json(['message' => $message], 403);
+    }
+
+    abort(403, $message);
   }
 
   private function isAccountLinkedToGlobal(Accounts $account): bool

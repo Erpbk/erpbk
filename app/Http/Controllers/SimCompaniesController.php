@@ -96,6 +96,7 @@ class SimCompaniesController extends AppBaseController
             $account->status = (int) $simCompany->status;
             $account->branch_id = $simCompany->branch_id;
             $account->created_by = auth()->id();
+            $account->is_locked = true;
             $account->save();
 
             $simCompany->account_id = $account->id;

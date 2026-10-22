@@ -121,6 +121,8 @@ class BanksController extends AppBaseController
 
       //Adding Account and setting reference
       $parentId = \App\Support\GlobalAccounts::id('BANK');
+      $openingBalance = round((float) ($input['balance'] ?? $banks->balance ?? 0), 2);
+
       $account = new Accounts();
       $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
       $account->account_type = 'Asset';
@@ -130,9 +132,15 @@ class BanksController extends AppBaseController
       $account->ref_id = $banks->id;
       $account->status = $banks->status;
       $account->branch_id = $banks->branch_id;
+      $account->opening_balance = $openingBalance;
+      $account->is_locked = true;
       $account->save();
       $banks->account_id = $account->id;
       $banks->save();
+
+      app(\App\Services\AccountOpeningBalanceJvService::class)
+        ->postForNewAccount($account, $openingBalance, $banks->branch_id ? (int) $banks->branch_id : null);
+
       DB::commit();
       if ($request->ajax()) {
         return response()->json([

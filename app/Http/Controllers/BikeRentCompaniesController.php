@@ -160,6 +160,7 @@ class BikeRentCompaniesController extends AppBaseController
             $account->status = (int) $bikeRentCompany->status;
             $account->branch_id = $bikeRentCompany->branch_id;
             $account->created_by = auth()->id();
+            $account->is_locked = true;
             $account->save();
 
             $bikeRentCompany->account_id = $account->id;

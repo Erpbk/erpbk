@@ -118,6 +118,7 @@ class LeasingCompaniesController extends AppBaseController
             $account->ref_id = $leasingCompanies->id;
             $account->status = $leasingCompanies->status;
             $account->branch_id = $leasingCompanies->branch_id;
+            $account->is_locked = true;
             $account->save();
 
             $leasingCompanies->account_id = $account->id;

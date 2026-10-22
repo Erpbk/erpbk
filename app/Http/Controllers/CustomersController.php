@@ -115,6 +115,7 @@ class CustomersController extends AppBaseController
       $account->ref_id = $customers->id;
       $account->status = $customers->status;
       $account->branch_id = $customers->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       $customers->account_id = $account->id;

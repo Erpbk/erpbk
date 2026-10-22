@@ -99,6 +99,7 @@ class RecruitersController extends AppBaseController
             $account->ref_id = $recruiter->id;
             $account->status = $recruiter->status;
             $account->created_by = auth()->user()->id;
+            $account->is_locked = true;
             $account->save();
 
             $recruiter->account_id = $account->id;

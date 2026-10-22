@@ -28,8 +28,8 @@ class ExpenseController extends AppBaseController
     {
         $this->accountsRepository = $accountsRepo;
         $this->middleware('permission:expenses_view')->only('index', 'listSidebar', 'showVoucher', 'accountDetail', 'ledgerEntries');
-        $this->middleware('permission:expenses_create')->only('createVoucher', 'storeVoucher', 'create', 'store', 'toggleLock', 'toggleStatus');
-        $this->middleware('permission:expenses_edit')->only('editVoucher', 'updateVoucher', 'destroyVoucher', 'edit', 'update', 'toggleLock', 'toggleStatus');
+        $this->middleware('permission:expenses_create')->only('createVoucher', 'storeVoucher', 'create', 'store', 'toggleStatus');
+        $this->middleware('permission:expenses_edit')->only('editVoucher', 'updateVoucher', 'destroyVoucher', 'edit', 'update', 'toggleStatus');
         $this->middleware('permission:expenses_delete')->only('destroyVoucher', 'destroy');
     }
 
@@ -207,12 +207,17 @@ class ExpenseController extends AppBaseController
         $input['account_type'] = 'Expense';
         $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
 
-        $account = $this->accountsRepository->create($input);
-        $account->account_code = $account->account_code ?: str_pad($account->id, 4, '0', STR_PAD_LEFT);
-        $account->is_locked = 0;
-        $account->save();
+        DB::transaction(function () use ($request, $input): void {
+            $account = $this->accountsRepository->create($input);
+            $account->account_code = $account->account_code ?: str_pad($account->id, 4, '0', STR_PAD_LEFT);
+            $account->is_locked = 0;
+            $account->save();
 
-        $this->saveCustomFieldValues($account, $this->editableCustomFieldValues($request));
+            $this->saveCustomFieldValues($account, $this->editableCustomFieldValues($request));
+
+            app(\App\Services\AccountOpeningBalanceJvService::class)
+                ->postForNewAccount($account, $account->opening_balance);
+        });
 
         return response()->json(['message' => 'Expense account added successfully.']);
     }
@@ -225,6 +230,10 @@ class ExpenseController extends AppBaseController
         $accounts = $this->accountsRepository->find($id);
         if (empty($accounts) || !$accounts->account_type == 'Expense') {
             Flash::error('Expense Account not found.');
+            return redirect()->back();
+        }
+        if ($accounts->isLocked()) {
+            Flash::error('This account is locked and cannot be edited.');
             return redirect()->back();
         }
         /** Only expense accounts for parent dropdown */
@@ -247,9 +256,12 @@ class ExpenseController extends AppBaseController
         if (empty($accounts)) {
             return redirect()->route('expenses.index')->with('error', 'Account not found.');
         }
+        if ($accounts->isLocked()) {
+            return redirect()->route('expenses.index')->with('error', 'This account is locked and cannot be edited.');
+        }
 
         $existingCustom = is_array($accounts->custom_field_values ?? null) ? $accounts->custom_field_values : [];
-        $input = $request->except(['custom_field_values']);
+        $input = $request->except(['custom_field_values', 'is_locked', 'is_fixed']);
         $input = \App\Support\RoleFieldAccess::stripNonEditableInput($input, 'account');
         $accounts = $this->accountsRepository->update($input, $id);
 
@@ -279,6 +291,9 @@ class ExpenseController extends AppBaseController
         $account = $this->accountsRepository->find($id);
         if (empty($account)) {
             return redirect()->route('expenses.index')->with('error', 'Account not found!');
+        }
+        if ($account->isLocked()) {
+            return response()->json(['errors' => ['error' => 'This account is locked and cannot be deleted.']], 422);
         }
 
         $childCount = Accounts::where('parent_id', $account->id)->whereIn('id', $expenseIds)->count();
@@ -324,18 +339,6 @@ class ExpenseController extends AppBaseController
             return redirect()->route('expenses.index')->with('error', 'Expense account not found.');
         }
         return app(AccountsController::class)->ledgerEntries($request, $id);
-    }
-
-    /**
-     * Toggle lock status for an expense account (AJAX).
-     */
-    public function toggleLock(Request $request, $company_slug, $id)
-    {
-        $expenseIds = $this->getExpenseAccountIds();
-        if (!in_array((int) $id, $expenseIds, true)) {
-            return response()->json(['error' => 'Expense account not found.'], 404);
-        }
-        return app(AccountsController::class)->toggleLock($request, $id);
     }
 
     /**

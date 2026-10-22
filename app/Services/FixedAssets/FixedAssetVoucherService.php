@@ -10,11 +10,6 @@ use App\Models\Vouchers;
 
 class FixedAssetVoucherService
 {
-    public function __construct(
-        private readonly OpeningBalanceAccountService $openingBalanceAccountService
-    ) {
-    }
-
     /**
      * @param  array{trans_date: string, billing_month: string, reference_number: string, credit_account_id: int}  $data
      */

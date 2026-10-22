@@ -650,6 +650,7 @@ class EmployeeController extends Controller
                     'parent_id' => \App\Support\GlobalAccounts::id('STAFF'), // Staff salaries payable account
                     'created_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
+                    'is_locked' => true,
                 ]);
                 $employee->account_id = $account->id;
                 $employee->save();
@@ -665,6 +666,7 @@ class EmployeeController extends Controller
                     'parent_id' => \App\Support\GlobalAccounts::id('STAFF'), // Staff salaries payable account
                     'updated_by' => auth()->id(),
                     'branch_id' => $employee->branch_id,
+                    'is_locked' => true,
                 ]);
             }
 

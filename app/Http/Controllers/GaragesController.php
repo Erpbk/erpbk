@@ -119,6 +119,7 @@ class GaragesController extends AppBaseController
       $account->status = 1;
       $account->account_code = 'GAR-' . str_pad($garages->id, 5, '0', STR_PAD_LEFT);
       $account->branch_id = $garages->branch_id;
+      $account->is_locked = true;
       $account->save();
       $garages->update([
         'account_id' => $account->id

@@ -505,7 +505,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        if (e.target.closest('.dropdown, .show-modal, .lock-toggle, .toggle-status, .delete-account, .table-actions-dropdown')) {
+        if (e.target.closest('.dropdown, .show-modal, .toggle-status, .delete-account, .table-actions-dropdown')) {
             return;
         }
 
@@ -592,38 +592,6 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(function() {
             if (ledgerTbody) ledgerTbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-3">Failed to load.</td></tr>';
-        });
-    });
-
-    // Lock toggle
-    document.addEventListener('click', function(e) {
-        var lock = e.target.closest('.lock-toggle');
-        if (!lock) return;
-        e.preventDefault();
-        e.stopPropagation();
-        var accountId = lock.getAttribute('data-account-id');
-        var url = lock.getAttribute('data-url');
-        if (!url) return;
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrf,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data.success) return;
-            lock.innerHTML = data.is_locked
-                ? '<i class="fa fa-unlock me-2"></i> Unlock'
-                : '<i class="fa fa-lock me-2"></i> Lock';
-            var row = tbody.querySelector('tr.chart-account-row[data-account-id="' + accountId + '"]');
-            if (row) {
-                var lockIcon = row.querySelector('.tree-lock i');
-                if (lockIcon) lockIcon.className = 'fas ' + (data.is_locked ? 'fa-lock text-secondary' : 'fa-unlock text-success');
-            }
         });
     });
 

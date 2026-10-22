@@ -115,6 +115,11 @@ class Accounts extends BaseModel
     return GlobalAccount::query()->where('account_id', $this->id)->exists();
   }
 
+  public function isLocked(): bool
+  {
+    return (bool) $this->is_locked;
+  }
+
   public function parent()
   {
     return $this->belongsTo(self::class, 'parent_id');

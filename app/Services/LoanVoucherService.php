@@ -130,6 +130,7 @@ class LoanVoucherService
         $account->ref_id = $loan->id;
         $account->status = 1;
         $account->branch_id = $loan->branch_id;
+        $account->is_locked = true;
         $account->save();
 
         $loan->account_id = $account->id;

@@ -785,6 +785,7 @@ class RidersController extends AppBaseController
       $account->parent_id = $parentAccount;
       $account->ref_id = $riders->id;
       $account->branch_id = $riders->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       if ($items) {
@@ -1505,6 +1506,7 @@ class RidersController extends AppBaseController
       $account->ref_name = 'Rider';
       $account->parent_id = $parentAccount->id;
       $account->ref_id = $rider->id;
+      $account->is_locked = true;
       $account->save();
 
       $rider->account_id = $account->id;

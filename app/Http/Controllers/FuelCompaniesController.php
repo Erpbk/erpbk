@@ -108,6 +108,7 @@ class FuelCompaniesController extends AppBaseController
             $account->status = (int) $fuelCompany->status;
             $account->branch_id = $fuelCompany->branch_id;
             $account->created_by = auth()->id();
+            $account->is_locked = true;
             $account->save();
 
             $fuelCompany->account_id = $account->id;

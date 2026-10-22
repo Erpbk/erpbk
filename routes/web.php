@@ -995,7 +995,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
         Route::post('/vat/returns/{vat_return}/delete-entries', [VatController::class, 'deleteReturnEntries'])->name('vat.returns.delete-entries');
         Route::get('/vat/voucher/create', [VatController::class, 'createVoucher'])->name('vat.voucher.create');
         Route::post('/vat/voucher/store', [VatController::class, 'storeVoucher'])->name('vat.voucher.store');
-        Route::post('accounts/{id}/toggle-lock', [AccountsController::class, 'toggleLock'])->name('accounts.toggleLock');
         Route::post('accounts/{id}/toggle-status', [AccountsController::class, 'toggleStatus'])->name('accounts.toggleStatus');
         Route::post('accounts/{id}/toggle-fixed', [AccountsController::class, 'toggleFixed'])->name('accounts.toggleFixed');
     });
@@ -1003,7 +1002,6 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     // Expense module: expense accounts from Chart of Accounts
     Route::get('expenses/detail/{id}', [ExpenseController::class, 'accountDetail'])->name('expenses.detail');
     Route::get('expenses/detail/{id}/ledger-entries', [ExpenseController::class, 'ledgerEntries'])->name('expenses.ledgerEntries');
-    Route::post('expenses/{id}/toggle-lock', [ExpenseController::class, 'toggleLock'])->name('expenses.toggleLock');
     Route::post('expenses/{id}/toggle-status', [ExpenseController::class, 'toggleStatus'])->name('expenses.toggleStatus');
     Route::get('expenses/voucher/create', [ExpenseController::class, 'createVoucher'])->name('expenses.voucher.create');
     Route::post('expenses/voucher/store', [ExpenseController::class, 'storeVoucher'])->name('expenses.voucher.store');

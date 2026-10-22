@@ -112,6 +112,7 @@ class SupplierController extends AppBaseController
       $account->ref_id = $supplier->id;
       $account->status = 1;
       $account->branch_id = $supplier->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       $supplier->account_id = $account->id;

@@ -107,6 +107,7 @@ class VendorsController extends AppBaseController
       $account->ref_id = $vendor->id;
       $account->status = $vendor->status;
       $account->branch_id = $vendor->branch_id;
+      $account->is_locked = true;
       $account->save();
 
       $vendor->account_id = $account->id;

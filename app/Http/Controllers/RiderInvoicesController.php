@@ -800,32 +800,37 @@ class RiderInvoicesController extends AppBaseController
         if ($request->isMethod('post')) {
             $this->validate($request, [
                 'file' => 'required|max:50000|mimes:xlsx,csv,xls',
-                'col_rider_id' => 'required|integer|min:1',
-                'col_billing_month' => 'required|integer|min:1',
+                'col_invoice_number' => 'required|integer|min:1',
+                'col_rider_id' => 'nullable|integer|min:1',
+                'col_billing_month' => 'nullable|integer|min:1',
                 'col_account_code' => 'required|integer|min:1',
                 'col_amount' => 'required|integer|min:1',
                 'col_payment_date' => 'required|integer|min:1',
                 'col_description' => 'required|integer|min:1',
             ], [
                 'file.required' => 'Excel File Required',
-                'col_rider_id.required' => 'Map the Rider ID column.',
-                'col_billing_month.required' => 'Map the Billing Month column.',
+                'col_invoice_number.required' => 'Map the Invoice Number column.',
                 'col_account_code.required' => 'Map the paying account code column.',
                 'col_amount.required' => 'Map the Amount column.',
                 'col_payment_date.required' => 'Map the Payment Date column.',
-                'col_description.required' => 'Map the Description column.',
+                'col_description.required' => 'Map the Description / Narration column.',
             ]);
 
             $columnMap = [
-                'rider_id' => (int) $request->col_rider_id,
-                'billing_month' => (int) $request->col_billing_month,
+                'invoice_number' => (int) $request->col_invoice_number,
                 'account_code' => (int) $request->col_account_code,
                 'amount' => (int) $request->col_amount,
                 'payment_date' => (int) $request->col_payment_date,
                 'description' => (int) $request->col_description,
             ];
+            if ($request->filled('col_rider_id')) {
+                $columnMap['rider_id'] = (int) $request->col_rider_id;
+            }
+            if ($request->filled('col_billing_month')) {
+                $columnMap['billing_month'] = (int) $request->col_billing_month;
+            }
 
-            $provided = array_filter($columnMap, fn ($v) => $v !== null);
+            $provided = array_filter($columnMap, fn ($v) => $v !== null && $v !== '');
             if (count($provided) !== count(array_unique($provided))) {
                 $message = 'Column numbers must be unique.';
                 if ($request->ajax()) {
@@ -843,9 +848,9 @@ class RiderInvoicesController extends AppBaseController
                 $skippedLog = $import->skippedLog;
                 $skippedCount = count($skippedLog);
 
-                $message = "Import finished. Payments created: {$importedCount}.";
+                $message = "Import finished. Successfully imported: {$importedCount}.";
                 if ($skippedCount > 0) {
-                    $message .= " Skipped: {$skippedCount}.";
+                    $message .= " Failed: {$skippedCount}.";
                 }
 
                 if ($request->ajax() || $request->wantsJson()) {

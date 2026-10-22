@@ -43,6 +43,12 @@ $paymentIdsByVoucher = \App\Models\Payment::query()
                     'company_slug' => $__companySlug,
                 ]));
             $voucherViewClass = $linkedPaymentId ? 'show-voucher-panel' : 'show-modal';
+            $voucherDocTitle = match ((string) ($voucher->remarks ?? '')) {
+                'Salary Payment' => 'Salary Payment',
+                'C3' => 'C3',
+                'Advance Payment' => 'Advance Payment',
+                default => 'Payment Voucher',
+            };
         @endphp
         <tr class="">
             <td style="text-align: center;">{{ $voucher->trans_date ? \App\Helpers\Common::DateFormat($voucher->trans_date) : '—' }}</td>
@@ -51,7 +57,7 @@ $paymentIdsByVoucher = \App\Models\Payment::query()
                 <a href="javascript:void(0);"
                     class="{{ $voucherViewClass }}"
                     data-size="xl"
-                    data-title="Payment Voucher {{ $voucher->formatted_id }}"
+                    data-title="{{ $voucherDocTitle }} {{ $voucher->formatted_id }}"
                     data-action="{{ $voucherViewAction }}"
                     @if($linkedPaymentId)
                         data-collapse-sidebar="1"

@@ -28,7 +28,7 @@ class InvoicePaymentLink
             }
         }
 
-        if (isset($invoice->id)) {
+        if (isset($invoice->id) && ResourceLinks::columnExists('payments')) {
             $invoiceId = (int) $invoice->id;
             $fromLinks = Payment::query()
                 ->whereNotNull('resource_links')

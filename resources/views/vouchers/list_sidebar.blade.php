@@ -50,8 +50,14 @@
                   'company_slug' => $__companySlug,
               ]))
               : route('vouchers.show', ['company_slug' => $__companySlug, 'voucher' => $voucher->id]);
+          $riderPaymentTitle = match ((string) ($linkedRiderPayment->payment_kind ?? '')) {
+              'salary_payment', 'payment' => 'Salary Payment',
+              'c3' => 'C3',
+              'advance_payment', 'advance_loan' => 'Advance Payment',
+              default => 'Payment Voucher',
+          };
           $viewTitle = $linkedRiderPayment
-              ? ('Payment Voucher '.($linkedRiderPayment->reference ?: $voucherId))
+              ? ($riderPaymentTitle.' '.($linkedRiderPayment->reference ?: $voucherId))
               : ($typeLabel.' #'.$voucherId);
         @endphp
         <a href="javascript:void(0);" class="voucher-list-sidebar-row show-voucher-panel d-flex align-items-stretch gap-2 px-3 py-2 border-bottom text-decoration-none text-body {{ $voucherPendingDeletion ? 'bg-warning-subtle' : '' }}" data-action="{{ $viewAction }}" data-title="{{ $viewTitle }}" data-collapse-sidebar="1" data-list-url="{{ $listSidebarUrl }}">

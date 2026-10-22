@@ -90,8 +90,8 @@
                         <a class="action-dropdown-item" href="{{ route('riderInvoices.importPaid') }}">
                             <i class="ti ti-plus"></i>
                             <div>
-                                <div class="action-dropdown-item-text">Paid Vouchers</div>
-                                <div class="action-dropdown-item-desc">Import Payment vouchers</div>
+                                <div class="action-dropdown-item-text">Salary Payments</div>
+                                <div class="action-dropdown-item-desc">Import rider salary payments</div>
                             </div>
                         </a>
                         @endcan

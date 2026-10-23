@@ -567,7 +567,6 @@ class VisaexpenseController extends AppBaseController
             $refPrefix = 'VS-' . $person->id;
         }
 
-        $generatedExpenseTotal = 0.0;
         $activeStatuses = collect();
         DB::beginTransaction();
         try {
@@ -588,7 +587,6 @@ class VisaexpenseController extends AppBaseController
 
             foreach ($activeStatuses as $status) {
                 $amount = (float) ($status->default_fee ?? 0);
-                $generatedExpenseTotal += $amount;
                 visa_expenses::create(array_merge($personFields, [
                     'branch_id' => $branchId,
                     'trans_date' => Carbon::today()->format('Y-m-d'),
@@ -612,33 +610,12 @@ class VisaexpenseController extends AppBaseController
             return redirect()->back();
         }
 
-        $expenseAccount->load('renewalCategory');
-        $installmentResult = ['created' => false, 'message' => ''];
-        try {
-            DB::beginTransaction();
-            $installmentResult = $this->autoCreateInstallmentPlanForRenewal($expenseAccount, $generatedExpenseTotal);
-            DB::commit();
-        } catch (\Throwable $installmentError) {
-            DB::rollBack();
-            report($installmentError);
-            $installmentResult = [
-                'created' => false,
-                'message' => 'Visa expenses were created, but auto installment plan failed: ' . $installmentError->getMessage(),
-            ];
-        }
-
         $successMessage = 'Visa expense account created for ' . $category->name . ' and tickets generated for that category only.';
         if ($activeStatuses->isEmpty()) {
             $successMessage = 'Visa expense account created for ' . $category->name . '. No tickets were generated because this category has no visa statuses yet.';
         }
-        if (!empty($installmentResult['message'])) {
-            $successMessage .= ' ' . $installmentResult['message'];
-        }
-        if (!empty($installmentResult['created'])) {
-            Flash::success($successMessage);
-        } else {
-            Flash::warning($successMessage);
-        }
+        $successMessage .= ' Create an installment plan manually from the account page when ready.';
+        Flash::success($successMessage);
 
         return redirect()->back();
     }

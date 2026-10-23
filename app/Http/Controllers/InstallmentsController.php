@@ -24,7 +24,7 @@ class InstallmentsController extends AppBaseController
             return redirect()->to(CompanyAuthRedirect::url($request))->with('error', 'Please log in to access this page.');
         }
 
-        if (!\App\Support\VisaExpenseAccess::canManageInstallments('view')) {
+        if (!$this->installmentAllows('view')) {
             abort(403, 'Unauthorized action.');
         }
 

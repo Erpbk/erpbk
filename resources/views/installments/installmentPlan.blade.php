@@ -17,7 +17,7 @@
                     <i class="fa fa-arrow-left me-2"></i>Back
                 </a>
                 @endif
-                @if(!empty($canCreateInstallment) || \App\Support\VisaExpenseAccess::canManageInstallments('create'))
+                @if(!empty($canCreateInstallment))
                 <a class="btn btn-success action-btn show-modal"
                     href="javascript:void(0);" data-action="{{ route($installmentCreateFormRoute ?? 'Installments.createInstallmentPlanForm', $account->id) }}" data-size="lg" data-title="Create Installment Entry">
                     <i class="fa fa-plus me-2"></i>Installment Plan

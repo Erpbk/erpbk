@@ -569,10 +569,12 @@ class LicenseexpenseController extends AppBaseController
         }
 
         if ($activeStatuses->isEmpty()) {
-            Flash::success('License expense account created for ' . $category->name . '. No tickets were generated because this category has no license statuses yet.');
+            $successMessage = 'License expense account created for ' . $category->name . '. No tickets were generated because this category has no license statuses yet.';
         } else {
-            Flash::success('License expense account created for ' . $category->name . ' and tickets generated for that category only.');
+            $successMessage = 'License expense account created for ' . $category->name . ' and tickets generated for that category only.';
         }
+        $successMessage .= ' Create an installment plan manually from the account page when ready.';
+        Flash::success($successMessage);
 
         return redirect()->back();
     }

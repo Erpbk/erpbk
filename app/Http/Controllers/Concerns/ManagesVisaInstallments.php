@@ -131,7 +131,14 @@ trait ManagesVisaInstallments
 
     protected function installmentAllows(string $action): bool
     {
-        return \App\Support\VisaExpenseAccess::canManageInstallments($action);
+        $permissions = $this->installmentPermissionMap()[$action] ?? [];
+        foreach ((array) $permissions as $permission) {
+            if (user_can($permission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected function expenseAccountBaseQuery()
@@ -336,7 +343,7 @@ trait ManagesVisaInstallments
 
             // Resolve rider account context (expense_accounts.id, riders.id, or legacy accounts.id).
             $expenseAccount = $this->resolveExpenseAccountContext((int) $validated['rider_id']);
-            $expenseAccount->loadMissing(['renewalCategory', 'rider', 'employee']);
+            $expenseAccount->loadMissing(['renewalCategory', 'licenseCategory', 'rider', 'employee']);
             $person = $this->resolveExpenseAccountPerson($expenseAccount);
             if (!$person) {
                 $message = 'Person not found for this expense account.';
@@ -1942,6 +1949,10 @@ trait ManagesVisaInstallments
             $categoryLabel = $expenseAccount->relationLoaded('renewalCategory')
                 ? ($expenseAccount->renewalCategory->name ?? null)
                 : ($expenseAccount->renewalCategory()->value('name'));
+        } elseif ($expenseAccount->license_category_id) {
+            $categoryLabel = $expenseAccount->relationLoaded('licenseCategory')
+                ? ($expenseAccount->licenseCategory->name ?? null)
+                : ($expenseAccount->licenseCategory()->value('name'));
         }
         $categorySuffix = $categoryLabel ? (' - ' . $categoryLabel) : '';
 
@@ -2005,7 +2016,7 @@ trait ManagesVisaInstallments
             ]);
 
             $TransactionService->recordTransaction([
-                'account_id' => GlobalAccounts::id('INSTALLMENT_LOAN'),
+                'account_id' => GlobalAccounts::id($this->installmentHeadAccountKey()),
                 'reference_id' => $installment->id,
                 'reference_type' => $this->installmentReferenceType(),
                 'trans_code' => $trans_code,
@@ -2040,74 +2051,6 @@ trait ManagesVisaInstallments
         return $existingInstallmentCount;
     }
 
-    /**
-     * Create a fresh installment plan for a renewal expense account (never reuses a sibling plan).
-     *
-     * @return array{created: bool, message: string}
-     */
-    private function autoCreateInstallmentPlanForRenewal(ExpenseAccount $expenseAccount, float $totalAmount): array
-    {
-        $totalAmount = round($totalAmount, 2);
-        if ($totalAmount <= 0) {
-            return [
-                'created' => false,
-                'message' => 'Installment plan was not auto-created because the renewal total amount is zero. Create one manually when ready.',
-            ];
-        }
-
-        $expenseAccount->loadMissing(['rider', 'employee', 'renewalCategory']);
-        $person = $this->resolveExpenseAccountPerson($expenseAccount);
-        if (!$person) {
-            return [
-                'created' => false,
-                'message' => 'Installment plan was not auto-created because the person could not be resolved.',
-            ];
-        }
-
-        $branchId = (int) ($person->branch_id ?? 0);
-        if ($branchId <= 0) {
-            return [
-                'created' => false,
-                'message' => 'Installment plan was not auto-created because the person has no branch assigned.',
-            ];
-        }
-
-        $liabilityAccount = $this->resolvePersonLiabilityAccount($expenseAccount, $person);
-        if (!$liabilityAccount) {
-            return [
-                'created' => false,
-                'message' => 'Installment plan was not auto-created because the liability account was not found.',
-            ];
-        }
-
-        $numberOfInstallments = $this->resolveAutoInstallmentCountForRenewal($expenseAccount);
-        $installmentAmounts = $this->splitAmountAcrossInstallments($totalAmount, $numberOfInstallments);
-        $billingMonthYm = Carbon::today()->format('Y-m');
-        $categoryName = $expenseAccount->renewalCategory->name ?? ('Renewal-' . $expenseAccount->id);
-        $referenceNumber = 'VI-' . $expenseAccount->id . '-' . preg_replace('/\s+/', '', $categoryName) . '-' . Carbon::today()->format('Ymd');
-
-        $this->persistInstallmentPlanEntries(
-            $expenseAccount,
-            $person,
-            $liabilityAccount,
-            $branchId,
-            $billingMonthYm,
-            $referenceNumber,
-            $totalAmount,
-            $installmentAmounts
-        );
-
-        return [
-            'created' => true,
-            'message' => 'A new installment plan (' . $numberOfInstallments . ' installment'
-                . ($numberOfInstallments === 1 ? '' : 's') . ', total '
-                . number_format($totalAmount, 2) . ') was created for ' . $categoryName . '.',
-        ];
-    }
-
-    /**
-     * @return object{id:int,rider_id:string,name:string,branch_id:?int}|null
-     */
     /**
      * Return a bank/cash accounts dropdown without crashing when the BANK global
      * account is not configured (account_id = null in global_accounts).
@@ -2236,49 +2179,6 @@ trait ManagesVisaInstallments
         }
 
         return $liabilityAccount;
-    }
-
-    private function resolveAutoInstallmentCountForRenewal(ExpenseAccount $expenseAccount): int
-    {
-        $previousQuery = $this->expenseAccountBaseQuery()
-            ->where('id', '<', $expenseAccount->id)
-            ->orderByDesc('id');
-
-        if ($expenseAccount->employee_id) {
-            $previousQuery->where('employee_id', $expenseAccount->employee_id);
-        } else {
-            $previousQuery->where('rider_id', $expenseAccount->rider_id);
-        }
-
-        $previousAccount = $previousQuery->first();
-
-        if (!$previousAccount) {
-            return 1;
-        }
-
-        $previousCount = (int) $this->installmentQuery()
-            ->where(function ($q) use ($previousAccount) {
-                $this->applyInstallmentRiderScope($q, $previousAccount);
-            })
-            ->count();
-
-        return max(1, min(12, $previousCount > 0 ? $previousCount : 1));
-    }
-
-    /**
-     * @return list<float>
-     */
-    private function splitAmountAcrossInstallments(float $totalAmount, int $numberOfInstallments): array
-    {
-        $numberOfInstallments = max(1, min(12, $numberOfInstallments));
-        $base = round($totalAmount / $numberOfInstallments, 2);
-        $amounts = array_fill(0, $numberOfInstallments, $base);
-        $amounts[$numberOfInstallments - 1] = round(
-            $totalAmount - array_sum(array_slice($amounts, 0, $numberOfInstallments - 1)),
-            2
-        );
-
-        return $amounts;
     }
 
     /**

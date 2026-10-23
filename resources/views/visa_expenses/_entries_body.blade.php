@@ -311,7 +311,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           <h5>License Installments</h5>
         </div>
         <div class="d-flex gap-2">
-          @can('license_expense_create')
+          @if(user_can('license_expense_create') || user_can('licenseexpense_create'))
           <a class="btn btn-sm btn-exp-primary action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.createInstallmentPlanForm', $licenseAccount->id) }}"
@@ -319,7 +319,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
             data-title="Create License Installment Plan">
             <i class="fa fa-plus me-1"></i> Installment Plan
           </a>
-          @endcan
+          @endif
           @if($licInstallmentData->count() > 0)
           <a class="btn btn-sm btn-exp-ghost action-btn show-modal"
             href="javascript:void(0);"
@@ -372,8 +372,8 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         'installmentDeleteRoute' => 'LicenseExpense.deleteInstallment',
         'installmentPaymentReceivingRoute' => 'LicenseExpense.paymentReceivingModal',
         'installmentPlanModel' => \App\Models\license_installment_plan::class,
-        'canEditInstallment' => user_can('license_expense_edit'),
-        'canDeleteInstallment' => user_can('license_expense_delete'),
+        'canEditInstallment' => user_can('license_expense_edit') || user_can('licenseexpense_edit'),
+        'canDeleteInstallment' => user_can('license_expense_delete') || user_can('licenseexpense_delete'),
         ])
       </div>
     </div>

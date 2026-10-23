@@ -1,56 +1,11 @@
 @extends('layouts.app')
 @section('title','Rider Invoices')
 @push('third_party_stylesheets')
+@include('invoices.partials.status_badge_styles')
 <style>
-    .table-responsive {
+    #table-data .rider-invoices-table-scroll {
         max-height: calc(100vh - 280px);
-    }
-
-    .invoice-status-badge {
-        display: inline-block;
-        padding: 3px 10px;
-        border-radius: 4px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.3px;
-        line-height: 1.35;
-        border: 1px solid transparent;
-        animation: invoice-status-blink 1.25s ease-in-out infinite;
-    }
-
-    .invoice-status-paid {
-        color: #166534;
-        background: #dcfce7;
-        border-color: #86efac;
-    }
-
-    .invoice-status-unpaid {
-        color: #991b1b;
-        background: #fee2e2;
-        border-color: #fca5a5;
-        animation-name: invoice-status-blink-red;
-    }
-
-    @keyframes invoice-status-blink {
-        0%, 100% {
-            opacity: 1;
-            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
-        }
-        50% {
-            opacity: 0.55;
-            box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
-        }
-    }
-
-    @keyframes invoice-status-blink-red {
-        0%, 100% {
-            opacity: 1;
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-        }
-        50% {
-            opacity: 0.55;
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0);
-        }
+        overflow: auto;
     }
 </style>
 @endpush
@@ -133,8 +88,29 @@
                         </select>
                     </div>
                     <div class="form-group col-md-12">
+                        <label for="customer_id">Filter by Project</label>
+                        <select class="form-control" id="customer_id" name="customer_id">
+                            @php
+                            $customerIds = company_table('riders')
+                                ->whereNotNull('customer_id')
+                                ->where('customer_id', '!=', '')
+                                ->pluck('customer_id')
+                                ->unique();
+                            $projects = company_table('customers')
+                                ->whereIn('id', $customerIds)
+                                ->select('id', 'name')
+                                ->orderBy('name')
+                                ->get();
+                            @endphp
+                            <option value="">Select</option>
+                            @foreach($projects as $project)
+                                <option value="{{ $project->id }}" {{ (string) request('customer_id') === (string) $project->id ? 'selected' : '' }}>{{ $project->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group col-md-12">
                         <label for="billing_month">Billing Month</label>
-                        <input type="month" name="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
+                        <input type="month" name="billing_month" id="billing_month" class="form-control" placeholder="Filter By Billing Month" value="{{ request('billing_month') }}">
                     </div>
                     <div class="form-group col-md-12">
                         <label for="zone">Filter by Zone</label>
@@ -170,10 +146,11 @@
                     </div>
                     <div class="form-group col-md-12">
                         <label for="status">Status</label>
-                        <select class="form-control " id="status" name="status">
-                            <option value="" selected>Select</option>
-                            <option value='1' >Active</option>
-                            <option value='0' >Inactive</option>
+                        <select class="form-control" id="status" name="status">
+                            <option value="">Select</option>
+                            <option value="0" {{ request('status') === '0' ? 'selected' : '' }}>Unpaid</option>
+                            <option value="3" {{ request('status') === '3' ? 'selected' : '' }}>Partially Paid</option>
+                            <option value="1" {{ request('status') === '1' ? 'selected' : '' }}>Paid</option>
                         </select>
                     </div>
                     <div class="col-md-12 form-group text-center">
@@ -201,7 +178,7 @@
                 <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter</button>
             </div>
         </div>
-        <div class="card-body table-responsive px-2 py-0" id="table-data">
+        <div class="card-body px-2 py-0" id="table-data">
             @include('rider_invoices.table', [
             'data' => $data,
             'currentMonthTotal' => $currentMonthTotal
@@ -241,97 +218,133 @@
 ])
 <script type="text/javascript">
     $(document).ready(function() {
+        const indexUrl = @json(route('riderInvoices.index'));
+        const exportUrl = @json(route('riderInvoices.export'));
+
         $('#rider_id').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Rider",
-            allowClear: true, // ✅ cross icon enable
+            allowClear: true,
         });
-        $('#billing_month').select2({
+        $('#customer_id').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Billing Month",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#vendor_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Vendor",
-            allowClear: true, // ✅ cross icon enable
+            placeholder: "Filter By Project",
+            allowClear: true,
         });
         $('#zone').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Zone",
-            allowClear: true, // ✅ cross icon enable
+            allowClear: true,
         });
         $('#performance').select2({
             dropdownParent: $('#searchTopbody'),
             placeholder: "Filter By Performance",
-            allowClear: true, // ✅ cross icon enable
+            allowClear: true,
         });
         $('#status').select2({
             dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By status",
-            allowClear: true, // ✅ cross icon enable
+            placeholder: "Filter By Status",
+            allowClear: true,
         });
-    });
-</script>
 
-<script type="text/javascript">
-    $(document).ready(function() {
-        $('#filterForm').on('submit', function(e) {
-            e.preventDefault();
+        function currentQueryParams() {
+            return Object.fromEntries(new URL(window.location.href).searchParams.entries());
+        }
 
-            $('#loading-overlay').show();
-            $('#searchModal').modal('hide');
-
-            const loaderStartTime = Date.now();
-
-            // Exclude _token and empty fields
-            let filteredFields = $(this).serializeArray().filter(field => field.name !== '_token' && field.value.trim() !== '');
+        function buildFilterParams(extra) {
+            let filteredFields = $('#filterForm').serializeArray().filter(function(field) {
+                return field.name !== '_token' && String(field.value || '').trim() !== '';
+            });
             const quickSearchValue = ($('#quickSearch').val() || '').trim();
-            filteredFields = filteredFields.filter(field => field.name !== 'quick_search');
+            filteredFields = filteredFields.filter(function(field) {
+                return field.name !== 'quick_search' && field.name !== 'page';
+            });
             if (quickSearchValue) {
                 filteredFields.push({ name: 'quick_search', value: quickSearchValue });
             }
-            let formData = $.param(filteredFields);
+
+            const params = {};
+            filteredFields.forEach(function(field) {
+                params[field.name] = field.value;
+            });
+
+            const currentPerPage = currentQueryParams().per_page;
+            if (currentPerPage) {
+                params.per_page = currentPerPage;
+            }
+
+            return Object.assign(params, extra || {});
+        }
+
+        function updateExportLink(params) {
+            const query = $.param(params || {});
+            $('#exportRiderInvoicesBtn').attr('href', exportUrl + (query ? '?' + query : ''));
+        }
+
+        function loadRiderInvoices(params) {
+            $('#loading-overlay').show();
+            const loaderStartTime = Date.now();
+            const requestParams = Object.assign({}, params || {});
+            delete requestParams._token;
 
             $.ajax({
-                url: "{{ route('riderInvoices.index') }}",
-                type: "GET",
-                data: formData,
+                url: indexUrl,
+                type: 'GET',
+                data: requestParams,
                 success: function(data) {
                     $('#table-data').html(data.tableData);
 
-                    // 🔹 Update Current Month Total in header
                     if (data.currentMonthTotal !== undefined) {
                         $('#current-month-total').text('Current Month Total: ' + data.currentMonthTotal);
                     }
 
-                    // Update URL + export link so export uses the same filters
-                    let newUrl = "{{ route('riderInvoices.index') }}" + (formData ? '?' + formData : '');
-                    history.pushState(null, '', newUrl);
-                    $('#exportRiderInvoicesBtn').attr(
-                        'href',
-                        "{{ route('riderInvoices.export') }}" + (formData ? '?' + formData : '')
-                    );
+                    const query = $.param(requestParams);
+                    history.pushState(null, '', indexUrl + (query ? '?' + query : ''));
+                    updateExportLink(requestParams);
 
-                    // Loader timing
                     const elapsed = Date.now() - loaderStartTime;
                     const remaining = 1000 - elapsed;
-                    setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
+                    setTimeout(function() { $('#loading-overlay').hide(); }, remaining > 0 ? remaining : 0);
                 },
                 error: function(xhr, status, error) {
                     console.error(error);
-
                     const elapsed = Date.now() - loaderStartTime;
                     const remaining = 1000 - elapsed;
-                    setTimeout(() => $('#loading-overlay').hide(), remaining > 0 ? remaining : 0);
+                    setTimeout(function() { $('#loading-overlay').hide(); }, remaining > 0 ? remaining : 0);
                 }
             });
+        }
+
+        $('#filterForm').on('submit', function(e) {
+            e.preventDefault();
+            loadRiderInvoices(buildFilterParams({ page: 1 }));
+        });
+
+        // Keep filters when changing page / per-page after AJAX filter
+        $(document).on('click', '#table-data .pagination a.page-link', function(e) {
+            const href = $(this).attr('href');
+            if (!href || href === '#') {
+                return;
+            }
+            e.preventDefault();
+            const url = new URL(href, window.location.origin);
+            loadRiderInvoices(Object.fromEntries(url.searchParams.entries()));
+        });
+
+        $(document).on('change', '#table-data #perPageSelect', function(e) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const params = currentQueryParams();
+            params.per_page = $(this).val();
+            delete params.page;
+            loadRiderInvoices(params);
+            return false;
         });
 
         $('#quickSearch').on('keyup', function(e) {
             if (e.keyCode === 13 || $(this).val().length === 0) {
                 const searchValue = $(this).val();
-                const url = new URL(window.location);
+                const url = new URL(window.location.href);
 
                 if (searchValue) {
                     url.searchParams.set('quick_search', searchValue);
@@ -343,6 +356,8 @@
                 window.location.href = url.toString();
             }
         });
+
+        updateExportLink(currentQueryParams());
     });
 </script>
 <script>

@@ -1,5 +1,6 @@
 @push('third_party_stylesheets')
 @endpush
+<div class="rider-invoices-table-scroll table-responsive">
 <table class="table dataTable" id="dataTableBuilder">
    <thead class="text-center">
       <tr role="row">
@@ -53,11 +54,7 @@
          <td>{{ number_format((float) $r->total_amount, 2) }}</td>
          <td>{{ number_format((float) $r->final_amount, 2) }}</td>
          <td>
-            @if($r->isPaid())
-            <span class="invoice-status-badge invoice-status-paid">Paid</span>
-            @else
-            <span class="invoice-status-badge invoice-status-unpaid">Unpaid</span>
-            @endif
+            @include('invoices.partials.status_badge', ['status' => $r->paymentStatusKey()])
          </td>
          <td>
             <div class="dropdown">
@@ -113,32 +110,8 @@
       @endforeach
    </tbody>
 </table>
+</div>
 @if(method_exists($data, 'links'))
 {!! $data->links('components.global-pagination') !!}
 @endif
-<div class="modal modal-default filtetmodal fade" id="customoizecolmn" tabindex="-1" data-bs-backdrop="static" role="dialog" aria-hidden="true">
-   <div class="modal-dialog modal-lg modal-slide-top modal-full-top">
-      <div class="modal-content">
-         <div class="modal-header">
-            <h5 class="modal-title">Filter Riders</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-         </div>
-         <div class="modal-body" id="searchTopbody">
-            <div style="display: none;" class="loading-overlay" id="loading-overlay">
-               <div class="spinner-border text-primary" role="status"></div>
-            </div>
-            <form id="filterForm" action="{{ route('banks.index') }}" method="GET">
-               <div class="row">
-                  <div class="form-group col-md-12">
-                     <input type="number" name="search" class="form-control" placeholder="Search">
-                  </div>
-                  <div class="col-md-12 form-group text-center">
-                     <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                  </div>
-               </div>
-            </form>
-         </div>
-      </div>
-   </div>
-</div>
 @include('delete_requests._pending_table_script', ['items' => $data])

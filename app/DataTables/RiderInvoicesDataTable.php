@@ -40,11 +40,9 @@ class RiderInvoicesDataTable extends DataTable
         return e((string) ($riderInvoices->descriptions ?? ''));
       })
       ->addColumn('status', function (RiderInvoices $riderInvoices) {
-        if ($riderInvoices->isPaid()) {
-          return '<span class="invoice-status-badge invoice-status-paid">Paid</span>';
-        }
-
-        return '<span class="invoice-status-badge invoice-status-unpaid">Unpaid</span>';
+        return view('invoices.partials.status_badge', [
+          'status' => $riderInvoices->paymentStatusKey(),
+        ])->render();
       })
       ->addColumn('paid_amount', function (RiderInvoices $riderInvoices) {
         return number_format((float) $riderInvoices->paid_amount, 2);

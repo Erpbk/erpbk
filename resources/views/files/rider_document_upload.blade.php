@@ -1,5 +1,5 @@
 @php
-  $isDual = ($docType->type ?? '') === 'dual';
+  $isDual = \App\Support\RiderDocumentChecklist::isDualType($docType);
   $title = \App\Support\RiderDocumentChecklist::cleanDocumentLabel(
     $docType->label ?: '',
     $isDual ? ($docType->front_label ?: $docType->key) : ($docType->key ?: '')

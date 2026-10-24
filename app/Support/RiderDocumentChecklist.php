@@ -12,13 +12,13 @@ class RiderDocumentChecklist
 {
     /**
      * Build checklist rows for the rider Documents page (one row per document type).
-     * Each file is claimed by at most one type/side so one upload cannot fill multiple slots.
+     * Each file is claimed once so a new upload appears only under its own type.
      *
      * @return list<array<string, mixed>>
      */
     public static function forRider(Riders $rider): array
     {
-        $types = RiderDocumentType::ordered()->with(['subtypes' => fn ($q) => $q->ordered()])->get();
+        $types = RiderDocumentType::ordered()->with(['subtypes' => fn($q) => $q->ordered()])->get();
         $files = Files::query()
             ->where('type', 'rider')
             ->where('type_id', $rider->id)
@@ -41,7 +41,8 @@ class RiderDocumentChecklist
      */
     public static function buildRow(RiderDocumentType $type, Collection $files, array &$claimedIds = []): array
     {
-        $isDual = $type->type === 'dual';
+        // Dual = configured as dual, or has front+back subtypes → always one checklist line.
+        $isDual = self::isDualType($type);
         $label = self::cleanDocumentLabel(
             $type->label ?: '',
             $isDual ? ($type->front_label ?: $type->key) : ($type->key ?: '')
@@ -67,8 +68,8 @@ class RiderDocumentChecklist
                 'key' => $type->key,
                 'label' => $label,
                 'kind' => 'dual',
-                'front_label' => $type->front_label ?: 'Front',
-                'back_label' => $type->back_label ?: 'Back',
+                'front_label' => self::sideDisplayLabel($label, $type->front_label, 'Front'),
+                'back_label' => self::sideDisplayLabel($label, $type->back_label, 'Back'),
                 'front_file' => $front,
                 'back_file' => $back,
                 'file' => null,
@@ -99,6 +100,25 @@ class RiderDocumentChecklist
     }
 
     /**
+     * Find file already owned by this type/side (IDs only).
+     * Used when uploading so the first save creates a new unique row instead of
+     * overwriting an unrelated legacy file matched by name.
+     *
+     * @param  Collection<int, Files>  $files
+     */
+    public static function findOwnedFileForSide(
+        Collection $files,
+        RiderDocumentType $type,
+        string $sideKey
+    ): ?Files {
+        return self::findFileForSide($files, $type, $sideKey, [], false);
+    }
+
+    /**
+     * Find the file owned by this document type/side.
+     * Prefer document_type_id / document_subtype_id so a first upload shows immediately
+     * and stays unique (no loose name rematch onto other types).
+     *
      * @param  Collection<int, Files>  $files
      * @param  array<int, true>  $claimedIds
      */
@@ -106,16 +126,14 @@ class RiderDocumentChecklist
         Collection $files,
         RiderDocumentType $type,
         string $sideKey,
-        array $claimedIds = []
+        array $claimedIds = [],
+        bool $allowLegacyNameMatch = true
     ): ?Files {
-        $available = $files->filter(fn ($f) => !isset($claimedIds[(int) ($f->id ?? 0)]));
+        $available = $files->filter(fn($f) => !isset($claimedIds[(int) ($f->id ?? 0)]));
 
-        $subtypeId = RiderDocumentTypeSubtype::query()
-            ->where('document_type_id', $type->id)
-            ->where('key', $sideKey)
-            ->value('id');
+        $subtypeId = self::subtypeIdForSide($type, $sideKey);
 
-        // 1) Exact subtype (and type when present) — preferred for typed rider-file uploads.
+        // 1) Exact subtype (+ type when present) — covers new Add Document / checklist uploads.
         if ($subtypeId) {
             $bySubtype = $available->first(function ($f) use ($subtypeId, $type) {
                 if ((int) ($f->document_subtype_id ?? 0) !== (int) $subtypeId) {
@@ -130,49 +148,29 @@ class RiderDocumentChecklist
             }
         }
 
-        // 2) Files explicitly tagged with this document type + side name.
-        $byTypeAndSide = $available->first(function ($f) use ($type, $sideKey) {
+        // 2) Any file tagged with this document type for this side.
+        $byType = $available->first(function ($f) use ($type, $sideKey) {
             if ((int) ($f->document_type_id ?? 0) !== (int) $type->id) {
                 return false;
             }
 
-            return self::fileNameMatchesSide($f, $type, $sideKey);
+            return self::typedFileMatchesSide($f, $type, $sideKey);
         });
-        if ($byTypeAndSide) {
-            return $byTypeAndSide;
+        if ($byType) {
+            return $byType;
         }
 
-        // 3) Single/main: any file tagged with this document type (ignore loose name matches).
-        if ($sideKey === 'main') {
-            $byType = $available->first(function ($f) use ($type) {
-                if ((int) ($f->document_type_id ?? 0) !== (int) $type->id) {
-                    return false;
-                }
-                $name = strtolower((string) ($f->name ?? ''));
-
-                return !str_ends_with($name, '_front')
-                    && !str_ends_with($name, '_back')
-                    && !str_contains($name, '_front')
-                    && !str_contains($name, '_back');
-            });
-            if (!$byType) {
-                $byType = $available->first(
-                    fn ($f) => (int) ($f->document_type_id ?? 0) === (int) $type->id
-                );
-            }
-            if ($byType) {
-                return $byType;
-            }
+        if (!$allowLegacyNameMatch) {
+            return null;
         }
 
-        // 4) Legacy only: untyped files whose stored name exactly equals key / key_side.
-        // Never steal a file already assigned to another document_type_id.
+        // 3) Legacy untyped files only — exact canonical name (never substring).
         return $available->first(function ($f) use ($type, $sideKey) {
             if ((int) ($f->document_type_id ?? 0) !== 0) {
                 return false;
             }
 
-            return self::exactLegacyNameMatch($f, $type, $sideKey);
+            return self::exactCanonicalNameMatch($f, $type, $sideKey);
         });
     }
 
@@ -185,10 +183,10 @@ class RiderDocumentChecklist
         RiderDocumentType $type,
         array $claimedIds = []
     ): ?Files {
-        $available = $files->filter(fn ($f) => !isset($claimedIds[(int) ($f->id ?? 0)]));
+        $available = $files->filter(fn($f) => !isset($claimedIds[(int) ($f->id ?? 0)]));
 
         $byType = $available->first(
-            fn ($f) => (int) ($f->document_type_id ?? 0) === (int) $type->id
+            fn($f) => (int) ($f->document_type_id ?? 0) === (int) $type->id
         );
         if ($byType) {
             return $byType;
@@ -199,23 +197,70 @@ class RiderDocumentChecklist
                 return false;
             }
 
-            return self::exactLegacyNameMatch($f, $type, 'main');
+            return self::exactCanonicalNameMatch($f, $type, 'main');
         });
     }
 
     /**
-     * Exact stored-name match for a typed side (no substring / alias matching).
+     * Resolve subtype id for a side. For single docs, fall back to the active "main"
+     * or first subtype so first uploads are found even when key is not literally "main".
      */
-    private static function fileNameMatchesSide(Files $file, RiderDocumentType $type, string $sideKey): bool
+    private static function subtypeIdForSide(RiderDocumentType $type, string $sideKey): ?int
     {
-        return self::exactLegacyNameMatch($file, $type, $sideKey);
+        $id = RiderDocumentTypeSubtype::query()
+            ->where('document_type_id', $type->id)
+            ->where('key', $sideKey)
+            ->where('is_active', true)
+            ->value('id');
+
+        if ($id) {
+            return (int) $id;
+        }
+
+        if ($sideKey !== 'main' || $type->type === 'dual') {
+            return null;
+        }
+
+        $fallback = RiderDocumentTypeSubtype::query()
+            ->where('document_type_id', $type->id)
+            ->where('is_active', true)
+            ->orderedForAdmin()
+            ->value('id');
+
+        return $fallback ? (int) $fallback : null;
     }
 
     /**
-     * Match only the canonical names written by Add Document / typed upload
-     * (e.g. labor_contract, labor_card_front) — never substring matches like "labor" ⊂ "labor_contract".
+     * Typed file already belongs to this document type — match side by canonical name
+     * or accept any non-side file for "main".
      */
-    private static function exactLegacyNameMatch(Files $file, RiderDocumentType $type, string $sideKey): bool
+    private static function typedFileMatchesSide(Files $file, RiderDocumentType $type, string $sideKey): bool
+    {
+        if (self::exactCanonicalNameMatch($file, $type, $sideKey)) {
+            return true;
+        }
+
+        if ($sideKey !== 'main') {
+            return false;
+        }
+
+        // Single/main: accept any file of this type that is not clearly a dual side.
+        $name = strtolower(trim((string) ($file->name ?? '')));
+
+        return $name === ''
+            || (
+                !str_ends_with($name, '_front')
+                && !str_ends_with($name, '_back')
+                && !str_ends_with($name, '_first')
+                && !str_ends_with($name, '_second')
+            );
+    }
+
+    /**
+     * Exact stored names written by Add Document / typed upload
+     * (e.g. labor_contract, labor_card_front) — never "labor" ⊂ "labor_contract".
+     */
+    private static function exactCanonicalNameMatch(Files $file, RiderDocumentType $type, string $sideKey): bool
     {
         $name = strtolower(trim((string) ($file->name ?? '')));
         $key = strtolower(trim((string) ($type->key ?? '')));
@@ -231,6 +276,61 @@ class RiderDocumentChecklist
         }
 
         return $name === $key || $name === $key . '_main';
+    }
+
+    /**
+     * True when this document type should show as one Dual line (front · back).
+     * Uses configured type, or auto-detects when both front and back subtypes exist.
+     */
+    public static function isDualType(RiderDocumentType $type): bool
+    {
+        if (($type->type ?? '') === 'dual') {
+            return true;
+        }
+
+        $keys = self::activeSubtypeKeys($type);
+
+        return in_array('front', $keys, true) && in_array('back', $keys, true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function activeSubtypeKeys(RiderDocumentType $type): array
+    {
+        if ($type->relationLoaded('subtypes')) {
+            return $type->subtypes
+                ->filter(fn ($s) => (bool) ($s->is_active ?? true))
+                ->pluck('key')
+                ->map(fn ($k) => strtolower((string) $k))
+                ->values()
+                ->all();
+        }
+
+        return RiderDocumentTypeSubtype::query()
+            ->where('document_type_id', $type->id)
+            ->where('is_active', true)
+            ->pluck('key')
+            ->map(fn ($k) => strtolower((string) $k))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Side caption like "Emirates ID (Front)" when only a generic side label is stored.
+     */
+    private static function sideDisplayLabel(string $documentLabel, ?string $sideLabel, string $defaultSide): string
+    {
+        $side = trim((string) ($sideLabel !== null && trim($sideLabel) !== '' ? $sideLabel : $defaultSide));
+        if ($side === '') {
+            $side = $defaultSide;
+        }
+
+        if ($documentLabel !== '' && preg_match('/^(front|back|first\s*page|second\s*page|1st\s*page|2nd\s*page)$/iu', $side)) {
+            return $documentLabel . ' (' . ucwords(strtolower($side)) . ')';
+        }
+
+        return $side;
     }
 
     /**
@@ -266,7 +366,7 @@ class RiderDocumentChecklist
             ->get()
             ->keyBy('key');
 
-        if ($type->type === 'dual') {
+        if (self::isDualType($type)) {
             foreach (
                 [
                     ['key' => 'front', 'label' => trim((string) ($type->front_label ?: 'Front')), 'order' => 0],

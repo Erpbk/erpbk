@@ -62,11 +62,13 @@ class RiderDocumentType extends BaseModel
         $single = [];
         $dual = [];
         foreach ($types as $t) {
-            if ($t->type === 'single' && $t->label) {
+            if (\App\Support\RiderDocumentChecklist::isDualType($t)) {
+                $dual[$t->key] = [
+                    'front' => $t->front_label ?: 'Front',
+                    'back' => $t->back_label ?: 'Back',
+                ];
+            } elseif ($t->label) {
                 $single[$t->key] = $t->label;
-            }
-            if ($t->type === 'dual' && $t->front_label && $t->back_label) {
-                $dual[$t->key] = ['front' => $t->front_label, 'back' => $t->back_label];
             }
         }
         return ['single' => $single, 'dual' => $dual];

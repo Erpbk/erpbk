@@ -140,7 +140,7 @@ class FilesController extends AppBaseController
         'id' => $docType->id,
         'key' => $docType->key,
         'label' => $docType->label ?: ($docType->front_label ?: $docType->key),
-        'type' => $docType->type,
+        'type' => \App\Support\RiderDocumentChecklist::isDualType($docType) ? 'dual' : ($docType->type ?: 'single'),
       ],
       'subtypes' => $subtypes,
     ]);
@@ -247,10 +247,7 @@ class FilesController extends AppBaseController
 
     // Only show field values already stored on the document file(s) — never rider-profile prefill.
     $buildSide = function (?RiderDocumentTypeSubtype $subtype, string $sideKey) use ($docType, $existingFiles) {
-      $file = RiderDocumentChecklist::findFileForSide($existingFiles, $docType, $sideKey);
-      if ($sideKey === 'main' && !$file) {
-        $file = RiderDocumentChecklist::findFileForType($existingFiles, $docType);
-      }
+      $file = RiderDocumentChecklist::findOwnedFileForSide($existingFiles, $docType, $sideKey);
 
       $fields = RiderDocumentUploadService::fieldsForSubtype($subtype);
       $values = ($file && is_array($file->field_values)) ? $file->field_values : [];
@@ -263,12 +260,13 @@ class FilesController extends AppBaseController
       ];
     };
 
-    $front = $docType->type === 'dual' ? $buildSide($subs['front'], 'front') : null;
-    $back = $docType->type === 'dual' ? $buildSide($subs['back'], 'back') : null;
-    $main = $docType->type !== 'dual' ? $buildSide($subs['main'], 'main') : null;
+    $isDual = RiderDocumentChecklist::isDualType($docType);
+    $front = $isDual ? $buildSide($subs['front'], 'front') : null;
+    $back = $isDual ? $buildSide($subs['back'], 'back') : null;
+    $main = !$isDual ? $buildSide($subs['main'], 'main') : null;
 
     $shared = null;
-    if ($docType->type === 'dual') {
+    if ($isDual) {
       $sharedFields = RiderDocumentUploadService::sharedFieldsForDual(
         $subs['front'] ?? null,
         $subs['back'] ?? null
@@ -290,7 +288,7 @@ class FilesController extends AppBaseController
       ];
     }
 
-    $existingAny = $docType->type === 'dual'
+    $existingAny = $isDual
       ? (($front['file'] ?? null) || ($back['file'] ?? null))
       : (($main['file'] ?? null) !== null);
 
@@ -412,6 +410,9 @@ class FilesController extends AppBaseController
     $input['document_type_id'] = $normalizedFields['document_type_id'];
     $input['document_subtype_id'] = $normalizedFields['document_subtype_id'];
     $input['field_values'] = $normalizedFields['field_values'];
+    if (!array_key_exists('status', $input) || $input['status'] === null || $input['status'] === '') {
+      $input['status'] = 1;
+    }
 
     if ($type === 'rider' && !empty($normalizedFields['document_subtype_id'])) {
       $fromFields = RiderDocumentFieldValues::resolveExpiryDateFromFields(

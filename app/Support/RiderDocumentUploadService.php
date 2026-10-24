@@ -24,7 +24,7 @@ class RiderDocumentUploadService
         $subs = RiderDocumentChecklist::resolveSubtypes($docType);
         $branchId = $rider->branch_id ? (int) $rider->branch_id : null;
 
-        if ($docType->type === 'dual') {
+        if (RiderDocumentChecklist::isDualType($docType)) {
             return self::storeDual($rider, $docType, $subs, $request, $branchId);
         }
 
@@ -53,8 +53,8 @@ class RiderDocumentUploadService
             ->orderByDesc('id')
             ->get();
 
-        $existingFront = RiderDocumentChecklist::findFileForSide($existingFiles, $docType, 'front');
-        $existingBack = RiderDocumentChecklist::findFileForSide($existingFiles, $docType, 'back');
+        $existingFront = RiderDocumentChecklist::findOwnedFileForSide($existingFiles, $docType, 'front');
+        $existingBack = RiderDocumentChecklist::findOwnedFileForSide($existingFiles, $docType, 'back');
 
         $frontUpload = $request->file('sides.front.file');
         $backUpload = $request->file('sides.back.file');
@@ -145,8 +145,8 @@ class RiderDocumentUploadService
             ->where('type_id', $rider->id)
             ->orderByDesc('id')
             ->get();
-        $existing = RiderDocumentChecklist::findFileForSide($existingFiles, $docType, 'main')
-            ?? RiderDocumentChecklist::findFileForType($existingFiles, $docType);
+        // Only reuse a file already tagged with this type/subtype — never a name match.
+        $existing = RiderDocumentChecklist::findOwnedFileForSide($existingFiles, $docType, 'main');
 
         $upload = $request->file('sides.main.file');
         if (!$existing && !$upload instanceof UploadedFile) {

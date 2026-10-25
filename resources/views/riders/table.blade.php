@@ -1,40 +1,46 @@
-@push('third_party_stylesheets')
-@endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
-   <thead class="">
-      <tr role="row">
-         @php
-         $tableCols = $tableColumns ?? [];
-         $dataColumns = array_values(array_filter($tableCols, function($c){
-         $k = $c['data'] ?? ($c['key'] ?? null);
-         return $k !== 'search'
-         && $k !== 'control'
-         && !in_array($k, ['company_id', 'account_id'], true)
-         && field_visible('rider', $k);
-         }));
-         @endphp
+@php
+$tableCols = $tableColumns ?? [];
+$dataColumns = array_values(array_filter($tableCols, function ($c) {
+    $k = $c['data'] ?? ($c['key'] ?? null);
+    return $k !== 'search'
+        && $k !== 'control'
+        && $k !== 'action'
+        && !in_array($k, ['company_id', 'account_id'], true)
+        && field_visible('rider', $k);
+}));
+$favoriteIds = collect($favoriteRiderIds ?? (auth()->user()->favorite_rider_ids ?? []))->map(fn ($id) => (int) $id)->all();
+$ajaxFragment = $ajaxFragment ?? false;
+@endphp
+@if(!$ajaxFragment)
+<table class="table" id="dataTableBuilder">
+   <thead>
+      <tr id="rlHead">
          @foreach($dataColumns as $col)
-         @php $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? '')); @endphp
-         <th title="{{ $title }}" class="sorting" tabindex="0" rowspan="1" colspan="1">{{ $title }}</th>
+         @php
+         $title = $col['title'] ?? ($col['name'] ?? ($col['data'] ?? ''));
+         $key = $col['data'] ?? ($col['key'] ?? '');
+         @endphp
+         <th title="{{ $title }}" class="sorting" data-k="{{ $key }}" tabindex="0">{{ $title }}<span class="ar">⇅</span></th>
          @endforeach
-         <th tabindex="0" rowspan="1" colspan="1" aria-sort="descending">
-            &nbsp;
-         </th>
-
+         <th class="nosort" tabindex="0">Actions</th>
       </tr>
    </thead>
-   <tbody>
+   <tbody id="rlBody">
+@endif
       @forelse($data as $r)
-      @php $riderPendingDeletion = record_is_pending_deletion($r); @endphp
-      <tr class="text-center {{ $riderPendingDeletion ? 'table-warning' : '' }}">
+      @php
+      $riderPendingDeletion = record_is_pending_deletion($r);
+      $isFav = in_array((int) $r->id, $favoriteIds, true);
+      @endphp
+      <tr class="text-center {{ $riderPendingDeletion ? 'table-warning' : '' }}" data-rider-id="{{ $r->id }}">
          @foreach($dataColumns as $col)
          @php $key = $col['data'] ?? ($col['key'] ?? null); @endphp
          @switch($key)
          @case('name')
-         <td class="text-start">
+         <td class="name text-start">
+            <button type="button" class="rl-star{{ $isFav ? ' on' : '' }}" data-fav="{{ $r->id }}" aria-label="{{ $isFav ? 'Remove from' : 'Add to' }} favorites">★</button>
             <a href="{{ route('riders.show', $r->id) }}">{{ $r->name }}</a>
             @include('delete_requests._pending_badge', ['model' => $r])
-            <br />
          </td>
          @break
          @case('contact_number')
@@ -66,7 +72,7 @@
          <td>{{ $r->branch ? $r->branch->name . ' (' . $r->branch->code . ')' : '-' }}</td>
          @break
          @case('recruiter_id')
-         <td>{{ company_table('recruiters')->where('id' , $r->recruiter_id)->first()->name ?? '-'}}</td>
+         <td>{{ optional(company_table('recruiters')->where('id', $r->recruiter_id)->first())->name ?? '-' }}</td>
          @break
          @case('nationality')
          <td>{{ $r->nationality ? (company_table('countries')->where('id', $r->nationality)->value('name') ?? '-') : '-' }}</td>
@@ -78,8 +84,13 @@
          <td>{{ $account ? ($account->account_code ?? $account->name ?? $r->account_id) : '-' }}</td>
          @break
          @case('bike')
-         @php $bike = company_table('bikes')->where('rider_id', $r->id)->first(); @endphp
-         <td>{{ $bike ? $bike->plate : '-' }}</td>
+         @php
+         // bikes() is hasOne — eager load returns a model or null, not a collection
+         $bike = $r->relationLoaded('bikes')
+            ? $r->bikes
+            : company_table('bikes')->where('rider_id', $r->id)->first();
+         @endphp
+         <td>{{ $bike ? ($bike->plate ?? '-') : '-' }}</td>
          @break
          @case('status')
          <td class="text-center">
@@ -88,6 +99,7 @@
             'optionText' => data_get($r, 'rider_status'),
             'statusDays' => data_get($r, 'employment_status_days'),
             'statusChangedAt' => data_get($r, 'last_employment_status_change_date'),
+            'wrapperClass' => 'rl-status-wrap',
             ])
          </td>
          @break
@@ -123,15 +135,31 @@
          @php $balance = App\Helpers\Accounts::getBalance($r->account_id); @endphp
          <td>{{ $balance ? $balance : '-' }}</td>
          @break
-         @case('action')
+         @default
+         <td>
+            @php
+            $value = data_get($r, $key, '-');
+            if (is_array($value)) {
+            $value = array_is_list($value)
+            ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
+            : json_encode($value);
+            } elseif ($value instanceof \Illuminate\Support\Collection) {
+            $value = $value->toArray();
+            $value = array_is_list($value)
+            ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
+            : json_encode($value);
+            }
+            @endphp
+            {{ $value }}
+         </td>
+         @endswitch
+         @endforeach
          <td>
             @if($riderPendingDeletion)
             @include('delete_requests._pending_badge', ['model' => $r])
             @else
             <div class="dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                  <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
-               </button>
+               <button class="rl-dots" type="button" id="actiondropdown_{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" aria-label="Row actions">⋯</button>
                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $r->id }}">
                   @include('layouts.partials.module_contract_action', [
                   'module' => 'riders',
@@ -152,29 +180,6 @@
             </div>
             @endif
          </td>
-         @break
-         @default
-         <td>
-            @php
-            $value = data_get($r, $key, '-');
-            // Blade escapes output via htmlspecialchars(). If $value is an array/collection,
-            // convert it into a displayable string first to avoid "must be of type string" errors.
-            if (is_array($value)) {
-            $value = array_is_list($value)
-            ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
-            : json_encode($value);
-            } elseif ($value instanceof \Illuminate\Support\Collection) {
-            $value = $value->toArray();
-            $value = array_is_list($value)
-            ? implode(', ', array_map(fn($v) => is_scalar($v) ? (string)$v : json_encode($v), $value))
-            : json_encode($value);
-            }
-            @endphp
-            {{ $value }}
-         </td>
-         @endswitch
-         @endforeach
-         <td></td>
       </tr>
       @empty
       @php
@@ -183,18 +188,16 @@
       || request()->filled('status');
       @endphp
       <tr>
-         <td colspan="{{ count($dataColumns) + 1 }}" class="text-center text-danger py-3">
+         <td colspan="{{ count($dataColumns) + 1 }}" class="rl-empty text-center">
             {{ $hasSupervisorOrStatusFilter
             ? 'This rider does not belong to this supervisor or status.'
-            : 'No riders found for the selected filters.' }}
+            : 'No riders match this search.' }}
          </td>
       </tr>
       @endforelse
+@if(!$ajaxFragment)
    </tbody>
 </table>
-@if(method_exists($data, 'links'))
-{!! $data->links('components.global-pagination') !!}
 @endif
 
-<!-- Filter modal removed: using right-side sliding sidebar instead -->
 @include('delete_requests._pending_table_script', ['items' => $data])

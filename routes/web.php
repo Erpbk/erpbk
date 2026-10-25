@@ -662,8 +662,11 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     // Static rider paths must be registered before resource show (riders/{rider}).
     Route::get('riders/voucher-create', [RidersController::class, 'voucherCreate'])->name('riders.voucher.create');
-    Route::resource('riders', RidersController::class);
     Route::post('riders/filter-ajax', [RidersController::class, 'filterAjax'])->name('riders.filterAjax');
+    Route::get('riders/import/template', [RidersController::class, 'importRidersTemplate'])->name('riders.import.template');
+    Route::post('riders/import/preview', [RidersController::class, 'importRidersPreview'])->name('riders.import.preview');
+    Route::post('riders/import/commit', [RidersController::class, 'importRidersCommit'])->name('riders.import.commit');
+    Route::resource('riders', RidersController::class);
     Route::get('riders/dropdown-options/modal', [RidersController::class, 'dropdownOptionModal'])->name('riders.dropdown-options.modal');
     Route::post('riders/dropdown-options', [RidersController::class, 'storeDropdownOption'])->name('riders.dropdown-options.store');
     Route::any('riders/job_status/{id?}', [RidersController::class, 'job_status'])->name('rider.job_status');

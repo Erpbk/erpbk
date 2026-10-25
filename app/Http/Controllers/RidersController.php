@@ -101,7 +101,7 @@ class RidersController extends AppBaseController
     $builtInLabels = Riders::employmentStatusFilterLabels();
     $builtInKeys = array_map('strtolower', $builtInLabels);
     $builtInOptions = array_map(
-      static fn (string $label): array => ['value' => $label, 'label' => $label],
+      static fn(string $label): array => ['value' => $label, 'label' => $label],
       $builtInLabels
     );
 
@@ -164,6 +164,174 @@ class RidersController extends AppBaseController
     }
 
     Riders::applyCurrentStatusFilter($query, $status);
+  }
+
+  /**
+   * Quick search across list-relevant rider fields (shared by index + filterAjax).
+   */
+  private function applyRiderQuickSearch($query, ?string $search): void
+  {
+    $search = trim((string) $search);
+    if ($search === '') {
+      return;
+    }
+
+    $like = '%' . $search . '%';
+    $riderColumns = array_flip(Schema::getColumnListing('riders'));
+
+    $query->where(function ($q) use ($search, $like, $riderColumns) {
+      $q->where('riders.name', 'like', $like)
+        ->orWhere('riders.rider_id', 'like', $like)
+        ->orWhere('riders.fleet_supervisor', 'like', $like)
+        ->orWhere('riders.customer_id', 'like', $like)
+        ->orWhereExists(function ($subQuery) use ($like) {
+          $subQuery->select(\DB::raw(1))
+            ->from('customers')
+            ->whereColumn('customers.id', 'riders.customer_id')
+            ->where('customers.name', 'like', $like);
+        });
+
+      if (isset($riderColumns['personal_contact'])) {
+        $q->orWhere('riders.personal_contact', 'like', $like);
+      }
+      if (isset($riderColumns['company_contact'])) {
+        $q->orWhere('riders.company_contact', 'like', $like);
+      }
+      if (isset($riderColumns['emirate_id'])) {
+        $q->orWhere('riders.emirate_id', 'like', $like);
+      }
+      if (isset($riderColumns['person_code'])) {
+        $q->orWhere('riders.person_code', 'like', $like);
+      }
+      if (isset($riderColumns['passport'])) {
+        $q->orWhere('riders.passport', 'like', $like);
+      }
+      if (isset($riderColumns['nationality'])) {
+        $q->orWhereExists(function ($subQuery) use ($like) {
+          $subQuery->select(\DB::raw(1))
+            ->from('countries')
+            ->whereColumn('countries.id', 'riders.nationality')
+            ->where('countries.name', 'like', $like);
+        });
+      }
+      if (isset($riderColumns['rider_status'])) {
+        $q->orWhere('riders.rider_status', 'like', $like);
+      }
+
+      $q->orWhereExists(function ($subQuery) use ($like) {
+        $subQuery->select(\DB::raw(1))
+          ->from('bikes')
+          ->whereColumn('bikes.rider_id', 'riders.id')
+          ->where('bikes.plate', 'like', $like);
+      });
+
+      // Match employment status labels (Active / Inactive / …)
+      $statusCodes = [];
+      foreach ([0, 1, 2, 3, 4, 5] as $code) {
+        $label = Riders::employmentStatusDisplay($code)['label'] ?? '';
+        if ($label !== '' && stripos($label, $search) !== false) {
+          $statusCodes[] = $code;
+        }
+      }
+      if ($statusCodes !== []) {
+        $q->orWhereIn('riders.status', $statusCodes);
+      }
+
+      if (stripos($search, 'active') !== false) {
+        $q->orWhereExists(function ($subQuery) {
+          $subQuery->select(\DB::raw(1))
+            ->from('bikes')
+            ->whereColumn('bikes.rider_id', 'riders.id')
+            ->where('bikes.warehouse', '=', 'Active');
+        });
+      }
+      if (stripos($search, 'inactive') !== false) {
+        $q->orWhereNotExists(function ($subQuery) {
+          $subQuery->select(\DB::raw(1))
+            ->from('bikes')
+            ->whereColumn('bikes.rider_id', 'riders.id')
+            ->where('bikes.warehouse', '=', 'Active');
+        });
+      }
+    });
+  }
+
+  /**
+   * Favorites first, then active employment status, then caller-supplied orderings.
+   *
+   * @param  list<int>  $favoriteIds
+   */
+  private function applyRiderListOrdering($query, array $favoriteIds = []): void
+  {
+    if ($favoriteIds !== []) {
+      $ids = implode(',', array_map('intval', $favoriteIds));
+      $query->orderByRaw("CASE WHEN riders.id IN ({$ids}) THEN 0 ELSE 1 END");
+    }
+    $query->orderByRaw('CASE WHEN riders.status = 1 THEN 0 ELSE 1 END');
+  }
+
+  /**
+   * Shared index / filterAjax query builder.
+   */
+  private function buildRidersIndexQuery(Request $request, array $favoriteIds = [])
+  {
+    $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
+    $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
+
+    $indexSelect = array_merge(
+      [
+        'riders.*',
+        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
+      ],
+      Riders::employmentStatusDaysSelectColumns()
+    );
+
+    $query = Riders::query()
+      ->leftJoin(
+        \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
+                   FROM rider_activities 
+                   WHERE date BETWEEN '{$currentMonthStart}' AND '{$currentMonthEnd}' 
+                   GROUP BY rider_id) as ra"),
+        'riders.id',
+        '=',
+        'ra.rider_id'
+      )
+      ->select($indexSelect)
+      ->with(['branch', 'customer', 'bikes']);
+
+    $this->applyRiderListOrdering($query, $favoriteIds);
+    $query->orderBy('days_count', 'asc')->orderBy('riders.id', 'desc');
+
+    if ($request->filled('rider_id')) {
+      $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
+    }
+    if ($request->filled('branch_id')) {
+      $query->where('riders.branch_id', $request->branch_id);
+    }
+    if ($request->filled('name')) {
+      $query->where('riders.name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->filled('fleet_supervisor')) {
+      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
+    }
+    if ($request->filled('hub')) {
+      $query->where('riders.hub', $request->hub);
+    }
+    if ($request->filled('customer_id')) {
+      $query->where('riders.customer_id', $request->customer_id);
+    }
+    $this->applyModuleTopBarFilters($query, $request, 'riders');
+    if ($request->filled('attendance')) {
+      $query->where('riders.attendance', $request->attendance);
+    }
+    $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
+    if ($riderStatusKeys !== []) {
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
+    }
+    $this->applyBikeAssignmentStatusFilter($query, $request);
+    $this->applyRiderQuickSearch($query, $request->input('quick_search'));
+
+    return $query;
   }
 
   /**
@@ -507,103 +675,17 @@ class RidersController extends AppBaseController
       abort(403, 'Unauthorized action.');
     }
 
-    // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
-    $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
-    $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
-
-    $indexSelect = array_merge(
-      [
-        'riders.*',
-        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
-      ],
-      Riders::employmentStatusDaysSelectColumns()
-    );
-
-    $query = Riders::query()
-      ->leftJoin(
-        \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
-                   FROM rider_activities 
-                   WHERE date BETWEEN '{$currentMonthStart}' AND '{$currentMonthEnd}' 
-                   GROUP BY rider_id) as ra"),
-        'riders.id',
-        '=',
-        'ra.rider_id'
-      )
-      ->select($indexSelect)
-      ->orderBy('days_count', 'asc')
-      ->with(['branch', 'customer', 'bikes']);
-    if ($request->filled('rider_id')) {
-      $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
-    }
-    if ($request->filled('branch_id')) {
-      $query->where('riders.branch_id', $request->branch_id);
-    }
-    if ($request->filled('name')) {
-      $query->where('riders.name', 'like', '%' . $request->name . '%');
-    }
-    if ($request->filled('fleet_supervisor')) {
-      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
-    }
-    if ($request->filled('hub')) {
-      $query->where('riders.hub', $request->hub);
-    }
-    if ($request->filled('customer_id')) {
-      $query->where('riders.customer_id', $request->customer_id);
-    }
-    $this->applyModuleTopBarFilters($query, $request, 'riders');
-    if ($request->filled('attendance')) {
-      $query->where('riders.attendance', $request->attendance);
-    }
-    // Filter by rider status (active = 1, inactive = not 1)
-    $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
-    if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
-    }
-    $this->applyBikeAssignmentStatusFilter($query, $request);
-    if ($request->filled('quick_search')) {
-      $search = $request->input('quick_search');
-
-      // Use exists/subqueries instead of joins to avoid ambiguous columns
-      // when combined with other filters (customer_id, status, etc.).
-      $query->where(function ($q) use ($search) {
-        $q->where('riders.name', 'like', "%{$search}%")
-          ->orWhere('riders.rider_id', 'like', "%{$search}%")
-          ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-          ->orWhere('riders.customer_id', 'like', "%{$search}%")
-          ->orWhereExists(function ($subQuery) use ($search) {
-            $subQuery->select(\DB::raw(1))
-              ->from('customers')
-              ->whereColumn('customers.id', 'riders.customer_id')
-              ->where('customers.name', 'like', "%{$search}%");
-          });
-        if (stripos($search, 'active') !== false) {
-          $q->orWhereExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-        if (stripos($search, 'inactive') !== false) {
-          $q->orWhereNotExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-      });
-    }
-
-    // Apply pagination using the trait
+    $favoriteIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+    $query = $this->buildRidersIndexQuery($request, $favoriteIds);
     $data = $this->applyPagination($query, $paginationParams);
 
     return view('riders.index', array_merge([
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
       'riderTopStatusFilterOptions' => $this->riderTopStatusFilterOptions(),
+      'hideModuleTopBarSlider' => true,
+      'favoriteRiderIds' => $favoriteIds,
     ], $this->moduleTopBarListingData($request, 'riders')));
   }
 
@@ -612,110 +694,20 @@ class RidersController extends AppBaseController
    */
   public function filterAjax(Request $request)
   {
-    // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-
-    $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
-    $currentMonthEnd = Carbon::now()->endOfMonth()->toDateString();
-
-    $indexSelect = array_merge(
-      [
-        'riders.*',
-        \DB::raw('COALESCE(ra.days_count, 0) as days_count'),
-      ],
-      Riders::employmentStatusDaysSelectColumns()
-    );
-
-    $query = Riders::query()
-      ->leftJoin(
-        \DB::raw("(SELECT rider_id, COUNT(date) as days_count 
-                   FROM rider_activities 
-                   WHERE date BETWEEN '{$currentMonthStart}' AND '{$currentMonthEnd}' 
-                   GROUP BY rider_id) as ra"),
-        'riders.id',
-        '=',
-        'ra.rider_id'
-      )
-      ->select($indexSelect)
-      ->orderBy('days_count', 'desc')
-      ->orderBy('riders.id', 'desc')
-      ->with(['branch', 'customer', 'bikes']);
-
-    if ($request->filled('rider_id')) {
-      $query->where('riders.rider_id', 'like', '%' . $request->rider_id . '%');
-    }
-    if ($request->filled('name')) {
-      $query->where('riders.name', 'like', '%' . $request->name . '%');
-    }
-    if ($request->filled('fleet_supervisor')) {
-      $query->where('riders.fleet_supervisor', $request->fleet_supervisor);
-    }
-    if ($request->filled('hub')) {
-      $query->where('riders.hub', $request->hub);
-    }
-    if ($request->filled('customer_id')) {
-      $query->where('riders.customer_id', $request->customer_id);
-    }
-    $this->applyModuleTopBarFilters($query, $request, 'riders');
-    if ($request->filled('attendance')) {
-      $query->where('riders.attendance', $request->attendance);
-    }
-
-    // Filter by rider status (active = 1, inactive = not 1)
-    $riderStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('rider_status'));
-    if ($riderStatusKeys !== []) {
-      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'riders.status', $riderStatusKeys);
-    }
-
-    $this->applyBikeAssignmentStatusFilter($query, $request);
-
-    if ($request->filled('quick_search')) {
-      $search = $request->input('quick_search');
-
-      $query->where(function ($q) use ($search) {
-        $q->where('riders.name', 'like', "%{$search}%")
-          ->orWhere('riders.rider_id', 'like', "%{$search}%")
-          ->orWhere('riders.fleet_supervisor', 'like', "%{$search}%")
-          ->orWhere('riders.customer_id', 'like', "%{$search}%")
-          ->orWhereExists(function ($subQuery) use ($search) {
-            $subQuery->select(\DB::raw(1))
-              ->from('customers')
-              ->whereColumn('customers.id', 'riders.customer_id')
-              ->where('customers.name', 'like', "%{$search}%");
-          });
-        if (stripos($search, 'active') !== false) {
-          $q->orWhereExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-        if (stripos($search, 'inactive') !== false) {
-          $q->orWhereNotExists(function ($subQuery) {
-            $subQuery->select(\DB::raw(1))
-              ->from('bikes')
-              ->whereColumn('bikes.rider_id', 'riders.id')
-              ->where('bikes.warehouse', '=', 'Active');
-          });
-        }
-      });
-    }
-
-    // Apply pagination using the trait
+    $favoriteIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+    $query = $this->buildRidersIndexQuery($request, $favoriteIds);
     $data = $this->applyPagination($query, $paginationParams);
 
     $tableData = view('riders.table', [
       'data' => $data,
       'tableColumns' => $this->buildRidersIndexTableColumns(),
+      'favoriteRiderIds' => $favoriteIds,
     ])->render();
 
-    // Use global pagination component
-    if (method_exists($data, 'links')) {
-      $paginationLinks = $data->links('components.global-pagination')->render();
-    } else {
-      $paginationLinks = '';
-    }
+    $paginationLinks = method_exists($data, 'total')
+      ? view('components.riders-demo-pagination', ['paginator' => $data])->render()
+      : '';
 
     return response()->json([
       'success' => true,
@@ -1804,9 +1796,9 @@ class RidersController extends AppBaseController
 
     $totals = [
       'working_days' => $data->count(),
-      'valid_days' => $data->filter(fn ($item) => $dayStatus($item) === 'valid')->count(),
-      'invalid_days' => $data->filter(fn ($item) => $dayStatus($item) === 'invalid')->count(),
-      'off_days' => $data->filter(fn ($item) => $dayStatus($item) === 'off')->count(),
+      'valid_days' => $data->filter(fn($item) => $dayStatus($item) === 'valid')->count(),
+      'invalid_days' => $data->filter(fn($item) => $dayStatus($item) === 'invalid')->count(),
+      'off_days' => $data->filter(fn($item) => $dayStatus($item) === 'off')->count(),
       'total_orders' => $data->sum('delivered_orders'),
       'total_rejected' => $data->sum('rejected_orders'),
       'total_hours' => $data->sum('login_hr'),
@@ -2402,6 +2394,84 @@ class RidersController extends AppBaseController
   public function exportRiders()
   {
     return Excel::download(new RiderExport, 'Riders_export_' . now() . '.xlsx');
+  }
+
+  /**
+   * Download blank or sample master rider import template.
+   */
+  public function importRidersTemplate(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider') || ! auth()->user()?->can('riders_rider_create')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    return app(\App\Services\Rider\RiderMasterImportService::class)->downloadTemplate($request->boolean('sample'));
+  }
+
+  /**
+   * Preview master rider import (xlsx/csv) without saving.
+   */
+  public function importRidersPreview(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider') || ! auth()->user()?->can('riders_rider_create')) {
+      return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+    }
+
+    $request->validate([
+      'file' => 'required|file|mimes:xlsx,xls,csv,txt|max:10240',
+    ]);
+
+    try {
+      $result = app(\App\Services\Rider\RiderMasterImportService::class)->preview($request->file('file'));
+
+      return response()->json([
+        'success' => true,
+        'rows' => $result['rows'],
+        'counts' => $result['counts'],
+        'ignored' => $result['ignored'],
+      ]);
+    } catch (\InvalidArgumentException $e) {
+      return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+    } catch (\Throwable $e) {
+      Log::error('Rider import preview failed: ' . $e->getMessage());
+
+      return response()->json(['success' => false, 'message' => 'Could not read this file'], 422);
+    }
+  }
+
+  /**
+   * Commit previewed master rider import rows.
+   */
+  public function importRidersCommit(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('rider') || ! auth()->user()?->can('riders_rider_create')) {
+      return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+    }
+
+    $rows = $request->input('rows', []);
+    if (! is_array($rows) || $rows === []) {
+      return response()->json(['success' => false, 'message' => 'No rows to import'], 422);
+    }
+
+    try {
+      $result = app(\App\Services\Rider\RiderMasterImportService::class)->commit($rows);
+      $msg = 'Import finished: ' . $result['saved'] . ' saved';
+      if ($result['skipped'] > 0) {
+        $msg .= ', ' . $result['skipped'] . ' skipped';
+      }
+
+      return response()->json([
+        'success' => true,
+        'message' => $msg,
+        'saved' => $result['saved'],
+        'skipped' => $result['skipped'],
+        'errors' => $result['errors'],
+      ]);
+    } catch (\Throwable $e) {
+      Log::error('Rider import commit failed: ' . $e->getMessage());
+
+      return response()->json(['success' => false, 'message' => 'Import failed: ' . $e->getMessage()], 500);
+    }
   }
 
   public function exportCustomizableRiders(Request $request)

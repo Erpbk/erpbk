@@ -4,7 +4,7 @@ $tableId = $tableId ?? 'dataTableBuilder';
 $tableColumns = $tableColumns ?? [];
 $exportRoute = $exportRoute ?? null;
 $tableIdentifier = $tableIdentifier ?? 'default_table';
-$fixedColumnsCount = 2; // Number of fixed action columns at the end (search, control)
+$fixedColumnsCount = (int) ($fixedColumnsCount ?? 2); // Fixed trailing columns (search/control or Actions)
 $explicitModuleKey = $moduleKey ?? null;
 $moduleSettingsMap = config('module_settings_sync.table_identifier_to_module', []);
 $resolvedModuleKey = $explicitModuleKey ?: ($moduleSettingsMap[$tableIdentifier] ?? null);
@@ -296,6 +296,7 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
             tableId: '{{ $tableId }}',
             tableIdentifier: '{{ $tableIdentifier }}',
             exportRoute: '{{ $exportRoute }}',
+            fixedColumnsCount: {{ $fixedColumnsCount }},
             columns: @json($tableColumns),
             isInitialLoad: true, // Flag to prevent saving during initial load
 
@@ -389,9 +390,10 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 const table = document.getElementById(this.tableId);
                 if (!table) return;
 
-                // Get total headers and check if this is a fixed action column
+                // Get total headers and check if this is a fixed trailing column
                 const headerCells = table.querySelectorAll('thead th');
-                const totalDataColumns = headerCells.length - 2; // Exclude last 2 fixed action columns (search, control)
+                const fixed = this.fixedColumnsCount || 0;
+                const totalDataColumns = Math.max(0, headerCells.length - fixed);
 
                 // Only toggle visibility for data columns (not action columns)
                 if (columnIndex < totalDataColumns && headerCells[columnIndex]) {
@@ -438,9 +440,10 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 const headerRow = table.querySelector('thead tr');
                 const originalHeaders = Array.from(headerRow.children);
 
-                // Separate data columns from fixed action columns (last 2 columns are fixed: search, control)
-                const dataHeaders = originalHeaders.slice(0, -2);
-                const actionHeaders = originalHeaders.slice(-2);
+                // Separate data columns from fixed trailing columns
+                const fixed = this.fixedColumnsCount || 0;
+                const dataHeaders = fixed > 0 ? originalHeaders.slice(0, -fixed) : originalHeaders.slice();
+                const actionHeaders = fixed > 0 ? originalHeaders.slice(-fixed) : [];
 
                 // Reorder only the data columns
                 const reorderedDataHeaders = newOrder
@@ -458,9 +461,9 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 bodyRows.forEach(row => {
                     const originalCells = Array.from(row.children);
 
-                    // Separate data cells from fixed action cells (last 2 cells are fixed: search, control)
-                    const dataCells = originalCells.slice(0, -2);
-                    const actionCells = originalCells.slice(-2);
+                    const fixed = this.fixedColumnsCount || 0;
+                    const dataCells = fixed > 0 ? originalCells.slice(0, -fixed) : originalCells.slice();
+                    const actionCells = fixed > 0 ? originalCells.slice(-fixed) : [];
 
                     // Reorder only the data cells
                     const reorderedDataCells = newOrder

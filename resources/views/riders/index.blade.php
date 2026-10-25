@@ -122,18 +122,6 @@
               <span><strong>Import Riders</strong><em>Add new / update riders from Excel or CSV</em></span>
             </button>
             @endcan
-            @can('riders_attendance_create')
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Today Attendance" data-action="{{ route('rider.attendance_import') }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-              <span><strong>Import Today Attendance</strong><em>Import attendance data for today</em></span>
-                                </a>
-                                @endcan
-                                @can('riders_voucher_create')
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Rider Vouchers" data-action="{{ route('riders.import_rider_vouchers', ['modal' => 1]) }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>
-              <span><strong>Import Rider Vouchers</strong><em>Open import modal</em></span>
-                                </a>
-                                @endcan
             <button type="button" role="menuitem" class="openColumnControlSidebar">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
               <span><strong>Column Control</strong><em>Open column control modal</em></span>
@@ -593,75 +581,135 @@
   }
   bindTableEvents();
 
-  // Copy current page
+  // Load ExcelJS once (needed for real .xlsx with frozen header — HTML paste cannot freeze rows)
+  function loadExcelJs() {
+    return new Promise((ok, no) => {
+      if (window.ExcelJS) { ok(); return; }
+      const existing = document.querySelector('script[data-exceljs]');
+      if (existing) {
+        existing.addEventListener('load', () => ok());
+        existing.addEventListener('error', () => no(new Error('exceljs')));
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      s.dataset.exceljs = '1';
+      s.onload = () => ok();
+      s.onerror = () => no(new Error('exceljs'));
+      document.head.appendChild(s);
+    });
+  }
+
+  function getVisibleCopyColumns(table) {
+    const checkedKeys = Array.from(document.querySelectorAll('#columnList .column-item'))
+      .filter(item => item.querySelector('.column-visibility-checkbox')?.checked)
+      .map(item => item.dataset.columnKey)
+      .filter(Boolean);
+    const visibleCols = [];
+    Array.from(table.querySelectorAll('thead th')).forEach((th, i) => {
+      if (th.classList.contains('nosort') || th.classList.contains('column-hidden')) return;
+      const label = (th.childNodes[0]?.textContent || th.textContent || '').replace(/[⇅↑↓]/g, '').trim();
+      if (!label || /^actions$/i.test(label)) return;
+      const key = th.getAttribute('data-k') || '';
+      if (checkedKeys.length && key && !checkedKeys.includes(key)) return;
+      visibleCols.push({ index: i, label, key });
+    });
+    return visibleCols;
+  }
+
+  function cellPlainText(td) {
+    if (!td) return '-';
+    const nameLink = td.classList.contains('name') ? td.querySelector('a') : null;
+    if (nameLink) return nameLink.textContent.trim();
+    const clone = td.cloneNode(true);
+    clone.querySelectorAll('.rl-star,.dropdown').forEach(n => n.remove());
+    return clone.innerText.replace(/\s+/g, ' ').trim() || '-';
+  }
+
+  // Copy → download .xlsx with frozen header (Column Control columns only) + TSV on clipboard
   document.getElementById('copyBtn')?.addEventListener('click', async function () {
     const table = document.getElementById('dataTableBuilder');
     if (!table) return;
-    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.childNodes[0]?.textContent?.trim() || th.textContent.trim());
-    // drop Actions column
-    const keys = headers.slice(0, -1);
-    const rows = Array.from(table.querySelectorAll('tbody tr')).filter(tr => !tr.querySelector('.rl-empty'));
-    const XL = "border:.5pt solid windowtext;text-align:center;vertical-align:middle;";
-    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    let html = '<table style="border-collapse:collapse;font-family:Calibri,Arial;font-size:11pt"><thead><tr>';
-    keys.forEach(h => { html += `<th style="${XL}background:#dbeafe;color:#1e3a8a;font-weight:bold">${esc(h)}</th>`; });
-    html += '</tr></thead><tbody>';
-    const plainLines = [keys.join('\t')];
-    rows.forEach(tr => {
-      const cells = Array.from(tr.children).slice(0, keys.length);
-      html += '<tr>';
-      const plainCells = [];
-      cells.forEach((td, i) => {
-        const nameLink = td.classList.contains('name') ? td.querySelector('a') : null;
-        let text;
-        if (nameLink) {
-          text = nameLink.textContent.trim();
-        } else {
-          const clone = td.cloneNode(true);
-          clone.querySelectorAll('.rl-star,.dropdown').forEach(n => n.remove());
-          text = clone.innerText.replace(/\s+/g, ' ').trim();
-        }
-        if (nameLink) {
-          html += `<td style="${XL}text-align:left"><a href="${esc(nameLink.href)}">${esc(text)}</a></td>`;
-        } else {
-          html += `<td style="${XL}mso-number-format:'\\@'">${esc(text)}</td>`;
-        }
-        plainCells.push(text);
-      });
-      html += '</tr>';
-      plainLines.push(plainCells.join('\t'));
-    });
-    html += '</tbody></table>';
-    const txt = plainLines.join('\n');
-    let ok = false;
-    try {
-      await navigator.clipboard.write([
-        new ClipboardItem({
-          'text/html': new Blob([html], { type: 'text/html' }),
-          'text/plain': new Blob([txt], { type: 'text/plain' }),
-        }),
-      ]);
-      ok = true;
-    } catch (_) {}
-    if (!ok) {
-      const h = e => {
-        e.clipboardData.setData('text/html', html);
-        e.clipboardData.setData('text/plain', txt);
-        e.preventDefault();
-      };
-      document.addEventListener('copy', h);
-      try { ok = document.execCommand('copy'); } catch (_) {}
-      document.removeEventListener('copy', h);
+
+    const visibleCols = getVisibleCopyColumns(table);
+    if (!visibleCols.length) {
+      toast('No visible columns to copy – enable columns in Column Control');
+      return;
     }
-    if (ok) {
+
+    const rows = Array.from(table.querySelectorAll('tbody tr')).filter(tr => !tr.querySelector('.rl-empty'));
+    const matrix = [visibleCols.map(c => c.label)];
+    rows.forEach(tr => {
+      matrix.push(visibleCols.map(col => cellPlainText(tr.children[col.index])));
+    });
+    const txt = matrix.map(r => r.join('\t')).join('\n');
+
+    // Plain text on clipboard (quick paste without freeze)
+    try {
+      await navigator.clipboard.writeText(txt);
+    } catch (_) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      } catch (_) {}
+    }
+
+    // Real Excel file with frozen first row — paste/HTML cannot freeze panes reliably
+    toast('Preparing Excel with frozen header…');
+    try {
+      await loadExcelJs();
+      const wb = new window.ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Riders', {
+        views: [{ state: 'frozen', ySplit: 1, xSplit: 0 }],
+      });
+      matrix.forEach((row, ri) => {
+        const excelRow = ws.addRow(row);
+        excelRow.eachCell((cell, ci) => {
+          cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' },
+          };
+          cell.alignment = {
+            horizontal: (visibleCols[ci - 1]?.key === 'name' && ri > 0) ? 'left' : 'center',
+            vertical: 'middle',
+          };
+          if (ri === 0) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+            cell.font = { bold: true, color: { argb: 'FF1E3A8A' } };
+          }
+        });
+      });
+      visibleCols.forEach((col, i) => {
+        ws.getColumn(i + 1).width = Math.max(12, col.label.length + 4, col.key === 'name' ? 34 : 0);
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Riders-' + stamp + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+
       const ic = document.getElementById('copyIco');
       if (ic) {
         const o = ic.innerHTML;
         ic.innerHTML = '<path d="M5 12l5 5 9-10"/>';
         setTimeout(() => { ic.innerHTML = o; }, 1500);
       }
-      toast('Copied ' + rows.length + ' rows – paste into Excel');
-    } else toast('Copy was blocked by the browser');
+      toast('Downloaded Excel with frozen header (' + rows.length + ' rows). Open the file — row 1 stays fixed.');
+    } catch (err) {
+      console.error(err);
+      toast('Excel download failed – table text was still copied to clipboard');
+    }
   });
 
   // Import modal

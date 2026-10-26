@@ -1707,6 +1707,9 @@ class BikesController extends AppBaseController
             $request->validate([
                 'bike_id' => 'required|exists:bikes,id',
                 'customer_id' => 'required|exists:customers,id',
+                'change_date' => 'required|date',
+            ], [
+                'change_date.required' => 'Change date is required.',
             ]);
 
             $newCustomerId = (string) $request->input('customer_id');
@@ -1723,10 +1726,9 @@ class BikesController extends AppBaseController
 
             $oldProject = $bike->customer;
             $newProject = Customers::find($newCustomerId);
-            $changeDate = now()->setTimezone('Asia/Dubai')->toDateString();
+            $changeDate = Carbon::parse($request->input('change_date'))->toDateString();
             $changeDateFormatted = Carbon::parse($changeDate)->format('d-m-Y');
             $historyBranchId = RiderHistoryLogger::resolveBranchId($rider, $bike);
-            $riderBefore = RiderHistoryLogger::riderSnapshot($rider);
             $prevRiderCustomerId = $rider->customer_id;
 
             $returnMessage = "*Bike* 🏍️\n";
@@ -1754,26 +1756,6 @@ class BikesController extends AppBaseController
             DB::beginTransaction();
             try {
                 $this->closeOpenBikeAssignment($bike, $rider, $returnMessage, $changeDate, 'Return');
-
-                RiderHistoryLogger::bikeAssignStatusChange(
-                    (int) $rider->id,
-                    'Bike return: Return',
-                    'Project change — returned from ' . ($oldProject->name ?? 'previous project'),
-                    $riderBefore,
-                    $riderBefore,
-                    $changeDate,
-                    'bike_assign_return',
-                    $historyBranchId,
-                    [
-                        'warehouse_action' => 'Return',
-                        'bike_id' => $bike->id,
-                        'bike_plate' => $bike->plate,
-                        'project_change' => true,
-                    ],
-                    'Return',
-                    $rider,
-                    $bike
-                );
 
                 $rider->customer_id = $newCustomerId;
                 $rider->save();
@@ -1811,26 +1793,6 @@ class BikesController extends AppBaseController
                     'warehouse' => 'Active',
                 ]);
 
-                RiderHistoryLogger::bikeAssignStatusChange(
-                    (int) $rider->id,
-                    'Bike assigned: Joining',
-                    'Project change — assigned under ' . ($newProject->name ?? 'new project'),
-                    array_merge($riderBefore, ['customer_id' => $prevRiderCustomerId]),
-                    RiderHistoryLogger::riderSnapshot($rider->fresh()),
-                    $changeDate,
-                    'bike_assign',
-                    $historyBranchId,
-                    [
-                        'warehouse_action' => 'Active',
-                        'bike_id' => $bike->id,
-                        'bike_plate' => $bike->plate,
-                        'project_change' => true,
-                    ],
-                    'Joining',
-                    $rider,
-                    $bike
-                );
-
                 DB::commit();
 
                 return response()->json([
@@ -1850,8 +1812,9 @@ class BikesController extends AppBaseController
 
         $projects = Customers::orderBy('name')->pluck('name', 'id')->prepend('Select', '');
         $currentProjectId = (string) ($bike->customer_id ?? '');
+        $defaultChangeDate = now()->setTimezone('Asia/Dubai')->toDateString();
 
-        return view('bikes.change_project_modal', compact('bike', 'id', 'projects', 'currentProjectId'));
+        return view('bikes.change_project_modal', compact('bike', 'id', 'projects', 'currentProjectId', 'defaultChangeDate'));
     }
 
     private function bikeEligibleForProjectChange(Bikes $bike): bool

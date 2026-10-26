@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Types\Cheques;
 
+use App\Helpers\Currency;
 use App\Models\Cheques;
 use App\Models\Company;
 use App\Models\NotificationRule;
@@ -32,6 +33,7 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
 
         $company = Company::query()->find($companyId);
         $slug = $company?->slug;
+        $currency = Currency::code($companyId);
         $today = Carbon::today()->startOfDay();
 
         $cheques = Cheques::query()
@@ -52,6 +54,7 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
 
             $amount = number_format((float) $cheque->amount, 2);
             $number = $cheque->cheque_number ?: ('#'.$cheque->id);
+            $search = $cheque->cheque_number ?: (string) $cheque->id;
 
             $actionUrl = null;
             $actionMeta = [];
@@ -64,6 +67,10 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
                     'action_mode' => 'modal',
                     'action_size' => 'xl',
                     'action_title' => 'Cheque Details',
+                    'email_action_url' => route('cheques.index', [
+                        'company_slug' => $slug,
+                        'quick_search' => $search,
+                    ], false),
                 ];
             }
 
@@ -91,7 +98,8 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
                     $number,
                     $amount,
                     $due,
-                    $daysOverdue
+                    $daysOverdue,
+                    $currency
                 );
 
                 $dedupe = ['overdue' => $dueKey];
@@ -143,25 +151,28 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
         string $number,
         string $amount,
         string $due,
-        int $daysOverdue
+        int $daysOverdue,
+        string $currency
     ): array {
-        $pending = "Cheque {$number} for PKR {$amount} was due on {$due} and is still pending";
+        $pending = "Cheque {$number} for {$currency} {$amount} was due on {$due} and is still pending";
+
+        $chequeLabel = "Cheque:{$number} {$currency} {$amount}";
 
         return match ($interval) {
             'every_3_days' => [
-                'Cheque Overdue Reminder',
+                "{$chequeLabel} Overdue Reminder",
                 "{$pending} ({$daysOverdue} days overdue). This is your every-3-days reminder.",
             ],
             'weekly' => [
-                'Cheque Overdue Weekly Reminder',
+                "{$chequeLabel} Overdue Weekly Reminder",
                 "{$pending} ({$daysOverdue} days overdue). This is your weekly reminder.",
             ],
             'monthly' => [
-                'Cheque Overdue Monthly Reminder',
+                "{$chequeLabel} Overdue Monthly Reminder",
                 "{$pending} ({$daysOverdue} days overdue). This is your monthly reminder.",
             ],
             default => [
-                'Cheque Overdue',
+                "{$chequeLabel} Overdue",
                 "{$pending}.",
             ],
         };

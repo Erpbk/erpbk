@@ -148,19 +148,19 @@ return [
         'rta_fines' => [
             'model' => \App\Models\RtaFines::class,
             'name' => 'RTA Fines',
-            'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
+            'display_columns' => ['ticket_no', 'id', 'rider_id', 'billing_month', 'amount', 'status'],
             'show_route' => 'rtaFines.show',
         ],
         'salik' => [
             'model' => \App\Models\salik::class,
             'name' => 'Salik',
-            'display_columns' => ['id', 'rider_id', 'billing_month', 'ticket_no', 'amount', 'status'],
+            'display_columns' => ['ticket_no', 'id', 'rider_id', 'billing_month', 'amount', 'status'],
             'show_route' => 'salik.show',
         ],
         'vouchers' => [
             'model' => \App\Models\Vouchers::class,
             'name' => 'Vouchers',
-            'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
+            'display_columns' => ['voucher_type', 'id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
             'show_route' => 'vouchers.show',
         ],
         'leasing_company_invoices' => [

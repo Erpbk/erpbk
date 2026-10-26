@@ -284,13 +284,20 @@ $homeLink = $isAdminSession
   .nav-notification-banner__item {
     display: inline-flex;
     align-items: center;
-    gap: .4rem;
+    gap: .35rem;
     font-size: .8125rem;
     font-weight: 500;
     color: var(--bs-body-color);
     margin-inline-end: 2rem;
     text-decoration: none;
     cursor: pointer;
+  }
+  .nav-notification-banner__title {
+    margin-inline-end: -.1rem;
+  }
+  .nav-notification-banner__item.is-read {
+    opacity: .65;
+    font-weight: 400;
   }
   .nav-notification-banner__item:hover,
   .nav-notification-banner__item:focus {
@@ -310,6 +317,29 @@ $homeLink = $isAdminSession
   .nav-notification-banner__dot.is-warning { background: #ffab00; }
   .nav-notification-banner__dot.is-danger { background: #ff3e1d; }
   .nav-notification-banner__dot.is-success { background: #71dd37; }
+  .nav-notification-banner__dismiss {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-inline-start: -.2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    opacity: .7;
+    font-size: 1.15rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .nav-notification-banner__dismiss:hover,
+  .nav-notification-banner__dismiss:focus {
+    opacity: 1;
+    color: var(--bs-danger);
+    text-decoration: none;
+  }
   /* Enter from right edge, exit past left edge, then repeat. */
   @keyframes nav-banner-marquee {
     from { transform: translateX(var(--banner-from, 100%)); }
@@ -372,35 +402,67 @@ $homeLink = $isAdminSession
         }
 
         // Keep the same seamless loop running until the set of notifications changes
-        // (item read/dismissed or a new one arrives).
-        var key = items.map(function (item) { return String(item.id); }).join(',');
+        // (item dismissed, unread state change, or a new one arrives).
+        var key = items.map(function (item) {
+          return String(item.id) + ':' + (item.is_unread ? '1' : '0');
+        }).join(',');
         if (key === lastBannerKey && !bannerEl.classList.contains('d-none')) {
           return;
         }
         lastBannerKey = key;
 
-        // One copy of each unread title — enters from the right, exits left, then loops.
+        // One copy of each undismissed title — enters from the right, exits left, then loops.
         var html = items.map(function (item, idx) {
-          var href = item.action_url || '#';
-          return '<a href="' + escapeHtml(href) + '" class="nav-notification-banner__item" data-banner-idx="' + idx + '"' +
-            (item.action_url ? '' : ' role="button"') + '>' +
+          var readClass = item.is_unread ? '' : ' is-read';
+          return '<span class="nav-notification-banner__item' + readClass + '" data-banner-idx="' + idx + '" role="button" tabindex="0">' +
             '<span class="nav-notification-banner__dot ' + severityClass(item.severity) + '"></span>' +
-            escapeHtml(item.title) +
-            '</a>';
+            '<span class="nav-notification-banner__title">' + escapeHtml(item.title) + '</span>' +
+            '<button type="button" class="nav-notification-banner__dismiss" data-banner-dismiss-idx="' + idx + '" title="Dismiss" aria-label="Dismiss">&times;</button>' +
+            '</span>';
         }).join('');
 
         bannerTrack.style.animation = 'none';
         bannerTrack.innerHTML = html;
         bannerEl.classList.remove('d-none');
 
+        bannerTrack.querySelectorAll('[data-banner-dismiss-idx]').forEach(function (btn) {
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var idx = parseInt(btn.getAttribute('data-banner-dismiss-idx'), 10);
+            var item = items[idx];
+            if (!item || !item.mark_dismiss_url) return;
+            fetch(item.mark_dismiss_url, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              credentials: 'same-origin'
+            }).finally(function () {
+              lastBannerKey = '';
+              refreshCount();
+              refreshBanners();
+              refreshDropdown();
+            });
+          });
+        });
+
         bannerTrack.querySelectorAll('[data-banner-idx]').forEach(function (el) {
           el.addEventListener('click', function (e) {
+            if (e.target && e.target.closest && e.target.closest('[data-banner-dismiss-idx]')) {
+              return;
+            }
             e.preventDefault();
             var idx = parseInt(el.getAttribute('data-banner-idx'), 10);
             var item = items[idx];
             if (!item) return;
             var url = item.mark_read_url;
-            var open = function () { openNotificationAction(item); };
+            var open = function () {
+              item.is_unread = false;
+              openNotificationAction(item);
+            };
             if (!url) {
               open();
               return;

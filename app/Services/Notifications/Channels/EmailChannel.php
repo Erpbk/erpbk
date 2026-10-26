@@ -35,8 +35,10 @@ class EmailChannel implements ChannelInterface
         }
 
         $body = trim((string) $notification->body);
-        if ($notification->action_url) {
-            $body .= "\n\nOpen: " . url($notification->action_url);
+        $data = is_array($notification->data) ? $notification->data : [];
+        $emailActionUrl = $data['email_action_url'] ?? $notification->action_url;
+        if ($emailActionUrl) {
+            $body .= "\n\nOpen: " . url($emailActionUrl);
         }
 
         $fromMeta = $this->prepareSender($notification);

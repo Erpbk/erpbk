@@ -47,9 +47,9 @@ class Currency
     /**
      * @return array<string, string>
      */
-    private static function settings(): array
+    private static function settings(?int $forCompanyId = null): array
     {
-        $companyId = self::companyId();
+        $companyId = $forCompanyId ?? self::companyId();
         $cacheKey = $companyId !== null ? (string) $companyId : 'none';
 
         if (! array_key_exists($cacheKey, self::$settingsByCompany)) {
@@ -105,9 +105,9 @@ class Currency
         return $normalized !== '' ? $normalized : 'AED';
     }
 
-    public static function code(): string
+    public static function code(?int $forCompanyId = null): string
     {
-        $settings = self::settings();
+        $settings = self::settings($forCompanyId);
         $code = trim((string) ($settings['currency_code'] ?? 'AED'));
         $code = $code !== '' ? strtoupper($code) : 'AED';
 

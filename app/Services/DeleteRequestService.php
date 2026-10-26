@@ -127,6 +127,86 @@ class DeleteRequestService
         return class_basename($model) . ' #' . $model->getKey();
     }
 
+    /**
+     * Human-facing resource id for notifications (PV-0001, invoice numbers, fine-…, etc.).
+     */
+    public static function resourceIdentifier(DeleteRequest $deleteRequest, ?Model $model = null): string
+    {
+        $model = $model ?? static::resolveDeletable($deleteRequest);
+        $snapshot = is_array($deleteRequest->record_snapshot) ? $deleteRequest->record_snapshot : [];
+        $id = (string) $deleteRequest->deletable_id;
+
+        $attr = function (string ...$keys) use ($model, $snapshot): ?string {
+            foreach ($keys as $key) {
+                $value = $model !== null ? data_get($model, $key) : null;
+                if ($value === null || $value === '') {
+                    $value = $snapshot[$key] ?? null;
+                }
+                if ($value !== null && $value !== '') {
+                    return (string) $value;
+                }
+            }
+
+            return null;
+        };
+
+        $padded = static fn (?string $prefix, string $number, int $width = 4): string => ($prefix ?: 'V')
+            . '-'
+            . str_pad($number, $width, '0', STR_PAD_LEFT);
+
+        $identifier = match ($deleteRequest->module_key) {
+            'vouchers' => $padded(
+                $attr('voucher_type') ?: 'V',
+                $attr('id') ?: $id
+            ),
+            'rider_invoices' => $attr('invoice_number') ?: $padded('RINV', $id),
+            'leasing_company_invoices' => $attr('invoice_number', 'leasing_company_invoice_number') ?: $padded('INV', $id),
+            'sim_invoices' => $attr('invoice_number') ?: $padded('SIMI', $id),
+            'supplier_invoices' => $attr('invoice_number', 'inv_id') ?: $padded('SUP', $id),
+            'rta_fines' => 'fine-' . ($attr('ticket_no') ?: $id),
+            'salik' => 'salik-' . ($attr('ticket_no') ?: $id),
+            'cheques' => $attr('cheque_number') ?: ('cheque-' . $id),
+            'bikes' => $attr('plate') ?: ('bike-' . $id),
+            'riders' => $attr('rider_id') ?: ('rider-' . $id),
+            'employees' => $attr('employee_id') ?: ('employee-' . $id),
+            'loans' => $attr('loan_number') ?: ('loan-' . $id),
+            'fixed_assets' => $attr('asset_code') ?: ('asset-' . $id),
+            'accounts' => $attr('account_code') ?: ('account-' . $id),
+            'fuel_cards' => $attr('card_number') ?: ('fuel-card-' . $id),
+            'fuel_data' => $attr('trans_no') ?: ('fuel-' . $id),
+            'sims' => $attr('number') ?: ('sim-' . $id),
+            'banks' => $attr('name', 'account_no') ?: ('bank-' . $id),
+            'customers',
+            'vendors',
+            'suppliers',
+            'leasing_companies',
+            'garages',
+            'recruiters',
+            'sim_companies',
+            'bike_rent_companies',
+            'fuel_companies',
+            'items' => $attr('name') ?: ($deleteRequest->module_key . '-' . $id),
+            'bike_maintenance' => 'maintenance-' . $id,
+            'visa_expenses' => $attr('reference_number') ?: ('visa-exp-' . $id),
+            'license_expenses' => $attr('reference_number') ?: ('license-exp-' . $id),
+            'visa_installment_plans' => $attr('reference_number') ?: ('visa-plan-' . $id),
+            'license_installment_plans' => $attr('reference_number') ?: ('license-plan-' . $id),
+            'rider_inventory_assignments' => 'assignment-' . $id,
+            default => null,
+        };
+
+        if ($identifier !== null && $identifier !== '') {
+            return $identifier;
+        }
+
+        $label = trim((string) ($deleteRequest->record_label ?? ''));
+        if ($label !== '') {
+            return $label;
+        }
+
+        return ($deleteRequest->module_name ?: 'Record') . ' #' . $id;
+    }
+
     public static function buildSnapshot(Model $model, array $displayColumns = []): array
     {
         $snapshot = [
@@ -410,11 +490,12 @@ class DeleteRequestService
         }
 
         $requesterName = $deleteRequest->requester?->name ?? 'A user';
-        $title = 'Delete request pending approval';
+        $resourceIdentifier = static::resourceIdentifier($deleteRequest);
+        $title = 'Delete request pending approval for ' . $resourceIdentifier;
         $body = sprintf(
             '%s requested deletion of %s (%s #%s).',
             $requesterName,
-            $deleteRequest->record_label ?: 'a record',
+            $resourceIdentifier,
             $deleteRequest->module_name,
             $deleteRequest->deletable_id
         );
@@ -426,9 +507,9 @@ class DeleteRequestService
 
         $actionUrl = null;
         if ($companySlug) {
-            $actionUrl = route('settings-panel.delete-requests.show', [
+            $actionUrl = route('settings-panel.delete-requests.index', [
                 'company_slug' => $companySlug,
-                'deleteRequest' => $deleteRequest->id,
+                'search' => $deleteRequest->id,
             ], false);
         }
 
@@ -446,6 +527,7 @@ class DeleteRequestService
                     'module_key' => $deleteRequest->module_key,
                     'module_name' => $deleteRequest->module_name,
                     'deletable_id' => $deleteRequest->deletable_id,
+                    'resource_identifier' => $resourceIdentifier,
                 ],
                 'dedupe_context' => [
                     'pending' => $deleteRequest->id,

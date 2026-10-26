@@ -232,7 +232,8 @@
     100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
   }
 
-  .bike-expiry-badge {
+  .bike-expiry-badge,
+  .entity-view-card .user_list_content .bike-expiry-badge {
     display: inline-block;
     padding: 0.2rem 0.55rem;
     border-radius: 999px;
@@ -529,8 +530,7 @@
         <div class="bike-actions-compact">
           @can('bikes_bike_edit')
             <a href="{{ route('bikes.edit', $bikes->id) }}"
-              class="btn btn-primary btn-sm show-modal"
-              data-title="Edit Vehicle #{{ $bikes->plate }}">
+              class="btn btn-primary btn-sm">
               <i class="ti ti-edit"></i><span>Edit</span>
             </a>
           @endcan
@@ -561,7 +561,7 @@
                     data-size="md"
                     data-title="Change Project — {{ $bikes->plate }}"
                     data-action="{{ route('bikes.change_project', $bikes->id) }}">
-                    <i class="ti ti-arrows-exchange"></i><span>Project</span>
+                    <i class="ti ti-arrows-exchange"></i><span>Change Project</span>
                   </a>
                 @endif
               @else

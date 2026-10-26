@@ -2,6 +2,7 @@
 
 namespace App\Services\Notifications\Types\Cheques;
 
+use App\Helpers\Currency;
 use App\Models\Cheques;
 use App\Models\Company;
 use App\Models\NotificationRule;
@@ -25,6 +26,7 @@ class ChequeDueSoonEvaluator implements ScheduledEvaluator
 
         $company = Company::query()->find($companyId);
         $slug = $company?->slug;
+        $currency = Currency::code($companyId);
 
         foreach ($daysBefore as $days) {
             $targetDate = Carbon::today()->addDays($days)->toDateString();
@@ -41,6 +43,7 @@ class ChequeDueSoonEvaluator implements ScheduledEvaluator
                     : $targetDate;
                 $amount = number_format((float) $cheque->amount, 2);
                 $number = $cheque->cheque_number ?: ('#'.$cheque->id);
+                $search = $cheque->cheque_number ?: (string) $cheque->id;
 
                 $actionUrl = null;
                 $actionMeta = [];
@@ -53,29 +56,38 @@ class ChequeDueSoonEvaluator implements ScheduledEvaluator
                         'action_mode' => 'modal',
                         'action_size' => 'xl',
                         'action_title' => 'Cheque Details',
+                        'email_action_url' => route('cheques.index', [
+                            'company_slug' => $slug,
+                            'quick_search' => $search,
+                        ], false),
                     ];
                 }
 
                 $isPayable = ($cheque->type ?? 'payable') === 'payable';
                 $typeLabel = $isPayable ? 'Payable' : 'Receivable';
 
+                $chequeLabel = "Cheque:{$number} {$currency} {$amount}";
                 if ($days === 0) {
-                    $title = $isPayable ? 'Cheque Due Today' : 'Receivable Cheque Due Today';
+                    $title = $isPayable
+                        ? "{$chequeLabel} Due Today"
+                        : "{$chequeLabel} Receivable Due Today";
                 } elseif ($days === 1) {
-                    $title = $isPayable ? 'Cheque Due Tomorrow' : 'Receivable Cheque Due Tomorrow';
+                    $title = $isPayable
+                        ? "{$chequeLabel} Due Tomorrow"
+                        : "{$chequeLabel} Receivable Due Tomorrow";
                 } else {
                     $title = $isPayable
-                        ? "Cheque Due in {$days} Days"
-                        : "Receivable Cheque Due in {$days} Days";
+                        ? "{$chequeLabel} Due in {$days} Days"
+                        : "{$chequeLabel} Receivable Due in {$days} Days";
                 }
 
                 $body = $isPayable
                     ? ($days === 0
-                        ? "Cheque {$number} for PKR {$amount} is due today ({$due}). Please ensure sufficient funds are available."
-                        : "Cheque {$number} for PKR {$amount} is due on {$due}. Please ensure sufficient funds are available.")
+                        ? "Cheque {$number} for {$currency} {$amount} is due today ({$due}). Please ensure sufficient funds are available."
+                        : "Cheque {$number} for {$currency} {$amount} is due on {$due}. Please ensure sufficient funds are available.")
                     : ($days === 0
-                        ? "Receivable cheque {$number} for PKR {$amount} is due today ({$due}). Please follow up to collect or deposit it."
-                        : "Receivable cheque {$number} for PKR {$amount} is due on {$due}. Please follow up to collect or deposit it.");
+                        ? "Receivable cheque {$number} for {$currency} {$amount} is due today ({$due}). Please follow up to collect or deposit it."
+                        : "Receivable cheque {$number} for {$currency} {$amount} is due on {$due}. Please follow up to collect or deposit it.");
 
                 yield [
                     'source' => $cheque,

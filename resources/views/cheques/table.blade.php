@@ -189,6 +189,10 @@
         $('#quickSearch').on('keyup change', function() {
             $table.DataTable().search(this.value).draw();
         });
+        var initialSearch = ($('#quickSearch').val() || '').trim();
+        if (initialSearch) {
+            $table.DataTable().search(initialSearch).draw();
+        }
         $(document).on('click', '.delete-cheque', function(e) {
             e.preventDefault();
             confirmDelete($(this).data('url'));

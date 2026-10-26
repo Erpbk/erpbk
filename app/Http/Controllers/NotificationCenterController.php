@@ -79,8 +79,8 @@ class NotificationCenterController extends Controller
     }
 
     /**
-     * Unread + undismissed titles for rules that have Display Banner enabled.
-     * Items leave the banner once read or dismissed.
+     * Undismissed titles for rules that have Display Banner enabled.
+     * Items leave the banner only when dismissed (read alone does not remove them).
      */
     public function banners(string $company_slug)
     {
@@ -111,7 +111,7 @@ class NotificationCenterController extends Controller
         $items = UserNotification::query()
             ->where('user_id', Auth::id())
             ->where('company_id', $companyId)
-            ->unread()
+            ->undismissed()
             ->whereIn('type', $bannerTypeKeys)
             ->latest()
             ->limit(25)
@@ -137,7 +137,9 @@ class NotificationCenterController extends Controller
 
         $data = is_array($notification->data) ? $notification->data : [];
         if (! empty($data['delete_request_id'])) {
-            return redirect()->route('settings-panel.delete-requests.show', $data['delete_request_id']);
+            return redirect()->route('settings-panel.delete-requests.index', [
+                'search' => $data['delete_request_id'],
+            ]);
         }
 
         return back();
@@ -236,6 +238,7 @@ class NotificationCenterController extends Controller
             'created_at' => $n->created_at?->toIso8601String(),
             'is_unread' => $n->isUnread(),
             'mark_read_url' => route('notifications.read', $n),
+            'mark_dismiss_url' => route('notifications.dismiss', $n),
         ];
     }
 }

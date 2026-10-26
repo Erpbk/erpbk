@@ -1,282 +1,275 @@
 @extends('layouts.app')
 @section('title','Riders')
+@php
+  $hideModuleTopBarSlider = true;
+  $topBarSliderCategories = $topBarSliderCategories ?? collect();
+  $topBarOptionStats = $topBarOptionStats ?? [];
+  $topBarConfig = $topBarConfig ?? \App\Support\ErpModuleRegistry::topBarConfig('riders');
+  $topBarStatDefinitions = $topBarStatDefinitions ?? app(\App\Services\Module\TopBarListingService::class)->statDefinitions('riders');
+  $optionIdParam = (string) ($topBarConfig['request']['option_id'] ?? 'rider_top_option_id');
+  $statusParam = (string) ($topBarConfig['request']['status'] ?? 'rider_status');
+  $selectedOptionId = (int) request($optionIdParam, 0);
+  $selectedChipName = null;
+  if ($selectedOptionId > 0) {
+    foreach ($topBarSliderCategories as $category) {
+      foreach (($category->options ?? []) as $option) {
+        if ((int) $option->id === $selectedOptionId) {
+          $selectedChipName = (string) $option->name;
+          break 2;
+        }
+      }
+    }
+  }
+  $favoriteRiderIds = auth()->user()->favorite_rider_ids ?? [];
+@endphp
 
 @push('third_party_stylesheets')
-{{-- SortableJS for drag and drop functionality --}}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<style></style>
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}">
 @endpush
+
 @section('content')
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 @can('riders_rider_view')
-<section class="content-header">
-    <div>
-        <!-- Enhanced Fleet Supervisor Accordion Section -->
-        <div class="filter-tabs-section mb-4" id="filter-tabs-section">
-            <div class="d-flex justify-content-between">
-                @php
-                $activeFiltersCount = count(request('rider_status', []));
+<div class="riders-list-demo" id="ridersListDemo"
+     data-filter-ajax="{{ route('riders.filterAjax') }}"
+     data-toggle-favorite="{{ preg_replace('#/0$#', '', route('riders.toggleFavorite', ['id' => 0])) }}"
+     data-import-preview="{{ route('riders.import.preview') }}"
+     data-import-commit="{{ route('riders.import.commit') }}"
+     data-csrf="{{ csrf_token() }}"
+     data-option-param="{{ $optionIdParam }}"
+     data-status-param="{{ $statusParam }}"
+     data-index-url="{{ route('riders.index') }}">
 
-                // Helper function to toggle rider status in URL
-                if (!function_exists('toggleRiderStatus')) {
-                function toggleRiderStatus($status) {
-                $currentStatuses = request('rider_status', []);
-                $newStatuses = $currentStatuses;
+  <div class="rl-wrap">
+    @include('flash::message')
 
-                if (in_array($status, $currentStatuses)) {
-                // Remove the status
-                $newStatuses = array_diff($currentStatuses, [$status]);
-                } else {
-                // Add the status
-                $newStatuses[] = $status;
-                }
-
-                $queryParams = request()->query();
-                $queryParams['rider_status'] = array_values($newStatuses);
-
-                return request()->fullUrlWithQuery($queryParams);
-                }
-                }
-
-                // Helper function to toggle balance filter in URL
-                if (!function_exists('toggleBalanceFilter')) {
-                function toggleBalanceFilter() {
-                $queryParams = request()->query();
-
-
-                return request()->fullUrlWithQuery($queryParams);
+    {{-- B1 Summary ticker --}}
+    <div class="rl-ticker" id="rlTicker" aria-label="Summary cards">
+      <div class="rl-track" id="rlTrack">
+        @php
+          $cardIco = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>';
+          $flatCards = [];
+          foreach ($topBarSliderCategories as $category) {
+            foreach (($category->options ?? []) as $option) {
+              $stats = $topBarOptionStats[$option->id] ?? [];
+              $flatCards[] = [
+                'id' => (int) $option->id,
+                'name' => (string) $option->name,
+                'category' => (string) $category->name,
+                'active' => (int) ($stats['active'] ?? 0),
+                'inactive' => (int) ($stats['inactive'] ?? 0),
+                'sel' => $selectedOptionId === (int) $option->id,
+              ];
                 }
                 }
                 @endphp
-
-
-                <div class="filter-tabs">
-                    @if($activeFiltersCount > 0)
-                    <div class="filter-status">
-                        <div class="filter-info">
-                            <i class="ti ti-filter"></i>
-                            <span>{{ $activeFiltersCount }} filter{{ $activeFiltersCount > 1 ? 's' : '' }} applied</span>
-                            <a href="{{ route('riders.index') }}" class="btn btn-sm btn-outline-secondary ms-2">
-                                <i class="ti ti-x"></i>
-                                Clear All
-                            </a>
+        @forelse($flatCards as $c)
+        <div class="rl-card{{ $c['sel'] ? ' sel' : '' }}" data-option-id="{{ $c['id'] }}" title="{{ $c['name'] }}">
+          <h4>{{ $c['name'] }}</h4>
+          <small>{{ $c['category'] }}</small>
+          <div class="rl-boxes">
+            <div class="rl-box a">{!! $cardIco !!}<span>ACTIVE</span><b>{{ $c['active'] }}</b></div>
+            <div class="rl-box i">{!! $cardIco !!}<span>INACTIVE</span><b>{{ $c['inactive'] }}</b></div>
                         </div>
                     </div>
-                    @endif
-                    <a href="{{ route('riders.index') }}" class="filter-tab {{ !request('rider_status') ? 'active' : '' }}">
-                        <i class="ti ti-users"></i>
-                        All Riders
-                    </a>
+        @empty
+        <div class="rl-note px-2">No summary cards configured. Add options in Rider Settings → Top Bar.</div>
+        @endforelse
+        {{-- Duplicate for seamless loop --}}
+        @foreach($flatCards as $c)
+        <div class="rl-card{{ $c['sel'] ? ' sel' : '' }}" data-option-id="{{ $c['id'] }}" title="{{ $c['name'] }}" aria-hidden="true">
+          <h4>{{ $c['name'] }}</h4>
+          <small>{{ $c['category'] }}</small>
+          <div class="rl-boxes">
+            <div class="rl-box a">{!! $cardIco !!}<span>ACTIVE</span><b>{{ $c['active'] }}</b></div>
+            <div class="rl-box i">{!! $cardIco !!}<span>INACTIVE</span><b>{{ $c['inactive'] }}</b></div>
                 </div>
-                <div class="fleet-supervisor-header-right d-flex align-items-center">
-                    <div class="action-buttons">
-                        <div class="action-dropdown-container">
-                            <button class="action-dropdown-btn" id="addRiderDropdownBtn">
-                                <i class="ti ti-plus"></i>
-                                <span>Riders Actions</span>
-                                <i class="ti ti-chevron-down"></i>
-                            </button>
-                            <div class="action-dropdown-menu" id="addRiderDropdown">
-                                @can('riders_rider_create')
-                                <a class="action-dropdown-item" href="{{ route('riders.create') }}">
-                                    <i class="ti ti-user-plus"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Create New Rider</div>
-                                        <div class="action-dropdown-item-desc">Add a new rider to the system</div>
-                                    </div>
-                                </a>
-                                @endcan
-                                @can('riders_attendance_create')
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Today Attendance" data-action="{{ route('rider.attendance_import') }}">
-                                    <i class="ti ti-calendar-check"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Import Today Attendance</div>
-                                        <div class="action-dropdown-item-desc">Import attendance data for today</div>
-                                    </div>
-                                </a>
-                                @endcan
-                                <!-- <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Keeta Rider Activities" data-action="{{ route('rider.keeta_activities_import') }}">
-                                    <i class="ti ti-activity"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Import Keeta Activities</div>
-                                        <div class="action-dropdown-item-desc">Import Keeta rider activity data</div>
-                                    </div>
-                                </a> -->
-                                @can('riders_export_data_create')
-                                <a class="action-dropdown-item" href="{{ route('rider.exportRiders') }}">
-                                    <i class="ti ti-file-export"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Export Riders</div>
-                                        <div class="action-dropdown-item-desc">Export rider data to Excel</div>
-                                    </div>
-                                </a>
-                                @endcan
-                                @can('riders_voucher_create')
-                                <a class="action-dropdown-item show-modal" href="javascript:void(0);" data-size="sm" data-title="Import Rider Vouchers" data-action="{{ route('riders.import_rider_vouchers', ['modal' => 1]) }}">
-                                    <i class="ti ti-file-spreadsheet"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Import Rider Vouchers (Page)</div>
-                                        <div class="action-dropdown-item-desc">Open import modal</div>
-                                    </div>
-                                </a>
-                                @endcan
-                                <a class="action-dropdown-item openColumnControlSidebar" href="javascript:void(0);" data-size="sm" data-title="Column Control">
-                                    <i class="ti ti-columns"></i>
-                                    <div>
-                                        <div class="action-dropdown-item-text">Column Control</div>
-                                        <div class="action-dropdown-item-desc">Open column control modal</div>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
-
-
-        <div id="filterSidebar" class="filter-sidebar" style="z-index: 1111;">
-            <div class="filter-header">
-                <h5>Filter Riders</h5>
-                <button type="button" class="btn-close" id="closeSidebar"></button>
-            </div>
-            <div class="filter-body" id="searchTopbody">
-                <form id="filterForm" action="{{ route('riders.index') }}" method="GET" data-rfp-skip-lock="1">
-                    {{-- Preserve top-bar filters when applying sidebar filters --}}
-                    @if(request()->filled('rider_top_option_id'))
-                    <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
-                    @endif
-                    @foreach((array) request('rider_status', []) as $statusKey)
-                    @if($statusKey !== null && $statusKey !== '')
-                    <input type="hidden" name="rider_status[]" value="{{ $statusKey }}">
-                    @endif
-                    @endforeach
-                    @if(request()->filled('quick_search'))
-                    <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
-                    @endif
-                    <div class="row">
-                        @fieldVisible('rider', 'rider_id')
-                        <div class="form-group col-md-12">
-                            <label for="id">Rider Id</label>
-                            <input type="number" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
-                        </div>
-                        @endfieldVisible
-                        @fieldVisible('rider', 'name')
-                        <div class="form-group col-md-12">
-                            <label for="name">Rider Name</label>
-                            <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
-                        </div>
-                        @endfieldVisible
-                        @fieldVisible('rider', 'customer_id')
-                        <div class="form-group col-md-12">
-                            <label for="customer_id">Filter by Project</label>
-                            <select class="form-control " id="customer_id" name="customer_id">
-                                @php
-                                $customerIds = company_table('riders')
-                                ->whereNotNull('customer_id')
-                                ->where('customer_id', '!=', '')
-                                ->pluck('customer_id')
-                                ->unique();
-
-                                $customers = company_table('customers')
-                                ->whereIn('id', $customerIds)
-                                ->select('id', 'name')
-                                ->get();
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($customers as $customer)
-                                <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endfieldVisible
-                        @fieldVisible('rider', 'attendance')
-                        <div class="form-group col-md-12">
-                            <label for="attandence">Filter by Attandence</label>
-                            <select class="form-control " id="attendance" name="attendance">
-                                @php
-                                $attandence = company_table('riders')
-                                ->whereNotNull('attendance')
-                                ->where('attendance', '!=', '')
-                                ->select('attendance')
-                                ->distinct()
-                                ->pluck('attendance');
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($attandence as $att)
-                                <option value="{{ $att }}" {{ request('attandence') == $att ? 'selected' : '' }}>{{ $att }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endfieldVisible
-                        <div class="form-group col-md-12">
-                            <label for="bike_assignment_status">Filter by Status</label>
-                            <select class="form-control " id="bike_assignment_status" name="bike_assignment_status">
-                                <option value="" selected>Select</option>
-                                @foreach(($riderTopStatusFilterOptions ?? []) as $statusOption)
-                                <option value="{{ $statusOption['value'] }}" {{ request('bike_assignment_status') == $statusOption['value'] ? 'selected' : '' }}>
-                                    {{ $statusOption['label'] }}
-                                </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @fieldVisible('rider', 'fleet_supervisor')
-                        <div class="form-group col-md-12">
-                            <label for="fleet_supervisor">Filter by Supervisor</label>
-                            <select class="form-control " id="fleet_supervisor" name="fleet_supervisor">
-                                @php
-                                $supervisors = company_table('riders')->select('fleet_supervisor')->distinct()->pluck('fleet_supervisor')->toArray();
-                                @endphp
-                                <option value="" selected>Select</option>
-                                @foreach($supervisors as $supervisor)
-                                <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        @endfieldVisible
-                        <div class="col-md-12 form-group text-center">
-                            <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <!-- Filter Overlay -->
-        <div id="filterOverlay" class="filter-overlay"></div>
-</section>
-{{-- Column list from RidersController::buildRidersIndexTableColumns() ($tableColumns) --}}
-@include('components.column-control-panel', [
-'tableColumns' => $tableColumns ?? [],
-'exportRoute' => route('rider.exportCustomizableRiders'),
-'tableIdentifier' => 'riders_table'
-])
-<div class="content">
-    @include('flash::message')
-    <div class="card">
-        <div class="card-header d-flex justify-content-between">
-            <div class="card-search">
-                <input type="text" id="quickSearch" name="quick_search" class="form-control" placeholder="Quick Search..." value="{{ request('quick_search') }}">
-            </div>
-            <button class="btn btn-primary openFilterSidebar"> <i class="fa fa-search"></i> Filter Riders</button>
-        </div>
-        <div class="card-body table-responsive px-2 py-0">
-            <div class="riders-table-container">
-                @include('riders.table', ['data' => $data, 'tableColumns' => $tableColumns ?? []])
-            </div>
-            <div class="filter-loading-overlay" style="display: none;">
-                <div class="filter-loading-content">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2">Applying filters...</p>
-                </div>
-            </div>
-        </div>
+        @endforeach
+      </div>
     </div>
+
+    {{-- B2 Toolbar --}}
+    <div class="rl-toolbar">
+      <div class="rl-tb-left">
+        <div class="rl-dd">
+          <button type="button" class="rl-btn" id="actBtn" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+            Riders Actions
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" id="chev"><path d="m6 9 6 6 6-6"/></svg>
+                            </button>
+          <div class="rl-menu" id="actMenu" hidden role="menu">
+                                @can('riders_rider_create')
+            <a role="menuitem" href="{{ route('riders.create') }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="8" r="4"/><path d="M3 21c0-4 3-6 7-6M18 14v6M15 17h6"/></svg>
+              <span><strong>Create New Rider</strong><em>Add a new rider to the system</em></span>
+                                </a>
+                                @endcan
+            @can('riders_export_data_create')
+            <a role="menuitem" href="{{ route('rider.exportRiders') }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/></svg>
+              <span><strong>Export Riders</strong><em>Export ALL fields to Excel (same format as Copy)</em></span>
+                                </a>
+                                @endcan
+            @can('riders_rider_create')
+            <button type="button" role="menuitem" id="importRidersBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
+              <span><strong>Import Riders</strong><em>Add new / update riders from Excel or CSV</em></span>
+            </button>
+            @endcan
+            <button type="button" role="menuitem" class="openColumnControlSidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <span><strong>Column Control</strong><em>Open column control modal</em></span>
+            </button>
+                                    </div>
+        </div>
+        <a class="rl-btn" id="allBtn" href="{{ route('riders.index') }}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 20c0-3-2-5-5-5.4"/></svg>
+          All Riders
+                                </a>
+        <span class="rl-chip" id="chip" @if(!$selectedChipName) hidden @endif>
+          <span id="chipTxt">{{ $selectedChipName }}</span>
+          <button type="button" id="chipX" aria-label="Clear card filter">×</button>
+        </span>
+                            </div>
+      <div class="rl-tb-right">
+        <button type="button" class="rl-btn icon" id="copyBtn" title="Copy table (Excel-ready)" aria-label="Copy table">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" id="copyIco"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+        </button>
+        <input class="rl-search" id="q" type="search" placeholder="Quick Search..." aria-label="Quick search" value="{{ request('quick_search') }}">
+        <button type="button" class="rl-btn" id="filterBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          Filter Riders
+        </button>
+            </div>
+        </div>
+
+    {{-- B3 Table --}}
+    <div class="rl-tbox" id="tbox">
+      @include('riders.table', [
+        'data' => $data,
+'tableColumns' => $tableColumns ?? [],
+        'favoriteRiderIds' => $favoriteRiderIds,
+      ])
+            </div>
+
+    {{-- B4 Pager --}}
+    <div id="rlPagerWrap">
+      @if(method_exists($data, 'links'))
+        @include('components.riders-demo-pagination', ['paginator' => $data])
+      @endif
+    </div>
+  </div>
 </div>
+
+{{-- Filter sidebar outside list wrapper so fixed positioning / z-index work --}}
+<div id="filterOverlay" class="filter-overlay"></div>
+<div id="filterSidebar" class="filter-sidebar riders-filter-sidebar">
+  <div class="filter-header">
+    <h5>Filter Riders</h5>
+    <button type="button" class="btn-close" id="closeSidebar" aria-label="Close"></button>
+  </div>
+  <div class="filter-body" id="searchTopbody">
+    <form id="filterForm" action="{{ route('riders.index') }}" method="GET" data-rfp-skip-lock="1">
+      @if(request()->filled('rider_top_option_id'))
+      <input type="hidden" name="rider_top_option_id" value="{{ request('rider_top_option_id') }}">
+      @endif
+      @foreach((array) request('rider_status', []) as $statusKey)
+      @if($statusKey !== null && $statusKey !== '')
+      <input type="hidden" name="rider_status[]" value="{{ $statusKey }}">
+      @endif
+      @endforeach
+      @if(request()->filled('quick_search'))
+      <input type="hidden" name="quick_search" id="filterQuickSearch" value="{{ request('quick_search') }}">
+      @endif
+      <div class="row">
+        @fieldVisible('rider', 'rider_id')
+        <div class="form-group col-md-12">
+          <label for="id">Rider Id</label>
+          <input type="number" name="rider_id" class="form-control" placeholder="Filter By Rider ID" value="{{ request('rider_id') }}">
+        </div>
+        @endfieldVisible
+        @fieldVisible('rider', 'name')
+        <div class="form-group col-md-12">
+          <label for="name">Rider Name</label>
+          <input type="text" name="name" class="form-control" placeholder="Filter By Name" value="{{ request('name') }}">
+        </div>
+        @endfieldVisible
+        @fieldVisible('rider', 'customer_id')
+        <div class="form-group col-md-12">
+          <label for="customer_id">Filter by Project</label>
+          <select class="form-control" id="customer_id" name="customer_id">
+            @php
+            $customerIds = company_table('riders')->whereNotNull('customer_id')->where('customer_id', '!=', '')->pluck('customer_id')->unique();
+            $customers = company_table('customers')->whereIn('id', $customerIds)->select('id', 'name')->get();
+            @endphp
+            <option value="" selected>Select</option>
+            @foreach($customers as $customer)
+            <option value="{{ $customer->id }}" {{ request('customer_id') == $customer->id ? 'selected' : '' }}>{{ $customer->name }}</option>
+            @endforeach
+          </select>
+        </div>
+        @endfieldVisible
+        @fieldVisible('rider', 'attendance')
+        <div class="form-group col-md-12">
+          <label for="attandence">Filter by Attandence</label>
+          <select class="form-control" id="attendance" name="attendance">
+            @php
+            $attandence = company_table('riders')->whereNotNull('attendance')->where('attendance', '!=', '')->select('attendance')->distinct()->pluck('attendance');
+            @endphp
+            <option value="" selected>Select</option>
+            @foreach($attandence as $att)
+            <option value="{{ $att }}" {{ request('attendance') == $att ? 'selected' : '' }}>{{ $att }}</option>
+            @endforeach
+          </select>
+        </div>
+        @endfieldVisible
+        <div class="form-group col-md-12">
+          <label for="bike_assignment_status">Filter by Status</label>
+          <select class="form-control" id="bike_assignment_status" name="bike_assignment_status">
+            <option value="" selected>Select</option>
+            @foreach(($riderTopStatusFilterOptions ?? []) as $statusOption)
+            <option value="{{ $statusOption['value'] }}" {{ request('bike_assignment_status') == $statusOption['value'] ? 'selected' : '' }}>
+              {{ $statusOption['label'] }}
+            </option>
+            @endforeach
+          </select>
+        </div>
+        @fieldVisible('rider', 'fleet_supervisor')
+        <div class="form-group col-md-12">
+          <label for="fleet_supervisor">Filter by Supervisor</label>
+          <select class="form-control" id="fleet_supervisor" name="fleet_supervisor">
+            @php
+            $supervisors = company_table('riders')->select('fleet_supervisor')->distinct()->pluck('fleet_supervisor')->toArray();
+            @endphp
+            <option value="" selected>Select</option>
+            @foreach($supervisors as $supervisor)
+            <option value="{{ $supervisor }}" {{ request('fleet_supervisor') == $supervisor ? 'selected' : '' }}>{{ $supervisor }}</option>
+            @endforeach
+          </select>
+        </div>
+        @endfieldVisible
+        <div class="col-md-12 form-group text-center">
+          <button type="submit" class="btn btn-primary pull-right mt-3"><i class="fa fa-filter mx-2"></i> Filter Data</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+@include('riders.partials.column_control_modal', [
+  'tableColumns' => $tableColumns ?? [],
+  'exportRoute' => route('rider.exportCustomizableRiders'),
+  'tableIdentifier' => 'riders_table',
+  'fixedColumnsCount' => 1,
+])
+@include('riders.partials.import_modal')
+<div class="rl-toast" id="rlToast" hidden></div>
 @else
 <div class="card">
     <div class="card-body">
@@ -285,759 +278,567 @@
 </div>
 @endcan
 @endsection
+
 @section('page-script')
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 @include('delete_requests._confirm_delete_script', [
     'entityName' => 'Rider',
     'confirmText' => 'This will submit a delete request or move the rider to the Recycle Bin.',
     'method' => 'GET',
 ])
-<script type="text/javascript">
-    $(document).ready(function() {
-        $('#customer_id').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Project",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#bike_assignment_status').select2({
-            dropdownParent: $('#searchTopbody'),
-            allowClear: true, // ✅ cross icon enable
-            placeholder: "Filter By Bike/Top Status",
-        });
-        $('#attendance').select2({
-            dropdownParent: $('#searchTopbody'),
-            placeholder: "Filter By Attandence",
-            allowClear: true, // ✅ cross icon enable
-        });
-        $('#fleet_supervisor').select2({
-            dropdownParent: $('#searchTopbody'),
-            allowClear: true, // ✅ cross icon enable
-            placeholder: "Filter By Supervisor",
-        });
-    });
-</script>
-<script type="text/javascript">
-    $(document).ready(function() {
-        // Filter sidebar functionality - open on hover
-        $(document).on('mouseenter', '#openFilterSidebar, .openFilterSidebar', function(e) {
-            e.preventDefault();
-            console.log('Filter button hovered!'); // Debug line
-            $('#filterSidebar').addClass('open');
-            $('#filterOverlay').addClass('show');
-            return false;
-        });
-
-        // Keep the original click handler for mobile devices
-        $(document).on('click', '#openFilterSidebar, .openFilterSidebar', function(e) {
-            e.preventDefault();
-            console.log('Filter button clicked!'); // Debug line
-            $('#filterSidebar').addClass('open');
-            $('#filterOverlay').addClass('show');
-            return false;
-        });
-
-        $('#closeSidebar, #filterOverlay').on('click', function() {
-            $('#filterSidebar').removeClass('open');
-            $('#filterOverlay').removeClass('show');
-        });
-        $('#filterForm').on('submit', function(e) {
-            // Let the form submit naturally - no need to prevent default
-            $('#filterSidebar').removeClass('open');
-            $('#filterOverlay').removeClass('show');
-        });
-        // Quick search input (main) - redirect to URL with search parameter
-        $('#quickSearch').on('keyup', function(e) {
-            if (e.keyCode === 13 || $(this).val().length === 0) {
-                const searchValue = $(this).val();
-                const url = new URL(window.location);
-
-                if (searchValue) {
-                    url.searchParams.set('quick_search', searchValue);
-                } else {
-                    url.searchParams.delete('quick_search');
-                }
-
-                window.location.href = url.toString();
-            }
-        });
-
-        // Quick search input (sidebar) - redirect to URL with search parameter
-        $('#quickSearchSidebar').on('keyup', function(e) {
-            if (e.keyCode === 13 || $(this).val().length === 0) {
-                const searchValue = $(this).val();
-                const url = new URL(window.location);
-
-                if (searchValue) {
-                    url.searchParams.set('quick_search', searchValue);
-                } else {
-                    url.searchParams.delete('quick_search');
-                }
-
-                window.location.href = url.toString();
-            }
-        });
-    });
-</script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
-    $(document).ready(function() {
-        // Fleet Supervisor Accordion Toggle
-        $('#fleetSupervisorToggle').on('click', function() {
-            const accordion = $('#fleetSupervisorAccordion');
-            const toggle = $(this);
+(function () {
+  const root = document.getElementById('ridersListDemo');
+  if (!root) return;
 
-            if (accordion.hasClass('expanded')) {
-                accordion.removeClass('expanded').addClass('collapsed');
-                toggle.addClass('collapsed');
-            } else {
-                accordion.removeClass('collapsed').addClass('expanded');
-                toggle.removeClass('collapsed');
-            }
-        });
+  const cfg = {
+    filterAjax: root.dataset.filterAjax,
+    toggleFavoriteBase: root.dataset.toggleFavorite,
+    importPreview: root.dataset.importPreview,
+    importCommit: root.dataset.importCommit,
+    csrf: root.dataset.csrf,
+    optionParam: root.dataset.optionParam,
+    statusParam: root.dataset.statusParam,
+    indexUrl: root.dataset.indexUrl,
+  };
 
-        // Add Rider Dropdown Toggle
-        $('#addRiderDropdownBtn').on('click', function(e) {
-            e.stopPropagation();
-            const dropdown = $('#addRiderDropdown');
-            const btn = $(this);
+  let toastTimer;
+  function toast(msg) {
+    const el = document.getElementById('rlToast');
+    if (!el) return;
+    el.textContent = msg;
+    el.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; }, 2400);
+  }
+  window.rlToast = toast;
 
-            if (dropdown.hasClass('show')) {
-                dropdown.removeClass('show');
-                btn.removeClass('open');
-            } else {
-                // Close other dropdowns
-                $('.action-dropdown-menu').removeClass('show');
-                $('.action-dropdown-btn').removeClass('open');
-                // Show this dropdown
-                dropdown.addClass('show');
-                btn.addClass('open');
-            }
-        });
+  function setMenu(open) {
+    const menu = document.getElementById('actMenu');
+    const btn = document.getElementById('actBtn');
+    const chev = document.getElementById('chev');
+    if (!menu || !btn) return;
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (chev) chev.innerHTML = open ? '<path d="m6 15 6-6 6 6"/>' : '<path d="m6 9 6 6 6-6"/>';
+  }
 
-        // Close dropdowns when clicking outside
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.action-dropdown-container').length) {
-                $('.action-dropdown-menu').removeClass('show');
-                $('.action-dropdown-btn').removeClass('open');
-            }
-        });
+  document.getElementById('actBtn')?.addEventListener('click', function (e) {
+    e.stopPropagation();
+    const menu = document.getElementById('actMenu');
+    setMenu(menu.hidden);
+  });
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.rl-dd')) setMenu(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      setMenu(false);
+      document.querySelectorAll('.rl-ov').forEach(o => { o.hidden = true; });
+    }
+  });
+  document.getElementById('actMenu')?.addEventListener('click', function () {
+    setMenu(false);
+  });
 
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('#filterSidebar').length) {
-                $('#filterSidebar').removeClass('open');
-            }
-        });
+  document.getElementById('chipX')?.addEventListener('click', function () {
+    window.location.href = cfg.indexUrl;
+  });
 
-        // Close on scroll/resize to avoid misaligned fixed menu
-        $(window).on('scroll resize', function() {
-            const dropdown = $('#addRiderDropdown');
-            if (dropdown.hasClass('show')) {
-                dropdown.removeClass('show');
-                $('#addRiderDropdownBtn').removeClass('open');
-            }
-        });
+  // Filter sidebar — click only (not hover)
+  function openFilter(e) {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    document.getElementById('filterSidebar')?.classList.add('open');
+    document.getElementById('filterOverlay')?.classList.add('show');
+  }
+  function closeFilter() {
+    document.getElementById('filterSidebar')?.classList.remove('open');
+    document.getElementById('filterOverlay')?.classList.remove('show');
+  }
+  document.getElementById('filterBtn')?.addEventListener('click', openFilter);
+  document.getElementById('closeSidebar')?.addEventListener('click', closeFilter);
+  document.getElementById('filterOverlay')?.addEventListener('click', closeFilter);
+  document.getElementById('filterForm')?.addEventListener('submit', function () {
+    const q = document.getElementById('q');
+    let hidden = document.getElementById('filterQuickSearch');
+    if (q && q.value) {
+      if (!hidden) {
+        hidden = document.createElement('input');
+        hidden.type = 'hidden';
+        hidden.name = 'quick_search';
+        hidden.id = 'filterQuickSearch';
+        this.appendChild(hidden);
+      }
+      hidden.value = q.value;
+    }
+    closeFilter();
+  });
 
-        // Fleet supervisor and balance filter cards now use direct links - no JavaScript needed
+  // Select2 for filter fields
+  if (window.jQuery) {
+    jQuery(function ($) {
+      $('#customer_id,#bike_assignment_status,#attendance,#fleet_supervisor').each(function () {
+        if ($(this).length) {
+          $(this).select2({ dropdownParent: $('#searchTopbody'), allowClear: true, placeholder: $(this).find('option:first').text() || 'Select' });
+        }
+      });
     });
-</script>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const table = document.querySelector('#dataTableBuilder');
-        if (!table) return;
-        const headers = table.querySelectorAll('th.sorting');
-        const tbody = table.querySelector('tbody');
-        if (!tbody) return;
+  }
 
-        headers.forEach((header, colIndex) => {
-            header.addEventListener('click', () => {
-                const rows = Array.from(tbody.querySelectorAll('tr'));
-                const isAsc = header.classList.contains('sorted-asc');
+  // Ticker scroll / drag / click
+  const tk = document.getElementById('rlTicker');
+  const track = document.getElementById('rlTrack');
+  if (tk && track && track.querySelector('.rl-card')) {
+    let pos = 0, hover = false, down = false, moved = false, sx = 0, sp = 0;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const norm = () => {
+      const h = track.scrollWidth / 2;
+      if (h <= 0) return;
+      if (pos >= h) pos -= h;
+      if (pos < 0) pos += h;
+      tk.scrollLeft = pos;
+    };
+    (function loop() {
+      if (!hover && !down && !reduce) { pos += 0.4; norm(); }
+      requestAnimationFrame(loop);
+    })();
+    tk.addEventListener('mouseenter', () => { hover = true; });
+    tk.addEventListener('mouseleave', () => { hover = false; down = false; tk.classList.remove('dragging'); });
+    tk.addEventListener('pointerdown', e => { down = true; moved = false; sx = e.clientX; sp = pos; tk.classList.add('dragging'); });
+    window.addEventListener('pointermove', e => {
+      if (!down) return;
+      const dx = e.clientX - sx;
+      if (Math.abs(dx) > 4) moved = true;
+      pos = sp - dx;
+      norm();
+    });
+    window.addEventListener('pointerup', () => { down = false; tk.classList.remove('dragging'); });
+    tk.addEventListener('wheel', e => {
+      e.preventDefault();
+      pos += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+      norm();
+    }, { passive: false });
+    tk.addEventListener('click', e => {
+      if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; return; }
+      const c = e.target.closest('.rl-card');
+      if (!c) return;
+      const optionId = c.dataset.optionId;
+      if (!optionId) return;
+      const url = new URL(window.location.href);
+      if (url.searchParams.get(cfg.optionParam) === String(optionId)) {
+        url.searchParams.delete(cfg.optionParam);
+        Array.from(url.searchParams.keys()).forEach(k => {
+          if (k === cfg.statusParam || k.indexOf(cfg.statusParam + '[') === 0) url.searchParams.delete(k);
+        });
+                } else {
+        url.searchParams.set(cfg.optionParam, String(optionId));
+        Array.from(url.searchParams.keys()).forEach(k => {
+          if (k === cfg.statusParam || k.indexOf(cfg.statusParam + '[') === 0) url.searchParams.delete(k);
+        });
+        url.searchParams.append(cfg.statusParam + '[]', 'active');
+        url.searchParams.append(cfg.statusParam + '[]', 'inactive');
+      }
+      url.searchParams.delete('page');
+                window.location.href = url.toString();
+    }, true);
+  }
 
-                // Clear previous sort classes
-                headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+  // Debounced AJAX search + pagination
+  let searchTimer = null;
+  let ajaxSeq = 0;
 
-                // Add new sort direction
-                header.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc');
+  function currentParams(extra) {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+    if (extra) {
+      Object.keys(extra).forEach(k => {
+        if (extra[k] === null || extra[k] === undefined || extra[k] === '') params.delete(k);
+        else params.set(k, extra[k]);
+      });
+    }
+    return params;
+  }
 
-                // Sort logic
+  function refreshTable(extra) {
+    const seq = ++ajaxSeq;
+    const params = currentParams(extra);
+    const qEl = document.getElementById('q');
+    if (qEl) {
+      if (qEl.value) params.set('quick_search', qEl.value);
+      else params.delete('quick_search');
+    }
+    const overlay = document.getElementById('loading-overlay');
+    if (overlay) overlay.style.display = 'flex';
+
+    fetch(cfg.filterAjax, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-CSRF-TOKEN': cfg.csrf,
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json',
+      },
+      body: params.toString() + '&_token=' + encodeURIComponent(cfg.csrf),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (seq !== ajaxSeq) return;
+        if (!data.success) { toast(data.message || 'Search failed'); return; }
+        const tbox = document.getElementById('tbox');
+        const pagerWrap = document.getElementById('rlPagerWrap');
+        if (tbox && data.html) tbox.innerHTML = data.html;
+        if (pagerWrap && data.pagination !== undefined) pagerWrap.innerHTML = data.pagination;
+        // Keep URL in sync without full reload
+        const newUrl = new URL(window.location.href);
+        params.forEach((v, k) => newUrl.searchParams.set(k, v));
+        ['quick_search', 'page', 'per_page'].forEach(k => {
+          if (!params.has(k)) newUrl.searchParams.delete(k);
+        });
+        history.replaceState({}, '', newUrl.toString());
+        bindTableEvents();
+      })
+      .catch(() => toast('Could not refresh riders'))
+      .finally(() => { if (overlay) overlay.style.display = 'none'; });
+  }
+
+  document.getElementById('q')?.addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => refreshTable({ page: 1 }), 300);
+  });
+
+  document.getElementById('rlPagerWrap')?.addEventListener('click', function (e) {
+    const a = e.target.closest('a.rl-pg[data-page]');
+    if (!a) return;
+    e.preventDefault();
+    refreshTable({ page: a.dataset.page });
+    document.getElementById('tbox').scrollTop = 0;
+  });
+  document.getElementById('rlPagerWrap')?.addEventListener('change', function (e) {
+    if (e.target.id !== 'rlPerPage') return;
+    refreshTable({ per_page: e.target.value, page: 1 });
+  });
+
+  function bindTableEvents() {
+    // Favorites
+    document.querySelectorAll('#rlBody [data-fav]').forEach(btn => {
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = this.dataset.fav;
+        fetch(cfg.toggleFavoriteBase + '/' + id, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': cfg.csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+          body: new URLSearchParams({ _token: cfg.csrf }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) { toast(data.message || 'Failed'); return; }
+            this.classList.toggle('on', !!data.favorited);
+            this.setAttribute('aria-label', data.favorited ? 'Remove from favorites' : 'Add to favorites');
+            toast(data.message);
+            refreshTable({});
+          })
+          .catch(() => toast('Could not update favorite'));
+      };
+    });
+
+    // Client sort on current page
+    const head = document.getElementById('rlHead');
+    const body = document.getElementById('rlBody');
+    if (head && body) {
+      head.querySelectorAll('th.sorting').forEach((th, colIndex) => {
+        th.onclick = () => {
+          const rows = Array.from(body.querySelectorAll('tr'));
+          const isAsc = th.classList.contains('sorted-asc');
+          head.querySelectorAll('th').forEach(h => {
+            h.classList.remove('sorted-asc', 'sorted-desc', 'on');
+            const ar = h.querySelector('.ar');
+            if (ar) ar.textContent = '⇅';
+          });
+          th.classList.add(isAsc ? 'sorted-desc' : 'sorted-asc', 'on');
+          const ar = th.querySelector('.ar');
+          if (ar) ar.textContent = isAsc ? '↓' : '↑';
                 rows.sort((a, b) => {
-                    let aText = a.children[colIndex]?.textContent.trim().toLowerCase();
-                    let bText = b.children[colIndex]?.textContent.trim().toLowerCase();
-
+            let aText = (a.children[colIndex]?.textContent || '').trim().toLowerCase();
+            let bText = (b.children[colIndex]?.textContent || '').trim().toLowerCase();
                     const aVal = isNaN(aText) ? aText : parseFloat(aText);
                     const bVal = isNaN(bText) ? bText : parseFloat(bText);
-
                     if (aVal < bVal) return isAsc ? 1 : -1;
                     if (aVal > bVal) return isAsc ? -1 : 1;
                     return 0;
                 });
-
-                // Re-append sorted rows
-                rows.forEach(row => tbody.appendChild(row));
-            });
-        });
-    });
-    const copyTextEl = document.querySelector('.copy-text');
-    if (copyTextEl) {
-        copyTextEl.addEventListener('click', function() {
-            const valueEl = this.querySelector('.copy-value');
-            const icon = this.querySelector('i');
-            if (!valueEl) return;
-            const value = valueEl.textContent.trim();
-
-            navigator.clipboard.writeText(value).then(() => {
-                if (!icon) return;
-                icon.classList.remove('fa-copy');
-                icon.classList.add('fa-check');
-                setTimeout(() => {
-                    icon.classList.remove('fa-check');
-                    icon.classList.add('fa-copy');
-                }, 1500);
-            });
-        });
-    }
-
-    // Status filter functionality is now handled by direct URL links
-
-    // Add CSS for enhanced interactions
-    $('<style>')
-        .prop('type', 'text/css')
-        .html(`
-            .ripple-effect {
-                animation: ripple 0.6s ease-out;
-            }
-            
-            @keyframes ripple {
-                0% { transform: scale(1); }
-                50% { transform: scale(1.02); }
-                100% { transform: scale(1); }
-            }
-            
-            .hover-effect {
-                animation: hover-pulse 0.3s ease-out;
-            }
-            
-            @keyframes hover-pulse {
-                0% { transform: translateY(-2px); }
-                100% { transform: translateY(-2px); }
-            }
-            
-            .click-effect {
-                animation: click-bounce 0.2s ease-out;
-            }
-            
-            @keyframes click-bounce {
-                0% { transform: scale(1); }
-                50% { transform: scale(0.98); }
-                100% { transform: scale(1); }
-            }
-            
-            .select2-result-item {
-                display: flex;
-                align-items: center;
-                padding: 8px 0;
-            }
-            
-            .option-content {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-            }
-            
-            .option-icon {
-                font-size: 18px;
-                filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
-            }
-            
-            .option-text {
-                font-weight: 500;
-                color: #374151;
-            }
-            
-            .select2-results__option--highlighted .option-text {
-                color: white;
-            }
-            
-            .select2-results__option[aria-selected=true] .option-text {
-                color: white;
-            }
-            
-            .custom-scrollbar {
-                scrollbar-width: thin;
-                scrollbar-color: #3b82f6 #f1f5f9;
-            }
-            
-            /* Fleet supervisor active/inactive button highlighting */
-            .fleet-stat.active-selected {
-                background: linear-gradient(135deg, #10b981, #059669);
-                color: white;
-                transform: scale(1.05);
-                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-                border: 2px solid #10b981;
-            }
-            
-            .fleet-stat.active-selected .fleet-stat-icon {
-                color: white;
-            }
-            
-            .fleet-stat.active-selected .fleet-stat-label {
-                color: white;
-                font-weight: 600;
-            }
-            
-            .fleet-stat.active-selected .fleet-stat-value {
-                color: white;
-                font-weight: 600;
-            }
-            
-            /* Default Active button styling */
-            .fleet-stat.active {
-                background: linear-gradient(135deg, #d1fae5, #a7f3d0);
-                border: 1px solid #10b981;
-                color: #065f46;
-            }
-            
-            .fleet-stat.active .fleet-stat-icon {
-                color: #10b981;
-            }
-            
-            .fleet-stat.active .fleet-stat-label {
-                color: #065f46;
-                font-weight: 500;
-            }
-            
-            .fleet-stat.active .fleet-stat-value {
-                color: #065f46;
-                font-weight: 600;
-            }
-            
-            /* Default Inactive button styling */
-            .fleet-stat.inactive {
-                background: linear-gradient(135deg, #fee2e2, #fecaca);
-                border: 1px solid #ef4444;
-                color: #991b1b;
-            }
-            
-            .fleet-stat.inactive .fleet-stat-icon {
-                color: #ef4444;
-            }
-            
-            .fleet-stat.inactive .fleet-stat-label {
-                color: #991b1b;
-                font-weight: 500;
-            }
-            
-            .fleet-stat.inactive .fleet-stat-value {
-                color: #991b1b;
-                font-weight: 600;
-            }
-            
-            .fleet-stat:hover {
-                background: rgba(16, 185, 129, 0.1);
-                transform: translateY(-2px);
-                transition: all 0.3s ease;
-            }
-            
-            .fleet-stat {
-                cursor: pointer;
-                transition: all 0.3s ease;
-                border-radius: 8px;
-                padding: 8px 12px;
-                margin: 4px 0;
-            }
-            
-            /* Fleet supervisor card filtered state */
-            .fleet-supervisor-card.filtered {
-                background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
-                border: 2px solid #29b6f6;
-                box-shadow: 0 4px 15px rgba(41, 182, 246, 0.2);
-                transform: scale(1.02);
-            }
-            
-            .fleet-supervisor-card.filtered .fleet-supervisor-name {
-                color: #0277bd;
-                font-weight: 600;
-            }
-            
-            .fleet-supervisor-card.filtered .fleet-stat {
-                background: rgba(255, 255, 255, 0.8);
-                border-radius: 6px;
-            }
-
-            /* Fix Add Rider dropdown positioning in header */
-            .fleet-supervisor-header-right { position: relative; overflow: visible; }
-            .action-dropdown-container { position: relative; display: inline-block; }
-            .action-dropdown-btn { display: inline-flex; align-items: center; gap: 8px; }
-            .action-dropdown-menu {
-                position: absolute;
-                top: calc(100% + 8px);
-                right: 0;
-                min-width: 260px;
-                max-width: 320px;
-                background: #ffffff;
-                border: 1px solid #e5e7eb;
-                border-radius: 8px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-                padding: 8px 0;
-                z-index: 3000;
-                display: none;
-            }
-            .action-dropdown-menu.show { display: block; }
-            .action-dropdown-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; color: #111827; text-decoration: none; }
-            .action-dropdown-item:hover { background: #f3f4f6; }
-            .action-dropdown-item i { color: #2563eb; margin-top: 2px; }
-            .action-dropdown-item-text { font-weight: 600; }
-            .action-dropdown-item-desc { font-size: 12px; color: #6b7280; }
-        `)
-        .appendTo('head');
-
-    function initFleetSupervisorSlider() {
-        const sliderTrack = document.getElementById('sliderTrack');
-        if (!sliderTrack || sliderTrack.dataset.tickerInit === '1') return;
-
-        const cards = Array.from(sliderTrack.querySelectorAll('.fleet-supervisor-card'));
-        if (!cards.length) return;
-
-        const container = sliderTrack.closest('.fleet-supervisor-slider-container');
-        if (container) container.classList.add('ticker-mode');
-
-        sliderTrack.dataset.tickerInit = '1';
-        if (cards.length < 2) return;
-
-        let intervalId = null;
-        let isAnimating = false;
-        const computedTrackStyle = window.getComputedStyle(sliderTrack);
-        const gap = parseFloat(computedTrackStyle.columnGap || computedTrackStyle.gap || '16') || 16;
-
-        function slideNextCard() {
-            if (isAnimating) return;
-            const firstCard = sliderTrack.querySelector('.fleet-supervisor-card');
-            if (!firstCard) return;
-            isAnimating = true;
-
-            const shiftAmount = firstCard.offsetWidth + gap;
-            sliderTrack.style.transition = 'transform 520ms ease';
-            sliderTrack.style.transform = 'translateX(-' + shiftAmount + 'px)';
-
-            window.setTimeout(function() {
-                sliderTrack.style.transition = 'none';
-                sliderTrack.style.transform = 'translateX(0)';
-                sliderTrack.appendChild(firstCard);
-                // Force reflow so next animation starts cleanly.
-                void sliderTrack.offsetWidth;
-                isAnimating = false;
-            }, 540);
-        }
-
-        intervalId = window.setInterval(slideNextCard, 2600);
-        sliderTrack.dataset.tickerIntervalId = String(intervalId);
-    }
-
-    // Initialize slider when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded, initializing slider...');
-        setTimeout(initFleetSupervisorSlider, 100);
-    });
-
-    // Also try to initialize when window loads
-    window.addEventListener('load', function() {
-        console.log('Window loaded, initializing slider...');
-        setTimeout(initFleetSupervisorSlider, 100);
-    });
-
-    // Enhanced notification function
-    function showNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
-        notification.innerHTML = `
-            <div class="notification-content">
-                <i class="ti ti-${type === 'success' ? 'check' : type === 'error' ? 'x' : 'info'}"></i>
-                <span>${message}</span>
-            </div>
-        `;
-
-        const colors = {
-            success: '#10b981',
-            error: '#ef4444',
-            info: '#3b82f6'
+          rows.forEach(row => body.appendChild(row));
         };
-
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: ${colors[type] || '#3b82f6'};
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 9999;
-            animation: slideIn 0.3s ease;
-            max-width: 300px;
-        `;
-
-        document.body.appendChild(notification);
-
-        setTimeout(() => {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    }
-</script>
-<script>
-/* ── Excel-like column copy ── */
-(function () {
-  'use strict';
-
-  var COL_HEAD_SEL  = '#dataTableBuilder thead th.sorting';
-  var COL_SELECTED  = 'riders-col-selected';
-  var HEAD_SELECTED = 'riders-col-head-selected';
-
-  /* ── styles ── */
-  var css = `
-    #dataTableBuilder thead th.${HEAD_SELECTED} {
-      background: #1e3a8a !important;
-      color: #ffffff !important;
-      position: relative;
-    }
-    #dataTableBuilder thead th.${HEAD_SELECTED}::after {
-      content: "Ctrl+C";
-      position: absolute;
-      bottom: 2px;
-      right: 6px;
-      font-size: 9px;
-      font-weight: 400;
-      opacity: .7;
-      letter-spacing: .03em;
-    }
-    #dataTableBuilder td.${COL_SELECTED} {
-      background: #dbeafe !important;
-    }
-    #dataTableBuilder thead th.sorting:not(.${HEAD_SELECTED}):hover {
-      cursor: copy;
-    }
-    /* toast */
-    #rdrs-col-toast {
-      position: fixed;
-      bottom: 36px;
-      left: 50%;
-      transform: translateX(-50%) translateY(12px);
-      background: #1e293b;
-      color: #fff;
-      padding: 9px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      z-index: 10000;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 4px 18px rgba(0,0,0,.22);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .22s, transform .22s;
-    }
-    #rdrs-col-toast.rdrs-toast-show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-    /* context menu */
-    #rdrs-col-ctx {
-      position: fixed;
-      background: #fff;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      box-shadow: 0 6px 20px rgba(0,0,0,.14);
-      z-index: 10001;
-      display: none;
-      min-width: 190px;
-      padding: 4px 0;
-      user-select: none;
-    }
-    #rdrs-col-ctx.rdrs-ctx-show { display: block; }
-    #rdrs-col-ctx button {
-      display: flex; align-items: center; gap: 9px;
-      width: 100%; padding: 8px 14px;
-      border: none; background: none; cursor: pointer;
-      font-size: 13px; color: #111827; text-align: left;
-    }
-    #rdrs-col-ctx button:hover { background: #f3f4f6; }
-    #rdrs-col-ctx .ctx-divider { border-top: 1px solid #f0f0f0; margin: 3px 0; }
-  `;
-  var styleEl = document.createElement('style');
-  styleEl.textContent = css;
-  document.head.appendChild(styleEl);
-
-  /* ── toast ── */
-  var toast = document.createElement('div');
-  toast.id = 'rdrs-col-toast';
-  toast.innerHTML = '<i class="ti ti-check" style="font-size:15px;color:#4ade80;"></i><span id="rdrs-col-toast-msg"></span>';
-  document.body.appendChild(toast);
-  var toastTimer;
-  function showToast(msg) {
-    document.getElementById('rdrs-col-toast-msg').textContent = msg;
-    toast.classList.add('rdrs-toast-show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { toast.classList.remove('rdrs-toast-show'); }, 2400);
-  }
-
-  /* ── context menu ── */
-  var ctx = document.createElement('div');
-  ctx.id = 'rdrs-col-ctx';
-  ctx.innerHTML = [
-    '<button id="rdrs-ctx-copy"><i class="ti ti-copy"></i> Copy column (Ctrl+C)</button>',
-    '<div class="ctx-divider"></div>',
-    '<button id="rdrs-ctx-deselect"><i class="ti ti-x"></i> Deselect column (Esc)</button>',
-  ].join('');
-  document.body.appendChild(ctx);
-
-  /* ── state ── */
-  var selectedColIdx = -1;
-
-  /* ── helpers ── */
-  function getTable() { return document.querySelector('#dataTableBuilder'); }
-
-  function clearSelection() {
-    var t = getTable();
-    if (!t) return;
-    t.querySelectorAll('.' + HEAD_SELECTED).forEach(function (el) { el.classList.remove(HEAD_SELECTED); });
-    t.querySelectorAll('.' + COL_SELECTED).forEach(function (el) { el.classList.remove(COL_SELECTED); });
-    selectedColIdx = -1;
-  }
-
-  function selectColumn(colIdx) {
-    var t = getTable();
-    if (!t) return;
-    clearSelection();
-    selectedColIdx = colIdx;
-
-    /* header */
-    var allThs = t.querySelectorAll('thead th');
-    if (allThs[colIdx]) allThs[colIdx].classList.add(HEAD_SELECTED);
-
-    /* body cells */
-    t.querySelectorAll('tbody tr').forEach(function (row) {
-      var cell = row.children[colIdx];
-      if (cell) cell.classList.add(COL_SELECTED);
-    });
-  }
-
-  function getCellText(cell) {
-    /* prefer links, then raw text; collapse whitespace */
-    var link = cell.querySelector('a');
-    var raw = (link ? link.textContent : cell.textContent).replace(/\s+/g, ' ').trim();
-    return raw;
-  }
-
-  function buildColumnText(colIdx) {
-    var t = getTable();
-    if (!t) return '';
-    var lines = [];
-    t.querySelectorAll('tbody tr').forEach(function (row) {
-      var cell = row.children[colIdx];
-      lines.push(cell ? getCellText(cell) : '');
-    });
-    return lines.join('\n');
-  }
-
-  function doCopy(colIdx) {
-    if (colIdx < 0) return;
-    var text = buildColumnText(colIdx);
-    var rowCount = text.split('\n').length;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function () {
-        showToast(rowCount + ' row' + (rowCount !== 1 ? 's' : '') + ' copied to clipboard');
-      }).catch(function () { fallbackCopy(text, rowCount); });
-    } else {
-      fallbackCopy(text, rowCount);
-    }
-  }
-
-  function fallbackCopy(text, rowCount) {
-    var ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
-    document.body.appendChild(ta);
-    ta.focus(); ta.select();
-    try { document.execCommand('copy'); } catch (e) {}
-    document.body.removeChild(ta);
-    showToast(rowCount + ' row' + (rowCount !== 1 ? 's' : '') + ' copied to clipboard');
-  }
-
-  function hideCtx() { ctx.classList.remove('rdrs-ctx-show'); }
-
-  function showCtx(x, y) {
-    ctx.style.left = x + 'px';
-    ctx.style.top  = y + 'px';
-    ctx.classList.add('rdrs-ctx-show');
-  }
-
-  /* ── wire up after DOM ready ── */
-  document.addEventListener('DOMContentLoaded', function () {
-    var t = getTable();
-    if (!t) return;
-
-    /* header click → select column */
-    t.querySelectorAll('thead th.sorting').forEach(function (th) {
-      th.addEventListener('click', function () {
-        var allThs = Array.from(t.querySelectorAll('thead th'));
-        var colIdx = allThs.indexOf(th);
-        if (selectedColIdx === colIdx) {
-          clearSelection();
-        } else {
-          selectColumn(colIdx);
-        }
       });
-    });
+    }
+  }
+  bindTableEvents();
 
-    /* right-click on selected header or cell → context menu */
-    t.addEventListener('contextmenu', function (e) {
-      if (selectedColIdx < 0) return;
-      var th = e.target.closest('.' + HEAD_SELECTED);
-      var td = e.target.closest('.' + COL_SELECTED);
-      if (!th && !td) return;
-      e.preventDefault();
-      /* keep menu inside viewport */
-      var mx = Math.min(e.clientX, window.innerWidth - 200);
-      var my = Math.min(e.clientY, window.innerHeight - 100);
-      showCtx(mx, my);
-    });
-
-    /* context menu actions */
-    document.getElementById('rdrs-ctx-copy').addEventListener('click', function () {
-      hideCtx();
-      doCopy(selectedColIdx);
-    });
-    document.getElementById('rdrs-ctx-deselect').addEventListener('click', function () {
-      hideCtx();
-      clearSelection();
-    });
-
-    /* Ctrl+C / Meta+C → copy selected column */
-    document.addEventListener('keydown', function (e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (selectedColIdx < 0) return;
-        var sel = window.getSelection ? window.getSelection() : null;
-        if (sel && sel.toString().length > 0) return; /* let normal copy win */
-        e.preventDefault();
-        doCopy(selectedColIdx);
+  // Load ExcelJS once (needed for real .xlsx with frozen header — HTML paste cannot freeze rows)
+  function loadExcelJs() {
+    return new Promise((ok, no) => {
+      if (window.ExcelJS) { ok(); return; }
+      const existing = document.querySelector('script[data-exceljs]');
+      if (existing) {
+        existing.addEventListener('load', () => ok());
+        existing.addEventListener('error', () => no(new Error('exceljs')));
+        return;
       }
-      if (e.key === 'Escape') {
-        hideCtx();
-        clearSelection();
-      }
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js';
+      s.dataset.exceljs = '1';
+      s.onload = () => ok();
+      s.onerror = () => no(new Error('exceljs'));
+      document.head.appendChild(s);
     });
+  }
 
-    /* click outside table or context menu → deselect */
-    document.addEventListener('click', function (e) {
-      if (ctx.contains(e.target)) return;
-      if (!t.contains(e.target)) clearSelection();
-      if (!ctx.contains(e.target)) hideCtx();
+  function getVisibleCopyColumns(table) {
+    const checkedKeys = Array.from(document.querySelectorAll('#columnList .column-item'))
+      .filter(item => item.querySelector('.column-visibility-checkbox')?.checked)
+      .map(item => item.dataset.columnKey)
+      .filter(Boolean);
+    const visibleCols = [];
+    Array.from(table.querySelectorAll('thead th')).forEach((th, i) => {
+      if (th.classList.contains('nosort') || th.classList.contains('column-hidden')) return;
+      const label = (th.childNodes[0]?.textContent || th.textContent || '').replace(/[⇅↑↓]/g, '').trim();
+      if (!label || /^actions$/i.test(label)) return;
+      const key = th.getAttribute('data-k') || '';
+      if (checkedKeys.length && key && !checkedKeys.includes(key)) return;
+      visibleCols.push({ index: i, label, key });
+    });
+    return visibleCols;
+  }
+
+  function cellPlainText(td) {
+    if (!td) return '-';
+    const nameLink = td.classList.contains('name') ? td.querySelector('a') : null;
+    if (nameLink) return nameLink.textContent.trim();
+    const clone = td.cloneNode(true);
+    clone.querySelectorAll('.rl-star,.dropdown').forEach(n => n.remove());
+    return clone.innerText.replace(/\s+/g, ' ').trim() || '-';
+  }
+
+  // Copy → download .xlsx with frozen header (Column Control columns only) + TSV on clipboard
+  document.getElementById('copyBtn')?.addEventListener('click', async function () {
+    const table = document.getElementById('dataTableBuilder');
+    if (!table) return;
+
+    const visibleCols = getVisibleCopyColumns(table);
+    if (!visibleCols.length) {
+      toast('No visible columns to copy – enable columns in Column Control');
+      return;
+    }
+
+    const rows = Array.from(table.querySelectorAll('tbody tr')).filter(tr => !tr.querySelector('.rl-empty'));
+    const matrix = [visibleCols.map(c => c.label)];
+    rows.forEach(tr => {
+      matrix.push(visibleCols.map(col => cellPlainText(tr.children[col.index])));
+    });
+    const txt = matrix.map(r => r.join('\t')).join('\n');
+
+    // Plain text on clipboard (quick paste without freeze)
+    try {
+      await navigator.clipboard.writeText(txt);
+    } catch (_) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      } catch (_) {}
+    }
+
+    // Real Excel file with frozen first row — paste/HTML cannot freeze panes reliably
+    toast('Preparing Excel with frozen header…');
+    try {
+      await loadExcelJs();
+      const wb = new window.ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Riders', {
+        views: [{ state: 'frozen', ySplit: 1, xSplit: 0 }],
+      });
+      matrix.forEach((row, ri) => {
+        const excelRow = ws.addRow(row);
+        excelRow.eachCell((cell, ci) => {
+          cell.border = {
+            top: { style: 'thin' }, left: { style: 'thin' },
+            bottom: { style: 'thin' }, right: { style: 'thin' },
+          };
+          cell.alignment = {
+            horizontal: (visibleCols[ci - 1]?.key === 'name' && ri > 0) ? 'left' : 'center',
+            vertical: 'middle',
+          };
+          if (ri === 0) {
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+            cell.font = { bold: true, color: { argb: 'FF1E3A8A' } };
+          }
+        });
+      });
+      visibleCols.forEach((col, i) => {
+        ws.getColumn(i + 1).width = Math.max(12, col.label.length + 4, col.key === 'name' ? 34 : 0);
+      });
+
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = URL.createObjectURL(blob);
+      a.download = 'Riders-' + stamp + '.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+
+      const ic = document.getElementById('copyIco');
+      if (ic) {
+        const o = ic.innerHTML;
+        ic.innerHTML = '<path d="M5 12l5 5 9-10"/>';
+        setTimeout(() => { ic.innerHTML = o; }, 1500);
+      }
+      toast('Downloaded Excel with frozen header (' + rows.length + ' rows). Open the file — row 1 stays fixed.');
+    } catch (err) {
+      console.error(err);
+      toast('Excel download failed – table text was still copied to clipboard');
+    }
+  });
+
+  // Import modal
+  const impOv = document.getElementById('impOv');
+  document.getElementById('importRidersBtn')?.addEventListener('click', openImport);
+  document.querySelectorAll('.rl-ov').forEach(o => {
+    o.addEventListener('click', e => {
+      if (e.target === o || e.target.closest('[data-close]')) o.hidden = true;
     });
   });
-}());
+
+  function openImport() {
+    resetImport();
+    if (impOv) impOv.hidden = false;
+  }
+
+  function resetImport() {
+    const title = document.getElementById('impT');
+    const drop = document.getElementById('drop');
+    const rules = document.getElementById('impRules');
+    const note = document.getElementById('impNote');
+    const btns = document.getElementById('impBtns');
+    const body = document.getElementById('impBody');
+    if (title) title.textContent = 'Import Riders';
+    if (drop) drop.hidden = false;
+    if (rules) rules.hidden = false;
+    body?.querySelector('#pv')?.remove();
+    if (note) note.textContent = '';
+    if (btns) {
+      btns.innerHTML = `
+        <a class="rl-ghost" href="{{ route('riders.import.template', ['sample' => 1]) }}">Download sample file</a>
+        <a class="rl-ghost" href="{{ route('riders.import.template') }}">Blank template</a>
+        <button type="button" class="rl-ghost" data-close>Cancel</button>`;
+    }
+    const file = document.getElementById('impFile');
+    if (file) file.value = '';
+  }
+
+  const drop = document.getElementById('drop');
+  ['dragenter', 'dragover'].forEach(ev => drop?.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop?.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop?.addEventListener('drop', e => {
+    const f = e.dataTransfer.files[0];
+    if (f) previewImport(f);
+  });
+  document.getElementById('impFile')?.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) previewImport(f);
+  });
+
+  function previewImport(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('_token', cfg.csrf);
+    toast('Reading file…');
+    fetch(cfg.importPreview, { method: 'POST', headers: { 'X-CSRF-TOKEN': cfg.csrf, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) { toast(data.message || 'Could not read file'); return; }
+        showPreview(file.name, data);
+      })
+      .catch(() => toast('Could not read this file'));
+  }
+
+  function showPreview(fname, data) {
+    const title = document.getElementById('impT');
+    const dropEl = document.getElementById('drop');
+    const rules = document.getElementById('impRules');
+    const body = document.getElementById('impBody');
+    const note = document.getElementById('impNote');
+    const btns = document.getElementById('impBtns');
+    if (title) title.textContent = 'Import preview – ' + fname;
+    if (dropEl) dropEl.hidden = true;
+    if (rules) rules.hidden = true;
+    body?.querySelector('#pv')?.remove();
+    const n = data.counts || { new: 0, upd: 0, err: 0 };
+    const okN = (n.new || 0) + (n.upd || 0);
+    const rows = data.rows || [];
+    const ignored = data.ignored || [];
+    const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const div = document.createElement('div');
+    div.id = 'pv';
+    div.style.cssText = 'display:flex;flex-direction:column;gap:10px';
+    div.innerHTML = `
+      <div class="counts">
+        <span class="tag t-new">${n.new || 0} new</span>
+        <span class="tag t-upd">${n.upd || 0} update</span>
+        <span class="tag t-err">${n.err || 0} with errors (will be skipped)</span>
+        ${ignored.length ? `<span class="rl-note">Ignored columns: ${ignored.map(esc).join(', ')}</span>` : ''}
+      </div>
+      <div style="overflow-x:auto;border:1px solid #bfdbfe;border-radius:10px">
+        <table class="pv"><thead><tr><th>Row</th><th>Rider Id</th><th>Action</th><th>Fields</th><th>Problems</th></tr></thead>
+        <tbody>${rows.map(p => {
+          const act = p.act === 'new' ? 'New' : (p.act === 'upd' ? 'Update' : 'Error');
+          const tag = p.act === 'new' ? 'new' : (p.act === 'upd' ? 'upd' : 'err');
+          const fields = p.act === 'err' ? '-' : (Object.entries(p.ch || {}).map(([k, v]) => `<b>${esc(k)}:</b> ${esc(v)}`).join(' · ') || '<span class="rl-note">No changes</span>');
+          return `<tr><td>${p.row}</td><td>${esc(p.id)}</td><td><span class="tag t-${tag}">${act}</span></td><td>${fields}</td><td class="prob">${(p.prob || []).map(esc).join('<br>')}</td></tr>`;
+        }).join('')}</tbody></table>
+      </div>`;
+    body?.appendChild(div);
+    if (note) note.textContent = 'Only rows without errors will be imported.';
+    if (btns) {
+      btns.innerHTML = `
+        <button type="button" class="rl-ghost" id="impBack">Choose another file</button>
+        <button type="button" class="rl-btn" id="impGo" ${okN ? '' : 'disabled'}>Import ${okN} rider${okN === 1 ? '' : 's'}</button>`;
+      document.getElementById('impBack')?.addEventListener('click', resetImport);
+      document.getElementById('impGo')?.addEventListener('click', () => {
+        const payload = { rows: rows.filter(p => p.act !== 'err'), _token: cfg.csrf };
+        fetch(cfg.importCommit, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': cfg.csrf,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify(payload),
+        })
+          .then(r => r.json())
+          .then(res => {
+            if (!res.success) { toast(res.message || 'Import failed'); return; }
+            if (impOv) impOv.hidden = true;
+            toast(res.message || 'Import finished');
+            window.location.reload();
+          })
+          .catch(() => toast('Import failed'));
+      });
+    }
+  }
+})();
 </script>
 @endsection

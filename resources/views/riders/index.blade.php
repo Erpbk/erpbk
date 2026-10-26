@@ -504,9 +504,20 @@
       .finally(() => { if (overlay) overlay.style.display = 'none'; });
   }
 
-  document.getElementById('q')?.addEventListener('input', function () {
+  // Quick search: filter only on Enter (or when the field is cleared)
+  const qInput = document.getElementById('q');
+  qInput?.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => refreshTable({ page: 1 }), 300);
+    refreshTable({ page: 1 });
+  });
+  qInput?.addEventListener('search', function () {
+    // Native clear (×) on type=search
+    if (!this.value) {
+      clearTimeout(searchTimer);
+      refreshTable({ page: 1 });
+    }
   });
 
   document.getElementById('rlPagerWrap')?.addEventListener('click', function (e) {

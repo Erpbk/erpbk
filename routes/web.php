@@ -953,6 +953,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::prefix('settings')->group(function () {
 
         Route::any('/company', [HomeController::class, 'settings'])->name('settings');
+        Route::get('/global', [\App\Http\Controllers\GlobalSettingsController::class, 'index'])->name('settings.global');
+        Route::post('/global', [\App\Http\Controllers\GlobalSettingsController::class, 'store'])->name('settings.global.store');
         Route::get('/erp', [ErpSettingsController::class, 'index'])->name('settings.erp');
         Route::post('/erp', [ErpSettingsController::class, 'store'])->name('settings.erp.store');
         Route::resource('departments', DepartmentsController::class);

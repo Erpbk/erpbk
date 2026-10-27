@@ -2,9 +2,12 @@
 
 namespace App\Helpers;
 
+use App\Models\Company;
 use App\Models\Settings;
 use App\Support\CompanyContext;
+use App\Support\CompanyGlobalPreferences;
 use App\Support\PublicStorageDisk;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\HtmlString;
 
@@ -198,22 +201,88 @@ class Currency
         return new HtmlString(e(self::symbol()));
     }
 
-    public static function formatPlain(float|int|string|null $amount, int $decimals = 2): string
+    public static function formatPlain(float|int|string|null $amount, ?int $decimals = null): string
     {
-        $numericAmount = is_numeric($amount) ? (float) $amount : 0.0;
+        $formattedAmount = Number::format($amount, $decimals);
+        $symbol = self::symbol();
 
-        return self::symbol() . ' ' . number_format($numericAmount, $decimals);
-    }
-
-    public static function format(float|int|string|null $amount, int $decimals = 2): HtmlString|string
-    {
-        $numericAmount = is_numeric($amount) ? (float) $amount : 0.0;
-        $formattedAmount = number_format($numericAmount, $decimals);
-
-        if (self::usesIcon()) {
-            return new HtmlString(self::mark()->toHtml() . ' ' . e($formattedAmount));
+        if (CompanyGlobalPreferences::currencyPosition() === 'after') {
+            return $formattedAmount . ' ' . $symbol;
         }
 
-        return self::symbol() . ' ' . $formattedAmount;
+        return $symbol . ' ' . $formattedAmount;
+    }
+
+    public static function format(float|int|string|null $amount, ?int $decimals = null): HtmlString|string
+    {
+        $formattedAmount = Number::format($amount, $decimals);
+        $position = CompanyGlobalPreferences::currencyPosition();
+
+        if (self::usesIcon()) {
+            $mark = self::mark()->toHtml();
+            $html = $position === 'after'
+                ? e($formattedAmount) . ' ' . $mark
+                : $mark . ' ' . e($formattedAmount);
+
+            return new HtmlString($html);
+        }
+
+        $symbol = self::symbol();
+        if ($position === 'after') {
+            return $formattedAmount . ' ' . $symbol;
+        }
+
+        return $symbol . ' ' . $formattedAmount;
+    }
+
+    /**
+     * Persist company currency code/symbol/icon from a settings form request.
+     */
+    public static function persistForCompany(Request $request, Company $company): void
+    {
+        $code = strtoupper(trim((string) $request->input('settings.currency_code', self::code())));
+        $catalog = self::catalog();
+        if ($code === '' || ! isset($catalog[$code])) {
+            $code = 'AED';
+        }
+
+        $symbol = self::defaultSymbolForCode($code);
+        $existingIcon = (string) (Settings::query()
+            ->where('company_id', $company->id)
+            ->where('name', 'currency_icon')
+            ->value('value') ?? '');
+
+        $mode = (string) $request->input('currency_icon_mode', $existingIcon !== '' ? 'custom' : 'default');
+        $removeIcon = $request->boolean('remove_currency_icon') || $mode === 'default';
+        $iconPath = $existingIcon;
+
+        if ($removeIcon && $existingIcon !== '') {
+            if (PublicStorageDisk::exists($existingIcon)) {
+                PublicStorageDisk::disk()->delete($existingIcon);
+            }
+            $iconPath = '';
+        }
+
+        if ($mode === 'custom' && $request->hasFile('currency_icon')) {
+            $path = $request->file('currency_icon')->store('currency-icons', 'public');
+            if ($existingIcon !== '' && $existingIcon !== $path && PublicStorageDisk::exists($existingIcon)) {
+                PublicStorageDisk::disk()->delete($existingIcon);
+            }
+            $iconPath = $path;
+        }
+
+        foreach ([
+            'currency_code' => $code,
+            'currency_symbol' => $symbol,
+            'currency_icon' => $iconPath,
+        ] as $name => $value) {
+            Settings::updateOrCreate(
+                ['name' => $name, 'company_id' => $company->id],
+                ['name' => $name, 'value' => $value, 'company_id' => $company->id]
+            );
+        }
+
+        self::clearCache($company->id);
+        cache()->forget('settings');
     }
 }

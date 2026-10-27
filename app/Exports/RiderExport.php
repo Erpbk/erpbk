@@ -3,21 +3,32 @@
 namespace App\Exports;
 
 use App\Exports\Concerns\BindsTextColumns;
-use App\Helpers\General;
 use App\Models\Riders;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\DefaultValueBinder;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class RiderExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder
+class RiderExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder, WithEvents
 {
   use BindsTextColumns;
 
-  protected $month;
+  /** @var array<int, string> excel row => absolute show URL */
+  protected array $nameLinkByExportRow = [];
+
+  protected int $exportRowCounter = 0;
+
+  /** Name is column D (1-based index 4) */
+  protected int $nameColumnIndex = 4;
 
   public function __construct()
   {
@@ -27,10 +38,37 @@ class RiderExport extends DefaultValueBinder implements FromCollection, WithHead
 
   public function collection()
   {
-    return Riders::with(['vendor', 'customer', 'bikes', 'country', 'account', 'branch'])->get();
+    $query = Riders::with(['vendor', 'customer', 'bikes', 'country', 'account', 'branch']);
+
+    if (Schema::hasTable('rider_histories')) {
+      $query->select('riders.*')->addSelect(Riders::employmentStatusDaysSelectColumns());
+    }
+
+    return $query->get();
   }
+
   public function map($rider): array
   {
+    $this->exportRowCounter++;
+    $excelRow = $this->exportRowCounter + 1;
+
+    try {
+      $params = ['rider' => $rider->id];
+      $companySlug = request()->route('company_slug');
+      if ($companySlug) {
+        $params['company_slug'] = $companySlug;
+      }
+      $this->nameLinkByExportRow[$excelRow] = route('riders.show', $params, true);
+    } catch (\Throwable $e) {
+      // leave without link
+    }
+
+    $statusLabel = Riders::currentStatusDisplay($rider)['label'] ?? '-';
+    $daysInfo = Riders::resolveEmploymentStatusDays($rider);
+    $statusDays = $daysInfo['days'] === null
+      ? '-'
+      : ((int) $daysInfo['days'] . ' ' . ((int) $daysInfo['days'] === 1 ? 'day' : 'days'));
+
     return [
       $rider->id,
       $rider->rider_id,
@@ -39,7 +77,8 @@ class RiderExport extends DefaultValueBinder implements FromCollection, WithHead
       $rider->branch?->name ?? '',
       $rider->account_id,
       $rider->account?->name ?? '',
-      General::RiderStatus($rider->status),
+      $statusLabel,
+      $statusDays,
       $rider->personal_contact,
       $rider->company_contact,
       $rider->email,
@@ -115,6 +154,7 @@ class RiderExport extends DefaultValueBinder implements FromCollection, WithHead
       'Account ID',
       'Account Name',
       'Status',
+      'Status Days',
       'Personal Contact',
       'Company Contact',
       'Email',
@@ -176,6 +216,31 @@ class RiderExport extends DefaultValueBinder implements FromCollection, WithHead
       'Bike Plate No',
       'Created At',
       'Updated At'
+    ];
+  }
+
+  public function registerEvents(): array
+  {
+    return [
+      AfterSheet::class => function (AfterSheet $event) {
+        if ($this->nameLinkByExportRow === []) {
+          return;
+        }
+
+        $sheet = $event->sheet->getDelegate();
+        $colLetter = Coordinate::stringFromColumnIndex($this->nameColumnIndex);
+
+        foreach ($this->nameLinkByExportRow as $row => $url) {
+          if ($url === '' || $url === null) {
+            continue;
+          }
+          $cell = $sheet->getCell($colLetter . $row);
+          $cell->getHyperlink()->setUrl($url);
+          $cell->getStyle()->getFont()
+            ->setColor(new Color(Color::COLOR_BLUE))
+            ->setUnderline(Font::UNDERLINE_SINGLE);
+        }
+      },
     ];
   }
 

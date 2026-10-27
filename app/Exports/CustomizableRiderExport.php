@@ -3,23 +3,35 @@
 namespace App\Exports;
 
 use App\Exports\Concerns\BindsTextColumns;
-use App\Helpers\General;
 use App\Models\Riders;
+use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\DefaultValueBinder;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Color;
+use PhpOffice\PhpSpreadsheet\Style\Font;
 
-class CustomizableRiderExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithCustomValueBinder
+class CustomizableRiderExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithCustomValueBinder, WithEvents
 {
     use BindsTextColumns;
 
     protected $visibleColumns;
     protected $columnOrder;
     protected $filters;
+
+    /** @var list<string> */
+    protected array $exportKeys = [];
+
+    /** @var array<int, string> excel row number => absolute rider show URL */
+    protected array $nameLinkByExportRow = [];
+
+    protected int $exportRowCounter = 0;
+
+    protected ?int $nameColumnIndex = null;
 
     // Define all available columns with their keys, titles, and data mappings
     protected $availableColumns = [
@@ -62,6 +74,10 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
         'status' => [
             'title' => 'Status',
             'data' => 'status'
+        ],
+        'status_days' => [
+            'title' => 'Status Days',
+            'data' => 'status_days'
         ],
         'shift' => [
             'title' => 'Shift',
@@ -160,16 +176,77 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
         // Apply any filters
         $this->filters = $filters;
+
+        $this->exportKeys = $this->buildExportKeys();
+        $namePos = array_search('name', $this->exportKeys, true);
+        $this->nameColumnIndex = $namePos === false ? null : ((int) $namePos + 1);
+    }
+
+    /**
+     * Visible columns only, in order. When Status is included, Status Days follows it.
+     *
+     * @return list<string>
+     */
+    protected function buildExportKeys(): array
+    {
+        $skip = ['action', 'search', 'control', 'status_days', 'employment_status_days'];
+        $statusAliases = ['rider_status', 'display_status'];
+        $keys = [];
+        $visible = array_values(array_filter(
+            (array) $this->visibleColumns,
+            fn ($k) => $k !== null && $k !== '' && ! in_array($k, $skip, true)
+        ));
+        $order = array_values(array_filter(
+            (array) $this->columnOrder,
+            fn ($k) => $k !== null && $k !== '' && ! in_array($k, $skip, true)
+        ));
+        $hasStatus = in_array('status', $visible, true);
+
+        foreach ($order as $columnKey) {
+            if (! in_array($columnKey, $visible, true)) {
+                continue;
+            }
+            // Avoid a second status column when Status already exports the current label
+            if ($hasStatus && in_array($columnKey, $statusAliases, true)) {
+                continue;
+            }
+            $keys[] = $columnKey;
+            if ($columnKey === 'status') {
+                $keys[] = 'status_days';
+            }
+        }
+
+        // Any visible keys missing from order (e.g. custom fields) still export
+        foreach ($visible as $columnKey) {
+            if (in_array($columnKey, $skip, true)) {
+                continue;
+            }
+            if ($hasStatus && in_array($columnKey, $statusAliases, true)) {
+                continue;
+            }
+            if (! in_array($columnKey, $keys, true)) {
+                $keys[] = $columnKey;
+                if ($columnKey === 'status' && ! in_array('status_days', $keys, true)) {
+                    $keys[] = 'status_days';
+                }
+            }
+        }
+
+        return $keys;
     }
 
     public function collection()
     {
-        $query = Riders::with(['bikes', 'country', 'branch', 'customer', 'sim']);
+        $query = Riders::query()->with(['bikes', 'country', 'branch', 'customer', 'sim']);
+
+        if (Schema::hasTable('rider_histories')) {
+            $query->select('riders.*')->addSelect(Riders::employmentStatusDaysSelectColumns());
+        }
 
         // Apply any filters that might be passed
-        if (!empty($this->filters)) {
+        if (! empty($this->filters)) {
             foreach ($this->filters as $key => $value) {
-                if (!empty($value)) {
+                if (! empty($value)) {
                     switch ($key) {
                         case 'rider_id':
                             $query->where('rider_id', $value);
@@ -200,14 +277,24 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
     public function map($rider): array
     {
+        $this->exportRowCounter++;
+        $excelRow = $this->exportRowCounter + 1; // header is row 1
         $data = [];
 
-        // Map each column according to the specified order
-        foreach ($this->columnOrder as $columnKey) {
-            // Only include visible columns
-            if (in_array($columnKey, $this->visibleColumns)) {
-                $data[] = $this->getColumnValue($rider, $columnKey);
+        foreach ($this->exportKeys as $columnKey) {
+            if ($columnKey === 'name') {
+                try {
+                    $params = ['rider' => $rider->id];
+                    $companySlug = request()->route('company_slug');
+                    if ($companySlug) {
+                        $params['company_slug'] = $companySlug;
+                    }
+                    $this->nameLinkByExportRow[$excelRow] = route('riders.show', $params, true);
+                } catch (\Throwable $e) {
+                    // leave without link
+                }
             }
+            $data[] = $this->getColumnValue($rider, $columnKey);
         }
 
         return $data;
@@ -217,15 +304,37 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
     {
         $headings = [];
 
-        // Generate headings according to the specified order
-        foreach ($this->columnOrder as $columnKey) {
-            // Only include visible columns
-            if (in_array($columnKey, $this->visibleColumns)) {
-                $headings[] = $this->availableColumns[$columnKey]['title'] ?? ucfirst(str_replace('_', ' ', $columnKey));
-            }
+        foreach ($this->exportKeys as $columnKey) {
+            $headings[] = $this->availableColumns[$columnKey]['title']
+                ?? ucfirst(str_replace('_', ' ', $columnKey));
         }
 
         return $headings;
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                if ($this->nameColumnIndex === null || $this->nameLinkByExportRow === []) {
+                    return;
+                }
+
+                $sheet = $event->sheet->getDelegate();
+                $colLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($this->nameColumnIndex);
+
+                foreach ($this->nameLinkByExportRow as $row => $url) {
+                    if ($url === '' || $url === null) {
+                        continue;
+                    }
+                    $cell = $sheet->getCell($colLetter . $row);
+                    $cell->getHyperlink()->setUrl($url);
+                    $cell->getStyle()->getFont()
+                        ->setColor(new Color(Color::COLOR_BLUE))
+                        ->setUnderline(Font::UNDERLINE_SINGLE);
+                }
+            },
+        ];
     }
 
     protected function getColumnValue($rider, $columnKey)
@@ -268,14 +377,24 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
             case 'bike':
                 $bike = \App\Support\CompanyQuery::table('bikes')->where('rider_id', $rider->id)->first();
+
                 return $bike ? $bike->plate : '-';
 
             case 'status':
-                $hasActiveBike = \App\Support\CompanyQuery::table('bikes')
-                    ->where('rider_id', $rider->id)
-                    ->where('warehouse', 'Active')
-                    ->exists();
-                return $hasActiveBike ? 'Active' : 'Inactive';
+            case 'rider_status':
+            case 'display_status':
+                // Single current status only (same as list UI: rider_status option, else employment)
+                return Riders::currentStatusDisplay($rider)['label'] ?? '-';
+
+            case 'status_days':
+            case 'employment_status_days':
+                $resolved = Riders::resolveEmploymentStatusDays($rider);
+                if ($resolved['days'] === null) {
+                    return '-';
+                }
+                $n = (int) $resolved['days'];
+
+                return $n . ' ' . ($n === 1 ? 'day' : 'days');
 
             case 'shift':
                 return $rider->shift;
@@ -348,8 +467,33 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
                 return $rider->c3_card;
 
             default:
-                return '-';
+                if (str_starts_with((string) $columnKey, 'custom_field_values.')) {
+                    $value = data_get($rider, $columnKey);
+
+                    return $this->stringifyExportValue($value);
+                }
+
+                $value = data_get($rider, $columnKey);
+
+                return $this->stringifyExportValue($value);
         }
+    }
+
+    protected function stringifyExportValue($value): string
+    {
+        if ($value === null || $value === '') {
+            return '-';
+        }
+        if (is_array($value)) {
+            return array_is_list($value)
+                ? implode(', ', array_map(fn ($v) => is_scalar($v) ? (string) $v : json_encode($v), $value))
+                : (string) json_encode($value);
+        }
+        if ($value instanceof \Illuminate\Support\Collection) {
+            return $this->stringifyExportValue($value->toArray());
+        }
+
+        return (string) $value;
     }
 
     /**
@@ -362,6 +506,6 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
     protected function textColumns(): array
     {
-        return $this->columnLettersForKeys($this->columnOrder, $this->visibleColumns, ['rider_id']);
+        return $this->columnLettersForKeys($this->exportKeys, $this->exportKeys, ['rider_id']);
     }
 }

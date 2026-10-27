@@ -118,94 +118,13 @@
           @endif
           @endif
           <small class="text-muted d-block mt-1">Used in PDFs and outbound emails for this company only.</small>
-        </div>
-        <div class="col-md-2 mb-3">
-          <label>Primary brand color</label>
-          <input type="color" name="company_primary_color" class="form-control form-control-color w-100"
-            value="{{ old('company_primary_color', $currentCompany->primary_color ?? '#2563eb') }}" />
-          <small class="text-muted d-block mt-1">Used across the site (UI, invoices, vouchers, emails) for this company only.</small>
-        </div>
-        <div class="col-md-2 mb-3">
-          <label>Secondary brand color</label>
-          <input type="color" name="company_secondary_color" class="form-control form-control-color w-100"
-            value="{{ old('company_secondary_color', $currentCompany->secondary_color ?? '#1e3a8a') }}" />
-        </div>
-        <div class="col-md-2 mb-3">
-          <label>Accent text color</label>
-          <input type="color" name="company_accent_color" class="form-control form-control-color w-100"
-            value="{{ old('company_accent_color', $currentCompany->accent_color ?? '#818cf8') }}" />
-          <small class="text-muted d-block mt-1">Used for highlight text and badge labels (e.g. document dates).</small>
+          <small class="text-muted d-block mt-1">
+            Brand colors and currency are managed under
+            <a href="{{ route('settings-panel.global', ['company_slug' => request()->route('company_slug') ?? session('company_slug')]) }}">Global Settings</a>.
+          </small>
         </div>
         @endif
 
-        @php
-          $currencyCatalog = $currencyCatalog ?? \App\Helpers\Currency::catalog();
-          $selectedCurrencyCode = old('settings.currency_code', $settings['currency_code'] ?? ($appCurrencyCode ?? 'AED'));
-          $selectedCurrencyCode = strtoupper(trim((string) $selectedCurrencyCode));
-          if (!isset($currencyCatalog[$selectedCurrencyCode])) {
-            $selectedCurrencyCode = 'AED';
-          }
-          $selectedCurrencySymbol = $currencyCatalog[$selectedCurrencyCode]['symbol'] ?? ($settings['currency_symbol'] ?? $selectedCurrencyCode);
-          $currencyIconPath = $settings['currency_icon'] ?? null;
-          $currencyIconExists = !empty($currencyIconPath) && \App\Support\PublicStorageDisk::exists($currencyIconPath);
-          $currencyIconUrl = $currencyIconExists ? \App\Support\PublicStorageDisk::url($currencyIconPath) : null;
-          $currencyIconMode = old('currency_icon_mode', $currencyIconExists ? 'custom' : 'default');
-        @endphp
-        <div class="col-md-4 mb-3">
-          <label class="">Currency</label>
-          <select
-            id="company_currency_code"
-            name="settings[currency_code]"
-            class="form-select select2"
-            data-placeholder="Select currency">
-            @foreach($currencyCatalog as $code => $meta)
-              <option
-                value="{{ $code }}"
-                data-symbol="{{ $meta['symbol'] }}"
-                @selected($selectedCurrencyCode === $code)>
-                {{ $code }} — {{ $meta['name'] }} ({{ $meta['symbol'] }})
-              </option>
-            @endforeach
-          </select>
-          <input type="hidden" name="settings[currency_symbol]" id="company_currency_symbol" value="{{ old('settings.currency_symbol', $selectedCurrencySymbol) }}" />
-          <small class="text-muted d-block mt-1">
-            Default symbol:
-            <span id="company_currency_symbol_preview">{{ $selectedCurrencySymbol }}</span>
-          </small>
-        </div>
-        <div class="col-md-4 mb-3">
-          <label class="">Currency icon</label>
-          <div class="d-flex flex-column gap-2">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="currency_icon_mode" id="currency_icon_mode_default" value="default" @checked($currencyIconMode === 'default')>
-              <label class="form-check-label" for="currency_icon_mode_default">Use default currency symbol</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" name="currency_icon_mode" id="currency_icon_mode_custom" value="custom" @checked($currencyIconMode === 'custom')>
-              <label class="form-check-label" for="currency_icon_mode_custom">Upload custom currency icon</label>
-            </div>
-            <div id="currency_icon_upload_wrap" class="{{ $currencyIconMode === 'custom' ? '' : 'd-none' }}">
-              <input type="file" name="currency_icon" id="currency_icon" class="form-control" accept=".jpg,.jpeg,.png,.webp" />
-              @error('currency_icon')
-              <div class="text-danger small mt-1">{{ $message }}</div>
-              @enderror
-              @if($currencyIconExists && $currencyIconUrl)
-              <div class="mt-2 d-flex align-items-center gap-2">
-                <img src="{{ $currencyIconUrl }}" alt="Currency icon" class="app-currency-icon app-currency-icon--preview">
-                <div class="form-check mb-0">
-                  <input class="form-check-input" type="checkbox" name="remove_currency_icon" id="remove_currency_icon" value="1">
-                  <label class="form-check-label" for="remove_currency_icon">Remove custom icon</label>
-                </div>
-              </div>
-              @elseif(!empty($currencyIconPath))
-              <div class="alert alert-warning mt-2 mb-0 py-2 small">
-                A currency icon path is saved but the file is missing on the server. Upload the icon again.
-              </div>
-              @endif
-            </div>
-          </div>
-          <small class="text-muted d-block mt-1">Used for amounts across this company only (UI, PDFs, emails).</small>
-        </div>
         <div class="col-md-4 mb-3">
           <label class="">VAT Number</label>
           <div class="input-group ">

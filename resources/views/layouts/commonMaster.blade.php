@@ -41,6 +41,8 @@ $contentLayout = (isset($container) ? (($container === 'container-xxl') ? "layou
 
   @vite('resources/sass/app.scss')
   @vite('resources/js/app.js')
+  {{-- Company font/date prefs must load after vendor + Vite CSS --}}
+  @include('layouts.partials.company_global_preferences')
 </head>
 
 <body>

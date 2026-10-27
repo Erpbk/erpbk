@@ -19,7 +19,6 @@ use Illuminate\Validation\Rule;
 use App\Traits\GlobalPagination;
 use App\Support\DashboardCardRegistry;
 use App\Support\DocumentExpiryDashboard;
-use App\Support\PublicStorageDisk;
 
 class HomeController extends Controller
 {
@@ -79,15 +78,8 @@ class HomeController extends Controller
         'company_country' => 'nullable|string|max:255',
         'company_city' => 'nullable|string|max:255',
         'company_logo' => 'nullable|image|mimes:jpg,jpeg,png,webp',
-        'company_primary_color' => 'nullable|string|max:20',
-        'company_secondary_color' => 'nullable|string|max:20',
-        'company_accent_color' => 'nullable|string|max:20',
-        'settings.currency_code' => ['nullable', 'string', 'max:10', Rule::in(Currency::catalogCodes())],
         'settings.vat_number' => 'nullable|string|max:50',
         'settings.vat_percentage' => 'nullable|numeric',
-        'currency_icon' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-        'currency_icon_mode' => 'nullable|in:default,custom',
-        'remove_currency_icon' => 'nullable|boolean',
       ]);
 
       $nameChanged = $validated['company_name'] !== $currentCompany->name;
@@ -116,15 +108,6 @@ class HomeController extends Controller
       $currentCompany->address = $validated['company_address'] ?? null;
       $currentCompany->country = $validated['company_country'] ?? null;
       $currentCompany->city = $validated['company_city'] ?? null;
-      if ($request->filled('company_primary_color')) {
-        $currentCompany->primary_color = $request->input('company_primary_color');
-      }
-      if ($request->filled('company_secondary_color')) {
-        $currentCompany->secondary_color = $request->input('company_secondary_color');
-      }
-      if ($request->filled('company_accent_color')) {
-        $currentCompany->accent_color = $request->input('company_accent_color');
-      }
 
       if ($request->hasFile('company_logo')) {
         $path = $request->file('company_logo')->store('company-logos', 'public');
@@ -175,19 +158,10 @@ class HomeController extends Controller
         );
       }
 
-      $this->persistCompanyCurrencySettings($request, $currentCompany);
-
       return back()->with('success', __('Company details updated successfully.'));
     }
 
     if ($request->isMethod('post') && $request->post('settings') && $currentCompany instanceof Company) {
-      $request->validate([
-        'settings.currency_code' => ['nullable', 'string', 'max:10', Rule::in(Currency::catalogCodes())],
-        'currency_icon' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
-        'currency_icon_mode' => 'nullable|in:default,custom',
-        'remove_currency_icon' => 'nullable|boolean',
-      ]);
-
       $settingsPayload = (array) $request->post('settings', []);
       unset($settingsPayload['currency_code'], $settingsPayload['currency_symbol'], $settingsPayload['currency_icon']);
 
@@ -198,7 +172,6 @@ class HomeController extends Controller
         );
       }
 
-      $this->persistCompanyCurrencySettings($request, $currentCompany);
       session()->flash('success', 'Settings updated successfully.');
     }
 
@@ -211,53 +184,5 @@ class HomeController extends Controller
     $currencyCatalog = Currency::catalog();
 
     return view('content.settings', compact('settings', 'currentCompany', 'currencyCatalog'));
-  }
-
-  private function persistCompanyCurrencySettings(Request $request, Company $company): void
-  {
-    $code = strtoupper(trim((string) $request->input('settings.currency_code', Currency::code())));
-    $catalog = Currency::catalog();
-    if ($code === '' || ! isset($catalog[$code])) {
-      $code = 'AED';
-    }
-
-    $symbol = Currency::defaultSymbolForCode($code);
-    $existingIcon = (string) (Settings::query()
-      ->where('company_id', $company->id)
-      ->where('name', 'currency_icon')
-      ->value('value') ?? '');
-
-    $mode = (string) $request->input('currency_icon_mode', $existingIcon !== '' ? 'custom' : 'default');
-    $removeIcon = $request->boolean('remove_currency_icon') || $mode === 'default';
-    $iconPath = $existingIcon;
-
-    if ($removeIcon && $existingIcon !== '') {
-      if (PublicStorageDisk::exists($existingIcon)) {
-        PublicStorageDisk::disk()->delete($existingIcon);
-      }
-      $iconPath = '';
-    }
-
-    if ($mode === 'custom' && $request->hasFile('currency_icon')) {
-      $path = $request->file('currency_icon')->store('currency-icons', 'public');
-      if ($existingIcon !== '' && $existingIcon !== $path && PublicStorageDisk::exists($existingIcon)) {
-        PublicStorageDisk::disk()->delete($existingIcon);
-      }
-      $iconPath = $path;
-    }
-
-    foreach ([
-      'currency_code' => $code,
-      'currency_symbol' => $symbol,
-      'currency_icon' => $iconPath,
-    ] as $name => $value) {
-      Settings::updateOrCreate(
-        ['name' => $name, 'company_id' => $company->id],
-        ['name' => $name, 'value' => $value, 'company_id' => $company->id]
-      );
-    }
-
-    Currency::clearCache($company->id);
-    cache()->forget('settings');
   }
 }

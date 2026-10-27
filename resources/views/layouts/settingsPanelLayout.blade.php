@@ -43,6 +43,12 @@ $containerNav = 'container-fluid';
             <div>Company Details</div>
           </a>
         </li>
+        <li class="menu-item {{ Request::is('settings-panel/global') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.global', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-world"></i>
+            <div>Global Settings</div>
+          </a>
+        </li>
         @endcan
         {{-- @can('gn_settings')
         <li class="menu-item {{ Request::is('settings-panel/erp') ? 'active' : '' }}">

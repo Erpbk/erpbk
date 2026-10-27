@@ -198,6 +198,13 @@ class AppServiceProvider extends ServiceProvider
       $view->with('appCurrencySymbol', Currency::symbol());
       $view->with('appCurrencyIconUrl', Currency::iconUrl());
       $view->with('appCurrencyMark', Currency::mark());
+
+      $globalPreferences = \App\Support\CompanyGlobalPreferences::all(
+        $companyId !== null ? $companyId : null
+      );
+      $view->with('globalPreferences', $globalPreferences);
+      $view->with('appDateFormat', $globalPreferences['date_format'] ?? 'd-m-Y');
+      $view->with('appFontFamily', $globalPreferences['font_family'] ?? 'Public Sans');
     });
 
     Relation::morphMap([

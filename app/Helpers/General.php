@@ -922,12 +922,12 @@ class General
 
   public static function DateFormat($date)
   {
-    return date('d M Y', strtotime($date));
+    return Common::DateFormat($date);
   }
 
   public static function DateTimeFormat($date)
   {
-    return date('d M Y h:i A', strtotime($date));
+    return Common::DateTimeFormat($date);
   }
 
   public static function dropdownitems($itemsId = null, $selected = null, $parentId = null, $prefix = '')

@@ -5,6 +5,7 @@ namespace App\Helpers;
 use App\Models\Dropdowns;
 use App\Models\Settings;
 use App\Models\User;
+use App\Support\CompanyGlobalPreferences;
 
 class Common
 {
@@ -67,17 +68,52 @@ class Common
 
     public static function DateFormat($date)
     {
-        return date('d-M-Y', strtotime($date));
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime((string) $date);
+        if ($timestamp === false) {
+            return (string) $date;
+        }
+
+        return date(CompanyGlobalPreferences::phpDateFormat(), $timestamp);
     }
 
     public static function MonthFormat($date)
     {
-        return date('M Y', strtotime($date));
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime((string) $date);
+        if ($timestamp === false) {
+            return (string) $date;
+        }
+
+        $format = CompanyGlobalPreferences::phpDateFormat();
+        // Keep month+year only, derived from the company date order.
+        $monthFormat = match ($format) {
+            'Y-m-d' => 'Y-m',
+            'm-d-Y' => 'm-Y',
+            default => 'm-Y',
+        };
+
+        return date($monthFormat, $timestamp);
     }
 
     public static function DateTimeFormat($date)
     {
-        return date('d M Y h:i A', strtotime($date));
+        if ($date === null || $date === '') {
+            return '';
+        }
+
+        $timestamp = strtotime((string) $date);
+        if ($timestamp === false) {
+            return (string) $date;
+        }
+
+        return date(CompanyGlobalPreferences::phpDateFormat() . ' h:i A', $timestamp);
     }
 
     public static function Dropdowns($key)

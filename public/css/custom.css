@@ -399,6 +399,15 @@ th {
   z-index: 1080;
 }
 
+/*
+ * Theme modal is 1090, layout chrome ~1095, rider filter ~11060.
+ * CDN SweetAlert defaults to 1060, so confirms sit under modals/menus and look
+ * like a full-page overlay. Keep Swal above every app chrome layer.
+ */
+.swal2-container {
+  z-index: 20000 !important;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .table-responsive::-webkit-scrollbar {
   display: none;

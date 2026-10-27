@@ -387,6 +387,132 @@ $homeLink = $isAdminSession
   }
 
   var lastBannerKey = '';
+  var bannerItems = [];
+
+  function bannerItemsKey(items) {
+    return (items || []).map(function (item) {
+      return String(item.id) + ':' + (item.is_unread ? '1' : '0');
+    }).join(',');
+  }
+
+  function findBannerItem(id) {
+    id = String(id);
+    for (var i = 0; i < bannerItems.length; i++) {
+      if (String(bannerItems[i].id) === id) return bannerItems[i];
+    }
+    return null;
+  }
+
+  function clearBannerTrack() {
+    lastBannerKey = '';
+    bannerItems = [];
+    bannerTrack.innerHTML = '';
+    bannerTrack.style.animation = '';
+    bannerEl.classList.add('d-none');
+  }
+
+  function applyBannerMetrics() {
+    var trackW = Math.max(bannerTrack.scrollWidth, 1);
+    var viewW = Math.max(bannerEl.clientWidth || bannerWrap.clientWidth || 400, 1);
+    bannerEl.style.setProperty('--banner-from', viewW + 'px');
+    bannerEl.style.setProperty('--banner-to', (-trackW) + 'px');
+    // ~40px/s — readable single-pass marquee.
+    var duration = Math.max(12, (viewW + trackW) / 40);
+    bannerEl.style.setProperty('--banner-duration', duration + 's');
+    bannerTrack.style.animation = '';
+  }
+
+  function bindBannerItemHandlers() {
+    bannerTrack.querySelectorAll('[data-banner-dismiss-id]').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var id = btn.getAttribute('data-banner-dismiss-id');
+        var item = findBannerItem(id);
+        if (!item || !item.mark_dismiss_url) return;
+        var row = btn.closest('.nav-notification-banner__item');
+        btn.disabled = true;
+        fetch(item.mark_dismiss_url, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        }).finally(function () {
+          // Remove in place — keep the marquee running (no restart from the right).
+          if (row && row.parentNode) {
+            row.parentNode.removeChild(row);
+          }
+          bannerItems = bannerItems.filter(function (n) {
+            return String(n.id) !== String(id);
+          });
+          lastBannerKey = bannerItemsKey(bannerItems);
+          if (!bannerItems.length) {
+            clearBannerTrack();
+          }
+          // Leave animation running so the marquee does not jump back to the right.
+          refreshCount();
+          refreshDropdown();
+        });
+      });
+    });
+
+    bannerTrack.querySelectorAll('[data-banner-id]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        if (e.target && e.target.closest && e.target.closest('[data-banner-dismiss-id]')) {
+          return;
+        }
+        e.preventDefault();
+        var item = findBannerItem(el.getAttribute('data-banner-id'));
+        if (!item) return;
+        var url = item.mark_read_url;
+        var open = function () {
+          item.is_unread = false;
+          el.classList.add('is-read');
+          lastBannerKey = bannerItemsKey(bannerItems);
+          openNotificationAction(item);
+        };
+        if (!url) {
+          open();
+          return;
+        }
+        fetch(url, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          credentials: 'same-origin'
+        }).finally(open);
+      });
+    });
+  }
+
+  function renderBannerItems(items) {
+    bannerItems = items.slice();
+    lastBannerKey = bannerItemsKey(bannerItems);
+
+    var html = bannerItems.map(function (item) {
+      var readClass = item.is_unread ? '' : ' is-read';
+      return '<span class="nav-notification-banner__item' + readClass + '" data-banner-id="' + escapeHtml(item.id) + '" role="button" tabindex="0">' +
+        '<span class="nav-notification-banner__dot ' + severityClass(item.severity) + '"></span>' +
+        '<span class="nav-notification-banner__title">' + escapeHtml(item.title) + '</span>' +
+        '<button type="button" class="nav-notification-banner__dismiss" data-banner-dismiss-id="' + escapeHtml(item.id) + '" title="Dismiss" aria-label="Dismiss">&times;</button>' +
+        '</span>';
+    }).join('');
+
+    bannerTrack.style.animation = 'none';
+    bannerTrack.innerHTML = html;
+    bannerEl.classList.remove('d-none');
+    bindBannerItemHandlers();
+
+    requestAnimationFrame(function () {
+      applyBannerMetrics();
+    });
+  }
 
   function refreshBanners() {
     if (!bannerWrap || !bannerEl || !bannerTrack) return;
@@ -395,101 +521,18 @@ $homeLink = $isAdminSession
       .then(function (data) {
         var items = data.items || [];
         if (!items.length) {
-          lastBannerKey = '';
-          bannerTrack.innerHTML = '';
-          bannerEl.classList.add('d-none');
+          clearBannerTrack();
           return;
         }
 
         // Keep the same seamless loop running until the set of notifications changes
-        // (item dismissed, unread state change, or a new one arrives).
-        var key = items.map(function (item) {
-          return String(item.id) + ':' + (item.is_unread ? '1' : '0');
-        }).join(',');
+        // (item dismissed elsewhere, unread state change, or a new one arrives).
+        var key = bannerItemsKey(items);
         if (key === lastBannerKey && !bannerEl.classList.contains('d-none')) {
           return;
         }
-        lastBannerKey = key;
 
-        // One copy of each undismissed title — enters from the right, exits left, then loops.
-        var html = items.map(function (item, idx) {
-          var readClass = item.is_unread ? '' : ' is-read';
-          return '<span class="nav-notification-banner__item' + readClass + '" data-banner-idx="' + idx + '" role="button" tabindex="0">' +
-            '<span class="nav-notification-banner__dot ' + severityClass(item.severity) + '"></span>' +
-            '<span class="nav-notification-banner__title">' + escapeHtml(item.title) + '</span>' +
-            '<button type="button" class="nav-notification-banner__dismiss" data-banner-dismiss-idx="' + idx + '" title="Dismiss" aria-label="Dismiss">&times;</button>' +
-            '</span>';
-        }).join('');
-
-        bannerTrack.style.animation = 'none';
-        bannerTrack.innerHTML = html;
-        bannerEl.classList.remove('d-none');
-
-        bannerTrack.querySelectorAll('[data-banner-dismiss-idx]').forEach(function (btn) {
-          btn.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            var idx = parseInt(btn.getAttribute('data-banner-dismiss-idx'), 10);
-            var item = items[idx];
-            if (!item || !item.mark_dismiss_url) return;
-            fetch(item.mark_dismiss_url, {
-              method: 'POST',
-              headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrf,
-                'X-Requested-With': 'XMLHttpRequest'
-              },
-              credentials: 'same-origin'
-            }).finally(function () {
-              lastBannerKey = '';
-              refreshCount();
-              refreshBanners();
-              refreshDropdown();
-            });
-          });
-        });
-
-        bannerTrack.querySelectorAll('[data-banner-idx]').forEach(function (el) {
-          el.addEventListener('click', function (e) {
-            if (e.target && e.target.closest && e.target.closest('[data-banner-dismiss-idx]')) {
-              return;
-            }
-            e.preventDefault();
-            var idx = parseInt(el.getAttribute('data-banner-idx'), 10);
-            var item = items[idx];
-            if (!item) return;
-            var url = item.mark_read_url;
-            var open = function () {
-              item.is_unread = false;
-              openNotificationAction(item);
-            };
-            if (!url) {
-              open();
-              return;
-            }
-            fetch(url, {
-              method: 'POST',
-              headers: {
-                'Accept': 'application/json',
-                'X-CSRF-TOKEN': csrf,
-                'X-Requested-With': 'XMLHttpRequest'
-              },
-              credentials: 'same-origin'
-            }).finally(open);
-          });
-        });
-
-        requestAnimationFrame(function () {
-          var trackW = Math.max(bannerTrack.scrollWidth, 1);
-          var viewW = Math.max(bannerEl.clientWidth || bannerWrap.clientWidth || 400, 1);
-          // Start just off the right edge; end fully past the left edge.
-          bannerEl.style.setProperty('--banner-from', viewW + 'px');
-          bannerEl.style.setProperty('--banner-to', (-trackW) + 'px');
-          // ~40px/s — readable single-pass marquee.
-          var duration = Math.max(12, (viewW + trackW) / 40);
-          bannerEl.style.setProperty('--banner-duration', duration + 's');
-          bannerTrack.style.animation = '';
-        });
+        renderBannerItems(items);
       }).catch(function () {});
   }
 

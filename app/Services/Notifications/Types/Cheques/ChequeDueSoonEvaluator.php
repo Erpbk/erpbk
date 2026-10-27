@@ -34,6 +34,9 @@ class ChequeDueSoonEvaluator implements ScheduledEvaluator
             $cheques = Cheques::query()
                 ->where('company_id', $companyId)
                 ->whereIn('status', $statuses)
+                ->where(function ($q) {
+                    $q->where('is_security', false)->orWhereNull('is_security');
+                })
                 ->whereDate('cheque_date', $targetDate)
                 ->get();
 

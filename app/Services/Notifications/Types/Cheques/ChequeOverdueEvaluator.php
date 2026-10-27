@@ -39,6 +39,9 @@ class ChequeOverdueEvaluator implements ConditionEvaluator
         $cheques = Cheques::query()
             ->where('company_id', $companyId)
             ->whereIn('status', $statuses)
+            ->where(function ($q) {
+                $q->where('is_security', false)->orWhereNull('is_security');
+            })
             ->whereNotNull('cheque_date')
             ->whereDate('cheque_date', '<', $today->toDateString())
             ->get();

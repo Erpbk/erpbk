@@ -158,6 +158,15 @@ $banks = $banks ?? \App\Models\Banks::active()->get();
                     <i class="ti ti-file-invoice"></i> Payment Voucher
                 </a>
                 @endcan
+                @can('riders_voucher_create')
+                <a href="javascript:void(0);"
+                    class="btn btn-outline-primary btn-sm show-modal"
+                    data-size="sm"
+                    data-title="Import Rider Vouchers"
+                    data-action="{{ route('riders.import_rider_vouchers', ['modal' => 1]) }}">
+                    <i class="ti ti-upload"></i> Import Vouchers
+                </a>
+                @endcan
                 <button type="button" class="btn btn-primary btn-sm openFilterSidebar"><i class="fa fa-search"></i> Filter</button>
             </div>
         </div>

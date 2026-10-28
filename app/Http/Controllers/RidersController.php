@@ -2002,8 +2002,24 @@ class RidersController extends AppBaseController
 
       try {
         Excel::import(new ImportRiderVoucherOnly, $request->file('file'));
+
+        if ($request->expectsJson() || $request->ajax()) {
+          return response()->json([
+            'success' => true,
+            'message' => 'Rider vouchers imported successfully.',
+            'reload' => true,
+          ]);
+        }
+
         Flash::success('Rider vouchers imported successfully.');
       } catch (\Throwable $e) {
+        if ($request->expectsJson() || $request->ajax()) {
+          return response()->json([
+            'success' => false,
+            'message' => 'Error importing rider vouchers: ' . $e->getMessage(),
+          ], 422);
+        }
+
         Flash::error('Error importing rider vouchers: ' . $e->getMessage());
       }
 

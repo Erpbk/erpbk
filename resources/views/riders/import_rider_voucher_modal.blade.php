@@ -1,4 +1,4 @@
-<form action="{{ route('riders.import_rider_vouchers') }}" method="POST" enctype="multipart/form-data">
+<form action="{{ route('riders.import_rider_vouchers') }}" method="POST" enctype="multipart/form-data" id="formajax">
     @csrf
     <div class="row">
         <div class="col-12">

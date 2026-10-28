@@ -27,6 +27,7 @@ use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Support\InvoicePdf;
 use App\Support\ResourceLinks;
+use App\Support\RiderVoucherPermissions;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
 use Carbon\Carbon;
@@ -100,6 +101,9 @@ class PaymentController extends Controller
         $riderPayment = request()->input('rider_payment') || request()->input('invoice_type') == 'rider';
         $simPayment = request()->input('sim_payment') || request()->input('invoice_type') == 'sim';
         $riderId = request()->input('rider_id') ?? null;
+        if ($riderPayment) {
+            RiderVoucherPermissions::authorize('PAY', 'create');
+        }
         if (request()->input('leasing_payment')) {
             $leasingIds = LeasingCompanies::pluck('id')->toArray();
             $accountIds = LeasingCompanies::pluck('account_id')->toArray();
@@ -350,11 +354,19 @@ class PaymentController extends Controller
             $request->input('invoice_type') === 'rider'
             && in_array($request->input('create_payment_type'), ['advance_loan', 'advance_payment'], true)
         ) {
+            RiderVoucherPermissions::authorize('AL', 'create');
+            $this->stripRiderAttachmentWithoutUploadPermission($request, 'AL');
+
             return $this->storeRiderAdvanceLoanFromPaymentForm($request);
         }
 
         $isRiderPaymentCreate = $request->input('invoice_type') === 'rider'
             && in_array($request->input('create_payment_type', 'salary_payment'), ['payment', 'salary_payment', 'c3', ''], true);
+
+        if ($request->input('invoice_type') === 'rider') {
+            RiderVoucherPermissions::authorize('PAY', 'create');
+            $this->stripRiderAttachmentWithoutUploadPermission($request, 'PAY');
+        }
 
         $rules = [
             'reference' => 'nullable|string|max:255',
@@ -803,6 +815,8 @@ class PaymentController extends Controller
             return view('payments.show_fields')->with('payment', $payment);
         }
 
+        RiderVoucherPermissions::authorize('PAY', 'view');
+
         $data = $viewData->build($payment);
         if ($request->boolean('print')) {
             return response()->view('payments.voucher_print', $data);
@@ -841,6 +855,10 @@ class PaymentController extends Controller
             return redirect()->back();
         }
 
+        if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
+            RiderVoucherPermissions::authorize('PAY', 'edit');
+        }
+
         return view('payments.edit', $this->buildLinkedPaymentFormData($payment));
     }
 
@@ -855,6 +873,11 @@ class PaymentController extends Controller
             Flash::error('Payment not found!');
 
             return redirect()->back();
+        }
+
+        if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
+            RiderVoucherPermissions::authorize('PAY', 'edit');
+            $this->stripRiderAttachmentWithoutUploadPermission($request, 'PAY');
         }
 
         $request['billing_month'] = $request['billing_month'] . '-01';
@@ -1298,6 +1321,10 @@ class PaymentController extends Controller
             Flash::error('Payment not found!');
 
             return redirect()->back();
+        }
+
+        if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
+            RiderVoucherPermissions::authorize('PAY', 'delete');
         }
 
         // Delete-approval: queue request (voucher + transactions + payment) until admin approves.
@@ -2476,5 +2503,18 @@ class PaymentController extends Controller
         if (! empty($existingInvoices)) {
             $builder->attachPaymentFormBreakdowns($existingInvoices);
         }
+    }
+
+    /**
+     * Drop attachment uploads when the user lacks the typed rider voucher upload permission.
+     */
+    private function stripRiderAttachmentWithoutUploadPermission(Request $request, string $code): void
+    {
+        if (RiderVoucherPermissions::canUpload($code)) {
+            return;
+        }
+
+        $request->files->remove('attachment');
+        $request->request->remove('attachment');
     }
 }

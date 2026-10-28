@@ -61,6 +61,7 @@ use App\Support\CompanyQuery;
 use App\Support\CompanyScope;
 use App\Support\RiderDocumentChecklist;
 use App\Support\RiderDocumentReplacement;
+use App\Support\RiderVoucherPermissions;
 use App\Support\SimAssigneeContactSync;
 use App\Support\TopBarNumericStatus;
 use App\Traits\GlobalPagination;
@@ -273,6 +274,20 @@ class RidersController extends AppBaseController
   /**
    * Shared index / filterAjax query builder.
    */
+  /**
+   * Riders matching the current list filters, eager-loaded for Excel export.
+   *
+   * @return \Illuminate\Support\Collection<int, Riders>
+   */
+  private function ridersForExport(Request $request)
+  {
+    $favoriteIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+    $query = $this->buildRidersIndexQuery($request, $favoriteIds);
+    $query->with(['bikes', 'country', 'branch', 'customer', 'sim', 'vendor', 'account']);
+
+    return $query->get();
+  }
+
   private function buildRidersIndexQuery(Request $request, array $favoriteIds = [])
   {
     $currentMonthStart = Carbon::now()->startOfMonth()->toDateString();
@@ -1967,6 +1982,8 @@ class RidersController extends AppBaseController
    */
   public function importVouchers(Request $request)
   {
+    RiderVoucherPermissions::authorize('IMPORT', $request->isMethod('post') ? 'create' : 'view');
+
     if ($request->isMethod('post')) {
       $request->validate([
         'file' => 'required|mimes:xlsx|max:50000',
@@ -1993,6 +2010,8 @@ class RidersController extends AppBaseController
    */
   public function importRiderVouchers(Request $request)
   {
+    RiderVoucherPermissions::authorize('IMPORT', $request->isMethod('post') ? 'create' : 'view');
+
     if ($request->isMethod('post')) {
       $request->validate([
         'file' => 'required|mimes:xlsx|max:50000',
@@ -2002,8 +2021,24 @@ class RidersController extends AppBaseController
 
       try {
         Excel::import(new ImportRiderVoucherOnly, $request->file('file'));
+
+        if ($request->expectsJson() || $request->ajax()) {
+          return response()->json([
+            'success' => true,
+            'message' => 'Rider vouchers imported successfully.',
+            'reload' => true,
+          ]);
+        }
+
         Flash::success('Rider vouchers imported successfully.');
       } catch (\Throwable $e) {
+        if ($request->expectsJson() || $request->ajax()) {
+          return response()->json([
+            'success' => false,
+            'message' => 'Error importing rider vouchers: ' . $e->getMessage(),
+          ], 422);
+        }
+
         Flash::error('Error importing rider vouchers: ' . $e->getMessage());
       }
 
@@ -2035,6 +2070,7 @@ class RidersController extends AppBaseController
 
   public function advanceloan($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('AL', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -2391,9 +2427,11 @@ class RidersController extends AppBaseController
     return view('riders.send_email', compact('rider', 'emailBranding'));
   }
 
-  public function exportRiders()
+  public function exportRiders(Request $request)
   {
-    return Excel::download(new RiderExport, 'Riders_export_' . now() . '.xlsx');
+    $riders = $this->ridersForExport($request);
+
+    return Excel::download(new RiderExport($riders), 'Riders_export_' . now() . '.xlsx');
   }
 
   /**
@@ -2499,17 +2537,11 @@ class RidersController extends AppBaseController
       }
     }
 
-    // Get current filters from session or request
-    $filters = [
-      'rider_id' => $request->input('rider_id') ?: session('riders_filter.rider_id'),
-      'name' => $request->input('name') ?: session('riders_filter.name'),
-      'fleet_supervisor' => $request->input('fleet_supervisor') ?: session('riders_filter.fleet_supervisor'),
-      'status' => $request->input('status') ?: session('riders_filter.status'),
-      'quick_search' => $request->input('quick_search') ?: session('riders_filter.quick_search'),
-    ];
+    // Use the same filtered query as the riders list (top-bar cards, sidebar, quick search, etc.)
+    $riders = $this->ridersForExport($request);
 
     // Create customizable export
-    $export = new CustomizableRiderExport($visibleColumns, $columnOrder, $filters);
+    $export = new CustomizableRiderExport($visibleColumns, $columnOrder, [], $riders);
 
     // Generate filename with format
     $timestamp = now()->format('Y-m-d_H-i-s');
@@ -3208,6 +3240,7 @@ class RidersController extends AppBaseController
   public function storeadvanceloan(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('AL', 'create');
       $this->mergeVoucherBranchId($request);
 
       $request->validate([
@@ -3219,6 +3252,7 @@ class RidersController extends AppBaseController
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
         'invoice_id' => 'nullable|numeric|exists:rider_invoices,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       $riderAccountId = $request->account_id[0];
@@ -3242,6 +3276,7 @@ class RidersController extends AppBaseController
         'credit_narration' => $request->narration[1] ?? null,
         'remarks' => 'Advance Loan to Rider',
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'AL'),
       ]);
 
       return response()->json([
@@ -3278,6 +3313,7 @@ class RidersController extends AppBaseController
 
   public function cod($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('COD', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -3288,6 +3324,7 @@ class RidersController extends AppBaseController
 
   public function penalty($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('PN', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -3299,6 +3336,7 @@ class RidersController extends AppBaseController
   public function storecod(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('COD', 'create');
       if (! VoucherType::isCodeAllowedForModule('COD', 'riders')) {
         return response()->json(['errors' => ['error' => 'COD voucher type is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3315,6 +3353,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3364,6 +3403,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'COD'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3434,6 +3474,7 @@ class RidersController extends AppBaseController
   public function storepenalty(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('PN', 'create');
       if (! VoucherType::isCodeAllowedForModule('PN', 'riders')) {
         return response()->json(['errors' => ['error' => 'Penalty voucher type (PN) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3450,6 +3491,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3496,6 +3538,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'PN'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3566,6 +3609,7 @@ class RidersController extends AppBaseController
 
   public function incentive($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('INC', 'create');
     $rider = $this->findAccessibleRider((int) $rider_id);
     if (empty($rider)) {
       Flash::error('Rider not found');
@@ -3581,6 +3625,7 @@ class RidersController extends AppBaseController
 
   public function payment($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('PAY', 'create');
     $rider = $this->findAccessibleRider((int) $rider_id);
     if (empty($rider)) {
       Flash::error('Rider not found');
@@ -3600,6 +3645,7 @@ class RidersController extends AppBaseController
   public function storepayment(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('PAY', 'create');
       if (! VoucherType::isCodeAllowedForModule('PAY', 'riders')) {
         return response()->json(['errors' => ['error' => 'Payment voucher type (PAY) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3662,6 +3708,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'PAY'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3732,6 +3779,18 @@ class RidersController extends AppBaseController
 
   public function payments(Request $request)
   {
+    if (
+      ! RiderVoucherPermissions::canAny('PAY', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('IMPORT', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('COD', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('PN', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('INC', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('VC', ['view', 'create'])
+      && ! RiderVoucherPermissions::canAny('AL', ['view', 'create'])
+    ) {
+      abort(403, 'Unauthorized action.');
+    }
+
     $accountIds = Riders::whereNotNull('account_id')->pluck('account_id')->toArray();
 
     if (empty($accountIds)) {
@@ -3764,6 +3823,7 @@ class RidersController extends AppBaseController
   public function storeincentive(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('INC', 'create');
       if (! VoucherType::isCodeAllowedForModule('INC', 'riders')) {
         return response()->json(['errors' => ['error' => 'Incentive voucher type (INC) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -3780,6 +3840,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -3825,6 +3886,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'INC'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -3895,6 +3957,7 @@ class RidersController extends AppBaseController
 
   public function vendorcharges($company_slug, $rider_id)
   {
+    RiderVoucherPermissions::authorize('VC', 'create');
     $rider = Riders::find($rider_id);
     $account = Accounts::where('ref_id', $rider_id)->where('account_type', 'expense')->first();
     $accounts = Accounts::dropdown(null);
@@ -3905,17 +3968,17 @@ class RidersController extends AppBaseController
 
   /**
    * Active rider voucher types shown in the unified voucher modal / rider profile actions.
-   * Advance Loan (AL) is intentionally excluded from this picker.
+   * Filtered by the current user's create permission for each type.
    *
    * @return array<string, string>
    */
   protected function riderVoucherTypeOptions(): array
   {
-    $riderVoucherCodes = ['PAY', 'COD', 'PN', 'INC', 'VC'];
+    $riderVoucherCodes = ['PAY', 'COD', 'PN', 'INC', 'VC', 'AL'];
     $activeTypes = VoucherType::activeCodeLabelMapForModule('riders');
     $voucherTypes = [];
     foreach ($riderVoucherCodes as $code) {
-      if (isset($activeTypes[$code])) {
+      if (isset($activeTypes[$code]) && RiderVoucherPermissions::can($code, 'create')) {
         $voucherTypes[$code] = $activeTypes[$code];
       }
     }
@@ -3936,7 +3999,13 @@ class RidersController extends AppBaseController
     $preselectedType = strtoupper(trim((string) $request->get('type', '')));
     $voucherTypes = $this->riderVoucherTypeOptions();
     if ($preselectedType !== '' && ! isset($voucherTypes[$preselectedType])) {
+      if (RiderVoucherPermissions::prefixForCode($preselectedType) !== null) {
+        abort(403, 'Unauthorized action.');
+      }
       $preselectedType = '';
+    }
+    if ($voucherTypes === [] && $preselectedType === '') {
+      abort(403, 'Unauthorized action.');
     }
 
     $riderOptions = Riders::query()
@@ -3979,6 +4048,9 @@ class RidersController extends AppBaseController
     $accounts = Accounts::dropdown(null);
     $bank_accounts = Accounts::bankAccountsDropdown();
     $voucherTypes = $this->riderVoucherTypeOptions();
+    if ($voucherTypes === []) {
+      abort(403, 'Unauthorized action.');
+    }
     $requireRiderSelect = false;
     $preselectedType = '';
     $riderOptions = collect();
@@ -3998,6 +4070,7 @@ class RidersController extends AppBaseController
   public function storevendorcharges(Request $request)
   {
     try {
+      RiderVoucherPermissions::authorize('VC', 'create');
       if (! VoucherType::isCodeAllowedForModule('VC', 'riders')) {
         return response()->json(['errors' => ['error' => 'Vendor Charges voucher type (VC) is not assigned to the Riders module. Please assign it in Voucher Settings.']], 422);
       }
@@ -4014,6 +4087,7 @@ class RidersController extends AppBaseController
         'narration' => 'required|array|min:2',
         'narration.*' => 'required|string',
         'branch_id' => 'nullable|numeric|exists:branches,id',
+        'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
       ]);
 
       // Get rider account (first entry should be the rider's liability account)
@@ -4060,6 +4134,7 @@ class RidersController extends AppBaseController
         'status' => 1,
         'branch_id' => $request->input('branch_id') ?: null,
         'custom_field_values' => $request->input('voucher_custom_fields', []),
+        'attach_file' => $this->storeRiderVoucherAttachmentFile($request, 'VC'),
       ];
 
       $voucher = Vouchers::create($voucherData);
@@ -4276,6 +4351,31 @@ class RidersController extends AppBaseController
         'message' => 'Error adding recruiter: ' . $e->getMessage(),
       ], 500);
     }
+  }
+
+  /**
+   * Store an optional voucher attachment when the user has upload permission.
+   */
+  protected function storeRiderVoucherAttachmentFile(Request $request, string $code): ?string
+  {
+    if (! $request->hasFile('attachment')) {
+      return null;
+    }
+
+    if (! RiderVoucherPermissions::canUpload($code)) {
+      return null;
+    }
+
+    $file = $request->file('attachment');
+    if (! $file || ! $file->isValid()) {
+      return null;
+    }
+
+    $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName()) ?: 'document';
+    $fileName = time() . '_' . $safeBase;
+    PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
+
+    return $fileName;
   }
 
   /**

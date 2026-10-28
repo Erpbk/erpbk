@@ -400,6 +400,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (checkbox?.checked) visibleColumns.push(columnKey);
       });
       const url = new URL(this.exportRoute, window.location.origin);
+      // Carry every active list filter (top-bar cards, sidebar, quick search, etc.)
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.forEach((value, key) => {
+        if (['format', 'visible_columns', 'column_order'].includes(key)) return;
+        url.searchParams.append(key, value);
+      });
       url.searchParams.set('format', format);
       url.searchParams.set('visible_columns', JSON.stringify(visibleColumns));
       url.searchParams.set('column_order', JSON.stringify(columnOrder));

@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Exports\Concerns\BindsTextColumns;
 use App\Models\Riders;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
@@ -22,6 +23,9 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
     protected $visibleColumns;
     protected $columnOrder;
     protected $filters;
+
+    /** Pre-filtered riders (e.g. from the current list query). When set, $filters are ignored. */
+    protected ?Collection $riders = null;
 
     /** @var list<string> */
     protected array $exportKeys = [];
@@ -166,7 +170,13 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
         ]
     ];
 
-    public function __construct($visibleColumns = null, $columnOrder = null, $filters = [])
+    /**
+     * @param  list<string>|null  $visibleColumns
+     * @param  list<string>|null  $columnOrder
+     * @param  array<string, mixed>  $filters
+     * @param  Collection<int, Riders>|iterable<int, Riders>|null  $riders
+     */
+    public function __construct($visibleColumns = null, $columnOrder = null, $filters = [], $riders = null)
     {
         // If no columns specified, use all available columns
         $this->visibleColumns = $visibleColumns ?: array_keys($this->availableColumns);
@@ -176,6 +186,10 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
         // Apply any filters
         $this->filters = $filters;
+
+        if ($riders !== null) {
+            $this->riders = $riders instanceof Collection ? $riders : collect($riders);
+        }
 
         $this->exportKeys = $this->buildExportKeys();
         $namePos = array_search('name', $this->exportKeys, true);
@@ -237,6 +251,10 @@ class CustomizableRiderExport extends DefaultValueBinder implements FromCollecti
 
     public function collection()
     {
+        if ($this->riders !== null) {
+            return $this->riders;
+        }
+
         $query = Riders::query()->with(['bikes', 'country', 'branch', 'customer', 'sim']);
 
         if (Schema::hasTable('rider_histories')) {

@@ -41,6 +41,27 @@
     </div>
 </div>
 
+@php
+    $loanVoucherCode = strtoupper((string) ($vt ?? 'AL'));
+    $canUploadLoanAttachment = \App\Support\RiderVoucherPermissions::prefixForCode($loanVoucherCode) !== null
+        && \App\Support\RiderVoucherPermissions::canUpload($loanVoucherCode);
+@endphp
+@if($canUploadLoanAttachment)
+<div class="row mb-3">
+    <div class="form-group col-md-6">
+        @include('partials.universal_document_upload', [
+            'name' => 'attachment',
+            'label' => 'Upload Document',
+            'required' => false,
+            'inputClass' => 'form-control',
+            'showHint' => true,
+            'variant' => 'dropzone',
+            'uploadLabel' => 'Upload File',
+        ])
+    </div>
+</div>
+@endif
+
 <script>
     $(document).ready(function() {
         var $bankSelect = $('#al_bank_account');

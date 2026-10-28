@@ -33,7 +33,7 @@ use Spatie\Permission\PermissionRegistrar;
  */
 class RolePermissionController extends AppBaseController
 {
-    private const ACTIONS = ['view', 'create', 'edit', 'delete'];
+    private const ACTIONS = ['view', 'create', 'edit', 'delete', 'upload'];
 
     /**
      * Render the two-panel permission management page for an existing role.
@@ -198,7 +198,7 @@ class RolePermissionController extends AppBaseController
 
         $out = [];
         foreach ($nodes as $node) {
-            $actions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
+            $actions = array_fill_keys(self::ACTIONS, null);
             $found = false;
             foreach ($byParent->get((int) $node->id, collect()) as $child) {
                 foreach (self::ACTIONS as $action) {
@@ -605,15 +605,18 @@ class RolePermissionController extends AppBaseController
                 continue;
             }
 
-            $actions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
+            $actions = array_fill_keys(self::ACTIONS, null);
             $values = [];
 
             foreach ($children as $child) {
-                if (Str::endsWith((string) $child->name, '_view')
-                    || Str::endsWith((string) $child->name, '_create')
-                    || Str::endsWith((string) $child->name, '_edit')
-                    || Str::endsWith((string) $child->name, '_delete')
-                ) {
+                $isActionLeaf = false;
+                foreach (self::ACTIONS as $action) {
+                    if (Str::endsWith((string) $child->name, '_' . $action)) {
+                        $isActionLeaf = true;
+                        break;
+                    }
+                }
+                if ($isActionLeaf) {
                     foreach (self::ACTIONS as $action) {
                         if (Str::endsWith((string) $child->name, '_' . $action)) {
                             $enabled = isset($assigned[(int) $child->id]);
@@ -627,7 +630,7 @@ class RolePermissionController extends AppBaseController
                     continue;
                 }
 
-                $valueActions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
+                $valueActions = array_fill_keys(self::ACTIONS, null);
                 $hasValueLeaf = false;
                 $valueLabel = (string) $child->name;
                 foreach ($byParent->get((int) $child->id, collect()) as $valueLeaf) {
@@ -720,7 +723,7 @@ class RolePermissionController extends AppBaseController
             $isChange = $groupName === RiderStatusPermissionSync::CHANGE_GROUP
                 || str_starts_with($groupName, RiderStatusPermissionSync::CHANGE_GROUP);
 
-            $actions = ['view' => null, 'create' => null, 'edit' => null, 'delete' => null];
+            $actions = array_fill_keys(self::ACTIONS, null);
             $statusOptionId = null;
             $hasLeaf = false;
 

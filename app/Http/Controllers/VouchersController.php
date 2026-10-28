@@ -27,6 +27,7 @@ use Illuminate\Http\Request;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\PublicStorageDisk;
+use App\Support\RiderVoucherPermissions;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -929,35 +930,40 @@ class VouchersController extends Controller
 
   public function fileUpload(Request $request, $company_slug, $id)
   {
-    $canUpload = user_can('vouchers_edit')
-      || user_can('vouchers_create')
-      || user_can('voucher_edit')
-      || user_can('voucher_create')
-      || user_can('expenses_edit')
-      || user_can('expenses_create')
-      || user_can('riders_payments_edit')
-      || user_can('riders_payments_create')
-      || user_can('cash_&_banks_payments_edit')
-      || user_can('cash_&_banks_payments_create')
-      || user_can('employees_payments_edit')
-      || user_can('employees_payments_create')
-      || user_can('customers_payments_edit')
-      || user_can('customers_payments_create')
-      || user_can('sims_payments_edit')
-      || user_can('sims_payments_create')
-      || user_can('leasing_companies_payments_edit')
-      || user_can('leasing_companies_payments_create')
-      || user_can('suppliers_payments_edit')
-      || user_can('suppliers_payments_create');
-
-    if (! $canUpload) {
-      return response()->json(['message' => 'Unauthorized action.'], 403);
-    }
-
     $voucher = Vouchers::find($id);
 
     if (! $voucher) {
       return response()->json(['message' => 'Voucher not found'], 404);
+    }
+
+    $riderVoucherCode = RiderVoucherPermissions::codeFromVoucherType($voucher->voucher_type);
+    if ($riderVoucherCode !== null) {
+      if (! RiderVoucherPermissions::canUpload($riderVoucherCode)) {
+        return response()->json(['message' => 'Unauthorized action.'], 403);
+      }
+    } else {
+      $canUpload = user_can('vouchers_edit')
+        || user_can('vouchers_create')
+        || user_can('voucher_edit')
+        || user_can('voucher_create')
+        || user_can('expenses_edit')
+        || user_can('expenses_create')
+        || user_can('cash_&_banks_payments_edit')
+        || user_can('cash_&_banks_payments_create')
+        || user_can('employees_payments_edit')
+        || user_can('employees_payments_create')
+        || user_can('customers_payments_edit')
+        || user_can('customers_payments_create')
+        || user_can('sims_payments_edit')
+        || user_can('sims_payments_create')
+        || user_can('leasing_companies_payments_edit')
+        || user_can('leasing_companies_payments_create')
+        || user_can('suppliers_payments_edit')
+        || user_can('suppliers_payments_create');
+
+      if (! $canUpload) {
+        return response()->json(['message' => 'Unauthorized action.'], 403);
+      }
     }
 
     if ($request->isMethod('POST')) {

@@ -431,6 +431,14 @@ class BikeRegistrationController extends AppBaseController
             ? $rider->name
             : trim(($bike->plate ?: 'Bike') . ($bike->model ? ' — ' . $bike->model : ''));
 
+        // Rider ledger account_id is unique on bike_registration_accounts; a rider
+        // can have multiple vehicle registration accounts (one per bike), so only
+        // link it when it is not already used by another registration account.
+        $ledgerAccountId = $rider?->account_id;
+        if ($ledgerAccountId && BikeRegistrationAccount::where('account_id', $ledgerAccountId)->exists()) {
+            $ledgerAccountId = null;
+        }
+
         DB::beginTransaction();
         try {
             $expenseAccount = BikeRegistrationAccount::create([
@@ -438,7 +446,7 @@ class BikeRegistrationController extends AppBaseController
                 'rider_id' => $rider?->id,
                 'bike_id' => $bike->id,
                 'branch_id' => $rider?->branch_id ?? $bike->branch_id,
-                'account_id' => $rider?->account_id,
+                'account_id' => $ledgerAccountId,
                 'company_id' => auth()->user()->company_id ?? null,
             ]);
 

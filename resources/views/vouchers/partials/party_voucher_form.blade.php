@@ -117,6 +117,12 @@ try {
             </div>
         </div>
 
+        @php
+            $gateRiderUpload = isset($rider) || ($party instanceof \App\Models\Riders);
+            $showPartyAttachment = ! $gateRiderUpload
+                || \App\Support\RiderVoucherPermissions::canUpload($voucherCode);
+        @endphp
+        @if($showPartyAttachment)
         <div class="col-lg-4">
             <div class="rpf-attach-box">
                 @include('partials.universal_document_upload', [
@@ -131,6 +137,7 @@ try {
                 <div class="rpf-attach-hint">Multiple pages combined into one PDF.</div>
             </div>
         </div>
+        @endif
     </div>
 
     <div class="rpf-section mt-4">

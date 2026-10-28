@@ -8,6 +8,12 @@ class PermissionTreeBuilder
 {
     public const STANDARD_ACTIONS = ['view', 'create', 'edit', 'delete'];
 
+    /** Actions that may appear as submodule leaves in addition to STANDARD_ACTIONS. */
+    public const EXTRA_ACTIONS = ['upload'];
+
+    /** All actions the Role Permissions UI can toggle (CRUD + known extras). */
+    public const ALL_ACTIONS = ['view', 'create', 'edit', 'delete', 'upload'];
+
     public static function slugify(string $name): string
     {
         return str_replace(' ', '_', strtolower(trim($name)));
@@ -20,13 +26,55 @@ class PermissionTreeBuilder
 
     public static function displayLabelForLeaf(string $permissionName): string
     {
-        if (preg_match('/_(view|create|edit|delete)$/', $permissionName, $matches)) {
+        if (preg_match('/_(view|create|edit|delete|upload)$/', $permissionName, $matches)) {
             return ucfirst($matches[1]);
         }
 
         $parts = explode('_', $permissionName);
 
         return ucwords(str_replace('_', ' ', (string) (end($parts) ?: $permissionName)));
+    }
+
+    /**
+     * Normalize config / request submodule entries into name + extra_actions.
+     *
+     * Accepts plain strings ("Payments") or arrays:
+     * ['name' => 'COD Voucher', 'extra_actions' => ['upload']].
+     *
+     * @param  list<string|array{name?: string, extra_actions?: list<string>}>  $submodules
+     * @return list<array{name: string, extra_actions: list<string>}>
+     */
+    public static function normalizeSubmoduleDefinitions(array $submodules): array
+    {
+        $out = [];
+        $seen = [];
+
+        foreach ($submodules as $entry) {
+            if (is_string($entry)) {
+                $name = trim($entry);
+                $extraActions = [];
+            } elseif (is_array($entry)) {
+                $name = trim((string) ($entry['name'] ?? ''));
+                $extraActions = array_values(array_unique(array_filter(array_map(
+                    static fn ($a) => strtolower(trim((string) $a)),
+                    (array) ($entry['extra_actions'] ?? [])
+                ), static fn (string $a) => $a !== '' && in_array($a, self::EXTRA_ACTIONS, true))));
+            } else {
+                continue;
+            }
+
+            if ($name === '' || isset($seen[$name])) {
+                continue;
+            }
+
+            $seen[$name] = true;
+            $out[] = [
+                'name' => $name,
+                'extra_actions' => $extraActions,
+            ];
+        }
+
+        return $out;
     }
 
     /**
@@ -101,20 +149,17 @@ class PermissionTreeBuilder
     }
 
     /**
-     * @param  list<string>  $submoduleNames
+     * @param  list<string|array{name?: string, extra_actions?: list<string>}>  $submodules
      * @param  list<string>  $extraPermissions
      */
     public static function syncModuleTree(
         Permission $module,
         string $moduleSlug,
-        array $submoduleNames,
+        array $submodules,
         array $extraPermissions = [],
         string $guard = 'web'
     ): void {
-        $submoduleNames = array_values(array_unique(array_filter(array_map(
-            static fn ($name) => trim((string) $name),
-            $submoduleNames
-        ))));
+        $definitions = self::normalizeSubmoduleDefinitions($submodules);
 
         $extraPermissions = array_values(array_unique(array_filter(array_map(
             static function ($value) {
@@ -125,9 +170,9 @@ class PermissionTreeBuilder
             $extraPermissions
         ))));
 
-        if ($submoduleNames !== []) {
+        if ($definitions !== []) {
             self::removeDirectLeafChildren($module);
-            self::syncSubmoduleGroups($module, $moduleSlug, $submoduleNames, $guard);
+            self::syncSubmoduleGroups($module, $moduleSlug, $definitions, $guard);
 
             return;
         }
@@ -191,17 +236,19 @@ class PermissionTreeBuilder
     }
 
     /**
-     * @param  list<string>  $submoduleNames
+     * @param  list<array{name: string, extra_actions: list<string>}>  $definitions
      */
     protected static function syncSubmoduleGroups(
         Permission $module,
         string $moduleSlug,
-        array $submoduleNames,
+        array $definitions,
         string $guard
     ): void {
         $desiredGroupIds = [];
 
-        foreach ($submoduleNames as $submoduleName) {
+        foreach ($definitions as $definition) {
+            $submoduleName = $definition['name'];
+            $extraActions = $definition['extra_actions'];
             $subSlug = self::slugify($submoduleName);
             $subGroup = Permission::query()->firstOrCreate(
                 [
@@ -218,6 +265,12 @@ class PermissionTreeBuilder
             foreach (self::STANDARD_ACTIONS as $action) {
                 $desiredLeafNames[] = $moduleSlug . '_' . $subSlug . '_' . $action;
             }
+
+            foreach ($extraActions as $action) {
+                $desiredLeafNames[] = $moduleSlug . '_' . $subSlug . '_' . $action;
+            }
+
+            $desiredLeafNames = array_values(array_unique($desiredLeafNames));
 
             foreach ($desiredLeafNames as $leafName) {
                 Permission::query()->firstOrCreate(

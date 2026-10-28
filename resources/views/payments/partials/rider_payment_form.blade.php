@@ -182,6 +182,7 @@ $payeeCode = $m[1];
         </div>
 
         {{-- Right: attachments --}}
+        @if(\App\Support\RiderVoucherPermissions::canUpload('PAY'))
         <div class="col-lg-4">
             <div class="rpf-attach-box">
                 @include('partials.universal_document_upload', [
@@ -198,6 +199,7 @@ $payeeCode = $m[1];
                 <div class="rpf-attach-hint">Multiple pages combined into one PDF.</div>
             </div>
         </div>
+        @endif
     </div>
 
     {!! Form::hidden('date_of_invoice', old('date_of_invoice', isset($payment) ? $payment->date_of_invoice : null), ['id' => 'date_of_invoice']) !!}

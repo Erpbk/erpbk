@@ -4,6 +4,7 @@ namespace App\Exports;
 
 use App\Exports\Concerns\BindsTextColumns;
 use App\Models\Riders;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
@@ -30,14 +31,25 @@ class RiderExport extends DefaultValueBinder implements FromCollection, WithHead
   /** Name is column D (1-based index 4) */
   protected int $nameColumnIndex = 4;
 
-  public function __construct()
+  /** Pre-filtered riders from the current list query when provided. */
+  protected ?Collection $riders = null;
+
+  /**
+   * @param  Collection<int, Riders>|iterable<int, Riders>|null  $riders
+   */
+  public function __construct($riders = null)
   {
-    /* $this->id = $id;
-    $this->month = $month; */
+    if ($riders !== null) {
+      $this->riders = $riders instanceof Collection ? $riders : collect($riders);
+    }
   }
 
   public function collection()
   {
+    if ($this->riders !== null) {
+      return $this->riders;
+    }
+
     $query = Riders::with(['vendor', 'customer', 'bikes', 'country', 'account', 'branch']);
 
     if (Schema::hasTable('rider_histories')) {

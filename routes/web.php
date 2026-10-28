@@ -457,6 +457,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
     Route::post('VisaExpense/filter-ajax', [VisaexpenseController::class, 'filterAjax'])->name('VisaExpense.filterAjax');
+    Route::get('VisaExpense/export-customizable', [VisaexpenseController::class, 'exportCustomizableAccounts'])->name('VisaExpense.exportCustomizableAccounts');
     Route::get('VisaExpense/search-persons', [VisaexpenseController::class, 'searchPersons'])->name('VisaExpense.searchPersons');
     Route::get('VisaExpense/eligible-categories/{personType}/{personId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])
         ->where(['personType' => 'rider|employee', 'personId' => '[0-9]+'])

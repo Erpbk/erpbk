@@ -441,6 +441,27 @@ class VisaRenewalCategoryService
         return $query->get();
     }
 
+    /**
+     * Current/latest visa expense account for a person: highest category display_order, then newest id.
+     */
+    public static function latestAccountForPerson(ExpenseAccount $account): ExpenseAccount
+    {
+        $accounts = self::siblingAccountsForPerson($account);
+        if ($accounts->isEmpty()) {
+            return $account;
+        }
+
+        return $accounts->sort(function (ExpenseAccount $a, ExpenseAccount $b) {
+            $orderA = (int) ($a->renewalCategory->display_order ?? 0);
+            $orderB = (int) ($b->renewalCategory->display_order ?? 0);
+            if ($orderA !== $orderB) {
+                return $orderB <=> $orderA;
+            }
+
+            return (int) $b->id <=> (int) $a->id;
+        })->first() ?? $account;
+    }
+
     public static function siblingAccountsForRider(int $riderId, ?int $excludeAccountId = null): Collection
     {
         $query = ExpenseAccount::query()

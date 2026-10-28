@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\CustomizableVisaAccountsExport;
 use App\Helpers\Account;
 use App\Support\CompanyAuthRedirect;
 use App\Support\GlobalAccounts;
@@ -11,6 +12,8 @@ use App\Http\Requests\UpdateVisaExpenseRequest;
 use App\Http\Controllers\Concerns\ManagesVisaInstallments;
 use App\Http\Controllers\Concerns\ManagesExpenseEntryDeletion;
 use App\Http\Controllers\AppBaseController;
+use App\Models\UserTableSettings;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Bikes;
 use App\Models\Branch;
 use App\Models\Employee;
@@ -26,6 +29,7 @@ use App\Models\Transactions;
 use App\Models\VisaStatus;
 use App\Models\ExpenseAccount;
 use App\Repositories\VisaExpensesRepository;
+use App\Services\Module\ModuleTopBarFieldValueResolver;
 use App\Services\Module\TopBarListingService;
 use App\Services\TransactionService;
 use App\Support\VisaExpenseAccess;
@@ -35,6 +39,8 @@ use App\Support\CompanyContext;
 use App\Support\CompanyModuleVisibility;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\CompanyQuery;
@@ -71,11 +77,13 @@ class VisaexpenseController extends AppBaseController
         $sliderBaseQuery = clone $query;
         $this->applyVisaAccountsTopFilters($query, $request);
 
-        $data = $this->applyPagination($query, $paginationParams);
-        $personTargets = CompanyModuleVisibility::simAssignTargets();
-        $allowPersonTypeSelection = count($personTargets) >= 2;
-        $defaultPersonType = count($personTargets) === 1 ? $personTargets[0] : 'rider';
+        $data = $this->paginateVisaAccountsByPerson($query, $paginationParams);
+        $personTypeForm = $this->visaPersonTypeFormState();
+        $renewalCategories = VisaRenewalCategoryService::activeOrdered();
+        $wpsOptions = $this->resolveVisaWpsOptions();
+        $accountStats = $this->buildVisaAccountStats($request, $renewalCategories, $wpsOptions);
 
+        $topBarSliderCategories = app(TopBarListingService::class)->categoriesForListing('visa_expense');
         $visaStatuses = $this->resolveVisaExpenseTopStatuses();
         $visaStatusSliderCounts = $this->buildVisaStatusSliderCounts($sliderBaseQuery, $visaStatuses);
 
@@ -92,17 +100,107 @@ class VisaexpenseController extends AppBaseController
             'data' => $data,
             'riders' => collect(),
             'employees' => collect(),
-            'personTargets' => $personTargets,
-            'allowPersonTypeSelection' => $allowPersonTypeSelection,
-            'defaultPersonType' => $defaultPersonType,
+            'personTargets' => $personTypeForm['personTargets'],
+            'allowPersonTypeSelection' => $personTypeForm['allowPersonTypeSelection'],
+            'defaultPersonType' => $personTypeForm['defaultPersonType'],
+            'topBarSliderCategories' => $topBarSliderCategories,
             'visaStatuses' => $visaStatuses,
             'visaStatusSliderCounts' => $visaStatusSliderCounts,
             'selectedVisaStatus' => $selectedVisaStatus,
             'nextUnpaidVisaByAccountId' => $nextUnpaidVisaByAccountId,
             'urgentVisaExpiryByAccountId' => $urgentVisaExpiryByAccountId,
-            'renewalCategories' => VisaRenewalCategoryService::activeOrdered(),
+            'renewalCategories' => $renewalCategories,
+            'wpsOptions' => $wpsOptions,
+            'accountStats' => $accountStats,
             'visaHeadAccountConfigured' => VisaRenewalCategoryService::visaExpenseHeadAccountId() !== null,
+            'tableColumns' => $this->visaAccountsTableColumns(),
         ]);
+    }
+
+    /**
+     * Export visa expense accounts (one row per person, latest category) with column control.
+     */
+    public function exportCustomizableAccounts(Request $request)
+    {
+        if (!VisaExpenseAccess::canManageAccounts('view')
+            && !VisaExpenseAccess::canManageEntries('view')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $visibleColumns = $request->input('visible_columns');
+        $columnOrder = $request->input('column_order');
+        $format = $request->input('format', 'excel');
+
+        if (is_string($visibleColumns)) {
+            $visibleColumns = json_decode($visibleColumns, true);
+        }
+        if (is_string($columnOrder)) {
+            $columnOrder = json_decode($columnOrder, true);
+        }
+
+        if (empty($visibleColumns) || empty($columnOrder)) {
+            $userSettings = UserTableSettings::getSettings(auth()->id(), 'visa_accounts_table');
+            if ($userSettings) {
+                $visibleColumns = $visibleColumns ?: $userSettings->visible_columns;
+                $columnOrder = $columnOrder ?: $userSettings->column_order;
+            }
+        }
+
+        $filters = [
+            'name' => $request->input('name'),
+            'quick_search' => $request->input('quick_search'),
+            'payment_status' => $request->input('payment_status'),
+            'visa_status_id' => $request->input('visa_status_id'),
+            'person_status' => $request->input('person_status'),
+            'renewal_category_id' => $request->input('renewal_category_id'),
+            'wps' => $request->input('wps'),
+        ];
+
+        $query = $this->buildVisaAccountsIndexQuery($request);
+        $this->applyVisaAccountsTopFilters($query, $request);
+        $accounts = $query->with(['rider', 'employee', 'renewalCategory'])->get();
+        $grouped = $accounts->groupBy(
+            fn ($r) => $r->employee_id ? 'emp:' . $r->employee_id : 'rider:' . $r->rider_id
+        );
+        $latestRows = $grouped
+            ->map(fn ($personAccounts) => VisaRenewalCategoryService::latestAccountForPerson($personAccounts->first()))
+            ->values();
+
+        $export = (new CustomizableVisaAccountsExport($visibleColumns, $columnOrder, $filters))
+            ->setPreparedRows($latestRows);
+
+        $timestamp = now()->format('Y-m-d_H-i-s');
+        $username = auth()->user()->name ?? auth()->user()->email ?? 'user';
+        $username = preg_replace('/[^a-zA-Z0-9]/', '_', $username);
+        $filename = "Visa_Accounts_export_{$username}_{$timestamp}";
+
+        return match ($format) {
+            'csv' => Excel::download($export, "{$filename}.csv", \Maatwebsite\Excel\Excel::CSV),
+            'pdf' => Excel::download($export, "{$filename}.pdf", \Maatwebsite\Excel\Excel::DOMPDF),
+            default => Excel::download($export, "{$filename}.xlsx"),
+        };
+    }
+
+    /**
+     * @return list<array{data: string, title: string}>
+     */
+    private function visaAccountsTableColumns(): array
+    {
+        return [
+            ['data' => 'person_id', 'title' => 'Person ID'],
+            ['data' => 'name', 'title' => 'Name'],
+            ['data' => 'category', 'title' => 'Visa Category'],
+            ['data' => 'status', 'title' => 'Status'],
+            ['data' => 'wps', 'title' => 'WPS'],
+            ['data' => 'next_unpaid', 'title' => 'Next Unpaid Document'],
+            ['data' => 'expiry', 'title' => 'Expiry Document'],
+            ['data' => 'person_code', 'title' => 'Person Code'],
+            ['data' => 'labour', 'title' => 'Labour Card #'],
+            ['data' => 'policy', 'title' => 'Policy Number'],
+            ['data' => 'balance', 'title' => 'Total'],
+            ['data' => 'paid', 'title' => 'Paid'],
+            ['data' => 'unpaid', 'title' => 'Unpaid'],
+        ];
     }
 
     /**
@@ -118,11 +216,10 @@ class VisaexpenseController extends AppBaseController
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
         $query = $this->buildVisaAccountsIndexQuery($request);
         $this->applyVisaAccountsTopFilters($query, $request);
-        $data = $this->applyPagination($query, $paginationParams);
+        $data = $this->paginateVisaAccountsByPerson($query, $paginationParams);
 
-        $personTargets = CompanyModuleVisibility::simAssignTargets();
-        $allowPersonTypeSelection = count($personTargets) >= 2;
-        $defaultPersonType = count($personTargets) === 1 ? $personTargets[0] : 'rider';
+        $personTypeForm = $this->visaPersonTypeFormState();
+        $wpsOptions = $this->resolveVisaWpsOptions();
 
         $html = view('visa_expenses.account_table', [
             'data' => $data,
@@ -130,9 +227,10 @@ class VisaexpenseController extends AppBaseController
             'urgentVisaExpiryByAccountId' => $this->mapUrgentVisaExpiryForPage($data),
             'riders' => collect(),
             'employees' => collect(),
-            'personTargets' => $personTargets,
-            'allowPersonTypeSelection' => $allowPersonTypeSelection,
-            'defaultPersonType' => $defaultPersonType,
+            'personTargets' => $personTypeForm['personTargets'],
+            'allowPersonTypeSelection' => $personTypeForm['allowPersonTypeSelection'],
+            'defaultPersonType' => $personTypeForm['defaultPersonType'],
+            'wpsOptions' => $wpsOptions,
             'ajaxFragment' => true,
         ])->render();
 
@@ -209,6 +307,224 @@ class VisaexpenseController extends AppBaseController
     }
 
     /**
+     * WPS select options from enabled rider/employee module field settings.
+     * Prefers assignment input_config.options, then global Dropdowns('wps').
+     *
+     * @return array<string, string> value => label
+     */
+    private function resolveVisaWpsOptions(): array
+    {
+        $resolver = app(ModuleTopBarFieldValueResolver::class);
+        $options = [];
+
+        $moduleKeys = [];
+        if (CompanyModuleVisibility::ridersEnabled()) {
+            $moduleKeys[] = 'riders';
+        }
+        if (CompanyModuleVisibility::employeesEnabled()) {
+            $moduleKeys[] = 'employees';
+        }
+
+        foreach ($moduleKeys as $moduleKey) {
+            $values = $resolver->configuredValuesForColumn($moduleKey, 'wps');
+            if ($values === []) {
+                $values = array_keys(Common::Dropdowns('wps') ?: []);
+            }
+            foreach ($values as $value) {
+                $value = trim((string) $value);
+                if ($value === '') {
+                    continue;
+                }
+                $options[$value] = $value;
+            }
+        }
+
+        return $options;
+    }
+
+    /**
+     * Restrict expense accounts to people whose wps column matches $wpsValue.
+     */
+    private function applyVisaAccountWpsValueFilter($query, string $wpsValue): void
+    {
+        $wpsValue = trim($wpsValue);
+        $query->where(function ($q) use ($wpsValue) {
+            $q->where(function ($riderQ) use ($wpsValue) {
+                $riderQ->whereNotNull('rider_id')
+                    ->whereHas('rider', fn ($r) => $r->where('wps', $wpsValue));
+            })->orWhere(function ($empQ) use ($wpsValue) {
+                $empQ->whereNotNull('employee_id')
+                    ->whereHas('employee', fn ($e) => $e->where('wps', $wpsValue));
+            });
+        });
+    }
+
+    /**
+     * Overview stats for the accounts index (independent of category / WPS / payment top filters).
+     * Person counts match the table (one row per person). Category cards still count individual
+     * category accounts. Unpaid amount/document stats use linked visa_expenses rows.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\VisaRenewalCategory>  $renewalCategories
+     * @param  array<string, string>  $wpsOptions
+     * @return array{
+     *   next_unpaid: int,
+     *   next_unpaid_amount: float,
+     *   next_unpaid_documents: int,
+     *   by_wps: array<string, array{label: string, count: int, unpaid_amount: float}>,
+     *   by_category: array<int, int>,
+     *   by_category_unpaid_amount: array<int, float>
+     * }
+     */
+    private function buildVisaAccountStats(Request $request, $renewalCategories, array $wpsOptions = []): array
+    {
+        $statsRequest = Request::create(
+            $request->url(),
+            'GET',
+            $request->except(['renewal_category_id', 'wps', 'payment_status', 'visa_status_id', 'page'])
+        );
+        $base = $this->buildVisaAccountsIndexQuery($statsRequest)->reorder();
+
+        $byCategoryRaw = (clone $base)
+            ->select('renewal_category_id', DB::raw('COUNT(*) as aggregate'))
+            ->groupBy('renewal_category_id')
+            ->pluck('aggregate', 'renewal_category_id');
+
+        $byCategory = [];
+        $byCategoryUnpaidAmount = [];
+        foreach ($renewalCategories as $category) {
+            $catId = (int) $category->id;
+            $byCategory[$catId] = (int) ($byCategoryRaw[$catId] ?? $byCategoryRaw[(string) $catId] ?? 0);
+            $catAccounts = (clone $base)->where('renewal_category_id', $catId);
+            $byCategoryUnpaidAmount[$catId] = $this->unpaidVisaStatsForAccountQuery($catAccounts)['amount'];
+        }
+
+        $nextUnpaidQuery = clone $base;
+        $this->applyExpenseAccountMatchesVisaExpense($nextUnpaidQuery, function ($sub) {
+            $sub->where('ve.payment_status', 'unpaid');
+        });
+        $nextUnpaid = $this->countDistinctVisaAccountPersons($nextUnpaidQuery);
+        $nextUnpaidStats = $this->unpaidVisaStatsForAccountQuery(clone $base);
+
+        $byWps = [];
+        foreach ($wpsOptions as $wpsValue => $wpsLabel) {
+            $wpsQuery = clone $base;
+            $this->applyVisaAccountWpsValueFilter($wpsQuery, (string) $wpsValue);
+            $byWps[(string) $wpsValue] = [
+                'label' => (string) $wpsLabel,
+                'count' => $this->countDistinctVisaAccountPersons($wpsQuery),
+                'unpaid_amount' => $this->unpaidVisaStatsForAccountQuery($wpsQuery)['amount'],
+            ];
+        }
+
+        return [
+            'next_unpaid' => $nextUnpaid,
+            'next_unpaid_amount' => $nextUnpaidStats['amount'],
+            'next_unpaid_documents' => $nextUnpaidStats['documents'],
+            'by_wps' => $byWps,
+            'by_category' => $byCategory,
+            'by_category_unpaid_amount' => $byCategoryUnpaidAmount,
+        ];
+    }
+
+    /**
+     * Unpaid visa expense amount + document count linked to the given expense accounts.
+     *
+     * @return array{amount: float, documents: int}
+     */
+    private function unpaidVisaStatsForAccountQuery($accountQuery): array
+    {
+        $accounts = (clone $accountQuery)->reorder()->get(['id', 'rider_id', 'renewal_category_id']);
+        if ($accounts->isEmpty()) {
+            return ['amount' => 0.0, 'documents' => 0];
+        }
+
+        $ids = $accounts->pluck('id')->map(static fn ($id) => (int) $id)->all();
+        $headId = VisaRenewalCategoryService::visaExpenseHeadAccountId();
+        $defaultCategoryId = (int) VisaRenewalCategoryService::defaultCategory()->id;
+        $riderCategoryKeys = [];
+        foreach ($accounts as $account) {
+            if ($account->rider_id === null) {
+                continue;
+            }
+            $catId = (int) ($account->renewal_category_id ?? $defaultCategoryId);
+            $riderCategoryKeys[(int) $account->rider_id . ':' . $catId] = true;
+        }
+
+        $query = visa_expenses::query()
+            ->whereNull('deleted_at')
+            ->where('payment_status', 'unpaid')
+            ->where(function ($outer) use ($ids, $headId, $riderCategoryKeys) {
+                $outer->whereIn('expense_account_id', $ids);
+                if ($headId !== null && $riderCategoryKeys !== []) {
+                    $outer->orWhere(function ($q2) use ($headId, $riderCategoryKeys) {
+                        $q2->where('expense_account_id', $headId)
+                            ->where(function ($q3) use ($riderCategoryKeys) {
+                                foreach (array_keys($riderCategoryKeys) as $key) {
+                                    [$riderId, $catId] = array_map('intval', explode(':', $key, 2));
+                                    $q3->orWhere(function ($q4) use ($riderId, $catId) {
+                                        $q4->where('rider_id', $riderId)
+                                            ->where('renewal_category_id', $catId);
+                                    });
+                                }
+                            });
+                    });
+                }
+            });
+
+        return [
+            'amount' => (float) (clone $query)->sum('amount'),
+            'documents' => (int) (clone $query)->count(),
+        ];
+    }
+
+    /**
+     * Count unique people (rider/employee) represented by visa expense accounts.
+     */
+    private function countDistinctVisaAccountPersons($query): int
+    {
+        $ea = (new ExpenseAccount)->getTable();
+
+        return (int) (clone $query)->reorder()->toBase()
+            ->selectRaw(
+                "COUNT(DISTINCT CASE WHEN {$ea}.employee_id IS NOT NULL THEN CONCAT('emp:', {$ea}.employee_id) ELSE CONCAT('rider:', COALESCE({$ea}.rider_id, 0)) END) as aggregate"
+            )
+            ->value('aggregate');
+    }
+
+    /**
+     * Paginate one latest account per person (matches table / export grouping).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder  $query
+     */
+    private function paginateVisaAccountsByPerson($query, array $paginationParams): LengthAwarePaginator
+    {
+        $accounts = (clone $query)->with(['rider', 'employee', 'renewalCategory'])->get();
+        $latestByPerson = $accounts
+            ->groupBy(fn ($r) => $r->employee_id ? 'emp:' . $r->employee_id : 'rider:' . $r->rider_id)
+            ->map(fn (Collection $personAccounts) => VisaRenewalCategoryService::latestAccountForPerson($personAccounts->first()))
+            ->values();
+
+        $total = $latestByPerson->count();
+        $perPage = ! empty($paginationParams['is_all'])
+            ? max($total, 1)
+            : max(1, (int) ($paginationParams['per_page_numeric'] ?? 50));
+        $page = max(1, (int) request()->input('page', 1));
+        $items = $latestByPerson->forPage($page, $perPage)->values();
+
+        return new LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+                'pageName' => 'page',
+            ]
+        );
+    }
+
+    /**
      * Base visa expense accounts listing query (filters except top-bar status cards).
      */
     private function buildVisaAccountsIndexQuery(Request $request)
@@ -272,7 +588,60 @@ class VisaexpenseController extends AppBaseController
             });
         }
 
+        $this->applyVisaAccountsSidebarFilters($query, $request);
+
         return $query;
+    }
+
+    /**
+     * Sidebar filters (person status, visa category, WPS). Top-card payment/status stay in applyVisaAccountsTopFilters.
+     */
+    private function applyVisaAccountsSidebarFilters($query, Request $request): void
+    {
+        if ($request->filled('renewal_category_id')) {
+            $query->where('renewal_category_id', (int) $request->renewal_category_id);
+        }
+
+        if ($request->filled('wps')) {
+            $this->applyVisaAccountWpsValueFilter($query, (string) $request->wps);
+        }
+
+        if (! $request->filled('person_status')) {
+            return;
+        }
+
+        $personStatus = strtolower(trim((string) $request->person_status));
+        $bikesTable = (new Bikes)->getTable();
+
+        if ($personStatus === 'employee') {
+            $query->whereNotNull('employee_id');
+
+            return;
+        }
+
+        if (! in_array($personStatus, ['active', 'inactive'], true)) {
+            return;
+        }
+
+        $query->whereNotNull('rider_id')->whereNull('employee_id');
+
+        $activeBikeExists = function ($sub) use ($bikesTable) {
+            $sub->select(DB::raw(1))
+                ->from($bikesTable)
+                ->whereColumn($bikesTable . '.rider_id', 'expense_accounts.rider_id')
+                ->where($bikesTable . '.warehouse', 'Active');
+            if (Schema::hasColumn($bikesTable, 'company_id')
+                && CompanyContext::shouldApplyScope()
+                && CompanyContext::id() !== null) {
+                $sub->where($bikesTable . '.company_id', CompanyContext::id());
+            }
+        };
+
+        if ($personStatus === 'active') {
+            $query->whereExists($activeBikeExists);
+        } else {
+            $query->whereNotExists($activeBikeExists);
+        }
     }
 
     private function applyVisaAccountsTopFilters($query, Request $request): void
@@ -656,6 +1025,33 @@ class VisaexpenseController extends AppBaseController
     private function visaPersonTypeAllowed(string $personType): bool
     {
         return in_array(strtolower($personType), CompanyModuleVisibility::simAssignTargets(), true);
+    }
+
+    /**
+     * Rider/employee choices for create-account UI based on company module access.
+     *
+     * @return array{personTargets: list<string>, allowPersonTypeSelection: bool, defaultPersonType: string}
+     */
+    private function visaPersonTypeFormState(): array
+    {
+        $personTargets = CompanyModuleVisibility::simAssignTargets();
+        $allowPersonTypeSelection = count($personTargets) >= 2;
+
+        if ($personTargets === []) {
+            $defaultPersonType = '';
+        } elseif (count($personTargets) === 1) {
+            $defaultPersonType = $personTargets[0];
+        } elseif (in_array('rider', $personTargets, true)) {
+            $defaultPersonType = 'rider';
+        } else {
+            $defaultPersonType = $personTargets[0];
+        }
+
+        return [
+            'personTargets' => $personTargets,
+            'allowPersonTypeSelection' => $allowPersonTypeSelection,
+            'defaultPersonType' => $defaultPersonType,
+        ];
     }
 
     public function accountcreate(Request $request, $company_slug)

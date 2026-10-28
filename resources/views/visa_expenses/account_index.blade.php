@@ -12,9 +12,22 @@
   }
   $personTargets = $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
   $allowPersonTypeSelection = $allowPersonTypeSelection ?? (count($personTargets) >= 2);
-  $defaultPersonType = $defaultPersonType ?? (count($personTargets) === 1 ? $personTargets[0] : 'rider');
+  if (!isset($defaultPersonType)) {
+    $defaultPersonType = match (true) {
+      $personTargets === [] => '',
+      count($personTargets) === 1 => $personTargets[0],
+      in_array('rider', $personTargets, true) => 'rider',
+      default => $personTargets[0],
+    };
+  }
+  $createAccountFormLocked = $personTargets === [];
   $riderLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? 'Rider';
   $employeeLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('employees') ?? 'Employee';
+  $singlePersonTypeLabel = match ($defaultPersonType) {
+    'rider' => $riderLabel,
+    'employee' => $employeeLabel,
+    default => '',
+  };
 @endphp
 
 @push('third_party_stylesheets')
@@ -25,6 +38,89 @@
   .riders-list-demo .rl-box.on {
     outline: 2px solid currentColor;
     outline-offset: 1px;
+  }
+  .visa-totals-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 12px 0;
+  }
+  .visa-totals-cards .total-card {
+    flex: 1 1 calc(12% - 8px);
+    min-width: 118px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left-width: 4px;
+    border-radius: 8px;
+    padding: 8px 10px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow .15s ease, transform .15s ease;
+    cursor: pointer;
+  }
+  .visa-totals-cards .total-card:hover {
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+    transform: translateY(-1px);
+  }
+  .visa-totals-cards .total-card.is-on {
+    outline: 2px solid currentColor;
+    outline-offset: 1px;
+  }
+  .visa-totals-cards .total-card .label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    color: #6b7280;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .visa-totals-cards .total-card .label i {
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .visa-totals-cards .total-card .value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .visa-totals-cards .total-card .meta {
+    margin-top: 2px;
+    font-size: 11px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .visa-totals-cards .total-card .meta .unpaid-zero { color: #059669; font-weight: 600; }
+  .visa-totals-cards .total-card .meta .unpaid-due { color: #6b7280; }
+  .visa-totals-cards .total-card .value.unpaid-zero { color: #059669; }
+  .visa-totals-cards .total-card .value.unpaid-due { color: #dc2626; }
+  .visa-totals-cards .total-category {
+    border-left-color: #7c3aed;
+    background: linear-gradient(180deg, rgba(124, 58, 237, 0.06), rgba(124, 58, 237, 0.02));
+  }
+  .visa-totals-cards .total-category .label { color: #7c3aed; }
+  .visa-totals-cards .total-next-unpaid {
+    border-left-color: #dc2626;
+    background: linear-gradient(180deg, rgba(220, 38, 38, 0.06), rgba(220, 38, 38, 0.02));
+  }
+  .visa-totals-cards .total-next-unpaid .label { color: #dc2626; }
+  .visa-totals-cards .total-wps {
+    border-left-color: #059669;
+    background: linear-gradient(180deg, rgba(5, 150, 105, 0.06), rgba(5, 150, 105, 0.02));
+  }
+  .visa-totals-cards .total-wps .label { color: #059669; }
+  @media (max-width: 768px) {
+    .visa-totals-cards .total-card {
+      flex: 1 1 calc(50% - 8px);
+      min-width: 140px;
+    }
   }
 </style>
 @endpush
@@ -56,26 +152,51 @@
         @php
           $cardIcoPaid = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/></svg>';
           $cardIcoUnpaid = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>';
+          $visaStatusesByName = collect($visaStatuses ?? [])->keyBy(fn ($vs) => trim((string) $vs->name));
           $flatCards = [];
-          foreach (($visaStatuses ?? collect()) as $vs) {
-            $counts = $visaStatusSliderCounts[$vs->id] ?? ['paid' => 0, 'unpaid' => 0];
-            $catLabel = ($vs->relationLoaded('renewalCategories') && $vs->renewalCategories->isNotEmpty())
-              ? $vs->renewalCategories->pluck('name')->join(', ')
-              : 'Visa Status';
-            $flatCards[] = [
-              'id' => (int) $vs->id,
-              'name' => (string) $vs->name,
-              'category' => $catLabel,
-              'paid' => (int) ($counts['paid'] ?? 0),
-              'unpaid' => (int) ($counts['unpaid'] ?? 0),
-              'sel' => $selectedVisaStatusId === (int) $vs->id,
-            ];
+          // Same pattern as riders: option name as heading, top-bar category (driving column group) underneath
+          foreach (($topBarSliderCategories ?? collect()) as $topCategory) {
+            foreach (($topCategory->options ?? []) as $option) {
+              $optionName = trim((string) ($option->name ?? ''));
+              if ($optionName === '') {
+                continue;
+              }
+              $vs = $visaStatusesByName->get($optionName);
+              if (! $vs) {
+                continue;
+              }
+              $counts = $visaStatusSliderCounts[$vs->id] ?? ['paid' => 0, 'unpaid' => 0];
+              $flatCards[] = [
+                'id' => (int) $vs->id,
+                'name' => (string) $vs->name,
+                'category' => (string) ($topCategory->name ?? ''),
+                'paid' => (int) ($counts['paid'] ?? 0),
+                'unpaid' => (int) ($counts['unpaid'] ?? 0),
+                'sel' => $selectedVisaStatusId === (int) $vs->id,
+              ];
+            }
+          }
+          // Fallback if top-bar categories are empty but statuses were resolved
+          if ($flatCards === [] && ($visaStatuses ?? collect())->isNotEmpty()) {
+            foreach ($visaStatuses as $vs) {
+              $counts = $visaStatusSliderCounts[$vs->id] ?? ['paid' => 0, 'unpaid' => 0];
+              $flatCards[] = [
+                'id' => (int) $vs->id,
+                'name' => (string) $vs->name,
+                'category' => '',
+                'paid' => (int) ($counts['paid'] ?? 0),
+                'unpaid' => (int) ($counts['unpaid'] ?? 0),
+                'sel' => $selectedVisaStatusId === (int) $vs->id,
+              ];
+            }
           }
         @endphp
         @forelse($flatCards as $c)
         <div class="rl-card{{ $c['sel'] ? ' sel' : '' }}" data-status-id="{{ $c['id'] }}" title="{{ $c['name'] }}">
           <h4>{{ $c['name'] }}</h4>
+          @if($c['category'] !== '')
           <small>{{ $c['category'] }}</small>
+          @endif
           <div class="rl-boxes">
             <div class="rl-box a{{ $c['sel'] && $selectedPaymentStatus === 'paid' ? ' on' : '' }}" data-payment="paid">{!! $cardIcoPaid !!}<span>PAID</span><b>{{ $c['paid'] }}</b></div>
             <div class="rl-box i{{ $c['sel'] && $selectedPaymentStatus === 'unpaid' ? ' on' : '' }}" data-payment="unpaid">{!! $cardIcoUnpaid !!}<span>UNPAID</span><b>{{ $c['unpaid'] }}</b></div>
@@ -87,7 +208,9 @@
         @foreach($flatCards as $c)
         <div class="rl-card{{ $c['sel'] ? ' sel' : '' }}" data-status-id="{{ $c['id'] }}" title="{{ $c['name'] }}" aria-hidden="true">
           <h4>{{ $c['name'] }}</h4>
+          @if($c['category'] !== '')
           <small>{{ $c['category'] }}</small>
+          @endif
           <div class="rl-boxes">
             <div class="rl-box a{{ $c['sel'] && $selectedPaymentStatus === 'paid' ? ' on' : '' }}" data-payment="paid">{!! $cardIcoPaid !!}<span>PAID</span><b>{{ $c['paid'] }}</b></div>
             <div class="rl-box i{{ $c['sel'] && $selectedPaymentStatus === 'unpaid' ? ' on' : '' }}" data-payment="unpaid">{!! $cardIcoUnpaid !!}<span>UNPAID</span><b>{{ $c['unpaid'] }}</b></div>
@@ -113,6 +236,16 @@
               <span><strong>Create Expense Account</strong><em>Open a visa expense account for a person</em></span>
             </button>
             @endcan
+            @canany(['visa_expense_account_creation_view', 'visa_expense_entries_view'])
+            <a role="menuitem" href="{{ route('VisaExpense.exportCustomizableAccounts', request()->only(['name', 'payment_status', 'visa_status_id', 'quick_search', 'person_status', 'renewal_category_id', 'wps'])) }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/></svg>
+              <span><strong>Export Accounts</strong><em>Export visible columns to Excel (latest category per person)</em></span>
+            </a>
+            @endcanany
+            <button type="button" role="menuitem" class="openColumnControlSidebar">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+              <span><strong>Column Control</strong><em>Show, hide, and reorder table columns</em></span>
+            </button>
           </div>
         </div>
         <a class="rl-btn" id="allBtn" href="{{ route('VisaExpense.index') }}">
@@ -125,12 +258,81 @@
         </span>
       </div>
       <div class="rl-tb-right">
+        <button type="button" class="rl-btn icon" id="copyBtn" title="Copy table to clipboard" aria-label="Copy table">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" id="copyIco"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+        </button>
         <input class="rl-search" id="q" type="search" placeholder="Quick Search..." aria-label="Quick search" value="{{ request('quick_search') }}">
         <button type="button" class="rl-btn" id="filterBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           Filter Accounts
         </button>
       </div>
+    </div>
+
+    @php
+      $wpsOptions = $wpsOptions ?? [];
+      $accountStats = $accountStats ?? [
+        'next_unpaid' => 0,
+        'next_unpaid_amount' => 0,
+        'next_unpaid_documents' => 0,
+        'by_wps' => [],
+        'by_category' => [],
+        'by_category_unpaid_amount' => [],
+      ];
+      $statsBaseParams = request()->except(['renewal_category_id', 'wps', 'payment_status', 'visa_status_id', 'page']);
+      $statsNextUnpaidOn = request('payment_status') === 'unpaid' && !request()->filled('visa_status_id') && !request()->filled('renewal_category_id') && !request()->filled('wps');
+      $nextUnpaidAmount = (float) ($accountStats['next_unpaid_amount'] ?? 0);
+    @endphp
+    <div class="visa-totals-cards" aria-label="Visa account stats">
+      @foreach($wpsOptions as $wpsValue => $wpsLabel)
+      @php
+        $wpsStat = $accountStats['by_wps'][$wpsValue] ?? ['count' => 0, 'unpaid_amount' => 0, 'label' => $wpsLabel];
+        $wpsOn = (string) request('wps') === (string) $wpsValue
+          && !request()->filled('renewal_category_id')
+          && !request()->filled('payment_status')
+          && !request()->filled('visa_status_id');
+        $wpsParams = $wpsOn ? $statsBaseParams : array_merge($statsBaseParams, ['wps' => $wpsValue]);
+        $wpsUnpaidAmount = (float) ($wpsStat['unpaid_amount'] ?? 0);
+      @endphp
+      <a class="total-card total-wps{{ $wpsOn ? ' is-on' : '' }}"
+         href="{{ route('VisaExpense.index', $wpsParams) }}"
+         title="Accounts for {{ $wpsLabel }}">
+        <div class="label"><i class="ti ti-badge"></i>{{ $wpsLabel }}</div>
+        <div class="value">{{ number_format((int) ($wpsStat['count'] ?? 0)) }} accounts</div>
+        <div class="meta">
+          Next unpaid:
+          <span class="{{ $wpsUnpaidAmount <= 0 ? 'unpaid-zero' : 'unpaid-due' }}">{!! \App\Helpers\Currency::format($wpsUnpaidAmount, 2) !!}</span>
+        </div>
+      </a>
+      @endforeach
+      <a class="total-card total-next-unpaid{{ $statsNextUnpaidOn ? ' is-on' : '' }}"
+         href="{{ route('VisaExpense.index', $statsNextUnpaidOn ? $statsBaseParams : array_merge($statsBaseParams, ['payment_status' => 'unpaid'])) }}"
+         title="Accounts with unpaid visa documents">
+        <div class="label"><i class="ti ti-alert-circle"></i>Next Unpaid</div>
+        <div class="value {{ $nextUnpaidAmount <= 0 ? 'unpaid-zero' : 'unpaid-due' }}">{!! \App\Helpers\Currency::format($nextUnpaidAmount, 2) !!}</div>
+        <div class="meta">{{ number_format((int) ($accountStats['next_unpaid_documents'] ?? 0)) }} unpaid documents</div>
+      </a>
+      @foreach(($renewalCategories ?? []) as $statCat)
+      @php
+        $catId = (int) $statCat->id;
+        $catOn = (string) request('renewal_category_id') === (string) $catId
+          && !request()->filled('wps')
+          && !request()->filled('payment_status')
+          && !request()->filled('visa_status_id');
+        $catParams = $catOn ? $statsBaseParams : array_merge($statsBaseParams, ['renewal_category_id' => $catId]);
+        $catUnpaidAmount = (float) ($accountStats['by_category_unpaid_amount'][$catId] ?? 0);
+      @endphp
+      <a class="total-card total-category{{ $catOn ? ' is-on' : '' }}"
+         href="{{ route('VisaExpense.index', $catParams) }}"
+         title="{{ $statCat->name }} accounts">
+        <div class="label"><i class="ti ti-passport"></i>{{ $statCat->name }}</div>
+        <div class="value">{{ number_format((int) ($accountStats['by_category'][$catId] ?? 0)) }} accounts</div>
+        <div class="meta">
+          Next unpaid:
+          <span class="{{ $catUnpaidAmount <= 0 ? 'unpaid-zero' : 'unpaid-due' }}">{!! \App\Helpers\Currency::format($catUnpaidAmount, 2) !!}</span>
+        </div>
+      </a>
+      @endforeach
     </div>
 
     <div class="rl-tbox" id="tbox">
@@ -143,6 +345,7 @@
         'personTargets' => $personTargets,
         'allowPersonTypeSelection' => $allowPersonTypeSelection,
         'defaultPersonType' => $defaultPersonType,
+        'wpsOptions' => $wpsOptions ?? [],
         'ajaxFragment' => true,
       ])
     </div>
@@ -167,6 +370,9 @@
       @if(request()->filled('visa_status_id'))
       <input type="hidden" name="visa_status_id" value="{{ request('visa_status_id') }}">
       @endif
+      @if(request()->filled('payment_status'))
+      <input type="hidden" name="payment_status" value="{{ request('payment_status') }}">
+      @endif
       @if(request()->filled('quick_search'))
       <input type="hidden" name="quick_search" id="filterQuickSearch" value="{{ request('quick_search') }}">
       @endif
@@ -176,11 +382,32 @@
           <input type="text" name="name" id="name" class="form-control" placeholder="Filter By Account Name" value="{{ request('name') }}">
         </div>
         <div class="form-group col-md-12">
-          <label for="payment_status_filter">Payment Status</label>
-          <select class="form-control" name="payment_status" id="payment_status_filter">
+          <label for="person_status_filter">Person Status</label>
+          <select class="form-control" name="person_status" id="person_status_filter">
             <option value="">All</option>
-            <option value="paid" {{ request('payment_status') === 'paid' ? 'selected' : '' }}>Paid</option>
-            <option value="unpaid" {{ request('payment_status') === 'unpaid' ? 'selected' : '' }}>Unpaid</option>
+            <option value="active" {{ request('person_status') === 'active' ? 'selected' : '' }}>Active</option>
+            <option value="inactive" {{ request('person_status') === 'inactive' ? 'selected' : '' }}>Inactive</option>
+            <option value="employee" {{ request('person_status') === 'employee' ? 'selected' : '' }}>Employee</option>
+          </select>
+        </div>
+        <div class="form-group col-md-12">
+          <label for="renewal_category_id_filter">Visa Category</label>
+          <select class="form-control" name="renewal_category_id" id="renewal_category_id_filter">
+            <option value="">All</option>
+            @foreach(($renewalCategories ?? []) as $cat)
+            <option value="{{ $cat->id }}" {{ (string) request('renewal_category_id') === (string) $cat->id ? 'selected' : '' }}>
+              {{ $cat->name }}
+            </option>
+            @endforeach
+          </select>
+        </div>
+        <div class="form-group col-md-12">
+          <label for="wps_filter">WPS</label>
+          <select class="form-control" name="wps" id="wps_filter">
+            <option value="">All</option>
+            @foreach(($wpsOptions ?? []) as $wpsValue => $wpsLabel)
+            <option value="{{ $wpsValue }}" {{ request('wps') === (string) $wpsValue ? 'selected' : '' }}>{{ $wpsLabel }}</option>
+            @endforeach
           </select>
         </div>
         <div class="col-md-12 form-group text-center">
@@ -203,9 +430,12 @@
         <form action="{{ route('VisaExpense.accountcreate') }}" method="POST" id="visaCreateAccountForm">
           @csrf
           <div class="row g-3">
-            @if(empty($personTargets))
+            @if($createAccountFormLocked)
             <div class="col-12">
-              <div class="alert alert-warning mb-0">No person modules are enabled for this company. Enable Riders and/or Employees in company settings.</div>
+              <div class="alert alert-warning mb-0" role="alert">
+                <i class="ti ti-lock me-1"></i>
+                No person modules are enabled for this company. Enable <strong>{{ $riderLabel }}</strong> and/or <strong>{{ $employeeLabel }}</strong> in company module settings to create visa expense accounts.
+              </div>
             </div>
             @else
             @if($allowPersonTypeSelection)
@@ -226,6 +456,11 @@
             </div>
             @elseif($defaultPersonType !== '')
             <input type="hidden" name="person_type" id="visa_person_type_hidden" value="{{ $defaultPersonType }}">
+            <div class="col-12">
+              <p class="text-muted small mb-0">
+                <i class="ti ti-user-check me-1"></i>Person type is set to <strong>{{ $singlePersonTypeLabel }}</strong> (only enabled person module).
+              </p>
+            </div>
             @endif
 
             @if(in_array('rider', $personTargets, true))
@@ -264,7 +499,7 @@
             </div>
             @endif
             <div class="col-12 text-end">
-              <button type="submit" class="btn btn-primary" @if(empty($personTargets)) disabled @endif>Create</button>
+              <button type="submit" class="btn btn-primary" @if($createAccountFormLocked) disabled @endif>Create</button>
             </div>
           </div>
         </form>
@@ -272,6 +507,15 @@
     </div>
   </div>
 </div>
+
+@include('riders.partials.column_control_modal', [
+  'tableColumns' => $tableColumns ?? [],
+  'exportRoute' => route('VisaExpense.exportCustomizableAccounts'),
+  'tableIdentifier' => 'visa_accounts_table',
+  'fixedColumnsCount' => 1,
+  'exportFilterKeys' => ['name', 'payment_status', 'visa_status_id', 'quick_search', 'person_status', 'renewal_category_id', 'wps'],
+  'exportNote' => 'Only ticked columns are exported, in the current order, for all accounts (one row per person using the latest visa category). Current list filters are applied.',
+])
 
 <div class="rl-toast" id="rlToast" hidden></div>
 @else
@@ -289,6 +533,7 @@
   'confirmText' => 'This will submit a delete request or move the account to the Recycle Bin.',
   'method' => 'GET',
 ])
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script>
 (function () {
   const root = document.getElementById('visaAccountsListDemo');
@@ -359,6 +604,21 @@
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') closeFilter();
   });
+
+  // Select2 for filter fields
+  if (window.jQuery) {
+    jQuery(function ($) {
+      $('#person_status_filter,#renewal_category_id_filter,#wps_filter').each(function () {
+        if ($(this).length) {
+          $(this).select2({
+            dropdownParent: $('#searchTopbody'),
+            allowClear: true,
+            placeholder: $(this).find('option:first').text() || 'Select',
+          });
+        }
+      });
+    });
+  }
 
   // Ticker scroll / drag / click — scroll the overflow container (#rlTicker), not #rlTrack
   const tk = document.getElementById('rlTicker');
@@ -469,16 +729,21 @@
         if (tbox && data.html) tbox.innerHTML = data.html;
         if (pagerWrap && data.pagination !== undefined) pagerWrap.innerHTML = data.pagination;
         const newUrl = new URL(window.location.href);
-        ['quick_search', 'page', 'per_page', 'name', 'payment_status', 'visa_status_id'].forEach(k => {
-          if (params.has(k)) newUrl.searchParams.set(k, params.get(k));
-          else if (['quick_search', 'page', 'per_page', 'name'].includes(k)) newUrl.searchParams.delete(k);
+        ['quick_search', 'page', 'per_page', 'name', 'payment_status', 'visa_status_id', 'person_status', 'renewal_category_id', 'wps'].forEach(k => {
+          if (params.has(k) && params.get(k) !== '') newUrl.searchParams.set(k, params.get(k));
+          else if (['quick_search', 'page', 'per_page', 'name', 'person_status', 'renewal_category_id', 'wps'].includes(k)) newUrl.searchParams.delete(k);
         });
         history.replaceState({}, '', newUrl.toString());
         bindTableEvents();
+        if (window.ColumnController && typeof window.ColumnController.reapplySettings === 'function') {
+          window.ColumnController.reapplySettings();
+        }
       })
       .catch(() => toast('Could not refresh accounts'))
       .finally(() => { if (overlay) overlay.style.display = 'none'; });
   }
+
+  window.rlToast = toast;
 
   const qInput = document.getElementById('q');
   qInput?.addEventListener('keydown', function (e) {
@@ -506,7 +771,7 @@
     e.preventDefault();
     const fd = new FormData(this);
     const extra = { page: 1 };
-    ['name', 'payment_status', 'visa_status_id', 'quick_search'].forEach(k => {
+    ['name', 'payment_status', 'visa_status_id', 'quick_search', 'person_status', 'renewal_category_id', 'wps'].forEach(k => {
       const v = fd.get(k);
       extra[k] = v ? String(v) : '';
     });
@@ -524,6 +789,118 @@
   }
   bindTableEvents();
 
+  function getVisibleCopyColumns(table) {
+    const checkedKeys = Array.from(document.querySelectorAll('#columnList .column-item'))
+      .filter(item => item.querySelector('.column-visibility-checkbox')?.checked)
+      .map(item => item.dataset.columnKey)
+      .filter(Boolean);
+    const visibleCols = [];
+    Array.from(table.querySelectorAll('thead th')).forEach((th, i) => {
+      if (th.classList.contains('nosort') || th.classList.contains('column-hidden')) return;
+      if (window.getComputedStyle(th).display === 'none') return;
+      const label = (th.childNodes[0]?.textContent || th.textContent || '').replace(/[⇅↑↓]/g, '').trim();
+      if (!label || /^actions$/i.test(label)) return;
+      const key = th.getAttribute('data-k') || '';
+      if (checkedKeys.length && key && !checkedKeys.includes(key)) return;
+      visibleCols.push({ index: i, label, key });
+    });
+    return visibleCols;
+  }
+
+  function cellPlainText(td) {
+    if (!td) return '-';
+    const clone = td.cloneNode(true);
+    clone.querySelectorAll('.dropdown').forEach(n => n.remove());
+    return clone.innerText.replace(/\s+/g, ' ').trim() || '-';
+  }
+
+  function cellExportValue(td, col) {
+    if (!td) return { text: '-', href: null };
+    if (col.key === 'name') {
+      const a = td.querySelector('a[href]');
+      if (a) return { text: (a.textContent || '').trim() || '-', href: a.href };
+    }
+    if (col.key === 'status' || col.key === 'wps' || col.key === 'category') {
+      const badge = td.querySelector('.badge');
+      if (badge) return { text: (badge.textContent || '').trim() || '-', href: null };
+    }
+    return { text: cellPlainText(td), href: null };
+  }
+
+  function escHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+    }[c]));
+  }
+
+  document.getElementById('copyBtn')?.addEventListener('click', async function () {
+    const table = document.getElementById('dataTableBuilder');
+    if (!table) return;
+
+    const visibleCols = getVisibleCopyColumns(table);
+    if (!visibleCols.length) {
+      toast('No visible columns to copy – enable columns in Column Control');
+      return;
+    }
+
+    const rows = Array.from(table.querySelectorAll('tbody tr')).filter(tr => !tr.querySelector('.rl-empty'));
+    const matrix = [visibleCols.map(c => ({ text: c.label, href: null }))];
+    rows.forEach(tr => {
+      matrix.push(visibleCols.map(col => cellExportValue(tr.children[col.index], col)));
+    });
+
+    const txt = matrix.map(r => r.map(c => c.text).join('\t')).join('\n');
+    const htmlTable = '<table><thead><tr>' +
+      visibleCols.map(c => '<th>' + escHtml(c.label) + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      matrix.slice(1).map(r => '<tr>' + r.map(c => {
+        if (c.href) {
+          return '<td><a href="' + escHtml(c.href) + '">' + escHtml(c.text) + '</a></td>';
+        }
+        return '<td>' + escHtml(c.text) + '</td>';
+      }).join('') + '</tr>').join('') +
+      '</tbody></table>';
+
+    let copied = false;
+    try {
+      if (window.ClipboardItem && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            'text/plain': new Blob([txt], { type: 'text/plain' }),
+            'text/html': new Blob([htmlTable], { type: 'text/html' }),
+          }),
+        ]);
+        copied = true;
+      } else {
+        await navigator.clipboard.writeText(txt);
+        copied = true;
+      }
+    } catch (_) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = txt;
+        ta.style.cssText = 'position:fixed;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        copied = document.execCommand('copy');
+        ta.remove();
+      } catch (_) {}
+    }
+
+    if (!copied) {
+      toast('Could not copy to clipboard');
+      return;
+    }
+
+    const ic = document.getElementById('copyIco');
+    if (ic) {
+      const o = ic.innerHTML;
+      ic.innerHTML = '<path d="M5 12l5 5 9-10"/>';
+      setTimeout(() => { ic.innerHTML = o; }, 1500);
+    }
+    toast('Copied ' + rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' to clipboard');
+  });
+
   // Create modal + Select2 AJAX person search
   const $ = window.jQuery;
   if ($) {
@@ -533,9 +910,12 @@
     const $personKey = $('#person_key');
     const $form = $('#visaCreateAccountForm');
     const eligibleCategoriesUrlTemplate = @json(route('VisaExpense.eligibleRenewalCategories', ['personType' => '__TYPE__', 'personId' => '__ID__']));
-    const defaultPersonType = @json($defaultPersonType ?? 'rider');
+    const personTargets = @json($personTargets ?? []);
+    const defaultPersonType = @json($defaultPersonType ?? '');
+    const createAccountFormLocked = !personTargets.length || !defaultPersonType;
 
     function currentPersonType() {
+      if (createAccountFormLocked) return '';
       const checked = $createModal.find('input[name="person_type"]:checked').val();
       if (checked) return checked;
       return $createModal.find('input[name="person_type"]').filter(':hidden').val() || defaultPersonType;
@@ -580,6 +960,9 @@
       });
     }
     function applyPersonType(type) {
+      if (createAccountFormLocked || !type || personTargets.indexOf(type) === -1) {
+        return;
+      }
       $createModal.find('.visa-person-field').addClass('d-none');
       $createModal.find('.visa-person-select').each(function () {
         const $sel = $(this);
@@ -660,23 +1043,36 @@
       loadEligibleCategories(syncPersonKey());
     });
     $form.on('submit', function (e) {
+      if (createAccountFormLocked) {
+        e.preventDefault();
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Person modules disabled',
+            text: 'Enable Riders and/or Employees in company module settings before creating a visa expense account.',
+          });
+        }
+        return false;
+      }
       const personKey = syncPersonKey();
       if (!personKey) {
         e.preventDefault();
         if (typeof Swal !== 'undefined') {
-          Swal.fire({ icon: 'warning', title: 'Select a person', text: 'Please select a rider or employee first.' });
+          Swal.fire({ icon: 'warning', title: 'Select a person', text: 'Please select a person first.' });
         }
         return false;
       }
     });
     $createModal.on('shown.bs.modal', function () {
+      if (createAccountFormLocked) return;
       applyPersonType(currentPersonType());
     });
     $createModal.on('hidden.bs.modal', function () {
+      if (createAccountFormLocked) return;
       $createModal.find('.visa-person-select').val(null).trigger('change');
       $personKey.val('');
       resetCategorySelect();
-      if ($createModal.find('input[name="person_type"][type="radio"]').length) {
+      if ($createModal.find('input[name="person_type"][type="radio"]').length && defaultPersonType) {
         $createModal.find('input[name="person_type"][value="' + defaultPersonType + '"]').prop('checked', true);
       }
     });

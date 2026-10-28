@@ -390,6 +390,14 @@
   cursor: default;
 }
 
+/* Theme core.css also paints th.sorting::after (⇅); keep only the list-demo .ar marker. */
+.riders-list-demo .rl-tbox thead th.sorting::after,
+.riders-list-demo .rl-tbox thead th.sorting.sorted-asc::after,
+.riders-list-demo .rl-tbox thead th.sorting.sorted-desc::after {
+  content: none !important;
+  display: none !important;
+}
+
 .riders-list-demo .rl-tbox thead th .ar {
   opacity: 0.45;
   margin-left: 4px;

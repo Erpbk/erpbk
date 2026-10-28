@@ -105,18 +105,15 @@ if ($pendingVisaExpenseIds !== [] && $pageAccountIds !== []) {
 $accountsWithPaidTickets = [];
 foreach ($pageAccounts as $pageAccount) {
   $acctId = (int) $pageAccount->id;
-  if (isset($accountsWithPaidTickets[$acctId])) {
+  if (array_key_exists($acctId, $accountsWithPaidTickets)) {
     continue;
   }
   $catId = (int) ($pageAccount->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
-  $hasPaid = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+  $accountsWithPaidTickets[$acctId] = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
     $acctId,
     $pageAccount->rider_id ? (int) $pageAccount->rider_id : null,
     $catId
   )->whereRaw('LOWER(COALESCE(payment_status, "")) = ?', ['paid'])->exists();
-  if ($hasPaid) {
-    $accountsWithPaidTickets[$acctId] = true;
-  }
 }
 @endphp
 <table class="table" id="dataTableBuilder">
@@ -124,21 +121,29 @@ foreach ($pageAccounts as $pageAccount) {
       <tr id="rlHead">
          <th class="sorting" data-k="person_id">Person ID<span class="ar">⇅</span></th>
          <th class="sorting" data-k="name">Name<span class="ar">⇅</span></th>
-         <th class="sorting" data-k="categories">Visa Categories<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="category">Visa Category<span class="ar">⇅</span></th>
          <th class="sorting" data-k="status">Status<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="wps">WPS<span class="ar">⇅</span></th>
          <th class="sorting" data-k="next_unpaid">Next Unpaid Document<span class="ar">⇅</span></th>
          <th class="sorting" data-k="expiry">Expiry Document<span class="ar">⇅</span></th>
          <th class="sorting" data-k="person_code">Person Code<span class="ar">⇅</span></th>
          <th class="sorting" data-k="labour">Labour Card #<span class="ar">⇅</span></th>
          <th class="sorting" data-k="policy">Policy Number<span class="ar">⇅</span></th>
-         <th class="sorting" data-k="balance">Total Balance<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="balance">Total<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="paid">Paid<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="unpaid">Unpaid<span class="ar">⇅</span></th>
          <th class="nosort">Actions</th>
       </tr>
    </thead>
    <tbody id="rlBody">
       @forelse($groupedPersons as $personKey => $personAccounts)
       @php
-      $r = $personAccounts->first(); // representative row
+      $seedAccount = $personAccounts->first();
+      $personAccountsAll = \App\Support\VisaRenewalCategoryService::siblingAccountsForPerson($seedAccount);
+      if ($personAccountsAll->isEmpty()) {
+         $personAccountsAll = $personAccounts;
+      }
+      $r = \App\Support\VisaRenewalCategoryService::latestAccountForPerson($seedAccount);
       $isEmployeeAccount = !empty($r->employee_id);
 
       $hasActiveBike = !$isEmployeeAccount && company_table('bikes')
@@ -148,33 +153,70 @@ foreach ($pageAccounts as $pageAccount) {
       $badgeClass = $isEmployeeAccount ? 'bg-label-info' : ($hasActiveBike ? 'bg-label-success' : 'bg-label-danger');
       $badgeLabel = $isEmployeeAccount ? 'Employee' : ($hasActiveBike ? 'Active' : 'Inactive');
 
-      $personRef  = $isEmployeeAccount ? ($r->employee->employee_id ?? '-') : ($r->rider->rider_id ?? '-');
-      $personName = $isEmployeeAccount ? ($r->employee->name ?? $r->name) : ($r->rider->name ?? $r->name);
-      $personCode = $isEmployeeAccount ? ($r->employee->person_code ?? '-') : ($r->rider->person_code ?? '-');
-      $laborCard  = $isEmployeeAccount ? ($r->employee->labor_card_number ?? '-') : ($r->rider->labor_card_number ?? '-');
-      $policyNo   = $isEmployeeAccount ? '-' : ($r->rider->policy_no ?? '-');
+      // Prefer person details already eager-loaded on the page row when the latest account is a sibling
+      $personSource = $personAccounts->first(function ($acct) use ($r) {
+         return (int) $acct->id === (int) $r->id;
+      }) ?? $seedAccount;
+      if (!$r->relationLoaded('rider') && $personSource->relationLoaded('rider')) {
+         $r->setRelation('rider', $personSource->rider);
+      }
+      if (!$r->relationLoaded('employee') && $personSource->relationLoaded('employee')) {
+         $r->setRelation('employee', $personSource->employee);
+      }
 
-      // Total balance across ALL categories for this person
-      $totalBalance = $personAccounts->sum(function ($acct) {
-         $catId = (int) ($acct->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
-         return \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
-            (int) $acct->id,
-            $acct->rider_id ? (int) $acct->rider_id : null,
-            $catId
-         )->sum('amount');
-      });
-
-      // Gather next-unpaid and urgent-expiry across ALL accounts for this person
-      $nextUnpaid   = null;
-      $urgentExpiry = null;
-      foreach ($personAccounts as $acct) {
-         if (!$nextUnpaid && isset($nextUnpaidVisaByAccountId[$acct->id])) {
-            $nextUnpaid = $nextUnpaidVisaByAccountId[$acct->id];
-         }
-         if (!$urgentExpiry && isset($urgentVisaExpiryByAccountId[$acct->id])) {
-            $urgentExpiry = $urgentVisaExpiryByAccountId[$acct->id];
+      $personRef  = $isEmployeeAccount ? ($r->employee->employee_id ?? $personSource->employee->employee_id ?? '-') : ($r->rider->rider_id ?? $personSource->rider->rider_id ?? '-');
+      $personName = $isEmployeeAccount ? ($r->employee->name ?? $personSource->employee->name ?? $r->name) : ($r->rider->name ?? $personSource->rider->name ?? $r->name);
+      $personCode = $isEmployeeAccount ? ($r->employee->person_code ?? $personSource->employee->person_code ?? '-') : ($r->rider->person_code ?? $personSource->rider->person_code ?? '-');
+      $laborCard  = $isEmployeeAccount ? ($r->employee->labor_card_number ?? $personSource->employee->labor_card_number ?? '-') : ($r->rider->labor_card_number ?? $personSource->rider->labor_card_number ?? '-');
+      $policyNo   = $isEmployeeAccount ? '-' : ($r->rider->policy_no ?? $personSource->rider->policy_no ?? '-');
+      $wpsRaw = trim($isEmployeeAccount
+         ? (string) ($r->employee->wps ?? $personSource->employee->wps ?? '')
+         : (string) ($r->rider->wps ?? $personSource->rider->wps ?? ''));
+      $wpsOptions = $wpsOptions ?? [];
+      $wpsDisplay = $wpsRaw;
+      $wpsKnown = false;
+      if ($wpsRaw !== '') {
+         foreach ($wpsOptions as $wpsOptValue => $wpsOptLabel) {
+            if (strcasecmp((string) $wpsOptValue, $wpsRaw) === 0) {
+               $wpsDisplay = (string) $wpsOptLabel;
+               $wpsKnown = true;
+               break;
+            }
          }
       }
+
+      $latestCategoryId = (int) ($r->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
+      $latestCategoryName = $r->renewalCategory->name ?? '—';
+      $latestAccountUrl = \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id);
+
+      $categoryExpenseAmounts = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+         (int) $r->id,
+         $r->rider_id ? (int) $r->rider_id : null,
+         $latestCategoryId
+      )->get(['amount', 'payment_status']);
+      $totalBalance = (float) $categoryExpenseAmounts->sum('amount');
+      $paidBalance = (float) $categoryExpenseAmounts
+         ->filter(fn ($row) => strtolower((string) ($row->payment_status ?? '')) === 'paid')
+         ->sum('amount');
+      $unpaidBalance = (float) $categoryExpenseAmounts
+         ->filter(fn ($row) => strtolower((string) ($row->payment_status ?? '')) === 'unpaid')
+         ->sum('amount');
+
+      $nextUnpaid = $nextUnpaidVisaByAccountId[$r->id] ?? null;
+      if (!$nextUnpaid) {
+         $nextUnpaid = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+            (int) $r->id,
+            $r->rider_id ? (int) $r->rider_id : null,
+            $latestCategoryId
+         )
+            ->where('payment_status', 'unpaid')
+            ->orderByRaw('CASE WHEN date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('date', 'asc')
+            ->orderBy('billing_month', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+      }
+      $urgentExpiry = $urgentVisaExpiryByAccountId[$r->id] ?? null;
 
       $nextWhen = '';
       if ($nextUnpaid) {
@@ -191,39 +233,35 @@ foreach ($pageAccounts as $pageAccount) {
          catch (\Throwable $e) { $urgentExpiryWhen = ''; }
       }
 
-      // Rider-overview URL (new grouped detail page)
       $overviewUrl = $isEmployeeAccount
          ? route('VisaExpense.showForRider', ['riderId' => $r->employee_id, 'type' => 'employee'])
          : route('VisaExpense.showForRider', ['riderId' => $r->rider_id]);
-
-      // Keep a reference to the first single-account URL (for backward compat modals)
-      $firstAccountUrl = \App\Support\VisaRenewalCategoryService::generatentriesUrl($r->id, $r->rider_id);
-
-      $selectedPersonKey = $isEmployeeAccount ? ('employee:' . $r->employee_id) : ('rider:' . $r->rider_id);
       @endphp
       <tr class="text-center">
          <td>{{ $personRef }}</td>
          <td class="text-start">
             <a href="{{ $overviewUrl }}" class="fw-semibold text-decoration-none">{{ $personName }}</a>
          </td>
-         {{-- All visa categories for this rider as badges --}}
-         <td class="text-start">
-            @foreach($personAccounts as $acct)
-            <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($acct->id, $acct->rider_id) }}"
-               class="badge bg-label-primary me-1 mb-1 text-decoration-none"
-               title="Open {{ $acct->renewalCategory->name ?? 'Visa' }} account">
-               {{ $acct->renewalCategory->name ?? '—' }}
+         <td class="text-center">
+            <a href="{{ $latestAccountUrl }}"
+               class="badge bg-label-primary text-decoration-none"
+               title="Open {{ $latestCategoryName }} account">
+               {{ $latestCategoryName }}
             </a>
-            @endforeach
          </td>
          <td><span class="badge {{ $badgeClass }}">{{ $badgeLabel }}</span></td>
+         <td>
+            @if($wpsDisplay !== '')
+            <span class="badge {{ $wpsKnown ? 'bg-label-success' : 'bg-label-secondary' }}">{{ $wpsDisplay }}</span>
+            @else
+            <span class="text-muted">—</span>
+            @endif
+         </td>
          <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
             @if($nextUnpaid)
-            <a href="{{ $overviewUrl }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
+            <a href="{{ $latestAccountUrl }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
                <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
-               @if($nextWhen !== '')
-               <span class="text-muted small text-center">{{ \App\Helpers\Currency::symbol() }}{{ number_format((float) ($nextUnpaid->amount ?? 0), 2) }}</span>
-               @endif
+               <span class="text-danger small text-center">{!! \App\Helpers\Currency::format((float) ($nextUnpaid->amount ?? 0), 2) !!}@if($nextWhen !== '') · {{ $nextWhen }}@endif</span>
             </a>
             @else
             <span class="text-muted">—</span>
@@ -231,7 +269,7 @@ foreach ($pageAccounts as $pageAccount) {
          </td>
          <td class="align-middle @if($urgentExpiry && $urgentExpiryWhen !== '') visa-expiry-alert-cell @endif">
             @if($urgentExpiry && $urgentExpiryWhen !== '')
-            <a href="{{ $overviewUrl }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
+            <a href="{{ $latestAccountUrl }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
                <span class="fw-semibold d-block text-body text-center">{{ $urgentExpiry->visa_status ?? '—' }}</span>
                <span class="text-muted small d-block text-center">{{ $urgentExpiryWhen }}</span>
             </a>
@@ -242,7 +280,9 @@ foreach ($pageAccounts as $pageAccount) {
          <td>{{ $personCode }}</td>
          <td>{{ $laborCard }}</td>
          <td>{{ $policyNo }}</td>
-         <td>{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $totalBalance, 2) }}</td>
+         <td>{!! \App\Helpers\Currency::format($totalBalance, 2) !!}</td>
+         <td class="text-success">{!! \App\Helpers\Currency::format($paidBalance, 2) !!}</td>
+         <td class="{{ $unpaidBalance <= 0 ? 'text-success' : 'text-danger' }}">{!! \App\Helpers\Currency::format($unpaidBalance, 2) !!}</td>
          <td>
             <div class="dropdown">
                <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -253,7 +293,7 @@ foreach ($pageAccounts as $pageAccount) {
                   <a href="{{ $overviewUrl }}" class='dropdown-item waves-effect'>
                      <i class="fa fa-eye me-1"></i> View All Visa History
                   </a>
-                  @foreach($personAccounts as $acct)
+                  @foreach($personAccountsAll as $acct)
                   <a href="{{ \App\Support\VisaRenewalCategoryService::generatentriesUrl($acct->id, $acct->rider_id) }}" class='dropdown-item waves-effect ps-4'>
                      <i class="fa fa-passport me-1 text-muted"></i> {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
                   </a>
@@ -261,10 +301,19 @@ foreach ($pageAccounts as $pageAccount) {
                   @endcanany
                   @can('visa_expense_account_creation_delete')
                   <div class="dropdown-divider"></div>
-                  @foreach($personAccounts as $acct)
+                  @foreach($personAccountsAll as $acct)
                   @php
-                     $acctPendingDeletion = isset($pendingExpenseAccountIds[(int) $acct->id]);
-                     $acctHasPaidTickets = isset($accountsWithPaidTickets[(int) $acct->id]);
+                     $acctIdKey = (int) $acct->id;
+                     $acctPendingDeletion = isset($pendingExpenseAccountIds[$acctIdKey]);
+                     if (!array_key_exists($acctIdKey, $accountsWithPaidTickets)) {
+                        $paidCatId = (int) ($acct->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
+                        $accountsWithPaidTickets[$acctIdKey] = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+                           $acctIdKey,
+                           $acct->rider_id ? (int) $acct->rider_id : null,
+                           $paidCatId
+                        )->whereRaw('LOWER(COALESCE(payment_status, "")) = ?', ['paid'])->exists();
+                     }
+                     $acctHasPaidTickets = (bool) $accountsWithPaidTickets[$acctIdKey];
                   @endphp
                   @if($acctPendingDeletion)
                   <span class="dropdown-item-text text-muted small">
@@ -287,7 +336,7 @@ foreach ($pageAccounts as $pageAccount) {
       </tr>
       @empty
       <tr>
-         <td colspan="11" class="text-center text-muted py-4">No visa expense accounts found.</td>
+         <td colspan="14" class="text-center text-muted py-4 rl-empty">No visa expense accounts found.</td>
       </tr>
       @endforelse
    </tbody>

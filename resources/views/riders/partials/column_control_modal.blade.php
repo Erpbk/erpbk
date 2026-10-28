@@ -5,6 +5,11 @@ $tableColumns = $tableColumns ?? [];
 $exportRoute = $exportRoute ?? null;
 $tableIdentifier = $tableIdentifier ?? 'riders_table';
 $fixedColumnsCount = (int) ($fixedColumnsCount ?? 1);
+$exportFilterKeys = $exportFilterKeys ?? [
+    'rider_id', 'name', 'fleet_supervisor', 'status', 'emirate_hub', 'quick_search', 'rider_top_option_id',
+];
+$exportNote = $exportNote
+    ?? 'Only ticked columns are exported, in the current order, for all riders. Status exports as Status + Status Days; Name includes a profile link.';
 $explicitModuleKey = $moduleKey ?? null;
 $moduleSettingsMap = config('module_settings_sync.table_identifier_to_module', []);
 $resolvedModuleKey = $explicitModuleKey ?: ($moduleSettingsMap[$tableIdentifier] ?? null);
@@ -112,7 +117,7 @@ foreach ($tableColumns as $index => $column) {
         <button type="button" class="exp e-c export-btn" data-format="csv">Export to CSV</button>
         <button type="button" class="exp e-p export-btn" data-format="pdf">Export to PDF</button>
       </div>
-      <div class="rl-note">Only ticked columns are exported, in the current order, for all riders. Status exports as Status + Status Days; Name includes a profile link.</div>
+      <div class="rl-note">{{ $exportNote }}</div>
       @endif
 
       <span id="visibleCount" hidden>{{ count($controllableColumns) }}</span>
@@ -399,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
       url.searchParams.set('visible_columns', JSON.stringify(visibleColumns));
       url.searchParams.set('column_order', JSON.stringify(columnOrder));
       const currentUrl = new URL(window.location);
-      ['rider_id', 'name', 'fleet_supervisor', 'status', 'emirate_hub', 'quick_search', 'rider_top_option_id'].forEach(param => {
+      (@json($exportFilterKeys)).forEach(param => {
         const value = currentUrl.searchParams.get(param);
         if (value) url.searchParams.set(param, value);
       });

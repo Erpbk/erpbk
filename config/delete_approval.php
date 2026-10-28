@@ -205,6 +205,18 @@ return [
             'display_columns' => ['cheque_number', 'amount', 'status'],
             'show_route' => 'cheques.show',
         ],
+        'visa_renewal_categories' => [
+            'model' => \App\Models\VisaRenewalCategory::class,
+            'name' => 'Visa Categories',
+            'display_columns' => ['name', 'display_order'],
+            'show_route' => null,
+        ],
+        'visa_statuses' => [
+            'model' => \App\Models\VisaStatus::class,
+            'name' => 'Visa Statuses',
+            'display_columns' => ['name', 'code', 'category'],
+            'show_route' => null,
+        ],
         'visa_expenses' => [
             'model' => \App\Models\visa_expenses::class,
             'name' => 'Visa Expenses',

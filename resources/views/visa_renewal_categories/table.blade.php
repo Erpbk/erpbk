@@ -36,7 +36,11 @@ $returnTo = $returnTo ?? null;
                     </span>
                 </td>
                 <td>
+                    @php $categoryPendingDeletion = record_is_pending_deletion($category); @endphp
                     <div class="visa-row-actions">
+                        @if($categoryPendingDeletion)
+                        @include('delete_requests._pending_badge', ['model' => $category])
+                        @else
                         @can('visa_expense_account_creation_edit')
                         @if($embeddedManager)
                         <button type="button"
@@ -48,7 +52,8 @@ $returnTo = $returnTo ?? null;
                             data-name="{{ $category->name }}"
                             data-display-order="{{ $category->display_order }}"
                             data-is-default="{{ $category->is_default ? 1 : 0 }}"
-                            data-is-active="{{ $category->is_active ? 1 : 0 }}">
+                            data-is-active="{{ $category->is_active ? 1 : 0 }}"
+                            data-status-ids="{{ $category->relationLoaded('visaStatuses') ? $category->visaStatuses->pluck('id')->implode(',') : '' }}">
                             <i class="ti ti-pencil"></i>
                         </button>
                         @endif
@@ -63,6 +68,7 @@ $returnTo = $returnTo ?? null;
                         </button>
                         @endif
                         @endcan
+                        @endif
                     </div>
                 </td>
             </tr>

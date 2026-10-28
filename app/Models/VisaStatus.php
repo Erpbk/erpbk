@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Support\CompanyContext;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -20,29 +20,34 @@ class VisaStatus extends BaseModel
         'description',
         'default_fee',
         'category',
-        'visa_renewal_category_id',
         'is_active',
         'is_required',
         'display_order',
         'created_by',
-        'updated_by'
+        'updated_by',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_required' => 'boolean',
         'default_fee' => 'decimal:2',
-        'visa_renewal_category_id' => 'integer',
     ];
 
-    public function renewalCategory(): BelongsTo
+    public function renewalCategories(): BelongsToMany
     {
-        return $this->belongsTo(VisaRenewalCategory::class, 'visa_renewal_category_id');
+        return $this->belongsToMany(
+            VisaRenewalCategory::class,
+            'visa_renewal_category_visa_status',
+            'visa_status_id',
+            'visa_renewal_category_id'
+        )->withPivot('display_order')->withTimestamps();
     }
 
     public function scopeForCategory($query, int $categoryId)
     {
-        return $query->where('visa_renewal_category_id', $categoryId);
+        return $query->whereHas('renewalCategories', function ($q) use ($categoryId) {
+            $q->where('visa_renewal_categories.id', $categoryId);
+        });
     }
 
     /**
@@ -60,19 +65,20 @@ class VisaStatus extends BaseModel
 
     public static function getActiveForCategory(int $categoryId)
     {
-        return self::query()
-            ->where('is_active', true)
-            ->where('visa_renewal_category_id', $categoryId)
-            ->orderBy('display_order')
-            ->orderBy('name')
+        $category = VisaRenewalCategory::query()->find($categoryId);
+        if (! $category) {
+            return collect();
+        }
+
+        return $category->visaStatuses()
+            ->where('visa_statuses.is_active', true)
             ->get();
     }
 
-    public static function uniqueNameRule(int $categoryId, ?int $ignoreId = null): Unique
+    public static function uniqueNameRule(?int $ignoreId = null): Unique
     {
-        $rule = Rule::unique('visa_statuses', 'name')->where(function ($q) use ($categoryId) {
-            $q->where('visa_renewal_category_id', $categoryId)
-                ->whereNull('deleted_at');
+        $rule = Rule::unique('visa_statuses', 'name')->where(function ($q) {
+            $q->whereNull('deleted_at');
             $companyId = CompanyContext::id();
             if ($companyId !== null && Schema::hasColumn('visa_statuses', 'company_id')) {
                 $q->where('company_id', $companyId);
@@ -84,5 +90,10 @@ class VisaStatus extends BaseModel
         }
 
         return $rule;
+    }
+
+    public function ticketNumber(): string
+    {
+        return 'T-' . str_pad((string) $this->id, 3, '0', STR_PAD_LEFT);
     }
 }

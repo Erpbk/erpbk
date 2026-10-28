@@ -74,8 +74,9 @@ class TopBarListingService
                 ->orderBy('id')
                 ->get();
 
-            if ($categories->isEmpty() && ($config['preset_categories'] ?? []) !== []) {
-                app(ModuleTopBarSettingsService::class)->seedPresetCategories($moduleKey);
+            if ($categories->isEmpty()) {
+                // Migrates legacy Settings keys / seeds presets when configured.
+                app(ModuleTopBarSettingsService::class)->categoriesForModule($moduleKey);
                 $categories = ErpModuleTopCategory::query()
                     ->with(['options' => fn($q) => $this->applyListingOptionsConstraint($q, ErpModuleTopOption::class)])
                     ->where('module_key', $moduleKey)

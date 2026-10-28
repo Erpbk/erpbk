@@ -6,8 +6,8 @@
     <div class="container-fluid">
         <div class="row mb-2">
             <div class="col-sm-12">
-                <h1>Create Visa Status</h1>
-                <p class="text-muted mb-0">This status will belong to the selected visa category. Duplicate names are not allowed in the same category.</p>
+                <h1>Create Visa Ticket</h1>
+                <p class="text-muted mb-0">One ticket = one record. Select every visa category where this ticket should appear. Names must be unique.</p>
             </div>
         </div>
     </div>

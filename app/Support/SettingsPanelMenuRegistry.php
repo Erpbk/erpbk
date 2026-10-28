@@ -56,7 +56,7 @@ class SettingsPanelMenuRegistry
             'vat' => 'settings-panel.vat-settings.index',
             'vat_ledger' => 'settings-panel.vat-settings.index',
             'vat_return_file' => 'settings-panel.vat-settings.index',
-            'visa_expense' => 'settings-panel.visa-statuses.index',
+            'visa_expense' => 'settings-panel.module-settings.index',
             'license_expense' => 'settings-panel.license-statuses.index',
             'legal_case' => 'settings-panel.legal-case-statuses.index',
             'rider_inventory_items' => 'settings-panel.rider-inventory-items.index',

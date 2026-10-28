@@ -1,8 +1,16 @@
 @php
 $visaRoute = $visaRoute ?? ((View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses');
-$embeddedVisaStatusManager = $embeddedVisaStatusManager ?? false;
+$embeddedVisaStatusManager = $embeddedVisaStatusManager ?? ($useVisaStatusModals ?? false);
 $selectedCategoryId = (int) ($selectedCategoryId ?? 0);
-$visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visaRoute . '.index') . '?category_id=' . $selectedCategoryId) : null);
+$viewMode = $viewMode ?? 'category';
+$isMasterView = $viewMode === 'all';
+$visaStatusReturnTo = $visaStatusReturnTo ?? (
+    $isMasterView
+        ? (route($visaRoute . '.index') . '?view=all')
+        : ($selectedCategoryId ? (route($visaRoute . '.index') . '?category_id=' . $selectedCategoryId) : null)
+);
+$visaRenewalCategories = $visaRenewalCategories ?? collect();
+$categoryNameById = $visaRenewalCategories->keyBy('id');
 @endphp
 <style>
     .visa-row-actions {
@@ -72,32 +80,60 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
         border-color: #dc3545;
         color: #fff;
     }
+    .visa-cat-chip {
+        display: inline-block;
+        background: #eef2ff;
+        color: #3730a3;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 11px;
+        margin: 2px 3px 2px 0;
+    }
 </style>
 <div class="table-responsive">
-    <table class="table table-striped" id="visa-statuses-table">
+    <table class="table table-striped" id="visa-statuses-table"
+           data-view-mode="{{ $viewMode }}"
+           data-category-id="{{ $selectedCategoryId }}">
         <thead>
             <tr>
+                @unless($isMasterView)
                 <th style="width: 32px;" class="text-center" title="Drag to reorder"></th>
+                <th>#</th>
+                @endunless
+                <th>Ticket #</th>
                 <th class="sorting">Code</th>
                 <th class="sorting">Name</th>
                 <th class="sorting">Type</th>
                 <th class="sorting">Default Fee</th>
                 <th class="sorting">Required</th>
                 <th class="sorting">Status</th>
-                <th class="sorting">Display Order</th>
+                @if($isMasterView)
+                <th>Categories</th>
+                @endif
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody id="visa-statuses-tbody">
-            @forelse($visaStatuses as $status)
-            <tr data-id="{{ $status->id }}" data-category-id="{{ (int) $status->visa_renewal_category_id }}">
+            @forelse($visaStatuses as $index => $status)
+            @php
+                $assignedCategoryIds = $status->relationLoaded('renewalCategories')
+                    ? $status->renewalCategories->pluck('id')->map(fn ($id) => (int) $id)->all()
+                    : [];
+            @endphp
+            <tr data-id="{{ $status->id }}"
+                data-category-id="{{ $selectedCategoryId }}"
+                data-category-ids="{{ implode(',', $assignedCategoryIds) }}">
+                @unless($isMasterView)
                 <td class="text-center visa-drag-handle" style="cursor: grab; user-select: none;">
                     <i class="ti ti-grip-vertical ti-sm text-muted"></i>
                 </td>
+                <td class="text-muted">{{ $index + 1 }}</td>
+                @endunless
+                <td><code class="text-primary fw-semibold">{{ $status->ticketNumber() }}</code></td>
                 <td>{{ $status->code ?? 'N/A' }}</td>
                 <td>{{ $status->name }}</td>
                 <td>{{ $status->category ?: '—' }}</td>
-                <td>{{ number_format($status->default_fee, 2) }}</td>
+                <td>{{ number_format((float) $status->default_fee, 2) }}</td>
                 <td>
                     <span class="badge bg-{{ $status->is_required ? 'primary' : 'secondary' }}">
                         {{ $status->is_required ? 'Yes' : 'No' }}
@@ -108,9 +144,22 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
                         {{ $status->is_active ? 'Active' : 'Inactive' }}
                     </span>
                 </td>
-                <td>{{ $status->display_order }}</td>
+                @if($isMasterView)
                 <td>
+                    @forelse($assignedCategoryIds as $catId)
+                        @php $cat = $categoryNameById->get($catId) ?? $status->renewalCategories->firstWhere('id', $catId); @endphp
+                        <span class="visa-cat-chip">{{ $cat->name ?? ('#'.$catId) }}</span>
+                    @empty
+                        <span class="text-muted small">None</span>
+                    @endforelse
+                </td>
+                @endif
+                <td>
+                    @php $statusPendingDeletion = record_is_pending_deletion($status); @endphp
                     <div class="visa-row-actions">
+                        @if($statusPendingDeletion)
+                        @include('delete_requests._pending_badge', ['model' => $status])
+                        @else
                         @can('visa_expense_entries_edit')
                         @if($embeddedVisaStatusManager)
                         <button
@@ -123,7 +172,7 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
                             data-code="{{ $status->code }}"
                             data-name="{{ $status->name }}"
                             data-category="{{ $status->category }}"
-                            data-visa-renewal-category-id="{{ (int) $status->visa_renewal_category_id }}"
+                            data-visa-renewal-category-ids="{{ implode(',', $assignedCategoryIds) }}"
                             data-default-fee="{{ $status->default_fee }}"
                             data-description="{{ $status->description }}"
                             data-is-required="{{ $status->is_required ? 1 : 0 }}"
@@ -142,11 +191,24 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
                             <i class="ti ti-{{ $status->is_active ? 'player-pause' : 'player-play' }}"></i>
                         </a>
                         @endcan
+                        @if(! $isMasterView)
+                        @can('visa_expense_entries_edit')
+                        <button
+                            type="button"
+                            class="visa-icon-btn visa-icon-btn-delete js-visa-status-unassign-btn"
+                            title="Remove from this category only"
+                            data-unassign-url="{{ route($visaRoute . '.unassign', $status->id) }}"
+                            data-category-id="{{ $selectedCategoryId }}">
+                            <i class="ti ti-unlink"></i>
+                        </button>
+                        @endcan
+                        @endif
+                        @if($isMasterView)
                         @can('visa_expense_entries_delete')
                         <button
                             type="button"
                             class="visa-icon-btn visa-icon-btn-delete js-visa-status-delete-btn"
-                            title="Delete"
+                            title="Delete from all categories"
                             data-delete-url="{{ route($visaRoute . '.destroy', $status->id) . ($visaStatusReturnTo ? ('?return_to=' . urlencode($visaStatusReturnTo)) : '') }}"
                             data-delete-form-id="delete-form-{{ $status->id }}">
                             <i class="ti ti-trash"></i>
@@ -156,16 +218,18 @@ $visaStatusReturnTo = $visaStatusReturnTo ?? ($selectedCategoryId ? (route($visa
                             @method('DELETE')
                         </form>
                         @endcan
+                        @endif
+                        @endif
                     </div>
                 </td>
             </tr>
             @empty
             <tr>
-                <td colspan="9" class="text-center text-muted py-5">
+                <td colspan="{{ $isMasterView ? 9 : 10 }}" class="text-center text-muted py-5">
                     <div class="py-3">
                         <i class="ti ti-list-off mb-2" style="font-size: 1.75rem;"></i>
-                        <div>No visa statuses in this category.</div>
-                        <div class="small">Add statuses here before generating visa expense tickets for this category.</div>
+                        <div>{{ $isMasterView ? 'No visa tickets yet.' : 'No tickets in this category yet.' }}</div>
+                        <div class="small">{{ $isMasterView ? 'Add a ticket and assign it to one or more categories.' : 'Assign existing tickets or add a new ticket for this category.' }}</div>
                     </div>
                 </td>
             </tr>

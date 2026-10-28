@@ -9,6 +9,7 @@ use App\Models\VisaStatus;
 use App\Models\visa_expenses;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class VisaRenewalCategoryService
 {
@@ -46,15 +47,12 @@ class VisaRenewalCategoryService
             return $first;
         }
 
-        $created = VisaRenewalCategory::create([
+        return VisaRenewalCategory::create([
             'name' => 'New Visa',
             'display_order' => 1,
             'is_default' => true,
             'is_active' => true,
         ]);
-        self::seedStatusesForCategory($created);
-
-        return $created;
     }
 
     public static function defaultCategory(): VisaRenewalCategory
@@ -63,7 +61,7 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Standard visa status tickets used when a category has no source statuses to copy.
+     * Standard visa status ticket templates (used by seeder for initial master list).
      *
      * @return list<array<string, mixed>>
      */
@@ -89,94 +87,121 @@ class VisaRenewalCategoryService
     }
 
     /**
-     * Copy visa statuses onto a category (from the default/previous category, or the standard template).
+     * Attach existing master statuses to a category (pivot only — no new status rows).
      *
-     * @return array{count: int, source: string|null}
+     * @param  list<int>|array<int, mixed>  $statusIds
      */
-    public static function seedStatusesForCategory(VisaRenewalCategory $category): array
+    public static function attachStatusesToCategory(VisaRenewalCategory $category, array $statusIds): int
     {
-        $existing = VisaStatus::query()
-            ->where('visa_renewal_category_id', $category->id)
-            ->count();
-        if ($existing > 0) {
-            return ['count' => 0, 'source' => null];
+        $ids = collect($statusIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return 0;
         }
 
-        $sourceCategory = self::statusCopySource($category);
-        $createdBy = auth()->id();
+        $validIds = VisaStatus::query()
+            ->whereIn('id', $ids->all())
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
-        if ($sourceCategory) {
-            $sourceStatuses = VisaStatus::query()
-                ->where('visa_renewal_category_id', $sourceCategory->id)
-                ->orderBy('display_order')
-                ->orderBy('id')
-                ->get();
-
-            foreach ($sourceStatuses as $status) {
-                VisaStatus::create([
-                    'visa_renewal_category_id' => $category->id,
-                    'name' => $status->name,
-                    'code' => $status->code,
-                    'description' => $status->description,
-                    'default_fee' => $status->default_fee,
-                    'category' => $status->category,
-                    'is_active' => $status->is_active,
-                    'is_required' => $status->is_required,
-                    'display_order' => $status->display_order,
-                    'created_by' => $createdBy,
-                ]);
-            }
-
-            return ['count' => $sourceStatuses->count(), 'source' => $sourceCategory->name];
+        if ($validIds === []) {
+            return 0;
         }
 
-        $count = 0;
-        foreach (self::defaultStatusTemplates() as $template) {
-            VisaStatus::create([
-                'visa_renewal_category_id' => $category->id,
-                'name' => $template['name'],
-                'code' => $template['code'],
-                'description' => $template['description'],
-                'default_fee' => $template['default_fee'],
-                'category' => $template['category'],
-                'is_active' => true,
-                'is_required' => $template['is_required'],
-                'display_order' => $template['display_order'],
-                'created_by' => $createdBy,
-            ]);
-            $count++;
+        $maxOrder = (int) $category->visaStatuses()->max('visa_renewal_category_visa_status.display_order');
+        $sync = [];
+        foreach ($validIds as $index => $statusId) {
+            $sync[$statusId] = ['display_order' => $maxOrder + $index + 1];
         }
 
-        return ['count' => $count, 'source' => null];
+        $category->visaStatuses()->syncWithoutDetaching($sync);
+
+        return count($sync);
     }
 
-    private static function statusCopySource(VisaRenewalCategory $category): ?VisaRenewalCategory
+    /**
+     * Replace a category's ticket assignments (mass assign/unassign), preserving order for kept tickets.
+     *
+     * @param  list<int>|array<int, mixed>  $statusIds
+     */
+    public static function syncStatusesForCategory(VisaRenewalCategory $category, array $statusIds): int
     {
-        $default = VisaRenewalCategory::query()->where('is_default', true)->first();
-        if ($default && (int) $default->id !== (int) $category->id) {
-            $hasStatuses = VisaStatus::query()
-                ->where('visa_renewal_category_id', $default->id)
-                ->exists();
-            if ($hasStatuses) {
-                return $default;
+        $ids = collect($statusIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        $validIds = $ids->isEmpty()
+            ? []
+            : VisaStatus::query()
+                ->whereIn('id', $ids->all())
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+        $existing = $category->visaStatuses()
+            ->get()
+            ->keyBy(fn ($status) => (int) $status->id);
+
+        $maxOrder = (int) $existing->max(fn ($status) => (int) ($status->pivot->display_order ?? 0));
+        $sync = [];
+        foreach ($validIds as $statusId) {
+            if ($existing->has($statusId)) {
+                $sync[$statusId] = [
+                    'display_order' => (int) ($existing->get($statusId)->pivot->display_order ?? 1),
+                ];
+                continue;
             }
+            $maxOrder++;
+            $sync[$statusId] = ['display_order' => $maxOrder];
         }
 
-        $previous = VisaRenewalCategory::query()
-            ->where('id', '!=', $category->id)
-            ->orderByDesc('display_order')
-            ->orderByDesc('id')
-            ->first();
-        if ($previous) {
-            $hasStatuses = VisaStatus::query()
-                ->where('visa_renewal_category_id', $previous->id)
-                ->exists();
-            if ($hasStatuses) {
-                return $previous;
+        $category->visaStatuses()->sync($sync);
+
+        return count($sync);
+    }
+
+    /**
+     * Sync a status's category assignments, preserving existing pivot display_order where possible.
+     *
+     * @param  list<int>|array<int, mixed>  $categoryIds
+     */
+    public static function syncStatusCategories(VisaStatus $status, array $categoryIds): void
+    {
+        $ids = collect($categoryIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $existing = $status->renewalCategories()
+            ->get()
+            ->keyBy(fn ($c) => (int) $c->id);
+
+        $sync = [];
+        foreach ($ids as $categoryId) {
+            if ($existing->has($categoryId)) {
+                $sync[$categoryId] = [
+                    'display_order' => (int) ($existing->get($categoryId)->pivot->display_order ?? 1),
+                ];
+                continue;
             }
+
+            $maxOrder = (int) DB::table('visa_renewal_category_visa_status')
+                ->where('visa_renewal_category_id', $categoryId)
+                ->max('display_order');
+
+            $sync[$categoryId] = ['display_order' => $maxOrder + 1];
         }
 
-        return null;
+        $status->renewalCategories()->sync($sync);
     }
 
     public static function visaExpenseHeadAccountId(): ?int

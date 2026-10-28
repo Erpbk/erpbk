@@ -1,28 +1,45 @@
 @php
 $visaRoute = (View::shared('settings_panel') ?? false) ? 'settings-panel.visa-statuses' : 'visa-statuses';
 $categories = $categories ?? collect();
-$selectedCategoryId = (int) old('visa_renewal_category_id', $selectedCategoryId ?? ($visaStatus->visa_renewal_category_id ?? 0));
-$cancelUrl = route($visaRoute . '.index') . ($selectedCategoryId ? ('?category_id=' . $selectedCategoryId) : '');
+$selectedCategoryIds = collect(old('visa_renewal_category_ids', $selectedCategoryIds ?? []))
+    ->map(fn ($id) => (int) $id)
+    ->filter()
+    ->values()
+    ->all();
+if ($selectedCategoryIds === [] && !empty($selectedCategoryId)) {
+    $selectedCategoryIds = [(int) $selectedCategoryId];
+}
+$primaryCategoryId = (int) ($selectedCategoryIds[0] ?? 0);
+$cancelUrl = route($visaRoute . '.index') . ($primaryCategoryId ? ('?category_id=' . $primaryCategoryId) : '');
 @endphp
-@if($selectedCategoryId)
+@if($primaryCategoryId)
 <input type="hidden" name="return_to" value="{{ $cancelUrl }}">
 @endif
 
 <div class="form-group col-sm-12">
-    <label for="visa_renewal_category_id" class="required">Visa Category:</label>
-    <select name="visa_renewal_category_id" id="visa_renewal_category_id" class="form-control @error('visa_renewal_category_id') is-invalid @enderror" required>
-        <option value="">Select visa category</option>
+    <label class="required">Show this ticket in these Visa Categories:</label>
+    <div class="d-flex flex-wrap gap-2 @error('visa_renewal_category_ids') is-invalid @enderror">
         @forelse($categories as $category)
-        <option value="{{ $category->id }}" {{ (int) $selectedCategoryId === (int) $category->id ? 'selected' : '' }}>
-            {{ $category->name }}{{ $category->is_default ? ' (Default)' : '' }}
-        </option>
+        <label class="border rounded px-3 py-2 mb-0 d-inline-flex align-items-center gap-2" style="cursor:pointer;">
+            <input
+                type="checkbox"
+                name="visa_renewal_category_ids[]"
+                value="{{ $category->id }}"
+                {{ in_array((int) $category->id, $selectedCategoryIds, true) ? 'checked' : '' }}>
+            <span>{{ $category->name }}{{ $category->is_default ? ' (Default)' : '' }}</span>
+        </label>
         @empty
-        <option value="" disabled>Create a visa category first</option>
+        <span class="text-muted">Create a visa category first</span>
         @endforelse
-    </select>
-    <small class="text-muted">Statuses belong to one visa category. The same status name may be used in a different category.</small>
-    @error('visa_renewal_category_id')
-    <span class="invalid-feedback" role="alert">
+    </div>
+    <small class="text-muted">One ticket = one record. Editing updates it in every selected category.</small>
+    @error('visa_renewal_category_ids')
+    <span class="invalid-feedback d-block" role="alert">
+        <strong>{{ $message }}</strong>
+    </span>
+    @enderror
+    @error('visa_renewal_category_ids.*')
+    <span class="invalid-feedback d-block" role="alert">
         <strong>{{ $message }}</strong>
     </span>
     @enderror
@@ -75,8 +92,9 @@ $cancelUrl = route($visaRoute . '.index') . ($selectedCategoryId ? ('?category_i
 </div>
 
 <div class="form-group col-sm-6">
-    <label for="display_order">Display Order:</label>
+    <label for="display_order">Display Order (master):</label>
     <input type="number" name="display_order" id="display_order" class="form-control @error('display_order') is-invalid @enderror" value="{{ old('display_order', $visaStatus->display_order ?? '') }}" min="1">
+    <small class="text-muted">Per-category order is set by drag-and-drop in the category view.</small>
     @error('display_order')
     <span class="invalid-feedback" role="alert">
         <strong>{{ $message }}</strong>

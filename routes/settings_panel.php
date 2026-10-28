@@ -47,6 +47,7 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::resource('dropdowns', App\Http\Controllers\DropdownsController::class)->names('settings-panel.dropdowns');
     Route::resource('visa-statuses', App\Http\Controllers\VisaStatusController::class)->names('settings-panel.visa-statuses');
     Route::post('visa-statuses/reorder', [App\Http\Controllers\VisaStatusController::class, 'reorder'])->name('settings-panel.visa-statuses.reorder');
+    Route::post('visa-statuses/{id}/unassign', [App\Http\Controllers\VisaStatusController::class, 'unassign'])->name('settings-panel.visa-statuses.unassign');
     Route::get('visa-statuses/{id}/toggle-active', [App\Http\Controllers\VisaStatusController::class, 'toggleActive'])->name('settings-panel.visa-statuses.toggle-active');
     Route::resource('visa-renewal-categories', App\Http\Controllers\VisaRenewalCategoryController::class)->only(['index', 'store', 'update', 'destroy'])->names('settings-panel.visa-renewal-categories');
     Route::post('visa-renewal-categories/reorder', [App\Http\Controllers\VisaRenewalCategoryController::class, 'reorder'])->name('settings-panel.visa-renewal-categories.reorder');
@@ -309,7 +310,6 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
     Route::delete('module-settings/{module}/documents/{id}', [App\Http\Controllers\ModuleSettingsController::class, 'destroyDocumentType'])->name('settings-panel.module-settings.destroy-document-type')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/invoice-defaults', [App\Http\Controllers\ModuleSettingsController::class, 'updateInvoiceDefaults'])->name('settings-panel.module-settings.update-invoice-defaults')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/rider-payment-voucher-defaults', [App\Http\Controllers\ModuleSettingsController::class, 'updateRiderPaymentVoucherDefaults'])->name('settings-panel.module-settings.update-rider-payment-voucher-defaults')->where('module', '[A-Za-z0-9_-]+');
-    Route::post('module-settings/{module}/visa-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateVisaExpenseTop'])->name('settings-panel.module-settings.update-visa-expense-top')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/license-expense-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLicenseExpenseTop'])->name('settings-panel.module-settings.update-license-top')->where('module', '[A-Za-z0-9_-]+');
     Route::post('module-settings/{module}/legal-case-top', [App\Http\Controllers\ModuleSettingsController::class, 'updateLegalCaseTop'])->name('settings-panel.module-settings.update-legal-case-top')->where('module', '[A-Za-z0-9_-]+');
     Route::resource('rider-inventory-items', App\Http\Controllers\RiderInventoryItemController::class)->names('settings-panel.rider-inventory-items');

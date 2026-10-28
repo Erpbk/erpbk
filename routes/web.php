@@ -426,6 +426,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     // Visa Status Management Routes
     Route::resource('visa-statuses', VisaStatusController::class);
     Route::post('visa-statuses/reorder', [VisaStatusController::class, 'reorder'])->name('visa-statuses.reorder');
+    Route::post('visa-statuses/{id}/unassign', [VisaStatusController::class, 'unassign'])->name('visa-statuses.unassign');
     Route::get('visa-statuses/{id}/toggle-active', [VisaStatusController::class, 'toggleActive'])->name('visa-statuses.toggle-active');
     Route::resource('license-statuses', LicenseStatusController::class);
     Route::post('license-statuses/reorder', [LicenseStatusController::class, 'reorder'])->name('license-statuses.reorder');
@@ -455,6 +456,8 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
     Route::post('accountcreate', [VisaexpenseController::class, 'accountcreate'])->name('VisaExpense.accountcreate');
+    Route::post('VisaExpense/filter-ajax', [VisaexpenseController::class, 'filterAjax'])->name('VisaExpense.filterAjax');
+    Route::get('VisaExpense/search-persons', [VisaexpenseController::class, 'searchPersons'])->name('VisaExpense.searchPersons');
     Route::get('VisaExpense/eligible-categories/{personType}/{personId}', [VisaexpenseController::class, 'eligibleRenewalCategories'])
         ->where(['personType' => 'rider|employee', 'personId' => '[0-9]+'])
         ->name('VisaExpense.eligibleRenewalCategories');

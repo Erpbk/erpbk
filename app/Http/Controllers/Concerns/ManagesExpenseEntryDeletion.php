@@ -93,15 +93,25 @@ trait ManagesExpenseEntryDeletion
     /**
      * Delete an expense account only when it has unpaid rows and no paid rows.
      * Multiple unpaid statuses are queued as one delete request and removed on approval.
+     *
+     * @param  (\Closure(ExpenseAccount): \Illuminate\Database\Eloquent\Builder)|null  $expenseQueryResolver
+     *         Optional scoped query (e.g. category + legacy head-account rows). When omitted,
+     *         expenses are matched by expense_account_id only.
      */
     protected function destroyExpenseAccount(
         ExpenseAccount $account,
         string $expenseModelClass,
         string $paidBlockMessage,
-        ?string $extraBlockMessage = null
+        ?string $extraBlockMessage = null,
+        ?\Closure $expenseQueryResolver = null
     ) {
-        $paidExists = $expenseModelClass::where('expense_account_id', $account->id)
-            ->where('payment_status', 'paid')
+        $baseQuery = $expenseQueryResolver
+            ? $expenseQueryResolver($account)
+            : $expenseModelClass::query()->where('expense_account_id', $account->id);
+
+        // Any paid ticket linked to this account blocks deletion entirely — no delete request.
+        $paidExists = (clone $baseQuery)
+            ->whereRaw('LOWER(COALESCE(payment_status, "")) = ?', ['paid'])
             ->exists();
 
         if ($paidExists) {
@@ -112,13 +122,25 @@ trait ManagesExpenseEntryDeletion
             return delete_error_response($extraBlockMessage);
         }
 
-        $unpaid = $expenseModelClass::where('expense_account_id', $account->id)
+        // Only unpaid rows may be queued/removed; never touch paid tickets.
+        $unpaid = (clone $baseQuery)
+            ->where(function ($q) {
+                $q->whereRaw('LOWER(COALESCE(payment_status, "")) = ?', ['unpaid'])
+                    ->orWhereNull('payment_status')
+                    ->orWhere('payment_status', '');
+            })
             ->orderBy('id')
             ->get();
 
         DB::beginTransaction();
         try {
             foreach ($unpaid as $expense) {
+                if (DeleteRequestService::isPaidExpense($expense)) {
+                    DB::rollBack();
+
+                    return delete_error_response($paidBlockMessage);
+                }
+
                 if (Schema::hasColumn($expense->getTable(), 'deleted_by')) {
                     $expense->deleted_by = auth()->id();
                     $expense->save();

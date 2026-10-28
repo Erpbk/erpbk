@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ExpenseAccount;
 use App\Models\VisaRenewalCategory;
+use App\Models\VisaStatus;
 use App\Support\CompanyAuthRedirect;
 use App\Support\VisaExpenseAccess;
 use App\Support\VisaRenewalCategoryService;
@@ -24,9 +25,16 @@ class VisaRenewalCategoryController extends Controller
         }
 
         $categories = VisaRenewalCategory::query()
+            ->with(['visaStatuses' => fn ($q) => $q->select('visa_statuses.id')])
+            ->withCount('visaStatuses')
             ->orderBy('display_order')
             ->orderBy('id')
             ->get();
+
+        $assignableStatuses = VisaStatus::query()
+            ->orderBy('display_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_active']);
 
         $routePrefix = str_replace('.index', '', $request->route()->getName());
 
@@ -36,10 +44,11 @@ class VisaRenewalCategoryController extends Controller
                     'categories' => $categories,
                     'routePrefix' => $routePrefix,
                 ])->render(),
+                'assignableStatuses' => $assignableStatuses,
             ]);
         }
 
-        return view('visa_renewal_categories.index', compact('categories', 'routePrefix'));
+        return view('visa_renewal_categories.index', compact('categories', 'routePrefix', 'assignableStatuses'));
     }
 
     public function store(Request $request)
@@ -52,6 +61,8 @@ class VisaRenewalCategoryController extends Controller
             'name' => 'required|string|max:255|unique:visa_renewal_categories,name',
             'display_order' => 'nullable|integer|min:1',
             'is_active' => 'nullable|boolean',
+            'visa_status_ids' => 'nullable|array',
+            'visa_status_ids.*' => 'integer|exists:visa_statuses,id',
         ]);
 
         try {
@@ -66,13 +77,14 @@ class VisaRenewalCategoryController extends Controller
                 'created_by' => auth()->id(),
             ]);
 
-            $seeded = VisaRenewalCategoryService::seedStatusesForCategory($category);
+            $attached = VisaRenewalCategoryService::attachStatusesToCategory(
+                $category,
+                $validated['visa_status_ids'] ?? []
+            );
 
             DB::commit();
-            if ($seeded['count'] > 0 && $seeded['source']) {
-                Flash::success('Visa category created. ' . $seeded['count'] . ' statuses copied from ' . $seeded['source'] . '.');
-            } elseif ($seeded['count'] > 0) {
-                Flash::success('Visa category created. ' . $seeded['count'] . ' visa statuses were added.');
+            if ($attached > 0) {
+                Flash::success('Visa category created. ' . $attached . ' existing status(es) assigned.');
             } else {
                 Flash::success('Visa category created successfully.');
             }
@@ -94,10 +106,20 @@ class VisaRenewalCategoryController extends Controller
 
         $category = VisaRenewalCategory::findOrFail($id);
 
+        if (record_is_pending_deletion($category)) {
+            $message = 'This visa category is Pending Deletion and cannot be edited until the delete request is reviewed.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 423);
+            }
+            abort(403, $message);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:visa_renewal_categories,name,' . $id,
             'display_order' => 'nullable|integer|min:1',
             'is_active' => 'nullable|boolean',
+            'visa_status_ids' => 'nullable|array',
+            'visa_status_ids.*' => 'integer|exists:visa_statuses,id',
         ]);
 
         try {
@@ -118,6 +140,11 @@ class VisaRenewalCategoryController extends Controller
                 $this->syncExpenseAccountNames($category, $oldName);
             }
 
+            VisaRenewalCategoryService::syncStatusesForCategory(
+                $category,
+                $validated['visa_status_ids'] ?? []
+            );
+
             DB::commit();
             Flash::success('Visa category updated successfully.');
 
@@ -137,6 +164,16 @@ class VisaRenewalCategoryController extends Controller
         }
 
         $category = VisaRenewalCategory::findOrFail($id);
+
+        if (record_is_pending_deletion($category)) {
+            $message = 'A delete request for this visa category is already pending approval.';
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 423);
+            }
+            Flash::warning($message);
+
+            return redirect()->back();
+        }
 
         if ($category->is_default) {
             $message = 'Cannot delete the default visa category (New Visa).';
@@ -162,17 +199,18 @@ class VisaRenewalCategoryController extends Controller
 
         try {
             DB::beginTransaction();
-            $category->visaStatuses()->withTrashed()->forceDelete();
-            $category->delete();
-            DB::commit();
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Visa category deleted successfully.',
-                    'id' => (int) $id,
-                ]);
+            // Soft-delete / delete-approval only — do not detach pivots until the row is actually removed.
+            $deleted = $category->delete();
+            if ($deleted) {
+                $category->visaStatuses()->detach();
             }
-            Flash::success('Visa category deleted successfully.');
+            DB::commit();
+
+            if (wants_delete_json() || $request->ajax() || $request->wantsJson()) {
+                return delete_json_response('Visa category');
+            }
+
+            Flash::success(delete_outcome_message('Visa category'));
 
             return $this->redirectAfterAction($request);
         } catch (\Exception $e) {

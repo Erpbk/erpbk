@@ -618,11 +618,22 @@ class LicenseexpenseController extends AppBaseController
             ? 'Cannot delete account. Installment Plan entries exist for this account.'
             : null;
 
+        $categoryId = $account->license_category_id
+            ? (int) $account->license_category_id
+            : (int) \App\Support\LicenseCategoryService::defaultCategory()->id;
+
         return $this->destroyExpenseAccount(
             $account,
             license_expenses::class,
-            'Cannot delete account. Paid License Expense entries exist. Reverse those payments first.',
-            $extraBlock
+            'Cannot delete account. Paid License Expense tickets exist against this account. Reverse those payments first.',
+            $extraBlock,
+            function (ExpenseAccount $expenseAccount) use ($categoryId) {
+                return \App\Support\LicenseCategoryService::expensesForAccountQuery(
+                    (int) $expenseAccount->id,
+                    $expenseAccount->rider_id ? (int) $expenseAccount->rider_id : null,
+                    $categoryId
+                );
+            }
         );
     }
 

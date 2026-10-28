@@ -22,14 +22,15 @@ for ($p = 1; $p <= $last; $p++) {
 }
 $perPageOptions = $perPageOptions ?? [20, 50, 100, 'all'];
 $currentPerPage = request()->input('per_page', $perPage);
+$entityLabel = $entityLabel ?? 'riders';
 @endphp
 <div class="rl-pager" id="rlPager">
   <div class="d-flex align-items-center gap-2 flex-wrap">
     <span class="info" id="rlPagerInfo">
       @if($total > 0)
-        Showing {{ $from }}–{{ $to }} of {{ $total }} riders
+        Showing {{ $from }}–{{ $to }} of {{ $total }} {{ $entityLabel }}
       @else
-        0 riders
+        0 {{ $entityLabel }}
       @endif
     </span>
     <select class="rl-per-page" id="rlPerPage" aria-label="Rows per page">

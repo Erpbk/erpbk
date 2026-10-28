@@ -20,26 +20,27 @@ class VisaStatusSeeder extends Seeder
         }
 
         $defaultCategory = VisaRenewalCategoryService::ensureDefaultExists();
-        $defaultCategoryId = (int) $defaultCategory->id;
 
         foreach (VisaRenewalCategoryService::defaultStatusTemplates() as $status) {
-            VisaStatus::updateOrCreate(
+            $visaStatus = VisaStatus::updateOrCreate(
                 [
                     'name' => $status['name'],
-                    'visa_renewal_category_id' => $defaultCategoryId,
                 ],
                 [
                     'code' => $status['code'],
                     'description' => $status['description'],
                     'default_fee' => $status['default_fee'],
                     'category' => $status['category'],
-                    'visa_renewal_category_id' => $defaultCategoryId,
                     'is_required' => $status['is_required'],
                     'display_order' => $status['display_order'],
                     'is_active' => true,
                     'created_by' => 1,
                 ]
             );
+
+            if (Schema::hasTable('visa_renewal_category_visa_status')) {
+                VisaRenewalCategoryService::attachStatusesToCategory($defaultCategory, [(int) $visaStatus->id]);
+            }
         }
     }
 }

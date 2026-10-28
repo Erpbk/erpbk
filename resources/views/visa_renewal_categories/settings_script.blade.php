@@ -78,6 +78,13 @@ $routePrefix = $routePrefix ?? 'settings-panel.visa-renewal-categories';
         var activeWrap = document.getElementById('edit_visa_renewal_active_wrap');
         if (activeWrap) activeWrap.style.display = isDefault ? 'none' : 'block';
         document.getElementById('edit_visa_renewal_is_active').checked = String(renewalEditBtn.dataset.isActive || '0') === '1';
+        var selectedStatusIds = String(renewalEditBtn.dataset.statusIds || '')
+            .split(',')
+            .map(function(v) { return String(v || '').trim(); })
+            .filter(Boolean);
+        document.querySelectorAll('.js-edit-visa-renewal-status-check').forEach(function(cb) {
+            cb.checked = selectedStatusIds.indexOf(String(cb.value)) !== -1;
+        });
     }, true);
 
     var visaRenewalTabBtn = document.querySelector('[data-bs-target="#tab-visa-renewal-categories"]');

@@ -86,25 +86,57 @@
 $groupedPersons = collect($data->items())->groupBy(
     fn ($r) => $r->employee_id ? 'emp:' . $r->employee_id : 'rider:' . $r->rider_id
 );
+$ajaxFragment = $ajaxFragment ?? false;
+$pendingVisaExpenseIds = pending_deletion_ids_for(\App\Models\visa_expenses::class);
+$pageAccounts = collect($data->items());
+$pageAccountIds = $pageAccounts->pluck('id')->map(fn ($id) => (int) $id)->all();
+$pendingExpenseAccountIds = [];
+if ($pendingVisaExpenseIds !== [] && $pageAccountIds !== []) {
+  $pendingExpenseAccountIds = array_flip(
+    \App\Models\visa_expenses::query()
+      ->whereIn('id', array_keys($pendingVisaExpenseIds))
+      ->whereIn('expense_account_id', $pageAccountIds)
+      ->pluck('expense_account_id')
+      ->map(fn ($id) => (int) $id)
+      ->unique()
+      ->all()
+  );
+}
+$accountsWithPaidTickets = [];
+foreach ($pageAccounts as $pageAccount) {
+  $acctId = (int) $pageAccount->id;
+  if (isset($accountsWithPaidTickets[$acctId])) {
+    continue;
+  }
+  $catId = (int) ($pageAccount->renewal_category_id ?? \App\Support\VisaRenewalCategoryService::defaultCategory()->id);
+  $hasPaid = \App\Support\VisaRenewalCategoryService::expensesForAccountQuery(
+    $acctId,
+    $pageAccount->rider_id ? (int) $pageAccount->rider_id : null,
+    $catId
+  )->whereRaw('LOWER(COALESCE(payment_status, "")) = ?', ['paid'])->exists();
+  if ($hasPaid) {
+    $accountsWithPaidTickets[$acctId] = true;
+  }
+}
 @endphp
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
-   <thead class="text-center">
-      <tr role="row">
-         <th>Person ID</th>
-         <th style="width: 200px;">Name</th>
-         <th>Visa Categories</th>
-         <th>Status</th>
-         <th>Next Unpaid Document</th>
-         <th>Expiry Document</th>
-         <th>Person Code</th>
-         <th>Labour Card #</th>
-         <th>Policy Number</th>
-         <th>Total Balance</th>
-         <th>Actions</th>
+<table class="table" id="dataTableBuilder">
+   <thead>
+      <tr id="rlHead">
+         <th class="sorting" data-k="person_id">Person ID<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="name">Name<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="categories">Visa Categories<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="status">Status<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="next_unpaid">Next Unpaid Document<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="expiry">Expiry Document<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="person_code">Person Code<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="labour">Labour Card #<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="policy">Policy Number<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="balance">Total Balance<span class="ar">⇅</span></th>
+         <th class="nosort">Actions</th>
       </tr>
    </thead>
-   <tbody>
-      @foreach($groupedPersons as $personKey => $personAccounts)
+   <tbody id="rlBody">
+      @forelse($groupedPersons as $personKey => $personAccounts)
       @php
       $r = $personAccounts->first(); // representative row
       $isEmployeeAccount = !empty($r->employee_id);
@@ -227,115 +259,36 @@ $groupedPersons = collect($data->items())->groupBy(
                   </a>
                   @endforeach
                   @endcanany
-                  @can('visa_expense_account_creation_edit')
-                  <div class="dropdown-divider"></div>
-                  @foreach($personAccounts as $acct)
-                  <a href="javascript:void(0)" data-bs-toggle="modal" data-bs-target="#editaccount{{ $acct->id }}" class='dropdown-item waves-effect'>
-                     <i class="fa fa-edit me-1"></i> Edit: {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
-                  </a>
-                  @endforeach
-                  @endcan
                   @can('visa_expense_account_creation_delete')
                   <div class="dropdown-divider"></div>
                   @foreach($personAccounts as $acct)
+                  @php
+                     $acctPendingDeletion = isset($pendingExpenseAccountIds[(int) $acct->id]);
+                     $acctHasPaidTickets = isset($accountsWithPaidTickets[(int) $acct->id]);
+                  @endphp
+                  @if($acctPendingDeletion)
+                  <span class="dropdown-item-text text-muted small">
+                     <i class="ti ti-lock me-1"></i>{{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }} — Pending Deletion
+                  </span>
+                  @elseif($acctHasPaidTickets)
+                  <span class="dropdown-item-text text-muted small" title="Paid tickets exist. Reverse those payments before deleting this account.">
+                     <i class="ti ti-lock me-1"></i>Delete blocked: {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }} (paid tickets)
+                  </span>
+                  @else
                   <a href="javascript:void(0);" data-delete-url="{{ route('VisaExpense.deleteaccount', $acct->id) }}" class='dropdown-item waves-effect js-delete-expense-account text-danger'>
                      <i class="fa fa-trash me-1"></i> Delete: {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}
                   </a>
+                  @endif
                   @endforeach
                   @endcan
                </div>
             </div>
          </td>
       </tr>
-
-      {{-- Edit modals for each account of this person --}}
-      @foreach($personAccounts as $acct)
-      @php
-      $acctIsEmployee = !empty($acct->employee_id);
-      $acctPersonKey  = $acctIsEmployee ? ('employee:' . $acct->employee_id) : ('rider:' . $acct->rider_id);
-      $editPersonTargets = $personTargets ?? \App\Support\CompanyModuleVisibility::simAssignTargets();
-      $editAllowType     = $allowPersonTypeSelection ?? (count($editPersonTargets) >= 2);
-      $editDefaultType   = $acctIsEmployee
-         ? (in_array('employee', $editPersonTargets, true) ? 'employee' : ($editPersonTargets[0] ?? 'rider'))
-         : (in_array('rider', $editPersonTargets, true) ? 'rider' : ($editPersonTargets[0] ?? 'employee'));
-      $editRiderLabel    = \App\Support\CompanyModuleVisibility::customizedMenuLabel('riders') ?? 'Rider';
-      $editEmployeeLabel = \App\Support\CompanyModuleVisibility::customizedMenuLabel('employees') ?? 'Employee';
-      $editRiders        = $riders ?? company_table('riders')->where('status', 1)->orderBy('name')->get();
-      $editEmployees     = $employees ?? \App\Models\Employee::query()->where(function ($q) {
-         $q->where('status', 'active')->orWhere('status', 1)->orWhere('status', '1');
-      })->orderBy('name')->get();
-      @endphp
-      <div class="modal fade" id="editaccount{{ $acct->id }}" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
-         <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title">Update Account — {{ $acct->renewalCategory->name ?? 'Account #'.$acct->id }}</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-               </div>
-               <div class="modal-body">
-                  <form action="{{ route('VisaExpense.editaccount') }}" method="POST" class="visa-edit-account-form">
-                     @csrf
-                     <input type="hidden" name="id" value="{{ $acct->id }}">
-                     <input type="hidden" name="person_key" class="visa-edit-person-key" value="{{ $acctPersonKey }}">
-                     <div class="row g-3">
-                        @if(empty($editPersonTargets))
-                        <div class="col-12">
-                           <div class="alert alert-warning mb-0">No person modules are enabled for this company.</div>
-                        </div>
-                        @else
-                        @if($editAllowType)
-                        <div class="col-12">
-                           <label class="form-label d-block mb-2">Type</label>
-                           <div class="btn-group w-100" role="group">
-                              @if(in_array('rider', $editPersonTargets, true))
-                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $acct->id }}" id="edit_type_rider_{{ $acct->id }}" value="rider"
-                                 {{ $editDefaultType === 'rider' ? 'checked' : '' }} autocomplete="off">
-                              <label class="btn btn-outline-primary" for="edit_type_rider_{{ $acct->id }}">{{ $editRiderLabel }}</label>
-                              @endif
-                              @if(in_array('employee', $editPersonTargets, true))
-                              <input type="radio" class="btn-check visa-edit-person-type" name="person_type_{{ $acct->id }}" id="edit_type_employee_{{ $acct->id }}" value="employee"
-                                 {{ $editDefaultType === 'employee' ? 'checked' : '' }} autocomplete="off">
-                              <label class="btn btn-outline-primary" for="edit_type_employee_{{ $acct->id }}">{{ $editEmployeeLabel }}</label>
-                              @endif
-                           </div>
-                        </div>
-                        @endif
-                        @if(in_array('rider', $editPersonTargets, true))
-                        <div class="col-12 visa-edit-person-field visa-edit-person-field-rider{{ $editDefaultType === 'employee' ? ' d-none' : '' }}">
-                           <label for="edit-rider-{{ $acct->id }}" class="form-label">Select {{ $editRiderLabel }}</label>
-                           <select class="form-control rider-select visa-edit-person-select" id="edit-rider-{{ $acct->id }}" data-person-type="rider"
-                              {{ $editDefaultType === 'rider' ? 'required' : 'disabled' }}>
-                              <option value="">Select</option>
-                              @foreach($editRiders as $ri)
-                              <option value="rider:{{ $ri->id }}" @if($acctPersonKey === 'rider:'.$ri->id) selected @endif>{{ $ri->rider_id }} - {{ $ri->name }}</option>
-                              @endforeach
-                           </select>
-                        </div>
-                        @endif
-                        @if(in_array('employee', $editPersonTargets, true))
-                        <div class="col-12 visa-edit-person-field visa-edit-person-field-employee{{ $editDefaultType === 'rider' ? ' d-none' : '' }}">
-                           <label for="edit-employee-{{ $acct->id }}" class="form-label">Select {{ $editEmployeeLabel }}</label>
-                           <select class="form-control rider-select visa-edit-person-select" id="edit-employee-{{ $acct->id }}" data-person-type="employee"
-                              {{ $editDefaultType === 'employee' ? 'required' : 'disabled' }}>
-                              <option value="">Select</option>
-                              @foreach($editEmployees as $em)
-                              <option value="employee:{{ $em->id }}" @if($acctPersonKey === 'employee:'.$em->id) selected @endif>{{ $em->employee_id }} - {{ $em->name }}</option>
-                              @endforeach
-                           </select>
-                        </div>
-                        @endif
-                        @endif
-                        <div class="col-12 text-center">
-                           <button type="submit" class="btn btn-primary mt-2" @if(empty($editPersonTargets)) disabled @endif>Submit</button>
-                        </div>
-                     </div>
-                  </form>
-               </div>
-            </div>
-         </div>
-      </div>
-      @endforeach
-      @endforeach
+      @empty
+      <tr>
+         <td colspan="11" class="text-center text-muted py-4">No visa expense accounts found.</td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
-{!! $data->links('pagination') !!}

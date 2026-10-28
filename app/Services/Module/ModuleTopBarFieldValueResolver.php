@@ -7,7 +7,10 @@ use App\Models\ChequeFieldCategoryAssignment;
 use App\Models\EmployeeFieldCategoryAssignment;
 use App\Models\ModuleFieldCategoryAssignment;
 use App\Models\RiderFieldCategoryAssignment;
+use App\Models\VisaStatus;
 use App\Support\ErpModuleRegistry;
+use Illuminate\Support\Facades\Schema;
+
 class ModuleTopBarFieldValueResolver
 {
     /**
@@ -24,6 +27,11 @@ class ModuleTopBarFieldValueResolver
 
         $settingsModuleKey = ErpModuleRegistry::settingsFieldsModuleKey($moduleKey);
 
+        $fromVisaStatuses = $this->valuesFromVisaStatuses($settingsModuleKey, $column);
+        if ($fromVisaStatuses !== []) {
+            return $fromVisaStatuses;
+        }
+
         $fromFixedChoices = $this->valuesFromFixedSelectChoices($settingsModuleKey, $column);
         if ($fromFixedChoices !== []) {
             return $fromFixedChoices;
@@ -35,6 +43,33 @@ class ModuleTopBarFieldValueResolver
         }
 
         return $this->valuesFromModuleAssignment($settingsModuleKey, $column);
+    }
+
+    /**
+     * Active visa status names for Visa Expense top-bar option pickers.
+     *
+     * @return list<string>
+     */
+    protected function valuesFromVisaStatuses(string $settingsModuleKey, string $column): array
+    {
+        if ($settingsModuleKey !== 'visa_expense' || $column !== 'visa_status') {
+            return [];
+        }
+
+        if (!Schema::hasTable('visa_statuses')) {
+            return [];
+        }
+
+        return VisaStatus::query()
+            ->where('is_active', 1)
+            ->orderBy('display_order')
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(fn ($v) => trim((string) $v))
+            ->filter(fn ($v) => $v !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**

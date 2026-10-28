@@ -39,9 +39,6 @@ class ModuleSettingsController extends Controller
 {
     use SavesModuleMenuIcons;
 
-    private const VISA_EXPENSE_TOP_SETTING_KEY = 'visa_expense_top_status_ids';
-    private const VISA_EXPENSE_TOP_ENABLED_KEY = 'visa_expense_top_enabled';
-
     private const LICENSE_EXPENSE_TOP_SETTING_KEY = 'license_expense_top_status_ids';
     private const LICENSE_EXPENSE_TOP_ENABLED_KEY = 'license_expense_top_enabled';
 
@@ -70,41 +67,6 @@ class ModuleSettingsController extends Controller
     protected function normalizeModuleKey(string $module): string
     {
         return str_replace('-', '_', strtolower(trim($module)));
-    }
-
-    /**
-     * @return list<int>
-     */
-    protected function selectedVisaExpenseTopStatusIds(): array
-    {
-        $raw = (string) (Settings::query()
-            ->where('name', self::VISA_EXPENSE_TOP_SETTING_KEY)
-            ->value('value') ?? '');
-
-        if ($raw === '') {
-            return [];
-        }
-
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return [];
-        }
-
-        return collect($decoded)
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-    }
-
-    protected function visaExpenseTopEnabled(): bool
-    {
-        $raw = (string) (Settings::query()
-            ->where('name', self::VISA_EXPENSE_TOP_ENABLED_KEY)
-            ->value('value') ?? '1');
-
-        return in_array(strtolower(trim($raw)), ['1', 'true', 'yes', 'on'], true);
     }
 
     /**
@@ -320,6 +282,19 @@ class ModuleSettingsController extends Controller
             return app(AgreementLetterheadSettingsController::class)->index($company_slug);
         }
 
+        // Plural table-name alias → canonical module key (same settings page).
+        if ($routeModule === 'visa_expenses') {
+            $params = ['company_slug' => $company_slug, 'module' => 'visa_expense'];
+            foreach (['category_id', 'visa_view', 'top'] as $queryKey) {
+                $value = request()->query($queryKey);
+                if ($value !== null && $value !== '') {
+                    $params[$queryKey] = $value;
+                }
+            }
+
+            return redirect()->route('settings-panel.module-settings.index', $params);
+        }
+
         if (in_array($routeModule, ['rta_fines_unpaid', 'rta_fines_paid'], true)) {
             return redirect()->route('settings-panel.module-settings.index', [
                 'company_slug' => $company_slug,
@@ -464,21 +439,53 @@ class ModuleSettingsController extends Controller
         }
         $visaStatuses = collect();
         $visaRenewalCategories = collect();
-        $selectedVisaExpenseTopStatusIds = [];
-        $visaExpenseTopEnabled = true;
+        $assignableVisaStatuses = collect();
+        $visaStatusViewMode = 'category';
+        $selectedVisaCategoryId = 0;
+        $selectedVisaCategory = null;
         if ($module === 'visa_expense') {
             VisaRenewalCategoryService::ensureDefaultExists();
-            $visaStatuses = VisaStatus::query()
-                ->with('renewalCategory')
-                ->orderBy('display_order')
-                ->orderBy('name')
-                ->get();
             $visaRenewalCategories = VisaRenewalCategory::query()
+                ->with(['visaStatuses' => fn ($q) => $q->select('visa_statuses.id')])
+                ->withCount('visaStatuses')
                 ->orderBy('display_order')
                 ->orderBy('id')
                 ->get();
-            $selectedVisaExpenseTopStatusIds = $this->selectedVisaExpenseTopStatusIds();
-            $visaExpenseTopEnabled = $this->visaExpenseTopEnabled();
+
+            $visaStatusViewMode = request()->query('visa_view') === 'all' ? 'all' : 'category';
+            $selectedVisaCategoryId = (int) request()->query('category_id');
+            if ($visaStatusViewMode === 'category') {
+                if ($selectedVisaCategoryId <= 0 || ! $visaRenewalCategories->contains('id', $selectedVisaCategoryId)) {
+                    $selectedVisaCategoryId = (int) ($visaRenewalCategories->first()->id ?? 0);
+                }
+            }
+            $selectedVisaCategory = $visaRenewalCategories->firstWhere('id', $selectedVisaCategoryId);
+
+            $assignableVisaStatuses = VisaStatus::query()
+                ->with('renewalCategories')
+                ->orderBy('display_order')
+                ->orderBy('name')
+                ->get();
+
+            $visaStatusQuery = VisaStatus::query()->with('renewalCategories');
+            if ($visaStatusViewMode === 'category' && $selectedVisaCategoryId > 0) {
+                $visaStatusQuery->whereHas('renewalCategories', function ($q) use ($selectedVisaCategoryId) {
+                    $q->where('visa_renewal_categories.id', $selectedVisaCategoryId);
+                })
+                    ->join(
+                        'visa_renewal_category_visa_status as vrcs',
+                        'vrcs.visa_status_id',
+                        '=',
+                        'visa_statuses.id'
+                    )
+                    ->where('vrcs.visa_renewal_category_id', $selectedVisaCategoryId)
+                    ->select('visa_statuses.*', 'vrcs.display_order as category_display_order')
+                    ->orderBy('vrcs.display_order')
+                    ->orderBy('visa_statuses.name');
+            } else {
+                $visaStatusQuery->orderBy('display_order')->orderBy('name');
+            }
+            $visaStatuses = $visaStatusQuery->get();
         }
 
         $licenseStatuses = collect();
@@ -625,8 +632,10 @@ class ModuleSettingsController extends Controller
             'moduleSchemaFieldKeys' => ModuleFieldSource::schemaFieldKeysForModule($module),
             'visaStatuses' => $visaStatuses,
             'visaRenewalCategories' => $visaRenewalCategories,
-            'selectedVisaExpenseTopStatusIds' => $selectedVisaExpenseTopStatusIds,
-            'visaExpenseTopEnabled' => $visaExpenseTopEnabled,
+            'assignableStatuses' => $assignableVisaStatuses,
+            'visaStatusViewMode' => $visaStatusViewMode,
+            'selectedVisaCategoryId' => $selectedVisaCategoryId,
+            'selectedVisaCategory' => $selectedVisaCategory,
             'licenseStatuses' => $licenseStatuses,
             'licenseCategories' => $licenseCategories,
             'selectedLicenseExpenseTopStatusIds' => $selectedLicenseExpenseTopStatusIds,
@@ -725,51 +734,6 @@ class ModuleSettingsController extends Controller
                 'module' => $module,
             ])
             ->with('success', 'Payment voucher settings saved.');
-    }
-
-    public function updateVisaExpenseTop(Request $request, string $company_slug, string $module)
-    {
-        $module = $this->normalizeModuleKey($module);
-        abort_unless($module === 'visa_expense', 404);
-
-        $validated = $request->validate([
-            'status_ids' => ['nullable', 'array'],
-            'status_ids.*' => ['integer', 'exists:visa_statuses,id'],
-            'show_in_top_bar' => ['nullable', 'boolean'],
-        ]);
-
-        $statusIds = collect($validated['status_ids'] ?? [])
-            ->map(fn($id) => (int) $id)
-            ->filter(fn($id) => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-
-        Settings::updateOrCreate(
-            ['name' => self::VISA_EXPENSE_TOP_SETTING_KEY],
-            ['value' => json_encode($statusIds)]
-        );
-        Settings::updateOrCreate(
-            ['name' => self::VISA_EXPENSE_TOP_ENABLED_KEY],
-            ['value' => $request->boolean('show_in_top_bar') ? '1' : '0']
-        );
-
-        if ($request->ajax() || $request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Visa Expense Top updated successfully.',
-                'status_ids' => $statusIds,
-                'show_in_top_bar' => $request->boolean('show_in_top_bar'),
-            ]);
-        }
-
-        return redirect()
-            ->route('settings-panel.module-settings.index', [
-                'company_slug' => $company_slug,
-                'module' => $module,
-            ])
-            ->with('success', 'Visa Expense Top statuses updated.')
-            ->withFragment('tab-visa-expense-top');
     }
 
     public function updateLicenseExpenseTop(Request $request, string $company_slug, string $module)

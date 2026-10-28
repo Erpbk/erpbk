@@ -164,12 +164,22 @@ return [
 
         'visa_expense' => [
             'storage' => 'generic',
+            'source_table' => 'visa_expenses',
             'filter_strategy' => 'column',
+            'listing_default_statuses' => ['paid', 'unpaid'],
             'request' => [
                 'option_id' => 'top_option_id',
                 'filter_mode' => 'top_filter_mode',
                 'date_from' => 'top_date_from',
                 'date_to' => 'top_date_to',
+            ],
+            'status_filters' => [
+                'paid' => ['column' => 'payment_status', 'operator' => '=', 'value' => 'paid'],
+                'unpaid' => ['column' => 'payment_status', 'operator' => '=', 'value' => 'unpaid'],
+            ],
+            'listing_stats' => [
+                ['key' => 'paid', 'label' => 'Paid', 'css' => 'active'],
+                ['key' => 'unpaid', 'label' => 'Unpaid', 'css' => 'inactive'],
             ],
         ],
 

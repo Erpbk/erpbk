@@ -299,9 +299,24 @@ $payeeFontSize = $payeeLen > 36
     text-transform: uppercase;
     color: #475569;
 }
+/* Standalone print/PDF pages do not load custom.css — keep the mark text-sized. */
+.rpv-doc .app-currency-icon {
+    display: inline-block;
+    height: 1em;
+    width: auto;
+    max-width: 1.75em;
+    object-fit: contain;
+    vertical-align: -0.15em;
+}
 @media print {
     .voucher-posted-transactions,
     .rpv-attachments { display: none !important; }
+    .rpv-doc .app-currency-icon {
+        height: 1em !important;
+        max-height: 1em !important;
+        width: auto !important;
+        max-width: 1.75em !important;
+    }
 }
 </style>
 

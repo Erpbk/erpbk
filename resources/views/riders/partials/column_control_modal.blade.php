@@ -112,7 +112,7 @@ foreach ($tableColumns as $index => $column) {
         <button type="button" class="exp e-c export-btn" data-format="csv">Export to CSV</button>
         <button type="button" class="exp e-p export-btn" data-format="pdf">Export to PDF</button>
       </div>
-      <div class="rl-note">Only ticked columns are exported, in the current order, for all riders.</div>
+      <div class="rl-note">Only ticked columns are exported, in the current order, for all riders. Status exports as Status + Status Days; Name includes a profile link.</div>
       @endif
 
       <span id="visibleCount" hidden>{{ count($controllableColumns) }}</span>

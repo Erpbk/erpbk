@@ -6,6 +6,9 @@
  * Parent `name` is the root permission row (Permissions UI module).
  * - With `submodules`: leaves are `{slug}_{submodule_slug}_{view|create|edit|delete}`
  *   (see App\Support\PermissionTreeBuilder).
+ * - Submodule entries may be strings or arrays:
+ *   ['name' => 'COD Voucher', 'extra_actions' => ['upload']]
+ *   which also creates `{slug}_{submodule_slug}_upload`.
  * - Without `submodules`: leaves are `{slug}_{view|create|edit|delete}`.
  * - `extras`: additional leaf names under the same parent (flat modules only;
  *   ignored when `submodules` is non-empty).
@@ -72,14 +75,40 @@ return [
                 'Attendance',
                 'Inventory',
                 'Invoices',
-                'Payments',
+                [
+                    'name' => 'Payments',
+                    'extra_actions' => ['upload'],
+                ],
                 'Activities',
                 'Live Activities',
                 'Report',
                 'Documents',
                 'Timeline',
                 'History',
-                'Voucher',
+                [
+                    'name' => 'COD Voucher',
+                    'extra_actions' => ['upload'],
+                ],
+                [
+                    'name' => 'Penalty Voucher',
+                    'extra_actions' => ['upload'],
+                ],
+                [
+                    'name' => 'Incentive Voucher',
+                    'extra_actions' => ['upload'],
+                ],
+                [
+                    'name' => 'Vendor Charges Voucher',
+                    'extra_actions' => ['upload'],
+                ],
+                [
+                    'name' => 'Advance Loan Voucher',
+                    'extra_actions' => ['upload'],
+                ],
+                [
+                    'name' => 'Import Vouchers',
+                    'extra_actions' => ['upload'],
+                ],
                 'Ledger',
                 'Export Data',
             ],

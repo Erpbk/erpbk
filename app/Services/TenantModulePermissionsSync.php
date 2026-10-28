@@ -65,10 +65,7 @@ class TenantModulePermissionsSync
         foreach (config('tenant_module_permissions.modules', []) as $module) {
             $parentName = $module['parent'];
             $moduleSlug = $module['slug'] ?? PermissionTreeBuilder::slugify($parentName);
-            $submodules = array_values(array_filter(array_map(
-                static fn($name) => trim((string) $name),
-                $module['submodules'] ?? []
-            )));
+            $submodules = PermissionTreeBuilder::normalizeSubmoduleDefinitions($module['submodules'] ?? []);
             $extras = $submodules === []
                 ? array_values(array_filter(array_map(
                     static fn($name) => trim((string) $name),

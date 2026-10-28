@@ -5,8 +5,8 @@ $isRiderEditPage = request()->routeIs('riders.edit');
 $riderModel = $rider ?? $riders ?? null;
 $riderPendingDeletion = record_is_pending_deletion($riderModel);
 
-// Rider voucher dropdown on profile (Advance Loan excluded). Permissions map per type.
-$riderVoucherCodes = ['PAY', 'COD', 'PN', 'INC', 'VC'];
+// Rider voucher dropdown on profile — per-type create permissions.
+$riderVoucherCodes = ['PAY', 'COD', 'PN', 'INC', 'VC', 'AL'];
 $activeVoucherTypes = \App\Models\VoucherType::activeCodeLabelMapForModule('riders');
 $profileVoucherTypes = [];
 foreach ($riderVoucherCodes as $code) {
@@ -14,17 +14,9 @@ if (isset($activeVoucherTypes[$code])) {
 $profileVoucherTypes[$code] = $activeVoucherTypes[$code];
 }
 }
-$voucherPermissionByCode = [
-'PAY' => 'riders_payments_create',
-'COD' => 'riders_voucher_create',
-'PN' => 'riders_voucher_create',
-'INC' => 'riders_voucher_create',
-'VC' => 'riders_voucher_create',
-];
 $visibleProfileVoucherTypes = [];
 foreach ($profileVoucherTypes as $code => $label) {
-$permission = $voucherPermissionByCode[$code] ?? 'riders_voucher_create';
-if (user_can($permission)) {
+if (\App\Support\RiderVoucherPermissions::can($code, 'create')) {
 $visibleProfileVoucherTypes[$code] = $label;
 }
 }
@@ -81,6 +73,7 @@ $visibleProfileVoucherTypes[$code] = $label;
                 'PN' => 'Record a penalty entry for this rider',
                 'INC' => 'Record an incentive entry for this rider',
                 'VC' => 'Record vendor charges for this rider',
+                'AL' => 'Record an advance loan for this rider',
                 default => 'Open ' . $label . ' voucher form',
                 };
                 @endphp

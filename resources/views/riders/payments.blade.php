@@ -74,7 +74,16 @@ $banks = $banks ?? \App\Models\Banks::active()->get();
 <div style="display: none;" class="loading-overlay" id="loading-overlay">
     <div class="spinner-border text-primary" role="status"></div>
 </div>
-@canany(['riders_payments_view', 'riders_payments_create', 'riders_voucher_create'])
+@php
+$canSeeRiderPaymentsPage = \App\Support\RiderVoucherPermissions::canAny('PAY', ['view', 'create'])
+    || \App\Support\RiderVoucherPermissions::canAny('IMPORT', ['view', 'create'])
+    || \App\Support\RiderVoucherPermissions::canAny('COD', ['view', 'create'])
+    || \App\Support\RiderVoucherPermissions::canAny('PN', ['view', 'create'])
+    || \App\Support\RiderVoucherPermissions::canAny('INC', ['view', 'create'])
+    || \App\Support\RiderVoucherPermissions::canAny('VC', ['view', 'create'])
+    || \App\Support\RiderVoucherPermissions::canAny('AL', ['view', 'create']);
+@endphp
+@if($canSeeRiderPaymentsPage)
 <section class="content-header">
     @include('flash::message')
 </section>
@@ -158,7 +167,7 @@ $banks = $banks ?? \App\Models\Banks::active()->get();
                     <i class="ti ti-file-invoice"></i> Payment Voucher
                 </a>
                 @endcan
-                @can('riders_voucher_create')
+                @if(\App\Support\RiderVoucherPermissions::can('IMPORT', 'create'))
                 <a href="javascript:void(0);"
                     class="btn btn-outline-primary btn-sm show-modal"
                     data-size="sm"
@@ -166,7 +175,7 @@ $banks = $banks ?? \App\Models\Banks::active()->get();
                     data-action="{{ route('riders.import_rider_vouchers', ['modal' => 1]) }}">
                     <i class="ti ti-upload"></i> Import Vouchers
                 </a>
-                @endcan
+                @endif
                 <button type="button" class="btn btn-primary btn-sm openFilterSidebar"><i class="fa fa-search"></i> Filter</button>
             </div>
         </div>
@@ -181,7 +190,7 @@ $banks = $banks ?? \App\Models\Banks::active()->get();
         <h5 class="card-title">You are not authorized to access this page</h5>
     </div>
 </div>
-@endcanany
+@endif
 @endsection
 
 @section('page-script')

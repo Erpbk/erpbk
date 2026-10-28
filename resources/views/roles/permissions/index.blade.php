@@ -70,13 +70,21 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                 <button type="button" class="btn btn-sm btn-outline-primary" data-filter="create">Create</button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-filter="edit">Edit</button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-filter="delete">Delete</button>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-filter="upload">Upload</button>
             </div>
         </div>
     </div>
 
     @php
     $dynamicPermissionRows = $dynamicPermissionRows ?? [];
-    $actions = ['view', 'create', 'edit', 'delete'];
+    $actions = \App\Support\PermissionTreeBuilder::ALL_ACTIONS;
+    $actionLabels = [
+        'view' => 'View',
+        'create' => 'Create',
+        'edit' => 'Edit',
+        'delete' => 'Delete',
+        'upload' => 'Upload',
+    ];
     @endphp
 
     @if (!empty($dynamicPermissionRows))
@@ -258,10 +266,9 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                     {{-- Column header --}}
                     <div class="rfp-cols-head d-flex align-items-center px-3 py-2 border-bottom">
                         <div class="rfp-col-name">Module</div>
-                        <div class="rfp-col-act">View</div>
-                        <div class="rfp-col-act">Create</div>
-                        <div class="rfp-col-act">Edit</div>
-                        <div class="rfp-col-act">Delete</div>
+                        @foreach ($actions as $action)
+                        <div class="rfp-col-act">{{ $actionLabels[$action] ?? ucfirst($action) }}</div>
+                        @endforeach
                     </div>
 
                     <div id="rfpModulesBody" class="rfp-modules-scroll">
@@ -275,10 +282,9 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                         <div class="rfp-module-block is-grouped rfp-flat-card rfp-page-item">
                             <div class="rfp-module-head d-flex align-items-center px-3 py-2">
                                 <div class="rfp-col-name fw-semibold text-uppercase small text-muted">General Modules</div>
-                                <div class="rfp-col-act small text-muted">View</div>
-                                <div class="rfp-col-act small text-muted">Create</div>
-                                <div class="rfp-col-act small text-muted">Edit</div>
-                                <div class="rfp-col-act small text-muted">Delete</div>
+                                @foreach ($actions as $action)
+                                <div class="rfp-col-act small text-muted">{{ $actionLabels[$action] ?? ucfirst($action) }}</div>
+                                @endforeach
                             </div>
                             <div class="border-top">
                                 @foreach ($flatModules as $m)
@@ -341,19 +347,17 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
                                     <i class="ti ti-list-details text-muted" title="{{ $m['field_count'] }} fields"></i>
                                     @endif
                                 </div>
+                                @foreach ($actions as $action)
                                 <div class="rfp-col-act"></div>
-                                <div class="rfp-col-act"></div>
-                                <div class="rfp-col-act"></div>
-                                <div class="rfp-col-act"></div>
+                                @endforeach
                             </div>
 
                             <div class="rfp-submodules border-top">
                                 <div class="rfp-sub-head d-flex align-items-center px-3 py-1">
                                     <div class="rfp-col-name">Submodule</div>
-                                    <div class="rfp-col-act">View</div>
-                                    <div class="rfp-col-act">Create</div>
-                                    <div class="rfp-col-act">Edit</div>
-                                    <div class="rfp-col-act">Delete</div>
+                                    @foreach ($actions as $action)
+                                    <div class="rfp-col-act">{{ $actionLabels[$action] ?? ucfirst($action) }}</div>
+                                    @endforeach
                                 </div>
                                 @foreach ($m['submodules'] as $sub)
                                 <div class="rfp-sub-row d-flex align-items-center px-3 py-2 {{ $sub['has_fields'] ? 'rfp-selectable' : '' }}"
@@ -480,8 +484,8 @@ $fieldsUrlTemplate = route('settings-panel.roles.permissions.module-fields', ['c
     }
 
     .rfp-page .rfp-col-act {
-        flex: 0 0 84px;
-        width: 84px;
+        flex: 0 0 72px;
+        width: 72px;
         text-align: center;
     }
 

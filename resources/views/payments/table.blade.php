@@ -112,27 +112,27 @@
                             <i class="fa fa-eye my-1"></i> View Voucher
                         </a>
                         @endcan
-                        @canany([
-                            'voucher_create',
-                            'voucher_edit',
-                            'vouchers_create',
-                            'vouchers_edit',
-                            'riders_payments_create',
-                            'riders_payments_edit',
-                            'cash_&_banks_payments_create',
-                            'cash_&_banks_payments_edit',
-                            'employees_payments_create',
-                            'employees_payments_edit',
-                            'customers_payments_create',
-                            'customers_payments_edit',
-                            'sims_payments_create',
-                            'sims_payments_edit',
-                            'leasing_companies_payments_create',
-                            'leasing_companies_payments_edit',
-                            'suppliers_payments_create',
-                            'suppliers_payments_edit',
-                        ])
-                        @if($voucherId)
+                        @php
+                            $canUploadPaymentDoc = collect(['PAY', 'COD', 'PN', 'INC', 'VC', 'AL'])
+                                ->contains(fn ($code) => \App\Support\RiderVoucherPermissions::canUpload($code))
+                                || user_can('voucher_create')
+                                || user_can('voucher_edit')
+                                || user_can('vouchers_create')
+                                || user_can('vouchers_edit')
+                                || user_can('cash_&_banks_payments_create')
+                                || user_can('cash_&_banks_payments_edit')
+                                || user_can('employees_payments_create')
+                                || user_can('employees_payments_edit')
+                                || user_can('customers_payments_create')
+                                || user_can('customers_payments_edit')
+                                || user_can('sims_payments_create')
+                                || user_can('sims_payments_edit')
+                                || user_can('leasing_companies_payments_create')
+                                || user_can('leasing_companies_payments_edit')
+                                || user_can('suppliers_payments_create')
+                                || user_can('suppliers_payments_edit');
+                        @endphp
+                        @if($voucherId && $canUploadPaymentDoc)
                         <a href="javascript:void(0);"
                             data-size="sm"
                             data-title="Upload Document"
@@ -141,7 +141,6 @@
                             <i class="fa fa-file my-1"></i> Upload Document
                         </a>
                         @endif
-                        @endcanany
                         @endif
                         @canany([
                         'cash_&_banks_payments_create',

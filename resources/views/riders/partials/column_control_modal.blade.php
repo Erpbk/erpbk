@@ -112,7 +112,7 @@ foreach ($tableColumns as $index => $column) {
         <button type="button" class="exp e-c export-btn" data-format="csv">Export to CSV</button>
         <button type="button" class="exp e-p export-btn" data-format="pdf">Export to PDF</button>
       </div>
-      <div class="rl-note">Only ticked columns are exported, in the current order, for all riders. Status exports as Status + Status Days; Name includes a profile link.</div>
+      <div class="rl-note">Only ticked columns are exported, in the current order, for the currently filtered riders. Status exports as Status + Status Days; Name includes a profile link.</div>
       @endif
 
       <span id="visibleCount" hidden>{{ count($controllableColumns) }}</span>
@@ -395,14 +395,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (checkbox?.checked) visibleColumns.push(columnKey);
       });
       const url = new URL(this.exportRoute, window.location.origin);
+      // Carry every active list filter (top-bar cards, sidebar, quick search, etc.)
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.forEach((value, key) => {
+        if (['format', 'visible_columns', 'column_order'].includes(key)) return;
+        url.searchParams.append(key, value);
+      });
       url.searchParams.set('format', format);
       url.searchParams.set('visible_columns', JSON.stringify(visibleColumns));
       url.searchParams.set('column_order', JSON.stringify(columnOrder));
-      const currentUrl = new URL(window.location);
-      ['rider_id', 'name', 'fleet_supervisor', 'status', 'emirate_hub', 'quick_search', 'rider_top_option_id'].forEach(param => {
-        const value = currentUrl.searchParams.get(param);
-        if (value) url.searchParams.set(param, value);
-      });
       window.location.href = url.toString();
     },
 

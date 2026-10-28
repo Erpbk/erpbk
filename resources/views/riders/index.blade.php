@@ -111,9 +111,9 @@
                                 </a>
                                 @endcan
             @can('riders_export_data_create')
-            <a role="menuitem" href="{{ route('rider.exportRiders') }}">
+            <a role="menuitem" href="{{ route('rider.exportRiders') }}" id="exportRidersLink">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/></svg>
-              <span><strong>Export Riders</strong><em>Export ALL fields to Excel (current status + status days)</em></span>
+              <span><strong>Export Riders</strong><em>Export filtered riders (all fields, current status + status days)</em></span>
                                 </a>
                                 @endcan
             @can('riders_rider_create')
@@ -339,6 +339,17 @@
   });
   document.getElementById('actMenu')?.addEventListener('click', function () {
     setMenu(false);
+  });
+
+  // Export uses the same filters currently on the riders list URL
+  document.getElementById('exportRidersLink')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url = new URL(this.getAttribute('href'), window.location.origin);
+    new URL(window.location.href).searchParams.forEach((value, key) => {
+      url.searchParams.append(key, value);
+    });
+    window.location.href = url.toString();
   });
 
   document.getElementById('chipX')?.addEventListener('click', function () {

@@ -954,6 +954,15 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     /*   Route::any('attach_file/{id}', 'VouchersController@fileUpload'); */
     Route::any('voucher/attach_file/{id}', [VouchersController::class, 'fileUpload'])->name('voucher.fileupload');
 
+    // Central voucher approval / rejection (Policy + Gate enforced in controller).
+    Route::prefix('voucher-approvals')->name('voucher-approvals.')->group(function () {
+        Route::post('{id}/approve', [\App\Http\Controllers\VoucherApprovalController::class, 'approve'])->name('approve');
+        Route::post('{id}/reject', [\App\Http\Controllers\VoucherApprovalController::class, 'reject'])->name('reject');
+        Route::post('{id}/resubmit', [\App\Http\Controllers\VoucherApprovalController::class, 'resubmit'])->name('resubmit');
+        Route::post('{id}/force-approve', [\App\Http\Controllers\VoucherApprovalController::class, 'forceApprove'])->name('force-approve');
+        Route::post('{id}/reopen', [\App\Http\Controllers\VoucherApprovalController::class, 'reopen'])->name('reopen');
+    });
+
     Route::prefix('settings')->group(function () {
 
         Route::any('/company', [HomeController::class, 'settings'])->name('settings');

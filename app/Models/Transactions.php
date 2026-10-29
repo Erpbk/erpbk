@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Support\VoucherApprovalRegistry;
 use App\Traits\BranchScope;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Schema;
 
 class Transactions extends BaseModel
 {
@@ -28,6 +30,29 @@ class Transactions extends BaseModel
     public static $rules = [
         'branch_id' => 'nullable|exists:branches,id',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $model) {
+            if (! VoucherApprovalRegistry::deferPosting()) {
+                return;
+            }
+            if (! Schema::hasColumn('transactions', 'deleted_at')) {
+                return;
+            }
+            if ($model->deleted_at !== null) {
+                return;
+            }
+            $transCode = $model->trans_code;
+            if ($transCode === null || $transCode === '') {
+                return;
+            }
+            $voucher = Vouchers::query()->where('trans_code', $transCode)->first();
+            if ($voucher && ! $voucher->isApprovalApproved()) {
+                $model->deleted_at = now();
+            }
+        });
+    }
 
     public function account()
     {

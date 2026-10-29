@@ -405,6 +405,14 @@ Route::prefix('settings-panel')->middleware(['settings.panel', 'company.settings
         Route::post('/{deleteRequest}/approve', [App\Http\Controllers\DeleteRequestsController::class, 'approve'])->name('approve');
         Route::post('/{deleteRequest}/reject', [App\Http\Controllers\DeleteRequestsController::class, 'reject'])->name('reject');
     });
+
+    Route::prefix('voucher-approvals')->name('settings-panel.voucher-approvals.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'index'])->name('index');
+        Route::get('/pending', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'pending'])->name('pending');
+        Route::get('/rejected', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'rejected'])->name('rejected');
+        Route::get('/permissions', [\App\Http\Controllers\VoucherApprovalPermissionsController::class, 'index'])->name('permissions');
+        Route::get('/{id}', [\App\Http\Controllers\VoucherApprovalDashboardController::class, 'show'])->name('show')->whereNumber('id');
+    });
     Route::prefix('trash')->name('settings-panel.trash.')->group(function () {
         Route::get('/', [App\Http\Controllers\TrashController::class, 'index'])->name('index');
         Route::get('/stats', [App\Http\Controllers\TrashController::class, 'stats'])->name('stats');

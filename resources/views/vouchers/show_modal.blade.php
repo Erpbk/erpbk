@@ -30,9 +30,8 @@ $voucher_number = $doc['voucherNo']
     <div class="d-flex align-items-center gap-2">
       @if($voucherPendingDeletion)
         @include('delete_requests._pending_badge', ['model' => $voucher])
-      @else
-        <span class="badge bg-label-success">Published</span>
       @endif
+      <x-voucher-approval.status-badge :voucher="$voucher" />
     </div>
     <div class="d-flex flex-wrap align-items-center gap-2">
       @if($voucherPendingDeletion)
@@ -43,6 +42,7 @@ $voucher_number = $doc['voucherNo']
       <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="{{ $moduleActions['edit_size'] }}" data-title="{{ $moduleActions['edit_title'] }}" data-action="{{ $moduleActions['edit_url'] }}" data-collapse-sidebar="1"><i class="ti ti-edit me-1"></i> Edit</a>
       @endif
       @endcanany
+      <x-voucher-approval.panel :voucher="$voucher" />
       @canany(['vouchers_create', 'voucher_create'])
         @if(!in_array($voucher->voucher_type, ['VL', 'LV', 'RFV', 'SV', 'RI']))
           <a href="javascript:void(0);" class="btn btn-sm btn-outline-primary show-modal" data-size="xl" data-title="Clone Voucher {{ $voucher_number }}" data-action="{{ route('vouchers.clone', $voucherCloneParams($voucher->trans_code)) }}" data-collapse-sidebar="1"><i class="ti ti-copy me-1"></i> Clone</a>

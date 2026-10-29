@@ -63,7 +63,8 @@ class VouchersController extends Controller
     // Use global pagination trait
     $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
 
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    // Hide rejected vouchers from the normal active list (admin dashboard still shows them).
+    $query = Vouchers::query()->activeApproval()->orderBy('id', 'desc');
 
     // Apply filters
     if ($request->has('voucher_id') && !empty($request->voucher_id)) {
@@ -149,7 +150,7 @@ class VouchersController extends Controller
       abort(403, 'Unauthorized action.');
     }
 
-    $query = Vouchers::query()->orderBy('id', 'desc');
+    $query = Vouchers::query()->activeApproval()->orderBy('id', 'desc');
 
     if ($request->filled('voucher_type')) {
       $query->where('voucher_type', $request->voucher_type);
@@ -283,7 +284,7 @@ class VouchersController extends Controller
   public function show($company_slug, $id)
   {
     /** @var Vouchers $vouchers */
-    $voucher = Vouchers::with(['transactions.account'])->find($id);
+    $voucher = Vouchers::with(['transactions.account', 'approvedByUser', 'rejectedByUser', 'approvalEvents'])->find($id);
     $voucherModuleKey = 'vouchers';
     $editDeleteFlags = VoucherType::getEditDeleteFlagsByModule($voucherModuleKey);
     if (empty($voucher)) {
@@ -340,6 +341,13 @@ class VouchersController extends Controller
       Flash::error('Vouchers not found');
 
       return redirect(route('vouchers.index'));
+    }
+
+    try {
+      \App\Support\VoucherApprovalGuard::assertMayEdit($vouchers);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+      Flash::error(collect($e->errors())->flatten()->first() ?: 'Voucher is locked.');
+      return redirect()->back();
     }
 
     if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {
@@ -403,6 +411,12 @@ class VouchersController extends Controller
       Flash::error('Vouchers not found');
 
       return redirect(route('vouchers.index'));
+    }
+
+    try {
+      \App\Support\VoucherApprovalGuard::assertMayEdit($vouchers);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+      return response()->json(['errors' => $e->errors()], 422);
     }
 
     if (VoucherType::isLockedInVouchersModule($vouchers->voucher_type)) {

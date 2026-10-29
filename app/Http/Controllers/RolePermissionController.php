@@ -8,11 +8,13 @@ use App\Models\RoleFieldPermission;
 use App\Services\Permissions\RiderStatusPermissionSync;
 use App\Services\Permissions\TopBarOptionPermissionSync;
 use App\Services\Permissions\TopBarPermissionSync;
+use App\Services\VoucherApprovalService;
 use App\Support\CompanyContext;
 use App\Support\CompanyQuery;
 use App\Support\DynamicPermissionModules;
 use App\Support\RoleFieldAccess;
 use App\Support\RoleModuleFieldResolver;
+use App\Support\VoucherApprovalRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -33,7 +35,13 @@ use Spatie\Permission\PermissionRegistrar;
  */
 class RolePermissionController extends AppBaseController
 {
-    private const ACTIONS = ['view', 'create', 'edit', 'delete', 'upload'];
+    /** CRUD (+upload) columns on the Module Permissions card. */
+    private const MODULE_ACTIONS = ['view', 'create', 'edit', 'delete', 'upload'];
+
+    /** Full action set used when resolving submodule leaf maps (includes approval leaves). */
+    private const ACTIONS = ['view', 'create', 'edit', 'delete', 'upload', 'approve', 'reject', 'force_approve', 'reopen', 'revise'];
+
+    private const VOUCHER_APPROVAL_MODULE = 'Voucher Approval';
 
     /**
      * Render the two-panel permission management page for an existing role.
@@ -144,18 +152,64 @@ class RolePermissionController extends AppBaseController
         $fieldPayload = $this->decodePayload($request->input('fields', []));
         $enforceRiderStatus = $request->boolean('enforce_rider_status_permissions', true);
 
-        DB::transaction(function () use ($role, $permChanges, $fieldPayload, $enforceRiderStatus) {
+        DB::transaction(function () use ($role, $permChanges, $fieldPayload, $enforceRiderStatus, $request) {
             if (Schema::hasColumn('roles', 'enforce_rider_status_permissions')) {
                 $role->enforce_rider_status_permissions = $enforceRiderStatus;
                 $role->save();
             }
             $this->saveModulePermissions($role, $permChanges);
             $this->saveFieldPermissions($role, $fieldPayload);
+            $this->logVoucherApprovalPermissionChanges($role, $permChanges, $request->user());
         });
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         return response()->json(['message' => 'Permissions saved successfully.']);
+    }
+
+    /**
+     * Append-only audit when approve/reject (or override) leaves change on a role.
+     *
+     * @param  array<string, mixed>  $permChanges
+     */
+    private function logVoucherApprovalPermissionChanges(Role $role, array $permChanges, $actor): void
+    {
+        if (! $actor || ! VoucherApprovalRegistry::enabled()) {
+            return;
+        }
+
+        $watched = array_fill_keys(VoucherApprovalRegistry::allTypedPermissionNames(), true);
+        if ($watched === []) {
+            return;
+        }
+
+        $touched = [];
+        foreach ($permChanges as $permissionId => $granted) {
+            $permission = Permission::query()->find($permissionId);
+            if ($permission === null) {
+                continue;
+            }
+            if (! isset($watched[$permission->name])) {
+                // Also match any *_approve / *_reject / override leaves.
+                if (! preg_match('/_(approve|reject|force_approve|reopen|revise)$/', $permission->name)) {
+                    continue;
+                }
+            }
+            $touched[] = [
+                'permission' => $permission->name,
+                'granted' => (bool) $granted,
+            ];
+        }
+
+        if ($touched === []) {
+            return;
+        }
+
+        app(VoucherApprovalService::class)->logPermissionChange($actor, [
+            'role_id' => $role->id,
+            'role_name' => $role->name,
+            'changes' => $touched,
+        ]);
     }
 
     /**
@@ -500,9 +554,11 @@ class RolePermissionController extends AppBaseController
             $moduleRows,
             static fn(array $row): bool => ! empty($row['is_dynamic'])
         ));
+        // Voucher Approval has its own card (typed approve/reject + overrides).
         $moduleRows = array_values(array_filter(
             $moduleRows,
             static fn(array $row): bool => empty($row['is_dynamic'])
+                && ($row['name'] ?? '') !== self::VOUCHER_APPROVAL_MODULE
         ));
 
         usort($moduleRows, static fn(array $a, array $b): int => strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? '')));
@@ -523,6 +579,8 @@ class RolePermissionController extends AppBaseController
             return $cmp !== 0 ? $cmp : strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
         });
 
+        $voucherApprovalCard = $this->buildVoucherApprovalPermissionCard($assigned);
+
         $totalPermissions = $moduleTotal + $fieldTotal;
         $enabledPermissions = $moduleEnabled + $fieldEnabled;
 
@@ -530,7 +588,9 @@ class RolePermissionController extends AppBaseController
             'role' => $role,
             'isCreate' => $isCreate,
             'moduleRows' => $moduleRows,
+            'moduleActions' => self::MODULE_ACTIONS,
             'dynamicPermissionRows' => $dynamicPermissionRows,
+            'voucherApprovalCard' => $voucherApprovalCard,
             'enforceRiderStatusPermissions' => $role
                 ? (bool) ($role->enforce_rider_status_permissions ?? true)
                 : true,
@@ -542,6 +602,102 @@ class RolePermissionController extends AppBaseController
                 'module_total' => $moduleTotal,
                 'module_enabled' => $moduleEnabled,
             ],
+        ];
+    }
+
+    /**
+     * Dedicated card data: one row per voucher type (Approve / Reject) plus override toggles.
+     *
+     * @param  array<int, int>  $assigned
+     * @return array{type_rows: list<array<string, mixed>>, override_rows: list<array<string, mixed>>, leaf_total: int, leaf_enabled: int}
+     */
+    private function buildVoucherApprovalPermissionCard(array $assigned): array
+    {
+        $byName = Permission::query()
+            ->whereIn('name', VoucherApprovalRegistry::allTypedPermissionNames())
+            ->get()
+            ->keyBy('name');
+
+        $typeRows = [];
+        $leafTotal = 0;
+        $leafEnabled = 0;
+
+        foreach (VoucherApprovalRegistry::types() as $code => $def) {
+            $approveName = (string) ($def['approve'] ?? '');
+            $rejectName = (string) ($def['reject'] ?? '');
+            $approve = $approveName !== '' ? $byName->get($approveName) : null;
+            $reject = $rejectName !== '' ? $byName->get($rejectName) : null;
+
+            $actions = [
+                'approve' => null,
+                'reject' => null,
+            ];
+
+            if ($approve) {
+                $enabled = isset($assigned[(int) $approve->id]);
+                $actions['approve'] = ['id' => (int) $approve->id, 'enabled' => $enabled];
+                $leafTotal++;
+                if ($enabled) {
+                    $leafEnabled++;
+                }
+            }
+            if ($reject) {
+                $enabled = isset($assigned[(int) $reject->id]);
+                $actions['reject'] = ['id' => (int) $reject->id, 'enabled' => $enabled];
+                $leafTotal++;
+                if ($enabled) {
+                    $leafEnabled++;
+                }
+            }
+
+            if ($actions['approve'] === null && $actions['reject'] === null) {
+                continue;
+            }
+
+            $typeRows[] = [
+                'code' => $code,
+                'label' => (string) ($def['label'] ?? $code),
+                'module' => (string) ($def['module'] ?? ''),
+                'actions' => $actions,
+            ];
+        }
+
+        $overrideLabels = [
+            'force_approve' => 'Force Approve',
+            'reopen' => 'Reopen Rejected / Approved',
+            'revise' => 'Revise Approved',
+            'dashboard_view' => 'Dashboard View',
+            'dashboard_edit' => 'Dashboard Edit',
+        ];
+        $overrideRows = [];
+        foreach ($overrideLabels as $key => $label) {
+            $name = VoucherApprovalRegistry::globalPermission($key);
+            if (! is_string($name) || $name === '') {
+                continue;
+            }
+            $perm = $byName->get($name) ?? Permission::query()->where('name', $name)->first();
+            if ($perm === null) {
+                continue;
+            }
+            $enabled = isset($assigned[(int) $perm->id]);
+            $leafTotal++;
+            if ($enabled) {
+                $leafEnabled++;
+            }
+            $overrideRows[] = [
+                'key' => $key,
+                'label' => $label,
+                'permission' => $name,
+                'id' => (int) $perm->id,
+                'enabled' => $enabled,
+            ];
+        }
+
+        return [
+            'type_rows' => $typeRows,
+            'override_rows' => $overrideRows,
+            'leaf_total' => $leafTotal,
+            'leaf_enabled' => $leafEnabled,
         ];
     }
 

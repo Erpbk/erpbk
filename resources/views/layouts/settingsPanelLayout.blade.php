@@ -177,6 +177,23 @@ $containerNav = 'container-fluid';
           </a>
         </li>
         @endcan
+        @if(auth()->user()?->isAdmin() || user_can('settings_voucher_approvals_view') || \Illuminate\Support\Facades\Gate::allows('voucher.approvalDashboard'))
+        <li class="menu-item {{ Request::is('settings-panel/voucher-approvals*') ? 'active' : '' }}">
+          <a href="{{ route('settings-panel.voucher-approvals.index', ['company_slug' => $settingsCompanySlug]) }}" class="menu-link">
+            <i class="menu-icon tf-icons ti ti-checklist text-primary"></i>
+            <div>Voucher Approvals
+              @php
+                $pendingVoucherApprovalCount = \Illuminate\Support\Facades\Schema::hasColumn('vouchers', 'approval_status')
+                  ? \App\Models\Vouchers::query()->pendingApproval()->count()
+                  : 0;
+              @endphp
+              @if($pendingVoucherApprovalCount > 0)
+                <span class="badge bg-warning text-dark rounded-pill ms-1">{{ $pendingVoucherApprovalCount }}</span>
+              @endif
+            </div>
+          </a>
+        </li>
+        @endif
 
         {{-- ERP Module Settings — mirrors main app sidebar (layouts/menu.blade.php) --}}
         <li class="menu-header small text-uppercase mt-3">

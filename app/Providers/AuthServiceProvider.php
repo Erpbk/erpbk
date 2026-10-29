@@ -22,6 +22,14 @@ class AuthServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerPolicies();
-        //
+
+        // Voucher approval abilities (do not bind as default Vouchers policy — CRUD uses module gates).
+        \Illuminate\Support\Facades\Gate::define('voucher.approve', [\App\Policies\VoucherApprovalPolicy::class, 'approve']);
+        \Illuminate\Support\Facades\Gate::define('voucher.reject', [\App\Policies\VoucherApprovalPolicy::class, 'reject']);
+        \Illuminate\Support\Facades\Gate::define('voucher.forceApprove', [\App\Policies\VoucherApprovalPolicy::class, 'forceApprove']);
+        \Illuminate\Support\Facades\Gate::define('voucher.reopen', [\App\Policies\VoucherApprovalPolicy::class, 'reopen']);
+        \Illuminate\Support\Facades\Gate::define('voucher.revise', [\App\Policies\VoucherApprovalPolicy::class, 'revise']);
+        \Illuminate\Support\Facades\Gate::define('voucher.resubmit', [\App\Policies\VoucherApprovalPolicy::class, 'resubmit']);
+        \Illuminate\Support\Facades\Gate::define('voucher.approvalDashboard', [\App\Policies\VoucherApprovalPolicy::class, 'viewDashboard']);
     }
 }

@@ -6,6 +6,7 @@ use Eloquent as Model;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\HasApprovalWorkflow;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
@@ -32,7 +33,7 @@ use App\Traits\BranchScope;
  */
 class Vouchers extends BaseModel
 {
-  use HasFactory, LogsActivity, SoftDeletes, BranchScope;
+  use HasFactory, LogsActivity, SoftDeletes, BranchScope, HasApprovalWorkflow;
 
   public $table = 'vouchers';
 

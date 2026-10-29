@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Schema;
 use App\Models\GarageItem;
 use App\Models\Supplier;
+use App\Services\VoucherApproval\VoucherApprovalLedger;
 
 class TransactionService
 {
@@ -38,6 +39,8 @@ class TransactionService
       if (Schema::hasColumn('transactions', 'deleted_at')) {
         $row['deleted_at'] = null;
       }
+      // Pending/rejected vouchers must not post as live ledger lines.
+      $row = VoucherApprovalLedger::applyHoldOnInsert($row);
       $id = \App\Support\CompanyQuery::insertGetId('transactions', $row);
 
       Log::info('Transaction recorded successfully: ' . $id);

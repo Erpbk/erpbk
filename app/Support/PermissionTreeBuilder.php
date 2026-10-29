@@ -9,10 +9,10 @@ class PermissionTreeBuilder
     public const STANDARD_ACTIONS = ['view', 'create', 'edit', 'delete'];
 
     /** Actions that may appear as submodule leaves in addition to STANDARD_ACTIONS. */
-    public const EXTRA_ACTIONS = ['upload'];
+    public const EXTRA_ACTIONS = ['upload', 'approve', 'reject', 'force_approve', 'reopen', 'revise'];
 
     /** All actions the Role Permissions UI can toggle (CRUD + known extras). */
-    public const ALL_ACTIONS = ['view', 'create', 'edit', 'delete', 'upload'];
+    public const ALL_ACTIONS = ['view', 'create', 'edit', 'delete', 'upload', 'approve', 'reject', 'force_approve', 'reopen', 'revise'];
 
     public static function slugify(string $name): string
     {
@@ -26,8 +26,8 @@ class PermissionTreeBuilder
 
     public static function displayLabelForLeaf(string $permissionName): string
     {
-        if (preg_match('/_(view|create|edit|delete|upload)$/', $permissionName, $matches)) {
-            return ucfirst($matches[1]);
+        if (preg_match('/_(view|create|edit|delete|upload|approve|reject|force_approve|reopen|revise)$/', $permissionName, $matches)) {
+            return ucwords(str_replace('_', ' ', $matches[1]));
         }
 
         $parts = explode('_', $permissionName);

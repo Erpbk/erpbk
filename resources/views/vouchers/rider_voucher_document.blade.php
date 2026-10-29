@@ -13,6 +13,12 @@ $isPrint = request()->boolean('print') || (bool) request()->get('print');
     @include('vouchers.partials.rider_voucher_document_body', array_merge($doc ?? [], ['isPdf' => false]))
     <script>window.onload = function () { window.print(); };</script>
 @else
+    @if(!empty($voucher))
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-3 no-print">
+            <x-voucher-approval.status-badge :voucher="$voucher" />
+            <x-voucher-approval.panel :voucher="$voucher" />
+        </div>
+    @endif
     <div class="rpv-page">
         @include('vouchers.partials.rider_voucher_document_body', $doc ?? [])
     </div>

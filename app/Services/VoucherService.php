@@ -15,6 +15,7 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Support\GlobalAccounts;
 use App\Support\PublicStorageDisk;
+use App\Support\VoucherModulePermissions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -30,6 +31,17 @@ class VoucherService
 
   public function JournalVoucher($request)
   {
+    $canUploadAttachment = VoucherModulePermissions::canUpload();
+    if (! $canUploadAttachment) {
+      $request->files->remove('attachment');
+    } elseif (! $request->hasFile('attachment')) {
+      $request->files->remove('attachment');
+    } else {
+      $file = $request->file('attachment');
+      if (! $file || ! $file->isValid()) {
+        $request->files->remove('attachment');
+      }
+    }
 
     $rules = [
       'trans_date' => 'required',
@@ -37,6 +49,9 @@ class VoucherService
       'reference_number' => 'required|string|max:255',
       'branch_id' => 'required|exists:branches,id',
     ];
+    if ($canUploadAttachment) {
+      $rules['attachment'] = 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048';
+    }
     $message = [
       'trans_date.required' => 'Transaction Date Required',
       'payment_type.required' => 'Payment Type Required',
@@ -44,7 +59,20 @@ class VoucherService
       'branch_id.required' => 'Please Select a Branch',
     ];
     $request->validate($rules, $message);
-    $data = $request->except(['_method', '_token', 'v_trans_code', 'narration', 'dr_amount', 'cr_amount', 'account_id', 'id']);
+    $data = $request->except([
+      '_method',
+      '_token',
+      'v_trans_code',
+      'narration',
+      'dr_amount',
+      'cr_amount',
+      'account_id',
+      'id',
+      'attachment',
+      'company_slug',
+      'voucher_custom_fields',
+      'custom_field_values',
+    ]);
     //$data = $request->all();
     $id = $request->v_trans_code;
 
@@ -142,6 +170,20 @@ class VoucherService
         }
       }
     }
+
+    if ($canUploadAttachment && $request->hasFile('attachment') && $ret) {
+      $file = $request->file('attachment');
+      $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName()) ?: 'document';
+      $fileName = time().'_'.$safeBase;
+      $oldFile = $ret->attach_file ? basename((string) $ret->attach_file) : null;
+      PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
+      if ($oldFile && $oldFile !== $fileName) {
+        PublicStorageDisk::delete('vouchers/'.$oldFile);
+      }
+      $ret->attach_file = $fileName;
+      $ret->save();
+    }
+
     return $ret;
   }
 
@@ -153,7 +195,10 @@ class VoucherService
    */
   public function FundsTransfer($request)
   {
-    if (! $request->hasFile('attachment')) {
+    $canUploadAttachment = VoucherModulePermissions::canUpload();
+    if (! $canUploadAttachment) {
+      $request->files->remove('attachment');
+    } elseif (! $request->hasFile('attachment')) {
       $request->files->remove('attachment');
     } else {
       $file = $request->file('attachment');
@@ -162,7 +207,7 @@ class VoucherService
       }
     }
 
-    $request->validate([
+    $transferRules = [
       'trans_date' => 'required|date',
       'payment_type' => 'required|integer|in:1,2,3,4',
       'billing_month' => 'required',
@@ -173,8 +218,12 @@ class VoucherService
       'amount' => 'required|numeric|min:0.01',
       'bank_charges' => 'nullable|numeric|min:0',
       'description' => 'nullable|string|max:1000',
-      'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-    ], [
+    ];
+    if ($canUploadAttachment) {
+      $transferRules['attachment'] = 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048';
+    }
+
+    $request->validate($transferRules, [
       'trans_date.required' => 'Transaction date is required',
       'payment_type.required' => 'Payment mode is required',
       'payment_type.in' => 'Please select a payment mode',
@@ -241,7 +290,8 @@ class VoucherService
       $branchId,
       $bankChargesAccountId,
       $transCodeId,
-      $isUpdate
+      $isUpdate,
+      $canUploadAttachment
     ) {
       $payload = [
         'trans_date' => $request->input('trans_date'),
@@ -319,7 +369,7 @@ class VoucherService
         ], true);
       }
 
-      if ($request->hasFile('attachment')) {
+      if ($canUploadAttachment && $request->hasFile('attachment')) {
         $file = $request->file('attachment');
         $safeBase = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName()) ?: 'document';
         $fileName = time().'_'.$safeBase;

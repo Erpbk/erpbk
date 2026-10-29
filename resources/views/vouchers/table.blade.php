@@ -103,12 +103,18 @@ $vfColspan = count(array_filter($vfCols)) + 2;
             <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
           </button>
           <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown_{{ $voucher->id }}">
-            @canany(['voucher_create', 'voucher_edit', 'vouchers_create', 'vouchers_edit'])
+            @php
+              $riderVoucherUploadCode = \App\Support\RiderVoucherPermissions::codeFromVoucherType($voucher->voucher_type);
+              $canUploadThisVoucherDoc = $riderVoucherUploadCode !== null
+                ? \App\Support\RiderVoucherPermissions::canUpload($riderVoucherUploadCode)
+                : \App\Support\VoucherModulePermissions::canUpload();
+            @endphp
+            @if($canUploadThisVoucherDoc)
             <a href="javascript:void(0);" data-size="sm" data-title="Upload Document"
               data-action="{{ route('voucher.fileupload', array_filter(['id' => $voucher->id, 'company_slug' => $__companySlug])) }}" class="dropdown-item waves-effect show-modal">
               <i class="fa fa-file my-1"></i> Upload Document
             </a>
-            @endcanany
+            @endif
             @can('voucher_view')
             <a href="javascript:void(0);" class="dropdown-item waves-effect show-voucher-panel" data-action="{{ route('vouchers.show', $voucherRouteParams($voucher->id)) }}" data-title="{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }} #{{ $voucherId }}" data-collapse-sidebar="1" data-list-url="{{ route('vouchers.list-sidebar', $listSidebarParams) }}">
               <i class="fa fa-eye my-1"></i> View

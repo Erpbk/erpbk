@@ -164,6 +164,7 @@
                 </div>
             </div>
         </div>
+        @if(\App\Support\VoucherModulePermissions::canUpload())
         <div class="col-lg-4">
             <div class="rpf-attach-box">
                 @include('partials.universal_document_upload', [
@@ -180,6 +181,7 @@
                 <div class="rpf-attach-hint">Multiple pages combined into one PDF.</div>
             </div>
         </div>
+        @endif
     </div>
 
     <div class="rpf-section mt-4">

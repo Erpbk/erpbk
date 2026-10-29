@@ -86,6 +86,13 @@ $currencyCode = \App\Helpers\Currency::code();
                 @endif
             </div>
         </div>
+        @php
+            $riderUploadCode = \App\Support\RiderVoucherPermissions::codeFromVoucherType($voucherType);
+            $showJournalAttachment = $riderUploadCode !== null
+                ? \App\Support\RiderVoucherPermissions::canUpload($riderUploadCode)
+                : \App\Support\VoucherModulePermissions::canUpload();
+        @endphp
+        @if($showJournalAttachment)
         <div class="col-lg-4">
             <div class="rpf-attach-box">
                 @include('partials.universal_document_upload', [
@@ -102,6 +109,7 @@ $currencyCode = \App\Helpers\Currency::code();
                 <div class="rpf-attach-hint">Multiple pages combined into one PDF.</div>
             </div>
         </div>
+        @endif
     </div>
 
     <div class="rpf-section mt-4">

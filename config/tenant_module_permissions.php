@@ -239,7 +239,13 @@ return [
         ],
 
         ['parent' => 'Documents', 'slug' => 'documents', 'submodules' => []],
-        ['parent' => 'Vouchers', 'slug' => 'vouchers', 'submodules' => []],
+        [
+            'parent' => 'Vouchers',
+            'slug' => 'vouchers',
+            'submodules' => [],
+            // Journal / funds-transfer document attach (Role Permissions → Upload column).
+            'extras' => ['upload'],
+        ],
         [
             'parent' => 'Voucher Signature Assignment',
             'slug' => 'voucher_signature_assignment',

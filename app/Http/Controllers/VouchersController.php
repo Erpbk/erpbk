@@ -28,6 +28,7 @@ use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use App\Support\PublicStorageDisk;
 use App\Support\RiderVoucherPermissions;
+use App\Support\VoucherModulePermissions;
 use Flash;
 use Maatwebsite\Excel\Facades\Excel;
 use Response;
@@ -942,12 +943,7 @@ class VouchersController extends Controller
         return response()->json(['message' => 'Unauthorized action.'], 403);
       }
     } else {
-      $canUpload = user_can('vouchers_edit')
-        || user_can('vouchers_create')
-        || user_can('voucher_edit')
-        || user_can('voucher_create')
-        || user_can('expenses_edit')
-        || user_can('expenses_create')
+      $canUpload = VoucherModulePermissions::canUpload()
         || user_can('cash_&_banks_payments_edit')
         || user_can('cash_&_banks_payments_create')
         || user_can('employees_payments_edit')

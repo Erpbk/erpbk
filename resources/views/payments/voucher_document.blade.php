@@ -17,8 +17,15 @@ $printUrl = route('payments.show', array_filter([
     window.print();
 </script>
 @else
+@php
+    $approvalVoucher = $payment->voucher
+        ?? (!empty($payment->voucher_id) ? \App\Models\Vouchers::query()->with(['approvalEvents', 'approvedByUser', 'rejectedByUser'])->find($payment->voucher_id) : null);
+@endphp
 <div class="rpv-page">
     <div class="rpv-toolbar d-flex flex-wrap gap-2 mb-3 align-items-center justify-content-end">
+        @if($approvalVoucher)
+            <x-voucher-approval.status-badge :voucher="$approvalVoucher" />
+        @endif
         <a href="javascript:void(0);"
             class="btn btn-sm btn-outline-secondary show-modal"
             data-size="xl"
@@ -27,6 +34,9 @@ $printUrl = route('payments.show', array_filter([
             data-collapse-sidebar="1">
             <i class="fa fa-pencil"></i> Edit
         </a>
+        @if($approvalVoucher)
+            <x-voucher-approval.panel :voucher="$approvalVoucher" />
+        @endif
         <a href="javascript:void(0);"
             class="btn btn-sm btn-outline-secondary show-modal"
             data-size="xl"

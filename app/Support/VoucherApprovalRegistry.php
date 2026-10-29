@@ -59,6 +59,34 @@ class VoucherApprovalRegistry
         return self::definition($voucherType)['reject'] ?? null;
     }
 
+    /**
+     * Permission leaf names that grant approve/reject for this voucher type.
+     * Rider salary/payment vouchers are stored as PV but use riders_payments_* leaves
+     * (same pattern as RiderVoucherPermissions::codeFromVoucherType).
+     *
+     * @return list<string>
+     */
+    public static function permissionCandidates(string $voucherType, string $action): array
+    {
+        $action = strtolower(trim($action));
+        $code = strtoupper(trim($voucherType));
+        $primary = $action === 'reject'
+            ? self::rejectPermission($code)
+            : self::approvePermission($code);
+
+        $names = [];
+        if (is_string($primary) && $primary !== '') {
+            $names[] = $primary;
+        }
+
+        if ($code === 'PV') {
+            $rider = $action === 'reject' ? 'riders_payments_reject' : 'riders_payments_approve';
+            $names[] = $rider;
+        }
+
+        return array_values(array_unique($names));
+    }
+
     public static function globalPermission(string $key): ?string
     {
         return config('voucher_approval.permissions.' . $key);

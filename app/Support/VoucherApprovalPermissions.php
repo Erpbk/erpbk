@@ -114,15 +114,18 @@ class VoucherApprovalPermissions
             return true;
         }
 
-        $permission = $action === 'reject'
-            ? VoucherApprovalRegistry::rejectPermission($voucherType)
-            : VoucherApprovalRegistry::approvePermission($voucherType);
-
-        if ($permission === null) {
+        $permissions = VoucherApprovalRegistry::permissionCandidates($voucherType, $action);
+        if ($permissions === []) {
             return false;
         }
 
-        return user_can($permission, $user);
+        foreach ($permissions as $permission) {
+            if (user_can($permission, $user)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected static function canGlobal(string $key, ?User $user = null): bool

@@ -12,8 +12,9 @@ return [
     'enabled' => env('VOUCHER_APPROVAL_ENABLED', true),
 
     /**
-     * Hold ledger impact until approved: TransactionService soft-holds (deleted_at)
-     * rows while the voucher is pending/rejected; approve restores them.
+     * Hold ledger impact until approved: pending/rejected vouchers set
+     * transactions.deleted_at AND transactions.approval_held_at. Approve restores
+     * ONLY rows with approval_held_at set — never ordinary soft-deletes.
      */
     'defer_posting' => env('VOUCHER_APPROVAL_DEFER_POSTING', true),
 

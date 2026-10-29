@@ -252,7 +252,10 @@ class EmployeeInvoicesController extends AppBaseController
             ], 500);
         }
 
-        Transactions::where('reference_type', 'EmployeeInvoice')->where('reference_id', $id)->delete();
+        Transactions::softDeleteMatching(
+            fn ($q) => $q->where('reference_type', 'EmployeeInvoice')->where('reference_id', $id),
+            Auth::id()
+        );
         $invoice->deleted_by = Auth::id();
         $invoice->save();
         $invoice->delete();
@@ -276,7 +279,10 @@ class EmployeeInvoicesController extends AppBaseController
             if (! $invoice || $invoice->status == 1) {
                 continue;
             }
-            Transactions::where('reference_type', 'EmployeeInvoice')->where('reference_id', $invoiceId)->delete();
+            Transactions::softDeleteMatching(
+                fn ($q) => $q->where('reference_type', 'EmployeeInvoice')->where('reference_id', $invoiceId),
+                Auth::id()
+            );
             $invoice->deleted_by = Auth::id();
             $invoice->save();
             $invoice->delete();

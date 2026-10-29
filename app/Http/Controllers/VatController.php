@@ -568,7 +568,7 @@ class VatController extends Controller
                 ->where('ref_id', $vat_return->id)
                 ->get();
             foreach ($vvVouchers as $voucher) {
-                Transactions::where('trans_code', $voucher->trans_code)->delete();
+                Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $voucher->trans_code));
                 $voucher->delete();
             }
         }

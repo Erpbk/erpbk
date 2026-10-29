@@ -39,6 +39,9 @@ class TransactionService
       if (Schema::hasColumn('transactions', 'deleted_at')) {
         $row['deleted_at'] = null;
       }
+      if (Schema::hasColumn('transactions', 'approval_held_at')) {
+        $row['approval_held_at'] = null;
+      }
       // Pending/rejected vouchers must not post as live ledger lines.
       $row = VoucherApprovalLedger::applyHoldOnInsert($row);
       $id = \App\Support\CompanyQuery::insertGetId('transactions', $row);
@@ -55,7 +58,10 @@ class TransactionService
   }
 
   /**
-   * Delete transaction records using a given identifier.
+   * Hard-delete transaction rows (including soft-deleted orphans) for rebuild/replace flows.
+   * Prefer this when updating a voucher/invoice and posting new ledger lines.
+   * Soft-delete only when cascading from a soft-deleted primary record
+   * ({@see \App\Models\Transactions::softDeleteMatching()}).
    *
    * @param  mixed       $identifier     Single identifier or array of identifiers.
    * @param  string      $column         Column to match against (defaults to trans_code).
@@ -81,7 +87,9 @@ class TransactionService
     }
 
     try {
-      $query = \App\Support\CompanyQuery::table('transactions')->whereIn($column, $identifiers);
+      // Query-builder delete is a physical DELETE; include trashed so rebuilds
+      // do not leave soft-deleted duplicates behind.
+      $query = \App\Support\CompanyQuery::tableWithTrashed('transactions')->whereIn($column, $identifiers);
 
       if ($column === 'reference_id' && $referenceType !== null) {
         $query->where('reference_type', $referenceType);
@@ -89,7 +97,7 @@ class TransactionService
 
       $deleted = $query->delete();
 
-      Log::info('Transactions deleted', [
+      Log::info('Transactions hard-deleted', [
         'column' => $column,
         'identifiers' => $identifiers,
         'reference_type' => $referenceType,

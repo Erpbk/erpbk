@@ -368,7 +368,10 @@ class ChequesController extends Controller
                         $handledVoucherIds[] = (int) $doc->voucher_id;
                         $voucher = Vouchers::find($doc->voucher_id);
                         if ($voucher) {
-                            Transactions::where('trans_code', $voucher->trans_code)->delete();
+                            Transactions::softDeleteMatching(
+                                fn ($q) => $q->where('trans_code', $voucher->trans_code),
+                                auth()->id()
+                            );
                             $voucher->delete();
                         }
                     }
@@ -384,7 +387,10 @@ class ChequesController extends Controller
                     if (! $voucher) {
                         continue;
                     }
-                    Transactions::where('trans_code', $voucher->trans_code)->delete();
+                    Transactions::softDeleteMatching(
+                        fn ($q) => $q->where('trans_code', $voucher->trans_code),
+                        auth()->id()
+                    );
                     if ($cheque->type === 'payable') {
                         Payment::where('voucher_id', $refVoucherId)->delete();
                     } else {

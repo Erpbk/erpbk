@@ -25,6 +25,11 @@ class Transactions extends BaseModel
         'billing_month',
         'narration',
         'deleted_by',
+        'approval_held_at',
+    ];
+
+    protected $casts = [
+        'approval_held_at' => 'datetime',
     ];
 
     public static $rules = [
@@ -41,6 +46,11 @@ class Transactions extends BaseModel
                 return;
             }
             if ($model->deleted_at !== null) {
+                if (Schema::hasColumn('transactions', 'approval_held_at') && $model->approval_held_at === null) {
+                    // Caller already soft-held without marker — treat as approval hold.
+                    $model->approval_held_at = $model->deleted_at;
+                }
+
                 return;
             }
             $transCode = $model->trans_code;
@@ -49,9 +59,58 @@ class Transactions extends BaseModel
             }
             $voucher = Vouchers::query()->where('trans_code', $transCode)->first();
             if ($voucher && ! $voucher->isApprovalApproved()) {
-                $model->deleted_at = now();
+                $heldAt = now();
+                $model->deleted_at = $heldAt;
+                if (Schema::hasColumn('transactions', 'approval_held_at')) {
+                    $model->approval_held_at = $heldAt;
+                }
             }
         });
+    }
+
+    /**
+     * Hard-delete matching ledger rows (including already soft-deleted).
+     * Use when rebuilding/replacing postings on update — do not leave soft-delete orphans.
+     *
+     * @param  callable(\Illuminate\Database\Eloquent\Builder): void  $constrain
+     */
+    public static function hardDeleteMatching(callable $constrain): int
+    {
+        $query = static::withTrashed()->withoutGlobalScope('branch');
+        $constrain($query);
+
+        return (int) $query->forceDelete();
+    }
+
+    /**
+     * Soft-delete matching ledger rows when the primary record is soft-deleted
+     * (so trash restore can bring them back together).
+     *
+     * @param  callable(\Illuminate\Database\Eloquent\Builder): void  $constrain
+     */
+    public static function softDeleteMatching(callable $constrain, ?int $deletedBy = null): int
+    {
+        $query = static::query()->withoutGlobalScope('branch');
+        $constrain($query);
+
+        $count = 0;
+        $query->orderBy('id')->chunkById(200, function ($rows) use (&$count, $deletedBy) {
+            foreach ($rows as $row) {
+                if ($deletedBy && Schema::hasColumn($row->getTable(), 'deleted_by')) {
+                    $row->deleted_by = $deletedBy;
+                    $row->save();
+                }
+                // Never mark approval_held_at for primary soft-deletes.
+                if (Schema::hasColumn($row->getTable(), 'approval_held_at') && $row->approval_held_at) {
+                    $row->approval_held_at = null;
+                    $row->save();
+                }
+                $row->delete();
+                $count++;
+            }
+        });
+
+        return $count;
     }
 
     public function account()

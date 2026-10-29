@@ -253,7 +253,7 @@ class RtaFinesController extends AppBaseController
             $trans_code = $isUpdate ? $voucher->trans_code : Account::trans_code();
 
             if ($isUpdate) {
-                Transactions::where('trans_code', $trans_code)->delete();
+                Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $trans_code));
             }
 
             $this->recordRtaFinePaymentTransactions($fine, $creditAccount, $trans_code, $transDate, $billingMonth);
@@ -604,7 +604,7 @@ class RtaFinesController extends AppBaseController
             if (!$rider_account)
                 throw new \Exception('Debit Account Not Found');
 
-            Transactions::where('trans_code', $trans_code)->delete();
+            Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $trans_code));
             $TransactionService = new TransactionService();
             $fineNarration = $rtaFines->transactionNarration();
             // --- 1. Main Fine (Rider Debit) ---

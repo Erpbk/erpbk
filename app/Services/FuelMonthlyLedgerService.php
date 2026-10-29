@@ -82,16 +82,19 @@ class FuelMonthlyLedgerService
         )));
 
         if ($referenceIds !== []) {
-            Transactions::where('reference_type', 'fuel')
-                ->whereIn('reference_id', $referenceIds)
-                ->delete();
+            // Hard-delete: rebuild replaces postings; soft-delete orphans must not accumulate.
+            Transactions::hardDeleteMatching(function ($query) use ($referenceIds) {
+                $query->where('reference_type', 'fuel')
+                    ->whereIn('reference_id', $referenceIds);
+            });
         }
 
         // Safety: clear any rider-side fuel ledger left for this billing month.
-        Transactions::where('reference_type', 'fuel')
-            ->where('account_id', $rider->account_id)
-            ->whereDate('billing_month', $billingMonthDate)
-            ->delete();
+        Transactions::hardDeleteMatching(function ($query) use ($rider, $billingMonthDate) {
+            $query->where('reference_type', 'fuel')
+                ->where('account_id', $rider->account_id)
+                ->whereDate('billing_month', $billingMonthDate);
+        });
 
         if ($activeRows->isEmpty()) {
             return;

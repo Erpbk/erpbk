@@ -487,7 +487,10 @@ class CustomerInvoicesController extends Controller
                 Storage::disk('public')->delete($invoice->attachment);
             }
 
-            Transactions::where(['reference_id' =>  $invoice->id, 'reference_type' => 'CI'])->delete();
+            Transactions::softDeleteMatching(
+                fn ($q) => $q->where('reference_id', $invoice->id)->where('reference_type', 'CI'),
+                auth()->id()
+            );
 
             // 🔥 Delete related items
             $invoice->items()->delete();

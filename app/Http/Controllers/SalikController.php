@@ -411,16 +411,19 @@ class SalikController extends AppBaseController
 
         if ($salikIds->isNotEmpty()) {
             // Invoice ledger only — never purge payment vouchers (reference_type = Salik Voucher)
-            Transactions::whereIn('reference_id', $salikIds)
-                ->whereIn('reference_type', ['salik', 'Salik'])
-                ->delete();
+            // Hard-delete on rebuild so obsolete soft-deleted invoice lines cannot be revived.
+            Transactions::hardDeleteMatching(function ($query) use ($salikIds) {
+                $query->whereIn('reference_id', $salikIds)
+                    ->whereIn('reference_type', ['salik', 'Salik']);
+            });
             // Do not delete vouchers by ref_id — payment SV vouchers also store salik ref_id
         }
 
         if ($transCodes->isNotEmpty()) {
-            Transactions::whereIn('trans_code', $transCodes)
-                ->whereIn('reference_type', ['salik', 'Salik'])
-                ->delete();
+            Transactions::hardDeleteMatching(function ($query) use ($transCodes) {
+                $query->whereIn('trans_code', $transCodes)
+                    ->whereIn('reference_type', ['salik', 'Salik']);
+            });
 
             // Only invoice/legacy vouchers on the salik invoice trans_code (not payment codes)
             Vouchers::where('voucher_type', 'SV')
@@ -463,9 +466,10 @@ class SalikController extends AppBaseController
             ->filter()
             ->values();
 
-        Transactions::whereIn('trans_code', $transCodes)
-            ->whereIn('reference_type', ['salik', 'Salik'])
-            ->delete();
+        Transactions::hardDeleteMatching(function ($query) use ($transCodes) {
+            $query->whereIn('trans_code', $transCodes)
+                ->whereIn('reference_type', ['salik', 'Salik']);
+        });
         // Do not delete SV payment vouchers here
 
         foreach ($affectedAccountIds as $affectedAccountId) {

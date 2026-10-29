@@ -1191,8 +1191,8 @@ class PaymentController extends Controller
                 $billingMonth = $request->input('billing_month');
                 $desc = $request->input('description');
 
-                // Delete existing transactions
-                Transactions::where('trans_code', $transCode)->delete();
+                // Hard-delete existing ledger lines before re-posting on update
+                Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCode));
 
                 $this->postPaymentLedgerEntries(
                     (int) $transCode,

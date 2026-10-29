@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Schema;
 
 /**
  * Holds / restores ledger rows so pending and rejected vouchers do not affect balances.
+ *
+ * Holds are marked with BOTH deleted_at and approval_held_at. Restores MUST only
+ * clear rows with approval_held_at set — never "all soft-deletes with deleted_by NULL",
+ * which would revive obsolete ledger lines left by update/rebuild soft-deletes.
  */
 class VoucherApprovalLedger
 {
@@ -42,7 +46,11 @@ class VoucherApprovalLedger
             return $row;
         }
 
-        $row['deleted_at'] = $row['deleted_at'] ?? now();
+        $heldAt = $row['deleted_at'] ?? now();
+        $row['deleted_at'] = $heldAt;
+        if (Schema::hasColumn('transactions', 'approval_held_at')) {
+            $row['approval_held_at'] = $row['approval_held_at'] ?? $heldAt;
+        }
 
         return $row;
     }
@@ -61,13 +69,19 @@ class VoucherApprovalLedger
             return;
         }
 
+        $heldAt = now();
+        $payload = [
+            'deleted_at' => $heldAt,
+            'updated_at' => $heldAt,
+        ];
+        if (Schema::hasColumn('transactions', 'approval_held_at')) {
+            $payload['approval_held_at'] = $heldAt;
+        }
+
         DB::table('transactions')
             ->where('trans_code', $voucher->trans_code)
             ->whereNull('deleted_at')
-            ->update([
-                'deleted_at' => now(),
-                'updated_at' => now(),
-            ]);
+            ->update($payload);
     }
 
     public static function restoreForVoucher(Vouchers $voucher): void
@@ -86,15 +100,26 @@ class VoucherApprovalLedger
 
         $query = DB::table('transactions')->where('trans_code', $voucher->trans_code);
 
-        if (Schema::hasColumn('transactions', 'deleted_by')) {
-            // Only restore system holds (no user delete), keep user soft-deletes.
-            $query->whereNull('deleted_by');
+        // Strict: only undo explicit approval holds. Never revive ordinary soft-deletes
+        // (update rebuild leftovers, trash cascades, etc.).
+        if (Schema::hasColumn('transactions', 'approval_held_at')) {
+            $query->whereNotNull('approval_held_at');
+        } else {
+            // Legacy fallback before column exists: still require no user deleted_by.
+            if (Schema::hasColumn('transactions', 'deleted_by')) {
+                $query->whereNull('deleted_by');
+            }
         }
 
-        $query->whereNotNull('deleted_at')->update([
+        $payload = [
             'deleted_at' => null,
             'updated_at' => now(),
-        ]);
+        ];
+        if (Schema::hasColumn('transactions', 'approval_held_at')) {
+            $payload['approval_held_at'] = null;
+        }
+
+        $query->whereNotNull('deleted_at')->update($payload);
     }
 
     /**

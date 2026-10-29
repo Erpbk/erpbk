@@ -93,7 +93,10 @@ class PaymentDeletionService
         $voucher = $payment->voucher;
 
         if ($voucher) {
-            Transactions::where('trans_code', $voucher->trans_code)->delete();
+            Transactions::softDeleteMatching(
+                fn ($q) => $q->where('trans_code', $voucher->trans_code),
+                auth()->id()
+            );
             Vouchers::where('id', $voucher->id)->delete();
         }
 

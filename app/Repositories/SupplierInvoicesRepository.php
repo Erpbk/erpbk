@@ -156,7 +156,7 @@ class SupplierInvoicesRepository extends BaseRepository
                     $transCode = Transactions::where('reference_type', 'SUP')
                         ->where('reference_id', $id)
                         ->value('trans_code');
-                    Transactions::where('trans_code', $transCode)->delete();
+                    Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCode));
                 }
                 if (!$transCode) {
                     $transCode = \App\Helpers\Account::trans_code();

@@ -636,8 +636,8 @@ class ReceiptController extends Controller
                 $desc = $request->input('description');
                 $amount = floatval($request->input('amount'));
 
-                // Delete existing transactions
-                Transactions::where('trans_code', $transCode)->delete();
+                // Hard-delete existing ledger lines before re-posting on update
+                Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCode));
 
                 // Create DEBIT transaction (receiving account - BANK)
                 Transactions::create([
@@ -738,7 +738,10 @@ class ReceiptController extends Controller
 
             return redirect()->back();
         } else {
-            Transactions::where('trans_code', $receipt->voucher->trans_code)->delete();
+            Transactions::softDeleteMatching(
+                fn ($q) => $q->where('trans_code', $receipt->voucher->trans_code),
+                auth()->id()
+            );
             Vouchers::where('id', $receipt->voucher_id)->delete();
             $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
             $chequeId = ResourceLinks::chequeId($links);

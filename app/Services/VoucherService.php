@@ -131,7 +131,7 @@ class VoucherService
 
       $ret = Vouchers::where('trans_code', $id)->first();
       $ret->update($data);
-      Transactions::where('trans_code', $id)->delete();
+      Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $id));
 
       foreach ($request->account_id as $key => $val) {
         if (!empty($request['account_id'][$key]) && $request['dr_amount'][$key] > 0) {
@@ -316,7 +316,7 @@ class VoucherService
         }
         $payload['Updated_By'] = auth()->id();
         $voucher->update($payload);
-        Transactions::where('trans_code', $transCodeId)->delete();
+        Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCodeId));
         $transCode = $transCodeId;
       } else {
         $transCode = Account::trans_code();

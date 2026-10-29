@@ -612,7 +612,7 @@ class ExpenseController extends AppBaseController
 
         DB::beginTransaction();
         try {
-            Transactions::where('trans_code', $voucher->trans_code)->delete();
+            Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $voucher->trans_code));
 
             $subtotal = array_sum(array_map('floatval', $amounts));
             $totalVat = array_sum(array_map('floatval', $vatAmounts));
@@ -701,7 +701,10 @@ class ExpenseController extends AppBaseController
 
         DB::beginTransaction();
         try {
-            Transactions::where('trans_code', $voucher->trans_code)->delete();
+            Transactions::softDeleteMatching(
+                fn ($q) => $q->where('trans_code', $voucher->trans_code),
+                auth()->id()
+            );
             $voucher->delete();
 
             DB::commit();

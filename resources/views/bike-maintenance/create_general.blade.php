@@ -51,16 +51,10 @@
                 {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
 
-            {{-- Garage --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('garage', 'Garage:') !!}
-                <select name="garage_id" class="form-control select2" required>
-                    <option value="">Select</option>
-                    @foreach ($garages as $garage)
-                        <option value="{{ $garage->id }}">{{ $garage->name }}</option>
-                    @endforeach
-                </select>
-            </div>
+            @include('bike-maintenance.partials.performer_select', [
+                'garages' => $garages ?? collect(),
+                'leasingCompanies' => $leasingCompanies ?? collect(),
+            ])
 
             {{-- Maintenance Type --}}
             <div class="form-group col-md-3">
@@ -208,6 +202,7 @@
                         <option value="">Select</option>
                         @foreach($items as $item)
                         <option data-price="{{ $item->price }}"
+                            data-cost="{{ $item->cost }}"
                             data-vat="{{ $item->vat }}"
                             value="{{ $item->id }}">
                                 {{ $item->name }}
@@ -276,6 +271,7 @@
 {!! Form::close() !!}
 
 @include('bike-maintenance.partials.assignee_select_script')
+@include('bike-maintenance.partials.performer_charge_script')
 
 <script>
 $(document).ready(function() {

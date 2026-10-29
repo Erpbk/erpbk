@@ -20,6 +20,7 @@ class BikeMaintenance extends BaseModel
         'rider_id',
         'rental_company_id',
         'garage_id',
+        'leasing_company_id',
         'maintenance_date',
         'description',
         'current_km',
@@ -59,6 +60,37 @@ class BikeMaintenance extends BaseModel
     public function garage()
     {
         return $this->belongsTo(Garages::class, 'garage_id', 'id');
+    }
+
+    public function leasingCompany()
+    {
+        return $this->belongsTo(LeasingCompanies::class, 'leasing_company_id', 'id');
+    }
+
+    /**
+     * True when performer is a leasing company or a non-internal garage.
+     */
+    public function isExternalPerformer(): bool
+    {
+        if ($this->leasing_company_id) {
+            return true;
+        }
+
+        return $this->garage && $this->garage->garage_type !== 'internal';
+    }
+
+    public function isInternalGaragePerformer(): bool
+    {
+        return (bool) ($this->garage && $this->garage->garage_type === 'internal');
+    }
+
+    public function performerName(): ?string
+    {
+        if ($this->leasingCompany) {
+            return $this->leasingCompany->name;
+        }
+
+        return $this->garage?->name;
     }
 
     public function maintenanceItems()

@@ -54,16 +54,11 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
                 {!! Form::month('billing_month', $maintenance->billing_month ?? now(), ['class' => 'form-control', 'required' => true]) !!}
             </div>
 
-            {{-- Garage --}}
-            <div class="form-group col-md-3">
-                {!! Form::label('garage', 'Garage:') !!}
-                <select name="garage_id" class="form-control select2" required>
-                    <option value="">Select</option>
-                    @foreach ($garages as $garage)
-                        <option value="{{ $garage->id }}" @if($garage->id == $maintenance->garage_id) selected @endif>{{ $garage->name }}</option>
-                    @endforeach
-                </select>
-            </div>
+            @include('bike-maintenance.partials.performer_select', [
+                'garages' => $garages ?? collect(),
+                'leasingCompanies' => $leasingCompanies ?? collect(),
+                'maintenance' => $maintenance,
+            ])
 
             {{-- Maintenance Type --}}
             <div class="form-group col-md-3">
@@ -205,8 +200,8 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
                 <div class="form-group col-md-2">
                     <select name="item_id[]" class="form-control select2 item">
                         <option value="">Select</option>
-                        @foreach(\App\Models\Items::dropdown('garage') as $i)
-                        <option data-price="{{ $i->price }}" data-vat="{{ $i->vat }}" value="{{ $i->id }}" @if($i->id === $item->item_id) selected @endif>{{ $i->name }}</option>
+                        @foreach(($catalogItems ?? []) as $i)
+                        <option data-price="{{ $i->price }}" data-cost="{{ $i->cost }}" data-vat="{{ $i->vat }}" value="{{ $i->id }}" @if($i->id === $item->item_id) selected @endif>{{ $i->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -282,6 +277,7 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
 
 
 @include('bike-maintenance.partials.assignee_select_script')
+@include('bike-maintenance.partials.performer_charge_script')
 
 <script>
 $(document).ready(function() {

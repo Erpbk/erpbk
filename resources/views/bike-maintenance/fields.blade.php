@@ -32,15 +32,12 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
                         <label class="form-label">Billing Month</label>
                         {!! Form::month('billing_month', now(), ['class' => 'form-control', 'required' => true]) !!}
                     </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Garage</label>
-                        <select name="garage_id" class="form-control select2" required>
-                            <option value="">Select</option>
-                            @foreach (App\Models\Garages::where('status',1)->get() as $garage)
-                                <option value="{{ $garage->id }}">{{ $garage->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                    @include('bike-maintenance.partials.performer_select', [
+                        'garages' => $garages ?? collect(),
+                        'leasingCompanies' => $leasingCompanies ?? collect(),
+                        'wrapperClass' => 'col-md-4',
+                        'label' => 'Performed by',
+                    ])
                     <div class="col-md-4">
                         <label class="form-label">Maintenance Type</label>
                         <select name="maintenance_type" id="maintenance_type" class="form-control select2" required>
@@ -172,6 +169,7 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
                                 @foreach($items as $item)
                                 <option value="{{ $item->id }}"
                                     data-price="{{ $item->price }}"
+                                    data-cost="{{ $item->cost }}"
                                     data-vat="{{ $item->vat }}">
                                         {{ $item->name }}
                                 </option>
@@ -248,6 +246,7 @@ $invItemsCols = '1.8fr .7fr .8fr .6fr 1fr 1fr .5fr';
 </div>
 
 @include('bike-maintenance.partials.assignee_select_script')
+@include('bike-maintenance.partials.performer_charge_script')
 
 <script>
 $(document).ready(function() {

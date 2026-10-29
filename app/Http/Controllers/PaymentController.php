@@ -791,7 +791,14 @@ class PaymentController extends Controller
 
     public function show(Request $request, $comapny_slug, $id)
     {
-        $payment = Payment::with(['payeeAccount', 'bank.account', 'voucher.transactions.account'])->find($id);
+        $payment = Payment::with([
+            'payeeAccount',
+            'bank.account',
+            'voucher.transactions.account',
+            'voucher.approvalEvents',
+            'voucher.approvedByUser',
+            'voucher.rejectedByUser',
+        ])->find($id);
         if (empty($payment)) {
             if ($request->ajax()) {
                 return response('Payment not found', 404);

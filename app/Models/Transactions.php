@@ -69,6 +69,30 @@ class Transactions extends BaseModel
     }
 
     /**
+     * Ledger lines for voucher edit/clone forms.
+     * Includes live rows plus approval soft-holds (approval_held_at), so entries
+     * always show for every user even if a past hold was not restored.
+     */
+    public static function forVoucherForm(string|int $transCode)
+    {
+        return static::withTrashed()
+            ->where('trans_code', $transCode)
+            ->where(function ($q) {
+                $q->whereNull('deleted_at');
+                if (Schema::hasColumn((new static)->getTable(), 'approval_held_at')) {
+                    $q->orWhereNotNull('approval_held_at');
+                } elseif (Schema::hasColumn((new static)->getTable(), 'deleted_by')) {
+                    // Legacy holds: soft-deleted with no user deleted_by.
+                    $q->orWhere(function ($q2) {
+                        $q2->whereNotNull('deleted_at')->whereNull('deleted_by');
+                    });
+                }
+            })
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
      * Hard-delete matching ledger rows (including already soft-deleted).
      * Use when rebuilding/replacing postings on update — do not leave soft-delete orphans.
      *

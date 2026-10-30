@@ -379,8 +379,8 @@ class VouchersController extends Controller
       return app(ExpenseController::class)->editVoucher($company_slug, $vouchers->id);
     }
 
-    // Load full ledger lines for every other voucher type (JV, etc.).
-    $data = Transactions::where('trans_code', $id)->get();
+    // Load full ledger lines for every other voucher type (JV, etc.), including any approval holds.
+    $data = Transactions::forVoucherForm($id);
 
     $voucherCustomFields = VoucherCustomField::orderBy('display_order')->get();
     return view('vouchers.edit', compact('vouchers', 'data', 'voucherCustomFields'));
@@ -1075,9 +1075,9 @@ class VouchersController extends Controller
 
       return view('payments.create', compact('payment', 'banks'));
     } elseif (in_array($vouchers->voucher_type, ['JV', 'TRF', 'RFV', 'AL', 'COD', 'PN', 'IL', 'PAY', 'VC', 'INC'], true)) {
-      $data = Transactions::where('trans_code', $id)->get();
+      $data = Transactions::forVoucherForm($id);
     } else {
-      $data = Transactions::where('trans_code', $id)->where('debit', '>', 0)->get();
+      $data = Transactions::forVoucherForm($id)->where('debit', '>', 0)->values();
     }
 
     if (empty($vouchers)) {

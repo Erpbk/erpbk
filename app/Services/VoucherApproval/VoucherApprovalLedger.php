@@ -8,17 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Holds / restores ledger rows so pending and rejected vouchers do not affect balances.
+ * Optional ledger hold helpers.
  *
- * Holds are marked with BOTH deleted_at and approval_held_at. Restores MUST only
- * clear rows with approval_held_at set — never "all soft-deletes with deleted_by NULL",
- * which would revive obsolete ledger lines left by update/rebuild soft-deletes.
+ * Default (defer_posting=false): approval is supervision-only — create posts
+ * transactions immediately; these methods do not hide ledger lines.
  */
 class VoucherApprovalLedger
 {
     /**
-     * Mutate a transaction insert row so pending vouchers stay off the live ledger.
-     *
      * @param  array<string, mixed>  $row
      * @return array<string, mixed>
      */
@@ -38,11 +35,7 @@ class VoucherApprovalLedger
         }
 
         $voucher = Vouchers::query()->where('trans_code', $transCode)->first();
-        if ($voucher === null) {
-            return $row;
-        }
-
-        if ($voucher->isApprovalApproved()) {
+        if ($voucher === null || $voucher->isApprovalApproved()) {
             return $row;
         }
 
@@ -84,12 +77,11 @@ class VoucherApprovalLedger
             ->update($payload);
     }
 
+    /**
+     * Undo approval soft-holds for a voucher (safe even when defer_posting is off).
+     */
     public static function restoreForVoucher(Vouchers $voucher): void
     {
-        if (! VoucherApprovalRegistry::deferPosting()) {
-            return;
-        }
-
         if (! Schema::hasColumn('transactions', 'deleted_at')) {
             return;
         }
@@ -100,15 +92,10 @@ class VoucherApprovalLedger
 
         $query = DB::table('transactions')->where('trans_code', $voucher->trans_code);
 
-        // Strict: only undo explicit approval holds. Never revive ordinary soft-deletes
-        // (update rebuild leftovers, trash cascades, etc.).
         if (Schema::hasColumn('transactions', 'approval_held_at')) {
             $query->whereNotNull('approval_held_at');
-        } else {
-            // Legacy fallback before column exists: still require no user deleted_by.
-            if (Schema::hasColumn('transactions', 'deleted_by')) {
-                $query->whereNull('deleted_by');
-            }
+        } elseif (Schema::hasColumn('transactions', 'deleted_by')) {
+            $query->whereNull('deleted_by');
         }
 
         $payload = [
@@ -123,11 +110,40 @@ class VoucherApprovalLedger
     }
 
     /**
-     * Whether a voucher's ledger lines should count toward balances.
+     * Restore every approval soft-hold so edit forms and ledgers show lines again.
      */
+    public static function restoreAllApprovalHolds(): int
+    {
+        if (! Schema::hasColumn('transactions', 'deleted_at')) {
+            return 0;
+        }
+
+        $query = DB::table('transactions')->whereNotNull('deleted_at');
+
+        if (Schema::hasColumn('transactions', 'approval_held_at')) {
+            $query->whereNotNull('approval_held_at');
+        } elseif (Schema::hasColumn('transactions', 'deleted_by')) {
+            $query->whereNull('deleted_by');
+        }
+
+        $payload = [
+            'deleted_at' => null,
+            'updated_at' => now(),
+        ];
+        if (Schema::hasColumn('transactions', 'approval_held_at')) {
+            $payload['approval_held_at'] = null;
+        }
+
+        return $query->update($payload);
+    }
+
     public static function countsTowardBalances(Vouchers $voucher): bool
     {
         if (! VoucherApprovalRegistry::enabled()) {
+            return true;
+        }
+
+        if (! VoucherApprovalRegistry::deferPosting()) {
             return true;
         }
 

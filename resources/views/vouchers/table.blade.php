@@ -13,8 +13,8 @@ $vfCols = [
 'updated_by' => $vfShow('updated_by'),
 'attach_file' => $vfShow('attach_file'),
 ];
-// colspan for the "no data" row = visible data columns + Voucher ID + Actions.
-$vfColspan = count(array_filter($vfCols)) + 2;
+// colspan for the "no data" row = visible data columns + Voucher ID + Status + Actions.
+$vfColspan = count(array_filter($vfCols)) + 3;
 @endphp
 <table class="table table-striped dataTable no-footer" id="dataTableBuilder">
   <thead class="text-center">
@@ -26,6 +26,7 @@ $vfColspan = count(array_filter($vfCols)) + 2;
       @if($vfCols['reference_number'])<th title="Reference Number" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Reference Number: activate to sort column ascending">Reference Number</th>@endif
       @if($vfCols['voucher_type'])<th title="Type" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Type: activate to sort column ascending">Type</th>@endif
       @if($vfCols['amount'])<th title="Amount" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>@endif
+      <th title="Status" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Status">Status</th>
       @if($vfCols['created_by'])<th title="Created By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>@endif
       @if($vfCols['updated_by'])<th title="Updated By" class="sorting" tabindex="0" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>@endif
       @if($vfCols['attach_file'])<th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>@endif
@@ -77,6 +78,9 @@ $vfColspan = count(array_filter($vfCols)) + 2;
         <span class="badge bg-primary">{{ $voucherTypes[$voucher->voucher_type] ?? $voucher->voucher_type }}</span>
       </td>@endif
       @if($vfCols['amount'])<td class="text-end">{{ number_format($voucher->amount, 2) }}</td>@endif
+      <td>
+        <x-voucher-approval.status-badge :voucher="$voucher" />
+      </td>
       @if($vfCols['created_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Created_By) }}</td>@endif
       @if($vfCols['updated_by'])<td>{{ \App\Helpers\Common::UserName($voucher->Updated_By) }}</td>@endif
       @if($vfCols['attach_file'])<td>

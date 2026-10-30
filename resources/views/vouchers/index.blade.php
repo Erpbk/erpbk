@@ -191,6 +191,7 @@
         ['data' => 'reference_number', 'title' => 'Reference Number'],
         ['data' => 'voucher_type', 'title' => 'Type'],
         ['data' => 'amount', 'title' => 'Amount'],
+        ['data' => 'approval_status', 'title' => 'Status'],
         ['data' => 'created_by', 'title' => 'Created By'],
         ['data' => 'updated_by', 'title' => 'Updated By'],
         ['data' => 'attach_file', 'title' => 'File'],
@@ -203,7 +204,9 @@
         @endphp
         @include('components.column-control-panel', [
         'tableColumns' => $tableColumns,
-        'tableIdentifier' => 'vouchers_table'
+        'tableIdentifier' => 'vouchers_table',
+        // Keep Actions + trailing search/control out of reorder/hide so Status index shifts cannot drop Actions.
+        'fixedColumnsCount' => 3,
         ])
         <!-- Column Control Overlay -->
         <div class="filter-overlay" id="columnControlOverlay"></div>

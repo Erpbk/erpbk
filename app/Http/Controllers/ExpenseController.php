@@ -529,7 +529,7 @@ class ExpenseController extends AppBaseController
     public function editVoucher($company_slug, $id)
     {
         $voucher = Vouchers::where('voucher_type', 'EXP')->findOrFail($id);
-        $transactions = Transactions::where('trans_code', $voucher->trans_code)->get();
+        $transactions = Transactions::forVoucherForm($voucher->trans_code);
 
         $expenseIds = $this->getExpenseAccountIds();
         $accounts = Accounts::whereIn('id', $expenseIds)

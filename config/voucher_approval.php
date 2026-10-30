@@ -12,11 +12,10 @@ return [
     'enabled' => env('VOUCHER_APPROVAL_ENABLED', true),
 
     /**
-     * Hold ledger impact until approved: pending/rejected vouchers set
-     * transactions.deleted_at AND transactions.approval_held_at. Approve restores
-     * ONLY rows with approval_held_at set — never ordinary soft-deletes.
+     * When true, soft-holds ledger lines until approve (legacy).
+     * Default false: vouchers post immediately; approval is supervision-only.
      */
-    'defer_posting' => env('VOUCHER_APPROVAL_DEFER_POSTING', true),
+    'defer_posting' => env('VOUCHER_APPROVAL_DEFER_POSTING', false),
 
     /** Creator cannot approve/reject their own voucher (admins/override still can). */
     'prevent_self_approval' => env('VOUCHER_APPROVAL_PREVENT_SELF', true),

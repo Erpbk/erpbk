@@ -1601,9 +1601,11 @@ $(document).ready(function () {
     }
   });
 
-  // Close filter sidebar when clicking outside (ignore the open button)
+  // Close filter sidebar when clicking outside (ignore the open button + Select2 menus)
   $(document).on('click', function (e) {
-    if ($(e.target).closest('#filterSidebar, #openFilterSidebar, .openFilterSidebar').length) {
+    if ($(e.target).closest(
+      '#filterSidebar, #openFilterSidebar, .openFilterSidebar, .select2-container, .select2-dropdown, .select2-results'
+    ).length) {
       return;
     }
     $('#filterSidebar').removeClass('open');

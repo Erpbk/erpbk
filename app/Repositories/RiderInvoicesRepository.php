@@ -67,26 +67,28 @@ class RiderInvoicesRepository extends BaseRepository
         if ($id) {
             $invoice = RiderInvoices::where('id', $id)->first();
 
-            // Check for duplicate only if rider_id or billing_month is being changed
+            // Duplicate = same rider + billing month + project (excluding current)
             $existingInvoice = RiderInvoices::where('rider_id', $input['rider_id'])
                 ->where('billing_month', $input['billing_month'])
-                ->where('id', '!=', $id) // Exclude current invoice
+                ->where('customer_id', $input['customer_id'] ?? null)
+                ->where('id', '!=', $id)
                 ->first();
 
             if ($existingInvoice) {
-                throw new \Exception('An invoice for this rider has already been generated for the selected billing month.');
+                throw new \Exception('An invoice for this rider has already been generated for the selected billing month and project.');
             }
 
             $invoice->update($input);
             RiderInvoiceItem::where('inv_id', $id)->delete();
         } else {
-            // Check for duplicate invoice for same rider and billing month
+            // Duplicate = same rider + billing month + project
             $existingInvoice = RiderInvoices::where('rider_id', $input['rider_id'])
                 ->where('billing_month', $input['billing_month'])
+                ->where('customer_id', $input['customer_id'] ?? null)
                 ->first();
 
             if ($existingInvoice) {
-                throw new \Exception('An invoice for this rider has already been generated for the selected billing month.');
+                throw new \Exception('An invoice for this rider has already been generated for the selected billing month and project.');
             }
 
             $invoice = RiderInvoices::create($input);

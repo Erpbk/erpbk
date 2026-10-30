@@ -34,7 +34,7 @@ class RiderInvoicesDataTable extends DataTable
         return date('M Y', strtotime($riderInvoices->billing_month));
       })
       ->addColumn('project', function (RiderInvoices $riderInvoices) {
-        return e($riderInvoices->rider?->customer?->name ?? '—');
+        return e($riderInvoices->customer?->name ?? $riderInvoices->rider?->customer?->name ?? '—');
       })
       ->editColumn('descriptions', function (RiderInvoices $riderInvoices) {
         return e((string) ($riderInvoices->descriptions ?? ''));
@@ -61,8 +61,12 @@ class RiderInvoicesDataTable extends DataTable
     });
 
     $dataTable->filterColumn('project', function ($query, $keyword) {
-      $query->whereHas('rider.customer', function ($q) use ($keyword) {
-        $q->where('name', 'like', '%'.$keyword.'%');
+      $query->where(function ($outer) use ($keyword) {
+        $outer->whereHas('customer', function ($q) use ($keyword) {
+          $q->where('name', 'like', '%'.$keyword.'%');
+        })->orWhereHas('rider.customer', function ($q) use ($keyword) {
+          $q->where('name', 'like', '%'.$keyword.'%');
+        });
       });
     });
 
@@ -94,7 +98,7 @@ class RiderInvoicesDataTable extends DataTable
    */
   public function query(RiderInvoices $model)
   {
-    $query = $model->newQuery()->with(['rider.customer']);
+    $query = $model->newQuery()->with(['rider.customer', 'customer']);
 
     if ($this->rider_id) {
       $query->where('rider_id', $this->rider_id);

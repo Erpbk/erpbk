@@ -304,7 +304,7 @@
                             </div>
                             <div class="party-line"@if(!empty($invPdf['partyLine'])) style="{{ $invPdf['partyLine'] }}"@endif>
                                 <span class="k"@if(!empty($invPdf['partyK'])) style="{{ $invPdf['partyK'] }}"@endif>Project</span>
-                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $party?->customer?->name ?? '—' }}</span>
+                                <span class="v"@if(!empty($invPdf['partyV'])) style="{{ $invPdf['partyV'] }}"@endif>{{ $riderInvoice->customer?->name ?? $party?->customer?->name ?? '—' }}</span>
                             </div>
                         </div>
                     </div>

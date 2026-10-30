@@ -86,6 +86,20 @@ $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_a
                             placeholder="Select month" />
                     </div>
                     <div class="col-md-6">
+                        <label class="form-label" for="invoice_customer_id">Project</label>
+                        {!! Form::select(
+                            'customer_id',
+                            $customers ?? [],
+                            old('customer_id', isset($invoice) ? $invoice->customer_id : null),
+                            [
+                                'class' => 'form-select form-select-sm select2',
+                                'id' => 'invoice_customer_id',
+                                'data-placeholder' => 'Select project',
+                                'required' => true,
+                            ]
+                        ) !!}
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label">Service Period From</label>
                         <input type="date"
                             class="form-control"
@@ -311,5 +325,14 @@ $defaultTerms = old('terms_and_conditions', isset($invoice) ? ($invoice->terms_a
             $('#service_period_from').val(billingMonth + '-01');
             $('#service_period_to').val(billingMonth + '-' + String(lastDay).padStart(2, '0'));
         });
+
+        @if(!isset($invoice))
+        var riderCustomerMap = @json($riderCustomerMap ?? new \stdClass());
+        $('#rider_id').on('change', function() {
+            var riderId = String($(this).val() || '');
+            var customerId = riderCustomerMap[riderId] || '';
+            $('#invoice_customer_id').val(customerId).trigger('change');
+        });
+        @endif
     });
 </script>

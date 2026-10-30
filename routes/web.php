@@ -771,6 +771,7 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
 
     Route::any('riderInvoices/sendemail/{id}', [RiderInvoicesController::class, 'sendEmail'])->name('riderInvoices.sendEmail');
     Route::get('riderInvoices/export', [RiderInvoicesController::class, 'export'])->name('riderInvoices.export');
+    Route::get('riderInvoices/search-riders', [RiderInvoicesController::class, 'searchRiders'])->name('riderInvoices.searchRiders');
     Route::get('riderInvoices/{id}/download', [RiderInvoicesController::class, 'download'])->name('riderInvoices.download');
     Route::post('riderInvoices/{id}/template', [RiderInvoicesController::class, 'updateTemplate'])->name('riderInvoices.updateTemplate');
     Route::resource('riderInvoices', RiderInvoicesController::class);

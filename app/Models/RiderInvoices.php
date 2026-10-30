@@ -19,6 +19,7 @@ class RiderInvoices extends BaseModel
         'service_period_from',
         'service_period_to',
         'rider_id',
+        'customer_id',
         'vendor_id',
         'zone',
         'login_hours',
@@ -170,6 +171,7 @@ class RiderInvoices extends BaseModel
         'service_period_from' => 'required|date',
         'service_period_to' => 'required|date|after_or_equal:service_period_from',
         'rider_id' => 'required',
+        'customer_id' => 'required',
         'vendor_id' => 'nullable',
         'zone' => 'required|string|max:191',
         'login_hours' => 'required',
@@ -275,6 +277,11 @@ class RiderInvoices extends BaseModel
     {
         return $this->belongsTo(Riders::class, 'rider_id');
         // return $this->hasOne(Riders::class, 'id', 'rider_id');
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customers::class, 'customer_id');
     }
 
     public function items()

@@ -25,6 +25,13 @@ class ImportRiderInvoice implements ToCollection
     /** @var string ExcelSlashDateFormat::ORDER_DMY|ORDER_MDY */
     protected string $slashDateOrder = ExcelSlashDateFormat::ORDER_DMY;
 
+    protected int $customerId;
+
+    public function __construct(int $customerId)
+    {
+        $this->customerId = $customerId;
+    }
+
     /**
      * @param  array  $row
      * @return Model|null
@@ -172,11 +179,12 @@ class ImportRiderInvoice implements ToCollection
 
                 $exists = RiderInvoices::where('rider_id', $rider->id)
                     ->where('billing_month', $billingMonth)
+                    ->where('customer_id', $this->customerId)
                     ->exists();
 
                 if ($exists) {
                     throw ValidationException::withMessages([
-                        'file' => 'Row(' . ($index + 1) . ") - Invoice already exists for Rider {$row[1]}.",
+                        'file' => 'Row(' . ($index + 1) . ") - Invoice already exists for Rider {$row[1]} for this project and billing month.",
                     ]);
                 }
 
@@ -208,6 +216,7 @@ class ImportRiderInvoice implements ToCollection
                 $invoice = RiderInvoices::create([
                     'inv_date' => $invoiceDate,
                     'rider_id' => $rider->id,
+                    'customer_id' => $this->customerId,
                     'vendor_id' => $rider->VID,
                     'zone' => $row[5] ?? 'DXB',
                     'login_hours' => $row[4],

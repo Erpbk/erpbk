@@ -334,7 +334,7 @@
                         </div>
                         <div class="party-line">
                             <span class="k">Project</span>
-                            <span class="v">{{ $party?->customer?->name ?? '—' }}</span>
+                            <span class="v">{{ $riderInvoice->customer?->name ?? $party?->customer?->name ?? '—' }}</span>
                         </div>
                     </div>
                 </div>

@@ -11,6 +11,7 @@ use App\Models\Vouchers;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
 use App\Support\ResourceLinks;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -27,6 +28,26 @@ class RiderInvoiceViewDataBuilder
         'RV',
         'RI',
     ];
+
+    /** @var array<string, string>|null */
+    private $settingsCache = null;
+
+    /** @var mixed */
+    private $deliveryFeeCache = null;
+
+    private bool $deliveryFeeResolved = false;
+
+    /** @var array<int, array<string, list<object>>>|null account_id => monthStart => rows */
+    private $ledgerTxCache = null;
+
+    /** @var array<int, array<string, float>>|null account_id => monthStart => net */
+    private $accountMonthNets = null;
+
+    /** @var array<int, array<int, float>>|null invoice_id => account_id => sum debit */
+    private $glPaidByInvoice = null;
+
+    /** @var array<int, list<\App\Models\Payment>>|null */
+    private $paymentsByAccount = null;
 
     /**
      * Display labels for known rider-ledger deduction/addition types.
@@ -134,14 +155,20 @@ class RiderInvoiceViewDataBuilder
             return ['deductions' => [], 'additions' => []];
         }
 
-        $rows = Transactions::query()
-            ->where('account_id', $accountId)
-            ->where('billing_month', $monthStart)
-            ->where(function ($query) {
-                $query->whereNull('reference_type')
-                    ->orWhereNotIn('reference_type', self::EXCLUDED_REFERENCE_TYPES);
-            })
-            ->get(['reference_type', 'narration', 'debit', 'credit']);
+        $monthStart = date('Y-m-01', strtotime($monthStart));
+
+        if ($this->ledgerTxCache !== null) {
+            $rows = collect($this->ledgerTxCache[$accountId][$monthStart] ?? []);
+        } else {
+            $rows = Transactions::query()
+                ->where('account_id', $accountId)
+                ->where('billing_month', $monthStart)
+                ->where(function ($query) {
+                    $query->whereNull('reference_type')
+                        ->orWhereNotIn('reference_type', self::EXCLUDED_REFERENCE_TYPES);
+                })
+                ->get(['reference_type', 'narration', 'debit', 'credit']);
+        }
 
         foreach ($rows as $row) {
             $debit = (float) ($row->debit ?? 0);
@@ -283,11 +310,18 @@ class RiderInvoiceViewDataBuilder
      */
     public function build(RiderInvoices $riderInvoice): array
     {
-        $settings = $this->normalizeSettings(
-            company_table('settings')->pluck('value', 'name')->toArray()
-        );
+        if ($this->settingsCache === null) {
+            $this->settingsCache = $this->normalizeSettings(
+                company_table('settings')->pluck('value', 'name')->toArray()
+            );
+        }
+        if (! $this->deliveryFeeResolved) {
+            $this->deliveryFeeCache = company_table('items')->where('name', 'Delivery fees')->first();
+            $this->deliveryFeeResolved = true;
+        }
+        $settings = $this->settingsCache;
         $vat_percentage = self::display(Common::getSetting('vat_percentage'), '0');
-        $deliveryfee = company_table('items')->where('name', 'Delivery fees')->first();
+        $deliveryfee = $this->deliveryFeeCache;
         $billing_month = date('M-y', strtotime($riderInvoice->billing_month));
         $monthStart = date('Y-m-01', strtotime($riderInvoice->billing_month));
         $accountId = $riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null;
@@ -297,12 +331,7 @@ class RiderInvoiceViewDataBuilder
         $ledger_additions = $ledger['additions'];
 
         // Previous balance from rider ledger before this billing month (carry-forward).
-        $rider_balance = 0.0;
-        if ($accountId) {
-            $rider_balance = round((float) Transactions::where('account_id', $accountId)
-                ->whereDate('billing_month', '<', $monthStart)
-                ->sum(DB::raw('debit - credit')), 2);
-        }
+        $rider_balance = $this->priorBalanceBeforeMonth($accountId, $monthStart);
 
         $monthDeductionsTotal = array_sum(array_column($ledger_deductions, 'amount'));
         $monthAdditionsTotal = array_sum(array_column($ledger_additions, 'amount'));
@@ -512,7 +541,7 @@ class RiderInvoiceViewDataBuilder
     public function applySequentialOutstanding($invoices): void
     {
         collect($invoices)->filter()->groupBy(function ($invoice) {
-            return (int) ($invoice->rider_id ?? 0);
+            return ((int) ($invoice->rider_id ?? 0)).':'.((int) ($invoice->customer_id ?? 0));
         })->each(function ($group) {
             $ordered = $group->sortBy(function ($invoice) {
                 return date('Y-m-01', strtotime((string) $invoice->billing_month))
@@ -563,14 +592,7 @@ class RiderInvoiceViewDataBuilder
         $monthDeductions = round((float) array_sum(array_column($ledger['deductions'], 'amount')), 2);
         $monthAdditions = (float) array_sum(array_column($ledger['additions'], 'amount'));
 
-        $carry = 0.0;
-        if ($accountId) {
-            $carry = round((float) Transactions::query()
-                ->where('account_id', $accountId)
-                ->whereDate('billing_month', '>', $afterMonth)
-                ->whereDate('billing_month', '<', $monthStart)
-                ->sum(DB::raw('debit - credit')), 2);
-        }
+        $carry = $this->netBetweenMonths($accountId, $afterMonth, $monthStart);
 
         $totalDeductions = round($monthDeductions + ($carry > 0 ? $carry : 0), 2);
         $totalAdditions = round($monthAdditions + ($carry < 0 ? abs($carry) : 0), 2);
@@ -597,16 +619,26 @@ class RiderInvoiceViewDataBuilder
     private function paidAmountAgainstInvoice(RiderInvoices $riderInvoice, ?int $accountId, string $monthStart): float
     {
         $paid = 0.0;
+        $invoiceId = (int) $riderInvoice->id;
+        $monthStart = date('Y-m-01', strtotime($monthStart));
 
-        $invoiceGl = Transactions::query()
-            ->where('reference_type', 'RiderInvoice')
-            ->where('reference_id', $riderInvoice->id);
+        if ($this->glPaidByInvoice !== null) {
+            if ($accountId) {
+                $paid += (float) ($this->glPaidByInvoice[$invoiceId][$accountId] ?? 0.0);
+            } else {
+                $paid += (float) array_sum($this->glPaidByInvoice[$invoiceId] ?? []);
+            }
+        } else {
+            $invoiceGl = Transactions::query()
+                ->where('reference_type', 'RiderInvoice')
+                ->where('reference_id', $invoiceId);
 
-        if ($accountId) {
-            $invoiceGl->where('account_id', $accountId);
+            if ($accountId) {
+                $invoiceGl->where('account_id', $accountId);
+            }
+
+            $paid += (float) $invoiceGl->sum('debit');
         }
-
-        $paid += (float) $invoiceGl->sum('debit');
 
         $partials = $riderInvoice->partial_paid_amount ?? [];
         if (! is_array($partials)) {
@@ -620,7 +652,6 @@ class RiderInvoiceViewDataBuilder
             return round($paid, 2);
         }
 
-        $invoiceId = (int) $riderInvoice->id;
         $patterns = array_values(array_filter([
             $riderInvoice->invoice_number ?? null,
             'Rider Invoice #'.$invoiceId,
@@ -629,32 +660,248 @@ class RiderInvoiceViewDataBuilder
         ]));
 
         $linked = 0.0;
-        $linkedQuery = Payment::where('payee_account_id', $accountId)
-            ->where(function ($q) use ($patterns, $invoiceId) {
-                ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
-                foreach ($patterns as $pattern) {
-                    $q->orWhere('reference', 'like', '%'.$pattern.'%')
-                        ->orWhere('description', 'like', '%'.$pattern.'%');
+        if ($this->paymentsByAccount !== null) {
+            $payments = $this->paymentsByAccount[$accountId] ?? [];
+            $linkNeedle = ResourceLinks::containsInvoiceIdPayload($invoiceId);
+            foreach ($payments as $payment) {
+                if ($allocatedPaymentIds !== [] && in_array((int) $payment->id, $allocatedPaymentIds, true)) {
+                    continue;
                 }
-            });
-        if ($allocatedPaymentIds !== []) {
-            $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+                if ($this->paymentMatchesInvoice($payment, $invoiceId, $patterns, $linkNeedle)) {
+                    $linked += (float) ($payment->amount ?? 0);
+                }
+            }
+        } else {
+            $linkedQuery = Payment::where('payee_account_id', $accountId)
+                ->where(function ($q) use ($patterns, $invoiceId) {
+                    ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
+                    foreach ($patterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                });
+            if ($allocatedPaymentIds !== []) {
+                $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+            }
+            $linked = (float) $linkedQuery->sum('amount');
         }
-        $linked = (float) $linkedQuery->sum('amount');
 
         if ($linked >= 0.01) {
             $paid += $linked;
         } elseif ($paid < 0.01) {
             // Legacy Payment-module payments for this billing month (no invoice text link)
-            $legacyQuery = Payment::where('payee_account_id', $accountId)
-                ->whereDate('billing_month', $monthStart);
-            if ($allocatedPaymentIds !== []) {
-                $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
+            if ($this->paymentsByAccount !== null) {
+                foreach ($this->paymentsByAccount[$accountId] ?? [] as $payment) {
+                    if ($allocatedPaymentIds !== [] && in_array((int) $payment->id, $allocatedPaymentIds, true)) {
+                        continue;
+                    }
+                    $payMonth = $payment->billing_month
+                        ? date('Y-m-01', strtotime((string) $payment->billing_month))
+                        : null;
+                    if ($payMonth === $monthStart) {
+                        $paid += (float) ($payment->amount ?? 0);
+                    }
+                }
+            } else {
+                $legacyQuery = Payment::where('payee_account_id', $accountId)
+                    ->whereDate('billing_month', $monthStart);
+                if ($allocatedPaymentIds !== []) {
+                    $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
+                }
+                $paid += (float) $legacyQuery->sum('amount');
             }
-            $paid += (float) $legacyQuery->sum('amount');
         }
 
         return round($paid, 2);
+    }
+
+    /**
+     * Prefetch ledger / payment data for a page or export set, then apply sequential
+     * outstanding summaries without one full build() query storm per invoice.
+     *
+     * @param  iterable<int, RiderInvoices>  $invoices
+     */
+    public function preloadOutstandingSummaries($invoices): void
+    {
+        $models = collect($invoices)->filter(fn ($invoice) => $invoice instanceof RiderInvoices)->values();
+        if ($models->isEmpty()) {
+            return;
+        }
+
+        // loadMissing exists on Eloquent collections, not Support\Collection.
+        $collection = $invoices instanceof EloquentCollection
+            ? $invoices->filter(fn ($invoice) => $invoice instanceof RiderInvoices)->values()
+            : new EloquentCollection($models->all());
+        $collection->loadMissing(['rider.customer', 'items']);
+
+        $this->warmCachesForInvoices($collection);
+        $this->applySequentialOutstanding($collection);
+        $this->clearListCaches();
+    }
+
+    /**
+     * @param  Collection<int, RiderInvoices>  $invoices
+     */
+    private function warmCachesForInvoices(Collection $invoices): void
+    {
+        $this->settingsCache = $this->normalizeSettings(
+            company_table('settings')->pluck('value', 'name')->toArray()
+        );
+        $this->deliveryFeeCache = company_table('items')->where('name', 'Delivery fees')->first();
+        $this->deliveryFeeResolved = true;
+
+        $accountIds = $invoices
+            ->map(fn (RiderInvoices $invoice) => $invoice->rider?->account_id ? (int) $invoice->rider->account_id : null)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $months = $invoices
+            ->map(fn (RiderInvoices $invoice) => date('Y-m-01', strtotime((string) $invoice->billing_month)))
+            ->unique()
+            ->values()
+            ->all();
+        $invoiceIds = $invoices->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $this->ledgerTxCache = [];
+        if ($accountIds !== [] && $months !== []) {
+            $rows = Transactions::query()
+                ->whereIn('account_id', $accountIds)
+                ->whereIn('billing_month', $months)
+                ->where(function ($query) {
+                    $query->whereNull('reference_type')
+                        ->orWhereNotIn('reference_type', self::EXCLUDED_REFERENCE_TYPES);
+                })
+                ->get(['account_id', 'billing_month', 'reference_type', 'narration', 'debit', 'credit']);
+
+            foreach ($rows as $row) {
+                $accountId = (int) $row->account_id;
+                $month = date('Y-m-01', strtotime((string) $row->billing_month));
+                $this->ledgerTxCache[$accountId][$month][] = $row;
+            }
+        }
+
+        $this->accountMonthNets = [];
+        if ($accountIds !== []) {
+            $nets = Transactions::query()
+                ->whereIn('account_id', $accountIds)
+                ->select('account_id', 'billing_month', DB::raw('SUM(debit - credit) as net'))
+                ->groupBy('account_id', 'billing_month')
+                ->get();
+
+            foreach ($nets as $row) {
+                $accountId = (int) $row->account_id;
+                $month = date('Y-m-01', strtotime((string) $row->billing_month));
+                $this->accountMonthNets[$accountId][$month] = (float) $row->net;
+            }
+        }
+
+        $this->glPaidByInvoice = [];
+        if ($invoiceIds !== []) {
+            $glRows = Transactions::query()
+                ->where('reference_type', 'RiderInvoice')
+                ->whereIn('reference_id', $invoiceIds)
+                ->select('reference_id', 'account_id', DB::raw('SUM(debit) as paid'))
+                ->groupBy('reference_id', 'account_id')
+                ->get();
+
+            foreach ($glRows as $row) {
+                $refId = (int) $row->reference_id;
+                $accId = (int) ($row->account_id ?? 0);
+                $this->glPaidByInvoice[$refId][$accId] = (float) $row->paid;
+            }
+        }
+
+        $this->paymentsByAccount = [];
+        if ($accountIds !== []) {
+            $payments = Payment::query()
+                ->whereIn('payee_account_id', $accountIds)
+                ->get();
+
+            foreach ($payments as $payment) {
+                $this->paymentsByAccount[(int) $payment->payee_account_id][] = $payment;
+            }
+        }
+    }
+
+    private function clearListCaches(): void
+    {
+        $this->ledgerTxCache = null;
+        $this->accountMonthNets = null;
+        $this->glPaidByInvoice = null;
+        $this->paymentsByAccount = null;
+        // Keep settings / delivery fee for the rest of the request.
+    }
+
+    private function priorBalanceBeforeMonth(?int $accountId, string $monthStart): float
+    {
+        if (! $accountId) {
+            return 0.0;
+        }
+
+        $monthStart = date('Y-m-01', strtotime($monthStart));
+
+        if ($this->accountMonthNets !== null) {
+            $sum = 0.0;
+            foreach ($this->accountMonthNets[$accountId] ?? [] as $month => $net) {
+                if ($month < $monthStart) {
+                    $sum += (float) $net;
+                }
+            }
+
+            return round($sum, 2);
+        }
+
+        return round((float) Transactions::where('account_id', $accountId)
+            ->whereDate('billing_month', '<', $monthStart)
+            ->sum(DB::raw('debit - credit')), 2);
+    }
+
+    private function netBetweenMonths(?int $accountId, string $afterMonth, string $beforeMonth): float
+    {
+        if (! $accountId) {
+            return 0.0;
+        }
+
+        $afterMonth = date('Y-m-01', strtotime($afterMonth));
+        $beforeMonth = date('Y-m-01', strtotime($beforeMonth));
+
+        if ($this->accountMonthNets !== null) {
+            $sum = 0.0;
+            foreach ($this->accountMonthNets[$accountId] ?? [] as $month => $net) {
+                if ($month > $afterMonth && $month < $beforeMonth) {
+                    $sum += (float) $net;
+                }
+            }
+
+            return round($sum, 2);
+        }
+
+        return round((float) Transactions::query()
+            ->where('account_id', $accountId)
+            ->whereDate('billing_month', '>', $afterMonth)
+            ->whereDate('billing_month', '<', $beforeMonth)
+            ->sum(DB::raw('debit - credit')), 2);
+    }
+
+    /**
+     * @param  list<string>  $patterns
+     */
+    private function paymentMatchesInvoice(Payment $payment, int $invoiceId, array $patterns, string $linkNeedle): bool
+    {
+        $links = (string) ($payment->resource_links ?? '');
+        if ($linkNeedle !== '' && $links !== '' && str_contains($links, $linkNeedle)) {
+            return true;
+        }
+
+        $haystack = trim((string) ($payment->reference ?? '').' '.(string) ($payment->description ?? ''));
+        foreach ($patterns as $pattern) {
+            if ($pattern !== '' && $haystack !== '' && str_contains($haystack, $pattern)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function invoiceItemsTotal(RiderInvoices $riderInvoice): float

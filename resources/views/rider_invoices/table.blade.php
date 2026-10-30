@@ -1,43 +1,45 @@
-@push('third_party_stylesheets')
-@endpush
-<div class="rider-invoices-table-scroll table-responsive">
-<table class="table dataTable" id="dataTableBuilder">
+<table class="table" id="dataTableBuilder">
    <thead class="text-center">
-      <tr role="row">
-         <th title="Select All" class="sorting_disabled" rowspan="1" colspan="1" width="50px">
+      <tr id="rlHead" role="row">
+         <th class="nosort" title="Select All" width="50px">
             <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
          </th>
-         <th title="Invoice Number" class="sorting" rowspan="1" colspan="1">Invoice</th>
-         <th title="Inv Date" class="sorting" rowspan="1" colspan="1">Inv Date</th>
-         <th title="Billing Month" class="sorting" rowspan="1" colspan="1">Billing Month</th>
-         <th title="Person Code" class="sorting" rowspan="1" colspan="1">Person Code</th>
-         <th title="Rider" class="sorting" rowspan="1" colspan="1">Rider</th>
-         <th title="Rider Status" class="sorting" rowspan="1" colspan="1">Rider Status</th>
-         <th title="Descriptions" class="sorting" rowspan="1" colspan="1">Descriptions</th>
-         <th title="Zone" class="sorting" rowspan="1" colspan="1">Project</th>
-         <th title="Invoice Amount" class="sorting" rowspan="1" colspan="1">Invoice Amount</th>
-         <th title="Payable Salary" class="sorting" rowspan="1" colspan="1">Payable Salary</th>
-         <th title="Total Amount" class="sorting" rowspan="1" colspan="1">Status</th>
-         <th title="Action" width="120px" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Actions</th>
+         <th class="sorting" data-k="invoice" title="Invoice Number">Invoice <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="inv_date" title="Inv Date">Inv Date <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="billing_month" title="Billing Month">Billing Month <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="person_code" title="Person Code">Person Code <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="rider" title="Rider">Rider <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="rider_status" title="Rider Status">Rider Status <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="descriptions" title="Descriptions">Descriptions <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="project" title="Project">Project <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="invoice_amount" title="Invoice Amount">Invoice Amount <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="payable_salary" title="Payable Salary">Payable Salary <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="paid_amount" title="Paid Amount">Paid Amount <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="balance" title="Balance">Balance <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="status" title="Status">Status <span class="ar">⇅</span></th>
+         <th class="nosort" title="Action" width="120px">Actions</th>
       </tr>
    </thead>
-   <tbody>
-      @foreach($data as $r)
+   <tbody id="rlBody">
+      @forelse($data as $r)
+      @php
+         $rider = $r->rider;
+         $riderStatus = $rider
+            ? \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)
+            : ['label' => '—', 'badge' => 'bg-label-secondary'];
+         $paidAmount = (float) $r->paid_amount;
+         $balance = (float) $r->balance;
+         $balanceClass = abs($balance) < 0.005 ? 'text-success' : 'text-danger';
+      @endphp
       <tr class="text-center" data-id="{{ $r->id }}">
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
          <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('riderInvoices.show', $r->id) }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
-         <td>{{ \Carbon\Carbon::parse($r->inv_date)->format('d M Y') }}</td>
-         <td>{{ \Carbon\Carbon::parse($r->billing_month)->format('M Y') }}</td>
-         @php
-         $rider = company_table('riders')->where('id' , $r->rider_id)->first();
-         $riderStatus = $rider
-            ? \App\Models\Riders::employmentStatusDisplay($rider->status ?? null)
-            : ['label' => '—', 'badge' => 'bg-label-secondary'];
-         @endphp
+         <td>{{ $r->inv_date ? \Carbon\Carbon::parse($r->inv_date)->format('d M Y') : '—' }}</td>
+         <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M Y') : '—' }}</td>
          <td>{{ $rider?->person_code ?? '—' }}</td>
-         <td>
+         <td class="name">
             @if($rider)
             <a href="{{ route('rider.ledger', $rider->id) }}" target="_blank">{{ $rider->rider_id . '-' . $rider->name }}</a>
             @else
@@ -48,20 +50,20 @@
             <span class="badge {{ $riderStatus['badge'] }}">{{ $riderStatus['label'] }}</span>
          </td>
          <td>{{ $r->descriptions }}</td>
-         <td>
-            {{ company_table('customers')->where('id' , $rider->customer_id)->first()->name ?? '-'}}
-         </td>
+         <td>{{ $invoice->customer?->name ?? $rider?->customer?->name ?? '—' }}</td>
          <td>{{ number_format((float) $r->total_amount, 2) }}</td>
          <td>{{ number_format((float) $r->final_amount, 2) }}</td>
+         <td class="text-success">{{ number_format($paidAmount, 2) }}</td>
+         <td class="{{ $balanceClass }}">{{ number_format($balance, 2) }}</td>
          <td>
             @include('invoices.partials.status_badge', ['status' => $r->paymentStatusKey()])
          </td>
          <td>
             <div class="dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" id="actiondropdown-{{ $r->id }}" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
-               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown" style="">
+               <div class="dropdown-menu dropdown-menu-end" aria-labelledby="actiondropdown-{{ $r->id }}">
                   @php
                      $riStatus = (int) ($r->status ?? 0);
                      $riLocked = in_array($riStatus, [1, 3], true);
@@ -107,11 +109,11 @@
             </div>
          </td>
       </tr>
-      @endforeach
+      @empty
+      <tr>
+         <td colspan="15" class="rl-empty text-center text-muted py-4">No rider invoices found.</td>
+      </tr>
+      @endforelse
    </tbody>
 </table>
-</div>
-@if(method_exists($data, 'links'))
-{!! $data->links('components.global-pagination') !!}
-@endif
 @include('delete_requests._pending_table_script', ['items' => $data])

@@ -9,12 +9,14 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
+use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\DefaultValueBinder;
+use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder
+class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, WithHeadings, WithMapping, WithColumnFormatting, WithCustomValueBinder, WithEvents
 {
     use BindsTextColumns;
 
@@ -51,9 +53,11 @@ class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, W
             $riderLabel,
             RiderInvoiceViewDataBuilder::riderStatusLabel($rider?->status),
             (string) ($invoice->descriptions ?? ''),
-            $rider?->customer?->name ?? '',
+            $invoice->customer?->name ?? $rider?->customer?->name ?? '',
             number_format((float) $invoice->total_amount, 2, '.', ''),
             number_format((float) $invoice->final_amount, 2, '.', ''),
+            number_format((float) $invoice->paid_amount, 2, '.', ''),
+            number_format((float) $invoice->balance, 2, '.', ''),
             match ($invoice->paymentStatusKey()) {
                 'paid' => 'Paid',
                 'partial' => 'Partially Paid',
@@ -75,6 +79,8 @@ class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, W
             'Project',
             'Invoice Amount',
             'Payable Salary',
+            'Paid Amount',
+            'Balance',
             'Status',
         ];
     }
@@ -87,6 +93,17 @@ class RiderInvoiceExport extends DefaultValueBinder implements FromCollection, W
             'E' => NumberFormat::FORMAT_TEXT,
             'I' => NumberFormat::FORMAT_NUMBER_00,
             'J' => NumberFormat::FORMAT_NUMBER_00,
+            'K' => NumberFormat::FORMAT_NUMBER_00,
+            'L' => NumberFormat::FORMAT_NUMBER_00,
+        ];
+    }
+
+    public function registerEvents(): array
+    {
+        return [
+            AfterSheet::class => function (AfterSheet $event) {
+                $event->sheet->getDelegate()->freezePane('A2');
+            },
         ];
     }
 

@@ -50,7 +50,7 @@
             <span class="badge {{ $riderStatus['badge'] }}">{{ $riderStatus['label'] }}</span>
          </td>
          <td>{{ $r->descriptions }}</td>
-         <td>{{ $invoice->customer?->name ?? $rider?->customer?->name ?? '—' }}</td>
+         <td>{{ $r->customer?->name ?? $rider?->customer?->name ?? '—' }}</td>
          <td>{{ number_format((float) $r->total_amount, 2) }}</td>
          <td>{{ number_format((float) $r->final_amount, 2) }}</td>
          <td class="text-success">{{ number_format($paidAmount, 2) }}</td>

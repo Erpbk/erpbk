@@ -356,7 +356,8 @@
   background: var(--rl-surface);
   overflow: auto;
   max-height: calc(100vh - 190px);
-  min-height: 260px;
+  /* Height follows rows; max-height still caps tall result sets */
+  min-height: 0;
 }
 
 .riders-list-demo .rl-tbox table {

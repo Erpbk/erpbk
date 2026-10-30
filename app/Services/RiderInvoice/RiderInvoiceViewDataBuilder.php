@@ -889,8 +889,12 @@ class RiderInvoiceViewDataBuilder
      */
     private function paymentMatchesInvoice(Payment $payment, int $invoiceId, array $patterns, string $linkNeedle): bool
     {
-        $links = (string) ($payment->resource_links ?? '');
-        if ($linkNeedle !== '' && $links !== '' && str_contains($links, $linkNeedle)) {
+        $rawLinks = $payment->resource_links ?? null;
+        if (is_array($rawLinks)) {
+            if (in_array($invoiceId, ResourceLinks::invoiceIds($rawLinks), true)) {
+                return true;
+            }
+        } elseif (is_string($rawLinks) && $rawLinks !== '' && $linkNeedle !== '' && str_contains($rawLinks, $linkNeedle)) {
             return true;
         }
 

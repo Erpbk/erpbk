@@ -67,7 +67,9 @@ class RiderInvoicesController extends AppBaseController
         $data->load(['rider.customer', 'customer', 'items']);
 
         $invoiceBuilder = app(RiderInvoiceViewDataBuilder::class);
-        $invoiceBuilder->preloadOutstandingSummaries(collect($data->items()));
+        // Paginator has items(); "all" used to return a bare Collection — support both.
+        $pageRows = method_exists($data, 'items') ? collect($data->items()) : collect($data);
+        $invoiceBuilder->preloadOutstandingSummaries($pageRows);
 
         if ($request->ajax()) {
             $tableHtml = view('rider_invoices.table', ['data' => $data])->render();

@@ -20,7 +20,7 @@
 @include('invoices.partials.status_badge_styles')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
-<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}">
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
 <style>
   /* Page-only: one-row stats + combined status list. Shared .total-card lives in custom.css. */
   .riders-list-demo .totals-cards {
@@ -34,6 +34,14 @@
     min-width: 0;
     width: auto;
     box-sizing: border-box;
+  }
+  /* Amber accent for Status card (inline so live is not stuck on cached custom.css) */
+  .riders-list-demo .totals-cards .total-card.ri-status-card {
+    border-left-color: #d97706;
+    background: linear-gradient(180deg, rgba(217, 119, 6, 0.08), rgba(217, 119, 6, 0.02));
+  }
+  .riders-list-demo .totals-cards .total-card.ri-status-card .label {
+    color: #d97706;
   }
   .riders-list-demo .ri-status-card .ri-status-rows {
     display: flex;

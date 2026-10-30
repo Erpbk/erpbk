@@ -25,7 +25,7 @@
 <link rel="stylesheet" href="{{ asset('assets/vendor/libs/toastr/toastr.css') }}" />
 <link rel="stylesheet" href="{{ asset('assets/vendor/libs/spinkit/spinkit.css') }}" />
 <link rel="stylesheet" href="{{ asset('assets/vendor/libs/select2/select2.css') }}" />
-<link rel="stylesheet" href="{{ asset('css/custom.css') }}?v=20261027-swal-z" />
+<link rel="stylesheet" href="{{ asset('css/custom.css') }}?v=20261030-amber" />
 <link rel="stylesheet" href="{{ asset('css/fixed-footer.css') }}?v=1.3" />
 @include('layouts.partials.company_brand_theme')
 {{-- Font prefs are included after Vite in commonMaster so they win the cascade --}}

@@ -76,10 +76,15 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                 @foreach($tableColumns as $index => $column)
                 @php
                 $columnKey = $column['data'] ?? $column['key'] ?? $index;
-                // Skip only search and control icons, but allow 'action' column to be controlled
-                $isActionColumn = in_array($columnKey, ['search', 'control']) ||
-                str_contains($columnKey, 'search') ||
-                str_contains($columnKey, 'control');
+                // Skip search/control always. When fixedColumnsCount includes Actions (3+),
+                // also skip 'action' so reorder/hide cannot drop the Actions column.
+                $fixedTrailingKeys = ['search', 'control'];
+                if ($fixedColumnsCount >= 3) {
+                    $fixedTrailingKeys[] = 'action';
+                }
+                $isActionColumn = in_array($columnKey, $fixedTrailingKeys, true) ||
+                str_contains((string) $columnKey, 'search') ||
+                str_contains((string) $columnKey, 'control');
                 @endphp
 
                 @if(!$isActionColumn)
@@ -671,9 +676,15 @@ if ($resolvedModuleKey && class_exists(\App\Models\ModuleFieldCategoryAssignment
                         return;
                     }
 
+                    const knownKeys = Array.isArray(settings.column_order) && settings.column_order.length
+                        ? settings.column_order
+                        : settings.visible_columns;
+
                     document.querySelectorAll('.column-visibility-checkbox').forEach(checkbox => {
                         const columnKey = checkbox.closest('.column-item').dataset.columnKey;
-                        const isVisible = settings.visible_columns.includes(columnKey);
+                        // New columns added after the user last saved settings stay visible by default.
+                        const isNewColumn = !knownKeys.includes(columnKey);
+                        const isVisible = isNewColumn || settings.visible_columns.includes(columnKey);
 
                         checkbox.checked = isVisible;
                         this.toggleColumnVisibility(checkbox.dataset.columnIndex, isVisible, false);

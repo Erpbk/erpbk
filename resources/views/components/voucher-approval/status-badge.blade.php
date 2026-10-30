@@ -3,7 +3,7 @@
 @php
     $status = $voucher->approval_status ?? 'pending_approval';
     $map = [
-        'pending_approval' => ['label' => 'Pending Approval', 'class' => 'bg-label-warning'],
+        'pending_approval' => ['label' => 'Pending', 'class' => 'bg-label-warning'],
         'approved' => ['label' => 'Approved', 'class' => 'bg-label-success'],
         'rejected' => ['label' => 'Rejected', 'class' => 'bg-label-danger'],
     ];

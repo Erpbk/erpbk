@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Bikes extends BaseModel
 {
-  use SoftDeletes, LogsActivity, BranchScope;
+  use SoftDeletes, LogsActivity, BranchScope, TracksUserAttribution;
 
   public $table = 'bikes';
 
@@ -49,7 +51,8 @@ class Bikes extends BaseModel
     'leased_return_by',
     'leased_return_date',
     'leased_return_company_id',
-  ];
+    'deleted_by'
+    ];
 
   protected $casts = [
     'branch_id' => 'integer',

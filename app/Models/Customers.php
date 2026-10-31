@@ -8,9 +8,11 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Customers extends BaseModel
 {
-  use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+  use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, TracksUserAttribution;
 
   public $table = 'customers';
 
@@ -32,7 +34,10 @@ class Customers extends BaseModel
     'customer_note_label',
     'terms_and_conditions',
     'terms_and_conditions_label',
-  ];
+    'created_by',
+    'updated_by',
+    'deleted_by'
+    ];
 
   protected $casts = [
     'name' => 'string',

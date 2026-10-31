@@ -8,9 +8,11 @@ use App\Traits\LogsActivity;
 use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class LeasingCompanies extends BaseModel
 {
-  use LogsActivity, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
+  use LogsActivity, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
   public $table = 'leasing_companies';
 
@@ -27,7 +29,10 @@ class LeasingCompanies extends BaseModel
     'invoice_note_label',
     'terms_and_conditions',
     'terms_and_conditions_label',
-  ];
+    'created_by',
+    'updated_by',
+    'deleted_by'
+    ];
 
   protected $casts = [
     'name' => 'string',

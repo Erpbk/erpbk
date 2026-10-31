@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class RtaFines extends BaseModel
 {
-    use LogsActivity, SoftDeletes, BranchScope;
+    use LogsActivity, SoftDeletes, BranchScope, TracksUserAttribution;
 
   public $table = 'rta_fines';
 
@@ -44,7 +46,10 @@ class RtaFines extends BaseModel
     'pay_account',
     'black_points',
     'is_impound',
-  ];
+    'created_by',
+    'updated_by',
+    'deleted_by'
+    ];
 
   protected $casts = [
     'trans_date' => 'date',

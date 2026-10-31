@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class CustomerInvoices extends BaseModel
 {
-    use HasFactory, SoftDeletes, BranchScope;
+    use HasFactory, SoftDeletes, BranchScope, TracksUserAttribution;
 
     /**
      * The attributes that are mass assignable.
@@ -34,6 +36,9 @@ class CustomerInvoices extends BaseModel
         'attachment',
         'status',
         'partial_paid_amount',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     /**

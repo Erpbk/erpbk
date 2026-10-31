@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
+use App\Traits\TracksUserAttribution;
+
 class SupplierInvoices extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
   public $table = 'supplier_invoices';
 
@@ -95,17 +97,7 @@ class SupplierInvoices extends BaseModel
       return $this->hasMany(InventoryPurchase::class, 'inv_id')->orderBy('id');
   }
 
-  public function createdBy()
-  {
-    return $this->belongsTo(User::class, 'created_by');
-  }
-
-  public function updatedBy()
-  {
-    return $this->belongsTo(User::class, 'updated_by');
-  }
-
-  public function getInvoiceNumberAttribute()
+public function getInvoiceNumberAttribute()
   {
     return $this->inv_id;
   }

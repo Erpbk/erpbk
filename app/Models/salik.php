@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class salik extends BaseModel
 {
-    use HasFactory, LogsActivity, SoftDeletes, BranchScope;
+    use HasFactory, LogsActivity, SoftDeletes, BranchScope, TracksUserAttribution;
     
     protected $table = 'saliks';
     
@@ -48,6 +50,7 @@ class salik extends BaseModel
         'payment_voucher_id',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

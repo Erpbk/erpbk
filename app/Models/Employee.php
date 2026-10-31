@@ -9,9 +9,11 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\BranchScope;
 use App\Traits\HasInvoiceNoteLabels;
 
+use App\Traits\TracksUserAttribution;
+
 class Employee extends BaseModel
 {
-    use HasFactory, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
+    use HasFactory, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
     /**
      * The attributes that are mass assignable.
@@ -60,6 +62,7 @@ class Employee extends BaseModel
         'custom_field_values',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     /**

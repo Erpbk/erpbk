@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class FuelCards extends BaseModel
 {
-    use LogsActivity, BranchScope, SoftDeletes;
+    use LogsActivity, BranchScope, SoftDeletes, TracksUserAttribution;
 
     public $table = "fuel_cards";
 
@@ -50,6 +52,7 @@ class FuelCards extends BaseModel
         'lost_trans_code',
         'lost_remarks',
         'lost_by',
+        'deleted_by'
     ];
 
     protected $casts = [
@@ -105,17 +108,7 @@ class FuelCards extends BaseModel
         return $this->belongsTo(Branch::class, 'branch_id', 'id');
     }
 
-    public function createdBy()
-    {
-        return $this->belongsTo(User::class, 'created_by', 'id');
-    }
-
-    public function updatedBy()
-    {
-        return $this->belongsTo(User::class, 'updated_by', 'id');
-    }
-
-    public function scopeActive($query)
+public function scopeActive($query)
     {
         return $query->where('status', self::STATUS_ACTIVE);
     }

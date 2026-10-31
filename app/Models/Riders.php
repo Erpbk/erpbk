@@ -11,9 +11,11 @@ use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 use App\Traits\HasInvoiceNoteLabels;
 
+use App\Traits\TracksUserAttribution;
+
 class Riders extends BaseModel
 {
-  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope, HasInvoiceNoteLabels;
+  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
   public $table = 'riders';
 

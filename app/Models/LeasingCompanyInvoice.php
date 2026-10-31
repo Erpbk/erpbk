@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class LeasingCompanyInvoice extends BaseModel
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes, LogsActivity, TracksUserAttribution;
 
     public $table = 'leasing_company_invoices';
 
@@ -29,6 +31,9 @@ class LeasingCompanyInvoice extends BaseModel
         'attachment',
         'status',
         'partial_paid_amount',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

@@ -9,9 +9,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
+use App\Traits\TracksUserAttribution;
+
 class Cheques extends BaseModel
 {
-    use HasFactory, SoftDeletes, BranchScope;
+    use HasFactory, SoftDeletes, BranchScope, TracksUserAttribution;
 
     protected $table = 'cheques';
 
@@ -45,6 +47,7 @@ class Cheques extends BaseModel
         'issued_by',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

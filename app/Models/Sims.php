@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Sims extends BaseModel
 {
-  use SoftDeletes, LogsActivity, BranchScope;
+  use SoftDeletes, LogsActivity, BranchScope, TracksUserAttribution;
 
   public $table = 'sims';
 
@@ -45,7 +47,8 @@ class Sims extends BaseModel
     'lost_trans_code',
     'lost_remarks',
     'lost_by',
-  ];
+    'deleted_by'
+    ];
 
   protected $casts = [
     'number' => 'string',
@@ -287,17 +290,7 @@ class Sims extends BaseModel
     return 'holder';
   }
 
-  public function createdBy()
-  {
-    return $this->belongsTo(User::class, 'created_by', 'id');
-  }
-
-  public function updatedBy()
-  {
-    return $this->belongsTo(User::class, 'updated_by', 'id');
-  }
-
-  public function invoiceItems()
+public function invoiceItems()
   {
     return $this->hasMany(SimInvoiceItem::class, 'sim_id', 'id');
   }

@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 
+use App\Traits\TracksUserAttribution;
+
 class SimInvoice extends BaseModel
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes, LogsActivity, TracksUserAttribution;
 
     public $table = 'sim_invoices';
 
@@ -29,6 +31,9 @@ class SimInvoice extends BaseModel
         'attachment',
         'status',
         'partial_paid_amount',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

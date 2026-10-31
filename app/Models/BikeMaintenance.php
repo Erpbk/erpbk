@@ -9,9 +9,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeMaintenance extends BaseModel
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, TracksUserAttribution;
 
     public $table = 'bike_maintenances';
 

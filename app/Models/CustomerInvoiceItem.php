@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class CustomerInvoiceItem extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     /**
      * The attributes that are mass assignable.
@@ -24,6 +26,9 @@ class CustomerInvoiceItem extends BaseModel
         'vat',
         'vat_amount',
         'total_amount',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     /**

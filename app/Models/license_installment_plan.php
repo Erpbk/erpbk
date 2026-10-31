@@ -7,9 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use Illuminate\Support\Collection;
 
+use App\Traits\TracksUserAttribution;
+
 class license_installment_plan extends BaseModel
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, TracksUserAttribution;
 
     public const VOUCHER_TYPE = 'LE';
     public const VOUCHER_REASON = 'license_installment';

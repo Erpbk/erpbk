@@ -9,9 +9,11 @@ use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeRentCompany extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
     public const PARTY_COMPANY = 'company';
     public const PARTY_INDIVIDUAL = 'individual';
@@ -42,6 +44,7 @@ class BikeRentCompany extends BaseModel
         'terms_and_conditions',
         'invoice_note_label',
         'invoice_note',
+        'deleted_by'
     ];
 
     protected $casts = [

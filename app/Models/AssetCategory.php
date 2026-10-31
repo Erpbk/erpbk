@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class AssetCategory extends BaseModel
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksUserAttribution;
 
     public const METHOD_STRAIGHT_LINE = 'straight_line';
     public const METHOD_DECLINING_BALANCE = 'declining_balance';

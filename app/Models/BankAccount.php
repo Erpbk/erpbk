@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class BankAccount extends BaseModel
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksUserAttribution;
 
     protected $table = 'bank_accounts';
 
@@ -20,7 +22,8 @@ class BankAccount extends BaseModel
         'swift_code',
         'status',
         'created_by',
-        'updated_by'
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

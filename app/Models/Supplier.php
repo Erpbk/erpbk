@@ -10,9 +10,11 @@ use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 use App\Helpers\IConstants;
 
+use App\Traits\TracksUserAttribution;
+
 class Supplier extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
     public $table = 'suppliers';
 
@@ -28,6 +30,9 @@ class Supplier extends BaseModel
         'terms_and_conditions',
         'invoice_note_label',
         'invoice_note',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     public static $rules = [

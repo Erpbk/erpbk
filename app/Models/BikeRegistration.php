@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeRegistration extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'bike_registrations';
 
@@ -30,6 +32,8 @@ class BikeRegistration extends BaseModel
         'deleted_by',
         'bike_registration_account_id',
         'pay_account',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [

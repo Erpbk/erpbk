@@ -9,9 +9,11 @@ use Illuminate\Http\Request;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Payment extends BaseModel
 {
-    use LogsActivity, BranchScope, SoftDeletes;
+    use LogsActivity, BranchScope, SoftDeletes, TracksUserAttribution;
 
     public $table = 'payments';
 

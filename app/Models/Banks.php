@@ -8,9 +8,11 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Banks extends BaseModel
 {
-  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope;
+  use SoftDeletes, LogsActivity, HasActiveStatus, BranchScope, TracksUserAttribution;
 
   public $table = 'banks';
 
@@ -26,8 +28,11 @@ class Banks extends BaseModel
     'balance',
     'status',
     'account_id',
-    'notes'
-  ];
+    'notes',
+    'created_by',
+    'updated_by',
+    'deleted_by'
+    ];
 
   protected $casts = [
     'name' => 'string',

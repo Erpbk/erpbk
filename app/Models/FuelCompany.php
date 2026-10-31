@@ -8,9 +8,11 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class FuelCompany extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, TracksUserAttribution;
 
     public $table = 'fuel_companies';
 
@@ -24,6 +26,7 @@ class FuelCompany extends BaseModel
         'account_id',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

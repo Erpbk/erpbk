@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use App\Traits\TracksUserAttribution;
+
 class RiderInventoryItem extends BaseModel
 {
-    use HasFactory;
+    use HasFactory, TracksUserAttribution;
 
     protected $fillable = [
         'name',

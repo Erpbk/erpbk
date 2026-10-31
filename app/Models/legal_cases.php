@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class legal_cases extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'legal_cases';
 
@@ -25,6 +27,8 @@ class legal_cases extends BaseModel
         'deleted_by',
         'legal_case_account_id',
         'company_id',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [

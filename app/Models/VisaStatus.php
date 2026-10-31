@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Unique;
 
+use App\Traits\TracksUserAttribution;
+
 class VisaStatus extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     protected $fillable = [
         'name',
@@ -25,6 +27,7 @@ class VisaStatus extends BaseModel
         'display_order',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

@@ -5,9 +5,11 @@ namespace App\Models;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class LeasingCompanyBillingInvoice extends BaseModel
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes, LogsActivity, TracksUserAttribution;
 
     public $table = 'leasing_company_billing_invoices';
 
@@ -27,7 +29,10 @@ class LeasingCompanyBillingInvoice extends BaseModel
         'customer_note',
         'attachment',
         'status',
-        'partial_paid_amount'
+        'partial_paid_amount',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

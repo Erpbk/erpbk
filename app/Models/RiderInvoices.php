@@ -6,9 +6,11 @@ use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class RiderInvoices extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
     public $table = 'rider_invoices';
 
@@ -43,6 +45,7 @@ class RiderInvoices extends BaseModel
         'template_id',
         'deleted_by',
         'updated_by',
+        'created_by'
     ];
 
     protected $casts = [

@@ -9,9 +9,11 @@ use App\Traits\LogsActivity;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class Accounts extends BaseModel
 {
-  use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope;
+  use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, TracksUserAttribution;
 
   protected static function boot()
   {
@@ -61,8 +63,11 @@ class Accounts extends BaseModel
     'opening_balance',
     'is_locked',
     'is_fixed',
-    'custom_field_values'
-  ];
+    'custom_field_values',
+    'created_by',
+    'updated_by',
+    'deleted_by'
+    ];
 
   protected $casts = [
     'account_code' => 'string',

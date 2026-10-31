@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class VisaRenewalCategory extends BaseModel
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksUserAttribution;
 
     protected $fillable = [
         'name',
@@ -17,6 +19,7 @@ class VisaRenewalCategory extends BaseModel
         'is_active',
         'created_by',
         'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

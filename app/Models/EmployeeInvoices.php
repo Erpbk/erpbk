@@ -6,9 +6,11 @@ use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class EmployeeInvoices extends BaseModel
 {
-    use SoftDeletes, LogsActivity;
+    use SoftDeletes, LogsActivity, TracksUserAttribution;
 
     public $table = 'employee_invoices';
 
@@ -35,6 +37,8 @@ class EmployeeInvoices extends BaseModel
         'status',
         'partial_paid_amount',
         'deleted_by',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [

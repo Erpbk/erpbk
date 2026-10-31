@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeHistory extends BaseModel
 {
-    use LogsActivity;
+    use LogsActivity, TracksUserAttribution;
 
   public $table = 'bike_histories';
 

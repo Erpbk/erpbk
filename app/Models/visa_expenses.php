@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Models\Vouchers;
 
+use App\Traits\TracksUserAttribution;
+
 class visa_expenses extends BaseModel
 {
-    use LogsActivity, SoftDeletes;
+    use LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'visa_expenses';
 
@@ -33,6 +35,8 @@ class visa_expenses extends BaseModel
         'deleted_by',
         'expense_account_id',
         'renewal_category_id',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [

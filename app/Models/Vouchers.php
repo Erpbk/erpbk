@@ -10,6 +10,8 @@ use App\Traits\HasApprovalWorkflow;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 /**
  * Class Vouchers
  * @package App\Models
@@ -33,7 +35,7 @@ use App\Traits\BranchScope;
  */
 class Vouchers extends BaseModel
 {
-  use HasFactory, LogsActivity, SoftDeletes, BranchScope, HasApprovalWorkflow;
+  use HasFactory, LogsActivity, SoftDeletes, BranchScope, HasApprovalWorkflow, TracksUserAttribution;
 
   public $table = 'vouchers';
 
@@ -134,4 +136,15 @@ class Vouchers extends BaseModel
   {
     return $this->hasMany(salik::class, 'payment_voucher_id');
   }
+
+    protected function attributionCreatedByColumn(): string
+    {
+        return 'Created_By';
+    }
+
+    protected function attributionUpdatedByColumn(): string
+    {
+        return 'Updated_By';
+    }
+
 }

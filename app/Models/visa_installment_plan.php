@@ -9,9 +9,11 @@ use App\Traits\LogsActivity;
 use App\Models\Vouchers;
 use Illuminate\Support\Collection;
 
+use App\Traits\TracksUserAttribution;
+
 class visa_installment_plan extends BaseModel
 {
-    use HasFactory, LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'visa_installment_plans';
 

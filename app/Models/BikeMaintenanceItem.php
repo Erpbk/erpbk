@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeMaintenanceItem extends BaseModel
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksUserAttribution;
 
     protected $table = 'bike_maintenance_items';
 
@@ -28,6 +30,9 @@ class BikeMaintenanceItem extends BaseModel
         'charge_to',
         'branch_id',
         'company_id',
+        'created_by',
+        'updated_by',
+        'deleted_by'
     ];
 
     protected $casts = [

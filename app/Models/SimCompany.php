@@ -9,9 +9,11 @@ use App\Traits\HasInvoiceNoteLabels;
 use App\Traits\HasActiveStatus;
 use App\Traits\BranchScope;
 
+use App\Traits\TracksUserAttribution;
+
 class SimCompany extends BaseModel
 {
-    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels;
+    use LogsActivity, HasActiveStatus, SoftDeletes, BranchScope, HasInvoiceNoteLabels, TracksUserAttribution;
 
     public $table = 'sim_companies';
 
@@ -29,6 +31,7 @@ class SimCompany extends BaseModel
         'terms_and_conditions',
         'invoice_note_label',
         'invoice_note',
+        'deleted_by'
     ];
 
     protected $casts = [

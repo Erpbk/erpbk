@@ -8,9 +8,11 @@ use App\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 
+use App\Traits\TracksUserAttribution;
+
 class Transactions extends BaseModel
 {
-    use BranchScope, LogsActivity, SoftDeletes;
+    use BranchScope, LogsActivity, SoftDeletes, TracksUserAttribution;
 
     protected $fillable = [
         'company_id',
@@ -26,6 +28,8 @@ class Transactions extends BaseModel
         'narration',
         'deleted_by',
         'approval_held_at',
+        'created_by',
+        'updated_by'
     ];
 
     protected $casts = [

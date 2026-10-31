@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+use App\Traits\TracksUserAttribution;
+
 class BikeRegistrationStatus extends BaseModel
 {
-    use HasFactory;
+    use HasFactory, TracksUserAttribution;
 
     protected $table = 'bike_registration_statuses';
 

@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 
+use App\Traits\TracksUserAttribution;
+
 class Items extends BaseModel
 {
-  use LogsActivity, SoftDeletes;
+  use LogsActivity, SoftDeletes, TracksUserAttribution;
 
   public $table = 'items';
 
@@ -102,12 +104,7 @@ class Items extends BaseModel
   {
     return $this->belongsTo(Supplier::class, 'supplier_id', 'id');
   }
-  public function deletedBy()
-  {
-    return $this->belongsTo(\App\Models\User::class, 'deleted_by', 'id');
-  }
-
-  public function purchaseHistory()
+public function purchaseHistory()
   {
     return InventoryPurchase::where('item_id', $this->id)->orderBy('purchase_date','desc')->get();
   }

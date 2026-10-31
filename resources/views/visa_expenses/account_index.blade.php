@@ -513,7 +513,6 @@
   'exportRoute' => route('VisaExpense.exportCustomizableAccounts'),
   'tableIdentifier' => 'visa_accounts_table',
   'fixedColumnsCount' => 1,
-  'exportFilterKeys' => ['name', 'payment_status', 'visa_status_id', 'quick_search', 'person_status', 'renewal_category_id', 'wps'],
   'exportNote' => 'Only ticked columns are exported, in the current order, for all accounts (one row per person using the latest visa category). Current list filters are applied.',
 ])
 

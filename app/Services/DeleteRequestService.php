@@ -581,7 +581,7 @@ class DeleteRequestService
             }
 
             // Soft-delete queued related records so they remain intact for restore.
-            // Non-soft-deletable cascades (e.g. Payment) are finalized in afterApprovedSoftDelete.
+            // Payment invoice/cheque cleanup still runs in afterApprovedSoftDelete.
             foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
                 $type = $cascaded['type'] ?? null;
                 $id = $cascaded['id'] ?? null;
@@ -823,7 +823,6 @@ class DeleteRequestService
 
     /**
      * Find a model by class + id, including soft-deleted rows when SoftDeletes is used.
-     * Payment and other hard-delete models do not support withTrashed().
      *
      * @param  class-string<Model>  $type
      */
@@ -1305,9 +1304,9 @@ class DeleteRequestService
             }
         }
 
-        // Payment vouchers (PV): remove the payments row + reverse invoice/cheque links.
-        // Payment is not soft-deletable — it is queued as a cascade and deleted here on approve.
+        // Payment vouchers (PV): reverse invoice/cheque links; soft-delete payment if still active.
         $relatedPayment = \App\Models\Payment::query()
+            ->withTrashed()
             ->where('voucher_id', $voucher->id)
             ->first();
 
@@ -1316,7 +1315,7 @@ class DeleteRequestService
                 if (($cascaded['type'] ?? null) !== \App\Models\Payment::class || empty($cascaded['id'])) {
                     continue;
                 }
-                $relatedPayment = \App\Models\Payment::query()->find($cascaded['id']);
+                $relatedPayment = \App\Models\Payment::withTrashed()->find($cascaded['id']);
                 if ($relatedPayment) {
                     break;
                 }
@@ -1325,7 +1324,7 @@ class DeleteRequestService
 
         if ($relatedPayment) {
             try {
-                PaymentDeletionService::executeAfterVoucherApproved($relatedPayment);
+                PaymentDeletionService::executeAfterVoucherApproved($relatedPayment, $admin?->id);
             } catch (\Throwable $e) {
                 Log::warning('Failed to finalize related payment on approved voucher delete', [
                     'delete_request_id' => $deleteRequest->id,

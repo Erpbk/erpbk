@@ -1,4 +1,10 @@
 {!! Form::model($payment, ['route' => ['payments.update', $payment->id], 'method' => 'patch','id'=>'formajax', 'enctype' => 'multipart/form-data']) !!}
+@if(!empty($fromCheques))
+    {!! Form::hidden('from_cheques', 1) !!}
+    @if(!empty($chequeClearEditToken))
+        {!! Form::hidden('cheque_clear_edit_token', $chequeClearEditToken) !!}
+    @endif
+@endif
 
 <div class="px-3 pt-2 pb-1">
     <div class="row">

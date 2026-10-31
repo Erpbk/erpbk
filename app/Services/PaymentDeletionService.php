@@ -15,6 +15,7 @@ use App\Models\DeleteRequest;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Support\ResourceLinks;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Payment voucher deletion: queue for admin approval, or delete immediately when
@@ -24,7 +25,7 @@ class PaymentDeletionService
 {
     /**
      * Queue a delete request via the related PV voucher (soft-deletable root).
-     * Payment itself is not soft-deleted; it is cascaded and removed on approval.
+     * Payment is cascaded on the request and soft-deleted when the admin approves.
      */
     public static function queueDeleteRequest(Payment $payment): DeleteRequest
     {
@@ -63,13 +64,8 @@ class PaymentDeletionService
                 $transaction->delete();
             }
 
-            // Payment has no SoftDeletes — append manually (do not call delete()).
-            $voucherLabel = ($voucher->voucher_type ?? 'PV') . '-' . $voucher->id;
-            $deleteRequest->appendCascadedRecord(
-                Payment::class,
-                $payment->id,
-                "Payment {$voucherLabel}" . ($payment->reference ? " ({$payment->reference})" : '')
-            );
+            // Soft-deletable payment: interceptor appends cascade and aborts the delete.
+            $payment->delete();
 
             DeleteRequestService::clearPendingIdsCache(Vouchers::class);
             DeleteRequestService::clearPendingIdsCache(Transactions::class);
@@ -97,20 +93,38 @@ class PaymentDeletionService
                 fn ($q) => $q->where('trans_code', $voucher->trans_code),
                 auth()->id()
             );
+            if (Schema::hasColumn($voucher->getTable(), 'deleted_by') && auth()->id()) {
+                $voucher->deleted_by = auth()->id();
+                $voucher->save();
+            }
             Vouchers::where('id', $voucher->id)->delete();
         }
 
         static::applyRelatedCleanup($payment);
-        $payment->delete();
+        static::softDeletePayment($payment, auth()->id());
     }
 
     /**
-     * After an approved voucher delete request: revert invoice/cheque links and remove payment.
+     * After an approved voucher delete request: revert invoice/cheque links and soft-delete payment.
      * Voucher + transactions are already soft-deleted by DeleteRequestService.
      */
-    public static function executeAfterVoucherApproved(Payment $payment): void
+    public static function executeAfterVoucherApproved(Payment $payment, $deletedBy = null): void
     {
         static::applyRelatedCleanup($payment);
+        static::softDeletePayment($payment, $deletedBy ?? auth()->id());
+    }
+
+    private static function softDeletePayment(Payment $payment, $deletedBy = null): void
+    {
+        if ($payment->trashed()) {
+            return;
+        }
+
+        if ($deletedBy && Schema::hasColumn($payment->getTable(), 'deleted_by')) {
+            $payment->deleted_by = $deletedBy;
+            $payment->save();
+        }
+
         $payment->delete();
     }
 

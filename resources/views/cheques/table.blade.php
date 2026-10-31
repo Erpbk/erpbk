@@ -131,6 +131,25 @@
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
                         @endif
+                        @if(in_array($cheque->status, ['Cleared', 'Partially Cleared'], true))
+                            @php
+                                $clearDocs = $cheque->linkedClearDocumentsQuery()->get();
+                                $isPayableCheque = $cheque->isPayable();
+                            @endphp
+                            @foreach($clearDocs as $clearDoc)
+                                @php
+                                    $clearLabel = $clearDoc->voucher_id
+                                        ? (($isPayableCheque ? 'PV' : 'RV') . '-' . $clearDoc->voucher_id)
+                                        : (($isPayableCheque ? 'Payment' : 'Receipt') . ' #' . $clearDoc->id);
+                                    $clearEditRoute = $isPayableCheque
+                                        ? route('payments.edit', ['payment' => $clearDoc->id, 'from_cheques' => 1])
+                                        : route('receipts.edit', ['receipt' => $clearDoc->id, 'from_cheques' => 1]);
+                                @endphp
+                                <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Edit {{ $clearLabel }}" data-action="{{ $clearEditRoute }}">
+                                    <i class="fa fa-edit my-1"></i> Edit {{ $clearLabel }}
+                                </a>
+                            @endforeach
+                        @endif
                         @if(in_array($cheque->status, ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'], true))
                         <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Change Status" data-action="{{ route('cheques.status-form', $cheque->id) }}">
                             <i class="fa fa-exchange-alt my-1"></i> Change Status

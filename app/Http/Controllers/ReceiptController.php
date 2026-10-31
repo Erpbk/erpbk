@@ -15,12 +15,15 @@ use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Repositories\ReceiptsRepository;
 use App\Traits\GlobalPagination;
+use App\Services\DeleteRequestService;
+use App\Support\ChequeClearEditGuard;
 use App\Support\PublicStorageDisk;
 use App\Support\ResourceLinks;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ReceiptController extends Controller
 {
@@ -367,6 +370,11 @@ class ReceiptController extends Controller
 
             return redirect()->back();
         }
+
+        if ($deny = ChequeClearEditGuard::denyIfNeeded($receipt, $request, 'Receipts')) {
+            return $deny;
+        }
+
         if (str_contains($receipt->reference, 'CI-')) {
             $invoiceType = 'customer';
             $invoice_numbers = explode(' ', $receipt->reference);
@@ -424,7 +432,10 @@ class ReceiptController extends Controller
             $leasingCompany = BikeRentCompany::where('account_id', $receipt->payer_account_id)->first();
         }
 
-        return view('receipts.edit', compact('receipt', 'banks', 'invoices', 'existingInvoices', 'customerIds', 'customerId', 'invoiceType', 'payerAccounts', 'leasingCompany'));
+        $fromCheques = true;
+        $chequeClearEditToken = ChequeClearEditGuard::editTokenFor($receipt);
+
+        return view('receipts.edit', compact('receipt', 'banks', 'invoices', 'existingInvoices', 'customerIds', 'customerId', 'invoiceType', 'payerAccounts', 'leasingCompany', 'fromCheques', 'chequeClearEditToken'));
     }
 
     /**
@@ -475,6 +486,10 @@ class ReceiptController extends Controller
             Flash::error('Receipt not found!');
 
             return redirect()->back();
+        }
+
+        if ($deny = ChequeClearEditGuard::denyIfNeeded($receipt, $request, 'Receipts')) {
+            return $deny;
         }
 
         $request['billing_month'] = $request['billing_month'].'-01';
@@ -699,6 +714,11 @@ class ReceiptController extends Controller
                 }
             }
 
+            $linkedChequeId = Cheques::linkedIdForDocument($receipt->fresh() ?? $receipt);
+            if ($linkedChequeId) {
+                Cheques::find($linkedChequeId)?->recalculateClearState();
+            }
+
             DB::commit();
 
             // Determine appropriate success message
@@ -794,7 +814,17 @@ class ReceiptController extends Controller
                     $invoice->save();
                 }
             }
-            $receipt->delete();
+            if (Schema::hasColumn($receipt->getTable(), 'deleted_by') && auth()->id()) {
+                $receipt->deleted_by = auth()->id();
+                $receipt->save();
+            }
+            // Related voucher/transactions already cleaned up above — soft-delete immediately.
+            DeleteRequestService::bypass(true);
+            try {
+                $receipt->delete();
+            } finally {
+                DeleteRequestService::bypass(false);
+            }
             if ($request->ajax()) {
                 return response()->json(['success' => true, 'message' => 'Receipt Deleted Successfuly', 'reload' => true]);
             }

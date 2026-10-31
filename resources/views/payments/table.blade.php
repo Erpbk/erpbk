@@ -166,9 +166,11 @@
                         'leasing_companies_payments_edit',
                         'suppliers_payments_edit',
                         ])
+                        @if(!\App\Models\Cheques::linkedIdForDocument($payment))
                         <a href="javascript:void(0);" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Payment Details" data-action="{{ route('payments.edit', $payment->id) }}">
                             <i class="fa fa-edit my-1"></i> Edit
                         </a>
+                        @endif
                         @endcanany
                         @canany([
                         'cash_&_banks_payments_delete',

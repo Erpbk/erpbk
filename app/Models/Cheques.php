@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Support\ResourceLinks;
+use App\Traits\BranchScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
-use App\Traits\BranchScope;
 
 class Cheques extends BaseModel
 {
@@ -124,6 +125,23 @@ class Cheques extends BaseModel
     public function isPayable(): bool
     {
         return $this->type === 'payable';
+    }
+
+    /**
+     * Cheque id linked to a payment/receipt clear document (resource_links or legacy voucher ref).
+     */
+    public static function linkedIdForDocument(Payment|Receipt $doc): ?int
+    {
+        $id = ResourceLinks::chequeId(
+            is_array($doc->resource_links) ? $doc->resource_links : null
+        );
+        if ($id) {
+            return $id;
+        }
+
+        $voucherId = (int) ($doc->voucher_id ?? 0);
+
+        return $voucherId > 0 ? static::findByClearVoucherId($voucherId)?->id : null;
     }
 
     /**

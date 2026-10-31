@@ -7,6 +7,7 @@ use App\Exceptions\GlobalAccountNotConfiguredException;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
 use App\Models\Banks;
+use App\Models\Cheques;
 use App\Models\Customers;
 use App\Models\Employee;
 use App\Models\EmployeeInvoices;
@@ -25,6 +26,7 @@ use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
 use App\Services\Payment\RiderPaymentVoucherViewData;
 use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
+use App\Support\ChequeClearEditGuard;
 use App\Support\InvoicePdf;
 use App\Support\ResourceLinks;
 use App\Support\RiderVoucherPermissions;
@@ -862,11 +864,21 @@ class PaymentController extends Controller
             return redirect()->back();
         }
 
+        if ($deny = ChequeClearEditGuard::denyIfNeeded($payment, $request, 'Payments')) {
+            return $deny;
+        }
+
         if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
             RiderVoucherPermissions::authorize('PAY', 'edit');
         }
 
-        return view('payments.edit', $this->buildLinkedPaymentFormData($payment));
+        return view('payments.edit', array_merge(
+            $this->buildLinkedPaymentFormData($payment),
+            [
+                'fromCheques' => true,
+                'chequeClearEditToken' => ChequeClearEditGuard::editTokenFor($payment),
+            ]
+        ));
     }
 
     public function update(Request $request, $comapny_slug, $id)
@@ -880,6 +892,10 @@ class PaymentController extends Controller
             Flash::error('Payment not found!');
 
             return redirect()->back();
+        }
+
+        if ($deny = ChequeClearEditGuard::denyIfNeeded($payment, $request, 'Payments')) {
+            return $deny;
         }
 
         if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
@@ -1278,6 +1294,11 @@ class PaymentController extends Controller
                         PublicStorageDisk::delete('vouchers/' . $oldFile);
                     }
                 }
+            }
+
+            $linkedChequeId = Cheques::linkedIdForDocument($payment->fresh() ?? $payment);
+            if ($linkedChequeId) {
+                Cheques::find($linkedChequeId)?->recalculateClearState();
             }
 
             DB::commit();

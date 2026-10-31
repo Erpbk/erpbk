@@ -43,6 +43,7 @@ class ChequesController extends Controller
         if (! \App\Support\RoleFieldAccess::canAccessModule('cheques')) {
             abort(403, 'Unauthorized action.');
         }
+        \App\Support\ChequeClearEditGuard::markChequesModuleContext();
         $query = Cheques::query()->latest('issue_date');
 
         if (Schema::hasTable('cheque_top_categories')) {
@@ -187,6 +188,7 @@ class ChequesController extends Controller
      */
     public function show($comapny_slug, $id)
     {
+        \App\Support\ChequeClearEditGuard::markChequesModuleContext();
         $cheque = Cheques::findOrFail($id);
         return view('cheques.show', compact('cheque'));
     }
@@ -392,8 +394,10 @@ class ChequesController extends Controller
                         auth()->id()
                     );
                     if ($cheque->type === 'payable') {
+                        Payment::where('voucher_id', $refVoucherId)->update(['deleted_by' => auth()->id()]);
                         Payment::where('voucher_id', $refVoucherId)->delete();
                     } else {
+                        Receipt::where('voucher_id', $refVoucherId)->update(['deleted_by' => auth()->id()]);
                         Receipt::where('voucher_id', $refVoucherId)->delete();
                     }
                     $voucher->delete();
@@ -428,6 +432,7 @@ class ChequesController extends Controller
      */
     public function statusForm(Request $request, $comapny_slug, $id)
     {
+        \App\Support\ChequeClearEditGuard::markChequesModuleContext();
         $cheque = Cheques::findOrFail($id);
         $changeable = ['Issued', 'Partially Cleared', 'Returned', 'Stop Payment', 'Lost'];
         if (! in_array($cheque->status, $changeable, true)) {

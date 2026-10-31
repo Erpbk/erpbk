@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
 class Payment extends BaseModel
 {
-    use LogsActivity, BranchScope;
+    use LogsActivity, BranchScope, SoftDeletes;
 
     public $table = 'payments';
 
@@ -36,10 +37,12 @@ class Payment extends BaseModel
         'created_by',
         'updated_by',
         'attachment',
+        'deleted_by',
     ];
 
     protected $casts = [
         'resource_links' => 'array',
+        'deleted_at' => 'datetime',
     ];
 
     public static array $rules = [

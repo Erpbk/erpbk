@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\LogsActivity;
 use App\Traits\BranchScope;
 
 class Receipt extends BaseModel
 {
-    use LogsActivity, BranchScope;
+    use LogsActivity, BranchScope, SoftDeletes;
 
     public $table = 'receipts';
 
@@ -29,10 +29,12 @@ class Receipt extends BaseModel
         'status',
         'created_by',
         'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [
         'resource_links' => 'array',
+        'deleted_at' => 'datetime',
     ];
 
     public static array $rules = [

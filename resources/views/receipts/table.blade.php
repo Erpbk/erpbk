@@ -74,9 +74,11 @@
                             'bike_on_rent_payments_edit',
                             'garages_payments_edit',
                         ])
+                            @if(!\App\Models\Cheques::linkedIdForDocument($receipt))
                             <a href="javascript:void(0);" class='dropdown-item waves-effect show-modal' data-size="xl" data-title="Update Receipt Details" data-action="{{ route('receipts.edit', $receipt->id) }}">
                                 <i class="fa fa-edit my-1"></i> Edit
                             </a>
+                            @endif
                         @endcanany
                         @canany([
                             'cash_&_banks_receipts_delete',

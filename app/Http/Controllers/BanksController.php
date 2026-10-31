@@ -481,6 +481,7 @@ class BanksController extends AppBaseController
 
   public function cheques(Request $request, $company_slug, $id)
   {
+    \App\Support\ChequeClearEditGuard::markChequesModuleContext();
     $banks = Banks::find($id);
     $query = Cheques::query()->latest('issue_date');
     $query->where('bank_id', $id);

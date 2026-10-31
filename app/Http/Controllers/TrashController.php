@@ -34,6 +34,8 @@ use App\Traits\TracksCascadingDeletions;
 use Laracasts\Flash\Flash;
 use App\Models\RtaFines;
 use App\Models\Vouchers;
+use App\Models\Payment;
+use App\Models\Receipt;
 use App\Models\Transactions;
 use App\Services\ActivityLogger;
 use App\Services\DeleteRequestService;
@@ -306,6 +308,18 @@ class TrashController extends Controller
             'name' => 'Vouchers',
             'icon' => 'fa-file-invoice',
             'display_columns' => ['id', 'trans_code', 'trans_date', 'billing_month', 'amount', 'status'],
+        ],
+        'payments' => [
+            'model' => Payment::class,
+            'name' => 'Payments',
+            'icon' => 'fa-money-bill',
+            'display_columns' => ['id', 'reference', 'date_of_payment', 'billing_month', 'amount', 'status'],
+        ],
+        'receipts' => [
+            'model' => Receipt::class,
+            'name' => 'Receipts',
+            'icon' => 'fa-receipt',
+            'display_columns' => ['id', 'reference', 'date_of_receipt', 'billing_month', 'amount', 'status'],
         ],
         'leasing_company_invoices' => [
             'model' => LeasingCompanyInvoice::class,

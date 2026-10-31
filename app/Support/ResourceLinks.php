@@ -213,11 +213,14 @@ class ResourceLinks
     /**
      * Whether a payment/receipt resource_links JSON contains this invoice id.
      * Suitable for whereJsonContains / JSON path queries via LIKE fallback on serialized JSON.
+     *
+     * Trailing comma avoids prefix matches ("id":1 matching "id":12 / "id":123).
+     * build() always serializes id before amount, so a comma follows the id value.
      */
     public static function containsInvoiceIdPayload(int $invoiceId): string
     {
-        // Matches {"id":123 or "id": 123 in JSON
-        return '"id":'.$invoiceId;
+        // Matches "id":123, or "id": 123, in JSON invoice rows
+        return '"id":'.$invoiceId.',';
     }
 
     /**
@@ -245,11 +248,11 @@ class ResourceLinks
             return $query;
         }
 
-        return $query->orWhere(
-            'resource_links',
-            'like',
-            '%'.self::containsInvoiceIdPayload($invoiceId).'%'
-        );
+        return $query->orWhere(function ($inner) use ($invoiceId) {
+            foreach (self::containsInvoiceIdLikePatterns($invoiceId) as $pattern) {
+                $inner->orWhere('resource_links', 'like', $pattern);
+            }
+        });
     }
 
     /**
@@ -264,11 +267,26 @@ class ResourceLinks
             return $query;
         }
 
-        return $query->where(
-            'resource_links',
-            'like',
-            '%'.self::containsInvoiceIdPayload($invoiceId).'%'
-        );
+        return $query->where(function ($inner) use ($invoiceId) {
+            foreach (self::containsInvoiceIdLikePatterns($invoiceId) as $pattern) {
+                $inner->orWhere('resource_links', 'like', $pattern);
+            }
+        });
+    }
+
+    /**
+     * LIKE patterns that match this invoice id without prefix collisions (id 1 ≠ id 12).
+     *
+     * @return list<string>
+     */
+    public static function containsInvoiceIdLikePatterns(int $invoiceId): array
+    {
+        $id = (int) $invoiceId;
+
+        return [
+            '%'.self::containsInvoiceIdPayload($id).'%',
+            '%"id": '.$id.',%',
+        ];
     }
 
     /**

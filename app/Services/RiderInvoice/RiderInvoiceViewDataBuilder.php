@@ -440,12 +440,6 @@ class RiderInvoiceViewDataBuilder
             ?? ($riderInvoice->rider?->account_id ? (int) $riderInvoice->rider->account_id : null);
 
         $invoiceId = (int) $riderInvoice->id;
-        $patterns = array_values(array_filter([
-            $riderInvoice->invoice_number ?? null,
-            'Rider Invoice #'.$invoiceId,
-            'Invoice #'.$invoiceId,
-            'RINV-'.str_pad((string) $invoiceId, 4, '0', STR_PAD_LEFT),
-        ]));
 
         $transCodes = Transactions::query()
             ->where('reference_type', 'RiderInvoice')
@@ -458,44 +452,49 @@ class RiderInvoiceViewDataBuilder
 
         $voucherIdsFromPayments = collect();
         if ($accountId) {
+            $linkNeedle = ResourceLinks::containsInvoiceIdPayload($invoiceId);
             $voucherIdsFromPayments = Payment::query()
                 ->where('payee_account_id', $accountId)
                 ->whereNotNull('voucher_id')
-                ->where(function ($q) use ($patterns, $invoiceId) {
-                    ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
-                    foreach ($patterns as $pattern) {
-                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
-                            ->orWhere('description', 'like', '%'.$pattern.'%');
-                    }
-                })
+                ->get()
+                ->filter(fn (Payment $payment) => $this->paymentMatchesInvoice($payment, $invoiceId, $linkNeedle))
                 ->pluck('voucher_id')
                 ->filter()
                 ->values();
         }
 
-        if ($transCodes->isEmpty() && $voucherIdsFromPayments->isEmpty() && $patterns === []) {
+        // Broad LIKE candidates, then digit-safe filter (avoids Invoice #1 ⊂ Invoice #12).
+        $textCandidates = Vouchers::query()
+            ->whereIn('voucher_type', ['RI', 'PV', 'PAY'])
+            ->where(function ($text) use ($invoiceId) {
+                $text->where('remarks', 'like', '%Invoice #'.$invoiceId.'%')
+                    ->orWhere('remarks', 'like', '%RINV%'.$invoiceId.'%')
+                    ->orWhere('reference_number', 'like', '%RINV%'.$invoiceId.'%')
+                    ->orWhere('reference_number', 'like', '%Invoice #'.$invoiceId.'%');
+            })
+            ->get()
+            ->filter(function (Vouchers $voucher) use ($invoiceId) {
+                $haystack = trim((string) ($voucher->remarks ?? '').' '.(string) ($voucher->reference_number ?? ''));
+
+                return $this->textReferencesInvoice($haystack, $invoiceId);
+            })
+            ->pluck('id')
+            ->values();
+
+        $voucherIds = $voucherIdsFromPayments->merge($textCandidates)->unique()->filter()->values();
+
+        if ($transCodes->isEmpty() && $voucherIds->isEmpty()) {
             return collect();
         }
 
         return Vouchers::query()
-            ->where(function ($q) use ($transCodes, $voucherIdsFromPayments, $patterns, $invoiceId) {
+            ->where(function ($q) use ($transCodes, $voucherIds) {
                 if ($transCodes->isNotEmpty()) {
                     $q->orWhereIn('trans_code', $transCodes);
                 }
-                if ($voucherIdsFromPayments->isNotEmpty()) {
-                    $q->orWhereIn('id', $voucherIdsFromPayments);
+                if ($voucherIds->isNotEmpty()) {
+                    $q->orWhereIn('id', $voucherIds);
                 }
-                $q->orWhere(function ($inner) use ($patterns, $invoiceId) {
-                    $inner->whereIn('voucher_type', ['RI', 'PV', 'PAY'])
-                        ->where(function ($text) use ($patterns, $invoiceId) {
-                            $text->where('remarks', 'like', '%Rider Invoice #'.$invoiceId.'%')
-                                ->orWhere('remarks', 'like', '%Invoice #'.$invoiceId.'%');
-                            foreach ($patterns as $pattern) {
-                                $text->orWhere('reference_number', 'like', '%'.$pattern.'%')
-                                    ->orWhere('remarks', 'like', '%'.$pattern.'%');
-                            }
-                        });
-                });
             })
             ->orderByDesc('trans_date')
             ->orderByDesc('id')
@@ -613,14 +612,14 @@ class RiderInvoiceViewDataBuilder
      * Amount paid against this specific invoice (not all rider payments for the month).
      *
      * Includes mark-as-paid / paid-import GL (reference_type RiderInvoice) and Payment
-     * module rows that reference this invoice. Falls back to billing-month payments only
-     * when no invoice-linked payment exists (legacy Payment-module flow).
+     * module rows that reference this invoice (resource_links / exact invoice text).
+     * Unlinked billing-month payment vouchers are NOT attributed — that was marking
+     * unrelated unpaid invoices as paid/partial on the index.
      */
     private function paidAmountAgainstInvoice(RiderInvoices $riderInvoice, ?int $accountId, string $monthStart): float
     {
         $paid = 0.0;
         $invoiceId = (int) $riderInvoice->id;
-        $monthStart = date('Y-m-01', strtotime($monthStart));
 
         if ($this->glPaidByInvoice !== null) {
             if ($accountId) {
@@ -652,67 +651,23 @@ class RiderInvoiceViewDataBuilder
             return round($paid, 2);
         }
 
-        $patterns = array_values(array_filter([
-            $riderInvoice->invoice_number ?? null,
-            'Rider Invoice #'.$invoiceId,
-            'Invoice #'.$invoiceId,
-            'RINV-'.str_pad((string) $invoiceId, 4, '0', STR_PAD_LEFT),
-        ]));
-
         $linked = 0.0;
-        if ($this->paymentsByAccount !== null) {
-            $payments = $this->paymentsByAccount[$accountId] ?? [];
-            $linkNeedle = ResourceLinks::containsInvoiceIdPayload($invoiceId);
-            foreach ($payments as $payment) {
-                if ($allocatedPaymentIds !== [] && in_array((int) $payment->id, $allocatedPaymentIds, true)) {
-                    continue;
-                }
-                if ($this->paymentMatchesInvoice($payment, $invoiceId, $patterns, $linkNeedle)) {
-                    $linked += (float) ($payment->amount ?? 0);
-                }
+        $payments = $this->paymentsByAccount !== null
+            ? ($this->paymentsByAccount[$accountId] ?? [])
+            : Payment::where('payee_account_id', $accountId)->get();
+
+        $linkNeedle = ResourceLinks::containsInvoiceIdPayload($invoiceId);
+        foreach ($payments as $payment) {
+            if ($allocatedPaymentIds !== [] && in_array((int) $payment->id, $allocatedPaymentIds, true)) {
+                continue;
             }
-        } else {
-            $linkedQuery = Payment::where('payee_account_id', $accountId)
-                ->where(function ($q) use ($patterns, $invoiceId) {
-                    ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
-                    foreach ($patterns as $pattern) {
-                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
-                            ->orWhere('description', 'like', '%'.$pattern.'%');
-                    }
-                });
-            if ($allocatedPaymentIds !== []) {
-                $linkedQuery->whereNotIn('id', $allocatedPaymentIds);
+            if (! $this->paymentMatchesInvoice($payment, $invoiceId, $linkNeedle)) {
+                continue;
             }
-            $linked = (float) $linkedQuery->sum('amount');
+            $linked += $this->paymentAmountForInvoice($payment, $invoiceId);
         }
 
-        if ($linked >= 0.01) {
-            $paid += $linked;
-        } elseif ($paid < 0.01) {
-            // Legacy Payment-module payments for this billing month (no invoice text link)
-            if ($this->paymentsByAccount !== null) {
-                foreach ($this->paymentsByAccount[$accountId] ?? [] as $payment) {
-                    if ($allocatedPaymentIds !== [] && in_array((int) $payment->id, $allocatedPaymentIds, true)) {
-                        continue;
-                    }
-                    $payMonth = $payment->billing_month
-                        ? date('Y-m-01', strtotime((string) $payment->billing_month))
-                        : null;
-                    if ($payMonth === $monthStart) {
-                        $paid += (float) ($payment->amount ?? 0);
-                    }
-                }
-            } else {
-                $legacyQuery = Payment::where('payee_account_id', $accountId)
-                    ->whereDate('billing_month', $monthStart);
-                if ($allocatedPaymentIds !== []) {
-                    $legacyQuery->whereNotIn('id', $allocatedPaymentIds);
-                }
-                $paid += (float) $legacyQuery->sum('amount');
-            }
-        }
-
-        return round($paid, 2);
+        return round($paid + $linked, 2);
     }
 
     /**
@@ -884,28 +839,71 @@ class RiderInvoiceViewDataBuilder
             ->sum(DB::raw('debit - credit')), 2);
     }
 
-    /**
-     * @param  list<string>  $patterns
-     */
-    private function paymentMatchesInvoice(Payment $payment, int $invoiceId, array $patterns, string $linkNeedle): bool
+    private function paymentMatchesInvoice(Payment $payment, int $invoiceId, string $linkNeedle): bool
     {
         $rawLinks = $payment->resource_links ?? null;
         if (is_array($rawLinks)) {
             if (in_array($invoiceId, ResourceLinks::invoiceIds($rawLinks), true)) {
                 return true;
             }
-        } elseif (is_string($rawLinks) && $rawLinks !== '' && $linkNeedle !== '' && str_contains($rawLinks, $linkNeedle)) {
-            return true;
-        }
-
-        $haystack = trim((string) ($payment->reference ?? '').' '.(string) ($payment->description ?? ''));
-        foreach ($patterns as $pattern) {
-            if ($pattern !== '' && $haystack !== '' && str_contains($haystack, $pattern)) {
+        } elseif (is_string($rawLinks) && $rawLinks !== '') {
+            $decoded = json_decode($rawLinks, true);
+            if (is_array($decoded) && in_array($invoiceId, ResourceLinks::invoiceIds($decoded), true)) {
+                return true;
+            }
+            // LIKE-style fallback — payload includes trailing comma so "id":1 ≠ "id":12
+            if ($linkNeedle !== '' && str_contains($rawLinks, $linkNeedle)) {
+                return true;
+            }
+            if ($linkNeedle !== '' && str_contains($rawLinks, '"id": '.$invoiceId.',')) {
                 return true;
             }
         }
 
+        $haystack = trim((string) ($payment->reference ?? '').' '.(string) ($payment->description ?? ''));
+
+        return $this->textReferencesInvoice($haystack, $invoiceId);
+    }
+
+    /**
+     * Exact invoice id in free text — avoids "Invoice #1" matching "Invoice #12".
+     */
+    private function textReferencesInvoice(string $haystack, int $invoiceId): bool
+    {
+        if ($haystack === '' || $invoiceId <= 0) {
+            return false;
+        }
+
+        if (preg_match('/(?:Rider\s+)?Invoice\s*#\s*'.$invoiceId.'(?!\d)/i', $haystack) === 1) {
+            return true;
+        }
+
+        if (preg_match('/RINV-?0*'.$invoiceId.'(?!\d)/i', $haystack) === 1) {
+            return true;
+        }
+
         return false;
+    }
+
+    /**
+     * Prefer per-invoice allocation on resource_links; otherwise the payment amount.
+     */
+    private function paymentAmountForInvoice(Payment $payment, int $invoiceId): float
+    {
+        $rawLinks = $payment->resource_links ?? null;
+        $links = null;
+        if (is_array($rawLinks)) {
+            $links = $rawLinks;
+        } elseif (is_string($rawLinks) && $rawLinks !== '') {
+            $decoded = json_decode($rawLinks, true);
+            $links = is_array($decoded) ? $decoded : null;
+        }
+
+        if ($links !== null && in_array($invoiceId, ResourceLinks::invoiceIds($links), true)) {
+            return round(ResourceLinks::amountFor($links, $invoiceId), 2);
+        }
+
+        return round((float) ($payment->amount ?? 0), 2);
     }
 
     private function invoiceItemsTotal(RiderInvoices $riderInvoice): float

@@ -1524,6 +1524,9 @@ class SalikController extends AppBaseController
             $skippedCount = count($skippedLog);
             $skippedMessage = !empty($messages) ? ' Skipped: '.implode(', ', $messages).'.' : '';
             $message = "Import finished. Imported: {$importedCount}.{$skippedMessage}";
+            if ($importedCount === 0 && empty($messages) && $import->uniqueTransactionCount === 0) {
+                $message .= ' No Salik data rows were detected. Map Transaction ID to the correct column (Salik exports usually put it in column C) and ensure trip rows exist below the header.';
+            }
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([

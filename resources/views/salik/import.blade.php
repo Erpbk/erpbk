@@ -46,7 +46,7 @@
                     <div class="col-md-3">
                         <div class="form-group">
                             <label for="file">Import File</label>
-                            <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.csv" required>
+                            <input type="file" name="file" id="file" class="form-control" accept=".xlsx,.xls,.csv" required>
                             <small class="text-muted">Upload the Excel file containing Salik records.</small>
                         </div>
                     </div>
@@ -104,7 +104,7 @@
                 <div id="mappingHelpBox" class="alert alert-info mb-4" style="display:none;">
                     <h6 class="alert-heading mb-2"><i class="fas fa-info-circle"></i> How to map columns</h6>
                     <ul class="mb-3 pl-3">
-                        <li>Select a file above and a preview of its columns will appear. Each field below becomes a dropdown listing the file's columns (<strong>A</strong>, <strong>B</strong>, <strong>C</strong>, ...) — pick the matching one. Mappings are suggested automatically from the header row.</li>
+                        <li>Select a file above and a preview of its columns will appear. Each field below becomes a dropdown listing the file's columns (<strong>A</strong>, <strong>B</strong>, <strong>C</strong>, ...) — pick the matching one. Mappings are suggested automatically from the header row. Salik exports often leave <strong>A/B blank</strong>; Transaction ID is usually column <strong>C</strong>.</li>
                         <li>If trip date and time are in the <strong>same cell</strong>, select that <strong>same column</strong> for both Trip Date and Trip Time.</li>
                         <li><strong>Merged cells:</strong> use the <strong>leftmost</strong> column in the merge (where Excel stores the value). Example: if Date+Time is merged across columns B and C, select column <strong>B</strong> for both Trip Date and Trip Time.</li>
                         <li>Leave optional columns unmapped to use the defaults shown under each field.</li>
@@ -491,7 +491,7 @@
     // before generic ones (e.g. Trip Date matching plain "date").
     var FIELDS = [
         { key: 'transaction_post_date', label: 'Post Date', required: false, match: [/post\w* date/, /posting/] },
-        { key: 'transaction_id', label: 'Transaction ID', required: true, match: [/transaction/, /txn/, /trans (id|no)/] },
+        { key: 'transaction_id', label: 'Transaction ID', required: true, match: [/transaction\s*id/, /trans\s*(id|no)/, /\btxn\b/] },
         { key: 'trip_date', label: 'Trip Date', required: true, match: [/trip date/, /trip.*date/, /\bdate\b/] },
         { key: 'trip_time', label: 'Trip Time', required: true, match: [/trip time/, /\btime\b/] },
         { key: 'toll_gate', label: 'Toll Gate', required: true, match: [/toll/, /\bgate\b/] },
@@ -499,7 +499,8 @@
         { key: 'tag_number', label: 'Tag Number', required: true, match: [/\btag\b/] },
         { key: 'plate', label: 'Plate Number', required: true, match: [/plate/] },
         { key: 'admin_charges', label: 'Admin Charge', required: false, match: [/admin\s*charge/, /admin\s*fee/, /\badmin\b/] },
-        { key: 'amount', label: 'Amount', required: true, match: [/amount/, /charge/] },
+        // Prefer "Amount (AED)" over "VAT Amount" / "Total Amount"
+        { key: 'amount', label: 'Amount', required: true, match: [/amount\s*\(?\s*aed/, /\bamount\b/] },
         { key: 'billing_month', label: 'Billing Month', required: false, match: [/billing/, /\bmonth\b/] }
     ];
     var TOTAL_REQUIRED = FIELDS.filter(function (f) { return f.required; }).length;
@@ -522,6 +523,19 @@
 
     function normalize(text) {
         return String(text || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+
+    /** Salik portal exports often put "Transaction ID" below a report preamble — not always row 1. */
+    function findHeaderRowIndex(rows) {
+        for (var i = 0; i < rows.length; i++) {
+            var row = rows[i] || [];
+            for (var j = 0; j < row.length; j++) {
+                if (/^\s*transaction\s*id\s*$/i.test(String(row[j] || '').trim())) {
+                    return i;
+                }
+            }
+        }
+        return 0;
     }
 
     function escapeHtml(text) {
@@ -554,11 +568,12 @@
                 for (var c = 1; c <= colCount; c++) {
                     if (assigned[c]) continue;
                     var h = normalize(headers[c - 1]);
-                    if (h && f.match[i].test(h)) {
-                        mapping[f.key] = c;
-                        assigned[c] = f.key;
-                        break;
-                    }
+                    if (!h || !f.match[i].test(h)) continue;
+                    // Salik sheets also have "VAT Amount" / "Total Amount" — do not map those to Amount
+                    if (f.key === 'amount' && (/vat/.test(h) || /total/.test(h))) continue;
+                    mapping[f.key] = c;
+                    assigned[c] = f.key;
+                    break;
                 }
             }
         });
@@ -731,8 +746,17 @@
         var reader = new FileReader();
         reader.onload = function (e) {
             try {
-                var workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array', sheetRows: PREVIEW_ROWS + 1 });
+                // Read enough rows to find Salik header when a report preamble is present
+                var workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array', sheetRows: 40 });
                 var sheet = workbook.Sheets[workbook.SheetNames[0]];
+                // Salik exports leave A/B blank; SheetJS then starts the range at C, so preview
+                // "column A" is really Excel C. Force the range to start at A so letters match
+                // PhpSpreadsheet / the server importer.
+                if (sheet['!ref']) {
+                    var range = XLSX.utils.decode_range(sheet['!ref']);
+                    range.s.c = 0;
+                    sheet['!ref'] = XLSX.utils.encode_range(range);
+                }
                 var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
                 colCount = 0;
                 rows.forEach(function (row) { colCount = Math.max(colCount, row.length); });
@@ -740,7 +764,11 @@
                 if (!rows.length || !colCount) {
                     throw new Error('Empty sheet');
                 }
-                headers = (rows[0] || []).slice(0, colCount);
+                var headerIdx = findHeaderRowIndex(rows);
+                headers = (rows[headerIdx] || []).slice(0, colCount);
+                while (headers.length < colCount) {
+                    headers.push('');
+                }
                 showPreviewMode(file.name, rows.slice(0, PREVIEW_ROWS));
             } catch (err) {
                 resetMappingUi(true);

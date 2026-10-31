@@ -82,21 +82,22 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     }
 
     /**
-     * Default 1-based columns matching the downloadable template.
+     * Default 1-based columns matching Salik portal "ViewTrips" exports
+     * (leading blank columns A–B are normal).
      */
     private function defaultColumnMap(): array
     {
         return [
-            'transaction_id' => 1,
-            'trip_date' => 2,
-            'trip_time' => 3,
-            'transaction_post_date' => 4,
-            'toll_gate' => 5,
-            'direction' => 6,
-            'tag_number' => 7,
-            'plate' => 8,
-            'amount' => 9,
-            'billing_month' => 10,
+            'transaction_id' => 3,
+            'trip_date' => 4,
+            'trip_time' => 6,
+            'transaction_post_date' => 7,
+            'toll_gate' => 8,
+            'direction' => 10,
+            'tag_number' => 11,
+            'plate' => 16,
+            'amount' => 17,
+            'billing_month' => null,
             'admin_charges' => null,
         ];
     }
@@ -112,7 +113,11 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         }
 
         $index = ((int) $col) - 1;
-        return $row[$index] ?? null;
+        if ($row instanceof Collection) {
+            return $row->get($index);
+        }
+
+        return is_array($row) ? ($row[$index] ?? null) : null;
     }
 
     private function isMapped(string $key): bool
@@ -159,6 +164,9 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
         DB::beginTransaction();
 
         try {
+            // Rebuild map from the sheet header so preview/SheetJS column-letter drift
+            // (blank leading cols) cannot point Transaction ID at an empty Excel column.
+            $headerRowIndex = $this->reconcileColumnMapFromHeader($rows);
             $this->slashDateOrder = $this->detectSheetSlashDateOrder($rows);
 
             $importedSalikIds = [];
@@ -173,19 +181,29 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
             $updatedCount = 0;
             $processedTransactionIds = [];
             $consecutiveEmpty = 0;
+            $seenTransactionData = false;
 
-            foreach ($rows->skip(1) as $rowIndex => $row) {
+            foreach ($rows as $rowIndex => $row) {
+                // Skip preamble + the header row itself (Salik exports often have title rows first).
+                if (is_numeric($rowIndex) && (int) $rowIndex <= $headerRowIndex) {
+                    continue;
+                }
+
                 $rowCount++;
-                // Excel row 1 is the header; first data row is Excel row 2
+                // Collection keys are 0-based; Excel rows are 1-based
                 $excelRowNumber = is_numeric($rowIndex)
                     ? ((int) $rowIndex + 1)
                     : ($rowCount + 1);
 
                 $transactionIdRaw = $this->cell($row, 'transaction_id');
-                $transactionIdStr = $transactionIdRaw === null ? '' : trim((string) $transactionIdRaw);
+                $transactionIdStr = $this->normalizeTransactionId($transactionIdRaw);
 
-                // Only truly empty Trans ID cells count toward end-of-data stop
+                // Empty Trans ID before any real trip row: keep scanning (preamble / blank lines).
+                // After data has started, N consecutive empties mean end of sheet.
                 if ($transactionIdStr === '') {
+                    if (!$seenTransactionData) {
+                        continue;
+                    }
                     $consecutiveEmpty++;
                     if ($consecutiveEmpty >= self::END_OF_DATA_THRESHOLD) {
                         break;
@@ -195,6 +213,10 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
 
                 // Non-numeric Trans ID still has data — do not count as empty / do not stop import
                 if (!preg_match('/^\d+$/', $transactionIdStr)) {
+                    if (!$seenTransactionData) {
+                        // Preamble labels in the Trans ID column (e.g. section titles) — skip quietly
+                        continue;
+                    }
                     $consecutiveEmpty = 0;
                     $this->storeFailedImport(
                         $row,
@@ -207,6 +229,7 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
                     continue;
                 }
 
+                $seenTransactionData = true;
                 $consecutiveEmpty = 0;
                 $transactionId = $transactionIdStr;
 
@@ -456,6 +479,139 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     }
 
     /**
+     * Overwrite columnMap from the real header labels (1-based Excel positions).
+     * Client preview can shift letters left when leading columns are blank.
+     */
+    private function reconcileColumnMapFromHeader(Collection $rows): int
+    {
+        $headerRowIndex = $this->findHeaderRowIndex($rows);
+        $headerRow = $rows->get($headerRowIndex);
+        if ($headerRow === null) {
+            return $headerRowIndex;
+        }
+
+        $values = $headerRow instanceof Collection ? $headerRow->all() : (array) $headerRow;
+        if ($values === []) {
+            return $headerRowIndex;
+        }
+
+        $matchers = [
+            'transaction_post_date' => ['/post\s*date/i', '/posting/i'],
+            'transaction_id' => ['/^\s*transaction\s*id\s*$/i', '/trans\s*(id|no)/i'],
+            'trip_date' => ['/trip\s*date/i'],
+            'trip_time' => ['/trip\s*time/i', '/^\s*time\s*$/i'],
+            'toll_gate' => ['/toll/i', '/gate/i'],
+            'direction' => ['/direction/i'],
+            'tag_number' => ['/\btag\b/i'],
+            'plate' => ['/plate/i'],
+            'amount' => ['/amount\s*\(?\s*aed/i', '/^\s*amount\s*$/i'],
+            'billing_month' => ['/billing/i'],
+            'admin_charges' => ['/admin\s*charge/i', '/admin\s*fee/i'],
+        ];
+
+        $detected = [];
+        $used = [];
+        foreach ($matchers as $field => $patterns) {
+            foreach ($values as $idx => $label) {
+                $col = ((int) $idx) + 1;
+                if (isset($used[$col]) || !is_string($label) || trim($label) === '') {
+                    continue;
+                }
+                $normalized = strtolower(trim(preg_replace('/\s+/', ' ', $label)));
+                if ($field === 'amount' && (str_contains($normalized, 'vat') || str_contains($normalized, 'total'))) {
+                    continue;
+                }
+                foreach ($patterns as $pattern) {
+                    if (preg_match($pattern, $label) || preg_match($pattern, $normalized)) {
+                        $detected[$field] = $col;
+                        $used[$col] = $field;
+                        break 2;
+                    }
+                }
+            }
+        }
+
+        if (isset($detected['trip_date']) && !isset($detected['trip_time'])) {
+            $dateLabel = strtolower((string) ($values[$detected['trip_date'] - 1] ?? ''));
+            if (str_contains($dateLabel, 'time')) {
+                $detected['trip_time'] = $detected['trip_date'];
+            }
+        }
+
+        foreach ($detected as $field => $col) {
+            $this->columnMap[$field] = $col;
+        }
+
+        // Keep optional fields unmapped when the sheet has no such header
+        foreach (['transaction_post_date', 'billing_month', 'admin_charges'] as $optional) {
+            if (!isset($detected[$optional])) {
+                $this->columnMap[$optional] = null;
+            }
+        }
+
+        \Log::info('Salik import column map after header reconcile', [
+            'header_row' => $headerRowIndex + 1,
+            'column_map' => $this->columnMap,
+        ]);
+
+        return $headerRowIndex;
+    }
+
+    /**
+     * Locate the Salik header row (may not be row 1 — portal exports add a report preamble).
+     */
+    private function findHeaderRowIndex(Collection $rows): int
+    {
+        foreach ($rows as $index => $row) {
+            $values = $row instanceof Collection ? $row->all() : (array) $row;
+            foreach ($values as $value) {
+                if (!is_string($value)) {
+                    continue;
+                }
+                if (preg_match('/^\s*transaction\s*id\s*$/i', trim($value))) {
+                    return is_numeric($index) ? (int) $index : 0;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Normalize Excel Trans ID cells (strings, ints, floats, scientific notation) to digit text.
+     */
+    private function normalizeTransactionId($raw): string
+    {
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+
+        if (is_int($raw)) {
+            return (string) $raw;
+        }
+
+        if (is_float($raw)) {
+            return sprintf('%.0f', $raw);
+        }
+
+        $str = trim((string) $raw);
+        if ($str === '') {
+            return '';
+        }
+
+        if (preg_match('/^\d+(\.\d+)?[eE][+-]?\d+$/', $str)) {
+            return sprintf('%.0f', (float) $str);
+        }
+
+        // Excel sometimes appends .0 to numeric IDs stored as text/number hybrids
+        if (preg_match('/^\d+\.0+$/', $str)) {
+            return substr($str, 0, strpos($str, '.'));
+        }
+
+        return str_replace([' ', ','], '', $str);
+    }
+
+    /**
      * Extract plate number as the longest contiguous digit run from a cell.
      */
     private function extractPlateNumber($raw): ?string
@@ -480,8 +636,13 @@ class SalikImport extends DefaultValueBinder implements ToCollection, WithCustom
     {
         $dateKeys = ['trip_date', 'trip_time', 'transaction_post_date', 'billing_month'];
         $samples = [];
+        $headerRowIndex = $this->findHeaderRowIndex($rows);
 
-        foreach ($rows->skip(1) as $row) {
+        foreach ($rows as $rowIndex => $row) {
+            if (is_numeric($rowIndex) && (int) $rowIndex <= $headerRowIndex) {
+                continue;
+            }
+
             foreach ($dateKeys as $key) {
                 if (!$this->isMapped($key)) {
                     continue;

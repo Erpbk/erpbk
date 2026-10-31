@@ -5,9 +5,6 @@ $tableColumns = $tableColumns ?? [];
 $exportRoute = $exportRoute ?? null;
 $tableIdentifier = $tableIdentifier ?? 'riders_table';
 $fixedColumnsCount = (int) ($fixedColumnsCount ?? 1);
-$exportFilterKeys = $exportFilterKeys ?? [
-    'rider_id', 'name', 'fleet_supervisor', 'status', 'emirate_hub', 'quick_search', 'rider_top_option_id',
-];
 $exportNote = $exportNote
     ?? 'Only ticked columns are exported, in the current order, for all riders. Status exports as Status + Status Days; Name includes a profile link.';
 $explicitModuleKey = $moduleKey ?? null;
@@ -409,11 +406,6 @@ document.addEventListener('DOMContentLoaded', function() {
       url.searchParams.set('format', format);
       url.searchParams.set('visible_columns', JSON.stringify(visibleColumns));
       url.searchParams.set('column_order', JSON.stringify(columnOrder));
-      const currentUrl = new URL(window.location);
-      (@json($exportFilterKeys)).forEach(param => {
-        const value = currentUrl.searchParams.get(param);
-        if (value) url.searchParams.set(param, value);
-      });
       window.location.href = url.toString();
     },
 

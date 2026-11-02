@@ -53,7 +53,21 @@ class DeleteRequestsController extends Controller
                 $q->where('record_label', 'like', '%' . $search . '%')
                     ->orWhere('module_name', 'like', '%' . $search . '%')
                     ->orWhere('reason', 'like', '%' . $search . '%')
-                    ->orWhere('id', $search);
+                    ->orWhere('id', $search)
+                    ->orWhere('deletable_id', $search);
+
+                // Match cascaded child ids so searching a linked receipt/tx finds the primary request.
+                if (ctype_digit((string) $search)) {
+                    $childId = (int) $search;
+                    $q->orWhere(function ($cascadeQ) use ($childId) {
+                        $cascadeQ->whereNotNull('cascaded_records')
+                            ->where(function ($jsonQ) use ($childId) {
+                                $jsonQ->whereJsonContains('cascaded_records', ['id' => $childId])
+                                    ->orWhere('cascaded_records', 'like', '%"id":' . $childId . '%')
+                                    ->orWhere('cascaded_records', 'like', '%"id": ' . $childId . '%');
+                            });
+                    });
+                }
             });
         }
 

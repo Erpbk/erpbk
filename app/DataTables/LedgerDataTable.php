@@ -13,6 +13,7 @@ use App\Models\salik;
 use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
+use App\Services\DeleteRequestService;
 use App\Support\CompanyQuery;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,17 @@ class LedgerDataTable extends DataTable
         }
         $transactions = $query->get();
         $openingBalance = $this->getOpeningBalance();
+
+        // Batch pending-deletion lookup for visible txs + vouchers (one reverse-map build).
+        $pendingTxRequestIds = DeleteRequestService::pendingRequestIdsForIds(
+            Transactions::class,
+            $transactions->pluck('id')->map(fn ($id) => (int) $id)->all()
+        );
+        $voucherIds = $transactions->pluck('voucher.id')->filter()->map(fn ($id) => (int) $id)->unique()->values()->all();
+        $pendingVoucherRequestIds = DeleteRequestService::pendingRequestIdsForIds(
+            Vouchers::class,
+            $voucherIds
+        );
 
         $data = [];
         $runningBalance = $openingBalance;
@@ -405,6 +417,14 @@ class LedgerDataTable extends DataTable
             }
             $accountCode = $row->account ? ($row->account->account_code ?? 'N/A') : 'N/A';
             $accountName = $row->account ? ($row->account->name ?? 'N/A') : 'N/A';
+
+            $pendingRequestId = $pendingTxRequestIds[(int) $row->id]
+                ?? ($row->voucher ? ($pendingVoucherRequestIds[(int) $row->voucher->id] ?? null) : null);
+            if ($pendingRequestId) {
+                $naration .= ' <span class="badge bg-warning text-dark pending-deletion-badge" title="Linked to pending delete request #'
+                    . (int) $pendingRequestId . '"><i class="ti ti-lock me-1"></i>Pending Deletion</span>';
+            }
+
             $data[] = [
                 'date' => "<span style='white-space: nowrap;'>" . Common::DateFormat($row->trans_date) . '</span>',
                 'account_name' => $accountCode . '-' . $accountName,

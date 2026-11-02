@@ -4,42 +4,88 @@
 $installmentPayRoute = $installmentPayRoute ?? 'Installments.payInstallment';
 $installmentUpdateFieldRoute = $installmentUpdateFieldRoute ?? 'Installments.updateInstallmentField';
 $installmentDeleteRoute = $installmentDeleteRoute ?? 'Installments.deleteInstallment';
+$installmentBulkDeleteRoute = $installmentBulkDeleteRoute ?? 'Installments.bulkDeleteInstallments';
 $installmentPaymentReceivingRoute = $installmentPaymentReceivingRoute ?? 'Installments.paymentReceivingModal';
+$installmentEditPaymentReceivingRoute = $installmentEditPaymentReceivingRoute ?? 'Installments.editPaymentReceiving';
 $canEditInstallment = $canEditInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('edit');
 $canDeleteInstallment = $canDeleteInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('delete');
 $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_plan::class;
+$installmentTableScope = $installmentTableScope
+    ?? \Illuminate\Support\Str::kebab(class_basename($installmentPlanModel));
+$linkedReceiptsById = $linkedReceiptsById ?? collect();
 @endphp
-<div id="visa-installments-inline-edit-scope">
-    <table class="table table-striped dataTable no-footer" id="visaInstallmentsDataTable">
+<div class="riders-list-demo" id="{{ $installmentTableScope }}-inline-edit-scope"
+     data-bulk-delete-url="{{ route($installmentBulkDeleteRoute) }}">
+    @if($canDeleteInstallment)
+    <div class="d-flex justify-content-end mb-2 px-1">
+        <button type="button" class="btn btn-sm btn-outline-danger js-installment-delete-selected" id="{{ $installmentTableScope }}-delete-selected" style="display:none;" onclick="deleteSelectedInstallments(this)">
+            <i class="fa fa-trash me-1"></i> Delete Selected
+        </button>
+    </div>
+    @endif
+    <div class="rl-tbox">
+    <table class="table" id="{{ $installmentTableScope }}-data-table">
         <thead class="text-center">
-            <tr role="row">
-                <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-                <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-                <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-                <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
-                <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-                <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
-                <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
-                <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
-                <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
+            <tr id="rlHead" role="row">
+                @if($canDeleteInstallment)
+                <th class="nosort" title="Select All" width="50px">
+                    <input type="checkbox" class="js-installment-select-all" id="{{ $installmentTableScope }}-select-all" onchange="toggleInstallmentSelectAll(this)" style="transform:scale(1.2);cursor:pointer;">
+                </th>
+                @endif
+                <th title="Date" class="sorting" tabindex="0">Date <span class="ar">⇅</span></th>
+                <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
+                <th title="Receipts" class="sorting" tabindex="0">Receipts <span class="ar">⇅</span></th>
+                <th title="Billing Month" class="sorting" tabindex="0">Billing Month <span class="ar">⇅</span></th>
+                <th title="Narration" class="sorting" tabindex="0">Narration <span class="ar">⇅</span></th>
+                <th title="Amount" class="sorting" tabindex="0">Amount <span class="ar">⇅</span></th>
+                <th title="Created By" class="sorting" tabindex="0">Created By <span class="ar">⇅</span></th>
+                <th title="Updated By" class="sorting" tabindex="0">Updated By <span class="ar">⇅</span></th>
+                <th title="Status" class="sorting" tabindex="0">Status <span class="ar">⇅</span></th>
+                <th title="Action" class="nosort" width="120px">Action</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="rlBody">
             @forelse($data as $installment)
             @php
             $installmentPendingDeletion = record_is_pending_deletion($installment);
             $voucherPendingDeletion = $installment->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
             $rowPendingDeletion = $installmentPendingDeletion || $voucherPendingDeletion;
+            $partialsMap = is_array($installment->partial_paid_amount) ? $installment->partial_paid_amount : [];
+            $rowLinkedReceiptIds = [];
+            $rowLinkedReceipts = [];
+            foreach ($partialsMap as $rid => $amt) {
+                $rid = (int) $rid;
+                if ($rid <= 0 || (float) $amt <= 0) {
+                    continue;
+                }
+                $rowLinkedReceiptIds[] = $rid;
+                if (isset($linkedReceiptsById[$rid])) {
+                    $rowLinkedReceipts[] = $linkedReceiptsById[$rid];
+                } else {
+                    $rowLinkedReceipts[] = (object) [
+                        'id' => $rid,
+                        'voucher_id' => null,
+                    ];
+                }
+            }
+            // Gate edits on partial_paid_amount itself, not only preloaded receipt rows.
+            $hasLinkedReceipts = $rowLinkedReceiptIds !== [];
+            $canInlineEdit = $canEditInstallment && !$rowPendingDeletion && !$hasLinkedReceipts;
             @endphp
             <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
+                @if($canDeleteInstallment)
+                <td>
+                    @if(!$rowPendingDeletion)
+                    <input type="checkbox" class="installment-checkbox" value="{{ $installment->id }}" onchange="updateInstallmentDeleteButton(this)" style="transform:scale(1.2);cursor:pointer;">
+                    @endif
+                </td>
+                @endif
                 <td>
                     <span id="inst_date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
+                    @if($canInlineEdit)
                     <a href="javascript:void(0);" onclick="editDate({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
-                    @endif
                     @endif
                     <input type="date"
                         id="inst_date_input_{{ $installment->id }}"
@@ -62,13 +108,32 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
                     </span>
                 </td>
                 <td>
+                    @if($rowLinkedReceipts !== [])
+                    <div class="d-flex flex-column gap-1 align-items-center">
+                        @foreach($rowLinkedReceipts as $linkedReceipt)
+                            @if($linkedReceipt->voucher_id)
+                            <a href="javascript:void(0);"
+                                data-action="{{ route('vouchers.show', $linkedReceipt->voucher_id) }}"
+                                class="text-primary show-voucher-panel"
+                                data-title="Receipt Voucher RV-{{ $linkedReceipt->voucher_id }}"
+                                data-collapse-sidebar="1">
+                                RV-{{ $linkedReceipt->voucher_id }}
+                            </a>
+                            @else
+                            <span class="text-muted">Receipt #{{ $linkedReceipt->id }}</span>
+                            @endif
+                        @endforeach
+                    </div>
+                    @else
+                    -
+                    @endif
+                </td>
+                <td>
                     <span id="inst_billing_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->billing_month)->format('M Y') }}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
+                    @if($canInlineEdit)
                     <a href="javascript:void(0);" onclick="editBillingMonth({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
-                    @endif
                     @endif
                     <input type="month"
                         id="inst_billing_input_{{ $installment->id }}"
@@ -78,29 +143,25 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
                         onkeypress="if(event.keyCode==13) saveBillingMonth({{ $installment->id }})">
                 </td>
                 <td class="text-start" style="min-width: 260px;">
-                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
+                    <span id="inst_narration_display_{{ $installment->id }}">{!! $installment->narration ? $installment->narration : '-' !!}</span>
+                    @if($canInlineEdit)
                     <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
                     @endif
-                    @endif
                     <textarea
                         id="inst_narration_input_{{ $installment->id }}"
                         rows="2"
-                        data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
+                        data-original="{{ e($installment->narration ?? '') }}"
                         class="form-control form-control-sm d-none"
-                        onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
+                        onblur="saveNarration({{ $installment->id }})">{{ $installment->narration ?? '' }}</textarea>
                 </td>
                 <td>
                     <span id="inst_amount_display_{{ $installment->id }}">{{ number_format($installment->amount, 2) }}</span>
-                    @if($canEditInstallment)
-                    @if(!$rowPendingDeletion)
+                    @if($canInlineEdit)
                     <a href="javascript:void(0);" onclick="editAmount({{ $installment->id }})" class="ms-2">
                         <i class="fa fa-edit text-primary"></i>
                     </a>
-                    @endif
                     @endif
                     <input type="number"
                         step="0.01"
@@ -140,13 +201,35 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
                             </a>
                             <div class="dropdown-divider"></div>
                             @endif
+                            @foreach($rowLinkedReceipts as $linkedReceipt)
+                            @php
+                              $linkedRvLabel = $linkedReceipt->voucher_id
+                                ? 'RV-' . $linkedReceipt->voucher_id
+                                : 'Receipt #' . $linkedReceipt->id;
+                            @endphp
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect show-modal action-btn"
+                                data-action="{{ route($installmentEditPaymentReceivingRoute, $linkedReceipt->id) }}"
+                                data-size="xl"
+                                data-title="Edit {{ $linkedRvLabel }}">
+                                <i class="fa fa-edit me-2"></i> Edit {{ $linkedRvLabel }}
+                            </a>
+                            <a href="javascript:void(0);"
+                                class="dropdown-item waves-effect text-danger"
+                                onclick='confirmDeleteProtected("{{ route('receipts.destroy', $linkedReceipt->id) }}")'>
+                                <i class="fa fa-trash me-2"></i> Delete {{ $linkedRvLabel }}
+                            </a>
+                            @endforeach
+                            @if($rowLinkedReceipts !== [])
+                            <div class="dropdown-divider"></div>
+                            @endif
                             @if($installment->status === 'pending' || $installment->status === 'partial')
                             <a href="javascript:void(0);"
                                 onclick="markAsPaid({{ $installment->id }})"
                                 class='dropdown-item waves-effect'>
                                 <i class="fa fa-check me-2"></i> Mark as Paid
                             </a>
-                            @else
+                            @elseif(!$hasLinkedReceipts)
                             <a href="javascript:void(0);"
                                 onclick="markAsPending({{ $installment->id }})"
                                 class='dropdown-item waves-effect'>
@@ -169,7 +252,7 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
             </tr>
             @empty
             <tr>
-                <td colspan="9" class="text-center text-muted py-4">
+                <td colspan="11" class="rl-empty text-center text-muted py-4">
                     <i class="fa fa-info-circle me-2"></i>
                     No installment plans found. <br>
                     <small>Click "Create Installment Plan" to get started.</small>
@@ -177,28 +260,8 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
             </tr>
             @endforelse
         </tbody>
-        @if($data->count() > 0)
-        <tfoot>
-            <tr class="bg-light">
-                <td colspan="3" class="text-end"><strong>Total Amount Reference:</strong></td>
-                <td class="text-center">
-                    <strong>
-                        @php
-                        $totalAmount = $data->first()->total_amount ?? 0;
-                        $currentTotal = $data->sum('amount');
-                        $riderId = $data->first()->rider_id ?? null;
-                        $paidTotal = $riderId ? $installmentPlanModel::where('rider_id', $riderId)->where('status', 'paid')->sum('amount') : 0;
-                        $pendingTotalAll = $riderId ? $installmentPlanModel::where('rider_id', $riderId)->where('status', 'pending')->sum('amount') : 0;
-                        @endphp
-                        <span id="total-amount-reference">{{ number_format($currentTotal, 2) }}</span>
-                        <br>
-                    </strong>
-                </td>
-                <td colspan="5"></td>
-            </tr>
-        </tfoot>
-        @endif
     </table>
+    </div>
     @if(method_exists($data, 'links'))
     {!! $data->links('pagination') !!}
     @endif
@@ -575,6 +638,9 @@ $installmentPlanModel = $installmentPlanModel ?? \App\Models\visa_installment_pl
 'method' => 'GET',
 'functionName' => 'confirmDeleteProtected',
 ])
+@once
+@include('visa_expenses.partials.multi_delete_scripts')
+@endonce
 <script>
     // Store original values when page loads
     document.addEventListener('DOMContentLoaded', function() {

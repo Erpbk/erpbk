@@ -1276,6 +1276,21 @@ class TrashController extends Controller
             $deletedItems[] = 'Transaction #' . $transaction->id;
         }
 
+        $receiptIds = [];
+        $partials = is_array($record->partial_paid_amount ?? null) ? $record->partial_paid_amount : [];
+        foreach ($partials as $receiptId => $amount) {
+            $id = (int) $receiptId;
+            if ($id > 0) {
+                $receiptIds[] = $id;
+            }
+        }
+        if ($receiptIds !== []) {
+            DeleteRequestService::purgeInstallmentLinkedReceipts($record);
+            foreach (array_unique($receiptIds) as $receiptId) {
+                $deletedItems[] = 'Receipt #' . $receiptId;
+            }
+        }
+
         $this->syncInstallmentLiabilityLedger($record);
         $deletedItems[] = 'liability ledger synced';
 

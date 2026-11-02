@@ -1375,6 +1375,7 @@ class VisaexpenseController extends AppBaseController
         $this->applyInstallmentRiderScope($installmentQuery, $account);
         $installmentData = $this->applyPagination($installmentQuery, $paginationParams);
         $installmentStats = $this->installmentPlanSummary($account);
+        $linkedReceiptsById = $this->preloadInstallmentLinkedReceipts($installmentData);
 
         if ($request->ajax()) {
             $tableData = view('visa_expenses.table', [
@@ -1396,6 +1397,7 @@ class VisaexpenseController extends AppBaseController
             'data' => $data,
             'installmentData' => $installmentData,
             'installmentStats' => $installmentStats,
+            'linkedReceiptsById' => $linkedReceiptsById,
             'account' => $account,
             'visaStatuses' => VisaRenewalCategoryService::activeStatusesForCategory($activeCategoryId),
             'activeRenewalCategory' => $activeRenewalCategory,
@@ -1440,6 +1442,7 @@ class VisaexpenseController extends AppBaseController
             'licenseCategoryAccounts' => collect(),
             'licInstallmentData'  => collect(),
             'licInstallmentStats' => ['unpaid_amount'=>0,'paid_amount'=>0,'paid_count'=>0,'unpaid_count'=>0],
+            'licLinkedReceiptsById' => collect(),
         ];
 
         if (! $riderId
@@ -1488,11 +1491,22 @@ class VisaexpenseController extends AppBaseController
             ->with(['vouchers', 'installmentTransactions'])
             ->orderBy('date', 'asc')
             ->get();
+        $licLinkedReceiptsById = $this->preloadInstallmentLinkedReceipts($licInstallmentData);
         $licInstallmentStats = [
-            'unpaid_amount' => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->sum('amount'),
-            'paid_amount'   => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->sum('amount'),
+            'unpaid_amount' => (float) (clone $licInstallmentBase)
+                ->whereIn('status', [
+                    license_installment_plan::STATUS_PENDING,
+                    license_installment_plan::STATUS_PARTIAL,
+                ])
+                ->selectRaw('COALESCE(SUM(GREATEST(amount - COALESCE(paid_amount, 0), 0)), 0) as outstanding')
+                ->value('outstanding'),
+            'paid_amount'   => (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->sum('amount')
+                + (float) (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PARTIAL)->sum('paid_amount'),
             'paid_count'    => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PAID)->count(),
-            'unpaid_count'  => (int)   (clone $licInstallmentBase)->where('status', license_installment_plan::STATUS_PENDING)->count(),
+            'unpaid_count'  => (int)   (clone $licInstallmentBase)->whereIn('status', [
+                license_installment_plan::STATUS_PENDING,
+                license_installment_plan::STATUS_PARTIAL,
+            ])->count(),
         ];
 
         return [
@@ -1510,6 +1524,7 @@ class VisaexpenseController extends AppBaseController
             'licenseCategoryAccounts' => $licenseAccounts,
             'licInstallmentData'  => $licInstallmentData,
             'licInstallmentStats' => $licInstallmentStats,
+            'licLinkedReceiptsById' => $licLinkedReceiptsById,
         ];
     }
 
@@ -1909,7 +1924,7 @@ class VisaexpenseController extends AppBaseController
 
         try {
             $visaExpenses = visa_expenses::findOrFail($request->id);
-            $oldAmount = $visaExpenses->amount;
+            $previousBillingMonth = $visaExpenses->billing_month;
             $billingMonth = $request->billing_month . "-01";
 
             $request->validate([
@@ -1924,33 +1939,7 @@ class VisaexpenseController extends AppBaseController
             $visaExpenses->reference_number = $request->reference_number;
             $visaExpenses->save();
 
-            // If this visa expense is already paid, update related voucher and transactions amounts
-            if ($visaExpenses->payment_status == 'paid') {
-                // Update voucher amount(s) linked to this visa expense
-                $vouchers = Vouchers::where('ref_id', $visaExpenses->id)
-                    ->where('voucher_type', 'LV')
-                    ->first();
-                if ($vouchers) {
-                    $vouchers->reference_number = $visaExpenses->reference_number;
-                    $vouchers->amount = $visaExpenses->amount;
-                    $vouchers->save();
-                }
-
-                // Update related transactions amounts (both debit and credit sides)
-                $transactions = Transactions::where('reference_id', $visaExpenses->id)
-                    ->where('reference_type', 'LV')
-                    ->get();
-
-                foreach ($transactions as $transaction) {
-                    if ($transaction->debit > 0) {
-                        $transaction->debit = $visaExpenses->amount;
-                    }
-                    if ($transaction->credit > 0) {
-                        $transaction->credit = $visaExpenses->amount;
-                    }
-                    $transaction->save();
-                }
-            }
+            $this->syncPaidExpenseFinancials($visaExpenses, 'LV', 'LV', $previousBillingMonth);
 
             DB::commit();
             Flash::success('Visa Expense updated successfully');
@@ -1976,10 +1965,26 @@ class VisaexpenseController extends AppBaseController
         ]);
 
         $row = visa_expenses::findOrFail($validated['id']);
-        $row->amount = $validated['amount'];
-        $row->date = $validated['date'];
-        $row->billing_month = $validated['billing_month'] . '-01';
-        $row->save();
+        $previousBillingMonth = $row->billing_month;
+
+        DB::beginTransaction();
+        try {
+            $row->amount = $validated['amount'];
+            $row->date = $validated['date'];
+            $row->billing_month = $validated['billing_month'] . '-01';
+            $row->save();
+
+            $this->syncPaidExpenseFinancials($row, 'LV', 'LV', $previousBillingMonth);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating visa expense: ' . $e->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,
@@ -2248,6 +2253,90 @@ class VisaexpenseController extends AppBaseController
             'Visa Expenses Entry deleted successfully.',
             'Visa Expense payment reversed. Status is now unpaid.'
         );
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        if (!VisaExpenseAccess::canManageEntries('delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete visa expenses.',
+            ], 403);
+        }
+
+        $ids = collect($request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No expenses selected for deletion.',
+            ], 400);
+        }
+
+        $deleted = 0;
+        $queued = 0;
+        $errors = [];
+
+        foreach ($ids as $id) {
+            try {
+                request()->attributes->remove('delete_approval_created');
+
+                $expense = visa_expenses::find($id);
+                if (!$expense) {
+                    $errors[] = "Expense #{$id} not found.";
+                    continue;
+                }
+
+                $response = $this->destroyExpenseEntry(
+                    $expense,
+                    'LV',
+                    'LV',
+                    'Visa Expense Entry not found',
+                    'Visa Expenses Entry deleted successfully.',
+                    'Visa Expense payment reversed. Status is now unpaid.'
+                );
+
+                if ($response instanceof \Illuminate\Http\JsonResponse) {
+                    $payload = $response->getData(true);
+                    if (!empty($payload['queued'])) {
+                        $queued++;
+                    } elseif (!empty($payload['success'])) {
+                        $deleted++;
+                    } else {
+                        $errors[] = $payload['message'] ?? "Expense #{$id} could not be deleted.";
+                    }
+                } else {
+                    $deleted++;
+                }
+            } catch (\Throwable $e) {
+                $errors[] = "Expense #{$id}: " . $e->getMessage();
+            }
+        }
+
+        $parts = [];
+        if ($deleted > 0) {
+            $parts[] = "{$deleted} deleted";
+        }
+        if ($queued > 0) {
+            $parts[] = "{$queued} queued for approval";
+        }
+        if ($errors !== []) {
+            $parts[] = count($errors) . ' failed';
+        }
+
+        return response()->json([
+            'success' => $deleted > 0 || $queued > 0,
+            'message' => $parts !== []
+                ? ('Visa expenses: ' . implode(', ', $parts) . '.')
+                : 'No expenses were deleted.',
+            'errors' => $errors,
+            'reload' => true,
+        ], ($deleted > 0 || $queued > 0) ? 200 : 422);
     }
 
     /**

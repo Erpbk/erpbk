@@ -173,7 +173,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
           </a>
           @endif
           @if($licInstallmentData->count() > 0)
-          <a class="btn btn-sm btn-exp-ghost action-btn show-modal"
+          <a class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
             data-size="xl"

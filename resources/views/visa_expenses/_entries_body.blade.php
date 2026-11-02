@@ -34,6 +34,14 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
 @endphp
 
 @include('partials.expense_panel_styles')
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261031-visa-tables">
+<style>
+  /* Nested expense tables: keep rider-list look without locking the whole page height. */
+  .exp-panel .riders-list-demo .rl-tbox {
+    max-height: none;
+    border-radius: 10px;
+  }
+</style>
 
 <div class="content exp-panel">
   @include('flash::message')
@@ -181,7 +189,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           @endcan
           @if(isset($installmentData) && $installmentData->count() > 0)
           <a href="javascript:void(0);"
-            class="btn btn-sm btn-exp-ghost action-btn show-modal"
+            class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
             data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
             data-size="xl"
             data-title="Installment plan invoice — {{ $account->name ?? 'Person' }}">
@@ -226,11 +234,16 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         @include('visa_expenses.installmentPlanTable', [
         'data' => $installmentData ?? collect(),
         'account' => $account,
+        'linkedReceiptsById' => $linkedReceiptsById ?? collect(),
         'installmentPayRoute' => 'Installments.payInstallment',
         'installmentUpdateFieldRoute' => 'Installments.updateInstallmentField',
         'installmentDeleteRoute' => 'Installments.deleteInstallment',
+        'installmentBulkDeleteRoute' => 'Installments.bulkDeleteInstallments',
         'installmentPaymentReceivingRoute' => 'Installments.paymentReceivingModal',
+        'installmentEditPaymentReceivingRoute' => 'Installments.editPaymentReceiving',
         'installmentPlanModel' => \App\Models\visa_installment_plan::class,
+        'canEditInstallment' => \App\Support\VisaExpenseAccess::canManageInstallments('edit'),
+        'canDeleteInstallment' => \App\Support\VisaExpenseAccess::canManageInstallments('delete'),
         ])
       </div>
     </div>
@@ -321,7 +334,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           </a>
           @endif
           @if($licInstallmentData->count() > 0)
-          <a class="btn btn-sm btn-exp-ghost action-btn show-modal"
+          <a class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $licenseAccount->id]) }}"
             data-size="xl"
@@ -367,10 +380,13 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         @include('visa_expenses.installmentPlanTable', [
         'data' => $licInstallmentData,
         'account' => $licenseAccount,
+        'linkedReceiptsById' => $licLinkedReceiptsById ?? collect(),
         'installmentPayRoute' => 'LicenseExpense.payInstallment',
         'installmentUpdateFieldRoute' => 'LicenseExpense.updateInstallmentField',
         'installmentDeleteRoute' => 'LicenseExpense.deleteInstallment',
+        'installmentBulkDeleteRoute' => 'LicenseExpense.bulkDeleteInstallments',
         'installmentPaymentReceivingRoute' => 'LicenseExpense.paymentReceivingModal',
+        'installmentEditPaymentReceivingRoute' => 'LicenseExpense.editPaymentReceiving',
         'installmentPlanModel' => \App\Models\license_installment_plan::class,
         'canEditInstallment' => user_can('license_expense_edit') || user_can('licenseexpense_edit'),
         'canDeleteInstallment' => user_can('license_expense_delete') || user_can('licenseexpense_delete'),

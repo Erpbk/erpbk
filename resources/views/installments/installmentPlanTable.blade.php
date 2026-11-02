@@ -1,27 +1,62 @@
 ﻿@push('third_party_stylesheets')
 @endpush
-<table class="table table-striped dataTable no-footer" id="dataTableBuilder">
+@php
+    $canDeleteInstallment = $canDeleteInstallment ?? user_can('visa_expense_installments_delete');
+    $installmentBulkDeleteRoute = $installmentBulkDeleteRoute ?? 'Installments.bulkDeleteInstallments';
+    $installmentTableScope = $installmentTableScope ?? 'visa-installment-plan';
+@endphp
+<div class="riders-list-demo" id="{{ $installmentTableScope }}-inline-edit-scope"
+     data-bulk-delete-url="{{ route($installmentBulkDeleteRoute) }}">
+    @if($canDeleteInstallment)
+    <div class="d-flex justify-content-end mb-2 px-1">
+        <button type="button" class="btn btn-sm btn-outline-danger js-installment-delete-selected" id="{{ $installmentTableScope }}-delete-selected" style="display:none;" onclick="deleteSelectedInstallments(this)">
+            <i class="fa fa-trash me-1"></i> Delete Selected
+        </button>
+    </div>
+    @endif
+    <div class="rl-tbox">
+<table class="table" id="{{ $installmentTableScope }}-data-table">
     <thead class="text-center">
-        <tr role="row">
-            <th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>
-            <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-            <th title="Billing Month" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Billing Month: activate to sort column ascending">Billing Month</th>
-            <th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Amount: activate to sort column ascending">Amount</th>
-            <th title="Narration" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Narration: activate to sort column ascending">Narration</th>
-            <th title="Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Status: activate to sort column ascending">Status</th>
-            <th title="Created By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Created By: activate to sort column ascending">Created By</th>
-            <th title="Updated By" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Updated By: activate to sort column ascending">Updated By</th>
-            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
+        <tr id="rlHead" role="row">
+            @if($canDeleteInstallment)
+            <th class="nosort" title="Select All" width="50px">
+                <input type="checkbox" class="js-installment-select-all" id="{{ $installmentTableScope }}-select-all" onchange="toggleInstallmentSelectAll(this)" style="transform:scale(1.2);cursor:pointer;">
+            </th>
+            @endif
+            <th title="Date" class="sorting" tabindex="0">Date <span class="ar">⇅</span></th>
+            <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
+            <th title="Billing Month" class="sorting" tabindex="0">Billing Month <span class="ar">⇅</span></th>
+            <th title="Amount" class="sorting" tabindex="0">Amount <span class="ar">⇅</span></th>
+            <th title="Narration" class="sorting" tabindex="0">Narration <span class="ar">⇅</span></th>
+            <th title="Status" class="sorting" tabindex="0">Status <span class="ar">⇅</span></th>
+            <th title="Created By" class="sorting" tabindex="0">Created By <span class="ar">⇅</span></th>
+            <th title="Updated By" class="sorting" tabindex="0">Updated By <span class="ar">⇅</span></th>
+            <th title="Action" class="nosort" width="120px">Action</th>
         </tr>
     </thead>
-    <tbody>
+    <tbody id="rlBody">
         @forelse($data as $installment)
         @php
         $installmentPendingDeletion = record_is_pending_deletion($installment);
         $voucherPendingDeletion = $installment->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
         $rowPendingDeletion = $installmentPendingDeletion || $voucherPendingDeletion;
+        $partialsMap = is_array($installment->partial_paid_amount) ? $installment->partial_paid_amount : [];
+        $hasLinkedReceipts = false;
+        foreach ($partialsMap as $rid => $amt) {
+            if ((int) $rid > 0 && (float) $amt > 0) {
+                $hasLinkedReceipts = true;
+                break;
+            }
+        }
         @endphp
         <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $installment->id }}" data-status="{{ $installment->status }}">
+            @if($canDeleteInstallment)
+            <td>
+                @if(!$rowPendingDeletion)
+                <input type="checkbox" class="installment-checkbox" value="{{ $installment->id }}" onchange="updateInstallmentDeleteButton(this)" style="transform:scale(1.2);cursor:pointer;">
+                @endif
+            </td>
+            @endif
             <td>
                 <span id="date_display_{{ $installment->id }}">{{ \Carbon\Carbon::parse($installment->date)->format('d M Y') }}</span>
                 @can('visa_expense_installments_edit')
@@ -86,7 +121,7 @@
                     onkeypress="if(event.keyCode==13) saveAmount({{ $installment->id }})">
             </td>
             <td class="text-start" style="min-width: 260px;">
-                <span id="narration_display_{{ $installment->id }}">{!! $installment->transaction_narration ? $installment->transaction_narration : '-' !!}</span>
+                <span id="narration_display_{{ $installment->id }}">{!! $installment->narration ? $installment->narration : '-' !!}</span>
                 @can('visa_expense_installments_edit')
                 @if(!$rowPendingDeletion)
                 <a href="javascript:void(0);" onclick="editNarration({{ $installment->id }})" class="ms-2">
@@ -97,9 +132,9 @@
                 <textarea
                     id="narration_input_{{ $installment->id }}"
                     rows="2"
-                    data-original="{{ e($installment->transaction_narration ?? $installment->narration ?? '') }}"
+                    data-original="{{ e($installment->narration ?? '') }}"
                     class="form-control form-control-sm d-none"
-                    onblur="saveNarration({{ $installment->id }})">{{ $installment->transaction_narration ?? $installment->narration ?? '' }}</textarea>
+                    onblur="saveNarration({{ $installment->id }})">{{ $installment->narration ?? '' }}</textarea>
             </td>
             <td>{!! $installment->status_badge !!}</td>
             <td>
@@ -130,7 +165,7 @@
                             class='dropdown-item waves-effect'>
                             <i class="fa fa-check me-2"></i> Mark as Paid
                         </a>
-                        @else
+                        @elseif(!$hasLinkedReceipts)
                         <a href="javascript:void(0);"
                             onclick="markAsPending({{ $installment->id }})"
                             class='dropdown-item waves-effect'>
@@ -153,7 +188,7 @@
         </tr>
         @empty
         <tr>
-            <td colspan="9" class="text-center text-muted py-4">
+            <td colspan="10" class="rl-empty text-center text-muted py-4">
                 <i class="fa fa-info-circle me-2"></i>
                 No installment plans found. <br>
                 <small>Click "Create Installment Plan" to get started.</small>
@@ -164,7 +199,7 @@
     @if($data->count() > 0)
     <tfoot>
         <tr class="bg-light">
-            <td colspan="3" class="text-end"><strong>Total Amount Reference:</strong></td>
+            <td colspan="{{ $canDeleteInstallment ? 4 : 3 }}" class="text-end"><strong>Total Amount Reference:</strong></td>
             <td class="text-center">
                 <strong>
                     @php
@@ -184,7 +219,9 @@
     </tfoot>
     @endif
 </table>
+    </div>
 {!! $data->links('pagination') !!}
+</div>
 
 <script>
     // Track unsaved amount changes locally until user finalizes
@@ -532,6 +569,9 @@
     'method' => 'GET',
     'functionName' => 'confirmDeleteProtected',
 ])
+@once
+@include('visa_expenses.partials.multi_delete_scripts')
+@endonce
 <script>
     // Store original values when page loads
     document.addEventListener('DOMContentLoaded', function() {

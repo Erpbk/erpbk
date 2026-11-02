@@ -18,8 +18,8 @@
                 @endcan
                 @if($data->count() > 0)
                 <a href="javascript:void(0);"
-                    class="btn btn-info action-btn mx-2 show-modal"
-                    data-action="{{ route('VisaExpense.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
+                    class="btn btn-info action-btn mx-2 show-modal-right"
+                    data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
                     data-size="xl"
                     data-title="Installment plan invoice">
                     <i class="fa fa-file-invoice me-2"></i>Invoice
@@ -84,13 +84,21 @@
     </div>
 </section>
 
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261031-visa-tables">
 <div class="content px-3">
     @include('flash::message')
     <div class="clearfix"></div>
 
     <div class="card">
         <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include('visa_expenses.installmentPlanTable', ['data' => $data, 'account' => $account])
+            @include('visa_expenses.installmentPlanTable', [
+                'data' => $data,
+                'account' => $account,
+                'installmentBulkDeleteRoute' => $installmentBulkDeleteRoute ?? 'Installments.bulkDeleteInstallments',
+                'canDeleteInstallment' => $canDeleteInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('delete'),
+                'canEditInstallment' => $canEditInstallment ?? \App\Support\VisaExpenseAccess::canManageInstallments('edit'),
+                'installmentPlanModel' => $installmentPlanModel ?? \App\Models\visa_installment_plan::class,
+            ])
         </div>
     </div>
 </div>
@@ -102,6 +110,9 @@
     'confirmText' => 'This will submit a delete request or move the visa expense to the Recycle Bin.',
     'method' => 'GET',
 ])
+@once
+@include('visa_expenses.partials.multi_delete_scripts')
+@endonce
 <script type="text/javascript">
     $(document).ready(function() {
         $('#payment_status').select2({

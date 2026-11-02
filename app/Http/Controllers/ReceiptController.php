@@ -757,81 +757,181 @@ class ReceiptController extends Controller
             Flash::error('Receipt not found!');
 
             return redirect()->back();
-        } else {
-            Transactions::softDeleteMatching(
-                fn ($q) => $q->where('trans_code', $receipt->voucher->trans_code),
-                auth()->id()
-            );
-            Vouchers::where('id', $receipt->voucher_id)->delete();
-            $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
-            $chequeId = ResourceLinks::chequeId($links);
-            if ($receipt->amount_type == 'Cheque' || $chequeId) {
-                $cheque = $chequeId
-                    ? Cheques::find($chequeId)
-                    : ($receipt->voucher_id
-                        ? Cheques::findByClearVoucherId((int) $receipt->voucher_id)
-                        : null);
-                if ($cheque) {
-                    $cheque->recalculateClearState(excludeReceiptId: (int) $receipt->id);
-                }
-            }
+        }
 
-            $invoiceType = ResourceLinks::invoiceType($links);
-            $customerIds = $invoiceType === 'customer'
-                ? ResourceLinks::invoiceIds($links)
-                : [];
-            $billingIds = $invoiceType === 'leasingBilling'
-                ? ResourceLinks::invoiceIds($links)
-                : [];
+        $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
+        $invoiceType = ResourceLinks::invoiceType($links);
+        $isInstallmentReceipt = in_array($invoiceType, [
+            ResourceLinks::TYPE_VISA_INSTALLMENT,
+            ResourceLinks::TYPE_LICENSE_INSTALLMENT,
+        ], true);
 
-            // Legacy fallback when resource_links is empty.
-            if ($customerIds === [] && $billingIds === [] && is_string($receipt->reference)) {
-                if (str_contains($receipt->reference, 'CI-')) {
-                    $customerIds = $this->invoiceIdsFromReceiptReference($receipt->reference, 'customer');
-                }
-                if (str_contains($receipt->reference, 'LBI-')) {
-                    $billingIds = $this->invoiceIdsFromReceiptReference($receipt->reference, 'leasingBilling');
-                }
-            }
+        if ($isInstallmentReceipt) {
+            return $this->destroyInstallmentLinkedReceipt($request, $receipt);
+        }
 
-            if ($customerIds !== []) {
-                $invoices = CustomerInvoices::whereIn('id', $customerIds)->get();
-                foreach ($invoices as $invoice) {
-                    $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
-                    $invoice->partial_paid_amount = $partialAmount;
-                    $invoice->status = count($partialAmount) < 1 ? 'pending' : 'partially_paid';
-                    $invoice->save();
-                }
+        Transactions::softDeleteMatching(
+            fn ($q) => $q->where('trans_code', $receipt->voucher->trans_code),
+            auth()->id()
+        );
+        Vouchers::where('id', $receipt->voucher_id)->delete();
+        $chequeId = ResourceLinks::chequeId($links);
+        if ($receipt->amount_type == 'Cheque' || $chequeId) {
+            $cheque = $chequeId
+                ? Cheques::find($chequeId)
+                : ($receipt->voucher_id
+                    ? Cheques::findByClearVoucherId((int) $receipt->voucher_id)
+                    : null);
+            if ($cheque) {
+                $cheque->recalculateClearState(excludeReceiptId: (int) $receipt->id);
             }
-            if ($billingIds !== []) {
-                $invoices = LeasingCompanyBillingInvoice::whereIn('id', $billingIds)->get();
-                foreach ($invoices as $invoice) {
-                    $partialAmount = $invoice->partial_paid_amount ?? [];
-                    unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
-                    $invoice->partial_paid_amount = $partialAmount;
-                    $invoice->status = count($partialAmount) < 1 ? 0 : 3;
-                    $invoice->save();
-                }
+        }
+
+        $customerIds = $invoiceType === 'customer'
+            ? ResourceLinks::invoiceIds($links)
+            : [];
+        $billingIds = $invoiceType === 'leasingBilling'
+            ? ResourceLinks::invoiceIds($links)
+            : [];
+
+        // Legacy fallback when resource_links is empty.
+        if ($customerIds === [] && $billingIds === [] && is_string($receipt->reference)) {
+            if (str_contains($receipt->reference, 'CI-')) {
+                $customerIds = $this->invoiceIdsFromReceiptReference($receipt->reference, 'customer');
             }
+            if (str_contains($receipt->reference, 'LBI-')) {
+                $billingIds = $this->invoiceIdsFromReceiptReference($receipt->reference, 'leasingBilling');
+            }
+        }
+
+        if ($customerIds !== []) {
+            $invoices = CustomerInvoices::whereIn('id', $customerIds)->get();
+            foreach ($invoices as $invoice) {
+                $partialAmount = $invoice->partial_paid_amount ?? [];
+                unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
+                $invoice->partial_paid_amount = $partialAmount;
+                $invoice->status = count($partialAmount) < 1 ? 'pending' : 'partially_paid';
+                $invoice->save();
+            }
+        }
+        if ($billingIds !== []) {
+            $invoices = LeasingCompanyBillingInvoice::whereIn('id', $billingIds)->get();
+            foreach ($invoices as $invoice) {
+                $partialAmount = $invoice->partial_paid_amount ?? [];
+                unset($partialAmount[$receipt->id], $partialAmount[(string) $receipt->id]);
+                $invoice->partial_paid_amount = $partialAmount;
+                $invoice->status = count($partialAmount) < 1 ? 0 : 3;
+                $invoice->save();
+            }
+        }
+
+        if (Schema::hasColumn($receipt->getTable(), 'deleted_by') && auth()->id()) {
+            $receipt->deleted_by = auth()->id();
+            $receipt->save();
+        }
+        // Related voucher/transactions already cleaned up above — soft-delete immediately.
+        DeleteRequestService::bypass(true);
+        try {
+            $receipt->delete();
+        } finally {
+            DeleteRequestService::bypass(false);
+        }
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Receipt Deleted Successfuly', 'reload' => true]);
+        }
+
+        Flash::success('Receipt deleted successfully.');
+
+        return redirect()->back();
+    }
+
+    /**
+     * Installment-linked receipts: queue delete approval (cascade RV/txs), then hard-purge on approve.
+     * When approval is bypassed, hard-delete immediately (same outcome as installment approve).
+     */
+    private function destroyInstallmentLinkedReceipt(Request $request, Receipt $receipt)
+    {
+        try {
+            DB::beginTransaction();
+
+            request()->attributes->remove('delete_approval_created');
+
+            $voucher = $receipt->voucher_id
+                ? Vouchers::find($receipt->voucher_id)
+                : null;
+            $transCode = $voucher?->trans_code;
+
             if (Schema::hasColumn($receipt->getTable(), 'deleted_by') && auth()->id()) {
                 $receipt->deleted_by = auth()->id();
                 $receipt->save();
             }
-            // Related voucher/transactions already cleaned up above — soft-delete immediately.
-            DeleteRequestService::bypass(true);
-            try {
-                $receipt->delete();
-            } finally {
-                DeleteRequestService::bypass(false);
-            }
-            if ($request->ajax()) {
-                return response()->json(['success' => true, 'message' => 'Receipt Deleted Successfuly', 'reload' => true]);
-            }
-        }
-        Flash::success('Receipt deleted successfully.');
 
-        return redirect()->back();
+            // Creates pending delete request (aborts soft-delete) unless approval is bypassed.
+            $receipt->delete();
+            $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
+
+            if ($voucher) {
+                if (Schema::hasColumn($voucher->getTable(), 'deleted_by') && auth()->id()) {
+                    $voucher->deleted_by = auth()->id();
+                    $voucher->save();
+                }
+                $voucher->delete();
+            }
+
+            if ($transCode) {
+                Transactions::softDeleteMatching(
+                    fn ($q) => $q->where('trans_code', $transCode),
+                    auth()->id()
+                );
+            } else {
+                Transactions::softDeleteMatching(
+                    fn ($q) => $q->where('reference_type', 'RV')->where('reference_id', $receipt->id),
+                    auth()->id()
+                );
+            }
+
+            if (! $pendingQueued) {
+                // Approval bypassed: unlink installments and hard-delete receipt + financials.
+                DeleteRequestService::purgeReceiptAndFinancials($receipt);
+            }
+
+            DB::commit();
+
+            if ($pendingQueued) {
+                if ($request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'queued' => true,
+                        'reload' => true,
+                    ]);
+                }
+
+                return redirect()->back();
+            }
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Receipt permanently deleted along with related voucher and transactions.',
+                    'reload' => true,
+                ]);
+            }
+
+            Flash::success('Receipt permanently deleted along with related voucher and transactions.');
+
+            return redirect()->back();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error deleting receipt: ' . $e->getMessage(),
+                ], 500);
+            }
+            Flash::error('Error deleting receipt: ' . $e->getMessage());
+
+            return redirect()->back();
+        }
     }
 
     public function clone(Request $request, $comapny_slug, $id)

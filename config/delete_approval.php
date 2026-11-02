@@ -205,6 +205,12 @@ return [
             'display_columns' => ['cheque_number', 'amount', 'status'],
             'show_route' => 'cheques.show',
         ],
+        'receipts' => [
+            'model' => \App\Models\Receipt::class,
+            'name' => 'Receipts',
+            'display_columns' => ['id', 'reference', 'date_of_receipt', 'billing_month', 'amount', 'status'],
+            'show_route' => 'receipts.show',
+        ],
         'visa_renewal_categories' => [
             'model' => \App\Models\VisaRenewalCategory::class,
             'name' => 'Visa Categories',

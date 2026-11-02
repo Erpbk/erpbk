@@ -1,29 +1,49 @@
 @push('third_party_stylesheets')
 @endpush
-<div id="visa-expenses-inline-edit-scope">
-   <table class="table table-striped dataTable no-footer" id="visaExpensesDataTable">
-      @php $vf = static fn (string $f): bool => field_visible('visaexpense', $f); @endphp
+@php $vf = static fn (string $f): bool => field_visible('visaexpense', $f); @endphp
+<div class="riders-list-demo" id="visa-expenses-inline-edit-scope">
+   <div class="d-flex justify-content-end mb-2 px-1">
+      @can('visa_expense_entries_delete')
+      <button type="button" class="btn btn-sm btn-outline-danger js-visa-expense-delete-selected" id="visaExpenseDeleteSelectedBtn" style="display:none;" onclick="deleteSelectedVisaExpenses(this)">
+         <i class="fa fa-trash me-1"></i> Delete Selected
+      </button>
+      @endcan
+   </div>
+   <div class="rl-tbox">
+   <table class="table" id="visaExpensesDataTable">
       <thead class="text-center">
-         <tr role="row">
-            @if($vf('date'))<th title="Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Date: activate to sort column ascending">Date</th>@endif
-            @if($vf('billing_month'))<th title="Transation Date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Transation Date: activate to sort column ascending">Billing Month</th>@endif
-            @if($vf('visa_status'))<th title="Visa Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Visa Status: activate to sort column ascending" aria-sort="descending">Visa Status</th>@endif
-            @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Rider: activate to sort column ascending">Amount</th>@endif
-            @if($vf('expiry_date'))<th title="expiry date" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="expiry date: activate to sort column ascending">Expiry Date</th>@endif
-            <th title="File" class="sorting_disabled" rowspan="1" colspan="1" aria-label="File">File</th>
-            <th title="Voucher IDs" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Voucher ID: activate to sort column ascending">Voucher ID</th>
-            @if($vf('payment_status'))<th title="Payment Status" class="sorting" tabindex="0" aria-controls="dataTableBuilder" rowspan="1" colspan="1" aria-label="Payment Status: activate to sort column ascending" aria-sort="descending">Payment Status</th>@endif
-            <th title="Action" class="sorting_disabled" rowspan="1" colspan="1" aria-label="Action">Action</th>
+         <tr id="rlHead" role="row">
+            @can('visa_expense_entries_delete')
+            <th class="nosort" title="Select All" width="50px">
+               <input type="checkbox" class="js-visa-expense-select-all" id="visaExpenseSelectAll" onchange="toggleVisaExpenseSelectAll(this)" style="transform:scale(1.2);cursor:pointer;">
+            </th>
+            @endcan
+            @if($vf('date'))<th title="Date" class="sorting" tabindex="0">Date <span class="ar">⇅</span></th>@endif
+            @if($vf('billing_month'))<th title="Billing Month" class="sorting" tabindex="0">Billing Month <span class="ar">⇅</span></th>@endif
+            @if($vf('visa_status'))<th title="Visa Status" class="sorting" tabindex="0">Visa Status <span class="ar">⇅</span></th>@endif
+            @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0">Amount <span class="ar">⇅</span></th>@endif
+            @if($vf('expiry_date'))<th title="Expiry Date" class="sorting" tabindex="0">Expiry Date <span class="ar">⇅</span></th>@endif
+            <th title="File" class="nosort">File</th>
+            <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
+            @if($vf('payment_status'))<th title="Payment Status" class="sorting" tabindex="0">Payment Status <span class="ar">⇅</span></th>@endif
+            <th title="Action" class="nosort" width="120px">Action</th>
          </tr>
       </thead>
-      <tbody>
-         @foreach($data as $r)
+      <tbody id="rlBody">
+         @forelse($data as $r)
          @php
          $expensePendingDeletion = record_is_pending_deletion($r);
          $voucherPendingDeletion = $r->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
          $rowPendingDeletion = $expensePendingDeletion || $voucherPendingDeletion;
          @endphp
          <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}" data-row-id="{{ $r->id }}">
+            @can('visa_expense_entries_delete')
+            <td>
+               @if(!$rowPendingDeletion)
+               <input type="checkbox" class="visa-expense-checkbox" value="{{ $r->id }}" onchange="updateVisaExpenseDeleteButton(this)" style="transform:scale(1.2);cursor:pointer;">
+               @endif
+            </td>
+            @endcan
             @if($vf('date'))<td>
                <span id="date_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->date)->format('d M Y') }}</span>
                @can('visa_expense_entries_edit')
@@ -54,9 +74,11 @@
                   value="{{ \Carbon\Carbon::parse($r->billing_month)->format('Y-m') }}"
                   class="form-control form-control-sm d-none">
             </td>@endif
-            @if($vf('visa_status'))<td>
-               <span class="badge bg-primary">{{ $r->visa_status }}</span>
-            </td>@endif
+            @if($vf('visa_status'))
+            <td class="visa-status-flow{{ $r->payment_status === 'paid' ? ' is-done' : '' }}{{ $loop->last ? ' is-last' : '' }}">
+               <span class="visa-status-bdg">{{ $r->visa_status }}</span>
+            </td>
+            @endif
             @if($vf('amount'))<td>
                <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
                @can('visa_expense_entries_edit')
@@ -212,14 +234,14 @@
                @endif
             </td>
          </tr>
-         @endforeach
+         @empty
+         <tr>
+            <td colspan="12" class="rl-empty text-center text-muted py-4">No Visa Expenses found</td>
+         </tr>
+         @endforelse
       </tbody>
    </table>
-   @if($data->isEmpty())
-   <div class="text-center mt-5">
-      <h4 class="text-muted">No Visa Expenses found</h4>
    </div>
-   @endif
    @if(method_exists($data, 'links'))
    {!! $data->links('components.global-pagination') !!}
    @endif

@@ -2,11 +2,13 @@
     $settings = company_table('settings')->pluck('value', 'name')->toArray();
     $first = $installments->first();
     $totalAmount = (float) $installments->sum('amount');
-    $paidSum = (float) $installments->where('status', 'paid')->sum('amount');
-    $pendingSum = (float) $installments->where('status', 'pending')->sum('amount');
+    $paidSum = (float) $installments->where('status', 'paid')->sum('amount')
+        + (float) $installments->where('status', 'partial')->sum('paid_amount');
+    $pendingSum = (float) $installments->filter(fn ($i) => in_array($i->status, ['pending', 'partial'], true))
+        ->sum(fn ($i) => max(0, (float) $i->amount - (float) ($i->paid_amount ?? 0)));
     $planRefTotal = $first->total_amount !== null && $first->total_amount !== '' ? (float) $first->total_amount : $totalAmount;
     $paidCount = $installments->where('status', 'paid')->count();
-    $pendingCount = $installments->where('status', 'pending')->count();
+    $pendingCount = $installments->whereIn('status', ['pending', 'partial'])->count();
 @endphp
 
 <div class="visa-installment-invo-wrap">
@@ -27,7 +29,7 @@
                     <p style="margin: 3px 0; font-size: 12px;">TRN {{ $settings['vat_number'] ?? '' }}</p>
                 </td>
                 <td style="width: 33%; text-align: center; border: none !important;">
-                    <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">VISA INSTALLMENT PLAN</h2>
+                    <h2 style="margin: 0; font-weight: 800; color: #004aad; font-size: 24px;">INSTALLMENT PLAN</h2>
                 </td>
             </tr>
         </table>
@@ -35,7 +37,7 @@
         <div class="flex-row-cards">
             <div class="rider-card">
                 <div class="card-header">
-                    <strong>👤 Rider Details</strong>
+                    <strong>Rider Details</strong>
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Rider ID:</span>
@@ -49,7 +51,7 @@
                     <span class="detail-label">Mobile:</span>
                     <span class="detail-value">{{ $rider->personal_contact ?? $rider->company_contact ?? (@$rider->sim->number) ?? '—' }}</span>
                     <span class="detail-label">Joining Date:</span>
-                    <span class="detail-value">{{ $rider->doj ? \Carbon\Carbon::parse($rider->doj)->format('d/m/Y') : '—' }}</span>
+                    <span class="detail-value">{{ !empty($rider->doj) ? \Carbon\Carbon::parse($rider->doj)->format('d/m/Y') : '—' }}</span>
                     <span class="detail-label">Client:</span>
                     <span class="detail-value">{{ @$rider->vendor->name ?? '—' }}</span>
                     <span class="detail-label">Fleet Supervisor:</span>
@@ -59,7 +61,7 @@
 
             <div class="details-card">
                 <div class="card-header">
-                    <strong>📄 Plan Summary</strong>
+                    <strong>Plan Summary</strong>
                 </div>
                 <div class="details-grid">
                     <span class="detail-label">Invoice No:</span>
@@ -130,7 +132,7 @@
         </div>
 
         <div class="notes-section">
-            <strong>📌 Note:</strong><br>
+            <strong>Note:</strong><br>
             All installment payments are due as per the billing month above. This plan is binding once acknowledged.
             Changes must be agreed in writing. Early payment does not imply a discount unless specified.
         </div>

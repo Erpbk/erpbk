@@ -27,6 +27,12 @@ class ResourceLinks
 
     public const SOURCE_ADVANCE_LOAN = 'advance_loan';
 
+    public const SOURCE_INSTALLMENT_PAYMENT = 'installment_payment';
+
+    public const TYPE_VISA_INSTALLMENT = 'visa_installment';
+
+    public const TYPE_LICENSE_INSTALLMENT = 'license_installment';
+
     /**
      * @param  iterable<int, object>|null  $invoices
      * @param  array<int|string, mixed>  $amounts  keyed by invoice id

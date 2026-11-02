@@ -97,7 +97,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
       @endcan
       @if($visaInstallmentData->count() > 0)
       <a href="javascript:void(0);"
-        class="btn btn-sm btn-exp-ghost action-btn show-modal"
+        class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
         data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $visaAccount->id]) }}"
         data-size="xl"
         data-title="Installment plan invoice — {{ $visaAccount->name ?? 'Person' }}">
@@ -140,10 +140,13 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
     @include('visa_expenses.installmentPlanTable', [
     'data' => $visaInstallmentData,
     'account' => $visaAccount,
+    'linkedReceiptsById' => $visaLinkedReceiptsById ?? collect(),
     'installmentPayRoute' => 'Installments.payInstallment',
     'installmentUpdateFieldRoute' => 'Installments.updateInstallmentField',
     'installmentDeleteRoute' => 'Installments.deleteInstallment',
+    'installmentBulkDeleteRoute' => 'Installments.bulkDeleteInstallments',
     'installmentPaymentReceivingRoute' => 'Installments.paymentReceivingModal',
+    'installmentEditPaymentReceivingRoute' => 'Installments.editPaymentReceiving',
     'installmentPlanModel' => \App\Models\visa_installment_plan::class,
     ])
   </div>

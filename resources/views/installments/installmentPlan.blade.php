@@ -25,7 +25,7 @@
                 @endif
                 @if($data->count() > 0)
                 <a href="javascript:void(0);"
-                    class="btn btn-info action-btn mx-2 show-modal"
+                    class="btn btn-info action-btn mx-2 show-modal-right"
                     data-action="{{ route($installmentInvoiceRoute ?? 'Installments.generateInstallmentInvoice', ['riderId' => $account->id ?? request()->route('id')]) }}"
                     data-size="xl"
                     data-title="Installment plan invoice">
@@ -91,13 +91,21 @@
     </div>
 </section>
 
+<link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261031-visa-tables">
 <div class="content px-3">
     @include('flash::message')
     <div class="clearfix"></div>
 
     <div class="card">
         <div class="card-body table-responsive px-2 py-0" id="table-data">
-            @include($installmentPlanTableView ?? 'installments.installmentPlanTable', ['data' => $data, 'account' => $account])
+            @include($installmentPlanTableView ?? 'installments.installmentPlanTable', [
+                'data' => $data,
+                'account' => $account,
+                'installmentBulkDeleteRoute' => $installmentBulkDeleteRoute ?? 'Installments.bulkDeleteInstallments',
+                'canDeleteInstallment' => $canDeleteInstallment ?? null,
+                'canEditInstallment' => $canEditInstallment ?? null,
+                'installmentPlanModel' => $installmentPlanModel ?? null,
+            ])
         </div>
     </div>
 </div>
@@ -105,6 +113,9 @@
 @section('page-script')
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@once
+@include('visa_expenses.partials.multi_delete_scripts')
+@endonce
 <script type="text/javascript">
     function confirmDelete(url) {
         Swal.fire({

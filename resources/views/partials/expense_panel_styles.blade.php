@@ -255,4 +255,83 @@
     color: #1e293b;
     border-color: #f1f5f9;
   }
+
+  /* Visa status column: dashed arrow connector (demo v4 flow design) */
+  .exp-panel .visa-status-flow,
+  .riders-list-demo .visa-status-flow {
+    position: relative;
+    overflow: visible !important;
+    white-space: nowrap;
+  }
+
+  .exp-panel .visa-status-bdg,
+  .riders-list-demo .visa-status-bdg {
+    position: relative;
+    z-index: 2;
+    display: inline-block;
+    font-weight: 600;
+    font-size: 11.5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #eef4ff;
+    color: #1e3a8a;
+    border: 1px solid #bfdbfe;
+  }
+
+  .exp-panel .visa-status-flow::after,
+  .riders-list-demo .visa-status-flow::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: calc(50% + 12px);
+    bottom: calc(-50% + 12px);
+    border-left: 2px dashed #94a3b8;
+    transform: translateX(-1px);
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .exp-panel .visa-status-flow::before,
+  .riders-list-demo .visa-status-flow::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: calc(-50% + 11px);
+    transform: translateX(-6px);
+    border: 6px solid transparent;
+    border-top: 8px solid #94a3b8;
+    border-bottom: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  .exp-panel .visa-status-flow.is-last::after,
+  .exp-panel .visa-status-flow.is-last::before,
+  .riders-list-demo .visa-status-flow.is-last::after,
+  .riders-list-demo .visa-status-flow.is-last::before {
+    display: none;
+  }
+
+  .exp-panel .visa-status-flow.is-done::after,
+  .riders-list-demo .visa-status-flow.is-done::after {
+    border-left: 2.5px solid #16a34a;
+  }
+
+  .exp-panel .visa-status-flow.is-done::before,
+  .riders-list-demo .visa-status-flow.is-done::before {
+    border-top-color: #16a34a;
+  }
+
+  .exp-panel .visa-status-flow.is-done .visa-status-bdg,
+  .riders-list-demo .visa-status-flow.is-done .visa-status-bdg {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+  }
+
+  .exp-panel .visa-status-flow.is-done .visa-status-bdg::before,
+  .riders-list-demo .visa-status-flow.is-done .visa-status-bdg::before {
+    content: "✓ ";
+    font-weight: 700;
+  }
 </style>

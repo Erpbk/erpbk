@@ -49,7 +49,7 @@
       </button>
       <button type="button" class="btn outline" data-bs-toggle="modal" data-bs-target="#bulkAttendanceModal">Bulk Mark</button>
       @endcanany
-      <a class="btn green" href="{{ route('attendance.export', request()->query()) }}">Export</a>
+      <a class="btn green" href="{{ safe_route('attendance.export', request()->query(), 'attendance/export') }}">Export</a>
       <button type="button" class="btn blue" id="attReportFilterBtn">Filter</button>
     </div>
   </div>

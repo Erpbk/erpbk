@@ -8,7 +8,7 @@
                 <h1>Record Invoice Payment</h1>
             </div>
             <div class="col-sm-6">
-                <a class="btn btn-secondary float-right" href="{{ route('employeeInvoices.index') }}">
+                <a class="btn btn-secondary float-right" href="{{ safe_route('employeeInvoices.index', [], 'employeeInvoices') }}">
                     <i class="fas fa-arrow-left"></i> Back to Invoices
                 </a>
             </div>
@@ -82,7 +82,7 @@
 
             <hr>
 
-            <form action="{{ route('employeeInvoices.markAsPaid', $invoice->id) }}" method="POST">
+            <form action="{{ safe_route('employeeInvoices.markAsPaid', $invoice->id, 'employee/invoice-mark-paid/{id}') }}" method="POST">
                 @csrf
                 <div class="row">
                     <div class="col-md-6">
@@ -125,7 +125,7 @@
                         <div class="alert alert-warning">
                             <strong>Not paying cash?</strong>
                             Use
-                            <a href="javascript:void(0);" class="show-modal" data-size="lg" data-title="Mark Settled (no payment)" data-action="{{ route('employeeInvoices.markAsSettled', $invoice->id) }}">Mark Settled (no payment)</a>
+                            <a href="javascript:void(0);" class="show-modal" data-size="lg" data-title="Mark Settled (no payment)" data-action="{{ safe_route('employeeInvoices.markAsSettled', $invoice->id, 'employee/invoice-mark-settled/{id}') }}">Mark Settled (no payment)</a>
                             instead — this form creates a Payment and PV voucher.
                         </div>
                     </div>
@@ -135,7 +135,7 @@
                     <button type="submit" class="btn btn-success btn-lg">
                         <i class="fas fa-check-circle"></i> Record Payment
                     </button>
-                    <a href="{{ route('employeeInvoices.index') }}" class="btn btn-secondary btn-lg">
+                    <a href="{{ safe_route('employeeInvoices.index', [], 'employeeInvoices') }}" class="btn btn-secondary btn-lg">
                         <i class="fas fa-times"></i> Cancel
                     </a>
                 </div>

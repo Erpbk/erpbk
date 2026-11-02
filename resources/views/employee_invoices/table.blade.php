@@ -30,7 +30,7 @@
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
-         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ route('employeeInvoices.show', $r->id) }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
+         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ safe_route('employeeInvoices.show', $r->id, 'employeeInvoices/{id}') }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
          <td>{{ $r->inv_date ? \Carbon\Carbon::parse($r->inv_date)->format('d M Y') : '—' }}</td>
          <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M Y') : '—' }}</td>
          <td class="name">{{ $employee ? trim(($employee->employee_id ?? '').'-'.($employee->name ?? ''), '-') : '—' }}</td>
@@ -61,37 +61,37 @@
                   @endphp
                   @if(! $eiLocked)
                   @can('employees_invoice_edit')
-                  <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.edit', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
+                  <a href="javascript:void(0);" data-action="{{ safe_route('employeeInvoices.edit', $r->id, 'employeeInvoices/{id}/edit') }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Update Invoice">
                      <i class="fa fa-edit mx-1"></i> Update
                   </a>
                   @endcan
                   @endif
                   @if($eiLocked && $eiPaymentId)
                   @canany(['employees_payments_edit', 'cash_&_banks_payments_edit'])
-                  <a href="javascript:void(0);" data-action="{{ route('payments.edit', $eiPaymentId) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Edit Payment">
+                  <a href="javascript:void(0);" data-action="{{ safe_route('payments.edit', $eiPaymentId, 'payments/{id}/edit') }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Edit Payment">
                      <i class="fa fa-money-bill mx-1 text-success"></i> Edit Payment
                   </a>
                   @endcanany
                   @endif
                   @if($eiStatus !== 1)
                   @can('employees_payments_create')
-                  <a href="javascript:void(0);" data-action="{{ route('payments.create', ['employee_payment' => 1, 'invoice_id' => $r->id]) }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Add Payment">
+                  <a href="javascript:void(0);" data-action="{{ safe_route('payments.create', ['employee_payment' => 1, 'invoice_id' => $r->id], 'payments/create') }}" class="dropdown-item waves-effect show-modal" data-size="xl" data-title="Add Payment">
                      <i class="fa fa-money-bill mx-1"></i> Add Payment
                   </a>
                   @endcan
                   @can('employees_invoice_edit')
-                  <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.markAsSettled', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Mark Settled (no payment)">
+                  <a href="javascript:void(0);" data-action="{{ safe_route('employeeInvoices.markAsSettled', $r->id, 'employee/invoice-mark-settled/{id}') }}" class="dropdown-item waves-effect show-modal" data-size="lg" data-title="Mark Settled (no payment)">
                      <i class="fa fa-check-double mx-1 text-primary"></i> Mark Settled (no payment)
                   </a>
                   @endcan
                   @endif
                   @can('employees_invoice_view')
-                  <a href="javascript:void(0);" data-action="{{ route('employeeInvoices.sendEmail', $r->id) }}" class="dropdown-item waves-effect show-modal" data-size="md" data-title="Send Invoice Email">
+                  <a href="javascript:void(0);" data-action="{{ safe_route('employeeInvoices.sendEmail', $r->id, 'employeeInvoices/sendemail/{id}') }}" class="dropdown-item waves-effect show-modal" data-size="md" data-title="Send Invoice Email">
                      <i class="fa fa-envelope mx-1"></i> Send Email
                   </a>
                   @endcan
                   @can('employees_invoice_delete')
-                  <a href="javascript:void(0);" onclick="confirmDelete('{{ route('employeeInvoices.delete', $r->id) }}')" class="dropdown-item waves-effect">
+                  <a href="javascript:void(0);" onclick="confirmDelete('{{ safe_route('employeeInvoices.delete', $r->id, 'employeeInvoices/delete/{id}') }}')" class="dropdown-item waves-effect">
                      <i class="fa fa-trash mx-1"></i> Delete
                   </a>
                   @endcan

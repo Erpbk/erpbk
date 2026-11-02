@@ -9,9 +9,11 @@
     'name' => $p->name,
     'code' => $p->employee_id ?? $p->rider_id ?? '',
   ])->values();
+  $attImportUrl = safe_route('attendance.import', [], 'attendance/import');
+  $attImportTplUrl = safe_route('attendance.import.template', ['ref_type' => $refType], 'attendance/import/template');
   $attImportConfigPayload = [
-    'url' => route('attendance.import'),
-    'template' => route('attendance.import.template', ['ref_type' => $refType]),
+    'url' => $attImportUrl,
+    'template' => $attImportTplUrl,
     'csrf' => csrf_token(),
     'refType' => $refType,
     'personLabel' => $personLabel,
@@ -31,7 +33,7 @@
         <div style="flex:1">
           <h4>Download template</h4>
           <p>CSV template (opens in Excel) with every {{ $personLabel }} and today's date filled in.</p>
-          <a class="btn outline" id="attTplBtn" href="{{ route('attendance.import.template', ['ref_type' => $refType]) }}">
+          <a class="btn outline" id="attTplBtn" href="{{ $attImportTplUrl }}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
             Download template (.csv)
           </a>

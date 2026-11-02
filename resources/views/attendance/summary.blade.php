@@ -55,10 +55,15 @@
 
 @section('content')
 @canany(['employees_attendance_view', 'riders_attendance_view'])
+@php
+  $attUpsertUrl = safe_route('attendance.upsertMark', [], 'attendance/upsert-mark');
+  $attClearUrl = safe_route('attendance.clearMark', [], 'attendance/clear-mark');
+  $attSummaryExportUrl = safe_route('attendance.summary.export', $baseQuery ?? [], 'attendance/summary/export');
+@endphp
 <div class="att-demo"
      id="attDemo"
-     data-upsert="{{ route('attendance.upsertMark') }}"
-     data-clear="{{ route('attendance.clearMark') }}"
+     data-upsert="{{ $attUpsertUrl }}"
+     data-clear="{{ $attClearUrl }}"
      data-csrf="{{ csrf_token() }}"
      data-user-type="{{ $userType }}">
 
@@ -80,7 +85,7 @@
         Import
       </button>
       @endcanany
-      <a class="btn green" href="{{ route('attendance.summary.export', $baseQuery) }}">Export</a>
+      <a class="btn green" href="{{ $attSummaryExportUrl }}">Export</a>
     </div>
   </div>
 

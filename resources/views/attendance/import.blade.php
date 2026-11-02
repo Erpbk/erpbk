@@ -7,7 +7,7 @@
   <div class="card shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
       <h5 class="mb-0">Import Attendance</h5>
-      <a href="{{ route('attendance.import.template', ['ref_type' => $refType]) }}" class="btn btn-outline-secondary btn-sm">
+      <a href="{{ safe_route('attendance.import.template', ['ref_type' => $refType], 'attendance/import/template') }}" class="btn btn-outline-secondary btn-sm">
         <i class="ti ti-download me-1"></i> Download CSV template
       </a>
     </div>
@@ -16,7 +16,7 @@
         Upload a CSV with columns: <strong>Employee Name</strong>, <strong>Date</strong>, <strong>Status</strong>, <strong>Check In</strong>, <strong>Check Out</strong>.
         Status values: Present, Late, Absent, Leave, Half day, Weekend.
       </p>
-      <form action="{{ route('attendance.import') }}" method="POST" enctype="multipart/form-data" class="row g-3">
+      <form action="{{ safe_route('attendance.import', [], 'attendance/import') }}" method="POST" enctype="multipart/form-data" class="row g-3">
         @csrf
         <input type="hidden" name="ref_type" value="{{ $refType }}">
         <div class="col-md-6">

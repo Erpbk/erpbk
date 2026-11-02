@@ -3,7 +3,7 @@
     $emailTo = $employee->company_email ?: ($employee->personal_email ?? '');
     $invoiceNumber = $invoice->invoice_number;
 @endphp
-<form action="{{ route('employeeInvoices.sendEmail', ['company_slug' => request()->route('company_slug'), 'id' => $invoice->id]) }}" method="POST" id="formajax">
+<form action="{{ safe_route('employeeInvoices.sendEmail', ['company_slug' => request()->route('company_slug'), 'id' => $invoice->id], 'employeeInvoices/sendemail/{id}') }}" method="POST" id="formajax">
     @csrf
     <div class="col-md-12 form-group">
         <label>Email Address</label>

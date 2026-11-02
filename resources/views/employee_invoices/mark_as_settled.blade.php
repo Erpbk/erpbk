@@ -1,4 +1,4 @@
-<form action="{{ route('employeeInvoices.markAsSettled', $invoice->id) }}" method="POST" id="formajax">
+<form action="{{ safe_route('employeeInvoices.markAsSettled', $invoice->id, 'employee/invoice-mark-settled/{id}') }}" method="POST" id="formajax">
     @csrf
     <div class="card-body">
         <div class="row mb-3">

@@ -38,14 +38,14 @@ foreach ($profileCodes as $code => $fallbackLabel) {
     <span class="text-muted small">This record is locked pending delete approval.</span>
   @else
     @can('employees_employee_edit')
-    <a href="{{ route('employees.edit', ['company_slug' => $companySlug, 'employee' => $resultId]) }}" class="emp-abtn e">
+    <a href="{{ safe_route('employees.edit', ['company_slug' => $companySlug, 'employee' => $resultId], 'employees/{id}/edit') }}" class="emp-abtn e">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
       Edit
     </a>
     @endcan
     @can('email_create')
     <a href="javascript:void(0);"
-       data-action="{{ route('employee.sendemail', ['company_slug' => $companySlug, 'id' => $resultId]) }}"
+       data-action="{{ safe_route('employee.sendemail', ['company_slug' => $companySlug, 'id' => $resultId], 'employees/sendemail/{id}') }}"
        data-size="md"
        data-title="{{ $resultName . ' (' . $resultCode . ')' }}"
        class="emp-abtn m show-modal">
@@ -66,22 +66,22 @@ foreach ($profileCodes as $code => $fallbackLabel) {
             $isPay = $code === 'PAY';
             $isAdvance = $code === 'AL';
             if ($isPay) {
-              $itemAction = route('payments.create', array_filter([
+              $itemAction = safe_route('payments.create', array_filter([
                 'invoice_type' => 'employee',
                 'employee_id' => $resultId,
                 'employee_payment' => 1,
                 'company_slug' => $companySlug,
-              ]));
+              ]), 'payments/create');
               $itemTitle = 'Record Employee Payment';
               $desc = 'Record payment against an unpaid employee invoice';
               $menuLabel = 'Salary Payment';
             } elseif ($isAdvance) {
-              $itemAction = route('employees.advanceloan', ['company_slug' => $companySlug, 'id' => $resultId]);
+              $itemAction = safe_route('employees.advanceloan', ['company_slug' => $companySlug, 'id' => $resultId], 'employees/advanceloan/{id}');
               $itemTitle = 'Record Advance Payment';
               $desc = 'Record an advance / loan for this employee';
               $menuLabel = 'Advance Payment';
             } else {
-              $itemAction = route('employees.voucher', $resultId) . '?type=' . $code;
+              $itemAction = safe_route('employees.voucher', $resultId, 'employees/{id}/voucher') . '?type=' . $code;
               $itemTitle = $label;
               $desc = match ($code) {
                 'INC' => 'Record an incentive entry for this employee',

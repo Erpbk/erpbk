@@ -16,7 +16,7 @@ class EmployeeInvoicesDataTable extends DataTable
 
         $dataTable
             ->addColumn('invoice_number', function (EmployeeInvoices $invoice) {
-                $url = route('employeeInvoices.show', $invoice->id);
+                $url = safe_route('employeeInvoices.show', $invoice->id, 'employeeInvoices/{id}');
                 $label = e($invoice->invoice_number);
 
                 return '<a href="javascript:void(0);" data-action="'.e($url).'" data-size="xl" class="show-modal-right">'.$label.'</a>';

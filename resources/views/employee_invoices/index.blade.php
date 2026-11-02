@@ -90,9 +90,17 @@
     <div class="spinner-border text-primary" role="status"></div>
 </div>
 @can('employees_invoice_view')
+@php
+  $eiIndexUrl = safe_route('employeeInvoices.index', [], 'employeeInvoices');
+  $eiExportUrl = safe_route('employeeInvoices.export', request()->except(['page', '_token']), 'employeeInvoices/export');
+  $eiImportFormUrl = safe_route('employeeInvoices.import.form', [], 'employeeInvoices/import');
+  $eiBulkDeleteUrl = safe_route('employeeInvoices.bulkDelete', [], 'employeeInvoices/bulk-delete');
+  $eiCreateUrl = safe_route('employeeInvoices.create', [], 'employeeInvoices/create');
+  $eiPayCreateUrl = safe_route('payments.create', ['employee_payment' => 1], 'payments/create');
+@endphp
 <div class="riders-list-demo emp-demo" id="employeeInvoicesListDemo"
-     data-index-url="{{ route('employeeInvoices.index') }}"
-     data-export-url="{{ route('employeeInvoices.export') }}"
+     data-index-url="{{ $eiIndexUrl }}"
+     data-export-url="{{ $eiExportUrl }}"
      data-csrf="{{ csrf_token() }}">
 
   <div class="rl-wrap">
@@ -129,9 +137,9 @@
       </div>
       <div class="iv-card" style="--c:#f59e0b">
         <div class="lb">Status</div>
-        <a class="sr" href="{{ route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'paid'])) }}" style="color:#15803d"><span>Paid</span><span id="stat_paid_count_row">{{ number_format((int) ($stats['paid_count'] ?? 0)) }}</span></a>
-        <a class="sr" href="{{ route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'partial'])) }}" style="color:#d97706"><span>Partially Paid</span><span id="stat_partial_count">{{ number_format((int) ($stats['partial_count'] ?? 0)) }}</span></a>
-        <a class="sr" href="{{ route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'unpaid'])) }}" style="color:#dc2626"><span>Unpaid</span><span id="stat_unpaid_count_row">{{ number_format((int) ($stats['unpaid_count'] ?? 0)) }}</span></a>
+        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'paid']), 'employeeInvoices') }}" style="color:#15803d"><span>Paid</span><span id="stat_paid_count_row">{{ number_format((int) ($stats['paid_count'] ?? 0)) }}</span></a>
+        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'partial']), 'employeeInvoices') }}" style="color:#d97706"><span>Partially Paid</span><span id="stat_partial_count">{{ number_format((int) ($stats['partial_count'] ?? 0)) }}</span></a>
+        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'unpaid']), 'employeeInvoices') }}" style="color:#dc2626"><span>Unpaid</span><span id="stat_unpaid_count_row">{{ number_format((int) ($stats['unpaid_count'] ?? 0)) }}</span></a>
       </div>
     </div>
 
@@ -145,26 +153,26 @@
           </button>
           <div class="rl-menu" id="actMenu" hidden role="menu">
             @can('employees_invoice_create')
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="Create Employee Invoice" data-action="{{ route('employeeInvoices.create') }}">
+            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="Create Employee Invoice" data-action="{{ $eiCreateUrl }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
               <span><strong>Create New Invoice</strong><em>Add a new employee invoice</em></span>
             </a>
-            <a role="menuitem" href="{{ route('employeeInvoices.import.form') }}">
+            <a role="menuitem" href="{{ $eiImportFormUrl }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
               <span><strong>Import Invoices</strong><em>Upload invoices from a file</em></span>
             </a>
-            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="Salary Payment" data-action="{{ route('payments.create', ['employee_payment' => 1]) }}">
+            <a role="menuitem" class="show-modal" href="javascript:void(0);" data-size="xl" data-title="Salary Payment" data-action="{{ $eiPayCreateUrl }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               <span><strong>Salary Payment</strong><em>Record employee salary payment</em></span>
             </a>
             @endcan
-            <a role="menuitem" id="exportEmployeeInvoicesBtn" href="{{ route('employeeInvoices.export', request()->except(['page', '_token'])) }}">
+            <a role="menuitem" id="exportEmployeeInvoicesBtn" href="{{ $eiExportUrl }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 12v6M9 15l3 3 3-3"/></svg>
               <span><strong>Export</strong><em>Excel with frozen header row</em></span>
             </a>
           </div>
         </div>
-        <a class="rl-btn" id="allBtn" href="{{ route('employeeInvoices.index') }}">
+        <a class="rl-btn" id="allBtn" href="{{ $eiIndexUrl }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 20c0-3-2-5-5-5.4"/></svg>
           All Invoices
         </a>
@@ -206,7 +214,7 @@
     <button type="button" class="btn-close" id="closeSidebar" aria-label="Close"></button>
   </div>
   <div class="filter-body" id="searchTopbody">
-    <form id="filterForm" action="{{ route('employeeInvoices.index') }}" method="GET">
+    <form id="filterForm" action="{{ $eiIndexUrl }}" method="GET">
       @if(request()->filled('quick_search'))
       <input type="hidden" name="quick_search" value="{{ request('quick_search') }}">
       @endif
@@ -692,7 +700,7 @@ function deleteSelectedInvoices() {
     if (!result.isConfirmed) return;
     Swal.fire({ title: 'Deleting...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     $.ajax({
-      url: @json(route('employeeInvoices.bulkDelete')),
+      url: @json($eiBulkDeleteUrl),
       type: 'POST',
       data: { _token: @json(csrf_token()), invoice_ids: selectedIds },
       success: function (response) {

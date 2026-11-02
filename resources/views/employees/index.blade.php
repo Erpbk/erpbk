@@ -36,13 +36,22 @@
   <div class="spinner-border text-primary" role="status"></div>
 </div>
 @can('employees_employee_view')
+@php
+  $companySlug = request()->route('company_slug');
+  $empFilterAjaxUrl = safe_route('employees.filterAjax', [], 'employees/filter-ajax');
+  $empToggleFavoriteUrl = \Illuminate\Support\Facades\Route::has('employees.toggleFavorite')
+    ? preg_replace('#/0$#', '', route('employees.toggleFavorite', ['id' => 0]))
+    : company_app_url('employees/toggle-favorite');
+  $empIndexUrl = safe_route('employees.index', [], 'employees');
+  $empCreateUrl = safe_route('employees.create', [], 'employees/create');
+@endphp
 <div class="riders-list-demo" id="employeesListDemo"
-     data-filter-ajax="{{ route('employees.filterAjax') }}"
-     data-toggle-favorite="{{ preg_replace('#/0$#', '', route('employees.toggleFavorite', ['id' => 0])) }}"
+     data-filter-ajax="{{ $empFilterAjaxUrl }}"
+     data-toggle-favorite="{{ $empToggleFavoriteUrl }}"
      data-csrf="{{ csrf_token() }}"
      data-option-param="{{ $optionIdParam }}"
      data-status-param="{{ $statusParam }}"
-     data-index-url="{{ route('employees.index') }}">
+     data-index-url="{{ $empIndexUrl }}">
 
   <div class="rl-wrap">
     @include('flash::message')
@@ -101,7 +110,7 @@
           </button>
           <div class="rl-menu" id="actMenu" hidden role="menu">
             @can('employees_employee_create')
-            <a role="menuitem" href="{{ route('employees.create') }}">
+            <a role="menuitem" href="{{ $empCreateUrl }}">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="10" cy="8" r="4"/><path d="M3 21c0-4 3-6 7-6M18 14v6M15 17h6"/></svg>
               <span><strong>Create New Employee</strong><em>Add a new employee to the system</em></span>
             </a>
@@ -112,7 +121,7 @@
             </button>
           </div>
         </div>
-        <a class="rl-btn" id="allBtn" href="{{ route('employees.index') }}">
+        <a class="rl-btn" id="allBtn" href="{{ $empIndexUrl }}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 20c0-3-2-5-5-5.4"/></svg>
           All Employees
         </a>
@@ -156,7 +165,7 @@
     <button type="button" class="btn-close" id="closeSidebar" aria-label="Close"></button>
   </div>
   <div class="filter-body" id="searchTopbody">
-    <form id="filterForm" action="{{ route('employees.index') }}" method="GET" data-rfp-skip-lock="1">
+    <form id="filterForm" action="{{ $empIndexUrl }}" method="GET" data-rfp-skip-lock="1">
       @if(request()->filled($optionIdParam))
       <input type="hidden" name="{{ $optionIdParam }}" value="{{ request($optionIdParam) }}">
       @endif

@@ -61,7 +61,7 @@
             @forelse($recentInvoices as $invoice)
               <tr>
                 <td>
-                  <a href="javascript:void(0);" class="show-modal-right" data-size="xl" data-action="{{ route('employeeInvoices.show', $invoice->id) }}">
+                  <a href="javascript:void(0);" class="show-modal-right" data-size="xl" data-action="{{ safe_route('employeeInvoices.show', $invoice->id, 'employeeInvoices/{id}') }}">
                     {{ $invoice->invoice_number }}
                   </a>
                 </td>

@@ -1,0 +1,431 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\LogsActivity;
+use App\Traits\BranchScope;
+
+use App\Traits\TracksUserAttribution;
+
+class Bikes extends BaseModel
+{
+  use SoftDeletes, LogsActivity, BranchScope, TracksUserAttribution;
+
+  public $table = 'bikes';
+
+  public $fillable = [
+    'branch_id',
+    'plate',
+    'vehicle_type',
+    'chassis_number',
+    'color',
+    'model',
+    'model_type',
+    'engine',
+    'company',
+    'bike_owner',
+    'rider_id',
+    'rental_company_id',
+    'notes',
+    'created_by',
+    'updated_by',
+    'warehouse',
+    'traffic_file_number',
+    'emirates',
+    'bike_code',
+    'registration_date',
+    'expiry_date',
+    'insurance_expiry',
+    'status',
+    'insurance_co',
+    'customer_id',
+    'bike_top_option_id',
+    'leased_date',
+    'policy_no',
+    'current_km',
+    'previous_km',
+    'maintenance_km',
+    'custom_field_values',
+    'leased_return_by',
+    'leased_return_date',
+    'leased_return_company_id',
+    'deleted_by'
+    ];
+
+  protected $casts = [
+    'branch_id' => 'integer',
+    'plate' => 'string',
+    'vehicle_type' => 'string',
+    'chassis_number' => 'string',
+    'color' => 'string',
+    'model' => 'string',
+    'model_type' => 'string',
+    'engine' => 'string',
+    'notes' => 'string',
+    'warehouse' => 'string',
+    'traffic_file_number' => 'string',
+    'emirates' => 'string',
+    'bike_code' => 'string',
+    /*   'registration_date' => 'date',
+      'expiry_date' => 'date',
+      'insurance_expiry' => 'date', */
+    'insurance_co' => 'string',
+    'policy_no' => 'string',
+    'leased_date' => 'date',
+    'customer_id' => 'string',
+    'bike_top_option_id' => 'integer',
+    'deleted_at' => 'datetime',
+    'custom_field_values' => 'array',
+    'leased_return_by' => 'date',
+    'leased_return_date' => 'date',
+    'leased_return_company_id' => 'integer',
+    'bike_owner' => 'string',
+  ];
+
+  protected $dates = ['deleted_at'];
+
+  public static array $rules = [
+    'branch_id' => 'exists:branches,id',
+    'plate' => 'nullable|string|max:100',
+    'vehicle_type' => 'nullable|string|max:100',
+    'chassis_number' => 'nullable|string|max:100',
+    'color' => 'nullable|string|max:100',
+    'model' => 'nullable|string|max:100',
+    'model_type' => 'nullable|string|max:100',
+    'engine' => 'nullable|string|max:100',
+    'company' => 'required',
+    'rider_id' => 'nullable',
+    'notes' => 'nullable|string|max:65535',
+    'created_by' => 'nullable',
+    'updated_by' => 'nullable',
+    'created_at' => 'nullable',
+    'updated_at' => 'nullable',
+    'warehouse' => 'nullable|string|max:50',
+    'traffic_file_number' => 'nullable|string|max:100',
+    'emirates' => 'nullable|string|max:100',
+    'bike_code' => 'nullable|string|max:100',
+    'rental_company_id' => 'nullable',
+    'registration_date' => 'nullable',
+    'expiry_date' => 'nullable',
+    'insurance_expiry' => 'nullable',
+    'insurance_co' => 'nullable|string|max:255',
+    'policy_no' => 'nullable|string|max:100',
+    'leased_date' => 'nullable|date',
+    'customer_id' => 'nullable|string|max:100',
+    'leased_return_by' => 'nullable|date',
+    'leased_return_date' => 'nullable|date',
+    'leased_return_company_id' => 'nullable|integer|exists:leasing_companies,id',
+    'bike_owner' => 'nullable|string|in:Owned,Leased',
+  ];
+  public static function dropdown()
+  {
+    return self::select('id', 'plate')->pluck('plate', 'id')->prepend('Select', '');
+  }
+
+  public function emiratesPlateLabel(): string
+  {
+    $emirates = trim((string) ($this->emirates ?? ''));
+    $plate = trim((string) ($this->plate ?? ''));
+
+    if ($emirates !== '' && $plate !== '') {
+      return $emirates . '-' . $plate;
+    }
+
+    return $emirates !== '' ? $emirates : ($plate !== '' ? $plate : (string) ($this->bike_code ?? $this->id));
+  }
+
+  /**
+   * Dropdown label: "{emirates}-{plate} {road status}".
+   */
+  public function selectLabelWithRoadStatus(): string
+  {
+    return trim($this->emiratesPlateLabel() . ' ( ' . ($this->road_status['label'] ?? '') . ' )');
+  }
+
+  public static function availableForFixedAssetSelect(?int $exceptAssetId = null)
+  {
+    $assignedQuery = FixedAsset::query()
+      ->whereNotNull('bike_id');
+
+    if ($exceptAssetId) {
+      $assignedQuery->where('id', '!=', $exceptAssetId);
+    }
+
+    $assignedBikeIds = $assignedQuery->pluck('bike_id');
+
+    return self::query()
+      ->when($assignedBikeIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $assignedBikeIds))
+      ->orderBy('emirates')
+      ->orderBy('plate')
+      ->get();
+  }
+
+  public static function availableForFixedAssetOptions(?int $exceptAssetId = null): array
+  {
+    return self::availableForFixedAssetSelect($exceptAssetId)
+      ->mapWithKeys(fn (self $bike) => [$bike->id => $bike->emiratesPlateLabel()])
+      ->all();
+  }
+
+  public static function riderBikes()
+  {
+    //return self::select('id', \DB::raw("CONCAT(plate, '-', company) as plate_name"))->whereNotNull('rider_id')->pluck('plate_name', 'id')->prepend('Select', '');
+    return self::with('leasingCompany')
+      ->whereNotNull('rider_id')
+      ->get(['id', 'plate', 'company']) // You must fetch the foreign key too
+      ->mapWithKeys(function ($item) {
+        return [$item->id => $item->plate . ' - ' . ($item->leasingCompany->name ?? 'N/A')];
+      })
+      ->prepend('Select', '');
+  }
+  public function rider()
+  {
+    return $this->belongsTo(Riders::class, 'rider_id', 'id');
+  }
+  public function history()
+  {
+    return $this->hasMany(BikeHistory::class, 'bike_id', 'id');
+  }
+
+  public function latestHistory()
+  {
+    return $this->hasOne(BikeHistory::class, 'bike_id')->latestOfMany(['note_date', 'id']);
+  }
+  public function LeasingCompany()
+  {
+    return $this->belongsTo(LeasingCompanies::class, 'company');
+  }
+
+  public function leasedReturnCompany()
+  {
+    return $this->belongsTo(LeasingCompanies::class, 'leased_return_company_id');
+  }
+
+  public function rentalCompany()
+  {
+    return $this->belongsTo(BikeRentCompany::class, 'rental_company_id', 'id');
+  }
+
+  public function customer()
+  {
+    return $this->belongsTo(Customers::class, 'customer_id');
+  }
+
+  public function branch()
+  {
+    return $this->belongsTo(Branch::class, 'branch_id', 'id');
+  }
+
+  /**
+   * Leasing return: "return by" = target date, "return date" = completed return.
+   *
+   * @return array{label: string, badge: string}
+   */
+  public function leasedReturnDisplay(): array
+  {
+    if ($this->leased_return_date) {
+      return ['label' => 'Returned', 'badge' => 'bg-label-success'];
+    }
+    if (!$this->leased_return_by) {
+      return ['label' => 'Not set', 'badge' => 'bg-secondary'];
+    }
+
+    $due = \Carbon\Carbon::parse($this->leased_return_by)->startOfDay();
+    $today = now()->startOfDay();
+
+    if ($due->lt($today)) {
+      return ['label' => 'Overdue', 'badge' => 'bg-label-danger'];
+    }
+    if ($due->lte($today->copy()->addDays(7))) {
+      return ['label' => 'Due soon', 'badge' => 'bg-label-warning'];
+    }
+
+    return ['label' => 'Scheduled', 'badge' => 'bg-label-info'];
+  }
+
+  /**
+   * Warehouse values for road-status keys used by list filters, totals, and top-bar stats.
+   * Matches applyBikeRoadStatusFilter / status column On Road / Off Road mapping.
+   *
+   * @return array<string, list<string>>
+   */
+  public static function roadStatusWarehouseMap(): array
+  {
+    return [
+      'on_road' => ['Active'],
+      'off_road' => ['Return', 'Vacation', 'Express Garage', 'Inactive'],
+      'absconded' => ['Absconded'],
+      'theft' => ['Theft'],
+      'total_loss' => ['Total Loss'],
+      'impound' => ['Impound'],
+      'accident' => ['Accident'],
+    ];
+  }
+
+  /**
+   * Top-bar On Road warehouses (includes Absconded).
+   *
+   * @return list<string>
+   */
+  public static function topBarOnRoadWarehouses(): array
+  {
+    return ['Active', 'Absconded'];
+  }
+
+  /**
+   * Top-bar Off Road warehouses (Returned is handled via leased_return_date).
+   *
+   * @return list<string>
+   */
+  public static function topBarOffRoadWarehouses(): array
+  {
+    return ['Return', 'Vacation', 'Express Garage', 'Inactive'];
+  }
+
+  /**
+   * Apply top-bar On Road / Off Road constraint (counts + click filters).
+   * On Road = Active + Absconded (not returned). Off Road = off-road warehouses + Returned.
+   */
+  public static function applyTopBarRoadStatusConstraint($query, string $statusKey): void
+  {
+    $statusKey = strtolower(trim($statusKey));
+    $statusKey = match ($statusKey) {
+      'active' => 'on_road',
+      'inactive' => 'off_road',
+      default => $statusKey,
+    };
+
+    $hasReturnDate = \Illuminate\Support\Facades\Schema::hasColumn('bikes', 'leased_return_date');
+
+    if ($statusKey === 'on_road') {
+      $query->whereIn('bikes.warehouse', self::topBarOnRoadWarehouses());
+      if ($hasReturnDate) {
+        $query->whereNull('bikes.leased_return_date');
+      }
+
+      return;
+    }
+
+    if ($statusKey === 'off_road') {
+      $query->whereIn('bikes.warehouse', self::topBarOffRoadWarehouses());
+      if ($hasReturnDate) {
+        $query->whereNull('bikes.leased_return_date');
+      }
+
+      return;
+    }
+  }
+
+  /**
+   * Road / warehouse status badge used across bike list, detail, and leasing company bike pages.
+   *
+   * @return array{label: string, class: string, title: string, since: \Carbon\Carbon|string|null, days: int|null, is_returned: bool}
+   */
+  public function getRoadStatusAttribute(): array
+  {
+    static $hasLeasingReturnColumn = null;
+    if ($hasLeasingReturnColumn === null) {
+      $hasLeasingReturnColumn = \Illuminate\Support\Facades\Schema::hasColumn($this->getTable(), 'leased_return_by');
+    }
+
+    $isReturned = $hasLeasingReturnColumn && ! empty($this->leased_return_date);
+    $wKey = strtolower(trim((string) ($this->warehouse ?? '')));
+
+    $specialStatuses = [
+      'absconded' => ['Absconded', 'road-absconded'],
+      'theft' => ['Theft', 'road-theft'],
+      'total loss' => ['Total Loss', 'road-total-loss'],
+      'impound' => ['Impound', 'road-impound'],
+      'accident' => ['Accident', 'road-accident'],
+    ];
+
+    if ($isReturned) {
+      $label = 'Returned';
+      $class = 'road-returned';
+      $title = 'Returned to leasing company';
+    } elseif (isset($specialStatuses[$wKey])) {
+      [$label, $class] = $specialStatuses[$wKey];
+      $title = 'Status: ' . $label;
+    } elseif ($wKey === 'active') {
+      $label = 'On Road';
+      $class = 'road-onroad';
+      $title = 'Status: On Road';
+    } elseif (in_array($wKey, ['return', 'vacation', 'express garage', 'inactive'], true)) {
+      $label = 'Off Road';
+      $class = 'road-offroad';
+      $title = 'Status: Off Road';
+    } else {
+      $label = 'On Road';
+      $class = 'road-onroadRed';
+      $title = 'Status: On Road';
+    }
+
+    $since = null;
+    if ($isReturned && ! empty($this->leased_return_date)) {
+      $since = $this->leased_return_date;
+    } else {
+      $lastHist = $this->latestHistory;
+      if ($lastHist) {
+        $since = $lastHist->return_date ?: $lastHist->note_date;
+      }
+    }
+
+    $days = null;
+    if ($since) {
+      $days = (int) max(0, \Carbon\Carbon::parse($since)->startOfDay()->diffInDays(now()->startOfDay()));
+    }
+
+    return [
+      'label' => $label,
+      'class' => $class,
+      'title' => $title,
+      'since' => $since,
+      'days' => $days,
+      'is_returned' => $isReturned,
+    ];
+  }
+
+  public function maintenanceStatus(): string
+  {
+    if ($this->current_km === null || $this->previous_km === null || $this->maintenance_km === null) {
+      return 'missing_data';
+    }
+
+    $km = max(0, $this->current_km - $this->previous_km);
+    if ($km > $this->maintenance_km) {
+      return 'overdue';
+    }
+    if ($km >= ($this->maintenance_km * 0.8)) {
+      return 'due';
+    }
+    return 'good';
+  }
+
+  public function scopeWithMaintenanceStats($query)
+  {
+    return $query->selectRaw("
+        COUNT(*) as active,
+        SUM(CASE WHEN current_km IS NULL OR previous_km IS NULL OR maintenance_km IS NULL THEN 1 ELSE 0 END) as missingData,
+        SUM(CASE WHEN current_km - previous_km < maintenance_km * 0.8 THEN 1 ELSE 0 END) as good,
+        SUM(CASE WHEN current_km - previous_km BETWEEN maintenance_km * 0.8 AND maintenance_km THEN 1 ELSE 0 END) as due,
+        SUM(CASE WHEN current_km - previous_km > maintenance_km THEN 1 ELSE 0 END) as overdue
+    ");
+  }
+
+  public function maintenanceRecords()
+  {
+    return $this->hasMany(BikeMaintenance::class, 'bike_id', 'id');
+  }
+
+  public function rtaFines()
+  {
+    return $this->hasMany(RtaFines::class, 'bike_id', 'id');
+  }
+
+  public function saliks()
+  {
+    return $this->hasMany(salik::class, 'bike_id', 'id');
+  }
+}

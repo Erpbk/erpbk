@@ -80,8 +80,19 @@ class VoucherApprovalRegistry
         }
 
         if ($code === 'PV') {
-            $rider = $action === 'reject' ? 'riders_payments_reject' : 'riders_payments_approve';
-            $names[] = $rider;
+            $names[] = $action === 'reject' ? 'riders_payments_reject' : 'riders_payments_approve';
+            $names[] = $action === 'reject' ? 'employees_payments_reject' : 'employees_payments_approve';
+        }
+
+        // Same voucher type codes (AL/PN/INC) are shared by riders and employees modules.
+        if ($code === 'AL') {
+            $names[] = $action === 'reject' ? 'employees_advance_loan_voucher_reject' : 'employees_advance_loan_voucher_approve';
+        }
+        if ($code === 'PN') {
+            $names[] = $action === 'reject' ? 'employees_penalty_voucher_reject' : 'employees_penalty_voucher_approve';
+        }
+        if ($code === 'INC') {
+            $names[] = $action === 'reject' ? 'employees_incentive_voucher_reject' : 'employees_incentive_voucher_approve';
         }
 
         return array_values(array_unique($names));

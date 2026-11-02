@@ -384,6 +384,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('employees/storeadvanceloan', [EmployeeController::class, 'storeadvanceloan'])->name('employees.storeadvanceloan');
     Route::post('employees/storepenalty', [EmployeeController::class, 'storepenalty'])->name('employees.storepenalty');
     Route::post('employees/storeincentive', [EmployeeController::class, 'storeincentive'])->name('employees.storeincentive');
+    Route::post('employees/filter-ajax', [EmployeeController::class, 'filterAjax'])->name('employees.filterAjax');
+    Route::post('employees/toggle-favorite/{id}', [EmployeeController::class, 'toggleFavorite'])->name('employees.toggleFavorite');
+    Route::get('employees/invoices/{id}', [EmployeeController::class, 'invoices'])->name('employee.invoices');
     Route::resource('employees', EmployeeController::class);
     Route::get('/employees/{id}/ledger', [EmployeeController::class, 'ledger'])->name('employee.ledger');
     Route::get('/employees/{id}/files', [EmployeeController::class, 'files'])->name('employee.files');
@@ -397,13 +400,17 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('/employees/update-profile-field', [EmployeeController::class, 'updateProfileField'])->name('employee.update-profile-field');
     Route::post('/employees/{id}/update-section', [EmployeeController::class, 'updateSection'])->name('employees.updateSection');
 
-    Route::get('attendance/summary', [AttendanceController::class, 'summary'])->name('attendance.summary');
-    Route::get('attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
-    Route::get('attendance/summary/export', [AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
-    Route::get('/attendance/create/{refType}', [AttendanceController::class, 'create'])->name('attendance.create');
-    Route::resource('attendance', AttendanceController::class)->except(['create']);
-    Route::post('attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
-    Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers'])->name('attendance.users');
+Route::get('attendance/summary', [AttendanceController::class, 'summary'])->name('attendance.summary');
+Route::get('attendance/export', [AttendanceController::class, 'export'])->name('attendance.export');
+Route::get('attendance/summary/export', [AttendanceController::class, 'exportSummary'])->name('attendance.summary.export');
+Route::match(['get', 'post'], 'attendance/import', [AttendanceController::class, 'import'])->name('attendance.import');
+Route::get('attendance/import/template', [AttendanceController::class, 'importTemplate'])->name('attendance.import.template');
+Route::post('attendance/upsert-mark', [AttendanceController::class, 'upsertMark'])->name('attendance.upsertMark');
+Route::post('attendance/clear-mark', [AttendanceController::class, 'clearMark'])->name('attendance.clearMark');
+Route::get('/attendance/create/{refType}', [AttendanceController::class, 'create'])->name('attendance.create');
+Route::resource('attendance', AttendanceController::class)->except(['create']);
+Route::post('attendance/bulk-mark', [AttendanceController::class, 'bulkMark'])->name('attendance.bulk-mark');
+Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers'])->name('attendance.users');
 
     // Visa expense custom routes (register before resource to avoid {VisaExpense} shadowing)
     Route::get('VisaExpense/rider/{riderId}', [VisaexpenseController::class, 'showForRider'])->name('VisaExpense.showForRider');
@@ -784,6 +791,9 @@ Route::prefix('app/{company_slug}')->middleware(['web', 'tenant', 'company.route
     Route::post('riderInvoices/bulk-delete', [RiderInvoicesController::class, 'bulkDelete'])->name('riderInvoices.bulkDelete');
     Route::get('employeeInvoices/import', [EmployeeInvoicesController::class, 'importForm'])->name('employeeInvoices.import.form');
     Route::post('employeeInvoices/import', [EmployeeInvoicesController::class, 'import'])->name('employeeInvoices.import');
+    Route::any('employeeInvoices/sendemail/{id}', [EmployeeInvoicesController::class, 'sendEmail'])->name('employeeInvoices.sendEmail');
+    Route::get('employeeInvoices/export', [EmployeeInvoicesController::class, 'export'])->name('employeeInvoices.export');
+    Route::any('employee/invoice-mark-paid/{id}', [EmployeeInvoicesController::class, 'markAsPaid'])->name('employeeInvoices.markAsPaid');
     Route::any('employee/invoice-mark-settled/{id}', [EmployeeInvoicesController::class, 'markAsSettled'])->name('employeeInvoices.markAsSettled');
     Route::get('employeeInvoices/{id}/download', [EmployeeInvoicesController::class, 'download'])->name('employeeInvoices.download');
     Route::resource('employeeInvoices', EmployeeInvoicesController::class);

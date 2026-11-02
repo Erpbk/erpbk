@@ -1,0 +1,1113 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Helpers\IConstants;
+use App\Models\RiderTopCategory;
+use App\Models\RoleFieldPermission;
+use App\Services\Permissions\RiderStatusPermissionSync;
+use App\Services\Permissions\TopBarOptionPermissionSync;
+use App\Services\Permissions\TopBarPermissionSync;
+use App\Services\VoucherApprovalService;
+use App\Support\CompanyContext;
+use App\Support\CompanyQuery;
+use App\Support\DynamicPermissionModules;
+use App\Support\RoleFieldAccess;
+use App\Support\RoleModuleFieldResolver;
+use App\Support\VoucherApprovalRegistry;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+
+/**
+ * Single-page Role Permission manager: module (CRUD) permissions on the left,
+ * dynamic field-level permissions on the right, saved together in one transaction.
+ *
+ * The permission tree is hierarchical (module -> optional sub-modules -> {action} leaves,
+ * e.g. "bikes_bike_view"). Each top-level module shows one toggle per action that aggregates
+ * every descendant leaf for that action.
+ */
+class RolePermissionController extends AppBaseController
+{
+    /** CRUD (+upload) columns on the Module Permissions card. */
+    private const MODULE_ACTIONS = ['view', 'create', 'edit', 'delete', 'upload'];
+
+    /** Full action set used when resolving submodule leaf maps (includes approval leaves). */
+    private const ACTIONS = ['view', 'create', 'edit', 'delete', 'upload', 'approve', 'reject', 'force_approve', 'reopen', 'revise'];
+
+    private const VOUCHER_APPROVAL_MODULE = 'Voucher Approval';
+
+    /**
+     * Render the two-panel permission management page for an existing role.
+     */
+    public function index(Request $request, string $company_slug, $roleId)
+    {
+        $role = Role::query()->find($roleId);
+        if (empty($role) || !$this->roleAccessible($role)) {
+            return redirect()->route('settings-panel.users.index', ['company_slug' => $company_slug]);
+        }
+
+        $this->ensureDynamicPermissionTrees();
+
+        return view('roles.permissions.index', $this->buildPageData($role, false));
+    }
+
+    /**
+     * Same two-panel UI for creating a brand-new role.
+     */
+    public function create(Request $request, string $company_slug)
+    {
+        $this->ensureDynamicPermissionTrees();
+
+        return view('roles.permissions.index', $this->buildPageData(null, true));
+    }
+
+    /**
+     * Create a role and save module + field permissions in one transaction.
+     */
+    public function store(Request $request, string $company_slug)
+    {
+        $companyId = (int) (optional(auth()->user())->company_id ?? CompanyContext::id());
+        $uniqueNameRule = Rule::unique('roles', 'name');
+        if (Schema::hasColumn('roles', 'company_id')) {
+            $uniqueNameRule = Rule::unique('roles', 'name')->where(function ($query) use ($companyId) {
+                return $query->where('company_id', $companyId);
+            });
+        }
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:255', $uniqueNameRule],
+        ]);
+
+        $permChanges = $this->decodePayload($request->input('perm_changes', []));
+        $fieldPayload = $this->decodePayload($request->input('fields', []));
+        $enforceRiderStatus = $request->boolean('enforce_rider_status_permissions', true);
+
+        $role = null;
+        DB::transaction(function () use ($request, $companyId, $permChanges, $fieldPayload, $enforceRiderStatus, &$role) {
+            $payload = ['name' => trim((string) $request->input('name')), 'guard_name' => 'web'];
+            if (Schema::hasColumn('roles', 'company_id')) {
+                $payload['company_id'] = $companyId;
+            }
+            if (Schema::hasColumn('roles', 'enforce_rider_status_permissions')) {
+                $payload['enforce_rider_status_permissions'] = $enforceRiderStatus;
+            }
+            $role = Role::create($payload);
+
+            $this->saveModulePermissions($role, $permChanges);
+            $this->saveFieldPermissions($role, $fieldPayload);
+        });
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return response()->json([
+            'message' => 'Role created successfully.',
+            'redirect' => route('settings-panel.roles.permissions', [
+                'company_slug' => $company_slug,
+                'role' => $role->id,
+            ]),
+        ]);
+    }
+
+    /**
+     * AJAX: return the field-permission rows for a single module.
+     */
+    public function moduleFields(Request $request, string $company_slug, $roleId, $moduleId)
+    {
+        $role = Role::query()->find($roleId);
+        if (empty($role) || !$this->roleAccessible($role)) {
+            return response()->json(['message' => 'Role not found'], 404);
+        }
+
+        return $this->moduleFieldsResponse($moduleId, (int) $role->id);
+    }
+
+    /**
+     * AJAX: field rows for the create-role screen (defaults, no saved state).
+     */
+    public function createModuleFields(Request $request, string $company_slug, $moduleId)
+    {
+        return $this->moduleFieldsResponse($moduleId, null);
+    }
+
+    /**
+     * Persist module (CRUD) permissions and field permissions in one transaction.
+     */
+    public function save(Request $request, string $company_slug, $roleId)
+    {
+        $role = Role::query()->find($roleId);
+        if (empty($role) || !$this->roleAccessible($role)) {
+            return response()->json(['message' => 'Role not found'], 404);
+        }
+
+        // Payloads arrive JSON-encoded (see save JS) so a large field set is not
+        // silently truncated by PHP's max_input_vars; still accept plain arrays for safety.
+        $permChanges = $this->decodePayload($request->input('perm_changes', []));
+        $fieldPayload = $this->decodePayload($request->input('fields', []));
+        $enforceRiderStatus = $request->boolean('enforce_rider_status_permissions', true);
+
+        DB::transaction(function () use ($role, $permChanges, $fieldPayload, $enforceRiderStatus, $request) {
+            if (Schema::hasColumn('roles', 'enforce_rider_status_permissions')) {
+                $role->enforce_rider_status_permissions = $enforceRiderStatus;
+                $role->save();
+            }
+            $this->saveModulePermissions($role, $permChanges);
+            $this->saveFieldPermissions($role, $fieldPayload);
+            $this->logVoucherApprovalPermissionChanges($role, $permChanges, $request->user());
+        });
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        return response()->json(['message' => 'Permissions saved successfully.']);
+    }
+
+    /**
+     * Append-only audit when approve/reject (or override) leaves change on a role.
+     *
+     * @param  array<string, mixed>  $permChanges
+     */
+    private function logVoucherApprovalPermissionChanges(Role $role, array $permChanges, $actor): void
+    {
+        if (! $actor || ! VoucherApprovalRegistry::enabled()) {
+            return;
+        }
+
+        $watched = array_fill_keys(VoucherApprovalRegistry::allTypedPermissionNames(), true);
+        if ($watched === []) {
+            return;
+        }
+
+        $touched = [];
+        foreach ($permChanges as $permissionId => $granted) {
+            $permission = Permission::query()->find($permissionId);
+            if ($permission === null) {
+                continue;
+            }
+            if (! isset($watched[$permission->name])) {
+                // Also match any *_approve / *_reject / override leaves.
+                if (! preg_match('/_(approve|reject|force_approve|reopen|revise)$/', $permission->name)) {
+                    continue;
+                }
+            }
+            $touched[] = [
+                'permission' => $permission->name,
+                'granted' => (bool) $granted,
+            ];
+        }
+
+        if ($touched === []) {
+            return;
+        }
+
+        app(VoucherApprovalService::class)->logPermissionChange($actor, [
+            'role_id' => $role->id,
+            'role_name' => $role->name,
+            'changes' => $touched,
+        ]);
+    }
+
+    /**
+     * Load the full permission tree once.
+     *
+     * @return array{0: Collection<int, Permission>, 1: Collection<int, Collection<int, Permission>>}
+     */
+    private function permissionTree(): array
+    {
+        $all = Permission::query()->orderBy('name')->get();
+        $byParent = $all->groupBy(fn($p) => (int) ($p->parent_id ?? 0));
+
+        $hasParentId = Schema::hasColumn('permissions', 'parent_id');
+        $topModules = $hasParentId
+            ? $all->filter(fn($p) => $p->parent_id === null || (int) $p->parent_id === 0)->sortBy('name')->values()
+            : $all;
+
+        return [$topModules, $byParent];
+    }
+
+    /**
+     * Find every "leaf-bearing" node in a module's subtree (a node that directly owns CRUD leaves),
+     * returning each with its action => leaf id map. The module itself counts when it owns leaves directly.
+     *
+     * @param  Collection<int, Collection<int, Permission>>  $byParent
+     * @return list<array{id: int, name: string, permission: Permission, is_root: bool, actions: array<string, int|null>}>
+     */
+    private function submodulesFor(Collection $byParent, Permission $root): array
+    {
+        // Gather the module node plus all descendants.
+        $nodes = [$root];
+        $queue = [$root];
+        while ($queue !== []) {
+            $node = array_pop($queue);
+            foreach ($byParent->get((int) $node->id, collect()) as $child) {
+                $nodes[] = $child;
+                $queue[] = $child;
+            }
+        }
+
+        $out = [];
+        foreach ($nodes as $node) {
+            $actions = array_fill_keys(self::ACTIONS, null);
+            $found = false;
+            foreach ($byParent->get((int) $node->id, collect()) as $child) {
+                foreach (self::ACTIONS as $action) {
+                    if (Str::endsWith($child->name, '_' . $action)) {
+                        $actions[$action] = (int) $child->id;
+                        $found = true;
+                    }
+                }
+            }
+            if ($found) {
+                $out[] = [
+                    'id' => (int) $node->id,
+                    'name' => $node->name,
+                    'permission' => $node,
+                    'is_root' => (int) $node->id === (int) $root->id,
+                    'actions' => $actions,
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array<int, int>  permission_id => permission_id
+     */
+    private function assignedPermissionIds(Role $role): array
+    {
+        return CompanyQuery::table('role_has_permissions')
+            ->where('role_has_permissions.role_id', $role->id)
+            ->pluck('role_has_permissions.permission_id', 'role_has_permissions.permission_id')
+            ->all();
+    }
+
+    /**
+     * Apply only the toggles the admin changed, so untouched (possibly partial) sub-permissions are preserved.
+     *
+     * @param  array<int, array{ids?: array, enabled?: mixed}>  $changes
+     */
+    private function saveModulePermissions(Role $role, array $changes): void
+    {
+        $current = array_map('intval', array_values($this->assignedPermissionIds($role)));
+        $set = array_fill_keys($current, true);
+
+        foreach ($changes as $change) {
+            $ids = array_map('intval', (array) ($change['ids'] ?? []));
+            $enabled = $this->boolInput($change['enabled'] ?? false);
+            foreach ($ids as $id) {
+                if ($id <= 0) {
+                    continue;
+                }
+                if ($enabled) {
+                    $set[$id] = true;
+                } else {
+                    unset($set[$id]);
+                }
+            }
+        }
+
+        $finalIds = Permission::query()
+            ->whereIn('id', array_keys($set))
+            ->pluck('id')
+            ->map(fn($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        $table = config('permission.table_names.role_has_permissions', 'role_has_permissions');
+        $pivotRole = config('permission.column_names.role_pivot_key') ?: 'role_id';
+        $pivotPermission = config('permission.column_names.permission_pivot_key') ?: 'permission_id';
+        $hasCompanyId = Schema::hasColumn($table, 'company_id');
+        $companyId = null;
+        if ($hasCompanyId) {
+            $companyId = $role->company_id ?? optional(auth()->user())->company_id ?? CompanyContext::id();
+        }
+
+        DB::table($table)->where($pivotRole, (int) $role->id)->delete();
+
+        if ($finalIds === []) {
+            return;
+        }
+
+        $rows = array_map(function (int $permissionId) use ($pivotRole, $pivotPermission, $role, $hasCompanyId, $companyId) {
+            $row = [
+                $pivotPermission => $permissionId,
+                $pivotRole => (int) $role->id,
+            ];
+            if ($hasCompanyId && $companyId !== null) {
+                $row['company_id'] = (int) $companyId;
+            }
+
+            return $row;
+        }, $finalIds);
+
+        CompanyQuery::insert($table, $rows);
+    }
+
+    /**
+     * Upsert field permissions for the submitted fields, enforcing the visibility rules server-side.
+     *
+     * @param  array<int, array<string, mixed>>  $fieldPayload
+     */
+    private function saveFieldPermissions(Role $role, array $fieldPayload): void
+    {
+        $companyId = optional(auth()->user())->company_id ?? CompanyContext::id();
+
+        foreach ($fieldPayload as $row) {
+            $moduleId = (int) ($row['module_id'] ?? 0);
+            $fieldName = trim((string) ($row['field_name'] ?? ''));
+            if ($moduleId <= 0 || $fieldName === '') {
+                continue;
+            }
+
+            $visible = $this->boolInput($row['visible'] ?? false);
+            $editable = $this->boolInput($row['editable'] ?? false);
+            $required = $this->boolInput($row['required'] ?? false);
+
+            // Enforce rules: no visibility => nothing else; editable/required imply visible.
+            if ($editable || $required) {
+                $visible = true;
+            }
+            if (!$visible) {
+                $editable = false;
+                $required = false;
+            }
+
+            // role_field_permissions is unique on (role_id, module_id, field_name), so the
+            // existing row must be matched without the company scope: a row carrying a stale
+            // company_id would otherwise be invisible here and the insert would collide.
+            RoleFieldPermission::query()
+                ->withoutGlobalScope('company')
+                ->updateOrCreate(
+                    [
+                        'role_id' => (int) $role->id,
+                        'module_id' => $moduleId,
+                        'field_name' => $fieldName,
+                    ],
+                    [
+                        'company_id' => $companyId !== null ? (int) $companyId : null,
+                        'visible' => $visible,
+                        'editable' => $editable,
+                        'required' => $required,
+                    ]
+                );
+        }
+    }
+
+    private function boolInput($value): bool
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false;
+    }
+
+    /**
+     * Accept either a JSON-encoded string (the normal client payload) or a plain array.
+     *
+     * @return array<int|string, mixed>
+     */
+    private function decodePayload($value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return is_array($value) ? $value : [];
+    }
+
+    private function roleAccessible(Role $role): bool
+    {
+        if ($role->name === IConstants::ROLE_SUPER_ADMIN) {
+            return false;
+        }
+        if (Schema::hasColumn('roles', 'company_id')) {
+            return (int) ($role->company_id ?? 0) === (int) (optional(auth()->user())->company_id ?? CompanyContext::id());
+        }
+
+        return true;
+    }
+
+    /**
+     * Shared page payload for create + edit screens.
+     *
+     * @return array{role: ?Role, isCreate: bool, moduleRows: list<array>, fieldStats: array, summary: array}
+     */
+    private function buildPageData(?Role $role, bool $isCreate): array
+    {
+        [$topModules, $byParent] = $this->permissionTree();
+        $assigned = $role ? $this->assignedPermissionIds($role) : [];
+
+        $savedFieldPerms = $role
+            ? RoleFieldPermission::query()->withoutGlobalScope('company')->where('role_id', $role->id)->get()->groupBy('module_id')
+            : collect();
+
+        $moduleRows = [];
+        $moduleEnabled = 0;
+        $moduleTotal = 0;
+        $fieldStats = [];
+        $fieldEnabled = 0;
+        $fieldTotal = 0;
+
+        foreach ($topModules as $module) {
+            $moduleSlug = RoleModuleFieldResolver::slugForModule($module);
+            $submodules = [];
+            $modLeafTotal = 0;
+            $modLeafEnabled = 0;
+
+            if ($module->name === DynamicPermissionModules::TOP_BARS) {
+                [$submodules, $modLeafTotal, $modLeafEnabled] = $this->buildTopBarPermissionSubmodules(
+                    $byParent,
+                    $module,
+                    $assigned
+                );
+            } elseif ($module->name === DynamicPermissionModules::RIDER_STATUSES) {
+                [$submodules, $modLeafTotal, $modLeafEnabled] = $this->buildRiderStatusPermissionSubmodules(
+                    $byParent,
+                    $module,
+                    $assigned
+                );
+            } else {
+                $subNodes = $this->submodulesFor($byParent, $module);
+
+                foreach ($subNodes as $node) {
+                    $actions = [];
+                    foreach (self::ACTIONS as $action) {
+                        $leafId = $node['actions'][$action];
+                        if ($leafId === null) {
+                            $actions[$action] = null;
+                            continue;
+                        }
+                        $enabled = isset($assigned[$leafId]);
+                        $actions[$action] = ['id' => $leafId, 'enabled' => $enabled];
+                        $modLeafTotal++;
+                        if ($enabled) {
+                            $modLeafEnabled++;
+                        }
+                    }
+
+                    // A sub-module backed by its own entity (e.g. Cheques under Cash & Banks) owns a
+                    // separate field set, including its custom fields. Without its own row in this
+                    // panel those fields can never be granted or hidden.
+                    $ownFields = $node['is_root'] || ! $this->ownsEnforcedFieldSet($node, $moduleSlug)
+                        ? []
+                        : RoleModuleFieldResolver::fieldsForModule($node['permission']);
+
+                    $submodules[] = [
+                        'id' => $node['id'],
+                        'name' => DynamicPermissionModules::isReservedRoot($module->name)
+                            ? DynamicPermissionModules::displayGroupLabel($module->name, $node['name'])
+                            : $node['name'],
+                        'is_root' => $node['is_root'],
+                        'actions' => $actions,
+                        'has_fields' => $ownFields !== [],
+                        'field_count' => count($ownFields),
+                        'view_only' => DynamicPermissionModules::isReservedRoot($module->name),
+                        'values' => [],
+                    ];
+
+                    if ($ownFields !== []) {
+                        [$subTotal, $subEnabled] = $this->fieldToggleCounts($ownFields, $savedFieldPerms->get($node['id']));
+                        $fieldTotal += $subTotal;
+                        $fieldEnabled += $subEnabled;
+                        $fieldStats[$node['id']] = ['total' => $subTotal, 'enabled' => $subEnabled];
+                    }
+                }
+            }
+
+            $moduleTotal += $modLeafTotal;
+            $moduleEnabled += $modLeafEnabled;
+
+            $isFlat = count($submodules) === 1 && ($submodules[0]['is_root'] ?? false);
+
+            $fields = RoleModuleFieldResolver::fieldsForModule($module);
+
+            [$mTotal, $mEnabled] = $this->fieldToggleCounts($fields, $savedFieldPerms->get($module->id));
+            $fieldTotal += $mTotal;
+            $fieldEnabled += $mEnabled;
+            $fieldStats[$module->id] = ['total' => $mTotal, 'enabled' => $mEnabled];
+
+            $moduleRows[] = [
+                'id' => $module->id,
+                'name' => $module->name,
+                'is_flat' => $isFlat,
+                'leaf_total' => $modLeafTotal,
+                'leaf_enabled' => $modLeafEnabled,
+                'submodules' => $submodules,
+                'has_fields' => $fields !== [],
+                'field_count' => count($fields),
+                'is_dynamic' => DynamicPermissionModules::isReservedRoot($module->name),
+                'dynamic_hint' => match ($module->name) {
+                    DynamicPermissionModules::TOP_BARS => 'Controls which Top Bar filters and values appear. For Rider Status, turn on the Top Bar — statuses show there; optionally limit which ones under Rider Statuses. Does not hide records.',
+                    DynamicPermissionModules::RIDER_STATUSES => 'Control who can change rider status, and which statuses appear in filters and dropdowns. Does not hide riders.',
+                    default => null,
+                },
+            ];
+        }
+
+        $dynamicPermissionRows = array_values(array_filter(
+            $moduleRows,
+            static fn(array $row): bool => ! empty($row['is_dynamic'])
+        ));
+        // Voucher Approval has its own card (typed approve/reject + overrides).
+        $moduleRows = array_values(array_filter(
+            $moduleRows,
+            static fn(array $row): bool => empty($row['is_dynamic'])
+                && ($row['name'] ?? '') !== self::VOUCHER_APPROVAL_MODULE
+        ));
+
+        usort($moduleRows, static fn(array $a, array $b): int => strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? '')));
+        usort($dynamicPermissionRows, static function (array $a, array $b): int {
+            $rank = static function (array $row): int {
+                if (($row['name'] ?? '') === DynamicPermissionModules::TOP_BARS) {
+                    return 0;
+                }
+                if (($row['name'] ?? '') === DynamicPermissionModules::RIDER_STATUSES) {
+                    return 1;
+                }
+
+                return 2;
+            };
+
+            $cmp = $rank($a) <=> $rank($b);
+
+            return $cmp !== 0 ? $cmp : strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+        });
+
+        $voucherApprovalCard = $this->buildVoucherApprovalPermissionCard($assigned);
+
+        $totalPermissions = $moduleTotal + $fieldTotal;
+        $enabledPermissions = $moduleEnabled + $fieldEnabled;
+
+        return [
+            'role' => $role,
+            'isCreate' => $isCreate,
+            'moduleRows' => $moduleRows,
+            'moduleActions' => self::MODULE_ACTIONS,
+            'dynamicPermissionRows' => $dynamicPermissionRows,
+            'voucherApprovalCard' => $voucherApprovalCard,
+            'enforceRiderStatusPermissions' => $role
+                ? (bool) ($role->enforce_rider_status_permissions ?? true)
+                : true,
+            'fieldStats' => $fieldStats,
+            'summary' => [
+                'total' => $totalPermissions,
+                'enabled' => $enabledPermissions,
+                'percent' => $totalPermissions > 0 ? (int) round(($enabledPermissions / $totalPermissions) * 100) : 0,
+                'module_total' => $moduleTotal,
+                'module_enabled' => $moduleEnabled,
+            ],
+        ];
+    }
+
+    /**
+     * Dedicated card data: one row per voucher type (Approve / Reject) plus override toggles.
+     *
+     * @param  array<int, int>  $assigned
+     * @return array{type_rows: list<array<string, mixed>>, override_rows: list<array<string, mixed>>, leaf_total: int, leaf_enabled: int}
+     */
+    private function buildVoucherApprovalPermissionCard(array $assigned): array
+    {
+        $byName = Permission::query()
+            ->whereIn('name', VoucherApprovalRegistry::allTypedPermissionNames())
+            ->get()
+            ->keyBy('name');
+
+        $typeRows = [];
+        $leafTotal = 0;
+        $leafEnabled = 0;
+
+        foreach (VoucherApprovalRegistry::types() as $code => $def) {
+            $approveName = (string) ($def['approve'] ?? '');
+            $rejectName = (string) ($def['reject'] ?? '');
+            $approve = $approveName !== '' ? $byName->get($approveName) : null;
+            $reject = $rejectName !== '' ? $byName->get($rejectName) : null;
+
+            $actions = [
+                'approve' => null,
+                'reject' => null,
+            ];
+
+            if ($approve) {
+                $enabled = isset($assigned[(int) $approve->id]);
+                $actions['approve'] = ['id' => (int) $approve->id, 'enabled' => $enabled];
+                $leafTotal++;
+                if ($enabled) {
+                    $leafEnabled++;
+                }
+            }
+            if ($reject) {
+                $enabled = isset($assigned[(int) $reject->id]);
+                $actions['reject'] = ['id' => (int) $reject->id, 'enabled' => $enabled];
+                $leafTotal++;
+                if ($enabled) {
+                    $leafEnabled++;
+                }
+            }
+
+            if ($actions['approve'] === null && $actions['reject'] === null) {
+                continue;
+            }
+
+            $typeRows[] = [
+                'code' => $code,
+                'label' => (string) ($def['label'] ?? $code),
+                'module' => (string) ($def['module'] ?? ''),
+                'actions' => $actions,
+            ];
+        }
+
+        $overrideLabels = [
+            'force_approve' => 'Force Approve',
+            'reopen' => 'Reopen Rejected / Approved',
+            'revise' => 'Revise Approved',
+            'dashboard_view' => 'Dashboard View',
+            'dashboard_edit' => 'Dashboard Edit',
+        ];
+        $overrideRows = [];
+        foreach ($overrideLabels as $key => $label) {
+            $name = VoucherApprovalRegistry::globalPermission($key);
+            if (! is_string($name) || $name === '') {
+                continue;
+            }
+            $perm = $byName->get($name) ?? Permission::query()->where('name', $name)->first();
+            if ($perm === null) {
+                continue;
+            }
+            $enabled = isset($assigned[(int) $perm->id]);
+            $leafTotal++;
+            if ($enabled) {
+                $leafEnabled++;
+            }
+            $overrideRows[] = [
+                'key' => $key,
+                'label' => $label,
+                'permission' => $name,
+                'id' => (int) $perm->id,
+                'enabled' => $enabled,
+            ];
+        }
+
+        return [
+            'type_rows' => $typeRows,
+            'override_rows' => $overrideRows,
+            'leaf_total' => $leafTotal,
+            'leaf_enabled' => $leafEnabled,
+        ];
+    }
+
+    /**
+     * Reconcile Top Bars / values / Rider Statuses from every module before rendering role UI.
+     */
+    private function ensureDynamicPermissionTrees(): void
+    {
+        try {
+            if (! Schema::hasTable(config('permission.table_names.permissions', 'permissions'))) {
+                return;
+            }
+            // Always reconcile so Permissions stays complete for all modules
+            // (riders, bikes, employees, cheques, and every generic ERP module top bar).
+            TopBarPermissionSync::syncAll(true);
+            TopBarOptionPermissionSync::syncAll(true);
+            RiderStatusPermissionSync::syncAll(true);
+        } catch (\Throwable $e) {
+            // Role UI should still load even if sync fails (e.g. mid-migration).
+        }
+    }
+
+    /**
+     * Top Bars with nested value toggles: Category → View, then each option → View.
+     *
+     * @param  Collection<int, Collection<int, Permission>>  $byParent
+     * @param  array<int, int>  $assigned
+     * @return array{0: list<array>, 1: int, 2: int}
+     */
+    private function buildTopBarPermissionSubmodules(Collection $byParent, Permission $root, array $assigned): array
+    {
+        $submodules = [];
+        $modLeafTotal = 0;
+        $modLeafEnabled = 0;
+        $companyCategoryKeys = TopBarPermissionSync::currentCompanyCategoryKeySet();
+        $categoryLabels = TopBarPermissionSync::currentCompanyCategoryLabels();
+        [$companyOptionKeys, $optionLabels] = TopBarOptionPermissionSync::currentCompanyOptionKeysAndLabels();
+        [$companyStatusIds, $statusLabels] = RiderStatusPermissionSync::currentCompanyOptionIdsAndLabels();
+
+        $categoryGroups = $byParent->get((int) $root->id, collect())
+            ->filter(fn (Permission $p) => str_starts_with((string) $p->name, DynamicPermissionModules::TOP_BAR_GROUP_PREFIX))
+            ->sortBy(fn (Permission $p) => Str::lower((string) $p->name))
+            ->values();
+
+        foreach ($categoryGroups as $categoryGroup) {
+            $children = $byParent->get((int) $categoryGroup->id, collect());
+            $parsedCategory = null;
+            foreach ($children as $child) {
+                $parsedCategory = TopBarPermissionSync::parseCategoryLeafName((string) $child->name);
+                if ($parsedCategory !== null) {
+                    break;
+                }
+            }
+
+            if ($parsedCategory === null) {
+                continue;
+            }
+
+            $categoryKey = $parsedCategory['storage'] . ':' . $parsedCategory['id'];
+            if (! isset($companyCategoryKeys[$categoryKey])) {
+                continue;
+            }
+
+            $actions = array_fill_keys(self::ACTIONS, null);
+            $values = [];
+
+            foreach ($children as $child) {
+                $isActionLeaf = false;
+                foreach (self::ACTIONS as $action) {
+                    if (Str::endsWith((string) $child->name, '_' . $action)) {
+                        $isActionLeaf = true;
+                        break;
+                    }
+                }
+                if ($isActionLeaf) {
+                    foreach (self::ACTIONS as $action) {
+                        if (Str::endsWith((string) $child->name, '_' . $action)) {
+                            $enabled = isset($assigned[(int) $child->id]);
+                            $actions[$action] = ['id' => (int) $child->id, 'enabled' => $enabled];
+                            $modLeafTotal++;
+                            if ($enabled) {
+                                $modLeafEnabled++;
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                $valueActions = array_fill_keys(self::ACTIONS, null);
+                $hasValueLeaf = false;
+                $valueLabel = (string) $child->name;
+                foreach ($byParent->get((int) $child->id, collect()) as $valueLeaf) {
+                    $parsedValue = TopBarOptionPermissionSync::parseValueLeafName((string) $valueLeaf->name);
+                    if ($parsedValue !== null) {
+                        $valueKey = $parsedValue['storage'] . ':' . $parsedValue['id'];
+                        if (! isset($companyOptionKeys[$valueKey])) {
+                            continue;
+                        }
+                        $valueLabel = $optionLabels[$valueKey] ?? $valueLabel;
+                    }
+                    foreach (self::ACTIONS as $action) {
+                        if (! Str::endsWith((string) $valueLeaf->name, '_' . $action)) {
+                            continue;
+                        }
+                        $enabled = isset($assigned[(int) $valueLeaf->id]);
+                        $valueActions[$action] = ['id' => (int) $valueLeaf->id, 'enabled' => $enabled];
+                        $modLeafTotal++;
+                        if ($enabled) {
+                            $modLeafEnabled++;
+                        }
+                        $hasValueLeaf = true;
+                    }
+                }
+
+                if ($hasValueLeaf) {
+                    $values[] = [
+                        'id' => (int) $child->id,
+                        'name' => $valueLabel,
+                        'actions' => $valueActions,
+                    ];
+                }
+            }
+
+            usort($values, static fn (array $a, array $b): int => strcasecmp((string) $a['name'], (string) $b['name']));
+
+            // Rider Status top bar has no top_bar_values_* leaves — nest Rider Statuses
+            // option toggles here so granting Top Bar + statuses is obvious in one place.
+            if ($values === [] && ! empty($actions['view']['id'])) {
+                $viewLeaf = Permission::query()->find((int) $actions['view']['id']);
+                $viewName = (string) ($viewLeaf->name ?? '');
+                if (preg_match('/^' . preg_quote(TopBarPermissionSync::SLUG, '/') . '_rider_(\d+)_view$/', $viewName, $m)) {
+                    $categoryId = (int) $m[1];
+                    $category = RiderTopCategory::query()->find($categoryId);
+                    if ($category && trim((string) ($category->rider_column ?? '')) === 'rider_status') {
+                        [$statusValues] = $this->riderStatusValuesForTopBar($assigned, $companyStatusIds, $statusLabels);
+                        $values = $statusValues;
+                    }
+                }
+            }
+
+            $submodules[] = [
+                'id' => (int) $categoryGroup->id,
+                'name' => $categoryLabels[$categoryKey]
+                    ?? DynamicPermissionModules::displayGroupLabel($root->name, (string) $categoryGroup->name),
+                'is_root' => false,
+                'actions' => $actions,
+                'has_fields' => false,
+                'field_count' => 0,
+                'view_only' => true,
+                'values' => $values,
+            ];
+        }
+
+        usort($submodules, static fn (array $a, array $b): int => strcasecmp((string) $a['name'], (string) $b['name']));
+
+        return [$submodules, $modLeafTotal, $modLeafEnabled];
+    }
+
+    /**
+     * Rider Statuses module: Change capability + this company's status values only.
+     *
+     * @param  Collection<int, Collection<int, Permission>>  $byParent
+     * @param  array<int, int>  $assigned
+     * @return array{0: list<array>, 1: int, 2: int}
+     */
+    private function buildRiderStatusPermissionSubmodules(Collection $byParent, Permission $root, array $assigned): array
+    {
+        $submodules = [];
+        $modLeafTotal = 0;
+        $modLeafEnabled = 0;
+        [$companyStatusIds, $statusLabels] = RiderStatusPermissionSync::currentCompanyOptionIdsAndLabels();
+
+        $groups = $byParent->get((int) $root->id, collect())
+            ->sortBy(fn (Permission $p) => Str::lower((string) $p->name))
+            ->values();
+
+        foreach ($groups as $group) {
+            $groupName = (string) $group->name;
+            $isChange = $groupName === RiderStatusPermissionSync::CHANGE_GROUP
+                || str_starts_with($groupName, RiderStatusPermissionSync::CHANGE_GROUP);
+
+            $actions = array_fill_keys(self::ACTIONS, null);
+            $statusOptionId = null;
+            $hasLeaf = false;
+
+            foreach ($byParent->get((int) $group->id, collect()) as $child) {
+                $parsed = RiderStatusPermissionSync::parseStatusLeafName((string) $child->name);
+                if ($parsed !== null) {
+                    $statusOptionId = $parsed;
+                }
+                foreach (self::ACTIONS as $action) {
+                    if (! Str::endsWith((string) $child->name, '_' . $action)) {
+                        continue;
+                    }
+                    $hasLeaf = true;
+                    $enabled = isset($assigned[(int) $child->id]);
+                    $actions[$action] = ['id' => (int) $child->id, 'enabled' => $enabled];
+                }
+            }
+
+            if (! $hasLeaf || $actions['view'] === null) {
+                continue;
+            }
+
+            if (! $isChange && ($statusOptionId === null || ! isset($companyStatusIds[$statusOptionId]))) {
+                continue;
+            }
+
+            foreach ($actions as $action) {
+                if ($action === null) {
+                    continue;
+                }
+                $modLeafTotal++;
+                if (! empty($action['enabled'])) {
+                    $modLeafEnabled++;
+                }
+            }
+
+            $submodules[] = [
+                'id' => (int) $group->id,
+                'name' => $isChange
+                    ? RiderStatusPermissionSync::CHANGE_GROUP
+                    : ($statusLabels[$statusOptionId] ?? DynamicPermissionModules::displayGroupLabel(
+                        DynamicPermissionModules::RIDER_STATUSES,
+                        $groupName
+                    )),
+                'is_root' => false,
+                'actions' => $actions,
+                'has_fields' => false,
+                'field_count' => 0,
+                'view_only' => true,
+                'values' => [],
+            ];
+        }
+
+        return [$submodules, $modLeafTotal, $modLeafEnabled];
+    }
+
+    /**
+     * Rider status option leaves (same IDs as Rider Statuses → Visible statuses).
+     *
+     * @param  array<int, int>  $assigned
+     * @param  array<int, true>|null  $companyStatusIds
+     * @param  array<int, string>|null  $statusLabels
+     * @return array{0: list<array>, 1: int, 2: int}
+     */
+    private function riderStatusValuesForTopBar(
+        array $assigned,
+        ?array $companyStatusIds = null,
+        ?array $statusLabels = null
+    ): array {
+        $values = [];
+        $total = 0;
+        $enabled = 0;
+
+        if ($companyStatusIds === null || $statusLabels === null) {
+            [$companyStatusIds, $statusLabels] = RiderStatusPermissionSync::currentCompanyOptionIdsAndLabels();
+        }
+
+        $root = Permission::query()
+            ->where('name', DynamicPermissionModules::RIDER_STATUSES)
+            ->where(function ($q) {
+                $q->whereNull('parent_id')->orWhere('parent_id', 0);
+            })
+            ->first();
+
+        if (! $root) {
+            return [[], 0, 0];
+        }
+
+        $groups = Permission::query()
+            ->where('parent_id', $root->id)
+            ->orderBy('name')
+            ->get();
+
+        foreach ($groups as $group) {
+            if ((string) $group->name === RiderStatusPermissionSync::CHANGE_GROUP
+                || str_starts_with((string) $group->name, RiderStatusPermissionSync::CHANGE_GROUP)
+            ) {
+                continue;
+            }
+
+            $leaf = Permission::query()
+                ->where('parent_id', $group->id)
+                ->where('name', 'like', RiderStatusPermissionSync::SLUG . '_%_view')
+                ->where('name', '!=', RiderStatusPermissionSync::CHANGE_LEAF)
+                ->first();
+
+            if (! $leaf) {
+                continue;
+            }
+
+            $optionId = RiderStatusPermissionSync::parseStatusLeafName((string) $leaf->name);
+            if ($optionId === null || ! isset($companyStatusIds[$optionId])) {
+                continue;
+            }
+
+            $isEnabled = isset($assigned[(int) $leaf->id]);
+            $total++;
+            if ($isEnabled) {
+                $enabled++;
+            }
+
+            $values[] = [
+                'id' => (int) $group->id,
+                'name' => $statusLabels[$optionId] ?? DynamicPermissionModules::displayGroupLabel(
+                    DynamicPermissionModules::RIDER_STATUSES,
+                    (string) $group->name
+                ),
+                'actions' => [
+                    'view' => ['id' => (int) $leaf->id, 'enabled' => $isEnabled],
+                    'create' => null,
+                    'edit' => null,
+                    'delete' => null,
+                ],
+            ];
+        }
+
+        usort($values, static fn (array $a, array $b): int => strcasecmp((string) $a['name'], (string) $b['name']));
+
+        return [$values, $total, $enabled];
+    }
+
+    /**
+     * Whether a sub-module deserves its own Field Permissions panel.
+     *
+     * Only entities the field system actually knows about qualify, and only when the runtime
+     * resolves that entity to this exact permission — otherwise the panel would offer toggles
+     * that are never consulted (most sub-modules simply reuse their parent's table).
+     *
+     * @param  array{id: int, permission: Permission}  $node
+     */
+    private function ownsEnforcedFieldSet(array $node, ?string $parentSlug): bool
+    {
+        $slug = RoleModuleFieldResolver::slugForModule($node['permission']);
+        if ($slug === null || $slug === $parentSlug || ! isset(RoleModuleFieldResolver::map()[$slug])) {
+            return false;
+        }
+
+        return RoleFieldAccess::moduleId($slug) === (int) $node['id'];
+    }
+
+    /**
+     * Count the field toggles shown for a module and how many are currently on.
+     * Unsaved fields default to visible + editable, matching {@see RoleFieldAccess}.
+     *
+     * @param  list<array{name: string}>  $fields
+     * @param  Collection<int, RoleFieldPermission>|null  $savedRows
+     * @return array{0: int, 1: int}
+     */
+    private function fieldToggleCounts(array $fields, ?Collection $savedRows): array
+    {
+        $saved = ($savedRows ?? collect())->keyBy('field_name');
+        $enabled = 0;
+
+        foreach ($fields as $field) {
+            $row = $saved->get($field['name']);
+            $visible = $row ? (bool) $row->visible : true;
+            $editable = $row ? (bool) $row->editable : true;
+            $required = $row ? (bool) $row->required : false;
+            $enabled += ($visible ? 1 : 0) + ($editable ? 1 : 0) + ($required ? 1 : 0);
+        }
+
+        return [count($fields) * 3, $enabled];
+    }
+
+    /**
+     * Build the field-permissions HTML/JSON for a module (role optional = defaults).
+     */
+    private function moduleFieldsResponse($moduleId, ?int $roleId)
+    {
+        $module = Permission::query()->find($moduleId);
+        if (empty($module)) {
+            return response()->json(['message' => 'Module not found'], 404);
+        }
+
+        $fields = RoleModuleFieldResolver::fieldsForModule($module);
+        $saved = collect();
+        if ($roleId !== null) {
+            $saved = RoleFieldPermission::query()
+                ->withoutGlobalScope('company')
+                ->where('role_id', $roleId)
+                ->where('module_id', $module->id)
+                ->get()
+                ->keyBy('field_name');
+        }
+
+        $rows = [];
+        foreach ($fields as $field) {
+            $existing = $saved->get($field['name']);
+            $rows[] = [
+                'name' => $field['name'],
+                'label' => $field['label'],
+                'type' => $field['type'],
+                'visible' => $existing ? (bool) $existing->visible : true,
+                'editable' => $existing ? (bool) $existing->editable : true,
+                'required' => $existing ? (bool) $existing->required : false,
+            ];
+        }
+
+        $html = view('roles.permissions._fields', [
+            'moduleId' => $module->id,
+            'moduleName' => $module->name,
+            'rows' => $rows,
+        ])->render();
+
+        return response()->json([
+            'html' => $html,
+            'module_id' => $module->id,
+            'field_count' => count($rows),
+        ]);
+    }
+}

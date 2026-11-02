@@ -1,0 +1,295 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Helpers\Account;
+use App\Http\Requests\CreateVendorsRequest;
+use App\Http\Requests\UpdateVendorsRequest;
+use App\Http\Controllers\AppBaseController;
+use App\Models\Accounts;
+use App\Models\vendors;
+use App\Repositories\VendorsRepository;
+use Illuminate\Http\Request;
+use App\Http\Controllers\Concerns\AppliesModuleTopBarFilters;
+use App\Traits\GlobalPagination;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
+use Illuminate\Support\Facades\DB;
+use Flash;
+use App\Support\TopBarNumericStatus;
+
+class VendorsController extends AppBaseController
+{
+  use AppliesModuleTopBarFilters, GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
+  /** @var VendorsRepository $vendorsRepository*/
+  private $vendorsRepository;
+
+  public function __construct(VendorsRepository $vendorsRepo)
+  {
+    $this->vendorsRepository = $vendorsRepo;
+    $this->middleware('permission:vendors_view')->only('index', 'show');
+    $this->middleware('permission:vendors_create')->only('create', 'store');
+    $this->middleware('permission:vendors_edit')->only('edit', 'update');
+    $this->middleware('permission:vendors_delete')->only('destroy');
+  }
+
+  /**
+   * Display a listing of the Vendors.
+   */
+  public function index(Request $request)
+  {
+    if (! \App\Support\RoleFieldAccess::canAccessModule('vendor')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    // Use global pagination trait
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = vendors::query()
+      ->orderBy('id', 'desc');
+    $this->applyModuleTopBarFilters($query, $request, 'vendors');
+    if ($request->has('name') && !empty($request->name)) {
+      $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->has('account_id') && !empty($request->account_id)) {
+      $query->where('account_id', $request->account_id);
+    }
+    $listStatusKeys = TopBarNumericStatus::normalizeStatusKeys($request->input('list_status'));
+    if ($listStatusKeys !== []) {
+      TopBarNumericStatus::applyActiveInactiveOrGroup($query, 'vendors.status', $listStatusKeys);
+    } elseif ($request->has('status') && !empty($request->status)) {
+      $query->where('status', $request->status);
+    }
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    if ($request->ajax()) {
+      $tableData = view('vendors.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+    return view('vendors.index', array_merge([
+      'data' => $data,
+    ], $this->moduleTopBarListingData($request, 'vendors')));
+  }
+
+
+  /**
+   * Show the form for creating a new Vendors.
+   */
+  public function create()
+  {
+    return view('vendors.create');
+  }
+
+  /**
+   * Store a newly created Vendors in storage.
+   */
+  public function store(CreateVendorsRequest $request)
+  {
+    $input = \App\Support\RoleFieldAccess::stripNonEditableInput($request->all(), 'vendor');
+
+    //Adding Account and setting reference
+    $parentAccount = \App\Support\GlobalAccounts::id('VENDORS');
+    try {
+      DB::beginTransaction();
+      $vendor = $this->vendorsRepository->create($input);
+
+      $account = new Accounts();
+      $account->account_code = 'VD' . str_pad($vendor->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Liability';
+      $account->name = $vendor->name;
+      $account->parent_id = $parentAccount;
+      $account->ref_name = 'Vendor';
+      $account->ref_id = $vendor->id;
+      $account->status = $vendor->status;
+      $account->branch_id = $vendor->branch_id;
+      $account->is_locked = true;
+      $account->save();
+
+      $vendor->account_id = $account->id;
+      $vendor->save();
+      DB::commit();
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Vendor Added Successfully',
+          'reload' => true,
+        ], 200);
+      }
+      return response()->json([
+        'success' => true,
+        'message' => 'Vendor added successfully.',
+      ], 200);
+      return redirect(route('vendors.index'));
+    } catch (\Exception $e) {
+      \Log::error('error occured while creating vendor : ' . $e->getMessage());
+      DB::rollBack();
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Error: ' . $e->getMessage(),
+          'reload' => true
+        ], 500);
+      }
+      Flash::error('Error: ' . $e->getMessage());
+      return redirect()->back();
+    }
+  }
+
+  /**
+   * Display the specified Vendors.
+   */
+  public function show($company_slug, $id)
+  {
+    $vendors = $this->vendorsRepository->find($id);
+
+    if (empty($vendors)) {
+      Flash::error('Vendor not found');
+
+      return redirect(route('vendors.index'));
+    }
+
+    return view('vendors.show')->with('vendors', $vendors);
+  }
+
+  /**
+   * Show the form for editing the specified Vendors.
+   */
+  public function edit($company_slug, $id)
+  {
+    $vendors = $this->vendorsRepository->find($id);
+
+    if (empty($vendors)) {
+      Flash::error('Vendor not found');
+
+      return redirect(route('vendors.index'));
+    }
+
+    return view('vendors.edit')->with('vendors', $vendors);
+  }
+
+  /**
+   * Update the specified Vendors in storage.
+   */
+  public function update($company_slug, $id, UpdateVendorsRequest $request)
+  {
+    $vendor = $this->vendorsRepository->find($id);
+
+    if (empty($vendor)) {
+
+      Flash::error('Vendor not found!');
+      return redirect(route('vendors.index'));
+    }
+
+    $vendor = $this->vendorsRepository->update(
+      \App\Support\RoleFieldAccess::stripNonEditableInput($request->all(), 'vendor'),
+      $id
+    );
+    $vendor->account->status = $vendor->status;
+    $vendor->save();
+
+    Flash::success('Vendor updated successfully.');
+    return redirect(route('vendors.index'));
+  }
+
+  /**
+   * Remove the specified Vendors from storage (soft delete with cascade tracking).
+   *
+   * @throws \Exception
+   */
+  public function destroy($company_slug, $id)
+  {
+    $vendor = $this->vendorsRepository->find($id);
+
+    if (empty($vendor)) {
+      return delete_error_response('Vendor not found!', route('vendors.index'), 404);
+    }
+
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($vendor), 'Vendor')) {
+      return delete_error_response($blockReason, route('vendors.index'));
+    }
+
+    // Track cascaded deletions
+    $cascadedItems = [];
+
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $vendor->account;
+
+    // Soft delete the vendor
+    $vendor->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Vendors',
+        $vendor->id,
+        $vendor->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    $trashUrl = route('settings-panel.trash.index') . '?module=vendors';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Vendor', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Vendor moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
+    }
+
+    Flash::success('Vendor moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    return redirect(route('vendors.index'));
+  }
+
+  /**
+   * Get the model class for trash functionality
+   */
+  protected function getTrashModelClass()
+  {
+    return vendors::class;
+  }
+
+  /**
+   * Get the trash configuration
+   */
+  protected function getTrashConfig()
+  {
+    return [
+      'name' => 'Vendor',
+      'display_columns' => ['name', 'email', 'contact_number'],
+      'trash_view' => 'vendors.trash',
+      'index_route' => 'vendors.index',
+    ];
+  }
+}

@@ -258,8 +258,8 @@ $editMode = isset($voucher_id) && isset($voucher_type);
             loadFormFor(this.value, false);
         });
 
-        if (editMode && voucherType) {
-            loadFormFor(voucherType, true);
+        if (voucherType) {
+            loadFormFor(voucherType, editMode);
         }
     })();
 </script>

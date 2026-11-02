@@ -1,0 +1,398 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\DataTables\SuppliersDataTable;
+use App\DataTables\FilesDataTable;
+use App\Models\Supplier;
+use Illuminate\Http\Request;
+use App\Traits\GlobalPagination;
+use App\Models\Accounts;
+use App\Repositories\SuppliersRepository;
+use App\Http\Controllers\AppBaseController;
+use App\Helpers\Account;
+use App\DataTables\LedgerDataTable;
+use App\Models\Transactions;
+use App\Models\Files;
+use App\Traits\HasTrashFunctionality;
+use App\Traits\TracksCascadingDeletions;
+use App\Support\PublicStorageDisk;
+use Illuminate\Support\Facades\DB;
+use Flash;
+
+
+
+
+class SupplierController extends AppBaseController
+{
+  use GlobalPagination, HasTrashFunctionality, TracksCascadingDeletions;
+  public function index(Request $request)
+  {
+    // Use global pagination trait
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Supplier::query()
+      ->orderBy('id', 'asc');
+    if ($request->has('name') && !empty($request->name)) {
+      $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->has('company_name') && !empty($request->company_name)) {
+      $query->where('company_name', $request->company_name);
+    }
+    if ($request->has('status') && !empty($request->status)) {
+      $query->where('status', $request->status);
+    }
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    if ($request->ajax()) {
+      $tableData = view('Suppliers.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+    return view('Suppliers.index', [
+      'data' => $data,
+    ]);
+  }
+
+  public function files($company_slug, $supplier_id, FilesDataTable $filesDataTable)
+  {
+    $supplier = Supplier::find($supplier_id); // Fetch supplier
+    if (!$supplier) {
+      abort(404, 'Supplier not found');
+    }
+
+    return $filesDataTable
+      ->with([
+
+        'type_id' => $supplier_id,   // ✅ pass 'type_id'
+      ])
+      ->render('Suppliers.document', compact('supplier'));
+  }
+
+
+  public function create()
+  {
+    return view('Suppliers.create');
+  }
+
+  private $suppliersRepository;
+
+  public function __construct(SuppliersRepository $suppliersRepo)
+  {
+    $this->suppliersRepository = $suppliersRepo;
+  }
+
+  public function store(Request $request)
+  {
+    $validated = $request->validate([
+      'name' => 'required|string|max:255|unique:suppliers,name',
+      'email' => 'nullable|email',
+      'phone' => 'nullable|string',
+      'company_name' => 'nullable|string',
+      'address' => 'nullable|string',
+      'status' => 'nullable|string',
+    ]);
+
+
+    try {
+      $parentId = \App\Support\GlobalAccounts::id('SUPPLIER_ACCOUNT');
+      DB::beginTransaction();
+      $supplier = Supplier::create($validated);
+      // Create linked account in chart of accounts
+      $account = new Accounts();
+      $account->account_code = 'SUP' . str_pad($supplier->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Liability';
+      $account->name = $supplier->name;
+      $account->parent_id = $parentId;
+      $account->ref_name = 'Supplier';
+      $account->ref_id = $supplier->id;
+      $account->status = 1;
+      $account->branch_id = $supplier->branch_id;
+      $account->is_locked = true;
+      $account->save();
+
+      $supplier->account_id = $account->id;
+      $supplier->save();
+      DB::commit();
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Supplier Added Successfully',
+          'reload' => true
+        ], 200);
+      }
+      Flash::success('Supplier created successfully.');
+      return redirect(route('suppliers.index'));
+    } catch (\Exception $e) {
+      \Log::error('error occured while creating supplier : ' . $e->getMessage());
+      DB::rollBack();
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Error: ' . $e->getMessage(),
+        ], 500);
+      }
+      Flash::error('Error: ' . $e->getMessage());
+      return redirect()->back();
+    }
+  }
+
+
+  public function show($company_slug, $id)
+  {
+    if (!user_can('supplier_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $supplier = $this->suppliersRepository->find($id);
+    if (empty($supplier)) {
+      Flash::error('Supplier not found');
+      return redirect(route('suppliers.index'));
+    }
+
+    return view('Suppliers.show', [
+      'supplier' => $supplier,
+    ]);
+  }
+
+  public function edit($company_slug, $id)
+  {
+    $supplier = $this->suppliersRepository->find($id);
+    if (empty($supplier)) {
+      Flash::error('Supplier not found');
+      return redirect(route('suppliers.index'));
+    }
+    return view('Suppliers.edit')->with('supplier', $supplier);
+  }
+
+  public function update(Request $request, $company_slug, Supplier $supplier)
+  {
+    $validated = $request->validate([
+      'name' => 'required|string|max:255',
+      'email' => 'nullable|email',
+      'phone' => 'nullable|string',
+      'company_name' => 'nullable|string',
+      'address' => 'nullable|string',
+      'status' => 'nullable|string',
+    ]);
+
+    $supplier->update($validated);
+
+    $supplier = Supplier::all();
+
+    Flash::success('Supplier updated successfully.');
+    return redirect(route('suppliers.index'));
+  }
+
+  public function destroy($company_slug, $id)
+  {
+    $supplier = $this->suppliersRepository->find($id);
+
+    if (empty($supplier)) {
+      return delete_error_response('Supplier not found!', route('suppliers.index'), 404);
+    }
+
+    // Block before delete request / soft-delete when account or invoices block deletion.
+    $blockReason = $supplier->cannotBeDeletedReason();
+    if ($blockReason) {
+      return delete_error_response($blockReason, route('suppliers.index'));
+    }
+
+    $cascadedItems = [];
+    $supplierId = $supplier->id;
+    $supplierName = $supplier->name;
+    $relatedAccount = $supplier->account;
+    $purchaseOrders = $supplier->purchaseOrders()->get();
+
+    $supplier->delete();
+
+    foreach ($purchaseOrders as $order) {
+      $cascadedItems[] = [
+        'model' => 'SupplierInvoices',
+        'id' => $order->id,
+        'name' => $order->inv_id ?: ('PO #' . $order->id),
+      ];
+      $order->delete();
+      $this->trackCascadeDeletion(
+        'App\Models\Supplier',
+        $supplierId,
+        $supplierName,
+        'App\Models\SupplierInvoices',
+        $order->id,
+        $order->inv_id ?: ('PO #' . $order->id),
+        'hasMany',
+        'invoices',
+        'soft',
+        'Cascade deletion from Supplier deletion'
+      );
+    }
+
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      $this->trackCascadeDeletion(
+        'App\Models\Supplier',
+        $supplierId,
+        $supplierName,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft',
+        'Cascade deletion from Supplier deletion'
+      );
+    }
+
+    $trashUrl = route('settings-panel.trash.index') . '?module=suppliers';
+    $cascadeMessage = '';
+    if (!empty($cascadedItems) && ! request()->attributes->get('delete_approval_created')) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    if (wants_delete_json()) {
+      $response = delete_json_response('Supplier', $trashUrl);
+      if ($cascadeMessage !== '') {
+        $data = $response->getData(true);
+        $data['message'] = 'Supplier moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
+    }
+
+    Flash::success('Supplier moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.');
+    return redirect(route('suppliers.index'));
+  }
+
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
+  {
+    if (!user_can('supplier_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $supplier = $this->suppliersRepository->find($id);
+    if (empty($supplier)) {
+      Flash::error('Supplier not found');
+      return redirect(route('suppliers.index'));
+    }
+
+    if (!$supplier->account_id) {
+      Flash::error('Supplier has no associated account_id. Run /suppliers/update-accounts to create accounts.');
+      return redirect(route('suppliers.index'));
+    }
+
+    $files = Transactions::where('account_id', $supplier->account_id)->get();
+    $account_id = $supplier->account_id;
+
+    return $ledgerDataTable->with(['account_id' => $account_id])
+      ->render('Suppliers.ledger', [
+        'supplier' => $supplier,
+        'files' => $files,
+        'dataTable' => $ledgerDataTable
+      ]);
+  }
+  //     public function files($supplier_id, FilesDataTable $filesDataTable)
+  //   {
+  //     return $filesDataTable->with(['supplier_id' => $supplier_id])->render('suppliers.document');
+  //   }
+
+  public function document($company_slug, $supplier_id)
+  {
+    if (request()->post()) {
+
+      foreach (request('documents') as $document) {
+
+        if ($document['expiry_date']) {
+          $data = [];
+          if (isset($document['file_name'])) {
+
+            $extension = $document['file_name']->extension();
+            $name = $document['type'] . '-' . $supplier_id . '-' . time() . '.' . $extension;
+            PublicStorageDisk::storeUploadedFile(
+              $document['file_name'],
+              $document['type'] . '/' . $supplier_id,
+              $name
+            );
+
+            $data['file_name'] = $name;
+            $data['file_type'] = $extension;
+          }
+
+          $data['type_id'] = $supplier_id;  // Link to supplier
+          $data['type'] = $document['type'];
+          $data['expiry_date'] = $document['expiry_date'];
+
+          $condition = [
+            'type' => $document['type'],
+            'type_id' => $supplier_id
+          ];
+
+          Files::updateOrCreate($condition, $data);
+        } else {
+          if (isset($document['file_name'])) {
+            return response()->json([
+              'errors' => [
+                'error' => General::file_types($document['type']) . ' expiry date must be selected.'
+              ]
+            ], 422);
+          }
+        }
+      }
+
+      return 1;
+    }
+
+    $files = Files::where('type_id', $supplier_id)->get();
+    $supplier = Supplier::find($supplier_id);
+
+    return view('Suppliers.document', compact('files', 'supplier'));
+  }
+
+  /**
+   * Get the model class for trash functionality
+   */
+  protected function getTrashModelClass()
+  {
+    return Supplier::class;
+  }
+
+  /**
+   * Get the trash configuration
+   */
+  protected function getTrashConfig()
+  {
+    return [
+      'name' => 'Supplier',
+      'display_columns' => ['name', 'email', 'contact_number'],
+      'trash_view' => 'Suppliers.trash',
+      'index_route' => 'suppliers.index',
+    ];
+  }
+
+  public function forceDestroyTrash($id)
+  {
+    $record = \App\Support\TrashedRecordQuery::find(Supplier::class, $id);
+    if ($record && ($reason = $record->cannotBeDeletedReason())) {
+      Flash::error($reason);
+
+      return redirect()->back();
+    }
+
+    return parent::forceDestroyTrash($id);
+  }
+}

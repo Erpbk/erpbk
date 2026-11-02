@@ -98,6 +98,11 @@ class EmployeeInvoices extends BaseModel
         return $this->outstandingSummary()['paid_amount'];
     }
 
+    public function getFinalAmountAttribute()
+    {
+        return (float) ($this->outstandingSummary()['final_amount'] ?? 0);
+    }
+
     /**
      * @return array{final_amount: float, paid_amount: float, balance: float}
      */
@@ -151,6 +156,23 @@ class EmployeeInvoices extends BaseModel
     public function clearOutstandingSummary(): void
     {
         $this->outstandingSummaryCache = null;
+    }
+
+    public function paymentStatusKey(): string
+    {
+        $status = (int) ($this->status ?? 0);
+        $paid = (float) ($this->paid_amount ?? 0);
+        $balance = (float) ($this->balance ?? 0);
+
+        if ($status === 1 || ($paid >= 0.01 && $balance <= 0.01)) {
+            return 'paid';
+        }
+
+        if ($status === 3 || $paid >= 0.01) {
+            return 'partial';
+        }
+
+        return 'unpaid';
     }
 
     public function employee()

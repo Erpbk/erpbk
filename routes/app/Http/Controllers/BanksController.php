@@ -1,0 +1,494 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\DataTables\BanksDataTable;
+use App\DataTables\FilesDataTable;
+use App\DataTables\LedgerDataTable;
+use App\Helpers\Account;
+use App\Helpers\General;
+use App\Http\Requests\CreateBanksRequest;
+use App\Http\Requests\UpdateBanksRequest;
+use App\Http\Controllers\AppBaseController;
+use App\Models\Accounts;
+use App\Models\Banks;
+use App\Models\Cheques;
+use App\Models\Files;
+use App\Models\Transactions;
+use App\Repositories\BanksRepository;
+use Illuminate\Http\Request;
+use App\Traits\GlobalPagination;
+use App\Traits\TracksCascadingDeletions;
+use Flash;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use App\Models\Receipt;
+use App\Models\Payment;
+
+
+class BanksController extends AppBaseController
+{
+  use GlobalPagination, TracksCascadingDeletions;
+  /** @var BanksRepository $banksRepository*/
+  private $banksRepository;
+
+  public function __construct(BanksRepository $banksRepo)
+  {
+    $this->banksRepository = $banksRepo;
+  }
+
+  /**
+   * Display a listing of the Banks.
+   */
+  public function index(Request $request)
+  {
+
+    if (!user_can('bank_view')) {
+      abort(403, 'Unauthorized action.');
+    }
+    // Use global pagination trait
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Banks::query()
+      ->with('branch')
+      ->orderBy('id', 'asc');
+    if ($request->has('name') && !empty($request->name)) {
+      $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->has('title') && !empty($request->title)) {
+      $query->where('title', $request->title);
+    }
+    if ($request->has('account_no') && !empty($request->account_no)) {
+      $query->where('account_no', $request->account_no);
+    }
+    if ($request->has('account_type') && !empty($request->account_type)) {
+      $query->where('account_type', $request->account_type);
+    }
+    if ($request->has('status') && !empty($request->status)) {
+      $query->where('status', $request->status);
+    }
+    if ($request->has('branch_id') && !empty($request->branch_id)) {
+      $query->where('branch_id', $request->branch_id);
+    }
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+
+    $accountIds = Banks::query()->whereNotNull('account_id')->pluck('account_id');
+    $fundsIn = (float) Transactions::whereIn('account_id', $accountIds)->sum('debit');
+    $fundsOut = (float) Transactions::whereIn('account_id', $accountIds)->sum('credit');
+    $totals = [
+      'banks_count' => Banks::count(),
+      'active_count' => Banks::where('status', 1)->count(),
+      'funds_in' => $fundsIn,
+      'funds_out' => $fundsOut,
+      'net_balance' => $fundsIn - $fundsOut,
+    ];
+
+    if ($request->ajax()) {
+      $tableData = view('banks.table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+    return view('banks.index', [
+      'data' => $data,
+      'totals' => $totals,
+    ]);
+  }
+
+
+  /**
+   * Show the form for creating a new Banks.
+   */
+  public function create()
+  {
+    return view('banks.create');
+  }
+
+  /**
+   * Store a newly created Banks in storage.
+   */
+  public function store(CreateBanksRequest $request)
+  {
+    $input = $request->all();
+
+    try {
+      DB::beginTransaction();
+      $banks = $this->banksRepository->create($input);
+
+      //Adding Account and setting reference
+      $parentId = \App\Support\GlobalAccounts::id('BANK');
+      $openingBalance = round((float) ($input['balance'] ?? $banks->balance ?? 0), 2);
+
+      $account = new Accounts();
+      $account->account_code = 'BK' . str_pad($banks->id, 4, "0", STR_PAD_LEFT);
+      $account->account_type = 'Asset';
+      $account->name = $banks->name;
+      $account->parent_id = $parentId;
+      $account->ref_name = 'Bank';
+      $account->ref_id = $banks->id;
+      $account->status = $banks->status;
+      $account->branch_id = $banks->branch_id;
+      $account->opening_balance = $openingBalance;
+      $account->is_locked = true;
+      $account->save();
+      $banks->account_id = $account->id;
+      $banks->save();
+
+      app(\App\Services\AccountOpeningBalanceJvService::class)
+        ->postForNewAccount($account, $openingBalance, $banks->branch_id ? (int) $banks->branch_id : null);
+
+      DB::commit();
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Bank Account Added Successfully',
+          'reload' => true
+        ], 200);
+      }
+      Flash::success('Bank added successfully.');
+      return redirect()->back();
+    } catch (\Exception $e) {
+      \Log::error('error occured while creating bank account : ' . $e->getMessage());
+      DB::rollBack();
+      if ($request->ajax()) {
+        return response()->json([
+          'message' => 'Error: ' . $e->getMessage(),
+        ], 500);
+      }
+      Flash::error('Error: ' . $e->getMessage());
+      return redirect()->back();
+    }
+  }
+
+  /**
+   * Display the specified Banks.
+   */
+  public function show($company_slug, $id)
+  {
+    $id = (int) $id;
+    $banks = $this->banksRepository->find($id);
+
+    if (empty($banks)) {
+      Flash::error('Banks not found');
+
+      return redirect(route('banks.index'));
+    }
+
+    return view('banks.show')->with('banks', $banks);
+  }
+
+  /**
+   * Show the form for editing the specified Banks.
+   */
+  public function edit($company_slug, $id)
+  {
+    $id = (int) $id;
+    $banks = $this->banksRepository->find($id);
+
+    if (empty($banks)) {
+      Flash::error('Banks not found');
+
+      return redirect(route('banks.index'));
+    }
+
+    return view('banks.edit')->with('banks', $banks);
+  }
+
+  /**
+   * Update the specified Banks in storage.
+   */
+  public function update($company_slug, $id, UpdateBanksRequest $request)
+  {
+    $id = (int) $id;
+    $banks = $this->banksRepository->find($id);
+
+    if (empty($banks)) {
+      if ($request->ajax()) {
+        return response()->json(['message' => 'Bank not found!'], 404);
+      }
+      Flash::error('Bank not found!');
+      return redirect()->back();
+    }
+
+    $banks = $this->banksRepository->update($request->all(), $id);
+    if ($banks->account) {
+      $banks->account->name = $banks->name;
+      $banks->account->status = (int) $banks->status;
+      $banks->account->branch_id = $banks->branch_id;
+      $banks->account->save();
+    }
+
+    if ($request->ajax()) {
+      return response()->json([
+        'message' => 'Bank updated successfully.',
+        'reload' => true,
+      ], 200);
+    }
+
+    Flash::success('Bank updated successfully.');
+    return redirect()->back();
+  }
+
+  /**
+   * Remove the specified Banks from storage (soft delete).
+   *
+   * @throws \Exception
+   */
+  public function destroy($company_slug, $id)
+  {
+    $id = (int) $id;
+    $banks = $this->banksRepository->find($id);
+
+    if (empty($banks)) {
+      return delete_error_response('Bank not found!', route('banks.index'), 404);
+    }
+
+    if ($blockReason = linked_account_delete_block_reason(resolve_linked_account_id($banks), 'Bank')) {
+      return delete_error_response($blockReason, route('banks.index'));
+    }
+
+    // Track cascaded deletions
+    $cascadedItems = [];
+
+    // Get account data BEFORE deleting (important!)
+    $relatedAccount = $banks->account;
+
+    // Soft delete the bank
+    $banks->delete();
+
+    // Also soft delete the related account if exists and track it
+    if ($relatedAccount) {
+      $cascadedItems[] = [
+        'model' => 'Accounts',
+        'id' => $relatedAccount->id,
+        'name' => $relatedAccount->name,
+      ];
+
+      $relatedAccount->delete();
+
+      // Log the cascade
+      $this->trackCascadeDeletion(
+        'App\Models\Banks',
+        $banks->id,
+        $banks->name,
+        'App\Models\Accounts',
+        $relatedAccount->id,
+        $relatedAccount->name,
+        'hasOne',
+        'account',
+        'soft'
+      );
+    }
+
+    // Build cascade message
+    $cascadeMessage = '';
+    if (!empty($cascadedItems)) {
+      $cascadeMessage = ' (Also deleted: ';
+      $parts = [];
+      foreach ($cascadedItems as $item) {
+        $parts[] = "{$item['model']}: {$item['name']}";
+      }
+      $cascadeMessage .= implode(', ', $parts) . ')';
+    }
+
+    $trashUrl = route('settings-panel.trash.index') . '?module=banks';
+    if (wants_delete_json()) {
+      $response = delete_json_response('Bank', $trashUrl);
+      if ($cascadeMessage !== '' && ! request()->attributes->get('delete_approval_created')) {
+        $data = $response->getData(true);
+        $data['message'] = 'Bank moved to Recycle Bin' . $cascadeMessage
+          . '. <a href="' . e($trashUrl) . '" class="alert-link">View Recycle Bin</a> to restore if needed.';
+        $response->setData($data);
+      }
+
+      return $response;
+    }
+
+    Flash::success('Bank moved to Recycle Bin' . $cascadeMessage . '. <a href="' . $trashUrl . '" class="alert-link">View Recycle Bin</a> to restore if needed.')->important();
+    return redirect(route('banks.index'));
+  }
+
+  // ========================================================================
+  // DEPRECATED: Old trash methods - now handled by centralized TrashController
+  // These methods are kept for backward compatibility but should not be used
+  // Use /trash route instead for all trash operations
+  // ========================================================================
+
+  /*
+  public function trashed(Request $request)
+  {
+    if (!user_can('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+
+    $query = Banks::onlyTrashed()
+      ->orderBy('deleted_at', 'desc');
+
+    // Apply same filters as index
+    if ($request->has('name') && !empty($request->name)) {
+      $query->where('name', 'like', '%' . $request->name . '%');
+    }
+    if ($request->has('account_no') && !empty($request->account_no)) {
+      $query->where('account_no', $request->account_no);
+    }
+
+    $data = $this->applyPagination($query, $paginationParams);
+
+    if ($request->ajax()) {
+      $tableData = view('banks.trashed_table', [
+        'data' => $data,
+      ])->render();
+      $paginationLinks = $data->links('components.global-pagination')->render();
+      return response()->json([
+        'tableData' => $tableData,
+        'paginationLinks' => $paginationLinks,
+      ]);
+    }
+
+    return view('banks.trashed', [
+      'data' => $data,
+    ]);
+  }
+
+  public function restore($id)
+  {
+    if (!user_can('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $bank = Banks::onlyTrashed()->find($id);
+
+    if (empty($bank)) {
+      Flash::error('Bank not found in trash!');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Restore the bank
+    $bank->restore();
+
+    // Restore the related account if it was soft deleted
+    if ($bank->account && $bank->account->trashed()) {
+      $bank->account->restore();
+    }
+
+    Flash::success('Bank restored successfully.');
+    return redirect(route('banks.index'));
+  }
+
+  public function forceDestroy($id)
+  {
+    if (!user_can('bank_view_delete')) {
+      abort(403, 'Unauthorized action.');
+    }
+
+    $bank = Banks::onlyTrashed()->find($id);
+
+    if (empty($bank)) {
+      Flash::error('Bank not found in trash!');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Check if bank has any transactions (even soft deleted)
+    if ($bank->transactions()->withTrashed()->count() > 0) {
+      Flash::error('Cannot permanently delete bank. Bank has transaction history.');
+      return redirect(route('banks.trashed'));
+    }
+
+    // Permanently delete the related account
+    if ($bank->account) {
+      $bank->account->forceDelete();
+    }
+
+    // Permanently delete the bank
+    $bank->forceDelete();
+
+    Flash::success('Bank permanently deleted.');
+    return redirect(route('banks.trashed'));
+  }
+  */
+  public function ledger($company_slug, $id, LedgerDataTable $ledgerDataTable)
+  {
+    $banks = Banks::find($id);
+    $files = Transactions::where('account_id', $banks->account_id)->get();
+    $account_id = $banks->account_id;
+
+    return $ledgerDataTable->with(['account_id' => $account_id])->render('banks.bank_ledger', compact('files', 'banks'));
+  }
+
+  public function files($company_slug, $id, FilesDataTable $filesDataTable)
+  {
+    $files = \App\Support\CompanyQuery::table('files')->where('type', 'bank')->where('type_id', $id)->latest('id')->get();
+    $banks = Banks::find($id);
+    return view('banks.document', compact('files', 'banks'));
+  }
+
+  public function receipts(Request $request, $company_slug, $id)
+  {
+    $banks = Banks::find($id);
+    $fundIn = 0;
+    $fundOut = 0;
+    $credit = Transactions::where('account_id', $banks->account_id)->sum('credit');
+    $debit  = Transactions::where('account_id', $banks->account_id)->sum('debit');
+    $balance = $debit - $credit;
+    $fundIn += $debit;
+    $fundOut += $credit;
+    $banks->update(['balance' => $balance]);
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Receipt::query()->latest('id');
+    $query->where('bank_id', $banks->id);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+    return view('banks.receipts', ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
+  }
+
+  public function payments(Request $request, $company_slug, $id)
+  {
+    $banks = Banks::find($id);
+    $fundIn = 0;
+    $fundOut = 0;
+    $credit = Transactions::where('account_id', $banks->account_id)->sum('credit');
+    $debit  = Transactions::where('account_id', $banks->account_id)->sum('debit');
+    $balance = $debit - $credit;
+    $fundIn += $debit;
+    $fundOut += $credit;
+    $banks->update(['balance' => $balance]);
+    $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
+    $query = Payment::query()
+      ->with(['payeeAccount', 'voucher', 'bank.account'])
+      ->latest('id')
+      ->where('bank_id', $id)
+      ->applyListFilters($request);
+
+    // Apply pagination using the trait
+    $data = $this->applyPagination($query, $paginationParams);
+
+    if ($request->ajax()) {
+      $tableData = view('payments.table', compact('data'))->render();
+
+      return response()->json([
+        'tableData' => $tableData,
+      ]);
+    }
+
+    return view('banks.payments', ['data' => $data, 'banks' => $banks, 'fundsIn' => $fundIn, 'fundsOut' => $fundOut]);
+  }
+
+  public function cheques(Request $request, $company_slug, $id)
+  {
+    \App\Support\ChequeClearEditGuard::markChequesModuleContext();
+    $banks = Banks::find($id);
+    $query = Cheques::query()->latest('issue_date');
+    $query->where('bank_id', $id);
+
+    // Apply pagination using the trait
+    $data = $query->get();
+    Cheques::attachClearVouchersTo($data);
+    return view('banks.cheques', compact('data', 'banks'));
+  }
+}

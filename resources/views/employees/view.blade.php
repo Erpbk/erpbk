@@ -4,7 +4,19 @@
 
 @section('content')
 @include('partials.entity_profile_styles')
+<link rel="stylesheet" href="{{ asset('css/employees-demo.css') }}?v=20261102notes">
+@if(isset($employee) && !request()->routeIs('employees.edit') && !request()->routeIs('employees.create'))
+  <a href="{{ route('employees.index') }}" class="emp-back ghost-back">‹ Back to Employees</a>
+@endif
 <style>
+  .emp-back.ghost-back {
+    display: inline-flex; align-items: center; gap: 4px;
+    height: 34px; padding: 0 12px; margin: 0 0 12px;
+    border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+    color: #3A4256; font: 500 13px Inter, system-ui, sans-serif;
+    text-decoration: none !important;
+  }
+  .emp-back.ghost-back:hover { background: #F7F8FB; color: #1e1ec8; border-color: #c7d2fe; }
   .myform .required:after {
     content: " *";
     color: red;
@@ -350,16 +362,21 @@ $cardAddress = null;
 }
 @endphp
 
-<div class="row mb-5" style="">
-  <div class="col-xl-3 col-md-5 col-lg-5 order-1 order-md-0">
-    @php
-    $employeeBalance = (isset($account) && $account)
+@php
+  $employeeBalance = (isset($account) && $account)
     ? (App\Helpers\Accounts::getBalance($account->id) . ' ' . \App\Helpers\Currency::code())
     : ('0.00 ' . \App\Helpers\Currency::code());
-    $employeeBalanceHtml = isset($employee)
+  $employeeBalanceHtml = isset($employee)
     ? '<a href="' . e(route('employee.ledger', $employee->id)) . '">' . e($employeeBalance) . '</a>'
     : e($employeeBalance);
-    @endphp
+  $dash = '—';
+  $branchLabel = $employee?->branch
+    ? trim($employee->branch->name . (isset($employee->branch->code) ? ' (' . $employee->branch->code . ')' : ''))
+    : $dash;
+  $isEmpShowChrome = isset($employee) && ! request()->routeIs(['employees.edit', 'employees.create']);
+@endphp
+<div class="emp-demo {{ $isEmpShowChrome ? 'emp-prof' : 'row mb-5' }}">
+  <div class="{{ $isEmpShowChrome ? 'emp-prof-side' : 'col-xl-3 col-md-5 col-lg-5 order-1 order-md-0' }}">
     <x-entity-profile-card
       icon="ti ti-user"
       :photo="$image_name"
@@ -369,8 +386,8 @@ $cardAddress = null;
       status-id="employee-status-value-badge"
       name-id="employee-profile-name"
       :name="$employee?->name ?? 'New Employee'"
-      :subtitle="$employee?->employee_id ?? ($empId ?? 'not-set')"
-      :edit-href="isset($employee) && user_can('employees_employee_edit') ? route('employees.edit', $employee->id) : null"
+      :subtitle="$employee?->employee_id ?? ($empId ?? '—')"
+      :edit-href="null"
       edit-title="Edit Employee Details"
       section-title="Basic Information">
       <x-slot name="photoAction">
@@ -381,7 +398,7 @@ $cardAddress = null;
         @endif
       </x-slot>
       <x-slot name="meta">
-        <span class="badge bg-label-primary mt-2" id="employee-designation-badge">{{ $employee?->designation ?? 'Not Set' }}</span>
+        <span class="badge bg-label-primary mt-2" id="employee-designation-badge">{{ $employee?->designation ?: '—' }}</span>
       </x-slot>
       <x-slot name="afterHero">
         @if(isset($employee))
@@ -401,12 +418,14 @@ $cardAddress = null;
         </div>
         @endif
       </x-slot>
-      <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone" field-key="personal_contact" value-class="is-phone" />
-      <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml" :html="true" field-key="company_contact_html" value-class="is-whatsapp" />
-      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail" field-key="company_email" />
-      <x-entity-profile-info-row icon="ti ti-briefcase" label="Department" :value="$employee?->department?->name ?? $employee?->department_id" field-key="department" />
-      <x-entity-profile-info-row icon="ti ti-building" label="Branch" :value="$employee?->branch?->name" field-key="branch" />
+      {{-- HTML demo Basic Information set --}}
+      <x-entity-profile-info-row icon="ti ti-phone" label="Phone" :value="$cardPhone ?: $dash" field-key="personal_contact" value-class="is-phone" />
+      <x-entity-profile-info-row icon="ti ti-brand-whatsapp" label="WhatsApp" :value="$whatsappHtml === 'N/A' ? $dash : $whatsappHtml" :html="$whatsappHtml !== 'N/A'" field-key="company_contact_html" value-class="is-whatsapp" />
+      <x-entity-profile-info-row icon="ti ti-mail" label="Email" :value="$cardEmail ?: $dash" field-key="company_email" />
+      <x-entity-profile-info-row icon="ti ti-briefcase" label="Department" :value="$employee?->department?->name ?: $dash" field-key="department" />
+      <x-entity-profile-info-row icon="ti ti-building" label="Branch" :value="$branchLabel" field-key="branch" />
       <x-entity-profile-info-row icon="ti ti-cash-banknote" label="Balance" :value="$employeeBalanceHtml" :html="true" />
+      @unless($isEmpShowChrome)
       <x-entity-profile-info-row icon="ti ti-cash" label="Salary" :value="number_format($employee?->salary ?? 0, 2) . ' ' . \App\Helpers\Currency::code()" field-key="salary" />
       <x-entity-profile-info-row icon="ti ti-flag" label="Nationality" :value="$cardNationality" field-key="nationality" />
       <x-entity-profile-info-row icon="ti ti-calendar" label="Date of Birth" :value="$cardDob" field-key="dob" />
@@ -418,10 +437,12 @@ $cardAddress = null;
         @include('employees._status_cards', ['employee' => $employee, 'employeeTopViewCategories' => $employeeTopViewCategories])
         @endif
       </x-slot>
+      @endunless
     </x-entity-profile-card>
   </div>
 
-  <div class="col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative">
+  <div class="{{ $isEmpShowChrome ? 'emp-prof-main' : 'col-xl-9 col-md-7 col-lg-7 order-0 order-md-1 position-relative' }}">
+    <div class="{{ $isEmpShowChrome ? 'emp-prof-main-stack' : '' }}">
     <x-entity-profile-tabs>
       <li class="nav-item nav-priority-1">
         <a class="nav-link @if(request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')) active @endif"
@@ -433,7 +454,7 @@ $cardAddress = null;
       @if(isset($employee))
       @can('employees_document_view')
       <li class="nav-item nav-priority-2">
-        <a class="nav-link @if(request()->segment(5) == 'files') active @endif"
+        <a class="nav-link @if(request()->routeIs('employee.files')) active @endif"
           href="{{ route('employee.files', $employee->id) }}">
           <i class="ti ti-file-upload ti-sm me-1_5"></i>Files
           @include('riders._document_status_badges', ['expiredCount' => $employeeExpiry['files_expired'], 'expiringCount' => $employeeExpiry['files_expiring']])
@@ -448,33 +469,42 @@ $cardAddress = null;
         </a>
       </li>
       @endcan
+      @can('employees_invoice_view')
+      <li class="nav-item nav-priority-3b">
+        <a class="nav-link @if(request()->routeIs('employee.invoices')) active @endif"
+          href="{{ route('employee.invoices', $employee->id) }}">
+          <i class="ti ti-file-invoice ti-sm me-1_5"></i>Invoices
+        </a>
+      </li>
+      @endcan
       <li class="nav-item nav-priority-4">
-        <a class="nav-link @if(request()->segment(5) == 'salary') active @endif"
+        <a class="nav-link @if(request()->routeIs('employee.salary')) active @endif"
           href="{{ route('employee.salary', $employee->id) }}">
           <i class="ti ti-cash-banknote ti-sm me-1"></i>Salary
         </a>
       </li>
       @can('employees_attendance_view')
       <li class="nav-item nav-priority-5">
-        <a class="nav-link @if(request()->segment(5) == 'attendance') active @endif"
+        <a class="nav-link @if(request()->routeIs('employee.attendance')) active @endif"
           href="{{ route('employee.attendance', $employee->id) }}">
-          <i class="ti ti-activity-heartbeat ti-sm me-1_5"></i>Activities
+          <i class="ti ti-calendar-check ti-sm me-1_5"></i>Attendance
         </a>
       </li>
       @endcan
       <li class="nav-item nav-priority-7">
         <a class="nav-link @if(request()->routeIs('employee.history')) active @endif"
           href="{{ route('employee.history', $employee->id) }}">
-          <i class="ti ti-history ti-sm me-1_5"></i>Employee history
+          <i class="ti ti-history ti-sm me-1_5"></i>History
         </a>
       </li>
-      @can('employees_voucher_view')
-      <li class="nav-item nav-priority-8 nav-action-item">
+      @can('email_create')
+      <li class="nav-item nav-priority-7b">
         <a href="javascript:void(0);"
-          data-action="{{ route('employees.voucher', $employee->id) }}"
-          data-size="xl" data-title="Voucher"
-          class='nav-link show-modal'>
-          <i class="ti ti-file-invoice ti-sm me-1_5"></i>Voucher
+          data-action="{{ route('employee.sendemail', ['company_slug' => request()->route('company_slug'), 'id' => $employee->id]) }}"
+          data-size="md"
+          data-title="{{ ($employee->name ?? 'Employee') . ' (' . ($employee->employee_id ?? '') . ')' }}"
+          class="nav-link show-modal">
+          <i class="ti ti-mail ti-sm me-1_5"></i>Emails
         </a>
       </li>
       @endcan
@@ -485,6 +515,7 @@ $cardAddress = null;
       @yield('page_content')
       @yield('page-content')
     </div>
+    </div>{{-- /.emp-prof-main-stack --}}
   </div>
 </div>
 @include('partials.entity_profile_nav_script')

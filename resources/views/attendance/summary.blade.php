@@ -1,384 +1,507 @@
 @extends('layouts.app')
-
 @section('title', 'Attendance - ' . $date->format('F Y'))
+
+@php
+  $userType = $userType ?? request('user_type', 'employee');
+  $todayKpis = $todayKpis ?? ['total' => 0, 'present' => 0, 'late' => 0, 'absent' => 0, 'unmarked' => 0];
+  $branchTabs = $branchTabs ?? collect();
+  $selectedBranchId = $selectedBranchId ?? null;
+  $kpiTotal = max(1, (int) ($todayKpis['total'] ?? 1));
+  $statusLetter = function (?string $status) {
+      return match ($status) {
+          'present' => 'P',
+          'late' => 'L',
+          'absent' => 'A',
+          'on leave' => 'V',
+          'half day' => 'H',
+          'weekend' => 'W',
+          default => '',
+      };
+  };
+  $statusLabel = function (?string $status) {
+      return match ($status) {
+          'present' => 'Present',
+          'late' => 'Late in',
+          'absent' => 'Absent',
+          'on leave' => 'Leave',
+          'half day' => 'Half day',
+          'weekend' => 'Weekend',
+          default => 'Not marked',
+      };
+  };
+  $employmentLabel = function ($user) {
+      $st = strtolower((string) ($user->status ?? 'active'));
+      return str_contains($st, 'inactive') ? 'Inactive' : 'Active';
+  };
+  $baseQuery = array_filter([
+      'date' => $date->format('Y-m-d'),
+      'user_type' => $userType,
+      'user_id' => ($usersId ?? 'all') !== 'all' ? $usersId : null,
+      'project_id' => $projectId ?: null,
+      'fleet_supervisor' => $fleetSupervisor ?: null,
+      'status' => $statusFilter ?: null,
+      'branch_id' => $selectedBranchId,
+      'from_date' => $fromDate ?: null,
+      'to_date' => $toDate ?: null,
+      'filter_date' => ($filterDate ?? null) ?: null,
+  ], fn ($v) => $v !== null && $v !== '');
+  $q = fn (array $extra = []) => http_build_query(array_filter(array_merge($baseQuery, $extra), fn ($v) => $v !== null && $v !== ''));
+@endphp
+
+@push('third_party_stylesheets')
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102imp3">
+@endpush
 
 @section('content')
 @canany(['employees_attendance_view', 'riders_attendance_view'])
-<style>
-    .attendance-summary-card {
-        border-radius: 16px;
-        overflow: visible;
-    }
+<div class="att-demo"
+     id="attDemo"
+     data-upsert="{{ route('attendance.upsertMark') }}"
+     data-clear="{{ route('attendance.clearMark') }}"
+     data-csrf="{{ csrf_token() }}"
+     data-user-type="{{ $userType }}">
 
-    .summary-toolbar {
-        background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%);
-        border-bottom: 1px solid #e5ecf6;
-    }
-
-    .mode-toggle .btn {
-        min-width: 108px;
-    }
-
-    .status-chip {
-        font-size: 0.78rem;
-        letter-spacing: 0.01em;
-    }
-
-    .attendance-table thead th {
-        background: #e8f2ff;
-    }
-
-    .attendance-table td,
-    .attendance-table th {
-        vertical-align: middle;
-    }
-
-    .ontime-percent-value {
-        font-weight: 600;
-    }
-
-    .ontime-percent-symbol {
-        color: #9ca3af;
-        font-weight: 400;
-    }
-</style>
-
-@include('attendance.partials.tabs', [
-    'activeAttendanceTab' => 'attendance',
-    'attendanceUserType' => $userType ?? request('user_type', 'employee'),
-])
-
-<div class="container-fluid m-0 p-0">
-    <!-- Summary Table -->
-    <div class="card shadow-sm border-0 attendance-summary-card">
-
-        <div class="card-body summary-toolbar">
-            @include('attendance.partials.filter_sidebar', [
-                'filterAction' => route('attendance.summary'),
-                'resetUrl' => route('attendance.summary', ['user_type' => $userType]),
-                'typeName' => 'user_type',
-                'userName' => 'user_id',
-                'selectedType' => $userType,
-                'selectedUser' => $usersId,
-                'selectedStatus' => $statusFilter ?? request('status'),
-                'selectedDate' => $filterDate ?? request('filter_date'),
-                'fromDate' => $fromDate ?? request('from_date'),
-                'toDate' => $toDate ?? request('to_date'),
-                'dateFieldName' => 'filter_date',
-                'allowAllTypes' => false,
-                'showMonth' => true,
-                'monthValue' => $date->format('Y-m'),
-                'projects' => $projects,
-                'projectId' => $projectId,
-                'fleetSupervisors' => $fleetSupervisors,
-                'fleetSupervisor' => $fleetSupervisor,
-                'hiddenFields' => [
-                    'view_mode' => $isCustomRange ? 'month' : $viewMode,
-                    'view_start' => $isCustomRange ? 1 : $viewStart,
-                ],
-                'exportUrl' => route('attendance.summary.export', array_filter([
-                    'date' => $date->format('Y-m-d'),
-                    'user_type' => $userType,
-                    'user_id' => $usersId,
-                    'project_id' => $projectId,
-                    'fleet_supervisor' => $fleetSupervisor,
-                    'status' => $statusFilter,
-                    'from_date' => $fromDate,
-                    'to_date' => $toDate,
-                    'filter_date' => $filterDate ?? null,
-                ])),
-                'exportLabel' => 'Export',
-            ])
-        </div>
-        {{-- <div class="totals-cards mt-3">
-            <div class="total-card total-green">
-                <div class="label"><i class="fa fa-check-circle"></i>Present Rate</div>
-                <div class="value">{{ $presentRate }}%
+  <div class="tabrow">
+    <div class="ptabs">
+      <a class="ptab on" href="{{ route('attendance.summary', ['user_type' => $userType]) }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        Attendance
+      </a>
+      <a class="ptab" href="{{ route('attendance.index', ['ref_type' => $userType]) }}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+        Attendance Report
+      </a>
     </div>
-    <div class="value"><small>{{ $summary['total_present'] .'/'. $totalAttendances }}</small></div>
-</div>
-<div class="total-card total-red">
-    <div class="label"><i class="fa fa-times-circle"></i>Absent Rate</div>
-    <div class="value">{{ $absentRate }}%</div>
-    <div class="value"><small>{{ $summary['total_absent'] .'/'. $totalAttendances }}</small></div>
-</div>
-<div class="total-card total-black">
-    <div class="label"><i class="fa fa-motorcycle"></i>Unmark Rate</div>
-    <div class="value">{{ $unmarkRate }}%</div>
-    <div class="value"><small>{{ $summary['total_unmarked'] .'/'. $totalAttendances }}</small></div>
-</div>
-<div class="total-card total-blue">
-    <div class="label"><i class="fa fa-motorcycle"></i>Late Arrival</div>
-    <div class="value"><i class="fas fa-clock text-primary"></i></div>
-    <div class="value"><small>{{ $summary['total_late'] .'/'. $totalAttendances }}</small></div>
-</div>
-<div class="total-card total-1">
-    <div class="label"><i class="fa fa-building"></i>On leave</div>
-    <div class="value"><i class="fa fa-head-side-cough " style="color: #c142bb;"></i></div>
-    <div class="value"><small>{{ $summary['total_leave'] .'/'. $totalAttendances }}</small></div>
-</div>
-<div class="total-card total-2">
-    <div class="label"><i class="fa fa-building"></i>Half Day</div>
-    <div class="value"><i class="fas fa-adjust " style="color: #6f42c1;"></i></div>
-    <div class="value"><small>{{ $summary['total_halfday'] .'/'. $totalAttendances }}</small></div>
-</div>
-<div class="total-card total-3">
-    <div class="label"><i class="fa fa-user-secret"></i>Weekends Marked</div>
-    <div class="value"><i class="fas fa-umbrella-beach " style="color: #17a2b8;"></i></div>
-    <div class="value"><small>{{ $summary['total_weekend'] .'/'. $totalAttendances }}</small></div>
-</div>
-</div> --}}
-
-@php
-$summaryQueryBase = array_filter([
-    'date' => $date->format('Y-m-d'),
-    'user_type' => $userType,
-    'user_id' => $usersId,
-    'project_id' => $projectId ?: null,
-    'fleet_supervisor' => $fleetSupervisor ?: null,
-    'status' => $statusFilter ?: null,
-], fn ($value) => $value !== null && $value !== '');
-$summaryQuery = http_build_query($summaryQueryBase);
-$summaryRangeQuery = http_build_query(array_filter($summaryQueryBase + [
-    'from_date' => $fromDate ?: null,
-    'to_date' => $toDate ?: null,
-    'filter_date' => ($filterDate ?? null) ?: null,
-], fn ($value) => $value !== null && $value !== ''));
-@endphp
-
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 m-3 p-2">
-    <div class="btn-group mode-toggle" role="group" aria-label="Summary view modes">
-        <a href="{{ route('attendance.summary') }}?{{ $summaryQuery }}&view_mode=week&view_start=1"
-            class="btn {{ $viewMode === 'week' ? 'btn-primary' : 'btn-outline-primary' }}">
-            <i class="fas fa-calendar-week me-1"></i>1 Week
-        </a>
-        <a href="{{ route('attendance.summary') }}?{{ $summaryQuery }}&view_mode=ten_days&view_start=1"
-            class="btn {{ $viewMode === 'ten_days' ? 'btn-primary' : 'btn-outline-primary' }}">
-            <i class="fas fa-calendar-day me-1"></i>10 Days
-        </a>
-        <a href="{{ route('attendance.summary') }}?{{ $summaryQuery }}&view_mode=month&view_start=1"
-            class="btn {{ $viewMode === 'month' ? 'btn-primary' : 'btn-outline-primary' }}">
-            <i class="fas fa-calendar-alt me-1"></i>Full Month
-        </a>
+    <div class="actions">
+      @canany(['employees_attendance_create', 'riders_attendance_create'])
+      <button type="button" class="btn outline" id="attImpBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5"></path><path d="M12 3v12"></path></svg>
+        Import
+      </button>
+      @endcanany
+      <a class="btn green" href="{{ route('attendance.summary.export', $baseQuery) }}">Export</a>
     </div>
+  </div>
 
-    <div class="d-flex align-items-center gap-2">
-        <a href="{{ route('attendance.summary') }}?{{ $summaryRangeQuery }}&view_mode={{ $viewMode }}&view_start={{ $prevStart }}"
-            class="btn btn-outline-secondary {{ !$hasPrevWindow ? 'disabled' : '' }}"
-            aria-disabled="{{ !$hasPrevWindow ? 'true' : 'false' }}">
-            <i class="fas fa-chevron-left"></i>
-        </a>
-        <span class="badge bg-light text-dark border rounded-pill px-3 py-2">
-            @if($isCustomRange && count($days) > 0)
-            {{ \Carbon\Carbon::parse($days[0]['date'])->format('d M') }} - {{ \Carbon\Carbon::parse($days[count($days) - 1]['date'])->format('d M') }}
-            @else
-            {{ $days[0]['number'] ?? 0 }} - {{ end($days)['number'] ?? 0 }} of {{ $monthTotalDays }} Days
-            @endif
-        </span>
-        <a href="{{ route('attendance.summary') }}?{{ $summaryRangeQuery }}&view_mode={{ $viewMode }}&view_start={{ $nextStart }}"
-            class="btn btn-outline-secondary {{ !$hasNextWindow ? 'disabled' : '' }}"
-            aria-disabled="{{ !$hasNextWindow ? 'true' : 'false' }}">
-            <i class="fas fa-chevron-right"></i>
-        </a>
-    </div>
-</div>
-
-
-<div class="card-body p-2">
-    <div class="table-responsive" style="max-height: 550px; overflow-y: auto;">
-        <table class="table attendance-table mb-0">
-            <thead class="table-info" style="position: sticky; top: 0; z-index: 10;">
-                <tr>
-                    <th class="text-start" style="min-width: 200px; color: black !important;">Name</th>
-
-                    <th class="text-center" style=" color: black !important;">Total <br> Present</th>
-
-                    @foreach($days as $day)
-                    <th class="text-center  {{ $day['is_today'] ? 'bg-info' : '' }}" style="min-width: 50px; color: black !important;">
-                        <div class="fw-bold">{{ $day['number'] }}</div>
-                        <small class="  {{ $day['is_weekend'] ? 'text-danger' : 'text-primary' }}">{{ $day['day_name'] }}</small>
-                    </th>
-                    @endforeach
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($users as $user)
-                <tr>
-                    <td class="text-start">
-                        <div>
-                            <span class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
-                                <a target="_blank" href="@if($user->type === 'employee'){{ route('employees.show', $user->id) }}@elseif($user->type === 'rider'){{ route('riders.show', $user->id) }}@endif">{{ $user->name }}</a>
-                                @if($user->type === 'rider')
-                                @include('riders._status_badges', [
-                                    'employmentStatus' => $user->status,
-                                    'rider' => $user,
-                                    'wrapperClass' => 'align-items-start',
-                                ])
-                                @elseif($user->type === 'employee')
-                                @include('employees._status_badges', ['status' => $user->status])
-                                @endif
-                            </span>
-                            <br><span class="text-muted" style="white-space: nowrap;">{{ ($user->designation ?? '') . '-' . $user->branch?->name}}</span>
-
-                        </div>
-                    </td>
-                    <td class="text-center align-middle">
-                        <strong>{{ $user->total_present }}</strong>
-                    </td>
-
-                    @foreach($days as $day)
-                    @php
-                    $attendance = $user->attendance_data[$day['date']] ?? null;
-                    $badgeClass = '';
-                    $statusText = '';
-
-                    if ($attendance && $attendance['exists']) {
-                    switch($attendance['status']) {
-                    case 'present':
-                    $badgeClass = 'bg-success';
-                    $statusText = "Present";
-                    break;
-                    case 'absent':
-                    $badgeClass = 'bg-danger';
-                    $statusText = 'Absent';
-                    break;
-                    case 'late':
-                    $badgeClass = 'bg-warning text-dark';
-                    $statusText = 'Late';
-                    break;
-                    case 'half day':
-                    $badgeClass = 'bg-info';
-                    $statusText = 'Half Day';
-                    break;
-                    case 'weekend':
-                    $badgeClass = 'bg-secondary';
-                    $statusText = 'Weekend';
-                    break;
-                    case 'on leave':
-                    $badgeClass = 'bg-dark';
-                    $statusText = 'On Leave';
-                    break;
-                    }
-                    } else {
-                    $badgeClass = 'bg-light text-black border';
-                    $statusText = '+';
-                    }
-                    $ontimeDisplay = \App\Services\Attendance\RiderAttendanceActivitySync::formatOntimePercentageDisplay(
-                    $attendance['ontime_orders_percentage'] ?? null
-                    );
-                    @endphp
-
-                    <td class="text-center align-middle p-1">
-                        <a href="javascript:void(0)" class="show-modal"
-                            @if( $attendance && $attendance['exists'] ) data-action="{{ route('attendance.edit', App\Models\Attendance::find($attendance['id'])) }}" data-title="Edit Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
-                            @else data-action="{{ route('attendance.create', $user->type) }}?ref_type={{ $user->type }}&ref_id={{ $user->id }}&date={{ $day['date'] }}" data-title="Mark Attendance ( {{ \Carbon\Carbon::parse($day['date'])->format('d M Y') }} )"
-                            @endif>
-                            @if($attendance && $attendance['exists'])
-                            <span class="badge {{ $badgeClass }} rounded px-3 py-2"
-                                style="cursor: pointer; min-width: 115px; min-height: 55px; font-size: 13px;"
-                                data-bs-toggle="tooltip"
-                                title="{{ 
-                                                    $attendance && $attendance['exists'] ? (
-                                                        ($attendance['check_in'] ? 'In: ' . $attendance['check_in'] : '' )
-                                                        . ($attendance['check_out'] ? ' | Out: ' . $attendance['check_out'] :'' )
-                                                        . ((!$attendance['check_in'] && !$attendance['check_out']) ? 'Click to edit' : '')
-                                                        . ($ontimeDisplay !== null ? ' | Ontime: ' . $ontimeDisplay . '%' : '')
-                                                        . ($attendance['notes'] ? ' Note: ' . $attendance['notes'] : '')
-                                                        ) 
-                                                    : 'Click to mark attendance' }}">
-                                @if($statusText === 'Present')
-                                @if($attendance['check_in'] && $attendance['check_out'])
-                                {{ $attendance['check_in'] }} - {{ $attendance['check_out'] }}
-                                @elseif($attendance['check_in'])
-                                {{ $attendance['check_in'] }}
-                                @elseif($attendance['check_out'])
-                                {{ $attendance['check_out'] }}
-                                @else
-                                Present
-                                @endif
-                                @if($ontimeDisplay !== null)
-                                <br><small><span class="ontime-percent-value">{{ $ontimeDisplay }}</span><span class="ontime-percent-symbol text-white">%</span></small>
-                                @endif
-                                @else
-                                {{ $statusText }}
-                                @if ($attendance['exists'] && !($statusText === 'Absent') && !($statusText === 'On Leave') && !($statusText === 'Weekend') )
-                                <br>{{ 'In: '.($attendance['check_in'] ?? '') }}<br>{{ 'Out: '.($attendance['check_out'] ?? '') }}
-                                @endif
-                                @endif
-                            </span>
-                            @else
-                            <span class="badge {{ $badgeClass }} rounded px-3 py-2"
-                                style="cursor: pointer; min-width: 115px;height: 55px; font-size: 37px;"
-                                data-bs-toggle="tooltip"
-                                title="{{ 
-                                                    $attendance && $attendance['exists'] ? (
-                                                        ($attendance['check_in'] ? 'In: ' . $attendance['check_in'] : '' )
-                                                        . ($attendance['check_out'] ? ' | Out: ' . $attendance['check_out'] :'' )
-                                                        . ((!$attendance['check_in'] && !$attendance['check_out']) ? 'Click to edit' : '')
-                                                        . ($attendance['notes'] ? ' Note: ' . $attendance['notes'] : '')
-                                                        ) 
-                                                    : 'Click to mark attendance' }}">
-                                {{ $statusText }}
-                            </span>
-                            @endif
-
-                        </a>
-                    </td>
-                    @endforeach
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="{{ count($days) + 4 }}" class="text-center py-5">
-                        <img src="{{ asset('images/no-data.svg') }}" alt="No data" style="width: 120px; opacity: 0.5;" class="mb-3">
-                        <h5 class="text-muted">No users found</h5>
-                        <p class="text-muted mb-0">Try changing your filter criteria</p>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
-<div class="card-footer bg-white py-3">
-    <div class="d-flex justify-content-between align-items-center">
-        <small class="text-muted">
-            <i class="fas fa-info-circle me-1"></i>
-            Click on any day cell to mark or edit attendance
-        </small>
-    </div>
-</div>
-</div>
-</div>
-@endcanany  
-@if(!auth()->user()->canany(['employees_attendance_view', 'riders_attendance_view']))
-<div class="alert alert-danger mt-4" role="alert">
-    You do not have permission to view attendance records.
-</div>
-@endif
-
-
-@endsection
-
-@section('page-script')
-<script>
-    const prevWindowUrl = "{{ route('attendance.summary') . '?' . $summaryRangeQuery . '&view_mode=' . $viewMode . '&view_start=' . $prevStart }}";
-    const nextWindowUrl = "{{ route('attendance.summary') . '?' . $summaryRangeQuery . '&view_mode=' . $viewMode . '&view_start=' . $nextStart }}";
-
-    $(document).ready(function() {
-        // Initialize Bootstrap tooltips
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
-    });
-
-    // Keyboard navigation
-    $(document).keydown(function(e) {
-        if (e.ctrlKey && e.key === 'ArrowLeft') {
-            window.location.href = prevWindowUrl;
-        } else if (e.ctrlKey && e.key === 'ArrowRight') {
-            window.location.href = nextWindowUrl;
+  <section class="kpis" aria-label="Today's summary">
+    @php
+      $kpis = [
+        ['key' => '', 'label' => 'Total employees', 'n' => $todayKpis['total'], 'c' => '#1F3FD1', 'bg' => '#EEF2FF', 'pct' => 100],
+        ['key' => 'present', 'label' => 'Present today', 'n' => $todayKpis['present'], 'c' => '#1E8E4E', 'bg' => '#E7F6EC', 'pct' => round($todayKpis['present'] / $kpiTotal * 100)],
+        ['key' => 'late', 'label' => 'Late in today', 'n' => $todayKpis['late'], 'c' => '#E59A1F', 'bg' => '#FFF3DF', 'pct' => round($todayKpis['late'] / $kpiTotal * 100)],
+        ['key' => 'absent', 'label' => 'Absent today', 'n' => $todayKpis['absent'], 'c' => '#D64535', 'bg' => '#FDECEC', 'pct' => round($todayKpis['absent'] / $kpiTotal * 100)],
+        ['key' => 'unmarked', 'label' => 'Not marked yet', 'n' => $todayKpis['unmarked'], 'c' => '#5B6478', 'bg' => '#F3F4F7', 'pct' => round($todayKpis['unmarked'] / $kpiTotal * 100)],
+      ];
+    @endphp
+    @foreach($kpis as $k)
+      @php
+        $isOn = ($k['key'] === '' && ! $statusFilter) || ($k['key'] !== '' && $statusFilter === $k['key']);
+        if ($k['key'] === '' || $isOn) {
+          $href = route('attendance.summary') . '?' . $q(['status' => null]);
+        } else {
+          $href = route('attendance.summary') . '?' . $q(['status' => $k['key']]);
         }
+      @endphp
+      <a class="kpi{{ $isOn ? ' on' : '' }}" href="{{ $href }}" style="--c:{{ $k['c'] }};--bgc:{{ $k['bg'] }}">
+        <div class="ic">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        </div>
+        <div>
+          <div class="num">{{ $k['n'] }}</div>
+          <div class="lb">{{ $k['label'] }}</div>
+        </div>
+        <div class="pc">{{ $k['pct'] }}%</div>
+        <div class="tr"><i style="--w:{{ $k['pct'] }}%"></i></div>
+      </a>
+    @endforeach
+  </section>
+
+  <section class="sheet">
+    <div class="sheet-top">
+      <div class="btabs">
+        <a class="btab{{ $selectedBranchId === null ? ' on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['branch_id' => null]) }}">
+          All Branches<em>{{ $todayKpis['total'] }}</em>
+        </a>
+        @foreach($branchTabs as $tab)
+          <a class="btab{{ (int) $selectedBranchId === (int) $tab['id'] ? ' on' : '' }}"
+             href="{{ route('attendance.summary') }}?{{ $q(['branch_id' => $tab['id']]) }}">
+            {{ $tab['name'] }}<em>{{ $tab['count'] }}</em>
+          </a>
+        @endforeach
+      </div>
+      <div class="tools">
+        <label class="qs">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input type="search" id="attQuickSearch" placeholder="Quick Search…" value="{{ request('quick_search') }}" aria-label="Quick search">
+        </label>
+        <button type="button" class="btn blue fbtn" id="attFilterBtn">
+          Filter Attendance
+          @php $fc = collect([$statusFilter, $selectedBranchId, $usersId !== 'all' ? $usersId : null, $fromDate, $toDate])->filter()->count(); @endphp
+          <span class="cnt" @if($fc < 1) hidden @endif>{{ $fc }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="viewbar">
+      <div class="seg">
+        <a class="{{ $viewMode === 'week' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => 'week', 'view_start' => 1]) }}">1 Week</a>
+        <a class="{{ $viewMode === 'ten_days' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => 'ten_days', 'view_start' => 1]) }}">10 Days</a>
+        <a class="{{ $viewMode === 'month' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => 'month', 'view_start' => 1]) }}">Full Month</a>
+      </div>
+      <div class="range">
+        <a class="{{ ! $hasPrevWindow ? 'disabled' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => $viewMode, 'view_start' => $prevStart]) }}" aria-label="Previous">&lsaquo;</a>
+        <span>
+          @if(count($days) > 0 && !empty($isCustomRange))
+            {{ \Carbon\Carbon::parse($days[0]['date'])->format('d M') }} – {{ \Carbon\Carbon::parse($days[count($days)-1]['date'])->format('d M') }}
+          @elseif(count($days) > 0)
+            {{ $days[0]['number'] }} – {{ $days[count($days)-1]['number'] }} of {{ $monthTotalDays }} · {{ $date->format('M Y') }}
+          @else
+            {{ $date->format('M Y') }}
+          @endif
+        </span>
+        <a class="{{ ! $hasNextWindow ? 'disabled' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => $viewMode, 'view_start' => $nextStart]) }}" aria-label="Next">&rsaquo;</a>
+        <a class="btn outline" href="{{ route('attendance.summary') }}?{{ $q(['date' => $prevMonth, 'view_start' => 1]) }}" title="Previous month">&larr;</a>
+        <a class="btn outline" href="{{ route('attendance.summary') }}?{{ $q(['date' => $nextMonth, 'view_start' => 1]) }}" title="Next month">&rarr;</a>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:var(--p-bg);border:1px solid var(--p-bd)"></i>Present</span>
+      <span><i style="background:var(--l-bg);border:1px solid var(--l-bd)"></i>Late in</span>
+      <span><i style="background:var(--a-bg);border:1px solid var(--a-bd)"></i>Absent</span>
+      <span><i style="background:var(--v-bg);border:1px solid var(--v-bd)"></i>Leave</span>
+      <span><i style="background:var(--h-bg);border:1px solid var(--h-bd)"></i>Half day</span>
+      <span><i style="background:var(--w-bg);border:1px solid var(--w-bd)"></i>Weekend</span>
+      <span><i style="background:#fff;border:1px dashed #C3CAD8"></i>Not marked</span>
+    </div>
+
+    <div class="tablewrap">
+      <table class="att" id="attTable">
+        <thead>
+          <tr>
+            <th class="l stick">Name</th>
+            <th>Status</th>
+            @foreach($days as $day)
+              <th class="{{ $day['is_today'] ? 'today' : '' }}{{ !empty($day['is_weekend']) ? ' we' : '' }}">
+                <span class="dn">{{ $day['number'] }}</span>
+                <small>{{ $day['day_name'] }}</small>
+              </th>
+            @endforeach
+            <th>Present</th>
+          </tr>
+        </thead>
+        <tbody id="attBody">
+          @forelse($users as $user)
+            @php
+              $initials = collect(explode(' ', (string) $user->name))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('');
+              $profileUrl = $userType === 'employee' ? route('employees.show', $user->id) : route('riders.show', $user->id);
+              $empStatus = $employmentLabel($user);
+              $presentCount = (float) ($user->total_present ?? 0) + (0.5 * (float) ($user->total_halfday ?? 0));
+              // half day already counted in total_present in controller for late/half - use total_present as HTML "PRESENT"
+              $presentCount = (int) ($user->total_present ?? 0);
+            @endphp
+            <tr data-name="{{ strtolower($user->name) }}" data-code="{{ strtolower($user->employee_id ?? $user->rider_id ?? '') }}">
+              <td class="stick">
+                <div class="emp">
+                  <a class="av" href="{{ $profileUrl }}" target="_blank">{{ strtoupper($initials) }}</a>
+                  <div>
+                    <a class="nm" href="{{ $profileUrl }}" target="_blank">{{ $user->name }}</a>
+                    <div class="sub">{{ trim(($user->designation ?? '') . ' · ' . ($user->employee_id ?? $user->rider_id ?? '')) }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="stc">
+                <span class="stpill" style="background:{{ $empStatus === 'Active' ? '#E7F6EC' : '#F3F4F7' }};color:{{ $empStatus === 'Active' ? '#17663A' : '#5B6478' }}">
+                  <i style="background:{{ $empStatus === 'Active' ? '#2E9E5B' : '#8A93A6' }}"></i>{{ $empStatus }}
+                </span>
+              </td>
+              @foreach($days as $day)
+                @php
+                  $att = $user->attendance_data[$day['date']] ?? null;
+                  $exists = $att && !empty($att['exists']);
+                  $letter = $exists ? $statusLetter($att['status'] ?? null) : '';
+                  $label = $exists ? $statusLabel($att['status'] ?? null) : 'Not marked';
+                  $in = $exists ? ($att['check_in'] ?? null) : null;
+                  $out = $exists ? ($att['check_out'] ?? null) : null;
+                @endphp
+                <td class="{{ !empty($day['is_today']) ? 'today' : '' }}">
+                  <button type="button"
+                    class="cell {{ $letter }}"
+                    data-ref-id="{{ $user->id }}"
+                    data-ref-type="{{ $userType }}"
+                    data-date="{{ $day['date'] }}"
+                    data-name="{{ $user->name }}"
+                    data-status="{{ $exists ? ($att['status'] ?? '') : '' }}"
+                    data-check-in="{{ $in ? \Carbon\Carbon::parse($day['date'].' '.$in)->format('H:i') : '' }}"
+                    data-check-out="{{ $out ? \Carbon\Carbon::parse($day['date'].' '.$out)->format('H:i') : '' }}"
+                    title="{{ $label }}{{ $in ? ' · In '.$in : '' }}{{ $out ? ' · Out '.$out : '' }}">
+                    @if($letter)
+                      <span>{{ $letter }}</span>
+                      @if($in || $out)
+                        <small>{{ $in ? \Carbon\Carbon::parse($day['date'].' '.$in)->format('H:i') : '' }}{{ $in && $out ? '–' : '' }}{{ $out ? \Carbon\Carbon::parse($day['date'].' '.$out)->format('H:i') : '' }}</small>
+                      @endif
+                    @else
+                      +
+                    @endif
+                  </button>
+                </td>
+              @endforeach
+              <td class="prc">{{ $presentCount }}</td>
+            </tr>
+          @empty
+            <tr><td colspan="{{ count($days) + 3 }}" class="empty">No {{ $userType }}s match these filters.</td></tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager">
+      <div class="l">
+        <span>Showing {{ $totalUsers }} {{ $userType }}{{ $totalUsers === 1 ? '' : 's' }}</span>
+      </div>
+    </div>
+  </section>
+
+  {{-- Filter drawer --}}
+  <div class="ov" id="attFilterOv"></div>
+  <aside class="drawer" id="attFilterDrawer" role="dialog" aria-label="Filter Attendance">
+    <div class="hd"><h3>Filter Attendance</h3><button type="button" class="x" id="attFilterClose" aria-label="Close">&times;</button></div>
+    <form class="bd" method="GET" action="{{ route('attendance.summary') }}">
+      <input type="hidden" name="user_type" value="{{ $userType }}">
+      <input type="hidden" name="view_mode" value="{{ $viewMode }}">
+      <input type="hidden" name="view_start" value="{{ $viewStart }}">
+      <div class="fld">
+        <label for="fMonth">Month</label>
+        <input type="month" id="fMonth" name="date" value="{{ $date->format('Y-m') }}">
+      </div>
+      <div class="fld">
+        <label for="fDate">Date</label>
+        <input type="date" id="fDate" name="filter_date" value="{{ $filterDate }}">
+      </div>
+      <div class="two">
+        <div class="fld">
+          <label for="fFrom">From</label>
+          <input type="date" id="fFrom" name="from_date" value="{{ $fromDate }}">
+        </div>
+        <div class="fld">
+          <label for="fTo">To</label>
+          <input type="date" id="fTo" name="to_date" value="{{ $toDate }}">
+        </div>
+      </div>
+      <div class="fld">
+        <label for="fUser">User</label>
+        <select id="fUser" name="user_id">
+          <option value="all">All</option>
+          @foreach(($filterUsers ?? $users ?? collect()) as $u)
+            <option value="{{ $u->id }}" {{ (string) $usersId === (string) $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+          @endforeach
+        </select>
+      </div>
+      <div class="fld">
+        <label for="fStatus">Mark status</label>
+        <select id="fStatus" name="status">
+          <option value="">All</option>
+          @foreach(['present'=>'Present','late'=>'Late','absent'=>'Absent','on leave'=>'Leave','half day'=>'Half day','weekend'=>'Weekend','unmarked'=>'Not marked'] as $val => $lab)
+            <option value="{{ $val }}" {{ $statusFilter === $val ? 'selected' : '' }}>{{ $lab }}</option>
+          @endforeach
+        </select>
+      </div>
+      @if($userType === 'employee' && $branchTabs->isNotEmpty())
+      <div class="fld">
+        <label for="fBranch">Branch</label>
+        <select id="fBranch" name="branch_id">
+          <option value="">All Branches</option>
+          @foreach($branchTabs as $tab)
+            <option value="{{ $tab['id'] }}" {{ (int) $selectedBranchId === (int) $tab['id'] ? 'selected' : '' }}>{{ $tab['name'] }}</option>
+          @endforeach
+        </select>
+      </div>
+      @endif
+      <div class="go">
+        <a class="btn reset" href="{{ route('attendance.summary', ['user_type' => $userType]) }}">Reset</a>
+        <button type="submit" class="btn blue">Apply</button>
+      </div>
+    </form>
+  </aside>
+
+  {{-- Mark modal --}}
+  <div class="att-dlg-ov" id="markOv">
+    <div class="att-dlg" role="dialog" aria-labelledby="markTitle">
+      <div class="hd"><h3 id="markTitle">Mark Attendance</h3><button type="button" class="x" id="markClose" aria-label="Close">&times;</button></div>
+      <div class="bd">
+        <div class="mhead" id="markSub"></div>
+        <div class="chips" id="markChips">
+          @foreach([
+            ['present','Present'],
+            ['late','Late in'],
+            ['absent','Absent'],
+            ['on leave','Leave'],
+            ['half day','Half day'],
+            ['weekend','Weekend'],
+          ] as [$val, $lab])
+            <button type="button" class="chip" data-status="{{ $val }}">{{ $lab }}</button>
+          @endforeach
+        </div>
+        <div class="two">
+          <div class="fld"><label for="markIn">Check In</label><input type="time" id="markIn"></div>
+          <div class="fld"><label for="markOut">Check Out</label><input type="time" id="markOut"></div>
+        </div>
+      </div>
+      <div class="ft">
+        <button type="button" class="btn reset" id="markClear">Clear</button>
+        <button type="button" class="btn blue" id="markSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="attToast"></div>
+
+  @include('attendance.partials.import_modal', [
+    'refType' => $userType,
+    'importPeople' => $importPeople ?? $filterUsers ?? $users ?? collect(),
+    'openImport' => $openImport ?? false,
+  ])
+</div>
+
+@push('page-scripts')
+<script>
+(function () {
+  const root = document.getElementById('attDemo');
+  if (!root) return;
+  const upsertUrl = root.dataset.upsert;
+  const clearUrl = root.dataset.clear;
+  const csrf = root.dataset.csrf;
+  const userType = root.dataset.userType;
+  let cur = null;
+
+  const toast = (msg) => {
+    const el = document.getElementById('attToast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2200);
+  };
+
+  // Quick search
+  document.getElementById('attQuickSearch')?.addEventListener('input', function () {
+    const q = this.value.trim().toLowerCase();
+    document.querySelectorAll('#attBody tr[data-name]').forEach(tr => {
+      const hay = (tr.dataset.name || '') + ' ' + (tr.dataset.code || '');
+      tr.style.display = !q || hay.includes(q) ? '' : 'none';
     });
+  });
+
+  // Filter drawer
+  const ov = document.getElementById('attFilterOv');
+  const drawer = document.getElementById('attFilterDrawer');
+  const openFilter = () => { ov.classList.add('show'); drawer.classList.add('show'); };
+  const closeFilter = () => { ov.classList.remove('show'); drawer.classList.remove('show'); };
+  document.getElementById('attFilterBtn')?.addEventListener('click', openFilter);
+  document.getElementById('attFilterClose')?.addEventListener('click', closeFilter);
+  ov?.addEventListener('click', closeFilter);
+
+  // Mark modal
+  const markOv = document.getElementById('markOv');
+  const openMark = (btn) => {
+    cur = {
+      btn,
+      refId: btn.dataset.refId,
+      refType: btn.dataset.refType || userType,
+      date: btn.dataset.date,
+      name: btn.dataset.name,
+      status: btn.dataset.status || 'present',
+    };
+    document.getElementById('markSub').textContent = cur.name + ' · ' + cur.date;
+    document.getElementById('markIn').value = btn.dataset.checkIn || '';
+    document.getElementById('markOut').value = btn.dataset.checkOut || '';
+    document.querySelectorAll('#markChips .chip').forEach(c => {
+      c.classList.toggle('on', c.dataset.status === cur.status);
+    });
+    markOv.classList.add('show');
+  };
+  const closeMark = () => { markOv.classList.remove('show'); cur = null; };
+  document.getElementById('markClose')?.addEventListener('click', closeMark);
+  markOv?.addEventListener('click', (e) => { if (e.target === markOv) closeMark(); });
+
+  document.getElementById('attBody')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.cell');
+    if (!btn) return;
+    openMark(btn);
+  });
+
+  document.getElementById('markChips')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip || !cur) return;
+    cur.status = chip.dataset.status;
+    document.querySelectorAll('#markChips .chip').forEach(c => c.classList.toggle('on', c === chip));
+  });
+
+  const letterFor = (status) => ({
+    present: 'P', late: 'L', absent: 'A', 'on leave': 'V', 'half day': 'H', weekend: 'W'
+  })[status] || '';
+
+  const paintCell = (btn, status, checkIn, checkOut) => {
+    const letter = letterFor(status);
+    btn.dataset.status = status || '';
+    btn.dataset.checkIn = checkIn || '';
+    btn.dataset.checkOut = checkOut || '';
+    btn.className = 'cell' + (letter ? ' ' + letter : '');
+    if (!status) {
+      btn.innerHTML = '+';
+      return;
+    }
+    let html = '<span>' + letter + '</span>';
+    if (checkIn || checkOut) {
+      html += '<small>' + (checkIn || '') + (checkIn && checkOut ? '–' : '') + (checkOut || '') + '</small>';
+    }
+    btn.innerHTML = html;
+  };
+
+  document.getElementById('markSave')?.addEventListener('click', async () => {
+    if (!cur) return;
+    const body = {
+      ref_type: cur.refType,
+      ref_id: cur.refId,
+      date: cur.date,
+      status: cur.status || 'present',
+      check_in: document.getElementById('markIn').value || null,
+      check_out: document.getElementById('markOut').value || null,
+    };
+    try {
+      const res = await fetch(upsertUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Save failed');
+      paintCell(cur.btn, data.attendance.status, data.attendance.check_in, data.attendance.check_out);
+      toast('Attendance saved');
+      closeMark();
+    } catch (err) {
+      toast(err.message || 'Error saving');
+    }
+  });
+
+  document.getElementById('markClear')?.addEventListener('click', async () => {
+    if (!cur) return;
+    try {
+      const res = await fetch(clearUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
+        body: JSON.stringify({ ref_type: cur.refType, ref_id: cur.refId, date: cur.date }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.message || 'Clear failed');
+      paintCell(cur.btn, '', '', '');
+      toast('Attendance cleared');
+      closeMark();
+    } catch (err) {
+      toast(err.message || 'Error clearing');
+    }
+  });
+})();
 </script>
+@endpush
+@endcanany
 @endsection

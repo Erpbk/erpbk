@@ -50,7 +50,7 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102imp3">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102prof">
 @endpush
 
 @section('content')
@@ -200,7 +200,9 @@
           @forelse($users as $user)
             @php
               $initials = collect(explode(' ', (string) $user->name))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('');
-              $profileUrl = $userType === 'employee' ? route('employees.show', $user->id) : route('riders.show', $user->id);
+              $profileUrl = $userType === 'employee'
+                ? safe_route('employees.show', ['employee' => $user->id], 'employees/{id}')
+                : safe_route('riders.show', ['rider' => $user->id], 'riders/{id}');
               $empStatus = $employmentLabel($user);
               $presentCount = (float) ($user->total_present ?? 0) + (0.5 * (float) ($user->total_halfday ?? 0));
               // half day already counted in total_present in controller for late/half - use total_present as HTML "PRESENT"
@@ -209,9 +211,9 @@
             <tr data-name="{{ strtolower($user->name) }}" data-code="{{ strtolower($user->employee_id ?? $user->rider_id ?? '') }}">
               <td class="stick">
                 <div class="emp">
-                  <a class="av" href="{{ $profileUrl }}" target="_blank">{{ strtoupper($initials) }}</a>
+                  <a class="av" href="{{ $profileUrl }}" title="Open profile">{{ strtoupper($initials) }}</a>
                   <div>
-                    <a class="nm" href="{{ $profileUrl }}" target="_blank">{{ $user->name }}</a>
+                    <a class="nm" href="{{ $profileUrl }}">{{ $user->name }}</a>
                     <div class="sub">{{ trim(($user->designation ?? '') . ' · ' . ($user->employee_id ?? $user->rider_id ?? '')) }}</div>
                   </div>
                 </div>

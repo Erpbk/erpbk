@@ -7,6 +7,9 @@
   $personSheets = $personSheets ?? [];
   $monthStart = $monthStart ?? now()->startOfMonth();
   $monthEnd = $monthEnd ?? now()->endOfMonth();
+  $billingMonth = $billingMonth ?? ($monthStart instanceof \Carbon\Carbon ? $monthStart->format('Y-m') : now()->format('Y-m'));
+  $filterFrom = request('from_date', $monthStart->format('Y-m-d'));
+  $filterTo = request('to_date', $monthEnd->format('Y-m-d'));
   $statusLetter = fn (?string $s) => match ($s) {
       'present' => 'P', 'late' => 'L', 'absent' => 'A', 'on leave' => 'V', 'half day' => 'H', 'weekend' => 'W', default => '',
   };
@@ -23,12 +26,14 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102imp3">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102dock">
 @endpush
 
 @section('content')
 @canany(['employees_attendance_view', 'riders_attendance_view'])
 <div class="att-demo" id="attReportDemo">
+<div class="att-report-layout">
+<div class="att-report-main">
 
   <div class="tabrow">
     <div class="ptabs">
@@ -47,110 +52,180 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5"></path><path d="M12 3v12"></path></svg>
         Import
       </button>
-      <button type="button" class="btn outline" data-bs-toggle="modal" data-bs-target="#bulkAttendanceModal">Bulk Mark</button>
       @endcanany
-      <a class="btn green" href="{{ safe_route('attendance.export', request()->query(), 'attendance/export') }}">Export</a>
-      <button type="button" class="btn blue" id="attReportFilterBtn">Filter</button>
+      <a class="btn green" href="{{ safe_route('attendance.export', array_filter([
+          'ref_type' => $refType,
+          'billing_month' => $billingMonth,
+          'from_date' => $filterFrom,
+          'to_date' => $filterTo,
+          'status' => request('status'),
+        ]), 'attendance/export') }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
+        Export
+      </a>
     </div>
   </div>
 
   <section class="rk" aria-label="Report summary">
     @php
+      $kpiTotal = max(1, (int) ($reportKpis['total'] ?? 0));
       $rkpis = [
-        ['n'=>$reportKpis['total'],'l'=>'Total records','c'=>'#1F3FD1','bg'=>'#EEF2FF'],
-        ['n'=>$reportKpis['present'],'l'=>'Present','c'=>'#1E8E4E','bg'=>'#E7F6EC'],
-        ['n'=>$reportKpis['late'],'l'=>'Late','c'=>'#E59A1F','bg'=>'#FFF3DF'],
-        ['n'=>$reportKpis['absent'],'l'=>'Absent','c'=>'#D64535','bg'=>'#FDECEC'],
-        ['n'=>$reportKpis['leave'],'l'=>'Leave','c'=>'#0EA5E9','bg'=>'#E0F2FE'],
-        ['n'=>$reportKpis['half'],'l'=>'Half day','c'=>'#6B83F0','bg'=>'#E9EEFF'],
-        ['n'=>$reportKpis['weekend'],'l'=>'Weekend','c'=>'#5B6478','bg'=>'#F3F4F7'],
+        ['n' => (int) ($reportKpis['total'] ?? 0), 'l' => 'Total records', 'c' => '#1F3FD1', 'bg' => '#EEF2FF', 'showPct' => false, 'icon' => '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>'],
+        ['n' => (int) ($reportKpis['present'] ?? 0), 'l' => 'Present', 'c' => '#1E8E4E', 'bg' => '#E7F6EC', 'showPct' => true, 'icon' => '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>'],
+        ['n' => (int) ($reportKpis['late'] ?? 0), 'l' => 'Late', 'c' => '#B86E00', 'bg' => '#FFF3DF', 'showPct' => true, 'icon' => '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'],
+        ['n' => (int) ($reportKpis['absent'] ?? 0), 'l' => 'Absent', 'c' => '#C0362C', 'bg' => '#FDECEC', 'showPct' => true, 'icon' => '<circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/>'],
+        ['n' => (int) ($reportKpis['leave'] ?? 0), 'l' => 'On leave', 'c' => '#075985', 'bg' => '#E0F2FE', 'showPct' => true, 'icon' => '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>'],
+        ['n' => (int) ($reportKpis['weekend'] ?? 0), 'l' => 'Weekend', 'c' => '#5B6478', 'bg' => '#F1F3F8', 'showPct' => true, 'icon' => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'],
+      ];
+      $pill = function (int $n, string $bg, string $fg): string {
+          if ($n < 1) {
+              return '<span class="z">0</span>';
+          }
+          return '<span class="n" style="background:'.$bg.';color:'.$fg.'">'.$n.'</span>';
+      };
+      $foot = [
+        'present' => collect($personSheets)->sum('present'),
+        'late' => collect($personSheets)->sum('late'),
+        'absent' => collect($personSheets)->sum('absent'),
+        'leave' => collect($personSheets)->sum('leave'),
+        'half' => collect($personSheets)->sum('half'),
+        'weekend' => collect($personSheets)->sum('weekend'),
+        'total' => collect($personSheets)->sum('total'),
       ];
     @endphp
     @foreach($rkpis as $k)
+      @php $p = $k['showPct'] ? (int) round(($k['n'] / $kpiTotal) * 100) : 100; @endphp
       <div class="kpi" style="--c:{{ $k['c'] }};--bgc:{{ $k['bg'] }}">
         <div class="ic">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">{!! $k['icon'] !!}</svg>
         </div>
         <div>
           <div class="num">{{ $k['n'] }}</div>
           <div class="lb">{{ $k['l'] }}</div>
         </div>
-        <div class="pc">—</div>
-        <div class="tr"><i style="--w:100%"></i></div>
+        @if($k['showPct'])
+          <div class="pc">{{ $p }}%</div>
+        @else
+          <span></span>
+        @endif
+        <div class="tr"><i style="--w:{{ $k['showPct'] ? max($p, $k['n'] > 0 ? 2 : 0) : 100 }}%"></i></div>
       </div>
     @endforeach
   </section>
 
   <section class="rwrap">
     <div class="rhead">
-      <h3>Attendance by {{ ucfirst($refType) }} <small style="font-weight:500;color:var(--muted);font-size:13px">({{ count($personSheets) }})</small></h3>
+      <h3>Attendance Report</h3>
       <label class="qs">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input type="search" id="reportQuickSearch" placeholder="Quick Search…" aria-label="Quick search">
+        <input type="search" id="reportQuickSearch" placeholder="Quick Search..." aria-label="Quick search">
       </label>
     </div>
     <div class="tablewrap" style="max-height:none">
       <table class="ar" id="reportTable">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Present</th>
-            <th>Late</th>
-            <th>Absent</th>
-            <th>Leave</th>
-            <th>Half</th>
-            <th>Weekend</th>
-            <th>Attendance %</th>
-            <th></th>
+            <th class="l" style="cursor:default">#</th>
+            <th class="l sorting" data-k="name">Employee Name <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="present">Present <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="late">Late <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="absent">Absent <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="leave">Leave <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="half">Half day <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="weekend">Weekend <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="total">Total Days <span class="ar">⇅</span></th>
+            <th class="sorting" data-k="pct">Attendance % <span class="ar">⇅</span></th>
           </tr>
         </thead>
         <tbody id="reportBody">
           @forelse($personSheets as $i => $row)
             @php
               $initials = collect(explode(' ', (string) $row['name']))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('');
-              $profileUrl = $row['ref_type'] === 'employee' ? route('employees.show', $row['ref_id']) : route('riders.show', $row['ref_id']);
+              $profileUrl = $row['ref_type'] === 'employee'
+                ? safe_route('employees.show', ['employee' => $row['ref_id']], 'employees/{id}')
+                : safe_route('riders.show', ['rider' => $row['ref_id']], 'riders/{id}');
+              $pct = (int) ($row['pct'] ?? 0);
+              $pctColor = $pct >= 85 ? '#1E8E4E' : ($pct >= 70 ? '#E59A1F' : '#D64535');
             @endphp
-            <tr data-name="{{ strtolower($row['name'].' '.$row['code']) }}">
-              <td>
+            <tr data-name="{{ strtolower($row['name'].' '.$row['code']) }}"
+                data-present="{{ $row['present'] }}"
+                data-late="{{ $row['late'] }}"
+                data-absent="{{ $row['absent'] }}"
+                data-leave="{{ $row['leave'] }}"
+                data-half="{{ $row['half'] }}"
+                data-weekend="{{ $row['weekend'] }}"
+                data-total="{{ $row['total'] }}"
+                data-pct="{{ $pct }}">
+              <td class="l" style="color:#8A93A6">{{ $i + 1 }}</td>
+              <td class="l">
                 <div class="who">
-                  <div class="rav">{{ strtoupper($initials) }}</div>
-                  <div>
-                    <a href="{{ $profileUrl }}" target="_blank" class="emp"><span class="nm">{{ $row['name'] }}</span></a>
-                    <div class="sub" style="font-size:12px;color:var(--muted)">{{ trim($row['designation'].' · '.$row['code'], ' ·') }}</div>
-                  </div>
+                  <a href="{{ $profileUrl }}" title="Open profile">
+                    @if(!empty($row['photo']))
+                      <img class="rav" src="{{ $row['photo'] }}" alt="">
+                    @else
+                      <span class="rav">{{ strtoupper($initials) }}</span>
+                    @endif
+                  </a>
+                  <a href="{{ $profileUrl }}">{{ $row['name'] }}</a>
                 </div>
               </td>
-              <td>{{ $row['present'] }}</td>
-              <td>{{ $row['late'] }}</td>
-              <td>{{ $row['absent'] }}</td>
-              <td>{{ $row['leave'] }}</td>
-              <td>{{ $row['half'] }}</td>
-              <td>{{ $row['weekend'] }}</td>
-              <td><strong>{{ $row['pct'] }}%</strong></td>
-              <td><button type="button" class="pctbtn" data-sheet-idx="{{ $i }}">View sheet</button></td>
+              <td>{!! $pill((int) $row['present'], '#E7F6EC', '#17663A') !!}</td>
+              <td>{!! $pill((int) $row['late'], '#FFF3DF', '#8A4B00') !!}</td>
+              <td>{!! $pill((int) $row['absent'], '#FDECEC', '#B42318') !!}</td>
+              <td>{!! $pill((int) $row['leave'], '#E0F2FE', '#075985') !!}</td>
+              <td>{!! $pill((int) $row['half'], '#E9EEFF', '#1F3FD1') !!}</td>
+              <td>{!! $pill((int) $row['weekend'], '#F3F4F7', '#5B6478') !!}</td>
+              <td style="font-weight:700">{{ (int) $row['total'] }}</td>
+              <td>
+                <button type="button" class="pctbtn" data-sheet-idx="{{ $i }}" title="Open monthly attendance sheet">
+                  <span class="b"><i style="width:{{ $pct }}%;background:{{ $pctColor }}"></i></span>
+                  <span style="color:{{ $pctColor }}">{{ $pct }}%</span>
+                </button>
+              </td>
             </tr>
           @empty
-            <tr><td colspan="9" class="empty">No attendance records for these filters.</td></tr>
+            <tr><td colspan="10" class="empty">No attendance records for these filters.</td></tr>
           @endforelse
         </tbody>
+        @if(count($personSheets))
+        <tfoot>
+          <tr>
+            <td></td>
+            <td class="l">Total ({{ count($personSheets) }} {{ \Illuminate\Support\Str::plural($refType === 'rider' ? 'rider' : 'employee', count($personSheets)) }})</td>
+            <td>{{ $foot['present'] }}</td>
+            <td>{{ $foot['late'] }}</td>
+            <td>{{ $foot['absent'] }}</td>
+            <td>{{ $foot['leave'] }}</td>
+            <td>{{ $foot['half'] }}</td>
+            <td>{{ $foot['weekend'] }}</td>
+            <td>{{ $foot['total'] }}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+        @endif
       </table>
     </div>
   </section>
 
-  {{-- Filter drawer --}}
-  <div class="ov" id="attReportFilterOv"></div>
-  <aside class="drawer" id="attReportFilterDrawer" role="dialog" aria-label="Filter Report">
-    <div class="hd"><h3>Filter Report</h3><button type="button" class="x" id="attReportFilterClose" aria-label="Close">&times;</button></div>
-    <form class="bd" method="GET" action="{{ route('attendance.index') }}">
+</div>{{-- /.att-report-main --}}
+
+  {{-- Always-visible filter sidebar --}}
+  <aside class="filter-dock" id="attReportFilterDrawer" aria-label="Filter Report">
+    <div class="hd"><h3>Filter Report</h3></div>
+    <form class="bd" method="GET" action="{{ route('attendance.index') }}" id="attReportFilterForm">
       <input type="hidden" name="ref_type" value="{{ $refType }}">
+      <div class="fld">
+        <label for="rBillingMonth">Billing Month</label>
+        <input type="month" id="rBillingMonth" name="billing_month" value="{{ $billingMonth }}">
+      </div>
       <div class="two">
         <div class="fld">
           <label for="rFrom">From</label>
-          <input type="date" id="rFrom" name="from_date" value="{{ request('from_date') }}">
+          <input type="date" id="rFrom" name="from_date" value="{{ $filterFrom }}">
         </div>
         <div class="fld">
           <label for="rTo">To</label>
-          <input type="date" id="rTo" name="to_date" value="{{ request('to_date') }}">
+          <input type="date" id="rTo" name="to_date" value="{{ $filterTo }}">
         </div>
       </div>
       <div class="fld">
@@ -168,6 +243,8 @@
       </div>
     </form>
   </aside>
+
+</div>{{-- /.att-report-layout --}}
 
   {{-- % sheet overlay --}}
   <div class="sheet-ov" id="pctSheetOv">
@@ -305,18 +382,66 @@ window.__attPrintedAt = @json($attPrintedAt);
   const letter = { present:'P', late:'L', absent:'A', 'on leave':'V', 'half day':'H', weekend:'W' };
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+  function renumberReportRows() {
+    let n = 0;
+    document.querySelectorAll('#reportBody tr[data-name]').forEach(tr => {
+      if (tr.style.display === 'none') return;
+      n += 1;
+      const cell = tr.querySelector('td.l');
+      if (cell) cell.textContent = String(n);
+    });
+  }
   document.getElementById('reportQuickSearch')?.addEventListener('input', function () {
     const q = this.value.trim().toLowerCase();
     document.querySelectorAll('#reportBody tr[data-name]').forEach(tr => {
       tr.style.display = !q || (tr.dataset.name || '').includes(q) ? '' : 'none';
     });
+    renumberReportRows();
   });
 
-  const ov = document.getElementById('attReportFilterOv');
-  const drawer = document.getElementById('attReportFilterDrawer');
-  document.getElementById('attReportFilterBtn')?.addEventListener('click', () => { ov.classList.add('show'); drawer.classList.add('show'); });
-  document.getElementById('attReportFilterClose')?.addEventListener('click', () => { ov.classList.remove('show'); drawer.classList.remove('show'); });
-  ov?.addEventListener('click', () => { ov.classList.remove('show'); drawer.classList.remove('show'); });
+  (function bindReportSort() {
+    const table = document.getElementById('reportTable');
+    const tbody = document.getElementById('reportBody');
+    if (!table || !tbody) return;
+    let sortKey = 'name';
+    let sortDir = 1;
+    table.querySelectorAll('th.sorting').forEach(th => {
+      th.addEventListener('click', () => {
+        const key = th.dataset.k || 'name';
+        if (sortKey === key) sortDir *= -1;
+        else {
+          sortKey = key;
+          sortDir = key === 'name' ? 1 : -1;
+        }
+        table.querySelectorAll('th.sorting').forEach(h => h.classList.remove('on'));
+        th.classList.add('on');
+        th.querySelector('.ar').textContent = sortDir > 0 ? '▲' : '▼';
+        const rows = Array.from(tbody.querySelectorAll('tr[data-name]'));
+        rows.sort((a, b) => {
+          let av = a.dataset[sortKey] ?? '';
+          let bv = b.dataset[sortKey] ?? '';
+          if (sortKey === 'name') return String(av).localeCompare(String(bv)) * sortDir;
+          return ((parseFloat(av) || 0) - (parseFloat(bv) || 0)) * sortDir;
+        });
+        rows.forEach(r => tbody.appendChild(r));
+        renumberReportRows();
+      });
+    });
+  })();
+
+  const billingMonthInput = document.getElementById('rBillingMonth');
+  const fromInput = document.getElementById('rFrom');
+  const toInput = document.getElementById('rTo');
+  const syncRangeFromBillingMonth = () => {
+    const val = billingMonthInput?.value || '';
+    if (!/^\d{4}-\d{2}$/.test(val)) return;
+    const [y, m] = val.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    const mm = String(m).padStart(2, '0');
+    if (fromInput) fromInput.value = `${y}-${mm}-01`;
+    if (toInput) toInput.value = `${y}-${mm}-${String(lastDay).padStart(2, '0')}`;
+  };
+  billingMonthInput?.addEventListener('change', syncRangeFromBillingMonth);
 
   const sheetOv = document.getElementById('pctSheetOv');
   const sheetBody = document.getElementById('pctSheetBody');

@@ -9,10 +9,11 @@
     'unpaid_count' => 0,
     'total_invoice_amount' => 0,
     'project_label' => 'All',
-    'billing_month_label' => 'All',
+    'billing_month_label' => 'All Months',
     'total_payable_salary' => 0,
     'paid_amount' => 0,
     'balance' => 0,
+    'partial_due' => 0,
     'money_available' => true,
   ];
 @endphp
@@ -21,68 +22,43 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('css/riders-styles.css') }}">
 <link rel="stylesheet" href="{{ asset('css/riders-list-demo.css') }}?v=20261030-tbox">
-<link rel="stylesheet" href="{{ asset('css/employees-demo.css') }}?v=20261102">
+<link rel="stylesheet" href="{{ asset('css/employees-demo.css') }}?v=20261102inv2">
 <style>
-  /* Page-only: one-row stats + combined status list. Shared .total-card lives in custom.css. */
-  .riders-list-demo .totals-cards {
-    margin: 0 0 12px 0;
-    display: flex;
-    flex-wrap: nowrap;
-    gap: 8px;
-  }
-  .riders-list-demo .totals-cards .total-card {
-    flex: 1 1 0;
-    min-width: 0;
-    width: auto;
-    box-sizing: border-box;
-  }
-  /* Amber accent for Status card (inline so live is not stuck on cached custom.css) */
-  .riders-list-demo .totals-cards .total-card.ri-status-card {
-    border-left-color: #d97706;
-    background: linear-gradient(180deg, rgba(217, 119, 6, 0.08), rgba(217, 119, 6, 0.02));
-  }
-  .riders-list-demo .totals-cards .total-card.ri-status-card .label {
-    color: #d97706;
-  }
-  .riders-list-demo .ri-status-card .ri-status-rows {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-top: 2px;
-  }
-  .riders-list-demo .ri-status-card .ri-status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 12px;
-    font-weight: 600;
-    line-height: 1.25;
-  }
-  .riders-list-demo .ri-status-card .ri-status-row b {
-    font-variant-numeric: tabular-nums;
-    font-weight: 700;
-  }
-  .riders-list-demo .ri-status-card .ri-status-row.paid { color: #059669; }
-  .riders-list-demo .ri-status-card .ri-status-row.partial { color: #d97706; }
-  .riders-list-demo .ri-status-card .ri-status-row.unpaid { color: #dc2626; }
-  @media (max-width: 992px) {
-    .riders-list-demo .totals-cards { flex-wrap: wrap; }
-    .riders-list-demo .totals-cards .total-card {
-      flex: 1 1 calc(33.333% - 6px);
-      min-width: calc(33.333% - 6px);
-    }
-  }
-  @media (max-width: 576px) {
-    .riders-list-demo .totals-cards .total-card {
-      flex: 1 1 calc(50% - 4px);
-      min-width: calc(50% - 4px);
-    }
-  }
   .invoice-checkbox, #selectAllCheckbox { transform: scale(1.2); cursor: pointer; }
   .filter-sidebar .select2-container { width: 100% !important; }
   body > .select2-container { z-index: 12000 !important; }
   body > .select2-container .select2-dropdown { z-index: 12001 !important; }
+  #deleteSelectedBtn {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+    color: #fff !important;
+  }
+  #deleteSelectedBtn:hover { background: #b91c1c !important; border-color: #b91c1c !important; }
+  .emp-demo .ei-emp { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; line-height: 1.25; text-align: left; }
+  .emp-demo .ei-emp .ei-name,
+  .emp-demo .ei-inv-link { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+  .emp-demo .ei-emp .ei-name:hover,
+  .emp-demo .ei-inv-link:hover { text-decoration: underline; }
+  .emp-demo .ei-emp .ei-code { font-size: 11px; color: #64748b; font-weight: 500; }
+  .emp-demo .ei-branch-pill {
+    display: inline-block; max-width: 100%;
+    padding: 3px 10px; border-radius: 999px;
+    background: #dbeafe; color: #1d4ed8;
+    font-size: 11.5px; font-weight: 600; line-height: 1.35;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .emp-demo .ei-dash { color: #94a3b8; }
+  .emp-demo .ei-desc { font-size: 12.5px; color: #334155; }
+  .emp-demo .ei-status-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .emp-demo .ei-status-due { font-size: 11px; font-weight: 700; color: #dc2626; font-variant-numeric: tabular-nums; }
+  .emp-demo .ei-money { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .emp-demo .ei-total { font-weight: 700; color: #0f172a; }
+  /* Compact circular hover card for invoice list (matches screenshot) */
+  .emp-demo .emp-hv { width: 210px; }
+  .emp-demo .emp-hv .ava {
+    width: 96px; height: 96px; border-radius: 50%;
+  }
+  .emp-demo .emp-hv .ava.ph { font-size: 22px; }
 </style>
 @endpush
 @section('content')
@@ -131,15 +107,15 @@
         <div class="st"><span id="stat_unpaid_count">{{ number_format((int) ($stats['unpaid_count'] ?? 0)) }}</span> invoices</div>
       </div>
       <div class="iv-card" style="--c:#d97706">
-        <div class="lb">Payable Salary</div>
-        <div class="vl" id="stat_total_payable_salary">{{ $money($stats['total_payable_salary'] ?? 0) }}</div>
-        <div class="st">{{ $stats['project_label'] ?? 'All' }}</div>
+        <div class="lb">Partially Paid Due</div>
+        <div class="vl" id="stat_partial_due">{{ $money($stats['partial_due'] ?? 0) }}</div>
+        <div class="st"><span id="stat_partial_invoice_count">{{ number_format((int) ($stats['partial_count'] ?? 0)) }}</span> invoices</div>
       </div>
       <div class="iv-card" style="--c:#f59e0b">
         <div class="lb">Status</div>
-        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'paid']), 'employeeInvoices') }}" style="color:#15803d"><span>Paid</span><span id="stat_paid_count_row">{{ number_format((int) ($stats['paid_count'] ?? 0)) }}</span></a>
-        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'partial']), 'employeeInvoices') }}" style="color:#d97706"><span>Partially Paid</span><span id="stat_partial_count">{{ number_format((int) ($stats['partial_count'] ?? 0)) }}</span></a>
-        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => 'unpaid']), 'employeeInvoices') }}" style="color:#dc2626"><span>Unpaid</span><span id="stat_unpaid_count_row">{{ number_format((int) ($stats['unpaid_count'] ?? 0)) }}</span></a>
+        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => '1']), 'employeeInvoices') }}" style="color:#15803d"><span>Paid</span><span id="stat_paid_count_row">{{ number_format((int) ($stats['paid_count'] ?? 0)) }}</span></a>
+        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => '3']), 'employeeInvoices') }}" style="color:#d97706"><span>Partially Paid</span><span id="stat_partial_count">{{ number_format((int) ($stats['partial_count'] ?? 0)) }}</span></a>
+        <a class="sr" href="{{ safe_route('employeeInvoices.index', array_merge(request()->except('page','status'), ['status' => '0']), 'employeeInvoices') }}" style="color:#dc2626"><span>Unpaid</span><span id="stat_unpaid_count_row">{{ number_format((int) ($stats['unpaid_count'] ?? 0)) }}</span></a>
       </div>
     </div>
 
@@ -176,9 +152,6 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 20c0-3-2-5-5-5.4"/></svg>
           All Invoices
         </a>
-        <button type="button" class="rl-btn" id="deleteSelectedBtn" style="display:none;" onclick="deleteSelectedInvoices()">
-          <i class="fa fa-trash"></i> Delete Selected
-        </button>
       </div>
       <div class="rl-tb-right">
         <button type="button" class="rl-btn icon" id="copyBtn" title="Copy table to clipboard" aria-label="Copy table">
@@ -188,6 +161,9 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
         </button>
         <input class="rl-search" id="q" type="search" placeholder="Quick Search..." aria-label="Quick search" value="{{ request('quick_search') }}">
+        <button type="button" class="rl-btn" id="deleteSelectedBtn" style="display:none;" onclick="deleteSelectedInvoices()">
+          <i class="fa fa-trash"></i> Delete Selected
+        </button>
         <button type="button" class="rl-btn openFilterSidebar" id="filterBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
           Filter Invoices
@@ -206,6 +182,7 @@
     </div>
   </div>
 </div>
+<div class="emp-hv" id="empHv" role="tooltip" aria-hidden="true"></div>
 
 <div id="filterOverlay" class="filter-overlay"></div>
 <div id="filterSidebar" class="filter-sidebar riders-filter-sidebar">
@@ -401,16 +378,18 @@
       const el = document.getElementById(id);
       if (el) el.textContent = text;
     };
-    setText('stat_project_label', stats.project_label ?? 'All');
-    setText('stat_billing_month_label', stats.billing_month_label ?? 'All');
+    setText('stat_billing_month_label', stats.billing_month_label ?? 'All Months');
     setText('stat_invoice_count', Number(stats.invoice_count || 0).toLocaleString());
     setText('stat_total_invoice_amount', formatAmount(stats.total_invoice_amount));
-    setText('stat_total_payable_salary', formatAmount(stats.total_payable_salary));
     setText('stat_paid_amount', formatAmount(stats.paid_amount));
     setText('stat_balance', formatAmount(stats.balance));
+    setText('stat_partial_due', formatAmount(stats.partial_due));
     setText('stat_paid_count', Number(stats.paid_count || 0).toLocaleString());
     setText('stat_partial_count', Number(stats.partial_count || 0).toLocaleString());
+    setText('stat_partial_invoice_count', Number(stats.partial_count || 0).toLocaleString());
     setText('stat_unpaid_count', Number(stats.unpaid_count || 0).toLocaleString());
+    setText('stat_paid_count_row', Number(stats.paid_count || 0).toLocaleString());
+    setText('stat_unpaid_count_row', Number(stats.unpaid_count || 0).toLocaleString());
 
     const balanceEl = document.getElementById('stat_balance');
     if (balanceEl) {
@@ -646,6 +625,49 @@
 
   updateExportLink(currentQueryParams());
   bindClientSort();
+
+  // Employee hover card (photo → ID → name) — same pattern as employees list
+  (function () {
+    const tip = document.getElementById('empHv');
+    if (!tip) return;
+    let hideT;
+    const show = (a) => {
+      clearTimeout(hideT);
+      const photo = a.dataset.hvPhoto || '';
+      const initials = a.dataset.hvInitials || '';
+      const av = photo
+        ? `<img class="ava" src="${photo}" alt="">`
+        : `<div class="ava ph">${initials}</div>`;
+      tip.innerHTML = `<div class="emp-hv-top">${av}<div class="idpill">${a.dataset.hvId || ''}</div><div class="nm">${a.dataset.hvName || ''}</div></div>`;
+      tip.classList.add('show');
+      tip.setAttribute('aria-hidden', 'false');
+      const r = a.getBoundingClientRect();
+      const tw = tip.offsetWidth || 210;
+      const th = tip.offsetHeight || 200;
+      let left = r.left;
+      let top = r.bottom + 8;
+      if (left + tw > window.innerWidth - 12) left = window.innerWidth - tw - 12;
+      if (top + th > window.innerHeight - 12) top = r.top - th - 8;
+      tip.style.left = Math.max(8, left) + 'px';
+      tip.style.top = Math.max(8, top) + 'px';
+    };
+    const hide = () => {
+      hideT = setTimeout(() => {
+        tip.classList.remove('show');
+        tip.setAttribute('aria-hidden', 'true');
+      }, 120);
+    };
+    document.addEventListener('mouseover', (e) => {
+      const a = e.target.closest('#employeeInvoicesListDemo .emp-name-link');
+      if (a) show(a);
+    });
+    document.addEventListener('mouseout', (e) => {
+      const a = e.target.closest('#employeeInvoicesListDemo .emp-name-link');
+      if (a && !e.relatedTarget?.closest?.('.emp-hv')) hide();
+    });
+    tip.addEventListener('mouseenter', () => clearTimeout(hideT));
+    tip.addEventListener('mouseleave', hide);
+  })();
 })();
 
 function toggleSelectAll(selectAllCheckbox) {

@@ -35,6 +35,8 @@ class AttendanceController extends Controller
         $refType = $request->get('ref_type', $request->get('user_type', 'employee')) ?: 'employee';
         $request->merge(['ref_type' => $refType]);
 
+        $billingMonth = $this->applyBillingMonthFilter($request);
+
         $query = Attendance::with('user');
         $this->applyAttendanceListFilters($query, $request);
 
@@ -60,10 +62,10 @@ class AttendanceController extends Controller
 
         $monthStart = $request->filled('from_date')
             ? Carbon::parse($request->get('from_date'))->startOfDay()
-            : now()->startOfMonth();
+            : Carbon::createFromFormat('Y-m', $billingMonth)->startOfMonth();
         $monthEnd = $request->filled('to_date')
             ? Carbon::parse($request->get('to_date'))->endOfDay()
-            : now()->endOfMonth();
+            : Carbon::createFromFormat('Y-m', $billingMonth)->endOfMonth();
         if ($request->filled('date') && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $request->get('date'))) {
             $monthStart = Carbon::parse($request->get('date'))->startOfMonth();
             $monthEnd = Carbon::parse($request->get('date'))->endOfMonth();
@@ -94,9 +96,19 @@ class AttendanceController extends Controller
             $absentCount = $group->where('status', 'absent')->count();
             $leaveCount = $group->where('status', 'on leave')->count();
             $weekendCount = $group->where('status', 'weekend')->count();
-            $credited = $presentCount + $lateCount + $halfCount;
-            $workingDays = max(0, $group->where('status', '!=', 'weekend')->count());
+            $totalDays = $presentCount + $lateCount + $halfCount + $absentCount + $leaveCount + $weekendCount;
+            if ($totalDays < 1) {
+                continue;
+            }
+            $credited = $presentCount + $lateCount + ($halfCount * 0.5);
+            $workingDays = max(0, $totalDays - $weekendCount);
             $pct = $workingDays > 0 ? (int) round(($credited / $workingDays) * 100) : 0;
+            $photo = null;
+            if ($refType === 'employee' && method_exists($user, 'getProfileImageUrlAttribute')) {
+                $photo = $user->profile_image_url;
+            } elseif (! empty($user->profile_image)) {
+                $photo = url('/storage/' . ltrim(str_replace('\\', '/', (string) $user->profile_image), '/'));
+            }
 
             $personSheets[] = [
                 'ref_type' => $refType,
@@ -104,12 +116,14 @@ class AttendanceController extends Controller
                 'name' => $user->name,
                 'code' => $user->employee_id ?? $user->rider_id ?? '',
                 'designation' => $user->designation ?? '',
+                'photo' => $photo,
                 'present' => $presentCount,
                 'late' => $lateCount,
                 'absent' => $absentCount,
                 'leave' => $leaveCount,
                 'half' => $halfCount,
                 'weekend' => $weekendCount,
+                'total' => $totalDays,
                 'pct' => $pct,
                 'by_date' => $byDate,
             ];
@@ -129,6 +143,7 @@ class AttendanceController extends Controller
             'personSheets',
             'monthStart',
             'monthEnd',
+            'billingMonth',
             'refType',
             'importPeople',
             'openImport'
@@ -643,6 +658,8 @@ class AttendanceController extends Controller
      */
     public function export(Request $request)
     {
+        $this->applyBillingMonthFilter($request);
+
         $query = Attendance::with('user');
         $this->applyAttendanceListFilters($query, $request, false);
 
@@ -1353,6 +1370,34 @@ class AttendanceController extends Controller
 
             fclose($handle);
         }, $filename);
+    }
+
+    /**
+     * Resolve billing month (YYYY-MM) and fill From/To when they are empty.
+     */
+    private function applyBillingMonthFilter(Request $request): string
+    {
+        $billingMonth = trim((string) $request->get('billing_month', ''));
+        if ($billingMonth === '' || ! preg_match('/^\d{4}-\d{2}$/', $billingMonth)) {
+            if ($request->filled('from_date')) {
+                $billingMonth = Carbon::parse($request->get('from_date'))->format('Y-m');
+            } elseif ($request->filled('date') && preg_match('/^\d{4}-\d{2}/', (string) $request->get('date'))) {
+                $billingMonth = substr((string) $request->get('date'), 0, 7);
+            } else {
+                $billingMonth = now()->format('Y-m');
+            }
+        }
+
+        if (! $request->filled('from_date') && ! $request->filled('to_date')) {
+            $billingStart = Carbon::createFromFormat('Y-m', $billingMonth)->startOfMonth();
+            $billingEnd = $billingStart->copy()->endOfMonth();
+            $request->merge([
+                'from_date' => $billingStart->format('Y-m-d'),
+                'to_date' => $billingEnd->format('Y-m-d'),
+            ]);
+        }
+
+        return $billingMonth;
     }
 
     /**

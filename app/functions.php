@@ -149,7 +149,7 @@ if (! function_exists('safe_route')) {
         if ($fallbackPath !== null) {
             $query = [];
             if (is_array($parameters)) {
-                $routeKeys = ['id', 'employee', 'employeeInvoice', 'attendance', 'company_slug', 'refType', 'ref_type', 'user_type'];
+                $routeKeys = ['id', 'employee', 'employeeInvoice', 'attendance', 'rider', 'company_slug', 'refType', 'ref_type', 'user_type'];
                 $path = $fallbackPath;
                 foreach ($parameters as $key => $value) {
                     if (is_int($key)) {
@@ -166,7 +166,7 @@ if (! function_exists('safe_route')) {
                     $query[$key] = $value;
                 }
                 if (str_contains($path, '{id}')) {
-                    foreach (['id', 'employee', 'employeeInvoice', 'attendance', 0] as $idKey) {
+                    foreach (['id', 'employee', 'employeeInvoice', 'attendance', 'rider', 0] as $idKey) {
                         if (array_key_exists($idKey, $parameters) && $parameters[$idKey] !== null && $parameters[$idKey] !== '') {
                             $path = str_replace('{id}', (string) $parameters[$idKey], $path);
                             break;

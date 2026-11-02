@@ -56,7 +56,7 @@ class EmployeeInvoicesController extends AppBaseController
         if (method_exists($data, 'withQueryString')) {
             $data->withQueryString();
         }
-        $data->load(['employee', 'items']);
+        $data->load(['employee.branch', 'items']);
 
         $invoiceBuilder = app(EmployeeInvoiceViewDataBuilder::class);
         $pageRows = method_exists($data, 'items') ? collect($data->items()) : collect($data);
@@ -125,7 +125,7 @@ class EmployeeInvoicesController extends AppBaseController
             $zoneLabel = (string) $request->input('zone');
         }
 
-        $billingMonthLabel = 'All';
+        $billingMonthLabel = 'All Months';
         if ($request->filled('billing_month')) {
             $billingMonthLabel = Carbon::parse($request->billing_month)->format('M Y');
         }
@@ -136,10 +136,19 @@ class EmployeeInvoicesController extends AppBaseController
         $payable = 0.0;
         $paidAmount = 0.0;
         $balance = 0.0;
+        $unpaidDue = 0.0;
+        $partialDue = 0.0;
         foreach ($moneyRows as $invoice) {
             $payable += (float) $invoice->final_amount;
             $paidAmount += (float) $invoice->paid_amount;
-            $balance += (float) $invoice->balance;
+            $rowBalance = (float) $invoice->balance;
+            $balance += $rowBalance;
+            $statusKey = $invoice->paymentStatusKey();
+            if ($statusKey === 'partial') {
+                $partialDue += $rowBalance;
+            } elseif ($statusKey !== 'paid') {
+                $unpaidDue += $rowBalance;
+            }
         }
 
         return [
@@ -152,7 +161,8 @@ class EmployeeInvoicesController extends AppBaseController
             'billing_month_label' => $billingMonthLabel,
             'total_payable_salary' => round($payable, 2),
             'paid_amount' => round($paidAmount, 2),
-            'balance' => round($balance, 2),
+            'balance' => round($unpaidDue > 0 ? $unpaidDue : $balance, 2),
+            'partial_due' => round($partialDue, 2),
             'money_available' => true,
         ];
     }
@@ -191,7 +201,18 @@ class EmployeeInvoicesController extends AppBaseController
             $query->where('performance', $request->performance);
         }
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = $request->input('status');
+            if ($status === 'paid' || $status === '1' || $status === 1) {
+                $query->where('status', 1);
+            } elseif ($status === 'partial' || $status === '3' || $status === 3) {
+                $query->where('status', 3);
+            } elseif ($status === 'unpaid' || $status === '0' || $status === 0) {
+                $query->where(function ($q) {
+                    $q->whereNull('status')->orWhereNotIn('status', [1, 3]);
+                });
+            } else {
+                $query->where('status', $status);
+            }
         }
         if ($request->filled('quick_search')) {
             $search = trim((string) $request->input('quick_search'));

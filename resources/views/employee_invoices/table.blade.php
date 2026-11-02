@@ -4,48 +4,90 @@
          <th class="nosort" title="Select All" width="50px">
             <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)">
          </th>
-         <th class="sorting" data-k="invoice" title="Invoice Number">Invoice <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="invoice" title="Invoice Number">Invoice # <span class="ar">⇅</span></th>
          <th class="sorting" data-k="inv_date" title="Inv Date">Inv Date <span class="ar">⇅</span></th>
          <th class="sorting" data-k="billing_month" title="Billing Month">Billing Month <span class="ar">⇅</span></th>
          <th class="sorting" data-k="employee" title="Employee">Employee <span class="ar">⇅</span></th>
-         <th class="sorting" data-k="zone" title="Zone">Zone <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="branch" title="Branch">Branch <span class="ar">⇅</span></th>
          <th class="sorting" data-k="descriptions" title="Descriptions">Descriptions <span class="ar">⇅</span></th>
-         <th class="sorting" data-k="invoice_amount" title="Invoice Amount">Invoice Amount <span class="ar">⇅</span></th>
-         <th class="sorting" data-k="payable_salary" title="Payable Salary">Payable Salary <span class="ar">⇅</span></th>
-         <th class="sorting" data-k="paid_amount" title="Paid Amount">Paid Amount <span class="ar">⇅</span></th>
-         <th class="sorting" data-k="balance" title="Balance">Balance <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="subtotal" title="Subtotal">Subtotal (AED) <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="vat" title="VAT">VAT (AED) <span class="ar">⇅</span></th>
+         <th class="sorting" data-k="total" title="Total">Total (AED) <span class="ar">⇅</span></th>
          <th class="sorting" data-k="status" title="Status">Status <span class="ar">⇅</span></th>
-         <th class="nosort" title="Action" width="120px">Actions</th>
+         <th class="nosort" title="Action" width="90px">Action</th>
       </tr>
    </thead>
    <tbody id="rlBody">
       @forelse($data as $r)
       @php
          $employee = $r->employee;
-         $paidAmount = (float) $r->paid_amount;
+         $branch = $employee?->branch;
+         $branchLabel = $branch
+            ? trim(($branch->name ?? '') . (!empty($branch->code) ? ' (' . $branch->code . ')' : ''))
+            : '';
+         $statusKey = $r->paymentStatusKey();
          $balance = (float) $r->balance;
-         $balanceClass = abs($balance) < 0.005 ? 'text-success' : 'text-danger';
+         $subtotal = (float) ($r->subtotal ?? 0);
+         $vat = (float) ($r->vat ?? 0);
+         $total = (float) ($r->total_amount ?? ($subtotal + $vat));
+         $empName = $employee->name ?? '—';
+         $empCode = $employee->employee_id ?? '';
+         $showUrl = safe_route('employeeInvoices.show', $r->id, 'employeeInvoices/{id}');
+         $hvInitials = $employee
+            ? collect(explode(' ', (string) $employee->name))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('')
+            : '';
+         $hvPhoto = $employee?->profile_image_url ?? '';
       @endphp
       <tr class="text-center" data-id="{{ $r->id }}">
          <td>
             <input type="checkbox" class="invoice-checkbox" value="{{ $r->id }}" onchange="updateDeleteButton()">
          </td>
-         <td style="white-space: nowrap;"><a href="javascript:void(0);" data-action="{{ safe_route('employeeInvoices.show', $r->id, 'employeeInvoices/{id}') }}" data-size="xl" class="show-modal-right">{{ $r->invoice_number }}</a></td>
+         <td style="white-space: nowrap;">
+            <a href="javascript:void(0);" data-action="{{ $showUrl }}" data-size="xl" class="show-modal-right ei-inv-link">{{ $r->invoice_number }}</a>
+         </td>
          <td>{{ $r->inv_date ? \Carbon\Carbon::parse($r->inv_date)->format('d M Y') : '—' }}</td>
          <td>{{ $r->billing_month ? \Carbon\Carbon::parse($r->billing_month)->format('M Y') : '—' }}</td>
-         <td class="name">{{ $employee ? trim(($employee->employee_id ?? '').'-'.($employee->name ?? ''), '-') : '—' }}</td>
-         <td>{{ $r->zone ?: '—' }}</td>
-         <td>{{ $r->descriptions }}</td>
-         <td>{{ number_format((float) $r->total_amount, 2) }}</td>
-         <td>{{ number_format((float) $r->final_amount, 2) }}</td>
-         <td class="text-success">{{ number_format($paidAmount, 2) }}</td>
-         <td class="{{ $balanceClass }}">{{ number_format($balance, 2) }}</td>
          <td>
-            @include('invoices.partials.status_badge', ['status' => $r->paymentStatusKey()])
+            <div class="ei-emp">
+               @if($employee)
+               <a href="javascript:void(0);"
+                  class="ei-name emp-name-link show-modal-right"
+                  data-action="{{ $showUrl }}"
+                  data-size="xl"
+                  data-hv-id="{{ $empCode }}"
+                  data-hv-name="{{ $empName }}"
+                  data-hv-photo="{{ $hvPhoto }}"
+                  data-hv-initials="{{ strtoupper($hvInitials) }}">{{ $empName }}</a>
+               @if($empCode !== '')
+               <span class="ei-code">{{ $empCode }}</span>
+               @endif
+               @else
+               <span>—</span>
+               @endif
+            </div>
+         </td>
+         <td>
+            @if($branchLabel !== '')
+            <span class="ei-branch-pill">{{ $branchLabel }}</span>
+            @else
+            <span class="ei-dash">—</span>
+            @endif
+         </td>
+         <td class="text-start ei-desc">{{ $r->descriptions ?: '—' }}</td>
+         <td class="ei-money">{{ number_format($subtotal, 2) }}</td>
+         <td class="ei-money">{{ number_format($vat, 2) }}</td>
+         <td class="ei-money ei-total">{{ number_format($total, 2) }}</td>
+         <td>
+            <div class="ei-status-cell">
+               @include('invoices.partials.status_badge', ['status' => $statusKey])
+               @if($statusKey === 'partial' && abs($balance) >= 0.005)
+               <span class="ei-status-due">{{ number_format($balance, 2) }} due</span>
+               @endif
+            </div>
          </td>
          <td>
             <div class="dropdown">
-               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+               <button class="btn btn-text-secondary rounded-pill text-body-secondary border-0 p-2 me-n1 waves-effect" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Actions">
                   <i class="icon-base ti ti-dots icon-md text-body-secondary"></i>
                </button>
                <div class="dropdown-menu dropdown-menu-end">
@@ -101,7 +143,7 @@
       </tr>
       @empty
       <tr>
-         <td colspan="13" class="rl-empty text-center text-muted py-4">No employee invoices found.</td>
+         <td colspan="12" class="rl-empty text-center text-muted py-4">No employee invoices found.</td>
       </tr>
       @endforelse
    </tbody>

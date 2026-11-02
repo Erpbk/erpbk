@@ -418,6 +418,7 @@ Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers
     Route::get('VisaExpense/create/{id}', [VisaexpenseController::class, 'create'])->name('VisaExpense.create');
     Route::get('VisaExpense/edit/{id}', [VisaexpenseController::class, 'edit'])->name('VisaExpense.edit');
     Route::get('VisaExpense/delete/{id}', [VisaexpenseController::class, 'destroy'])->name('VisaExpense.delete');
+    Route::post('VisaExpense/bulk-delete', [VisaexpenseController::class, 'bulkDelete'])->name('VisaExpense.bulkDelete');
     Route::get('VisaExpense/viewvoucher/{id}', [VisaexpenseController::class, 'viewvoucher'])->name('VisaExpense.viewvoucher');
     Route::get('VisaExpense/getrider/{id}', [VisaexpenseController::class, 'getrider']);
 
@@ -455,10 +456,12 @@ Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers
     Route::post('Installments/updateInstallmentField', [InstallmentsController::class, 'updateInstallmentField'])->name('Installments.updateInstallmentField');
     Route::post('Installments/finalizePayment', [InstallmentsController::class, 'finalizePayment'])->name('Installments.finalizePayment');
     Route::get('Installments/deleteInstallment/{id}', [InstallmentsController::class, 'deleteInstallment'])->name('Installments.deleteInstallment')->whereNumber('id');
+    Route::post('Installments/bulk-delete-installments', [InstallmentsController::class, 'bulkDeleteInstallments'])->name('Installments.bulkDeleteInstallments');
     Route::get('Installments/generateInstallmentInvoice/{riderId}', [InstallmentsController::class, 'generateInstallmentInvoice'])->name('Installments.generateInstallmentInvoice');
     Route::get('Installments/autoMarkInstallments/{riderId?}', [InstallmentsController::class, 'autoMarkInstallmentsAsPaid'])->name('Installments.autoMarkInstallments');
     Route::post('Installments/recalculateInstallments', [InstallmentsController::class, 'recalculateInstallments'])->name('Installments.recalculateInstallments');
     Route::get('Installments/paymentReceivingModal/{riderId}', [InstallmentsController::class, 'paymentReceivingModal'])->name('Installments.paymentReceivingModal');
+    Route::get('Installments/editPaymentReceiving/{receipt}', [InstallmentsController::class, 'editPaymentReceiving'])->name('Installments.editPaymentReceiving');
     Route::post('Installments/processPaymentReceiving', [InstallmentsController::class, 'processPaymentReceiving'])->name('Installments.processPaymentReceiving');
     Route::get('Installments', [InstallmentsController::class, 'index'])->name('Installments.index');
 
@@ -484,10 +487,12 @@ Route::get('attendance/users/{refType}', [AttendanceController::class, 'getUsers
     Route::post('LicenseExpense/updateInstallmentField', [LicenseexpenseController::class, 'updateInstallmentField'])->name('LicenseExpense.updateInstallmentField');
     Route::post('LicenseExpense/finalizePayment', [LicenseexpenseController::class, 'finalizePayment'])->name('LicenseExpense.finalizePayment');
     Route::get('LicenseExpense/deleteInstallment/{id}', [LicenseexpenseController::class, 'deleteInstallment'])->name('LicenseExpense.deleteInstallment')->whereNumber('id');
+    Route::post('LicenseExpense/bulk-delete-installments', [LicenseexpenseController::class, 'bulkDeleteInstallments'])->name('LicenseExpense.bulkDeleteInstallments');
     Route::get('LicenseExpense/generateInstallmentInvoice/{riderId}', [LicenseexpenseController::class, 'generateInstallmentInvoice'])->name('LicenseExpense.generateInstallmentInvoice');
     Route::get('LicenseExpense/autoMarkInstallments/{riderId?}', [LicenseexpenseController::class, 'autoMarkInstallmentsAsPaid'])->name('LicenseExpense.autoMarkInstallments');
     Route::post('LicenseExpense/recalculateInstallments', [LicenseexpenseController::class, 'recalculateInstallments'])->name('LicenseExpense.recalculateInstallments');
     Route::get('LicenseExpense/paymentReceivingModal/{riderId}', [LicenseexpenseController::class, 'paymentReceivingModal'])->name('LicenseExpense.paymentReceivingModal');
+    Route::get('LicenseExpense/editPaymentReceiving/{receipt}', [LicenseexpenseController::class, 'editPaymentReceiving'])->name('LicenseExpense.editPaymentReceiving');
     Route::post('LicenseExpense/processPaymentReceiving', [LicenseexpenseController::class, 'processPaymentReceiving'])->name('LicenseExpense.processPaymentReceiving');
 
     Route::get('LicenseExpense/generatentries/{id}', [LicenseexpenseController::class, 'generatentries'])->name('LicenseExpense.generatentries');

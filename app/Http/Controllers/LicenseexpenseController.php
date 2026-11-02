@@ -71,6 +71,11 @@ class LicenseexpenseController extends AppBaseController
         return license_installment_plan::VOUCHER_REASON;
     }
 
+    protected function installmentResourceLinkType(): string
+    {
+        return \App\Support\ResourceLinks::TYPE_LICENSE_INSTALLMENT;
+    }
+
     protected function installmentHeadAccountKey(): string
     {
         return 'LICENSE_EXPENSE_ACCOUNT';
@@ -114,10 +119,12 @@ class LicenseexpenseController extends AppBaseController
             'pay'                       => 'LicenseExpense.payInstallment',
             'update_field'              => 'LicenseExpense.updateInstallmentField',
             'delete'                    => 'LicenseExpense.deleteInstallment',
+            'bulk_delete'               => 'LicenseExpense.bulkDeleteInstallments',
             'invoice'                   => 'LicenseExpense.generateInstallmentInvoice',
             'plan'                      => 'LicenseExpense.installmentPlan',
             'payment_receiving'         => 'LicenseExpense.paymentReceivingModal',
             'process_payment_receiving' => 'LicenseExpense.processPaymentReceiving',
+            'edit_payment_receiving'    => 'LicenseExpense.editPaymentReceiving',
         ];
     }
 
@@ -746,6 +753,7 @@ class LicenseexpenseController extends AppBaseController
             'visaSiblingAccounts' => collect(),
             'visaCategoryAccounts' => collect(),
             'visaInstallmentData' => collect(),
+            'visaLinkedReceiptsById' => collect(),
             'visaInstallmentStats' => [
                 'unpaid_amount' => 0.0,
                 'paid_amount' => 0.0,
@@ -802,6 +810,7 @@ class LicenseexpenseController extends AppBaseController
             ->with(['vouchers', 'installmentTransactions'])
             ->orderBy('date', 'asc')
             ->get();
+        $visaLinkedReceiptsById = $this->preloadInstallmentLinkedReceipts($visaInstallmentData);
 
         return [
             'showVisaExpenseSection' => true,
@@ -817,6 +826,7 @@ class LicenseexpenseController extends AppBaseController
             'visaSiblingAccounts' => $visaAccounts->where('id', '!=', $visaAccount->id)->values(),
             'visaCategoryAccounts' => $visaAccounts,
             'visaInstallmentData' => $visaInstallmentData,
+            'visaLinkedReceiptsById' => $visaLinkedReceiptsById,
             'visaInstallmentStats' => [
                 'unpaid_amount' => (float) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PENDING)->sum('amount'),
                 'paid_amount' => (float) (clone $installmentBase)->where('status', visa_installment_plan::STATUS_PAID)->sum('amount'),
@@ -1219,7 +1229,7 @@ class LicenseexpenseController extends AppBaseController
 
         try {
             $LicenseExpenses = license_expenses::findOrFail($request->id);
-            $oldAmount = $LicenseExpenses->amount;
+            $previousBillingMonth = $LicenseExpenses->billing_month;
             $billingMonth = $request->billing_month . "-01";
 
             $request->validate([
@@ -1234,36 +1244,7 @@ class LicenseexpenseController extends AppBaseController
             $LicenseExpenses->reference_number = $request->reference_number;
             $LicenseExpenses->save();
 
-            // If this License Expense is already paid, update related voucher and transactions amounts
-            if ($LicenseExpenses->payment_status == 'paid') {
-                // Update voucher amount(s) linked to this License Expense
-                $vouchers = Vouchers::where('ref_id', $LicenseExpenses->id)
-                    ->where('voucher_type', 'LE')
-                    ->where(function ($q) {
-                        $q->whereNull('reason')->orWhere('reason', '!=', license_installment_plan::VOUCHER_REASON);
-                    })
-                    ->first();
-                if ($vouchers) {
-                    $vouchers->reference_number = $LicenseExpenses->reference_number;
-                    $vouchers->amount = $LicenseExpenses->amount;
-                    $vouchers->save();
-                }
-
-                // Update related transactions amounts (both debit and credit sides)
-                $transactions = Transactions::where('reference_id', $LicenseExpenses->id)
-                    ->where('reference_type', 'LE')
-                    ->get();
-
-                foreach ($transactions as $transaction) {
-                    if ($transaction->debit > 0) {
-                        $transaction->debit = $LicenseExpenses->amount;
-                    }
-                    if ($transaction->credit > 0) {
-                        $transaction->credit = $LicenseExpenses->amount;
-                    }
-                    $transaction->save();
-                }
-            }
+            $this->syncPaidExpenseFinancials($LicenseExpenses, 'LE', 'LE', $previousBillingMonth);
 
             DB::commit();
             Flash::success('License Expense updated successfully');
@@ -1289,10 +1270,26 @@ class LicenseexpenseController extends AppBaseController
         ]);
 
         $row = license_expenses::findOrFail($validated['id']);
-        $row->amount = $validated['amount'];
-        $row->date = $validated['date'];
-        $row->billing_month = $validated['billing_month'] . '-01';
-        $row->save();
+        $previousBillingMonth = $row->billing_month;
+
+        DB::beginTransaction();
+        try {
+            $row->amount = $validated['amount'];
+            $row->date = $validated['date'];
+            $row->billing_month = $validated['billing_month'] . '-01';
+            $row->save();
+
+            $this->syncPaidExpenseFinancials($row, 'LE', 'LE', $previousBillingMonth);
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating license expense: ' . $e->getMessage(),
+            ], 422);
+        }
 
         return response()->json([
             'success' => true,

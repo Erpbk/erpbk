@@ -174,27 +174,45 @@
         min-width: 270px;
         border: 1px solid #e2e8f0;
     }
+    /* Standalone/print windows do not load custom.css — pin currency icon to text size. */
+    .visa-installment-invo-wrap .app-currency-icon {
+        display: inline-block;
+        height: 1em;
+        width: auto;
+        max-width: 1.75em;
+        max-height: 1em;
+        object-fit: contain;
+        vertical-align: -0.15em;
+    }
     .visa-installment-invo-wrap .grand-total-wrapper {
         margin-top: 24px;
         text-align: right;
     }
     .visa-installment-invo-wrap .grand-total-card {
         display: inline-block;
-        padding: 12px 28px;
-        background: #004aad;
-        color: white;
-        border-radius: 30px;
+        padding: 0;
+        overflow: hidden;
+        background: #fff;
+        color: #0f172a;
+        border: 1px solid #004aad;
+        border-radius: 12px;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(0,74,173,0.2);
+        box-shadow: 0 4px 12px rgba(0,74,173,0.12);
+        min-width: 260px;
     }
     .visa-installment-invo-wrap .grand-total-card div:first-child {
+        background: #004aad;
+        color: #fff;
         font-size: 14px;
         letter-spacing: 1px;
-        margin-bottom: 4px;
+        padding: 10px 28px;
     }
     .visa-installment-invo-wrap .grand-total-card div:last-child {
+        background: #fff;
+        color: #0f172a;
         font-size: 26px;
         font-weight: 800;
+        padding: 12px 28px;
     }
     .visa-installment-invo-wrap .footer-note {
         margin-top: 28px;
@@ -218,26 +236,23 @@
     @media print {
         @page {
             size: A4 portrait;
-            margin: 6mm;
+            margin: 10mm;
         }
         html, body {
             height: auto !important;
             overflow: visible !important;
         }
-        /* Fit entire installment invoice on one sheet (Chrome/Edge; zoom is ignored by some Firefox builds) */
+        /* Keep screen-standard sizes (same ballpark as Salik / rider invoice prints). */
         .visa-installment-invo-wrap {
             background: white !important;
             padding: 0 !important;
             margin: 0 !important;
-            font-size: 9px !important;
-            line-height: 1.25 !important;
-            zoom: 0.92;
-            -moz-transform: scale(0.92);
-            -moz-transform-origin: top left;
+            font-size: 12px !important;
+            line-height: 1.4 !important;
         }
         .visa-installment-invo-wrap .invoice-box {
             box-shadow: none !important;
-            padding: 4px 8px !important;
+            padding: 12px 16px !important;
             border-radius: 0 !important;
             min-height: 0 !important;
             max-width: 100% !important;
@@ -246,95 +261,110 @@
             display: none !important;
         }
         .visa-installment-invo-wrap .invoice-box > table.no-border {
-            margin-bottom: 8px !important;
+            margin-bottom: 12px !important;
         }
         .visa-installment-invo-wrap .invoice-box > table.no-border img {
-            max-width: 120px !important;
+            max-width: 140px !important;
             height: auto !important;
         }
         .visa-installment-invo-wrap .invoice-box h2 {
-            font-size: 16px !important;
+            font-size: 22px !important;
         }
         .visa-installment-invo-wrap .invoice-box h4 {
-            font-size: 11px !important;
+            font-size: 14px !important;
         }
         .visa-installment-invo-wrap .flex-row-cards {
-            gap: 8px !important;
-            margin-bottom: 8px !important;
+            gap: 12px !important;
+            margin-bottom: 12px !important;
         }
         .visa-installment-invo-wrap .rider-card,
         .visa-installment-invo-wrap .details-card {
             box-shadow: none !important;
             border: 1px solid #ccc !important;
-            padding: 8px 10px !important;
+            padding: 12px 14px !important;
             break-inside: avoid;
         }
         .visa-installment-invo-wrap .invoice-box .card-header {
-            margin-bottom: 6px !important;
-            padding-bottom: 4px !important;
+            margin-bottom: 10px !important;
+            padding-bottom: 6px !important;
         }
         .visa-installment-invo-wrap .invoice-box .card-header strong {
-            font-size: 12px !important;
+            font-size: 14px !important;
         }
         .visa-installment-invo-wrap .details-grid {
-            gap: 4px 6px !important;
-            grid-template-columns: 110px 1fr !important;
+            gap: 8px !important;
+            grid-template-columns: 130px 1fr !important;
         }
         .visa-installment-invo-wrap .detail-label,
         .visa-installment-invo-wrap .detail-value {
-            font-size: 9px !important;
+            font-size: 12px !important;
         }
         .visa-installment-invo-wrap .invoice-box th,
         .visa-installment-invo-wrap .invoice-box td {
-            padding: 3px 5px !important;
-            font-size: 9px !important;
+            padding: 8px 10px !important;
+            font-size: 12px !important;
         }
         .visa-installment-invo-wrap .items-table th,
         .visa-installment-invo-wrap .items-table td {
-            padding: 2px 4px !important;
-            font-size: 9px !important;
+            padding: 8px 10px !important;
+            font-size: 12px !important;
         }
         .visa-installment-invo-wrap .financial-summary {
-            margin-top: 4px !important;
-            margin-bottom: 4px !important;
+            margin-top: 12px !important;
+            margin-bottom: 12px !important;
         }
         .visa-installment-invo-wrap .financial-summary table {
-            width: 42% !important;
-            min-width: 200px !important;
+            width: 45% !important;
+            min-width: 260px !important;
+        }
+        .visa-installment-invo-wrap .app-currency-icon {
+            height: 1em !important;
+            max-height: 1em !important;
+            width: auto !important;
+            max-width: 1.75em !important;
         }
         .visa-installment-invo-wrap .grand-total-wrapper {
-            margin-top: 6px !important;
+            margin-top: 16px !important;
         }
         .visa-installment-invo-wrap .grand-total-card {
-            padding: 6px 16px !important;
+            padding: 0 !important;
+            border-radius: 12px !important;
         }
         .visa-installment-invo-wrap .grand-total-card div:first-child {
-            font-size: 10px !important;
-            margin-bottom: 2px !important;
+            font-size: 13px !important;
+            padding: 10px 24px !important;
+            background: #004aad !important;
+            color: #fff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .visa-installment-invo-wrap .grand-total-card div:last-child {
-            font-size: 16px !important;
+            font-size: 22px !important;
+            padding: 12px 24px !important;
+            background: #fff !important;
+            color: #0f172a !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .visa-installment-invo-wrap .notes-section {
-            margin: 6px 0 !important;
-            padding: 6px 10px !important;
-            font-size: 8px !important;
+            margin: 12px 0 !important;
+            padding: 10px 12px !important;
+            font-size: 11px !important;
         }
         .visa-installment-invo-wrap .installment-sign-block {
-            margin-top: 8px !important;
-        }
-        .visa-installment-invo-wrap .installment-sign-block .sign-spacer {
-            display: none !important;
+            margin-top: 16px !important;
         }
         .visa-installment-invo-wrap .footer-note {
-            margin-top: 6px !important;
-            padding-top: 6px !important;
-            font-size: 8px !important;
+            margin-top: 14px !important;
+            padding-top: 10px !important;
+            font-size: 11px !important;
         }
         .visa-installment-invo-wrap th,
         .visa-installment-invo-wrap .secondary-header,
         .visa-installment-invo-wrap .card-header strong,
-        .visa-installment-invo-wrap .grand-total-card {
+        .visa-installment-invo-wrap .grand-total-card,
+        .visa-installment-invo-wrap .grand-total-card div:first-child,
+        .visa-installment-invo-wrap .grand-total-card div:last-child {
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }

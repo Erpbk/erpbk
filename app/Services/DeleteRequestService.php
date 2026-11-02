@@ -3,10 +3,17 @@
 namespace App\Services;
 
 use App\Models\DeleteRequest;
+use App\Models\Receipt;
+use App\Models\Transactions;
 use App\Models\User;
+use App\Models\Vouchers;
+use App\Models\license_installment_plan;
+use App\Models\visa_installment_plan;
 use App\Support\CompanyContext;
+use App\Support\ResourceLinks;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +29,14 @@ class DeleteRequestService
 
     /** @var array<string, array<int, int>> */
     protected static array $pendingIdsCache = [];
+
+    /**
+     * Request-scoped reverse index: "ModelClass|id" => delete_request_id
+     * Built once with pendingIdsCache from the same pending-rows scan.
+     *
+     * @var array<string, int>|null
+     */
+    protected static ?array $pendingRequestIdByKey = null;
 
     protected static ?bool $enabledCache = null;
 
@@ -229,6 +244,9 @@ class DeleteRequestService
 
     public static function clearPendingIdsCache(?string $modelClass = null): void
     {
+        // Reverse map always depends on the full pending set — rebuild next access.
+        static::$pendingRequestIdByKey = null;
+
         if ($modelClass === null) {
             static::$pendingIdsCache = [];
 
@@ -253,15 +271,68 @@ class DeleteRequestService
             return null;
         }
 
+        static::ensurePendingIndexBuilt();
+        $key = static::pendingLookupKey(get_class($model), (int) $model->getKey());
+
+        return static::$pendingRequestIdByKey[$key] ?? null;
+    }
+
+    protected static function pendingLookupKey(string $modelClass, int $id): string
+    {
+        return $modelClass . '|' . $id;
+    }
+
+    /**
+     * Build pendingIdsCache (all classes) + pendingRequestIdByKey from one pending-rows query.
+     */
+    protected static function ensurePendingIndexBuilt(): void
+    {
+        if (static::$pendingRequestIdByKey !== null) {
+            return;
+        }
+
+        if (! static::enabled()) {
+            static::$pendingRequestIdByKey = [];
+
+            return;
+        }
+
         static::$resolvingPendingIds = true;
         try {
-            $id = DeleteRequest::query()
+            $rows = DeleteRequest::query()
                 ->pending()
-                ->where('deletable_type', get_class($model))
-                ->where('deletable_id', $model->getKey())
-                ->value('id');
+                ->get(['id', 'deletable_type', 'deletable_id', 'cascaded_records']);
 
-            return $id !== null ? (int) $id : null;
+            $byClass = [];
+            $byKey = [];
+
+            foreach ($rows as $row) {
+                $requestId = (int) $row->id;
+                $primaryType = (string) $row->deletable_type;
+                $primaryId = (int) $row->deletable_id;
+
+                $byKey[static::pendingLookupKey($primaryType, $primaryId)] = $requestId;
+                $byClass[$primaryType][] = $primaryId;
+
+                foreach ($row->cascaded_records ?? [] as $cascaded) {
+                    $type = $cascaded['type'] ?? null;
+                    $id = isset($cascaded['id']) ? (int) $cascaded['id'] : 0;
+                    if (! is_string($type) || $type === '' || $id <= 0) {
+                        continue;
+                    }
+                    $key = static::pendingLookupKey($type, $id);
+                    // Keep first (primary) mapping if already set.
+                    if (! isset($byKey[$key])) {
+                        $byKey[$key] = $requestId;
+                    }
+                    $byClass[$type][] = $id;
+                }
+            }
+
+            foreach ($byClass as $class => $ids) {
+                static::$pendingIdsCache[$class] = array_values(array_unique($ids));
+            }
+            static::$pendingRequestIdByKey = $byKey;
         } finally {
             static::$resolvingPendingIds = false;
         }
@@ -343,39 +414,37 @@ class DeleteRequestService
             return [];
         }
 
-        if (array_key_exists($modelClass, static::$pendingIdsCache)) {
-            return static::$pendingIdsCache[$modelClass];
+        static::ensurePendingIndexBuilt();
+
+        return static::$pendingIdsCache[$modelClass] ?? [];
+    }
+
+    /**
+     * Batch-resolve pending delete request ids for many models of the same class.
+     *
+     * @param  list<int>  $ids
+     * @return array<int, int> modelId => delete_request_id
+     */
+    public static function pendingRequestIdsForIds(string $modelClass, array $ids): array
+    {
+        if (! static::enabled() || $ids === []) {
+            return [];
         }
 
-        static::$resolvingPendingIds = true;
-        try {
-            $ids = DeleteRequest::query()
-                ->pending()
-                ->where('deletable_type', $modelClass)
-                ->pluck('deletable_id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-
-            // Include same-type IDs queued as cascades (e.g. sibling vouchers sharing a trans_code).
-            $cascadeRows = DeleteRequest::query()
-                ->pending()
-                ->whereNotNull('cascaded_records')
-                ->get(['cascaded_records']);
-
-            foreach ($cascadeRows as $row) {
-                foreach ($row->cascaded_records ?? [] as $cascaded) {
-                    if (($cascaded['type'] ?? null) === $modelClass && isset($cascaded['id'])) {
-                        $ids[] = (int) $cascaded['id'];
-                    }
-                }
+        static::ensurePendingIndexBuilt();
+        $out = [];
+        foreach ($ids as $id) {
+            $id = (int) $id;
+            if ($id <= 0) {
+                continue;
             }
-
-            static::$pendingIdsCache[$modelClass] = array_values(array_unique($ids));
-        } finally {
-            static::$resolvingPendingIds = false;
+            $requestId = static::$pendingRequestIdByKey[static::pendingLookupKey($modelClass, $id)] ?? null;
+            if ($requestId) {
+                $out[$id] = $requestId;
+            }
         }
 
-        return static::$pendingIdsCache[$modelClass];
+        return $out;
     }
 
     /**
@@ -565,65 +634,85 @@ class DeleteRequestService
 
         $movedAt = now();
         $keepPaidExpense = static::shouldKeepPaidExpense($model);
+        $purgeInstallment = static::shouldPurgeInstallmentOnApprove($model);
+        $purgeInstallmentReceipt = static::shouldPurgeInstallmentReceiptOnApprove($model);
+        $hardPurge = $purgeInstallment || $purgeInstallmentReceipt;
 
         static::bypass(true);
         try {
-            // Paid visa/license expenses stay in place; only related financials are removed.
-            if (! $keepPaidExpense && method_exists($model, 'trashed') && ! $model->trashed()) {
-                if (Schema::hasColumn($model->getTable(), 'deleted_by') && $admin?->id) {
-                    $model->deleted_by = $admin->id;
+            if ($purgeInstallment) {
+                static::purgeApprovedInstallmentDeletion($deleteRequest, $model, $admin);
+            } elseif ($purgeInstallmentReceipt) {
+                static::purgeApprovedInstallmentReceiptDeletion($deleteRequest, $model, $admin);
+            } elseif ($keepPaidExpense) {
+                // Paid visa/license expenses stay in place; payment vouchers/transactions are purged.
+                if (Schema::hasColumn($model->getTable(), 'deleted_by') && $model->deleted_by) {
+                    $model->deleted_by = null;
                     $model->save();
                 }
-                $model->delete();
-            } elseif ($keepPaidExpense && Schema::hasColumn($model->getTable(), 'deleted_by') && $model->deleted_by) {
-                $model->deleted_by = null;
-                $model->save();
-            }
-
-            // Soft-delete queued related records so they remain intact for restore.
-            // Payment invoice/cheque cleanup still runs in afterApprovedSoftDelete.
-            foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
-                $type = $cascaded['type'] ?? null;
-                $id = $cascaded['id'] ?? null;
-                if (! $type || ! $id || ! class_exists($type)) {
-                    continue;
-                }
-                /** @var Model|null $related */
-                $related = static::findModel($type, $id);
-                if ($related && static::usesSoftDeletes($related) && method_exists($related, 'trashed')) {
-                    if (! $related->trashed()) {
-                        if (Schema::hasColumn($related->getTable(), 'deleted_by') && $admin?->id) {
-                            $related->deleted_by = $admin->id;
-                            $related->save();
-                        }
-                        $related->delete();
+                $referenceType = $deleteRequest->module_key === 'license_expenses' ? 'LE' : 'LV';
+                [$vouchers, $transactions] = static::resolveExpensePaymentFinancials(
+                    $model,
+                    $referenceType,
+                    $deleteRequest->cascaded_records ?? []
+                );
+                static::purgePaidExpensePayment($model, $referenceType, $vouchers, $transactions);
+            } else {
+                if (method_exists($model, 'trashed') && ! $model->trashed()) {
+                    if (Schema::hasColumn($model->getTable(), 'deleted_by') && $admin?->id) {
+                        $model->deleted_by = $admin->id;
+                        $model->save();
                     }
-
-                    static::logApprovedCascade($deleteRequest, $related, $cascaded);
+                    $model->delete();
                 }
-            }
 
-            // Module-specific post soft-delete work (ledger, cascade audit rows, etc.).
-            static::afterApprovedSoftDelete($deleteRequest, $model, $admin);
+                // Soft-delete queued related records so they remain intact for restore.
+                // Payment invoice/cheque cleanup still runs in afterApprovedSoftDelete.
+                foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+                    $type = $cascaded['type'] ?? null;
+                    $id = $cascaded['id'] ?? null;
+                    if (! $type || ! $id || ! class_exists($type)) {
+                        continue;
+                    }
+                    /** @var Model|null $related */
+                    $related = static::findModel($type, $id);
+                    if ($related && static::usesSoftDeletes($related) && method_exists($related, 'trashed')) {
+                        if (! $related->trashed()) {
+                            if (Schema::hasColumn($related->getTable(), 'deleted_by') && $admin?->id) {
+                                $related->deleted_by = $admin->id;
+                                $related->save();
+                            }
+                            $related->delete();
+                        }
+
+                        static::logApprovedCascade($deleteRequest, $related, $cascaded);
+                    }
+                }
+
+                // Module-specific post soft-delete work (ledger, cascade audit rows, etc.).
+                static::afterApprovedSoftDelete($deleteRequest, $model, $admin);
+            }
         } finally {
             static::bypass(false);
         }
 
-        $binOutcome = $keepPaidExpense
-            ? DeleteRequest::BIN_PAYMENT_REVERSED
-            : DeleteRequest::BIN_IN_RECYCLE_BIN;
+        $binOutcome = $hardPurge
+            ? DeleteRequest::BIN_PERMANENTLY_DELETED
+            : ($keepPaidExpense
+                ? DeleteRequest::BIN_PAYMENT_REVERSED
+                : DeleteRequest::BIN_IN_RECYCLE_BIN);
 
         $deleteRequest->update([
             'status' => DeleteRequest::STATUS_APPROVED,
             'reviewed_by' => $admin?->id,
             'reviewed_at' => $movedAt,
             'admin_remarks' => $remarks,
-            'moved_to_bin_at' => $keepPaidExpense ? null : $movedAt,
+            'moved_to_bin_at' => ($keepPaidExpense || $hardPurge) ? null : $movedAt,
             'bin_outcome' => $binOutcome,
             'restored_by' => null,
             'restored_at' => null,
-            'permanently_deleted_by' => null,
-            'permanently_deleted_at' => null,
+            'permanently_deleted_by' => $hardPurge ? $admin?->id : null,
+            'permanently_deleted_at' => $hardPurge ? $movedAt : null,
         ]);
 
         static::clearPendingIdsCache($deleteRequest->deletable_type);
@@ -631,14 +720,16 @@ class DeleteRequestService
 
         $freshModel = static::resolveDeletable($deleteRequest) ?? $model;
         ActivityLogger::custom(
-            $keepPaidExpense ? 'payment_reversed' : 'moved_to_recycle_bin',
+            $hardPurge
+                ? 'permanently_deleted'
+                : ($keepPaidExpense ? 'payment_reversed' : 'moved_to_recycle_bin'),
             $deleteRequest->module_key,
             $freshModel,
             [
                 'delete_request_id' => $deleteRequest->id,
                 'requested_by' => $deleteRequest->requested_by,
                 'approved_by' => $admin?->id,
-                'moved_to_bin_at' => $keepPaidExpense ? null : $movedAt->toDateTimeString(),
+                'moved_to_bin_at' => ($keepPaidExpense || $hardPurge) ? null : $movedAt->toDateTimeString(),
                 'admin_remarks' => $remarks,
                 'label' => $deleteRequest->record_label,
                 'outcome' => $binOutcome,
@@ -1072,14 +1163,78 @@ class DeleteRequestService
     }
 
     /**
-     * After installment approval: soft-deletes already applied to cascaded vouchers/transactions.
-     * Recalculate liability ledger for the installment billing month.
+     * After installment approval (legacy soft path): rebuild liability ledger.
+     * Hard purge is handled by purgeApprovedInstallmentDeletion from approve().
      */
     protected static function finalizeApprovedVisaInstallmentDeletion(
         DeleteRequest $deleteRequest,
         Model $installment,
         ?User $admin
     ): void {
+        static::recalculateInstallmentLiabilityLedger($installment, $deleteRequest->id);
+    }
+
+    /**
+     * Hard-delete installment + cascaded receipts/vouchers/txs on approve (no recycle bin).
+     */
+    protected static function purgeApprovedInstallmentDeletion(
+        DeleteRequest $deleteRequest,
+        Model $installment,
+        ?User $admin
+    ): void {
+        static::purgeInstallmentLinkedReceipts($installment);
+
+        foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+            $type = $cascaded['type'] ?? null;
+            $id = $cascaded['id'] ?? null;
+            if (! $type || ! $id || ! class_exists($type)) {
+                continue;
+            }
+            /** @var Model|null $related */
+            $related = static::findModel($type, $id);
+            if (! $related) {
+                continue;
+            }
+            if (method_exists($related, 'forceDelete')) {
+                $related->forceDelete();
+            } else {
+                $related->delete();
+            }
+        }
+
+        // Also force-delete VL vouchers/txs that may not be in cascaded_records.
+        $isLicense = $installment instanceof license_installment_plan;
+        $voucherType = $isLicense ? license_installment_plan::VOUCHER_TYPE : 'VL';
+        $referenceType = $isLicense ? license_installment_plan::REFERENCE_TYPE : 'VL';
+        $voucherQuery = Vouchers::withTrashed()
+            ->where('ref_id', $installment->id)
+            ->where('voucher_type', $voucherType);
+        if ($isLicense) {
+            $voucherQuery->where('reason', license_installment_plan::VOUCHER_REASON);
+        }
+        foreach ($voucherQuery->get() as $voucher) {
+            $voucher->forceDelete();
+        }
+        foreach (
+            Transactions::withTrashed()
+                ->where('reference_id', $installment->id)
+                ->where('reference_type', $referenceType)
+                ->get() as $tx
+        ) {
+            $tx->forceDelete();
+        }
+
+        static::recalculateInstallmentLiabilityLedger($installment, $deleteRequest->id);
+
+        if (method_exists($installment, 'forceDelete')) {
+            $installment->forceDelete();
+        } else {
+            $installment->delete();
+        }
+    }
+
+    protected static function recalculateInstallmentLiabilityLedger(Model $installment, $deleteRequestId = null): void
+    {
         $billingMonth = $installment->billing_month;
         $billingMonthForLedger = (strlen((string) $billingMonth) <= 7)
             ? $billingMonth . '-01'
@@ -1097,17 +1252,355 @@ class DeleteRequestService
             }
         } catch (\Throwable $e) {
             Log::warning('Could not resolve liability account on installment approve', [
-                'delete_request_id' => $deleteRequest->id,
+                'delete_request_id' => $deleteRequestId,
                 'installment_id' => $installment->id,
                 'error' => $e->getMessage(),
             ]);
         }
 
-        if (!$liabilityAccount) {
+        if (! $liabilityAccount) {
             return;
         }
 
         static::recalculateLedgerAfterVoucherDeletion((int) $liabilityAccount->id, $billingMonthForLedger);
+    }
+
+    /**
+     * True when the installment has at least one linked payment receipt id in partial_paid_amount.
+     */
+    public static function installmentHasLinkedReceipts(Model $installment): bool
+    {
+        $partials = is_array($installment->partial_paid_amount ?? null)
+            ? $installment->partial_paid_amount
+            : [];
+
+        foreach ($partials as $receiptId => $amount) {
+            if ((int) $receiptId > 0 && (float) $amount > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Hard-delete receipts posted against an installment (RV voucher + matching GL txs).
+     * Sibling installments that shared a receipt are unlinked and rebalanced first.
+     */
+    public static function purgeInstallmentLinkedReceipts(Model $installment): void
+    {
+        $partials = is_array($installment->partial_paid_amount ?? null)
+            ? $installment->partial_paid_amount
+            : [];
+
+        $receiptIds = [];
+        foreach ($partials as $receiptId => $amount) {
+            $id = (int) $receiptId;
+            if ($id > 0) {
+                $receiptIds[] = $id;
+            }
+        }
+        $receiptIds = array_values(array_unique($receiptIds));
+        if ($receiptIds === []) {
+            return;
+        }
+
+        $wasBypassing = static::isBypassing();
+        static::bypass(true);
+        try {
+            foreach ($receiptIds as $receiptId) {
+                $receipt = Receipt::withTrashed()->find($receiptId);
+                if (!$receipt) {
+                    continue;
+                }
+
+                static::unlinkReceiptFromSiblingInstallments($receipt, $installment);
+
+                $voucher = $receipt->voucher_id
+                    ? Vouchers::withTrashed()->find($receipt->voucher_id)
+                    : null;
+                $transCode = $voucher?->trans_code;
+
+                if ($transCode) {
+                    $txs = Transactions::withTrashed()->where('trans_code', $transCode)->get();
+                    foreach ($txs as $tx) {
+                        if (method_exists($tx, 'forceDelete')) {
+                            $tx->forceDelete();
+                        } else {
+                            $tx->delete();
+                        }
+                    }
+                } else {
+                    $txs = Transactions::withTrashed()
+                        ->where('reference_type', 'RV')
+                        ->where('reference_id', $receipt->id)
+                        ->get();
+                    foreach ($txs as $tx) {
+                        if (method_exists($tx, 'forceDelete')) {
+                            $tx->forceDelete();
+                        } else {
+                            $tx->delete();
+                        }
+                    }
+                }
+
+                if ($voucher) {
+                    if (method_exists($voucher, 'forceDelete')) {
+                        $voucher->forceDelete();
+                    } else {
+                        $voucher->delete();
+                    }
+                }
+
+                if (method_exists($receipt, 'forceDelete')) {
+                    $receipt->forceDelete();
+                } else {
+                    $receipt->delete();
+                }
+            }
+        } finally {
+            if (!$wasBypassing) {
+                static::bypass(false);
+            }
+        }
+    }
+
+    /**
+     * True when any linked receipt allocates to more than one installment.
+     */
+    public static function installmentHasSharedReceipt(Model $installment): bool
+    {
+        $partials = is_array($installment->partial_paid_amount ?? null)
+            ? $installment->partial_paid_amount
+            : [];
+
+        $receiptIds = [];
+        foreach ($partials as $receiptId => $amount) {
+            $id = (int) $receiptId;
+            if ($id > 0) {
+                $receiptIds[] = $id;
+            }
+        }
+        $receiptIds = array_values(array_unique($receiptIds));
+        if ($receiptIds === []) {
+            return false;
+        }
+
+        $receipts = Receipt::query()
+            ->whereIn('id', $receiptIds)
+            ->get(['id', 'resource_links']);
+
+        foreach ($receipts as $receipt) {
+            $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
+            if (count(ResourceLinks::invoiceIds($links)) > 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Remove a receipt allocation from all linked installments (or all except $exclude).
+     * Used by receipt destroy and multi-installment receipt purge.
+     */
+    public static function rebalanceInstallmentsForRemovedReceipt(
+        Receipt $receipt,
+        ?Model $excludeInstallment = null
+    ): void {
+        $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
+        $linkType = ResourceLinks::invoiceType($links);
+        $linkedIds = ResourceLinks::invoiceIds($links);
+        if ($linkedIds === []) {
+            return;
+        }
+
+        $modelClass = $linkType === ResourceLinks::TYPE_LICENSE_INSTALLMENT
+            ? license_installment_plan::class
+            : visa_installment_plan::class;
+
+        $classes = $linkType
+            ? [$modelClass]
+            : [visa_installment_plan::class, license_installment_plan::class];
+
+        $receiptId = (int) $receipt->id;
+
+        foreach ($classes as $class) {
+            $siblings = $class::withTrashed()
+                ->whereIn('id', $linkedIds)
+                ->get();
+
+            foreach ($siblings as $sibling) {
+                if ($excludeInstallment
+                    && (int) $sibling->id === (int) $excludeInstallment->id
+                    && $excludeInstallment instanceof $class
+                ) {
+                    continue;
+                }
+
+                static::applyInstallmentReceiptUnlink($sibling, $receiptId);
+            }
+        }
+    }
+
+    /**
+     * Unset one receipt from an installment and recalc paid_amount / status.
+     */
+    public static function applyInstallmentReceiptUnlink(Model $installment, int $receiptId): void
+    {
+        $class = get_class($installment);
+        $partials = is_array($installment->partial_paid_amount) ? $installment->partial_paid_amount : [];
+        $removed = (float) ($partials[$receiptId] ?? $partials[(string) $receiptId] ?? 0);
+        if ($removed <= 0
+            && ! array_key_exists($receiptId, $partials)
+            && ! array_key_exists((string) $receiptId, $partials)
+        ) {
+            return;
+        }
+
+        unset($partials[$receiptId], $partials[(string) $receiptId]);
+        $installment->partial_paid_amount = $partials;
+        $installment->paid_amount = max(0.0, (float) $installment->paid_amount - max(0.0, $removed));
+
+        if ((float) $installment->paid_amount <= 0.001) {
+            $installment->paid_amount = 0;
+            $installment->status = defined("$class::STATUS_PENDING")
+                ? $class::STATUS_PENDING
+                : 'pending';
+        } elseif ((float) $installment->paid_amount + 0.001 < (float) $installment->amount) {
+            $installment->status = defined("$class::STATUS_PARTIAL")
+                ? $class::STATUS_PARTIAL
+                : 'partial';
+        } else {
+            $installment->status = defined("$class::STATUS_PAID")
+                ? $class::STATUS_PAID
+                : 'paid';
+        }
+        $installment->save();
+    }
+
+    /**
+     * When a multi-installment receipt is purged with one installment, rebalance the others.
+     */
+    protected static function unlinkReceiptFromSiblingInstallments(Receipt $receipt, Model $deletedInstallment): void
+    {
+        static::rebalanceInstallmentsForRemovedReceipt($receipt, $deletedInstallment);
+    }
+
+    public static function shouldPurgeInstallmentOnApprove(Model $model): bool
+    {
+        return $model instanceof visa_installment_plan
+            || $model instanceof license_installment_plan;
+    }
+
+    /**
+     * Installment-linked receipts are hard-purged on approve (no recycle-bin restore).
+     */
+    public static function shouldPurgeInstallmentReceiptOnApprove(Model $model): bool
+    {
+        if (! $model instanceof Receipt) {
+            return false;
+        }
+
+        $links = is_array($model->resource_links) ? $model->resource_links : null;
+        $invoiceType = ResourceLinks::invoiceType($links);
+
+        return in_array($invoiceType, [
+            ResourceLinks::TYPE_VISA_INSTALLMENT,
+            ResourceLinks::TYPE_LICENSE_INSTALLMENT,
+        ], true);
+    }
+
+    /**
+     * On approve: unlink installments, then hard-delete receipt + RV + txs.
+     */
+    protected static function purgeApprovedInstallmentReceiptDeletion(
+        DeleteRequest $deleteRequest,
+        Model $receipt,
+        ?User $admin
+    ): void {
+        if (! $receipt instanceof Receipt) {
+            return;
+        }
+
+        static::purgeReceiptAndFinancials($receipt);
+
+        foreach ($deleteRequest->cascaded_records ?? [] as $cascaded) {
+            $type = $cascaded['type'] ?? null;
+            $id = $cascaded['id'] ?? null;
+            if (! $type || ! $id || ! class_exists($type)) {
+                continue;
+            }
+            /** @var Model|null $related */
+            $related = static::findModel($type, $id);
+            if (! $related) {
+                continue;
+            }
+            if (method_exists($related, 'forceDelete')) {
+                $related->forceDelete();
+            } else {
+                $related->delete();
+            }
+        }
+    }
+
+    /**
+     * Rebalance linked installments and hard-delete one receipt with its RV/txs.
+     */
+    public static function purgeReceiptAndFinancials(Receipt $receipt): void
+    {
+        $wasBypassing = static::isBypassing();
+        static::bypass(true);
+        try {
+            static::rebalanceInstallmentsForRemovedReceipt($receipt);
+
+            $voucher = $receipt->voucher_id
+                ? Vouchers::withTrashed()->find($receipt->voucher_id)
+                : null;
+            $transCode = $voucher?->trans_code;
+
+            if ($transCode) {
+                foreach (Transactions::withTrashed()->where('trans_code', $transCode)->get() as $tx) {
+                    if (method_exists($tx, 'forceDelete')) {
+                        $tx->forceDelete();
+                    } else {
+                        $tx->delete();
+                    }
+                }
+            } else {
+                foreach (
+                    Transactions::withTrashed()
+                        ->where('reference_type', 'RV')
+                        ->where('reference_id', $receipt->id)
+                        ->get() as $tx
+                ) {
+                    if (method_exists($tx, 'forceDelete')) {
+                        $tx->forceDelete();
+                    } else {
+                        $tx->delete();
+                    }
+                }
+            }
+
+            if ($voucher) {
+                if (method_exists($voucher, 'forceDelete')) {
+                    $voucher->forceDelete();
+                } else {
+                    $voucher->delete();
+                }
+            }
+
+            $fresh = Receipt::withTrashed()->find($receipt->id) ?? $receipt;
+            if (method_exists($fresh, 'forceDelete')) {
+                $fresh->forceDelete();
+            } else {
+                $fresh->delete();
+            }
+        } finally {
+            if (! $wasBypassing) {
+                static::bypass(false);
+            }
+        }
     }
 
     /**
@@ -1134,8 +1627,10 @@ class DeleteRequestService
 
     protected static function finalizeApprovedExpenseEntry(Model $expense, string $referenceType): void
     {
+        // Paid-entry approve path purges financials before this hook; unpaid rows land here.
         if (static::isPaidExpense($expense)) {
-            static::unpayExpenseInPlace($expense, $referenceType);
+            [$vouchers, $transactions] = static::resolveExpensePaymentFinancials($expense, $referenceType);
+            static::purgePaidExpensePayment($expense, $referenceType, $vouchers, $transactions);
 
             return;
         }
@@ -1153,6 +1648,116 @@ class DeleteRequestService
     {
         return ($model instanceof \App\Models\visa_expenses || $model instanceof \App\Models\license_expenses)
             && static::isPaidExpense($model);
+    }
+
+    /**
+     * Collect LV/LE vouchers + transactions for a payment reverse (live and soft-deleted).
+     *
+     * @param  array<int, array<string, mixed>>  $cascadedRecords
+     * @return array{0: Collection<int, Model>, 1: Collection<int, Model>}
+     */
+    public static function resolveExpensePaymentFinancials(
+        Model $expense,
+        string $referenceType,
+        array $cascadedRecords = []
+    ): array {
+        $vouchers = collect();
+        $transactions = collect();
+
+        foreach ($cascadedRecords as $cascaded) {
+            $type = $cascaded['type'] ?? null;
+            $id = $cascaded['id'] ?? null;
+            if (! $type || ! $id || ! class_exists($type)) {
+                continue;
+            }
+            $related = static::findModel($type, $id);
+            if (! $related) {
+                continue;
+            }
+            if ($related instanceof Vouchers) {
+                $vouchers->push($related);
+            } elseif ($related instanceof Transactions) {
+                $transactions->push($related);
+            }
+        }
+
+        $voucherQuery = Vouchers::withTrashed()
+            ->where('ref_id', $expense->id)
+            ->where('voucher_type', $referenceType);
+        if ($referenceType === 'LE') {
+            $voucherQuery->where(function ($q) {
+                $q->whereNull('reason')->orWhere('reason', '!=', 'license_installment');
+            });
+        }
+        $vouchers = $vouchers->merge($voucherQuery->get())->unique('id')->values();
+
+        $transactionQuery = Transactions::withTrashed()
+            ->where(function ($q) use ($expense, $referenceType) {
+                $q->where(function ($inner) use ($expense, $referenceType) {
+                    $inner->where('reference_id', $expense->id)
+                        ->where('reference_type', $referenceType);
+                });
+                if (! empty($expense->trans_code)) {
+                    $q->orWhere(function ($inner) use ($expense, $referenceType) {
+                        $inner->where('trans_code', $expense->trans_code)
+                            ->where('reference_type', $referenceType);
+                    });
+                }
+            });
+        $transactions = $transactions->merge($transactionQuery->get())->unique('id')->values();
+
+        return [$vouchers, $transactions];
+    }
+
+    /**
+     * Hard-delete payment vouchers/transactions, rebuild ledgers, mark expense unpaid.
+     * Avoids recycle-bin restore conflicts when the entry is paid again later.
+     */
+    public static function purgePaidExpensePayment(
+        Model $expense,
+        string $referenceType,
+        Collection $vouchers,
+        Collection $transactions
+    ): void {
+        $accountIds = $transactions->pluck('account_id')->filter()->unique()->values();
+        $billingMonth = $expense->billing_month;
+
+        $wasBypassing = static::isBypassing();
+        static::bypass(true);
+        try {
+            foreach ($vouchers as $voucher) {
+                if (method_exists($voucher, 'forceDelete')) {
+                    $voucher->forceDelete();
+                } else {
+                    $voucher->delete();
+                }
+            }
+
+            foreach ($transactions as $transaction) {
+                if (method_exists($transaction, 'forceDelete')) {
+                    $transaction->forceDelete();
+                } else {
+                    $transaction->delete();
+                }
+            }
+        } finally {
+            if (! $wasBypassing) {
+                static::bypass(false);
+            }
+        }
+
+        if ($billingMonth) {
+            foreach ($accountIds as $accountId) {
+                static::recalculateLedgerAfterVoucherDeletion((int) $accountId, $billingMonth);
+            }
+        }
+        static::recalculateExpenseRiderLedger($expense);
+
+        $expense->payment_status = 'unpaid';
+        if (Schema::hasColumn($expense->getTable(), 'deleted_by') && $expense->deleted_by) {
+            $expense->deleted_by = null;
+        }
+        $expense->save();
     }
 
     /**

@@ -26,6 +26,7 @@ class license_installment_plan extends BaseModel
         'rider_id',
         'amount',
         'paid_amount',
+        'partial_paid_amount',
         'total_amount',
         'reference_number',
         'narration',
@@ -33,6 +34,10 @@ class license_installment_plan extends BaseModel
         'created_by',
         'updated_by',
         'deleted_by',
+    ];
+
+    protected $casts = [
+        'partial_paid_amount' => 'array',
     ];
 
     const STATUS_PENDING = 'pending';

@@ -5,16 +5,21 @@ namespace App\Http\Controllers\Concerns;
 use App\Helpers\Account;
 use App\Support\GlobalAccounts;
 use App\Models\Accounts;
+use App\Models\Banks;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\ExpenseAccount;
+use App\Models\Receipt;
 use App\Models\Riders;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Models\visa_installment_plan;
+use App\Services\DeleteRequestService;
 use App\Services\TransactionService;
 use App\Support\CompanyAuthRedirect;
 use App\Support\CompanyQuery;
+use App\Support\PublicStorageDisk;
+use App\Support\ResourceLinks;
 use App\Traits\GlobalPagination;
 use App\Traits\TracksCascadingDeletions;
 use Carbon\Carbon;
@@ -49,6 +54,11 @@ trait ManagesVisaInstallments
         return null;
     }
 
+    protected function installmentResourceLinkType(): string
+    {
+        return ResourceLinks::TYPE_VISA_INSTALLMENT;
+    }
+
     protected function installmentHeadAccountKey(): string
     {
         return 'INSTALLMENT_LOAN';
@@ -56,7 +66,7 @@ trait ManagesVisaInstallments
 
     protected function installmentNarrationLabel(): string
     {
-        return 'visa loan installment';
+        return 'loan installment';
     }
 
     protected function installmentVoucherRemarksPrefix(): string
@@ -81,7 +91,7 @@ trait ManagesVisaInstallments
 
     protected function installmentViewPlanTable(): string
     {
-        return 'installments.installmentPlanTable';
+        return 'visa_expenses.installmentPlanTable';
     }
 
     protected function installmentViewPlan(): string
@@ -112,10 +122,12 @@ trait ManagesVisaInstallments
             'pay'              => 'Installments.payInstallment',
             'update_field'     => 'Installments.updateInstallmentField',
             'delete'           => 'Installments.deleteInstallment',
+            'bulk_delete'      => 'Installments.bulkDeleteInstallments',
             'invoice'          => 'Installments.generateInstallmentInvoice',
             'plan'             => 'Installments.installmentPlan',
             'payment_receiving'         => 'Installments.paymentReceivingModal',
             'process_payment_receiving' => 'Installments.processPaymentReceiving',
+            'edit_payment_receiving'    => 'Installments.editPaymentReceiving',
         ];
     }
 
@@ -192,10 +204,14 @@ trait ManagesVisaInstallments
             'installmentPayRoute' => $routes['pay'],
             'installmentUpdateFieldRoute' => $routes['update_field'],
             'installmentDeleteRoute' => $routes['delete'],
+            'installmentBulkDeleteRoute' => $routes['bulk_delete'] ?? 'Installments.bulkDeleteInstallments',
             'installmentStoreRoute' => $routes['create'],
             'installmentCreateFormRoute' => $routes['create_form'],
             'installmentInvoiceRoute' => $routes['invoice'],
             'installmentPlanRoute' => $routes['plan'] ?? 'Installments.installmentPlan',
+            'installmentPaymentReceivingRoute' => $routes['payment_receiving'] ?? 'Installments.paymentReceivingModal',
+            'installmentEditPaymentReceivingRoute' => $routes['edit_payment_receiving'] ?? 'Installments.editPaymentReceiving',
+            'installmentProcessPaymentReceivingRoute' => $routes['process_payment_receiving'] ?? 'Installments.processPaymentReceiving',
             'installmentPlanTableView' => $this->installmentViewPlanTable(),
             'installmentIndexRoute' => $this->installmentIndexRouteName(),
             'installmentEntriesRoute' => $this->installmentEntriesRouteName(),
@@ -257,11 +273,13 @@ trait ManagesVisaInstallments
 
         $data = $this->applyPagination($query, $paginationParams);
         $installmentStats = $this->installmentPlanSummary($account);
+        $linkedReceiptsById = $this->preloadInstallmentLinkedReceipts($data);
 
         if ($request->ajax()) {
             $tableData = view($this->installmentViewPlanTable(), $this->installmentTableViewData([
                 'data' => $data,
                 'account' => $account,
+                'linkedReceiptsById' => $linkedReceiptsById,
             ]))->render();
             $paginationLinks = $data->links('components.global-pagination')->render();
             return response()->json([
@@ -277,7 +295,7 @@ trait ManagesVisaInstallments
         $riders = $person;
 
         return view($this->installmentViewPlan(), array_merge(
-            compact('data', 'account', 'riders', 'installmentStats'),
+            compact('data', 'account', 'riders', 'installmentStats', 'linkedReceiptsById'),
             $this->installmentTableViewData()
         ));
     }
@@ -560,15 +578,107 @@ trait ManagesVisaInstallments
             'bankCashAccounts' => $bankCashAccounts,
             'voucherLabel'     => $this->installmentNarrationLabel(),
             'processRoute'     => $this->installmentRouteNames()['process_payment_receiving'] ?? 'Installments.processPaymentReceiving',
+            'editingReceipt'   => null,
+            'preselected'      => [],
         ]);
     }
 
     /**
-     * POST: process payment receiving — create RV voucher, update installment paid_amount & status.
+     * Edit an installment payment receipt using the Payment Receiving modal.
+     */
+    public function editPaymentReceiving(Request $request, $company_slug, $receiptId)
+    {
+        if (!$this->installmentAllows('edit')) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        $receipt = Receipt::findOrFail((int) $receiptId);
+        $links = is_array($receipt->resource_links) ? $receipt->resource_links : null;
+        $linkType = ResourceLinks::invoiceType($links);
+        $expectedType = $this->installmentResourceLinkType();
+        if ($linkType !== $expectedType) {
+            abort(422, 'This receipt is not linked to ' . $this->installmentNarrationLabel() . ' installments.');
+        }
+
+        $linkedIds = ResourceLinks::invoiceIds($links);
+        $amountsById = ResourceLinks::amountsByInvoiceId($links);
+        $firstInstallment = $linkedIds !== []
+            ? $this->installmentModelClass()::withTrashed()->find($linkedIds[0])
+            : null;
+        if (! $firstInstallment) {
+            abort(404, 'Linked installment not found for this receipt.');
+        }
+
+        $riderId = (int) $firstInstallment->rider_id;
+        $expenseAccount = ExpenseAccount::with(['rider', 'employee'])->find($riderId);
+        $person = $expenseAccount ? $this->resolveExpenseAccountPerson($expenseAccount) : null;
+        if (! $person) {
+            abort(404, 'Person not found for this receipt.');
+        }
+
+        // Eligible = pending/partial + every installment currently on this receipt (even if paid).
+        $installments = $this->installmentQuery()
+            ->where(function ($q) use ($expenseAccount, $riderId) {
+                if ($expenseAccount) {
+                    $this->applyInstallmentRiderScope($q, $expenseAccount);
+                } else {
+                    $q->where('rider_id', $riderId);
+                }
+            })
+            ->where(function ($q) use ($linkedIds) {
+                $q->whereIn('status', [
+                    $this->installmentModelClass()::STATUS_PENDING,
+                    $this->installmentModelClass()::STATUS_PARTIAL,
+                ]);
+                if ($linkedIds !== []) {
+                    $q->orWhereIn('id', $linkedIds);
+                }
+            })
+            ->with(['vouchers', 'expenseAccount'])
+            ->orderBy('date', 'asc')
+            ->get();
+
+        // For remaining calc in the form, temporarily ignore this receipt's allocation.
+        foreach ($installments as $inst) {
+            $allocated = (float) ($amountsById[(int) $inst->id] ?? 0);
+            if ($allocated > 0) {
+                $inst->setAttribute(
+                    '_edit_paid_amount',
+                    max(0.0, (float) $inst->paid_amount - $allocated)
+                );
+            } else {
+                $inst->setAttribute('_edit_paid_amount', (float) $inst->paid_amount);
+            }
+        }
+
+        $preselected = [];
+        foreach ($amountsById as $id => $amt) {
+            $preselected[(int) $id] = (float) $amt;
+        }
+
+        $bankCashAccounts = $this->safeBankCashDropdown();
+
+        return view('visa_expenses.partials.payment_receiving_modal', [
+            'person'           => $person,
+            'expenseAccount'   => $expenseAccount,
+            'riderId'          => $riderId,
+            'installments'     => $installments,
+            'bankCashAccounts' => $bankCashAccounts,
+            'voucherLabel'     => $this->installmentNarrationLabel(),
+            'processRoute'     => $this->installmentRouteNames()['process_payment_receiving'] ?? 'Installments.processPaymentReceiving',
+            'editingReceipt'   => $receipt,
+            'preselected'      => $preselected,
+        ]);
+    }
+
+    /**
+     * POST: process payment receiving — create Receipt + RV with resource_links,
+     * store receipt→amount on each installment (partial_paid_amount), update paid_amount & status.
      *
      * Accepts `rider_id` (the raw URL param from paymentReceivingModal) and uses
      * the same three-tier lookup so legacy installments (rider_id = riders.id or
      * accounts.id) work the same as new ones (rider_id = expense_accounts.id).
+     * Optional `receipt_id` updates an existing installment payment receipt.
      */
     public function processPaymentReceiving(Request $request)
     {
@@ -586,6 +696,8 @@ trait ManagesVisaInstallments
             'pay_amounts'          => 'required|array|min:1',
             'pay_amounts.*'        => 'required|numeric|min:0.01',
             'narration'            => 'nullable|string|max:1000',
+            'receipt_id'           => 'nullable|integer|exists:receipts,id',
+            'attachment'           => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ]);
 
         try {
@@ -594,6 +706,12 @@ trait ManagesVisaInstallments
             $riderId        = (int) $validated['rider_id'];
             $expenseAccount = null;
             $person         = null;
+            $attachmentName = null;
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $attachmentName = time() . '_' . $file->getClientOriginalName();
+                PublicStorageDisk::storeUploadedFile($file, 'vouchers', $attachmentName);
+            }
 
             // ── Same three-tier lookup as paymentReceivingModal ───────────────
             $ea = ExpenseAccount::with(['rider', 'employee'])->find($riderId);
@@ -655,6 +773,11 @@ trait ManagesVisaInstallments
             }
 
             $bankAccount = Accounts::findOrFail($validated['bank_account_id']);
+            $bank = Banks::where('account_id', $bankAccount->id)->first();
+            if (! $bank) {
+                throw new \RuntimeException('Bank record not found for the selected cash/bank account.');
+            }
+
             $TransactionService = new TransactionService();
             $transCode   = Account::trans_code();
             $paymentDate = \Carbon\Carbon::parse($validated['payment_date']);
@@ -691,14 +814,48 @@ trait ManagesVisaInstallments
             $payAmounts     = array_map('floatval', $validated['pay_amounts']);
             $paidLines      = [];
             $personLabel    = ($person->rider_id ?? '') . ' - ' . $person->name;
+            $editingReceiptId = !empty($validated['receipt_id']) ? (int) $validated['receipt_id'] : null;
+            $editingReceipt = null;
+
+            // Edit path: reverse old allocations + remove old RV financials before re-applying.
+            if ($editingReceiptId) {
+                $editingReceipt = Receipt::findOrFail($editingReceiptId);
+                $editLinks = is_array($editingReceipt->resource_links) ? $editingReceipt->resource_links : null;
+                if (ResourceLinks::invoiceType($editLinks) !== $this->installmentResourceLinkType()) {
+                    throw new \RuntimeException('Receipt is not an installment payment receipt.');
+                }
+
+                DeleteRequestService::rebalanceInstallmentsForRemovedReceipt($editingReceipt);
+
+                $oldVoucher = $editingReceipt->voucher_id
+                    ? Vouchers::withTrashed()->find($editingReceipt->voucher_id)
+                    : null;
+                $oldTransCode = $oldVoucher?->trans_code;
+                DeleteRequestService::bypass(true);
+                try {
+                    if ($oldTransCode) {
+                        foreach (Transactions::withTrashed()->where('trans_code', $oldTransCode)->get() as $tx) {
+                            $tx->forceDelete();
+                        }
+                    }
+                    if ($oldVoucher) {
+                        $oldVoucher->forceDelete();
+                    }
+                } finally {
+                    DeleteRequestService::bypass(false);
+                }
+                $editingReceipt->voucher_id = null;
+                $editingReceipt->save();
+            }
 
             $baseNarration = $personLabel . ' — payment received for '
                 . $this->installmentNarrationLabel()
-                . ' (billing: ' . \Carbon\Carbon::parse($billingMonth)->format('M Y') . ')';
+                . ' ' . \Carbon\Carbon::parse($billingMonth)->format('M-Y');
             if (!empty($validated['narration'])) {
                 $baseNarration .= ' — ' . $validated['narration'];
             }
 
+            // Validate installments + amounts (after reverse when editing).
             foreach ($installmentIds as $idx => $instId) {
                 $payAmt = $payAmounts[$idx] ?? 0.0;
                 if ($payAmt <= 0) {
@@ -707,11 +864,7 @@ trait ManagesVisaInstallments
 
                 /** @var \App\Models\visa_installment_plan $installment */
                 $installment = $this->installmentModelClass()::findOrFail($instId);
-
-                // Guard: only pending/partial installments can receive payment
-                if ($installment->status === $this->installmentModelClass()::STATUS_PAID) {
-                    throw new \RuntimeException('Installment #' . ($idx + 1) . ' is already fully paid.');
-                }
+                $installment->refresh();
 
                 $remaining = (float) $installment->amount - (float) $installment->paid_amount;
                 if ($payAmt > $remaining + 0.001) {
@@ -722,9 +875,73 @@ trait ManagesVisaInstallments
                     );
                 }
 
+                $totalPaid += $payAmt;
+                $paidLines[] = ['installment' => $installment, 'amount' => $payAmt];
+            }
+
+            if ($totalPaid <= 0 || $paidLines === []) {
+                throw new \RuntimeException('No valid payment amounts provided.');
+            }
+
+            $linkType = $this->installmentResourceLinkType();
+            $numberPrefix = $linkType === ResourceLinks::TYPE_LICENSE_INSTALLMENT ? 'LINST-' : 'VINST-';
+            $reference = $numberPrefix . implode(',', array_map(
+                fn ($line) => str_pad((string) $line['installment']->id, 4, '0', STR_PAD_LEFT),
+                $paidLines
+            ));
+
+            if ($editingReceipt) {
+                $editingReceipt->fill([
+                    'branch_id' => $person->branch_id ?? $riderCreditAccount->branch_id,
+                    'reference' => $reference,
+                    'account_id' => $bankAccount->id,
+                    'bank_id' => $bank->id,
+                    'payer_account_id' => $riderCreditAccount->id,
+                    'amount' => $totalPaid,
+                    'amount_type' => 'Online',
+                    'date_of_receipt' => $paymentDate->toDateString(),
+                    'billing_month' => $billingMonth,
+                    'description' => $baseNarration,
+                    'status' => 1,
+                    'updated_by' => auth()->id(),
+                ]);
+                if ($attachmentName) {
+                    $editingReceipt->attachment = $attachmentName;
+                }
+                $editingReceipt->save();
+                $receipt = $editingReceipt;
+            } else {
+                $receipt = Receipt::create([
+                    'branch_id' => $person->branch_id ?? $riderCreditAccount->branch_id,
+                    'reference' => $reference,
+                    'account_id' => $bankAccount->id,
+                    'bank_id' => $bank->id,
+                    'payer_account_id' => $riderCreditAccount->id,
+                    'amount' => $totalPaid,
+                    'amount_type' => 'Online',
+                    'date_of_receipt' => $paymentDate->toDateString(),
+                    'billing_month' => $billingMonth,
+                    'description' => $baseNarration,
+                    'attachment' => $attachmentName,
+                    'status' => 1,
+                    'created_by' => auth()->id(),
+                ]);
+            }
+
+            $amountsById = [];
+            $linkModels = collect();
+            foreach ($paidLines as $line) {
+                /** @var \App\Models\visa_installment_plan $installment */
+                $installment = $line['installment'];
+                $payAmt = (float) $line['amount'];
+
                 $newPaid = (float) $installment->paid_amount + $payAmt;
                 $installment->paid_amount = $newPaid;
-                $installment->updated_by  = auth()->id();
+                $installment->updated_by = auth()->id();
+
+                $partials = is_array($installment->partial_paid_amount) ? $installment->partial_paid_amount : [];
+                $partials[(string) $receipt->id] = $payAmt;
+                $installment->partial_paid_amount = $partials;
 
                 if ($newPaid >= (float) $installment->amount - 0.001) {
                     $installment->status = $this->installmentModelClass()::STATUS_PAID;
@@ -733,8 +950,11 @@ trait ManagesVisaInstallments
                 }
                 $installment->save();
 
-                $totalPaid += $payAmt;
-                $paidLines[] = ['installment' => $installment, 'amount' => $payAmt];
+                $amountsById[(int) $installment->id] = $payAmt;
+                $linkModels->push((object) [
+                    'id' => (int) $installment->id,
+                    'invoice_number' => $numberPrefix . str_pad((string) $installment->id, 4, '0', STR_PAD_LEFT),
+                ]);
 
                 // GL per installment: Cr Rider (liability reduces / payment applied)
                 $TransactionService->recordTransaction([
@@ -751,11 +971,6 @@ trait ManagesVisaInstallments
                 ]);
             }
 
-            if ($totalPaid <= 0) {
-                throw new \RuntimeException('No valid payment amounts provided.');
-            }
-
-            // GL: Dr Bank/Cash (total cash received)
             $bankNarration = $personLabel . ' — payment received via '
                 . $bankAccount->name
                 . ' for ' . $this->installmentNarrationLabel();
@@ -763,9 +978,10 @@ trait ManagesVisaInstallments
                 $bankNarration .= ' — ' . $validated['narration'];
             }
 
+            // GL: Dr Bank/Cash against the receipt module record
             $TransactionService->recordTransaction([
                 'account_id'     => $bankAccount->id,
-                'reference_id'   => $expenseAccount->id ?? $riderId,
+                'reference_id'   => $receipt->id,
                 'reference_type' => 'RV',
                 'trans_code'     => $transCode,
                 'trans_date'     => $paymentDate,
@@ -776,31 +992,45 @@ trait ManagesVisaInstallments
                 'created_by'     => auth()->id(),
             ]);
 
-            // Create a Receipt Voucher (RV) for the total payment
-            $firstInstallment = $paidLines[0]['installment'];
             $rvRemarks = $personLabel . ' — Payment Received: '
                 . number_format($totalPaid, 2)
                 . ' (' . count($paidLines) . ' installment' . (count($paidLines) > 1 ? 's' : '') . ')';
-            if ($validated['narration']) {
+            if (! empty($validated['narration'])) {
                 $rvRemarks .= ' — ' . $validated['narration'];
             }
 
-            Vouchers::create(array_filter([
-                'voucher_type'   => 'RV',
-                'amount'         => $totalPaid,
-                'date'           => $paymentDate->toDateString(),
-                'billing_month'  => $billingMonth,
-                'payment_type'   => 2,
-                'ref_id'         => $expenseAccount->id ?? $riderId,
-                'remarks'        => $rvRemarks,
-                'Created_By'     => auth()->id(),
-                'branch_id'      => $person->branch_id ?? null,
-                'trans_code'     => $transCode,
-            ], fn($v) => $v !== null));
+            $voucher = Vouchers::create(array_filter([
+                'voucher_type'      => 'RV',
+                'amount'            => $totalPaid,
+                'trans_date'        => $paymentDate->toDateString(),
+                'billing_month'     => $billingMonth,
+                'payment_type'      => 2,
+                'ref_id'            => $receipt->id,
+                'remarks'           => $rvRemarks,
+                'reference_number'  => $receipt->reference,
+                'attach_file'       => $receipt->attachment,
+                'Created_By'        => auth()->id(),
+                'branch_id'         => $person->branch_id ?? null,
+                'trans_code'        => $transCode,
+                'status'            => 1,
+            ], fn ($v) => $v !== null));
+
+            $receipt->resource_links = ResourceLinks::build(
+                $linkType,
+                array_keys($amountsById),
+                $amountsById,
+                $linkModels,
+                null,
+                ResourceLinks::SOURCE_INSTALLMENT_PAYMENT
+            );
+            $receipt->voucher_id = $voucher->id;
+            $receipt->save();
 
             DB::commit();
 
-            $msg = 'Payment of ' . number_format($totalPaid, 2) . ' received successfully for '
+            $msg = ($editingReceiptId ? 'Receipt updated: ' : 'Payment of ')
+                . number_format($totalPaid, 2)
+                . ($editingReceiptId ? ' for ' : ' received successfully for ')
                 . count($paidLines) . ' installment' . (count($paidLines) > 1 ? 's' : '') . '.';
 
             if ($request->ajax()) {
@@ -844,6 +1074,18 @@ trait ManagesVisaInstallments
                 return redirect()->back();
             }
 
+            if ($newStatus === $this->installmentModelClass()::STATUS_PENDING
+                && DeleteRequestService::installmentHasLinkedReceipts($installment)
+            ) {
+                DB::rollBack();
+                $msg = 'Status cannot be changed for this installment. Please delete the installment to clear posted receipts.';
+                if ($request->ajax()) {
+                    return response()->json(['success' => false, 'message' => $msg], 422);
+                }
+                Flash::error($msg);
+                return redirect()->back();
+            }
+
             // Update the status
             $installment->status = $newStatus;
             $installment->updated_by = auth()->user()->id;
@@ -884,6 +1126,12 @@ trait ManagesVisaInstallments
 
             $installment = $this->installmentModelClass()::findOrFail($validated['installment_id']);
             $isPaid = $installment->status === $this->installmentModelClass()::STATUS_PAID;
+
+            if (DeleteRequestService::installmentHasLinkedReceipts($installment)) {
+                throw new \RuntimeException(
+                    'This installment has linked receipts. Edit or delete the receipt(s) instead of changing installment fields.'
+                );
+            }
 
             ['riderAccount' => $riderAccount, 'rider' => $rider] = $this->resolveInstallmentRiderContext($installment);
             $liabilityAccount = Accounts::where('ref_id', $riderAccount->ref_id)
@@ -1577,15 +1825,93 @@ trait ManagesVisaInstallments
         }
 
         try {
-            DB::beginTransaction();
+            $result = $this->performInstallmentDelete((int) $id);
 
+            if (!empty($result['queued'])) {
+                return redirect()->back();
+            }
+
+            Flash::success($result['message'] ?? 'Installment deleted successfully along with voucher and transactions.');
+            return redirect()->back();
+        } catch (\Exception $e) {
+            Flash::error('Error deleting installment: ' . $e->getMessage());
+            return redirect()->back();
+        }
+    }
+
+    public function bulkDeleteInstallments(Request $request)
+    {
+        if (!$this->installmentAllows('delete')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have permission to delete installments.',
+            ], 403);
+        }
+
+        $ids = collect($request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No installments selected for deletion.',
+            ], 400);
+        }
+
+        $deleted = 0;
+        $queued = 0;
+        $errors = [];
+
+        foreach ($ids as $id) {
+            try {
+                $result = $this->performInstallmentDelete($id);
+                if (!empty($result['queued'])) {
+                    $queued++;
+                } else {
+                    $deleted++;
+                }
+            } catch (\Throwable $e) {
+                $errors[] = "Installment #{$id}: " . $e->getMessage();
+            }
+        }
+
+        $parts = [];
+        if ($deleted > 0) {
+            $parts[] = "{$deleted} deleted";
+        }
+        if ($queued > 0) {
+            $parts[] = "{$queued} queued for approval";
+        }
+        if ($errors !== []) {
+            $parts[] = count($errors) . ' failed';
+        }
+
+        return response()->json([
+            'success' => $deleted > 0 || $queued > 0,
+            'message' => $parts !== []
+                ? ('Installments: ' . implode(', ', $parts) . '.')
+                : 'No installments were deleted.',
+            'errors' => $errors,
+            'reload' => true,
+        ], ($deleted > 0 || $queued > 0) ? 200 : 422);
+    }
+
+    /**
+     * @return array{queued: bool, message: string}
+     */
+    private function performInstallmentDelete(int $id): array
+    {
+        DB::beginTransaction();
+
+        try {
             $installment = $this->installmentModelClass()::findOrFail($id);
 
-            $relatedVouchers = $this->installmentVouchersFor($installment->id)
-                ->get();
-
-            $relatedTransactions = $this->installmentTransactionsFor($installment->id)
-                ->get();
+            $relatedVouchers = $this->installmentVouchersFor($installment->id)->get();
+            $relatedTransactions = $this->installmentTransactionsFor($installment->id)->get();
 
             $billingMonth = $installment->billing_month;
             $liabilityAccountId = null;
@@ -1605,15 +1931,20 @@ trait ManagesVisaInstallments
                 \Log::warning('Could not resolve liability account before installment delete: ' . $e->getMessage());
             }
 
-            // Queue the installment first so related deletes attach as cascades
-            // and are NOT removed until an administrator approves.
+            if (DeleteRequestService::installmentHasSharedReceipt($installment)) {
+                throw new \RuntimeException(
+                    'This installment is on a shared receipt. Edit the receipt and uncheck this installment before deleting it.'
+                );
+            }
+
+            request()->attributes->remove('delete_approval_created');
+
             $installment->deleted_by = auth()->id();
             $installment->save();
             $installment->delete();
 
             $pendingQueued = (bool) request()->attributes->get('delete_approval_created');
 
-            // Model deletes (not query-builder) so delete-approval can intercept/cascade.
             foreach ($relatedVouchers as $voucher) {
                 $voucher->deleted_by = auth()->id();
                 $voucher->save();
@@ -1628,24 +1959,109 @@ trait ManagesVisaInstallments
                 $transaction->delete();
             }
 
-            // Ledger cleanup only when the delete actually happened (approval bypassed/disabled).
-            if (!$pendingQueued && $liabilityAccountId) {
-                $this->cleanupInstallmentLedgerAfterDelete($liabilityAccountId, $billingMonth);
+            if ($pendingQueued) {
+                // Queue linked receipts + RV financials on the same delete request.
+                $this->queueInstallmentLinkedReceiptsForDelete($installment);
+            } else {
+                // Approval bypassed: hard-delete receipts + installment (no trash restore).
+                DeleteRequestService::purgeInstallmentLinkedReceipts($installment);
+
+                DeleteRequestService::bypass(true);
+                try {
+                    foreach ($relatedVouchers as $voucher) {
+                        if (method_exists($voucher, 'forceDelete')) {
+                            $voucher->forceDelete();
+                        }
+                    }
+                    foreach ($relatedTransactions as $transaction) {
+                        if (method_exists($transaction, 'forceDelete')) {
+                            $transaction->forceDelete();
+                        }
+                    }
+                    if (method_exists($installment, 'forceDelete')) {
+                        $installment->forceDelete();
+                    }
+                } finally {
+                    DeleteRequestService::bypass(false);
+                }
+
+                if ($liabilityAccountId) {
+                    $this->cleanupInstallmentLedgerAfterDelete($liabilityAccountId, $billingMonth);
+                }
             }
 
             DB::commit();
 
-            if ($pendingQueued) {
-                // Pending flash is applied by AdjustDeleteApprovalResponse — no success message.
-                return redirect()->back();
+            return [
+                'queued' => $pendingQueued,
+                'message' => 'Installment deleted successfully along with voucher and transactions.',
+            ];
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * While a delete request is active, append linked receipts/RV/txs to cascaded_records.
+     */
+    private function queueInstallmentLinkedReceiptsForDelete($installment): void
+    {
+        $partials = is_array($installment->partial_paid_amount) ? $installment->partial_paid_amount : [];
+        $receiptIds = [];
+        foreach ($partials as $receiptId => $amount) {
+            $id = (int) $receiptId;
+            if ($id > 0) {
+                $receiptIds[] = $id;
+            }
+        }
+        $receiptIds = array_values(array_unique($receiptIds));
+        if ($receiptIds === []) {
+            return;
+        }
+
+        $receipts = Receipt::query()->whereIn('id', $receiptIds)->get();
+        foreach ($receipts as $receipt) {
+            $voucher = $receipt->voucher_id
+                ? Vouchers::find($receipt->voucher_id)
+                : null;
+            $transCode = $voucher?->trans_code;
+
+            if ($voucher) {
+                if (\Illuminate\Support\Facades\Schema::hasColumn($voucher->getTable(), 'deleted_by')) {
+                    $voucher->deleted_by = auth()->id();
+                    $voucher->save();
+                }
+                $voucher->delete();
             }
 
-            Flash::success('Installment deleted successfully along with voucher and transactions.');
-            return redirect()->back();
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Flash::error('Error deleting installment: ' . $e->getMessage());
-            return redirect()->back();
+            if ($transCode) {
+                $txs = Transactions::where('trans_code', $transCode)->get();
+                foreach ($txs as $tx) {
+                    if (\Illuminate\Support\Facades\Schema::hasColumn($tx->getTable(), 'deleted_by')) {
+                        $tx->deleted_by = auth()->id();
+                        $tx->save();
+                    }
+                    $tx->delete();
+                }
+            } else {
+                $txs = Transactions::where('reference_type', 'RV')
+                    ->where('reference_id', $receipt->id)
+                    ->get();
+                foreach ($txs as $tx) {
+                    if (\Illuminate\Support\Facades\Schema::hasColumn($tx->getTable(), 'deleted_by')) {
+                        $tx->deleted_by = auth()->id();
+                        $tx->save();
+                    }
+                    $tx->delete();
+                }
+            }
+
+            if (\Illuminate\Support\Facades\Schema::hasColumn($receipt->getTable(), 'deleted_by')) {
+                $receipt->deleted_by = auth()->id();
+                $receipt->save();
+            }
+            $receipt->delete();
         }
     }
 
@@ -1725,21 +2141,9 @@ trait ManagesVisaInstallments
                 $riderModel = Riders::find($ledgerAccount->ref_id);
                 $employeeModel = $riderModel ? null : Employee::find($ledgerAccount->ref_id);
                 if ($riderModel) {
-                    $rider = (object) [
-                        'id' => (int) $riderModel->id,
-                        'rider_id' => (string) $riderModel->rider_id,
-                        'name' => (string) $riderModel->name,
-                        'branch_id' => $riderModel->branch_id,
-                        'is_employee' => false,
-                    ];
+                    $rider = $this->installmentPersonFromRider($riderModel);
                 } elseif ($employeeModel) {
-                    $rider = (object) [
-                        'id' => (int) $employeeModel->id,
-                        'rider_id' => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
-                        'name' => (string) $employeeModel->name,
-                        'branch_id' => $employeeModel->branch_id,
-                        'is_employee' => true,
-                    ];
+                    $rider = $this->installmentPersonFromEmployee($employeeModel);
                 } else {
                     throw new \RuntimeException('Person not found for ledger account.');
                 }
@@ -1752,21 +2156,9 @@ trait ManagesVisaInstallments
                 $riderModel = Riders::find($riderId);
                 $employeeModel = $riderModel ? null : Employee::find($riderId);
                 if ($riderModel) {
-                    $rider = (object) [
-                        'id' => (int) $riderModel->id,
-                        'rider_id' => (string) $riderModel->rider_id,
-                        'name' => (string) $riderModel->name,
-                        'branch_id' => $riderModel->branch_id,
-                        'is_employee' => false,
-                    ];
+                    $rider = $this->installmentPersonFromRider($riderModel);
                 } elseif ($employeeModel) {
-                    $rider = (object) [
-                        'id' => (int) $employeeModel->id,
-                        'rider_id' => (string) ($employeeModel->employee_id ?: ('EMP-' . $employeeModel->id)),
-                        'name' => (string) $employeeModel->name,
-                        'branch_id' => $employeeModel->branch_id,
-                        'is_employee' => true,
-                    ];
+                    $rider = $this->installmentPersonFromEmployee($employeeModel);
                 } else {
                     throw new \RuntimeException('No installment plans found for this person.');
                 }
@@ -1782,11 +2174,6 @@ trait ManagesVisaInstallments
                 }
                 Flash::error($msg);
                 return redirect()->back();
-            }
-
-            // loadMissing is only available on Eloquent models, not stdClass fallbacks
-            if ($rider instanceof \Illuminate\Database\Eloquent\Model) {
-                $rider->loadMissing(['vendor', 'sim']);
             }
 
             if (request()->ajax()) {
@@ -1843,19 +2230,70 @@ trait ManagesVisaInstallments
     }
 
     /**
-     * @return array{unpaid_amount: float, paid_amount: float, paid_count: int, unpaid_count: int}
+     * @return array{
+     *   unpaid_amount: float,
+     *   paid_amount: float,
+     *   paid_count: int,
+     *   unpaid_count: int,
+     *   partial_count: int,
+     *   outstanding_amount: float
+     * }
      */
     protected function installmentPlanSummary(ExpenseAccount $account): array
     {
         $base = $this->installmentQuery();
         $this->applyInstallmentRiderScope($base, $account);
 
+        $statusPaid = $this->installmentModelClass()::STATUS_PAID;
+        $statusPending = $this->installmentModelClass()::STATUS_PENDING;
+        $statusPartial = $this->installmentModelClass()::STATUS_PARTIAL;
+
+        $paidAmount = (float) (clone $base)->where('status', $statusPaid)->sum('amount')
+            + (float) (clone $base)->where('status', $statusPartial)->sum('paid_amount');
+        $outstanding = (float) (clone $base)
+            ->whereIn('status', [$statusPending, $statusPartial])
+            ->selectRaw('COALESCE(SUM(GREATEST(amount - COALESCE(paid_amount, 0), 0)), 0) as outstanding')
+            ->value('outstanding');
+
         return [
-            'unpaid_amount' => (float) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PENDING)->sum('amount'),
-            'paid_amount' => (float) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PAID)->sum('amount'),
-            'paid_count' => (int) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PAID)->count(),
-            'unpaid_count' => (int) (clone $base)->where('status', $this->installmentModelClass()::STATUS_PENDING)->count(),
+            'unpaid_amount' => (float) $outstanding,
+            'paid_amount' => $paidAmount,
+            'paid_count' => (int) (clone $base)->where('status', $statusPaid)->count(),
+            'unpaid_count' => (int) (clone $base)->whereIn('status', [$statusPending, $statusPartial])->count(),
+            'partial_count' => (int) (clone $base)->where('status', $statusPartial)->count(),
+            'outstanding_amount' => (float) $outstanding,
         ];
+    }
+
+    /**
+     * Preload receipts referenced by installment partial_paid_amount maps (one query).
+     *
+     * @param  \Illuminate\Support\Collection|iterable  $installments
+     * @return \Illuminate\Support\Collection<int, Receipt> keyed by receipt id
+     */
+    protected function preloadInstallmentLinkedReceipts($installments)
+    {
+        $receiptIds = [];
+        foreach ($installments as $installment) {
+            $partials = is_array($installment->partial_paid_amount ?? null)
+                ? $installment->partial_paid_amount
+                : [];
+            foreach ($partials as $receiptId => $amount) {
+                $id = (int) $receiptId;
+                if ($id > 0) {
+                    $receiptIds[] = $id;
+                }
+            }
+        }
+        $receiptIds = array_values(array_unique($receiptIds));
+        if ($receiptIds === []) {
+            return collect();
+        }
+
+        return Receipt::query()
+            ->whereIn('id', $receiptIds)
+            ->get(['id', 'voucher_id', 'amount', 'reference', 'resource_links', 'date_of_receipt'])
+            ->keyBy('id');
     }
 
     /**
@@ -2123,14 +2561,7 @@ trait ManagesVisaInstallments
                 return null;
             }
 
-            return (object) [
-                'id' => (int) $employee->id,
-                'rider_id' => (string) ($employee->employee_id ?: ('EMP-' . $employee->id)),
-                'name' => (string) $employee->name,
-                'branch_id' => $employee->branch_id,
-                'account_id' => $employee->account_id,
-                'is_employee' => true,
-            ];
+            return $this->installmentPersonFromEmployee($employee);
         }
 
         $rider = $expenseAccount->rider ?? Riders::find($expenseAccount->rider_id);
@@ -2138,13 +2569,58 @@ trait ManagesVisaInstallments
             return null;
         }
 
+        return $this->installmentPersonFromRider($rider);
+    }
+
+    /**
+     * Person payload for installment flows / invoice (stdClass, not Eloquent).
+     */
+    private function installmentPersonFromRider(Riders $rider): object
+    {
+        $rider->loadMissing(['vendor', 'sim']);
+
         return (object) [
             'id' => (int) $rider->id,
             'rider_id' => (string) $rider->rider_id,
             'name' => (string) $rider->name,
             'branch_id' => $rider->branch_id,
             'account_id' => $rider->account_id ?? null,
+            'status' => $rider->status,
+            'personal_contact' => $rider->personal_contact,
+            'company_contact' => $rider->company_contact,
+            'doj' => $rider->doj,
+            'fleet_supervisor' => $rider->fleet_supervisor,
+            'vendor' => $rider->vendor ? (object) ['name' => $rider->vendor->name] : null,
+            'sim' => $rider->sim ? (object) ['number' => $rider->sim->number] : null,
             'is_employee' => false,
+        ];
+    }
+
+    /**
+     * Person payload for installment flows / invoice (stdClass, not Eloquent).
+     */
+    private function installmentPersonFromEmployee(Employee $employee): object
+    {
+        $doj = $employee->doj;
+        if ($doj instanceof \DateTimeInterface) {
+            $doj = $doj->format('Y-m-d');
+        }
+
+        return (object) [
+            'id' => (int) $employee->id,
+            'rider_id' => (string) ($employee->employee_id ?: ('EMP-' . $employee->id)),
+            'name' => (string) $employee->name,
+            'branch_id' => $employee->branch_id,
+            'account_id' => $employee->account_id,
+            // Employee status is a string; invoice uses RiderStatus() — omit numeric status.
+            'status' => null,
+            'personal_contact' => $employee->personal_contact,
+            'company_contact' => $employee->company_contact,
+            'doj' => $doj,
+            'fleet_supervisor' => null,
+            'vendor' => null,
+            'sim' => null,
+            'is_employee' => true,
         ];
     }
 

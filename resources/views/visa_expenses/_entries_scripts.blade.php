@@ -168,3 +168,6 @@
     }
   });
 </script>
+@once
+@include('visa_expenses.partials.multi_delete_scripts')
+@endonce

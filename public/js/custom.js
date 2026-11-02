@@ -524,14 +524,18 @@ $('body').on('click', '.js-print-modal-content', function (e) {
 });
 
 /**
- * Print only the Visa installment invoice fragment (modal #modalTopbody or standalone .visa-installment-invo-wrap).
- * Avoids printing the full ERP layout when the invoice is opened in modalTop.
+ * Print only the Visa installment invoice fragment
+ * (#rightSideModalBody, #modalTopbody, or standalone .visa-installment-invo-wrap).
  */
 function printVisaInstallmentInvoice() {
   var title = 'Installment Invoice';
   var bodyHtml = '';
 
-  if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
+  if (window.jQuery && $('#rightSideModalBody').length && $('#rightSideModalBody').find('.visa-installment-invo-wrap').length) {
+    bodyHtml = $('#rightSideModalBody').html();
+    var rightTitle = ($('#rightSideModalTitle').text() || '').trim();
+    if (rightTitle) title = rightTitle;
+  } else if (window.jQuery && $('#modalTopbody').length && $('#modalTopbody').find('.visa-installment-invo-wrap').length) {
     bodyHtml = $('#modalTopbody').html();
     var t = ($('#modalTopTitle').text() || '').trim();
     if (t) title = t;

@@ -1,6 +1,15 @@
 @php
 $currSymbol = \App\Helpers\Currency::symbol();
-$totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (float)$i->paid_amount));
+$editingReceipt = $editingReceipt ?? null;
+$preselected = $preselected ?? [];
+$totalOutstanding = $installments->sum(function ($i) {
+    $paidForCalc = $i->getAttribute('_edit_paid_amount');
+    if ($paidForCalc === null) {
+        $paidForCalc = (float) $i->paid_amount;
+    }
+    return max(0, (float) $i->amount - (float) $paidForCalc);
+});
+$isEditMode = $editingReceipt !== null;
 @endphp
 
 <style>
@@ -93,9 +102,9 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
     <div class="d-flex align-items-center justify-content-between px-4 pt-3 pb-2">
       <div>
         <h5 class="text-white mb-0 fw-bold">
-          <i class="fa fa-money-bill-wave me-2"></i>Payment Receiving
+          <i class="fa fa-money-bill-wave me-2"></i>{{ $isEditMode ? 'Edit Payment Receipt' : 'Payment Receiving' }}
         </h5>
-        <small class="text-white-50">{{ $voucherLabel }}</small>
+        <small class="text-white-50">{{ $voucherLabel }}@if($isEditMode) — Receipt #{{ $editingReceipt->id }}@endif</small>
       </div>
       <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
     </div>
@@ -130,10 +139,13 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
     All installments are fully paid — no outstanding balance.
   </div>
   @else
-  <form id="prmForm" method="POST" action="{{ route($processRoute) }}">
+  <form id="prmForm" method="POST" action="{{ route($processRoute) }}" enctype="multipart/form-data">
     @csrf
     {{-- Use raw riderId so processPaymentReceiving can do the same 3-tier lookup --}}
     <input type="hidden" name="rider_id" value="{{ $riderId }}">
+    @if($isEditMode)
+    <input type="hidden" name="receipt_id" value="{{ $editingReceipt->id }}">
+    @endif
 
     {{-- Payment details --}}
     <div class="px-4 pt-3 pb-2">
@@ -142,7 +154,7 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
           <label class="form-label fw-semibold small">Bank / Cash Account <span class="text-danger">*</span></label>
           <select name="bank_account_id" id="prm_bank_account" class="form-select form-select-sm" required>
             @foreach($bankCashAccounts as $id => $label)
-            <option value="{{ $id }}">{{ $label }}</option>
+            <option value="{{ $id }}" @selected($isEditMode && (int)$editingReceipt->account_id === (int)$id)>{{ $label }}</option>
             @endforeach
           </select>
         </div>
@@ -150,13 +162,13 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
           <label class="form-label fw-semibold small">Payment Date <span class="text-danger">*</span></label>
           <input type="date" name="payment_date" id="prm_payment_date"
             class="form-control form-control-sm"
-            value="{{ now()->format('Y-m-d') }}" required>
+            value="{{ $isEditMode ? \Carbon\Carbon::parse($editingReceipt->date_of_receipt)->format('Y-m-d') : now()->format('Y-m-d') }}" required>
         </div>
         <div class="col-md-3">
           <label class="form-label fw-semibold small">Billing Month <span class="text-danger">*</span></label>
           <input type="month" name="billing_month" id="prm_billing_month"
             class="form-control form-control-sm"
-            value="{{ now()->format('Y-m') }}" required>
+            value="{{ $isEditMode ? \Carbon\Carbon::parse($editingReceipt->billing_month)->format('Y-m') : now()->format('Y-m') }}" required>
         </div>
         <div class="col-md-2 d-flex align-items-end">
           <button type="button" class="btn btn-sm btn-outline-primary w-100" id="prm_select_all">
@@ -165,10 +177,33 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
         </div>
       </div>
       <div class="row g-3 mt-1">
-        <div class="col-12">
+        <div class="col-md-8">
           <label class="form-label fw-semibold small">Narration / Remarks</label>
           <input type="text" name="narration" class="form-control form-control-sm"
+            value="{{ $isEditMode ? ($editingReceipt->description ?? '') : '' }}"
             placeholder="Optional payment note…" maxlength="1000">
+        </div>
+        <div class="col-md-4">
+          @php
+            $prmExistingAttachment = $isEditMode ? ($editingReceipt->attachment ?? null) : null;
+            $prmExistingUrl = $prmExistingAttachment
+              ? url('storage/vouchers/' . ltrim((string) $prmExistingAttachment, '/'))
+              : null;
+          @endphp
+          @include('partials.universal_document_upload', [
+            'name' => 'attachment',
+            'label' => 'Attachment',
+            'required' => false,
+            'accept' => '.pdf,.jpg,.jpeg,.png',
+            'inputClass' => 'form-control form-control-sm',
+            'showHint' => true,
+            'compact' => true,
+            'existingUrl' => $prmExistingUrl,
+            'existingName' => $prmExistingAttachment ? basename((string) $prmExistingAttachment) : null,
+            'existingIsPdf' => $prmExistingAttachment
+              ? \Illuminate\Support\Str::endsWith(strtolower((string) $prmExistingAttachment), '.pdf')
+              : false,
+          ])
         </div>
       </div>
     </div>
@@ -195,12 +230,19 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
         <tbody>
           @foreach($installments as $idx => $inst)
           @php
-          $remaining = max(0, (float)$inst->amount - (float)$inst->paid_amount);
+          $paidForCalc = $inst->getAttribute('_edit_paid_amount');
+          if ($paidForCalc === null) {
+              $paidForCalc = (float) $inst->paid_amount;
+          }
+          $remaining = max(0, (float)$inst->amount - (float)$paidForCalc);
+          $preAmt = (float) ($preselected[(int)$inst->id] ?? 0);
+          $rowChecked = $preAmt > 0;
+          $payValue = $rowChecked ? $preAmt : $remaining;
           @endphp
-          <tr class="prm-installment-row" data-remaining="{{ $remaining }}" data-id="{{ $inst->id }}">
+          <tr class="prm-installment-row {{ $rowChecked ? 'prm-row-selected' : '' }}" data-remaining="{{ $remaining }}" data-id="{{ $inst->id }}">
             <td class="prm-check-col">
               <input type="checkbox" class="form-check-input prm-row-check" value="{{ $inst->id }}"
-                id="prm_check_{{ $inst->id }}">
+                id="prm_check_{{ $inst->id }}" @checked($rowChecked)>
             </td>
             <td class="fw-semibold">{{ $idx + 1 }}</td>
             <td>{{ \Carbon\Carbon::parse($inst->date)->format('d M Y') }}</td>
@@ -211,7 +253,7 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
               @endforeach
             </td>
             <td class="text-end fw-semibold">{{ number_format((float)$inst->amount, 2) }}</td>
-            <td class="text-end text-success">{{ number_format((float)$inst->paid_amount, 2) }}</td>
+            <td class="text-end text-success">{{ number_format((float)$paidForCalc, 2) }}</td>
             <td class="text-end text-danger fw-bold prm-remaining-cell" id="prm_rem_{{ $inst->id }}">
               {{ number_format($remaining, 2) }}
             </td>
@@ -223,8 +265,8 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
                 id="prm_pay_{{ $inst->id }}"
                 data-id="{{ $inst->id }}"
                 data-remaining="{{ $remaining }}"
-                value="{{ number_format($remaining, 2, '.', '') }}"
-                disabled
+                value="{{ number_format($payValue, 2, '.', '') }}"
+                @disabled(!$rowChecked)
                 placeholder="0.00">
             </td>
           </tr>
@@ -251,8 +293,8 @@ $totalOutstanding = $installments->sum(fn ($i) => max(0, (float)$i->amount - (fl
         <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-dismiss="modal">
           <i class="fa fa-times me-1"></i>Cancel
         </button>
-        <button type="submit" class="btn btn-sm btn-success" id="prm_submit_btn" disabled>
-          <i class="fa fa-check me-1"></i>Process Payment
+        <button type="submit" class="btn btn-sm btn-success" id="prm_submit_btn" @disabled(!$isEditMode)>
+          <i class="fa fa-check me-1"></i>{{ $isEditMode ? 'Update Receipt' : 'Process Payment' }}
         </button>
       </div>
     </div>

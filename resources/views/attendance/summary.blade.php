@@ -50,7 +50,7 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102prof">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103mark">
 @endpush
 
 @section('content')
@@ -231,6 +231,11 @@
                   $label = $exists ? $statusLabel($att['status'] ?? null) : 'Not marked';
                   $in = $exists ? ($att['check_in'] ?? null) : null;
                   $out = $exists ? ($att['check_out'] ?? null) : null;
+                  $totalOrders = $exists ? ($att['total_orders'] ?? '') : '';
+                  $workingHours = $exists ? ($att['working_hours'] ?? '') : '';
+                  $cancelledOrders = $exists ? ($att['cancelled_orders'] ?? 0) : 0;
+                  $rejectedOrders = $exists ? ($att['rejected_orders'] ?? 0) : 0;
+                  $ontimePct = $exists ? ($att['ontime_orders_percentage'] ?? '') : '';
                 @endphp
                 <td class="{{ !empty($day['is_today']) ? 'today' : '' }}">
                   <button type="button"
@@ -242,6 +247,11 @@
                     data-status="{{ $exists ? ($att['status'] ?? '') : '' }}"
                     data-check-in="{{ $in ? \Carbon\Carbon::parse($day['date'].' '.$in)->format('H:i') : '' }}"
                     data-check-out="{{ $out ? \Carbon\Carbon::parse($day['date'].' '.$out)->format('H:i') : '' }}"
+                    data-total-orders="{{ $totalOrders }}"
+                    data-working-hours="{{ $workingHours }}"
+                    data-cancelled-orders="{{ $cancelledOrders }}"
+                    data-rejected-orders="{{ $rejectedOrders }}"
+                    data-ontime-pct="{{ $ontimePct }}"
                     title="{{ $label }}{{ $in ? ' · In '.$in : '' }}{{ $out ? ' · Out '.$out : '' }}">
                     @if($letter)
                       <span>{{ $letter }}</span>
@@ -334,7 +344,7 @@
 
   {{-- Mark modal --}}
   <div class="att-dlg-ov" id="markOv">
-    <div class="att-dlg" role="dialog" aria-labelledby="markTitle">
+    <div class="att-dlg{{ $userType === 'rider' ? ' wide' : '' }}" id="markDlg" role="dialog" aria-labelledby="markTitle">
       <div class="hd"><h3 id="markTitle">Mark Attendance</h3><button type="button" class="x" id="markClose" aria-label="Close">&times;</button></div>
       <div class="bd">
         <div class="mhead" id="markSub"></div>
@@ -353,6 +363,33 @@
         <div class="two">
           <div class="fld"><label for="markIn">Check In</label><input type="time" id="markIn"></div>
           <div class="fld"><label for="markOut">Check Out</label><input type="time" id="markOut"></div>
+        </div>
+        <div class="rider-mark-fields" id="markRiderFields" @if($userType !== 'rider') hidden @endif>
+          <div class="rider-mark-title">Delivery Orders / Rider Activity</div>
+          <div class="two">
+            <div class="fld">
+              <label for="markTotalOrders">Delivery Orders <span class="req">*</span></label>
+              <input type="number" id="markTotalOrders" min="0" step="1" placeholder="0">
+            </div>
+            <div class="fld">
+              <label for="markWorkingHours">Working Hours <span class="req">*</span></label>
+              <input type="number" id="markWorkingHours" min="0" step="0.01" placeholder="0">
+            </div>
+          </div>
+          <div class="two">
+            <div class="fld">
+              <label for="markCancelled">Cancelled Orders</label>
+              <input type="number" id="markCancelled" min="0" step="1" value="0" placeholder="0">
+            </div>
+            <div class="fld">
+              <label for="markRejected">Rejected Orders</label>
+              <input type="number" id="markRejected" min="0" step="1" value="0" placeholder="0">
+            </div>
+          </div>
+          <div class="fld">
+            <label for="markOntime">On-Time Performance (%)</label>
+            <input type="number" id="markOntime" min="0" max="100" step="0.01" placeholder="0">
+          </div>
         </div>
       </div>
       <div class="ft">
@@ -409,6 +446,46 @@
 
   // Mark modal
   const markOv = document.getElementById('markOv');
+  const markDlg = document.getElementById('markDlg');
+  const markRiderFields = document.getElementById('markRiderFields');
+  const markTotalOrders = document.getElementById('markTotalOrders');
+  const markWorkingHours = document.getElementById('markWorkingHours');
+  const markCancelled = document.getElementById('markCancelled');
+  const markRejected = document.getElementById('markRejected');
+  const markOntime = document.getElementById('markOntime');
+
+  const isRiderMark = (refType) => (refType || userType) === 'rider';
+
+  const fillRiderFields = (btn) => {
+    if (!markRiderFields) return;
+    const show = isRiderMark(btn?.dataset?.refType || userType);
+    markRiderFields.hidden = !show;
+    markDlg?.classList.toggle('wide', show);
+    if (!show) return;
+    markTotalOrders.value = btn.dataset.totalOrders ?? '';
+    markWorkingHours.value = btn.dataset.workingHours ?? '';
+    markCancelled.value = btn.dataset.cancelledOrders !== undefined && btn.dataset.cancelledOrders !== ''
+      ? btn.dataset.cancelledOrders : '0';
+    markRejected.value = btn.dataset.rejectedOrders !== undefined && btn.dataset.rejectedOrders !== ''
+      ? btn.dataset.rejectedOrders : '0';
+    markOntime.value = btn.dataset.ontimePct ?? '';
+  };
+
+  const readRiderMetrics = () => {
+    const total = markTotalOrders?.value;
+    const hours = markWorkingHours?.value;
+    if (total === '' || hours === '') {
+      throw new Error('Delivery orders and working hours are required for riders.');
+    }
+    return {
+      total_orders: parseInt(total, 10) || 0,
+      working_hours: parseFloat(hours) || 0,
+      cancelled_orders: parseInt(markCancelled?.value || '0', 10) || 0,
+      rejected_orders: parseInt(markRejected?.value || '0', 10) || 0,
+      ontime_orders_percentage: markOntime?.value !== '' ? parseFloat(markOntime.value) : null,
+    };
+  };
+
   const openMark = (btn) => {
     cur = {
       btn,
@@ -424,6 +501,7 @@
     document.querySelectorAll('#markChips .chip').forEach(c => {
       c.classList.toggle('on', c.dataset.status === cur.status);
     });
+    fillRiderFields(btn);
     markOv.classList.add('show');
   };
   const closeMark = () => { markOv.classList.remove('show'); cur = null; };
@@ -447,11 +525,28 @@
     present: 'P', late: 'L', absent: 'A', 'on leave': 'V', 'half day': 'H', weekend: 'W'
   })[status] || '';
 
-  const paintCell = (btn, status, checkIn, checkOut) => {
+  const paintCell = (btn, attendance) => {
+    const status = attendance?.status || '';
+    const checkIn = attendance?.check_in || '';
+    const checkOut = attendance?.check_out || '';
     const letter = letterFor(status);
-    btn.dataset.status = status || '';
-    btn.dataset.checkIn = checkIn || '';
-    btn.dataset.checkOut = checkOut || '';
+    btn.dataset.status = status;
+    btn.dataset.checkIn = checkIn;
+    btn.dataset.checkOut = checkOut;
+    if (attendance && Object.prototype.hasOwnProperty.call(attendance, 'total_orders')) {
+      btn.dataset.totalOrders = attendance.total_orders ?? '';
+      btn.dataset.workingHours = attendance.working_hours ?? '';
+      btn.dataset.cancelledOrders = attendance.cancelled_orders ?? 0;
+      btn.dataset.rejectedOrders = attendance.rejected_orders ?? 0;
+      btn.dataset.ontimePct = attendance.ontime_orders_percentage ?? '';
+    }
+    if (!status) {
+      btn.dataset.totalOrders = '';
+      btn.dataset.workingHours = '';
+      btn.dataset.cancelledOrders = '0';
+      btn.dataset.rejectedOrders = '0';
+      btn.dataset.ontimePct = '';
+    }
     btn.className = 'cell' + (letter ? ' ' + letter : '');
     if (!status) {
       btn.innerHTML = '+';
@@ -475,14 +570,20 @@
       check_out: document.getElementById('markOut').value || null,
     };
     try {
+      if (isRiderMark(cur.refType)) {
+        Object.assign(body, readRiderMetrics());
+      }
       const res = await fetch(upsertUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'Accept': 'application/json' },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.message || 'Save failed');
-      paintCell(cur.btn, data.attendance.status, data.attendance.check_in, data.attendance.check_out);
+      if (!res.ok || !data.success) {
+        const firstErr = data.errors ? Object.values(data.errors).flat()[0] : null;
+        throw new Error(firstErr || data.message || 'Save failed');
+      }
+      paintCell(cur.btn, data.attendance);
       toast('Attendance saved');
       closeMark();
     } catch (err) {
@@ -500,7 +601,7 @@
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.message || 'Clear failed');
-      paintCell(cur.btn, '', '', '');
+      paintCell(cur.btn, {});
       toast('Attendance cleared');
       closeMark();
     } catch (err) {

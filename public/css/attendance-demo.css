@@ -196,7 +196,7 @@
 
 .att-demo .att-report-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 16px;
   align-items: start;
 }
@@ -212,6 +212,11 @@
   flex-direction: column;
   max-height: calc(100vh - 24px);
   overflow: hidden;
+  /* Always visible — never use .drawer slide-in styles */
+  transform: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 2;
 }
 .att-demo .filter-dock .hd {
   display: flex; align-items: center; justify-content: space-between;
@@ -224,7 +229,7 @@
 .att-demo .filter-dock .go {
   display: flex; justify-content: center; gap: 10px; margin-top: 8px;
 }
-@media (max-width: 1100px) {
+@media (max-width: 992px) {
   .att-demo .att-report-layout { grid-template-columns: 1fr; }
   .att-demo .filter-dock { position: static; max-height: none; order: -1; }
 }
@@ -298,6 +303,15 @@
 .att-demo .att-dlg .bd { padding: 18px 20px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
 .att-demo .att-dlg .ft { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line2); }
 .att-demo .mhead { font-size: 13px; color: var(--muted); }
+.att-demo .rider-mark-fields {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 14px; border: 1px solid #D6DAFF; border-radius: 12px; background: #F8F9FF;
+}
+.att-demo .rider-mark-fields[hidden] { display: none !important; }
+.att-demo .rider-mark-title {
+  font-size: 13px; font-weight: 700; color: var(--indigo-d); margin-bottom: 2px;
+}
+.att-demo .rider-mark-fields .req { color: #D64535; }
 .att-demo .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .att-demo .chip {
   border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 14px;

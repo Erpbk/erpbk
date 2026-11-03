@@ -881,6 +881,10 @@ class AttendanceController extends Controller
                         'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('h:i A') : null,
                         'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('h:i A') : null,
                         'notes' => $attendance->notes,
+                        'total_orders' => $attendance->total_orders,
+                        'working_hours' => $attendance->working_hours,
+                        'cancelled_orders' => $attendance->cancelled_orders,
+                        'rejected_orders' => $attendance->rejected_orders,
                         'ontime_orders_percentage' => $user->type === 'rider'
                             ? ($riderActivitiesByUser[$user->id][$dateString] ?? null)
                             : null,
@@ -1069,7 +1073,7 @@ class AttendanceController extends Controller
      */
     public function upsertMark(Request $request)
     {
-        $validated = $request->validate([
+        $rules = [
             'ref_type' => 'required|in:employee,rider',
             'ref_id' => 'required|integer',
             'date' => 'required|date',
@@ -1077,7 +1081,15 @@ class AttendanceController extends Controller
             'check_in' => 'nullable|string',
             'check_out' => 'nullable|string',
             'notes' => 'nullable|string|max:500',
-        ]);
+        ];
+        if ($request->input('ref_type') === 'rider') {
+            $rules = array_merge($rules, $this->riderAttendanceMetricRules());
+        }
+
+        $validated = $request->validate($rules);
+        if (($validated['ref_type'] ?? '') === 'rider') {
+            $validated = $this->applyRiderMetricDefaults($validated);
+        }
 
         if ($validated['ref_type'] === 'employee') {
             abort_unless(Employee::where('id', $validated['ref_id'])->exists(), 404);
@@ -1103,6 +1115,13 @@ class AttendanceController extends Controller
             'branch_id' => $this->resolveBranchIdForAttendance($validated['ref_type'], (int) $validated['ref_id']),
         ];
 
+        if ($validated['ref_type'] === 'rider') {
+            $payload['total_orders'] = (int) ($validated['total_orders'] ?? 0);
+            $payload['working_hours'] = (float) ($validated['working_hours'] ?? 0);
+            $payload['cancelled_orders'] = (int) ($validated['cancelled_orders'] ?? 0);
+            $payload['rejected_orders'] = (int) ($validated['rejected_orders'] ?? 0);
+        }
+
         $attendance = Attendance::updateOrCreate(
             [
                 'ref_id' => (int) $validated['ref_id'],
@@ -1112,11 +1131,16 @@ class AttendanceController extends Controller
             $payload
         );
 
+        $activitySync = $payload;
+        if ($validated['ref_type'] === 'rider' && $request->filled('ontime_orders_percentage')) {
+            $activitySync['ontime_orders_percentage'] = (float) $request->input('ontime_orders_percentage');
+        }
+
         if ($validated['ref_type'] === 'rider') {
             RiderAttendanceActivitySync::syncActivityFromAttendance(
                 (int) $validated['ref_id'],
                 $date,
-                RiderAttendanceActivitySync::syncDataFromAttendance($attendance, $payload)
+                RiderAttendanceActivitySync::syncDataFromAttendance($attendance, $activitySync)
             );
         }
 
@@ -1128,6 +1152,11 @@ class AttendanceController extends Controller
                 'status' => $attendance->status,
                 'check_in' => $attendance->check_in ? Carbon::parse($attendance->check_in)->format('H:i') : null,
                 'check_out' => $attendance->check_out ? Carbon::parse($attendance->check_out)->format('H:i') : null,
+                'total_orders' => $attendance->total_orders,
+                'working_hours' => $attendance->working_hours,
+                'cancelled_orders' => $attendance->cancelled_orders,
+                'rejected_orders' => $attendance->rejected_orders,
+                'ontime_orders_percentage' => $activitySync['ontime_orders_percentage'] ?? null,
             ],
         ]);
     }

@@ -26,14 +26,12 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261102dock">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103drawer">
 @endpush
 
 @section('content')
 @canany(['employees_attendance_view', 'riders_attendance_view'])
 <div class="att-demo" id="attReportDemo">
-<div class="att-report-layout">
-<div class="att-report-main">
 
   <div class="tabrow">
     <div class="ptabs">
@@ -63,6 +61,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M7 10l5 5 5-5"></path><path d="M12 15V3"></path></svg>
         Export
       </a>
+      <button type="button" class="btn blue" id="attReportFilterBtn">Filter</button>
     </div>
   </div>
 
@@ -207,11 +206,13 @@
     </div>
   </section>
 
-</div>{{-- /.att-report-main --}}
-
-  {{-- Always-visible filter sidebar --}}
-  <aside class="filter-dock" id="attReportFilterDrawer" aria-label="Filter Report">
-    <div class="hd"><h3>Filter Report</h3></div>
+  {{-- Filter drawer (hidden until Filter button) --}}
+  <div class="ov" id="attReportFilterOv"></div>
+  <aside class="drawer" id="attReportFilterDrawer" role="dialog" aria-label="Filter Report">
+    <div class="hd">
+      <h3>Filter Report</h3>
+      <button type="button" class="x" id="attReportFilterClose" aria-label="Close">&times;</button>
+    </div>
     <form class="bd" method="GET" action="{{ route('attendance.index') }}" id="attReportFilterForm">
       <input type="hidden" name="ref_type" value="{{ $refType }}">
       <div class="fld">
@@ -243,8 +244,6 @@
       </div>
     </form>
   </aside>
-
-</div>{{-- /.att-report-layout --}}
 
   {{-- % sheet overlay --}}
   <div class="sheet-ov" id="pctSheetOv">
@@ -428,6 +427,20 @@ window.__attPrintedAt = @json($attPrintedAt);
       });
     });
   })();
+
+  const filterOv = document.getElementById('attReportFilterOv');
+  const filterDrawer = document.getElementById('attReportFilterDrawer');
+  const openReportFilter = () => {
+    filterOv?.classList.add('show');
+    filterDrawer?.classList.add('show');
+  };
+  const closeReportFilter = () => {
+    filterOv?.classList.remove('show');
+    filterDrawer?.classList.remove('show');
+  };
+  document.getElementById('attReportFilterBtn')?.addEventListener('click', openReportFilter);
+  document.getElementById('attReportFilterClose')?.addEventListener('click', closeReportFilter);
+  filterOv?.addEventListener('click', closeReportFilter);
 
   const billingMonthInput = document.getElementById('rBillingMonth');
   const fromInput = document.getElementById('rFrom');

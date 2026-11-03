@@ -26,7 +26,7 @@
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103drawer">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103s2">
 @endpush
 
 @section('content')
@@ -231,7 +231,7 @@
       </div>
       <div class="fld">
         <label for="rStatus">Status</label>
-        <select id="rStatus" name="status">
+        <select id="rStatus" name="status" class="att-filter-select" data-placeholder="All statuses">
           <option value="">All</option>
           @foreach(['present'=>'Present','late'=>'Late','absent'=>'Absent','on leave'=>'Leave','half day'=>'Half day','weekend'=>'Weekend'] as $val => $lab)
             <option value="{{ $val }}" {{ request('status') === $val ? 'selected' : '' }}>{{ $lab }}</option>
@@ -430,9 +430,27 @@ window.__attPrintedAt = @json($attPrintedAt);
 
   const filterOv = document.getElementById('attReportFilterOv');
   const filterDrawer = document.getElementById('attReportFilterDrawer');
+  const rStatus = document.getElementById('rStatus');
+  const $jq = window.jQuery;
+  const hasSelect2 = !!( $jq && $jq.fn && $jq.fn.select2 );
+  const initReportFilterSelect2 = () => {
+    if (!hasSelect2 || !rStatus) return;
+    const $el = $jq(rStatus);
+    if ($el.hasClass('select2-hidden-accessible')) $el.select2('destroy');
+    $el.next('.select2-container').remove();
+    $el.select2({
+      width: '100%',
+      allowClear: true,
+      placeholder: $el.data('placeholder') || 'All statuses',
+      dropdownParent: $jq(filterDrawer || document.body),
+      dropdownCssClass: 'att-filter-select2-dropdown',
+      minimumResultsForSearch: 8,
+    });
+  };
   const openReportFilter = () => {
     filterOv?.classList.add('show');
     filterDrawer?.classList.add('show');
+    setTimeout(initReportFilterSelect2, 30);
   };
   const closeReportFilter = () => {
     filterOv?.classList.remove('show');
@@ -441,6 +459,7 @@ window.__attPrintedAt = @json($attPrintedAt);
   document.getElementById('attReportFilterBtn')?.addEventListener('click', openReportFilter);
   document.getElementById('attReportFilterClose')?.addEventListener('click', closeReportFilter);
   filterOv?.addEventListener('click', closeReportFilter);
+  initReportFilterSelect2();
 
   const billingMonthInput = document.getElementById('rBillingMonth');
   const fromInput = document.getElementById('rFrom');

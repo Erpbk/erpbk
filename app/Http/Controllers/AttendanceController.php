@@ -362,11 +362,24 @@ class AttendanceController extends Controller
      */
     public function getUsers($company_slug, $refType)
     {
-        $users = null;
         if ($refType === 'employee') {
-            $users = Employee::select('id', 'name')->get();
+            $users = Employee::query()
+                ->select('id', 'name', 'employee_id')
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => trim($u->name . (! empty($u->employee_id) ? ' (' . $u->employee_id . ')' : '')),
+                ]);
         } else {
-            $users = Riders::select('id', 'name')->get();
+            $users = Riders::query()
+                ->select('id', 'name', 'rider_id')
+                ->orderBy('name')
+                ->get()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => trim($u->name . (! empty($u->rider_id) ? ' (' . $u->rider_id . ')' : '')),
+                ]);
         }
 
         return response()->json($users);
@@ -713,15 +726,31 @@ class AttendanceController extends Controller
     public function summary(Request $request)
     {
         $userType = $request->get('user_type', $request->get('ref_type', 'employee')) ?: 'employee';
-        $usersId = $request->get('user_id', $request->get('ref_id', 'all')) ?: 'all';
+        if (! in_array($userType, ['employee', 'rider'], true)) {
+            $userType = 'employee';
+        }
+        $usersId = $request->input('user_id', $request->input('ref_id', 'all'));
+        if ($usersId === null || $usersId === '' || $usersId === 'all') {
+            $usersId = 'all';
+        }
         $projectId = $request->get('project_id');
         $fleetSupervisor = $request->get('fleet_supervisor');
-        $viewMode = $request->get('view_mode', 'ten_days');
+        $viewMode = $request->get('view_mode', 'ten_days') ?: 'ten_days';
         $viewStart = max(1, (int) $request->get('view_start', 1));
         $statusFilter = $this->normalizeAttendanceStatus($request->get('status'));
         $fromDate = $request->filled('from_date') ? $request->get('from_date') : null;
         $toDate = $request->filled('to_date') ? $request->get('to_date') : null;
         $filterDate = $request->filled('filter_date') ? $request->get('filter_date') : null;
+
+        // Full Month / Week / 10 Days links omit From/To. If those dates are still present,
+        // treat as custom range — unless force_calendar=1 is passed with a window mode.
+        $calendarModes = ['week', 'ten_days', 'month'];
+        $forceCalendar = $request->boolean('force_calendar') && in_array($viewMode, $calendarModes, true);
+        if ($forceCalendar) {
+            $fromDate = null;
+            $toDate = null;
+            $filterDate = null;
+        }
 
         $rawDate = trim((string) $request->get('date', ''));
         if ($rawDate === '') {
@@ -745,6 +774,9 @@ class AttendanceController extends Controller
         }
 
         $isCustomRange = filled($fromDate) || filled($toDate);
+        if ($isCustomRange) {
+            $viewMode = 'range';
+        }
         $rangeStart = $isCustomRange
             ? Carbon::parse($fromDate ?: $startOfMonth)
             : $startOfMonth;

@@ -33,10 +33,13 @@
       $st = strtolower((string) ($user->status ?? 'active'));
       return str_contains($st, 'inactive') ? 'Inactive' : 'Active';
   };
+  $personLabel = $userType === 'rider' ? 'Rider' : 'Employee';
   $baseQuery = array_filter([
       'date' => $date->format('Y-m-d'),
       'user_type' => $userType,
-      'user_id' => ($usersId ?? 'all') !== 'all' ? $usersId : null,
+      'user_id' => (($usersId ?? 'all') !== 'all' && $usersId !== null && $usersId !== '') ? (string) $usersId : null,
+      'view_mode' => in_array(($viewMode ?? ''), ['week', 'ten_days', 'month'], true) ? $viewMode : null,
+      'view_start' => ($viewStart ?? 1) > 1 ? (int) $viewStart : null,
       'project_id' => $projectId ?: null,
       'fleet_supervisor' => $fleetSupervisor ?: null,
       'status' => $statusFilter ?: null,
@@ -46,11 +49,21 @@
       'filter_date' => ($filterDate ?? null) ?: null,
   ], fn ($v) => $v !== null && $v !== '');
   $q = fn (array $extra = []) => http_build_query(array_filter(array_merge($baseQuery, $extra), fn ($v) => $v !== null && $v !== ''));
+  $qWindow = fn (string $mode, int $start = 1) => $q([
+      'view_mode' => $mode,
+      'view_start' => $start > 1 ? $start : null,
+      'from_date' => null,
+      'to_date' => null,
+      'filter_date' => null,
+      'force_calendar' => 1,
+      'user_type' => $userType,
+      'user_id' => (($usersId ?? 'all') !== 'all' && $usersId !== null && $usersId !== '') ? (string) $usersId : null,
+  ]);
 @endphp
 
 @push('third_party_stylesheets')
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
-<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103mark">
+<link rel="stylesheet" href="{{ asset('css/attendance-demo.css') }}?v=20261103s2">
 @endpush
 
 @section('content')
@@ -65,7 +78,8 @@
      data-upsert="{{ $attUpsertUrl }}"
      data-clear="{{ $attClearUrl }}"
      data-csrf="{{ csrf_token() }}"
-     data-user-type="{{ $userType }}">
+     data-user-type="{{ $userType }}"
+     data-users-url="{{ str_replace('___TYPE___', '__TYPE__', route('attendance.users', ['refType' => '___TYPE___'])) }}">
 
   <div class="tabrow">
     <div class="ptabs">
@@ -92,7 +106,7 @@
   <section class="kpis" aria-label="Today's summary">
     @php
       $kpis = [
-        ['key' => '', 'label' => 'Total employees', 'n' => $todayKpis['total'], 'c' => '#1F3FD1', 'bg' => '#EEF2FF', 'pct' => 100],
+        ['key' => '', 'label' => 'Total ' . strtolower($personLabel) . 's', 'n' => $todayKpis['total'], 'c' => '#1F3FD1', 'bg' => '#EEF2FF', 'pct' => 100],
         ['key' => 'present', 'label' => 'Present today', 'n' => $todayKpis['present'], 'c' => '#1E8E4E', 'bg' => '#E7F6EC', 'pct' => round($todayKpis['present'] / $kpiTotal * 100)],
         ['key' => 'late', 'label' => 'Late in today', 'n' => $todayKpis['late'], 'c' => '#E59A1F', 'bg' => '#FFF3DF', 'pct' => round($todayKpis['late'] / $kpiTotal * 100)],
         ['key' => 'absent', 'label' => 'Absent today', 'n' => $todayKpis['absent'], 'c' => '#D64535', 'bg' => '#FDECEC', 'pct' => round($todayKpis['absent'] / $kpiTotal * 100)],
@@ -150,12 +164,12 @@
 
     <div class="viewbar">
       <div class="seg">
-        <a class="{{ $viewMode === 'week' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => 'week', 'view_start' => 1]) }}">1 Week</a>
-        <a class="{{ $viewMode === 'ten_days' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => 'ten_days', 'view_start' => 1]) }}">10 Days</a>
-        <a class="{{ $viewMode === 'month' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => 'month', 'view_start' => 1]) }}">Full Month</a>
+        <a class="{{ $viewMode === 'week' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $qWindow('week') }}">1 Week</a>
+        <a class="{{ $viewMode === 'ten_days' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $qWindow('ten_days') }}">10 Days</a>
+        <a class="{{ $viewMode === 'month' ? 'on' : '' }}" href="{{ route('attendance.summary') }}?{{ $qWindow('month') }}">Full Month</a>
       </div>
       <div class="range">
-        <a class="{{ ! $hasPrevWindow ? 'disabled' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => $viewMode, 'view_start' => $prevStart]) }}" aria-label="Previous">&lsaquo;</a>
+        <a class="{{ ! $hasPrevWindow ? 'disabled' : '' }}" href="{{ route('attendance.summary') }}?{{ $qWindow($viewMode === 'range' ? 'ten_days' : $viewMode, (int) $prevStart) }}" aria-label="Previous">&lsaquo;</a>
         <span>
           @if(count($days) > 0 && !empty($isCustomRange))
             {{ \Carbon\Carbon::parse($days[0]['date'])->format('d M') }} – {{ \Carbon\Carbon::parse($days[count($days)-1]['date'])->format('d M') }}
@@ -165,9 +179,9 @@
             {{ $date->format('M Y') }}
           @endif
         </span>
-        <a class="{{ ! $hasNextWindow ? 'disabled' : '' }}" href="{{ route('attendance.summary') }}?{{ $q(['view_mode' => $viewMode, 'view_start' => $nextStart]) }}" aria-label="Next">&rsaquo;</a>
-        <a class="btn outline" href="{{ route('attendance.summary') }}?{{ $q(['date' => $prevMonth, 'view_start' => 1]) }}" title="Previous month">&larr;</a>
-        <a class="btn outline" href="{{ route('attendance.summary') }}?{{ $q(['date' => $nextMonth, 'view_start' => 1]) }}" title="Next month">&rarr;</a>
+        <a class="{{ ! $hasNextWindow ? 'disabled' : '' }}" href="{{ route('attendance.summary') }}?{{ $qWindow($viewMode === 'range' ? 'ten_days' : $viewMode, (int) $nextStart) }}" aria-label="Next">&rsaquo;</a>
+        <a class="btn outline" href="{{ route('attendance.summary') }}?{{ $q(['date' => $prevMonth, 'view_start' => 1, 'from_date' => null, 'to_date' => null, 'filter_date' => null, 'user_id' => (($usersId ?? 'all') !== 'all' ? (string) $usersId : null)]) }}" title="Previous month">&larr;</a>
+        <a class="btn outline" href="{{ route('attendance.summary') }}?{{ $q(['date' => $nextMonth, 'view_start' => 1, 'from_date' => null, 'to_date' => null, 'filter_date' => null, 'user_id' => (($usersId ?? 'all') !== 'all' ? (string) $usersId : null)]) }}" title="Next month">&rarr;</a>
       </div>
     </div>
 
@@ -284,10 +298,16 @@
   <div class="ov" id="attFilterOv"></div>
   <aside class="drawer" id="attFilterDrawer" role="dialog" aria-label="Filter Attendance">
     <div class="hd"><h3>Filter Attendance</h3><button type="button" class="x" id="attFilterClose" aria-label="Close">&times;</button></div>
-    <form class="bd" method="GET" action="{{ route('attendance.summary') }}">
-      <input type="hidden" name="user_type" value="{{ $userType }}">
-      <input type="hidden" name="view_mode" value="{{ $viewMode }}">
+    <form class="bd" method="GET" action="{{ route('attendance.summary') }}" id="attFilterForm">
+      <input type="hidden" name="view_mode" value="{{ in_array($viewMode, ['week', 'ten_days', 'month'], true) ? $viewMode : 'ten_days' }}">
       <input type="hidden" name="view_start" value="{{ $viewStart }}">
+      <div class="fld">
+        <label for="fPersonType">Person Type</label>
+        <select id="fPersonType" name="user_type" class="att-filter-select" data-placeholder="Person type">
+          <option value="employee" {{ $userType === 'employee' ? 'selected' : '' }}>Employees</option>
+          <option value="rider" {{ $userType === 'rider' ? 'selected' : '' }}>Riders</option>
+        </select>
+      </div>
       <div class="fld">
         <label for="fMonth">Month</label>
         <input type="month" id="fMonth" name="date" value="{{ $date->format('Y-m') }}">
@@ -307,34 +327,32 @@
         </div>
       </div>
       <div class="fld">
-        <label for="fUser">User</label>
-        <select id="fUser" name="user_id">
-          <option value="all">All</option>
+        <label for="fUser" id="fUserLabel">{{ $personLabel }}</label>
+        <select id="fUser" name="user_id" class="att-filter-select" data-placeholder="All {{ strtolower($personLabel) }}s">
+          <option value="all">All {{ strtolower($personLabel) }}s</option>
           @foreach(($filterUsers ?? $users ?? collect()) as $u)
-            <option value="{{ $u->id }}" {{ (string) $usersId === (string) $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+            <option value="{{ $u->id }}" {{ (string) $usersId === (string) $u->id ? 'selected' : '' }}>{{ $u->name }}{{ !empty($u->employee_id) ? ' ('.$u->employee_id.')' : (!empty($u->rider_id) ? ' ('.$u->rider_id.')' : '') }}</option>
           @endforeach
         </select>
       </div>
       <div class="fld">
         <label for="fStatus">Mark status</label>
-        <select id="fStatus" name="status">
+        <select id="fStatus" name="status" class="att-filter-select" data-placeholder="All statuses">
           <option value="">All</option>
           @foreach(['present'=>'Present','late'=>'Late','absent'=>'Absent','on leave'=>'Leave','half day'=>'Half day','weekend'=>'Weekend','unmarked'=>'Not marked'] as $val => $lab)
             <option value="{{ $val }}" {{ $statusFilter === $val ? 'selected' : '' }}>{{ $lab }}</option>
           @endforeach
         </select>
       </div>
-      @if($userType === 'employee' && $branchTabs->isNotEmpty())
-      <div class="fld">
+      <div class="fld" id="fBranchWrap" @if($userType !== 'employee' || $branchTabs->isEmpty()) hidden @endif>
         <label for="fBranch">Branch</label>
-        <select id="fBranch" name="branch_id">
+        <select id="fBranch" name="branch_id" class="att-filter-select" data-placeholder="All Branches">
           <option value="">All Branches</option>
           @foreach($branchTabs as $tab)
             <option value="{{ $tab['id'] }}" {{ (int) $selectedBranchId === (int) $tab['id'] ? 'selected' : '' }}>{{ $tab['name'] }}</option>
           @endforeach
         </select>
       </div>
-      @endif
       <div class="go">
         <a class="btn reset" href="{{ route('attendance.summary', ['user_type' => $userType]) }}">Reset</a>
         <button type="submit" class="btn blue">Apply</button>
@@ -359,6 +377,18 @@
           ] as [$val, $lab])
             <button type="button" class="chip" data-status="{{ $val }}">{{ $lab }}</button>
           @endforeach
+        </div>
+        <div class="fld">
+          <label for="markAutoTiming">Auto Timing</label>
+          <select id="markAutoTiming">
+            <option value="">Custom / keep current</option>
+            <option value="08:00|17:00">8:00 AM – 5:00 PM</option>
+            <option value="09:00|17:00">9:00 AM – 5:00 PM</option>
+            <option value="09:00|18:00">9:00 AM – 6:00 PM</option>
+            <option value="10:00|18:00">10:00 AM – 6:00 PM</option>
+            <option value="10:00|19:00">10:00 AM – 7:00 PM</option>
+            <option value="11:00|20:00">11:00 AM – 8:00 PM</option>
+          </select>
         </div>
         <div class="two">
           <div class="fld"><label for="markIn">Check In</label><input type="time" id="markIn"></div>
@@ -417,6 +447,7 @@
   const clearUrl = root.dataset.clear;
   const csrf = root.dataset.csrf;
   const userType = root.dataset.userType;
+  const usersUrlTpl = root.dataset.usersUrl || '';
   let cur = null;
 
   const toast = (msg) => {
@@ -435,14 +466,90 @@
     });
   });
 
-  // Filter drawer
+  // Filter drawer + Select2
   const ov = document.getElementById('attFilterOv');
   const drawer = document.getElementById('attFilterDrawer');
-  const openFilter = () => { ov.classList.add('show'); drawer.classList.add('show'); };
+  const fPersonType = document.getElementById('fPersonType');
+  const fUser = document.getElementById('fUser');
+  const fUserLabel = document.getElementById('fUserLabel');
+  const fBranchWrap = document.getElementById('fBranchWrap');
+  const $ = window.jQuery;
+  const hasSelect2 = !!( $ && $.fn && $.fn.select2 );
+
+  const destroySelect2 = (el) => {
+    if (!hasSelect2 || !el) return;
+    const $el = $(el);
+    if ($el.hasClass('select2-hidden-accessible')) {
+      $el.select2('destroy');
+    }
+    $el.next('.select2-container').remove();
+  };
+
+  const initFilterSelect2 = (els) => {
+    if (!hasSelect2) return;
+    (els || []).forEach((el) => {
+      if (!el) return;
+      destroySelect2(el);
+      const $el = $(el);
+      $el.select2({
+        width: '100%',
+        allowClear: el.id !== 'fPersonType',
+        placeholder: $el.data('placeholder') || 'Select',
+        dropdownParent: $(drawer || document.body),
+        dropdownCssClass: 'att-filter-select2-dropdown',
+        minimumResultsForSearch: el.id === 'fStatus' || el.id === 'fPersonType' ? 8 : 0,
+      });
+    });
+  };
+
+  const openFilter = () => {
+    ov.classList.add('show');
+    drawer.classList.add('show');
+    // Re-position Select2 after drawer is visible
+    setTimeout(() => initFilterSelect2([fPersonType, fUser, document.getElementById('fStatus'), document.getElementById('fBranch')]), 30);
+  };
   const closeFilter = () => { ov.classList.remove('show'); drawer.classList.remove('show'); };
   document.getElementById('attFilterBtn')?.addEventListener('click', openFilter);
   document.getElementById('attFilterClose')?.addEventListener('click', closeFilter);
   ov?.addEventListener('click', closeFilter);
+
+  const loadFilterPeople = async (type, keepSelected) => {
+    if (!fUser || !usersUrlTpl) return;
+    const label = type === 'rider' ? 'Rider' : 'Employee';
+    if (fUserLabel) fUserLabel.textContent = label;
+    if (fBranchWrap) fBranchWrap.hidden = type !== 'employee';
+    const selected = keepSelected ? (hasSelect2 ? $(fUser).val() : fUser.value) : 'all';
+    destroySelect2(fUser);
+    fUser.innerHTML = '<option value="all">All ' + label.toLowerCase() + 's</option>';
+    fUser.setAttribute('data-placeholder', 'All ' + label.toLowerCase() + 's');
+    try {
+      const res = await fetch(usersUrlTpl.replace('__TYPE__', encodeURIComponent(type)), {
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      const people = await res.json();
+      (people || []).forEach((p) => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name || ('#' + p.id);
+        if (String(selected) === String(p.id)) opt.selected = true;
+        fUser.appendChild(opt);
+      });
+      if (String(selected) === 'all') fUser.value = 'all';
+    } catch (e) {
+      toast('Could not load ' + label.toLowerCase() + 's');
+    }
+    initFilterSelect2([fUser]);
+    initFilterSelect2([document.getElementById('fBranch')]);
+  };
+
+  if (hasSelect2) {
+    $(fPersonType).on('change', function () {
+      loadFilterPeople(this.value, false);
+    });
+  } else {
+    fPersonType?.addEventListener('change', () => loadFilterPeople(fPersonType.value, false));
+  }
+  initFilterSelect2([fPersonType, fUser, document.getElementById('fStatus'), document.getElementById('fBranch')]);
 
   // Mark modal
   const markOv = document.getElementById('markOv');
@@ -453,8 +560,19 @@
   const markCancelled = document.getElementById('markCancelled');
   const markRejected = document.getElementById('markRejected');
   const markOntime = document.getElementById('markOntime');
+  const markAutoTiming = document.getElementById('markAutoTiming');
+  const markIn = document.getElementById('markIn');
+  const markOut = document.getElementById('markOut');
 
   const isRiderMark = (refType) => (refType || userType) === 'rider';
+
+  markAutoTiming?.addEventListener('change', () => {
+    const val = markAutoTiming.value || '';
+    if (!val.includes('|')) return;
+    const [inn, out] = val.split('|');
+    if (markIn) markIn.value = inn;
+    if (markOut) markOut.value = out;
+  });
 
   const fillRiderFields = (btn) => {
     if (!markRiderFields) return;
@@ -496,8 +614,9 @@
       status: btn.dataset.status || 'present',
     };
     document.getElementById('markSub').textContent = cur.name + ' · ' + cur.date;
-    document.getElementById('markIn').value = btn.dataset.checkIn || '';
-    document.getElementById('markOut').value = btn.dataset.checkOut || '';
+    if (markIn) markIn.value = btn.dataset.checkIn || '';
+    if (markOut) markOut.value = btn.dataset.checkOut || '';
+    if (markAutoTiming) markAutoTiming.value = '';
     document.querySelectorAll('#markChips .chip').forEach(c => {
       c.classList.toggle('on', c.dataset.status === cur.status);
     });
@@ -566,8 +685,8 @@
       ref_id: cur.refId,
       date: cur.date,
       status: cur.status || 'present',
-      check_in: document.getElementById('markIn').value || null,
-      check_out: document.getElementById('markOut').value || null,
+      check_in: markIn?.value || null,
+      check_out: markOut?.value || null,
     };
     try {
       if (isRiderMark(cur.refType)) {

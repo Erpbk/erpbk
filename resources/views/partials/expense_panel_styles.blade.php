@@ -5,42 +5,73 @@
     --exp-muted: #64748b;
     --exp-line: #e2e8f0;
     --exp-surface: #f8fafc;
-    --exp-accent: #334155;
-    --exp-warn: #b45309;
-    --exp-ok: #047857;
+    --exp-accent: #1e3a5f;
+    --exp-danger: #dc2626;
+    --exp-ok: #16a34a;
+    --exp-warn: #d97706;
+    --exp-info: #0ea5e9;
   }
 
+  /* Match rider profile tabs: full baseline + active blue underline sitting on it */
   .exp-tab-nav {
-    border-bottom: 1px solid var(--exp-line);
+    border-bottom: none;
     margin-bottom: 1.25rem;
+    background: #fff;
+    border: 1px solid #e8ecf1;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .06);
+    padding: 8px 10px 0;
+  }
+
+  .exp-tab-nav > .nav {
+    border-bottom: 1px solid #e2e8f0 !important;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .exp-tab-nav .nav-item {
+    margin: 0 !important;
   }
 
   .exp-tab-nav .nav-link {
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    padding: .6rem 1rem;
-    font-weight: 600;
-    font-size: .875rem;
-    color: var(--exp-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    border: 0 !important;
+    border-bottom: 3px solid transparent !important;
+    /* Same as rider/employee profile tabs: rounds the active underline ends */
+    border-radius: 0 0 12px 12px !important;
+    margin: 0 0 -1px 0 !important;
+    padding: .55rem .9rem !important;
+    font-weight: 500;
+    font-size: .8125rem;
+    line-height: 1.25;
+    color: #6c757d !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    white-space: nowrap;
     transition: color .15s, border-color .15s;
   }
 
   .exp-tab-nav .nav-link:hover {
-    color: var(--exp-ink);
+    color: #1e4b8e !important;
+    font-weight: 600;
+    background: transparent !important;
+    border-bottom-color: #1e4b8e !important;
   }
 
   .exp-tab-nav .nav-link.active {
-    color: var(--exp-ink);
-    border-bottom-color: var(--exp-accent);
-    background: none;
+    color: #1e4b8e !important;
+    font-weight: 600;
+    border-bottom-color: #1e4b8e !important;
+    background: transparent !important;
   }
 
   .exp-tab-nav .nav-link .badge {
     font-size: .65rem;
     font-weight: 600;
     vertical-align: middle;
-    background: #475569 !important;
+    background: #dc2626 !important;
     color: #fff;
   }
 
@@ -77,35 +108,18 @@
   .section-header h5 {
     margin: 0;
     font-size: .95rem;
-    font-weight: 650;
-    color: var(--exp-ink);
-    letter-spacing: -.01em;
+    font-weight: 700;
+    color: var(--exp-accent);
+    letter-spacing: .04em;
+    text-transform: uppercase;
   }
 
-  .section-header .btn-exp-primary {
-    background: var(--exp-accent);
-    border-color: var(--exp-accent);
-    color: #fff;
+  .section-header .btn-primary {
     font-weight: 600;
   }
 
-  .section-header .btn-exp-primary:hover {
-    background: #1e293b;
-    border-color: #1e293b;
-    color: #fff;
-  }
-
-  .section-header .btn-exp-ghost {
-    background: #fff;
-    border: 1px solid var(--exp-line);
-    color: var(--exp-ink);
+  .section-header .btn-outline-primary {
     font-weight: 600;
-  }
-
-  .section-header .btn-exp-ghost:hover {
-    background: var(--exp-surface);
-    border-color: #cbd5e1;
-    color: var(--exp-ink);
   }
 
   .stat-strip {
@@ -122,17 +136,34 @@
     align-items: center;
     gap: .75rem;
     background: #fff;
-    border-radius: .5rem;
-    padding: .65rem .9rem;
+    border-radius: .55rem;
+    padding: .7rem .95rem;
     min-width: 150px;
     flex: 1;
     border: 1px solid var(--exp-line);
+    border-top: 3px solid var(--exp-line);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
     transition: border-color .15s, box-shadow .15s;
   }
 
   .stat-pill:hover {
-    border-color: #cbd5e1;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, .06);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, .08);
+  }
+
+  .stat-pill.danger {
+    border-top-color: var(--exp-danger);
+  }
+
+  .stat-pill.success {
+    border-top-color: var(--exp-ok);
+  }
+
+  .stat-pill.warning {
+    border-top-color: var(--exp-warn);
+  }
+
+  .stat-pill.info {
+    border-top-color: var(--exp-info);
   }
 
   .stat-pill .sp-icon {
@@ -145,20 +176,28 @@
     align-items: center;
     justify-content: center;
     background: var(--exp-surface);
-    border: 1px solid var(--exp-line);
+    border: none;
     color: var(--exp-muted);
   }
 
   .stat-pill.danger .sp-icon {
-    color: var(--exp-warn);
-    background: #fffbeb;
-    border-color: #fde68a;
+    color: var(--exp-danger);
+    background: #fee2e2;
   }
 
   .stat-pill.success .sp-icon {
     color: var(--exp-ok);
-    background: #ecfdf5;
-    border-color: #a7f3d0;
+    background: #dcfce7;
+  }
+
+  .stat-pill.warning .sp-icon {
+    color: var(--exp-warn);
+    background: #ffedd5;
+  }
+
+  .stat-pill.info .sp-icon {
+    color: var(--exp-info);
+    background: #e0f2fe;
   }
 
   .stat-pill .sp-body {
@@ -178,7 +217,7 @@
   }
 
   .stat-pill .sp-value {
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: 700;
     color: var(--exp-ink);
     line-height: 1.25;
@@ -188,11 +227,16 @@
   }
 
   .stat-pill.danger .sp-value {
-    color: #92400e;
+    color: #b91c1c;
   }
 
   .stat-pill.success .sp-value {
-    color: #065f46;
+    color: #15803d;
+  }
+
+  .stat-pill.warning .sp-value,
+  .stat-pill.info .sp-value {
+    color: var(--exp-ink);
   }
 
   .exp-card > .card-body {

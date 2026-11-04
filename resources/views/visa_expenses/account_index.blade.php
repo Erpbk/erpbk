@@ -131,11 +131,19 @@
 </div>
 
 @canany(['visa_expense_account_creation_view', 'visa_expense_entries_view'])
+@php
+  $visaToggleRiderFavoriteUrl = preg_replace('#/0$#', '', route('riders.toggleFavorite', ['id' => 0]));
+  $visaToggleEmployeeFavoriteUrl = \Illuminate\Support\Facades\Route::has('employees.toggleFavorite')
+    ? preg_replace('#/0$#', '', route('employees.toggleFavorite', ['id' => 0]))
+    : company_app_url('employees/toggle-favorite');
+@endphp
 <div class="riders-list-demo" id="visaAccountsListDemo"
      data-filter-ajax="{{ route('VisaExpense.filterAjax') }}"
      data-search-persons="{{ route('VisaExpense.searchPersons') }}"
      data-csrf="{{ csrf_token() }}"
-     data-index-url="{{ route('VisaExpense.index') }}">
+     data-index-url="{{ route('VisaExpense.index') }}"
+     data-toggle-rider-favorite="{{ $visaToggleRiderFavoriteUrl }}"
+     data-toggle-employee-favorite="{{ $visaToggleEmployeeFavoriteUrl }}">
 
   <div class="rl-wrap">
     @include('flash::message')
@@ -543,6 +551,8 @@
     searchPersons: root.dataset.searchPersons,
     csrf: root.dataset.csrf,
     indexUrl: root.dataset.indexUrl,
+    toggleRiderFavoriteBase: root.dataset.toggleRiderFavorite,
+    toggleEmployeeFavoriteBase: root.dataset.toggleEmployeeFavorite,
   };
 
   let toastTimer;
@@ -785,6 +795,37 @@
         if (url && typeof confirmDelete === 'function') confirmDelete(url);
       };
     });
+
+    document.querySelectorAll('#rlBody [data-fav]').forEach(btn => {
+      btn.onclick = function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const id = this.dataset.fav;
+        const type = this.dataset.favType === 'employee' ? 'employee' : 'rider';
+        const base = type === 'employee' ? cfg.toggleEmployeeFavoriteBase : cfg.toggleRiderFavoriteBase;
+        if (!base || !id) return;
+        fetch(base + '/' + id, {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': cfg.csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+          body: new URLSearchParams({ _token: cfg.csrf }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.success) { toast(data.message || 'Failed'); return; }
+            this.classList.toggle('on', !!data.favorited);
+            this.setAttribute('aria-label', data.favorited ? 'Remove from favorites' : 'Add to favorites');
+            const row = this.closest('tr');
+            if (row) row.classList.toggle('rl-fav-row', !!data.favorited);
+            toast(data.message);
+            refreshTable({});
+          })
+          .catch(() => toast('Could not update favorite'));
+      };
+    });
   }
   bindTableEvents();
 
@@ -816,8 +857,19 @@
   function cellExportValue(td, col) {
     if (!td) return { text: '-', href: null };
     if (col.key === 'name') {
-      const a = td.querySelector('a[href]');
+      const clone = td.cloneNode(true);
+      clone.querySelectorAll('.rl-star,.dropdown').forEach(n => n.remove());
+      const a = clone.querySelector('a[href]');
       if (a) return { text: (a.textContent || '').trim() || '-', href: a.href };
+      return { text: (clone.textContent || '').replace(/\s+/g, ' ').trim() || '-', href: null };
+    }
+    if (col.key === 'next_unpaid' || col.key === 'expiry') {
+      const badge = td.querySelector('.badge');
+      const amount = td.querySelector('.visa-status-amount');
+      const parts = [];
+      if (badge) parts.push((badge.textContent || '').trim());
+      if (amount) parts.push((amount.textContent || '').trim());
+      if (parts.length) return { text: parts.join(' · '), href: td.querySelector('a[href]')?.href || null };
     }
     if (col.key === 'status' || col.key === 'wps' || col.key === 'category') {
       const badge = td.querySelector('.badge');

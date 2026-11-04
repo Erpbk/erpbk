@@ -17,8 +17,8 @@
   --star: #f59e0b;
   --sec: #e3e4f9;
   --sec-ink: #1e1ec8;
-  --fv-bg: #f4f7fb;
-  --fv-edge: #e3ebf5;
+  --fv-bg: linear-gradient(90deg, #cfe0f8 0%, #e8eff9 42%, #f8fafc 100%);
+  --fv-edge: #d5e2f2;
   --fv-line: #3b6fd9;
   font-family: Inter, system-ui, sans-serif;
 }

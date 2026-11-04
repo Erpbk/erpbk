@@ -31,7 +31,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
       <h5>{{ $visaCategoryName }}</h5>
     </div>
     @can('visa_expense_entries_create')
-    <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+    <a class="btn btn-sm btn-primary action-btn show-modal"
       href="javascript:void(0);"
       data-action="{{ route('VisaExpense.create', ['id' => $visaAccount->id]) }}"
       data-size="lg"
@@ -55,14 +55,14 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
         <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format($visaTotalPaid, 2) }}</span>
       </div>
     </div>
-    <div class="stat-pill danger">
+    <div class="stat-pill warning">
       <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
       <div class="sp-body">
         <span class="sp-label">Unpaid Expenses</span>
         <span class="sp-value">{{ $visaUnpaidCount }}</span>
       </div>
     </div>
-    <div class="stat-pill success">
+    <div class="stat-pill info">
       <div class="sp-icon"><i class="fa fa-check"></i></div>
       <div class="sp-body">
         <span class="sp-label">Paid Expenses</span>
@@ -87,7 +87,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
     </div>
     <div class="d-flex gap-2">
       @can('visa_expense_installments_create')
-      <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+      <a class="btn btn-sm btn-primary action-btn show-modal"
         href="javascript:void(0);"
         data-action="{{ route('Installments.createInstallmentPlanForm', $visaAccount->id) }}"
         data-size="lg"
@@ -97,7 +97,7 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
       @endcan
       @if($visaInstallmentData->count() > 0)
       <a href="javascript:void(0);"
-        class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
+        class="btn btn-sm btn-outline-primary action-btn show-modal-right"
         data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $visaAccount->id]) }}"
         data-size="xl"
         data-title="Installment plan invoice — {{ $visaAccount->name ?? 'Person' }}">
@@ -121,14 +121,14 @@ $visaCategoryName = $activeRenewalCategory->name ?? 'Visa Expense';
         <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float) $visaInstallmentStats['paid_amount'], 2) }}</span>
       </div>
     </div>
-    <div class="stat-pill danger">
+    <div class="stat-pill warning">
       <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
       <div class="sp-body">
         <span class="sp-label">Unpaid Installments</span>
         <span class="sp-value">{{ (int) $visaInstallmentStats['unpaid_count'] }}</span>
       </div>
     </div>
-    <div class="stat-pill success">
+    <div class="stat-pill info">
       <div class="sp-icon"><i class="fa fa-check"></i></div>
       <div class="sp-body">
         <span class="sp-label">Paid Installments</span>

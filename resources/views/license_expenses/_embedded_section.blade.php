@@ -33,7 +33,7 @@ $licenseCategoryName = $activeLicenseCategory->name ?? 'License Expense';
       <h5>{{ $licenseCategoryName }}</h5>
     </div>
     @can('license_expense_create')
-    <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+    <a class="btn btn-sm btn-primary action-btn show-modal"
       href="javascript:void(0);"
       data-action="{{ route('LicenseExpense.create', $licenseAccount->id) }}"
       data-size="lg"
@@ -57,14 +57,14 @@ $licenseCategoryName = $activeLicenseCategory->name ?? 'License Expense';
         <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format($licenseTotalPaid, 2) }}</span>
       </div>
     </div>
-    <div class="stat-pill danger">
+    <div class="stat-pill warning">
       <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
       <div class="sp-body">
         <span class="sp-label">Unpaid Expenses</span>
         <span class="sp-value">{{ $licenseUnpaidCount }}</span>
       </div>
     </div>
-    <div class="stat-pill success">
+    <div class="stat-pill info">
       <div class="sp-icon"><i class="fa fa-check"></i></div>
       <div class="sp-body">
         <span class="sp-label">Paid Expenses</span>
@@ -82,7 +82,7 @@ $licenseCategoryName = $activeLicenseCategory->name ?? 'License Expense';
     <i class="fa fa-id-card fa-2x mb-2 d-block opacity-50"></i>
     No license expense account found for this rider.
     @can('license_expense_create')
-    <a href="{{ route('LicenseExpense.index') }}" class="btn btn-sm btn-exp-ghost ms-2">
+    <a href="{{ route('LicenseExpense.index') }}" class="btn btn-sm btn-outline-primary ms-2">
       Create License Expense Account
     </a>
     @endcan

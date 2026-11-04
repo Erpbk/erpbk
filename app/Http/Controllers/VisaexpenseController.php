@@ -193,7 +193,7 @@ class VisaexpenseController extends AppBaseController
             ['data' => 'category', 'title' => 'Visa Category'],
             ['data' => 'status', 'title' => 'Status'],
             ['data' => 'wps', 'title' => 'WPS'],
-            ['data' => 'next_unpaid', 'title' => 'Next Unpaid Document'],
+            ['data' => 'next_unpaid', 'title' => 'Visa Status'],
             ['data' => 'expiry', 'title' => 'Expiry Document'],
             ['data' => 'person_code', 'title' => 'Person Code'],
             ['data' => 'labour', 'title' => 'Labour Card #'],
@@ -500,9 +500,25 @@ class VisaexpenseController extends AppBaseController
     private function paginateVisaAccountsByPerson($query, array $paginationParams): LengthAwarePaginator
     {
         $accounts = (clone $query)->with(['rider', 'employee', 'renewalCategory'])->get();
+        $favoriteRiderIds = array_map('intval', auth()->user()->favorite_rider_ids ?? []);
+        $favoriteEmployeeIds = array_map('intval', auth()->user()->favorite_employee_ids ?? []);
         $latestByPerson = $accounts
             ->groupBy(fn ($r) => $r->employee_id ? 'emp:' . $r->employee_id : 'rider:' . $r->rider_id)
             ->map(fn (Collection $personAccounts) => VisaRenewalCategoryService::latestAccountForPerson($personAccounts->first()))
+            ->values()
+            ->sort(function ($a, $b) use ($favoriteRiderIds, $favoriteEmployeeIds) {
+                $aFav = $a->employee_id
+                    ? in_array((int) $a->employee_id, $favoriteEmployeeIds, true)
+                    : in_array((int) $a->rider_id, $favoriteRiderIds, true);
+                $bFav = $b->employee_id
+                    ? in_array((int) $b->employee_id, $favoriteEmployeeIds, true)
+                    : in_array((int) $b->rider_id, $favoriteRiderIds, true);
+                if ($aFav !== $bFav) {
+                    return $aFav ? -1 : 1;
+                }
+
+                return (int) $b->id <=> (int) $a->id;
+            })
             ->values();
 
         $total = $latestByPerson->count();

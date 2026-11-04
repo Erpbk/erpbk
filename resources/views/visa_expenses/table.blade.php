@@ -23,13 +23,12 @@ $voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('v
             </th>
             @endcan
             @if($vf('date'))<th title="Date" class="sorting" tabindex="0">Date <span class="ar">⇅</span></th>@endif
+            <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
             @if($vf('billing_month'))<th title="Billing Month" class="sorting" tabindex="0">Billing Month <span class="ar">⇅</span></th>@endif
             @if($vf('visa_status'))<th title="Visa Status" class="sorting" tabindex="0">Visa Status <span class="ar">⇅</span></th>@endif
             @if($vf('amount'))<th title="Amount" class="sorting" tabindex="0">Amount <span class="ar">⇅</span></th>@endif
-            <th title="Total" class="sorting" tabindex="0">Total <span class="ar">⇅</span></th>
             @if($vf('expiry_date'))<th title="Expiry Date" class="sorting" tabindex="0">Expiry Date <span class="ar">⇅</span></th>@endif
             <th title="File" class="nosort">File</th>
-            <th title="Voucher ID" class="sorting" tabindex="0">Voucher ID <span class="ar">⇅</span></th>
             @if($vf('payment_status'))<th title="Payment Status" class="sorting" tabindex="0">Payment Status <span class="ar">⇅</span></th>@endif
             <th title="Action" class="nosort" width="120px">Action</th>
          </tr>
@@ -42,9 +41,6 @@ $voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('v
          $voucherPendingDeletion = $r->vouchers->contains(fn ($v) => record_is_pending_deletion($v));
          $rowPendingDeletion = $expensePendingDeletion || $voucherPendingDeletion;
          $allowInlineEdit = !$isPaidExpense && !$rowPendingDeletion;
-         $entryTotal = $isPaidExpense && $r->vouchers->isNotEmpty()
-            ? (float) $r->vouchers->sum('amount')
-            : (float) $r->amount;
          @endphp
          <tr class="text-center {{ $rowPendingDeletion ? 'table-warning' : '' }}" data-id="{{ $r->id }}" data-row-id="{{ $r->id }}">
             @can('visa_expense_entries_delete')
@@ -69,96 +65,6 @@ $voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('v
                   value="{{ \Carbon\Carbon::parse($r->date)->format('Y-m-d') }}"
                   class="form-control form-control-sm d-none">
             </td>@endif
-            @if($vf('billing_month'))<td>
-               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</span>
-               @can('visa_expense_entries_edit')
-               @if($allowInlineEdit)
-               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
-                  <i class="fa fa-edit text-primary"></i>
-               </a>
-               @endif
-               @endcan
-               <input
-                  type="month"
-                  id="billing_input_{{ $r->id }}"
-                  value="{{ \Carbon\Carbon::parse($r->billing_month)->format('Y-m') }}"
-                  class="form-control form-control-sm d-none">
-            </td>@endif
-            @if($vf('visa_status'))
-            <td class="visa-status-flow{{ $isPaidExpense ? ' is-done' : '' }}{{ $loop->last ? ' is-last' : '' }}">
-               <span class="visa-status-bdg">{{ $r->visa_status }}</span>
-            </td>
-            @endif
-            @if($vf('amount'))<td>
-               <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
-               @can('visa_expense_entries_edit')
-               @if($allowInlineEdit)
-               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
-                  <i class="fa fa-edit text-primary"></i>
-               </a>
-               @endif
-               @endcan
-               <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  id="amount_input_{{ $r->id }}"
-                  value="{{ number_format((float) $r->amount, 2, '.', '') }}"
-                  class="form-control form-control-sm d-none">
-            </td>@endif
-            <td>
-               <span id="total_display_{{ $r->id }}">{{ number_format($entryTotal, 2) }}</span>
-            </td>
-            @if($vf('expiry_date'))<td>
-               @if($r->expiry_date)
-               <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
-               @can('visa_expense_entries_edit')
-               @if($allowInlineEdit)
-               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
-                  <i class="fa fa-edit text-primary"></i>
-               </a>
-               @endif
-               @endcan
-               <input
-                  type="date"
-                  id="expiry_date_input_{{ $r->id }}"
-                  value="{{ \Carbon\Carbon::parse($r->expiry_date)->format('Y-m-d') }}"
-                  class="form-control form-control-sm d-none">
-               @else
-               <span class="text-muted">-</span>
-               @endif
-            </td>@endif
-            <td>
-               @php
-               $attachedVouchers = $r->vouchers->filter(fn ($v) => filled($v->attach_file));
-               @endphp
-               @if($attachedVouchers->isNotEmpty())
-               <div class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
-                  @foreach($attachedVouchers as $attachedVoucher)
-                  @php
-                  $attachPath = ltrim((string) $attachedVoucher->attach_file, '/');
-                  $attachUrl = str_contains($attachPath, '/')
-                  ? url('storage/' . $attachPath)
-                  : url('storage/vouchers/' . $attachPath);
-                  $attachName = basename($attachPath);
-                  $attachExt = strtolower(pathinfo($attachName, PATHINFO_EXTENSION));
-                  $isImage = in_array($attachExt, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true);
-                  @endphp
-                  <a href="{{ $attachUrl }}"
-                     class="btn btn-sm btn-outline-primary"
-                     target="_blank"
-                     title="{{ $attachName }}">
-                     <i class="fa {{ $isImage ? 'fa-file-image' : 'fa-file' }}"></i>
-                     @if($attachedVouchers->count() === 1)
-                     View
-                     @endif
-                  </a>
-                  @endforeach
-               </div>
-               @else
-               <span class="text-muted">-</span>
-               @endif
-            </td>
             <td>
                <span id="voucher_ids_display_{{ $r->id }}" class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
                   @if($isPaidExpense)
@@ -211,6 +117,93 @@ $voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('v
                   <span class="text-muted">-</span>
                   @endif
                </span>
+            </td>
+            @if($vf('billing_month'))<td>
+               <span id="billing_display_{{ $r->id }}">{{ \Carbon\Carbon::parse($r->billing_month)->format('M-Y') }}</span>
+               @can('visa_expense_entries_edit')
+               @if($allowInlineEdit)
+               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="billing">
+                  <i class="fa fa-edit text-primary"></i>
+               </a>
+               @endif
+               @endcan
+               <input
+                  type="month"
+                  id="billing_input_{{ $r->id }}"
+                  value="{{ \Carbon\Carbon::parse($r->billing_month)->format('Y-m') }}"
+                  class="form-control form-control-sm d-none">
+            </td>@endif
+            @if($vf('visa_status'))
+            <td class="visa-status-flow{{ $isPaidExpense ? ' is-done' : '' }}{{ $loop->last ? ' is-last' : '' }}">
+               <span class="visa-status-bdg">{{ $r->visa_status }}</span>
+            </td>
+            @endif
+            @if($vf('amount'))<td>
+               <span id="amount_display_{{ $r->id }}">{{ number_format((float) $r->amount, 2) }}</span>
+               @can('visa_expense_entries_edit')
+               @if($allowInlineEdit)
+               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="amount">
+                  <i class="fa fa-edit text-primary"></i>
+               </a>
+               @endif
+               @endcan
+               <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  id="amount_input_{{ $r->id }}"
+                  value="{{ number_format((float) $r->amount, 2, '.', '') }}"
+                  class="form-control form-control-sm d-none">
+            </td>@endif
+            @if($vf('expiry_date'))<td>
+               @if($r->expiry_date)
+               <span id="expiry_date_display_{{ $r->id }}">{{ $r->expiry_date ? \Carbon\Carbon::parse($r->expiry_date)->format('d M Y') : '-' }}</span>
+               @can('visa_expense_entries_edit')
+               @if($allowInlineEdit)
+               <a href="javascript:void(0);" class="ms-2 js-edit-visa-field" data-id="{{ $r->id }}" data-field="expiry_date">
+                  <i class="fa fa-edit text-primary"></i>
+               </a>
+               @endif
+               @endcan
+               <input
+                  type="date"
+                  id="expiry_date_input_{{ $r->id }}"
+                  value="{{ \Carbon\Carbon::parse($r->expiry_date)->format('Y-m-d') }}"
+                  class="form-control form-control-sm d-none">
+               @else
+               <span class="text-muted">-</span>
+               @endif
+            </td>@endif
+            <td>
+               @php
+               $attachedVouchers = $r->vouchers->filter(fn ($v) => filled($v->attach_file));
+               @endphp
+               @if($attachedVouchers->isNotEmpty())
+               <div class="d-inline-flex flex-wrap align-items-center justify-content-center gap-1">
+                  @foreach($attachedVouchers as $attachedVoucher)
+                  @php
+                  $attachPath = ltrim((string) $attachedVoucher->attach_file, '/');
+                  $attachUrl = str_contains($attachPath, '/')
+                  ? url('storage/' . $attachPath)
+                  : url('storage/vouchers/' . $attachPath);
+                  $attachName = basename($attachPath);
+                  $attachExt = strtolower(pathinfo($attachName, PATHINFO_EXTENSION));
+                  $isImage = in_array($attachExt, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true);
+                  @endphp
+                  <a href="{{ $attachUrl }}"
+                     class="btn btn-sm btn-outline-primary"
+                     target="_blank"
+                     title="{{ $attachName }}">
+                     <i class="fa {{ $isImage ? 'fa-file-image' : 'fa-file' }}"></i>
+                     @if($attachedVouchers->count() === 1)
+                     View
+                     @endif
+                  </a>
+                  @endforeach
+               </div>
+               @else
+               <span class="text-muted">-</span>
+               @endif
             </td>
             @if($vf('payment_status'))<td>
                @if($isPaidExpense)
@@ -271,7 +264,7 @@ $voucherEditDeleteFlags = \App\Models\VoucherType::getEditDeleteFlagsByModule('v
          </tr>
          @empty
          <tr>
-            <td colspan="12" class="rl-empty text-center text-muted py-4">No Visa Expenses found</td>
+            <td colspan="11" class="rl-empty text-center text-muted py-4">No Visa Expenses found</td>
          </tr>
          @endforelse
       </tbody>

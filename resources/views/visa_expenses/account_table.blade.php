@@ -1,83 +1,21 @@
 @push('page-styles')
 <style>
-   /* Soft emphasis — gentle border/shadow breathing, no harsh opacity flicker */
-   @keyframes visa-next-unpaid-soft {
-
-      0%,
-      100% {
-         border-color: rgba(234, 88, 90, 0.35);
-         box-shadow: 0 0 0 0 rgba(234, 88, 90, 0);
-      }
-
-      50% {
-         border-color: rgba(234, 88, 90, 0.55);
-         box-shadow: 0 1px 8px rgba(234, 88, 90, 0.12);
-      }
+   .visa-status-stack {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .28rem;
+      text-decoration: none;
    }
-
-   .visa-next-unpaid-cell {
-      background: linear-gradient(90deg, rgba(234, 88, 90, 0.04), rgba(253, 186, 116, 0.05));
+   .visa-status-stack .visa-status-amount {
+      font-size: .82rem;
+      font-weight: 700;
+      color: #b91c1c;
+      line-height: 1.2;
+      font-variant-numeric: tabular-nums;
    }
-
-   .visa-next-unpaid-blink {
-      padding: 0.25rem 0.5rem;
-      border-radius: 8px;
-      border: 1px solid rgba(234, 88, 90, 0.35);
-      background: rgba(255, 253, 252, 0.95);
-      animation: visa-next-unpaid-soft 2.8s ease-in-out infinite;
-      transition: border-color 0.3s ease;
-   }
-
-   .visa-next-unpaid-blink:hover {
-      border-color: rgba(234, 88, 90, 0.5);
-      animation-play-state: paused;
-   }
-
-   @media (prefers-reduced-motion: reduce) {
-      .visa-next-unpaid-blink {
-         animation: none;
-         border-color: rgba(234, 88, 90, 0.4);
-      }
-   }
-
-   /* Paid-document expiry within 10 days (or overdue) — amber alert, soft pulse */
-   @keyframes visa-expiry-alert-soft {
-
-      0%,
-      100% {
-         border-color: rgba(217, 119, 6, 0.4);
-         box-shadow: 0 0 0 0 rgba(217, 119, 6, 0);
-      }
-
-      50% {
-         border-color: rgba(217, 119, 6, 0.65);
-         box-shadow: 0 1px 8px rgba(217, 119, 6, 0.14);
-      }
-   }
-
-   .visa-expiry-alert-cell {
-      background: linear-gradient(90deg, rgba(254, 243, 199, 0.35), rgba(253, 230, 138, 0.2));
-   }
-
-   .visa-expiry-alert-blink {
-      padding: 0.25rem 0.5rem;
-      border-radius: 8px;
-      border: 1px solid rgba(217, 119, 6, 0.4);
-      background: rgba(255, 251, 235, 0.95);
-      animation: visa-expiry-alert-soft 2.6s ease-in-out infinite;
-      transition: border-color 0.3s ease;
-   }
-
-   .visa-expiry-alert-blink:hover {
-      border-color: rgba(217, 119, 6, 0.55);
-      animation-play-state: paused;
-   }
-
-   @media (prefers-reduced-motion: reduce) {
-      .visa-expiry-alert-blink {
-         animation: none;
-         border-color: rgba(217, 119, 6, 0.5);
-      }
+   .riders-list-demo .rl-tbox tr.rl-fav-row > td {
+      background: #fffbeb;
    }
 </style>
 @endpush
@@ -87,6 +25,8 @@ $groupedPersons = collect($data->items())->groupBy(
     fn ($r) => $r->employee_id ? 'emp:' . $r->employee_id : 'rider:' . $r->rider_id
 );
 $ajaxFragment = $ajaxFragment ?? false;
+$favoriteRiderIds = collect($favoriteRiderIds ?? (auth()->user()->favorite_rider_ids ?? []))->map(fn ($id) => (int) $id)->all();
+$favoriteEmployeeIds = collect($favoriteEmployeeIds ?? (auth()->user()->favorite_employee_ids ?? []))->map(fn ($id) => (int) $id)->all();
 $pendingVisaExpenseIds = pending_deletion_ids_for(\App\Models\visa_expenses::class);
 $pageAccounts = collect($data->items());
 $pageAccountIds = $pageAccounts->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -124,7 +64,7 @@ foreach ($pageAccounts as $pageAccount) {
          <th class="sorting" data-k="category">Visa Category<span class="ar">⇅</span></th>
          <th class="sorting" data-k="status">Status<span class="ar">⇅</span></th>
          <th class="sorting" data-k="wps">WPS<span class="ar">⇅</span></th>
-         <th class="sorting" data-k="next_unpaid">Next Unpaid Document<span class="ar">⇅</span></th>
+         <th class="sorting" data-k="next_unpaid">Visa Status<span class="ar">⇅</span></th>
          <th class="sorting" data-k="expiry">Expiry Document<span class="ar">⇅</span></th>
          <th class="sorting" data-k="person_code">Person Code<span class="ar">⇅</span></th>
          <th class="sorting" data-k="labour">Labour Card #<span class="ar">⇅</span></th>
@@ -236,10 +176,19 @@ foreach ($pageAccounts as $pageAccount) {
       $overviewUrl = $isEmployeeAccount
          ? route('VisaExpense.showForRider', ['riderId' => $r->employee_id, 'type' => 'employee'])
          : route('VisaExpense.showForRider', ['riderId' => $r->rider_id]);
+      $personModelId = $isEmployeeAccount ? (int) $r->employee_id : (int) $r->rider_id;
+      $isFav = $isEmployeeAccount
+         ? in_array($personModelId, $favoriteEmployeeIds, true)
+         : in_array($personModelId, $favoriteRiderIds, true);
       @endphp
-      <tr class="text-center">
+      <tr class="text-center{{ $isFav ? ' rl-fav-row' : '' }}">
          <td>{{ $personRef }}</td>
-         <td class="text-start">
+         <td class="name text-start">
+            <button type="button"
+               class="rl-star{{ $isFav ? ' on' : '' }}"
+               data-fav="{{ $personModelId }}"
+               data-fav-type="{{ $isEmployeeAccount ? 'employee' : 'rider' }}"
+               aria-label="{{ $isFav ? 'Remove from' : 'Add to' }} favorites">★</button>
             <a href="{{ $overviewUrl }}" class="fw-semibold text-decoration-none">{{ $personName }}</a>
          </td>
          <td class="text-center">
@@ -257,21 +206,21 @@ foreach ($pageAccounts as $pageAccount) {
             <span class="text-muted">—</span>
             @endif
          </td>
-         <td class="align-middle @if($nextUnpaid) visa-next-unpaid-cell @endif">
+         <td class="align-middle">
             @if($nextUnpaid)
-            <a href="{{ $latestAccountUrl }}" class="text-decoration-none text-body visa-next-unpaid-blink d-inline-block text-center">
-               <span class="fw-semibold d-block text-body text-center">{{ $nextUnpaid->visa_status ?? '—' }}</span>
-               <span class="text-danger small text-center">{!! \App\Helpers\Currency::format((float) ($nextUnpaid->amount ?? 0), 2) !!}@if($nextWhen !== '') · {{ $nextWhen }}@endif</span>
+            <a href="{{ $latestAccountUrl }}" class="visa-status-stack" title="@if($nextWhen !== ''){{ $nextWhen }}@endif">
+               <span class="badge bg-label-primary">{{ $nextUnpaid->visa_status ?? '—' }}</span>
+               <span class="visa-status-amount">{!! \App\Helpers\Currency::format((float) ($nextUnpaid->amount ?? 0), 2) !!}</span>
             </a>
             @else
             <span class="text-muted">—</span>
             @endif
          </td>
-         <td class="align-middle @if($urgentExpiry && $urgentExpiryWhen !== '') visa-expiry-alert-cell @endif">
+         <td class="align-middle">
             @if($urgentExpiry && $urgentExpiryWhen !== '')
-            <a href="{{ $latestAccountUrl }}" class="text-decoration-none text-body visa-expiry-alert-blink d-inline-block text-center" title="Visa document expiry within 10 days or overdue">
-               <span class="fw-semibold d-block text-body text-center">{{ $urgentExpiry->visa_status ?? '—' }}</span>
-               <span class="text-muted small d-block text-center">{{ $urgentExpiryWhen }}</span>
+            <a href="{{ $latestAccountUrl }}" class="visa-status-stack" title="Visa document expiry within 10 days or overdue">
+               <span class="badge bg-label-primary">{{ $urgentExpiry->visa_status ?? '—' }}</span>
+               <span class="visa-status-amount">{{ $urgentExpiryWhen }}</span>
             </a>
             @else
             <span class="text-muted">—</span>

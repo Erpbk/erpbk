@@ -124,7 +124,7 @@ $invItemsCols = '2.2fr .7fr .9fr .7fr .9fr 1fr .5fr';
                             <input type="number" name="item_qty[]" value="{{ $itm->qty }}" class="form-control qty" min="0.01" step="any" {{ $isLocked ? 'readonly' : '' }} required>
                         </div>
                         <div class="col-md-2 form-group">
-                            <input type="number" name="item_rate[]" value="{{ $itm->rate }}" class="form-control rate" min="0" step="any" {{ $isLocked ? 'readonly' : '' }} required>
+                            <input type="number" name="item_rate[]" value="{{ $itm->rate }}" class="form-control rate" step="any" {{ $isLocked ? 'readonly' : '' }} required>
                         </div>
                         <div class="col-md-1 form-group">
                             <input type="number" name="item_vat[]" value="{{ $itm->tax }}" class="form-control vat" min="0" max="100" step="any">
@@ -160,7 +160,7 @@ $invItemsCols = '2.2fr .7fr .9fr .7fr .9fr 1fr .5fr';
                             <input type="number" name="item_qty[]" value="1" class="form-control qty" min="0.01" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
                         </div>
                         <div class="col-md-2 form-group">
-                            <input type="number" name="item_rate[]" value="0" class="form-control rate" min="0" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
+                            <input type="number" name="item_rate[]" value="0" class="form-control rate" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);" required>
                         </div>
                         <div class="col-md-1 form-group">
                             <input type="number" name="item_vat[]" value="0" class="form-control vat" min="0" max="100" step="any" onkeyup="supplier_calculate_price(this);" onchange="supplier_calculate_price(this);">

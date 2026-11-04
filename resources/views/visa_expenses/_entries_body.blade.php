@@ -47,8 +47,8 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
   @include('flash::message')
 
   {{-- ── Dynamic category tabs (only accounts that exist for this rider) ── --}}
-  <div class="d-flex align-items-center exp-tab-nav" id="expenseTabs" role="tablist">
-    <ul class="nav mb-0 border-0 flex-grow-1 flex-wrap" style="border-bottom:none;">
+  <div class="exp-tab-nav" id="expenseTabs" role="tablist">
+    <ul class="nav nav-pills mb-0 flex-grow-1 flex-wrap">
       @foreach($categoryAccounts as $catAccount)
       @php
         $isActiveCat = $activeTab === 'visa' && (int) $catAccount->id === (int) $account->id;
@@ -114,13 +114,13 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
     <div class="card exp-card mb-4">
       <div class="section-header">
         <div class="section-icon">
-          <i class="fa fa-passport"></i>
+          <i class="fa fa-file-alt"></i>
         </div>
         <div class="flex-grow-1">
           <h5>{{ $activeCategoryName }}</h5>
         </div>
         @can('visa_expense_entries_create')
-        <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+        <a class="btn btn-sm btn-primary action-btn show-modal"
           href="javascript:void(0);"
           data-action="{{ route('VisaExpense.create', ['id' => $account->id]) }}"
           data-size="lg"
@@ -145,14 +145,14 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
             <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$totalPaid,2) }}</span>
           </div>
         </div>
-        <div class="stat-pill danger">
+        <div class="stat-pill warning">
           <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
           <div class="sp-body">
             <span class="sp-label">Unpaid Expenses</span>
             <span class="sp-value">{{ $unpaidCount }}</span>
           </div>
         </div>
-        <div class="stat-pill success">
+        <div class="stat-pill info">
           <div class="sp-icon"><i class="fa fa-check"></i></div>
           <div class="sp-body">
             <span class="sp-label">Paid Expenses</span>
@@ -179,7 +179,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         </div>
         <div class="d-flex gap-2">
           @can('visa_expense_installments_create')
-          <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+          <a class="btn btn-sm btn-primary action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('Installments.createInstallmentPlanForm', $account->id) }}"
             data-size="lg"
@@ -189,7 +189,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           @endcan
           @if(isset($installmentData) && $installmentData->count() > 0)
           <a href="javascript:void(0);"
-            class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
+            class="btn btn-sm btn-outline-primary action-btn show-modal-right"
             data-action="{{ route('Installments.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
             data-size="xl"
             data-title="Installment plan invoice — {{ $account->name ?? 'Person' }}">
@@ -214,14 +214,14 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
             <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$installmentStats['paid_amount'],2) }}</span>
           </div>
         </div>
-        <div class="stat-pill danger">
+        <div class="stat-pill warning">
           <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
           <div class="sp-body">
             <span class="sp-label">Unpaid Installments</span>
             <span class="sp-value">{{ (int)$installmentStats['unpaid_count'] }}</span>
           </div>
         </div>
-        <div class="stat-pill success">
+        <div class="stat-pill info">
           <div class="sp-icon"><i class="fa fa-check"></i></div>
           <div class="sp-body">
             <span class="sp-label">Paid Installments</span>
@@ -268,7 +268,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           <h5>{{ $activeLicenseCategory->name ?? 'License Expense' }}</h5>
         </div>
         @can('license_expense_create')
-        <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+        <a class="btn btn-sm btn-primary action-btn show-modal"
           href="javascript:void(0);"
           data-action="{{ route('LicenseExpense.create', $licenseAccount->id) }}"
           data-size="lg"
@@ -293,14 +293,14 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
             <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)($licenseExpenseTotals['paid_amount'] ?? 0),2) }}</span>
           </div>
         </div>
-        <div class="stat-pill danger">
+        <div class="stat-pill warning">
           <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
           <div class="sp-body">
             <span class="sp-label">Unpaid Expenses</span>
             <span class="sp-value">{{ (int)($licenseExpenseTotals['unpaid_count'] ?? 0) }}</span>
           </div>
         </div>
-        <div class="stat-pill success">
+        <div class="stat-pill info">
           <div class="sp-icon"><i class="fa fa-check"></i></div>
           <div class="sp-body">
             <span class="sp-label">Paid Expenses</span>
@@ -325,7 +325,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         </div>
         <div class="d-flex gap-2">
           @if(user_can('license_expense_create') || user_can('licenseexpense_create'))
-          <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+          <a class="btn btn-sm btn-primary action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.createInstallmentPlanForm', $licenseAccount->id) }}"
             data-size="lg"
@@ -334,7 +334,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
           </a>
           @endif
           @if($licInstallmentData->count() > 0)
-          <a class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
+          <a class="btn btn-sm btn-outline-primary action-btn show-modal-right"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $licenseAccount->id]) }}"
             data-size="xl"
@@ -360,14 +360,14 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
             <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$licInstallmentStats['paid_amount'],2) }}</span>
           </div>
         </div>
-        <div class="stat-pill danger">
+        <div class="stat-pill warning">
           <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
           <div class="sp-body">
             <span class="sp-label">Unpaid Installments</span>
             <span class="sp-value">{{ (int)$licInstallmentStats['unpaid_count'] }}</span>
           </div>
         </div>
-        <div class="stat-pill success">
+        <div class="stat-pill info">
           <div class="sp-icon"><i class="fa fa-check"></i></div>
           <div class="sp-body">
             <span class="sp-label">Paid Installments</span>
@@ -401,7 +401,7 @@ $activeCategoryName = $activeRenewalCategory->name ?? ($account->renewalCategory
         <i class="fa fa-id-card fa-2x mb-2 d-block opacity-50"></i>
         No license expense account found for this rider.
         @can('license_expense_create')
-        <a href="{{ route('LicenseExpense.index') }}" class="btn btn-sm btn-exp-ghost ms-2">
+        <a href="{{ route('LicenseExpense.index') }}" class="btn btn-sm btn-outline-primary ms-2">
           Create License Account
         </a>
         @endcan

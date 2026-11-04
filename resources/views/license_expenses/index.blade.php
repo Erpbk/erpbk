@@ -43,8 +43,8 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
   @include('flash::message')
 
   {{-- ── Dynamic category tabs (only accounts that exist for this rider) ── --}}
-  <div class="d-flex align-items-center exp-tab-nav" id="expenseTabs" role="tablist">
-    <ul class="nav mb-0 border-0 flex-grow-1 flex-wrap" style="border-bottom:none;">
+  <div class="exp-tab-nav" id="expenseTabs" role="tablist">
+    <ul class="nav nav-pills mb-0 flex-grow-1 flex-wrap">
       @foreach($licenseCategoryAccounts as $licAccount)
       @php
         $isActiveLic = $activeTab === 'license' && (int) $licAccount->id === (int) $account->id;
@@ -107,7 +107,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
           </h5>
         </div>
         @can('license_expense_create')
-        <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+        <a class="btn btn-sm btn-primary action-btn show-modal"
           href="javascript:void(0);"
           data-action="{{ route('LicenseExpense.create', $account->id) }}"
           data-size="lg"
@@ -132,14 +132,14 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
             <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$totalPaid,2) }}</span>
           </div>
         </div>
-        <div class="stat-pill danger">
+        <div class="stat-pill warning">
           <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
           <div class="sp-body">
             <span class="sp-label">Unpaid Expenses</span>
             <span class="sp-value">{{ $unpaidCount }}</span>
           </div>
         </div>
-        <div class="stat-pill success">
+        <div class="stat-pill info">
           <div class="sp-icon"><i class="fa fa-check"></i></div>
           <div class="sp-body">
             <span class="sp-label">Paid Expenses</span>
@@ -164,7 +164,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
         </div>
         <div class="d-flex gap-2">
           @if(user_can('license_expense_create') || user_can('licenseexpense_create'))
-          <a class="btn btn-sm btn-exp-primary action-btn show-modal"
+          <a class="btn btn-sm btn-primary action-btn show-modal"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.createInstallmentPlanForm', $account->id) }}"
             data-size="lg"
@@ -173,7 +173,7 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
           </a>
           @endif
           @if($licInstallmentData->count() > 0)
-          <a class="btn btn-sm btn-exp-ghost action-btn show-modal-right"
+          <a class="btn btn-sm btn-outline-primary action-btn show-modal-right"
             href="javascript:void(0);"
             data-action="{{ route('LicenseExpense.generateInstallmentInvoice', ['riderId' => $account->id]) }}"
             data-size="xl"
@@ -199,14 +199,14 @@ $activeLicenseName = $activeLicenseCategory->name ?? 'License';
             <span class="sp-value">{{ \App\Helpers\Currency::symbol() }} {{ number_format((float)$licInstallmentStats['paid_amount'],2) }}</span>
           </div>
         </div>
-        <div class="stat-pill danger">
+        <div class="stat-pill warning">
           <div class="sp-icon"><i class="fa fa-exclamation"></i></div>
           <div class="sp-body">
             <span class="sp-label">Unpaid Installments</span>
             <span class="sp-value">{{ (int)$licInstallmentStats['unpaid_count'] }}</span>
           </div>
         </div>
-        <div class="stat-pill success">
+        <div class="stat-pill info">
           <div class="sp-icon"><i class="fa fa-check"></i></div>
           <div class="sp-body">
             <span class="sp-label">Paid Installments</span>

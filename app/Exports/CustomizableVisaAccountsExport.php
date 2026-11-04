@@ -32,7 +32,7 @@ class CustomizableVisaAccountsExport extends DefaultValueBinder implements FromC
         'category' => ['title' => 'Visa Category'],
         'status' => ['title' => 'Status'],
         'wps' => ['title' => 'WPS'],
-        'next_unpaid' => ['title' => 'Next Unpaid Document'],
+        'next_unpaid' => ['title' => 'Visa Status'],
         'expiry' => ['title' => 'Expiry Document'],
         'person_code' => ['title' => 'Person Code'],
         'labour' => ['title' => 'Labour Card #'],

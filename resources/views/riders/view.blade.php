@@ -1088,8 +1088,8 @@
     max-width: 100%;
     margin: 0;
     padding: 0.5rem 0.75rem;
-    background: #f4f7fb;
-    border: 1px solid #e3ebf5;
+    background: linear-gradient(90deg, #cfe0f8 0%, #e8eff9 42%, #f8fafc 100%);
+    border: 1px solid #d5e2f2;
     border-left: 3px solid #3b6fd9;
     border-radius: 0.55rem;
     font-size: 0.9rem;

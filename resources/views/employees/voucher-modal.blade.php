@@ -1,17 +1,17 @@
 @php
 $actions = [
-'PN' => route('employees.storepenalty'),
-'INC' => route('employees.storeincentive'),
-'AL' => route('employees.storeadvanceloan'),
+'PN' => safe_route('employees.storepenalty', [], 'employees/storepenalty'),
+'INC' => safe_route('employees.storeincentive', [], 'employees/storeincentive'),
+'AL' => safe_route('employees.storeadvanceloan', [], 'employees/storeadvanceloan'),
 ];
 
 $editActions = [];
 
 $urls = [
-'PN' => route('employees.penalty', ['id' => $employee->id ?? 0]),
-'INC' => route('employees.incentive', ['id' => $employee->id ?? 0]),
-'AL' => route('employees.advanceloan', ['id' => $employee->id ?? 0]),
-'PAY' => route('payments.create', ['invoice_type' => 'employee', 'employee_id' => $employee->id ?? 0]),
+'PN' => safe_route('employees.penalty', ['id' => $employee->id ?? 0], 'employees/penalty/{id}'),
+'INC' => safe_route('employees.incentive', ['id' => $employee->id ?? 0], 'employees/incentive/{id}'),
+'AL' => safe_route('employees.advanceloan', ['id' => $employee->id ?? 0], 'employees/advanceloan/{id}'),
+'PAY' => safe_route('payments.create', ['invoice_type' => 'employee', 'employee_id' => $employee->id ?? 0], 'payments/create'),
 ];
 
 $editMode = isset($voucher_id) && isset($voucher_type);
@@ -258,8 +258,8 @@ $editMode = isset($voucher_id) && isset($voucher_type);
             loadFormFor(this.value, false);
         });
 
-        if (editMode && voucherType) {
-            loadFormFor(voucherType, true);
+        if (voucherType) {
+            loadFormFor(voucherType, editMode);
         }
     })();
 </script>

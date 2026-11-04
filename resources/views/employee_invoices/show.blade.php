@@ -66,21 +66,21 @@
         @include('invoices.partials.action_toolbar', [
             'isPaid' => $eiIsPaid,
             'isPartial' => $eiIsPartial && ! $eiIsPaid,
-            'editUrl' => route('employeeInvoices.edit', $employeeInvoice->id),
+            'editUrl' => safe_route('employeeInvoices.edit', $employeeInvoice->id, 'employeeInvoices/{id}/edit'),
             'editTitle' => 'Edit Invoice',
             'editCan' => 'employees_invoice_edit',
-            'editPaymentUrl' => $eiPaymentId ? route('payments.edit', $eiPaymentId) : null,
+            'editPaymentUrl' => $eiPaymentId ? safe_route('payments.edit', $eiPaymentId, 'payments/{id}/edit') : null,
             'editPaymentTitle' => 'Edit Payment',
             'editPaymentCan' => ['employees_payments_edit', 'cash_&_banks_payments_edit'],
-            'downloadUrl' => route('employeeInvoices.download', $employeeInvoice->id),
+            'downloadUrl' => safe_route('employeeInvoices.download', $employeeInvoice->id, 'employeeInvoices/{id}/download'),
             'showPayment' => ! $eiIsPaid,
-            'paymentUrl' => route('payments.create', array_filter(['company_slug' => $companySlug]))
+            'paymentUrl' => safe_route('payments.create', [], 'payments/create')
                 . '?employee_payment=1&invoice_id=' . $employeeInvoice->id,
             'paymentTitle' => 'Record Payment',
             'paymentCan' => 'employees_payments_create',
-            'markSettledUrl' => route('employeeInvoices.markAsSettled', $employeeInvoice->id),
+            'markSettledUrl' => safe_route('employeeInvoices.markAsSettled', $employeeInvoice->id, 'employee/invoice-mark-settled/{id}'),
             'markSettledCan' => 'employees_invoice_edit',
-            'deleteUrl' => route('employeeInvoices.delete', $employeeInvoice->id),
+            'deleteUrl' => safe_route('employeeInvoices.delete', $employeeInvoice->id, 'employeeInvoices/delete/{id}'),
             'deleteCan' => 'employees_invoice_delete',
         ])
     </div>

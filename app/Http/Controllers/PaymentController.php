@@ -22,13 +22,16 @@ use App\Models\SupplierInvoices;
 use App\Models\Transactions;
 use App\Models\Vouchers;
 use App\Repositories\PaymentsRepository;
+use App\Services\Employee\EmployeeAdvanceLoanService;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
+use App\Services\Payment\EmployeePaymentVoucherViewData;
 use App\Services\Payment\RiderPaymentVoucherViewData;
 use App\Services\Rider\RiderAdvanceLoanService;
 use App\Services\RiderInvoice\RiderInvoiceViewDataBuilder;
 use App\Support\ChequeClearEditGuard;
 use App\Support\InvoicePdf;
 use App\Support\ResourceLinks;
+use App\Support\EmployeeVoucherPermissions;
 use App\Support\RiderVoucherPermissions;
 use App\Traits\GlobalPagination;
 use App\Support\PublicStorageDisk;
@@ -105,6 +108,9 @@ class PaymentController extends Controller
         $riderId = request()->input('rider_id') ?? null;
         if ($riderPayment) {
             RiderVoucherPermissions::authorize('PAY', 'create');
+        }
+        if ($employeePayment) {
+            EmployeeVoucherPermissions::authorize('PAY', 'create');
         }
         if (request()->input('leasing_payment')) {
             $leasingIds = LeasingCompanies::pluck('id')->toArray();
@@ -362,12 +368,29 @@ class PaymentController extends Controller
             return $this->storeRiderAdvanceLoanFromPaymentForm($request);
         }
 
+        if (
+            $request->input('invoice_type') === 'employee'
+            && in_array($request->input('create_payment_type'), ['advance_loan', 'advance_payment'], true)
+        ) {
+            EmployeeVoucherPermissions::authorize('AL', 'create');
+            $this->stripEmployeeAttachmentWithoutUploadPermission($request, 'AL');
+
+            return $this->storeEmployeeAdvanceLoanFromPaymentForm($request);
+        }
+
         $isRiderPaymentCreate = $request->input('invoice_type') === 'rider'
+            && in_array($request->input('create_payment_type', 'salary_payment'), ['payment', 'salary_payment', 'c3', ''], true);
+        $isEmployeePaymentCreate = $request->input('invoice_type') === 'employee'
             && in_array($request->input('create_payment_type', 'salary_payment'), ['payment', 'salary_payment', 'c3', ''], true);
 
         if ($request->input('invoice_type') === 'rider') {
             RiderVoucherPermissions::authorize('PAY', 'create');
             $this->stripRiderAttachmentWithoutUploadPermission($request, 'PAY');
+        }
+
+        if ($request->input('invoice_type') === 'employee') {
+            EmployeeVoucherPermissions::authorize('PAY', 'create');
+            $this->stripEmployeeAttachmentWithoutUploadPermission($request, 'PAY');
         }
 
         $rules = [
@@ -377,18 +400,18 @@ class PaymentController extends Controller
             'payee_account_id' => 'required|numeric|exists:accounts,id',
             'date_of_payment' => 'required|date',
             'date_of_invoice' => 'nullable|date',
-            'billing_month' => $isRiderPaymentCreate ? 'nullable|date_format:Y-m' : 'required|date_format:Y-m',
+            'billing_month' => ($isRiderPaymentCreate || $isEmployeePaymentCreate) ? 'nullable|date_format:Y-m' : 'required|date_format:Y-m',
             'amount' => 'required|numeric|min:0.01',
             'bank_charges' => 'nullable|numeric|min:0',
             'description' => 'required|string|max:500',
             'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
-            'invoice_ids' => $isRiderPaymentCreate ? 'required|array|size:1' : 'nullable|array',
+            'invoice_ids' => ($isRiderPaymentCreate || $isEmployeePaymentCreate) ? 'required|array|size:1' : 'nullable|array',
             'invoice_ids.*' => 'numeric|required',
             'payment_amounts' => 'nullable|array',
             'payment_amounts.*' => 'nullable|numeric',
         ];
 
-        if ($isRiderPaymentCreate) {
+        if ($isRiderPaymentCreate || $isEmployeePaymentCreate) {
             $rules['create_payment_type'] = 'nullable|in:payment,salary_payment,c3';
             $rules['internal_notes'] = 'nullable|string|max:500';
             $rules['terms_and_conditions'] = 'nullable|string';
@@ -810,9 +833,17 @@ class PaymentController extends Controller
             return redirect(route('payments.index'));
         }
 
-        $viewData = app(RiderPaymentVoucherViewData::class);
-        if (! $viewData->isRiderPayment($payment)) {
-            // Non-rider payments keep the generic voucher modal when a voucher exists.
+        $riderViewData = app(RiderPaymentVoucherViewData::class);
+        $employeeViewData = app(EmployeePaymentVoucherViewData::class);
+
+        if ($riderViewData->isRiderPayment($payment)) {
+            RiderVoucherPermissions::authorize('PAY', 'view');
+            $data = $riderViewData->build($payment);
+        } elseif ($employeeViewData->isEmployeePayment($payment)) {
+            EmployeeVoucherPermissions::authorize('PAY', 'view');
+            $data = $employeeViewData->build($payment);
+        } else {
+            // Non salary payments keep the generic voucher modal when a voucher exists.
             if ($payment->voucher_id) {
                 return redirect()->route('vouchers.show', array_filter([
                     'voucher' => $payment->voucher_id,
@@ -824,9 +855,6 @@ class PaymentController extends Controller
             return view('payments.show_fields')->with('payment', $payment);
         }
 
-        RiderVoucherPermissions::authorize('PAY', 'view');
-
-        $data = $viewData->build($payment);
         if ($request->boolean('print')) {
             return response()->view('payments.voucher_print', $data);
         }
@@ -843,10 +871,17 @@ class PaymentController extends Controller
             return redirect(route('payments.index'));
         }
 
-        $viewData = app(RiderPaymentVoucherViewData::class);
-        abort_unless($viewData->isRiderPayment($payment), 404);
+        $riderViewData = app(RiderPaymentVoucherViewData::class);
+        $employeeViewData = app(EmployeePaymentVoucherViewData::class);
 
-        $data = $viewData->build($payment);
+        if ($riderViewData->isRiderPayment($payment)) {
+            $data = $riderViewData->build($payment);
+        } elseif ($employeeViewData->isEmployeePayment($payment)) {
+            $data = $employeeViewData->build($payment);
+        } else {
+            abort(404);
+        }
+
         $filename = 'Payment-Voucher-' . preg_replace('/[^A-Za-z0-9\-_]/', '', (string) ($data['referenceNo'] ?? $payment->id)) . '.pdf';
 
         return InvoicePdf::download('payments.pdf', $data, $filename);
@@ -870,6 +905,8 @@ class PaymentController extends Controller
 
         if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
             RiderVoucherPermissions::authorize('PAY', 'edit');
+        } elseif (app(EmployeePaymentVoucherViewData::class)->isEmployeePayment($payment)) {
+            EmployeeVoucherPermissions::authorize('PAY', 'edit');
         }
 
         return view('payments.edit', array_merge(
@@ -901,6 +938,9 @@ class PaymentController extends Controller
         if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
             RiderVoucherPermissions::authorize('PAY', 'edit');
             $this->stripRiderAttachmentWithoutUploadPermission($request, 'PAY');
+        } elseif (app(EmployeePaymentVoucherViewData::class)->isEmployeePayment($payment)) {
+            EmployeeVoucherPermissions::authorize('PAY', 'edit');
+            $this->stripEmployeeAttachmentWithoutUploadPermission($request, 'PAY');
         }
 
         $request['billing_month'] = $request['billing_month'] . '-01';
@@ -1208,7 +1248,7 @@ class PaymentController extends Controller
                 $desc = $request->input('description');
 
                 // Hard-delete existing ledger lines before re-posting on update
-                Transactions::hardDeleteMatching(fn ($q) => $q->where('trans_code', $transCode));
+                Transactions::hardDeleteMatching(fn($q) => $q->where('trans_code', $transCode));
 
                 $this->postPaymentLedgerEntries(
                     (int) $transCode,
@@ -1353,6 +1393,8 @@ class PaymentController extends Controller
 
         if (app(RiderPaymentVoucherViewData::class)->isRiderPayment($payment)) {
             RiderVoucherPermissions::authorize('PAY', 'delete');
+        } elseif (app(EmployeePaymentVoucherViewData::class)->isEmployeePayment($payment)) {
+            EmployeeVoucherPermissions::authorize('PAY', 'delete');
         }
 
         // Delete-approval: queue request (voucher + transactions + payment) until admin approves.
@@ -1480,7 +1522,7 @@ class PaymentController extends Controller
             ->values()
             ->all();
         $submittedIds = collect($submittedInvoiceIds)
-            ->map(fn ($id) => (int) $id)
+            ->map(fn($id) => (int) $id)
             ->filter()
             ->unique()
             ->sort()
@@ -2544,5 +2586,154 @@ class PaymentController extends Controller
 
         $request->files->remove('attachment');
         $request->request->remove('attachment');
+    }
+
+    /**
+     * Drop attachment uploads when the user lacks the typed employee voucher upload permission.
+     */
+    private function stripEmployeeAttachmentWithoutUploadPermission(Request $request, string $code): void
+    {
+        if (EmployeeVoucherPermissions::canUpload($code)) {
+            return;
+        }
+
+        $request->files->remove('attachment');
+        $request->request->remove('attachment');
+    }
+
+    /**
+     * Create an AL voucher from the Record Employee Payment form (Advance Loan type).
+     * Does not allocate against invoice paid balances.
+     */
+    private function storeEmployeeAdvanceLoanFromPaymentForm(Request $request)
+    {
+        $invoiceId = (int) collect($request->input('invoice_ids', []))->filter()->first();
+        $invoice = $invoiceId > 0 ? EmployeeInvoices::find($invoiceId) : null;
+        if ($invoiceId > 0 && ! $invoice) {
+            throw ValidationException::withMessages([
+                'invoice_ids' => 'Selected invoice was not found',
+            ]);
+        }
+
+        $payeeAccountId = (int) $request->input('payee_account_id');
+        $employeeId = $payeeAccountId > 0
+            ? (int) Accounts::where('id', $payeeAccountId)->value('ref_id')
+            : 0;
+        if ($employeeId > 0 && EmployeeInvoices::payable()->where('employee_id', $employeeId)->exists()) {
+            throw ValidationException::withMessages([
+                'create_payment_type' => 'Advance Payment is not available when the selected employee has unpaid invoices. Please use Salary Payment instead.',
+            ]);
+        }
+
+        $billingMonthInput = $request->input('billing_month');
+        if (blank($billingMonthInput) && $invoice && $invoice->billing_month) {
+            $billingMonthInput = Carbon::parse($invoice->billing_month)->format('Y-m');
+        }
+        if (! blank($billingMonthInput) && preg_match('/^\d{4}-\d{2}-\d{2}/', (string) $billingMonthInput)) {
+            $billingMonthInput = Carbon::parse($billingMonthInput)->format('Y-m');
+        }
+        if (! blank($billingMonthInput)) {
+            $request->merge(['billing_month' => $billingMonthInput]);
+        }
+
+        $this->validate($request, [
+            'create_payment_type' => 'required|in:advance_loan,advance_payment',
+            'reference' => 'nullable|string|max:255',
+            'amount_type' => 'required|string|in:Cash,Online,Cheque,Credit',
+            'bank_id' => 'required|numeric|exists:banks,id',
+            'payee_account_id' => 'required|numeric|exists:accounts,id',
+            'date_of_payment' => 'required|date',
+            'billing_month' => 'required|date_format:Y-m',
+            'amount' => 'required|numeric|min:0.01',
+            'bank_charges' => 'nullable|numeric|min:0',
+            'description' => 'required|string|max:500',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'invoice_ids' => 'nullable|array|max:1',
+            'invoice_ids.*' => 'numeric|exists:employee_invoices,id',
+            'internal_notes' => 'nullable|string|max:500',
+            'terms_and_conditions' => 'nullable|string',
+        ], [
+            'invoice_ids.max' => 'Please select at most one invoice for the advance loan',
+            'billing_month.required' => 'Billing month is required for Advance Loan',
+        ]);
+
+        $billingMonthInput = $request->input('billing_month');
+
+        $bank = Banks::find($request->input('bank_id'));
+        if (! $bank || ! $bank->account_id) {
+            throw ValidationException::withMessages([
+                'bank_id' => 'Selected paying account was not found',
+            ]);
+        }
+
+        $attachFile = null;
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            PublicStorageDisk::storeUploadedFile($file, 'vouchers', $fileName);
+            $attachFile = $fileName;
+        }
+
+        $branchId = Accounts::where('id', $request->input('payee_account_id'))->value('branch_id');
+
+        if ($invoice) {
+            $invoice->update([
+                'notes' => $request->input('internal_notes'),
+                'terms_and_conditions' => $request->input('terms_and_conditions'),
+                'updated_by' => auth()->id(),
+            ]);
+        }
+
+        try {
+            $result = app(EmployeeAdvanceLoanService::class)->create([
+                'employee_account_id' => (int) $request->input('payee_account_id'),
+                'bank_account_id' => (int) $bank->account_id,
+                'amount' => (float) $request->input('amount'),
+                'bank_charges' => (float) $request->input('bank_charges', 0),
+                'trans_date' => $request->input('date_of_payment'),
+                'billing_month' => $billingMonthInput,
+                'reference_number' => $request->input('reference'),
+                'payment_type' => EmployeeAdvanceLoanService::paymentTypeFromAmountType($request->input('amount_type')),
+                'branch_id' => $branchId ? (int) $branchId : null,
+                'invoice_id' => $invoice ? $invoiceId : null,
+                'debit_narration' => $request->input('description') ?: 'Advance Loan Received',
+                'credit_narration' => $request->input('description')
+                    ? ('Advance Loan: ' . $request->input('description'))
+                    : null,
+                'remarks' => 'Advance Loan to Employee',
+                'custom_field_values' => $request->input('voucher_custom_fields', []),
+                'attach_file' => $attachFile,
+            ]);
+        } catch (GlobalAccountNotConfiguredException $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
+        } catch (\InvalidArgumentException $e) {
+            if ($request->ajax()) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
+            Flash::error($e->getMessage());
+
+            return redirect()->back()->withInput();
+        }
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Advance loan recorded successfully',
+                'voucher_id' => $result['voucher']->id,
+                'trans_code' => $result['trans_code'],
+                'reload' => true,
+            ]);
+        }
+
+        Flash::success('Advance loan recorded successfully.');
+
+        return redirect()->back();
     }
 }

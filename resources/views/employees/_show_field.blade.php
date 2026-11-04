@@ -39,14 +39,21 @@ $label = ($item->kind ?? '') === 'fixed' ? $item->label : $item->field->label;
 $expiryBadge = $isExpiry ? \App\Support\EntityExpiry::badgeForDate($value, $label) : null;
 @endphp
 @if (field_visible('employees', (string) $rfpField))
-<div class="col-md-3 form-group col-3 mb-3 entity-info-field">
-    <label>{{ $label }}</label>
-    <p class="mb-0">
-        @if ($expiryBadge)
-            @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
-        @else
-            {{ $displayValue }}
-        @endif
-    </p>
+@php
+  $isNotes = ($item->kind ?? '') === 'fixed' && ($item->field_key ?? '') === 'notes';
+  $fullWidth = !empty($fullWidth) || $isNotes;
+  if ($isNotes) {
+    $label = 'Notes';
+  }
+@endphp
+<div class="emp-f{{ $fullWidth ? ' emp-f-full' : '' }}">
+  <label>{{ $label }}</label>
+  <div>
+    @if ($expiryBadge)
+      @include('riders._document_expiry_badge', ['badge' => $expiryBadge])
+    @else
+      {{ $displayValue }}
+    @endif
+  </div>
 </div>
 @endif

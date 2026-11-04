@@ -1,0 +1,26 @@
+@php
+    $employee = $invoice->employee;
+    $emailTo = $employee->company_email ?: ($employee->personal_email ?? '');
+    $invoiceNumber = $invoice->invoice_number;
+@endphp
+<form action="{{ safe_route('employeeInvoices.sendEmail', ['company_slug' => request()->route('company_slug'), 'id' => $invoice->id], 'employeeInvoices/sendemail/{id}') }}" method="POST" id="formajax">
+    @csrf
+    <div class="col-md-12 form-group">
+        <label>Email Address</label>
+        <input type="email" class="form-control form-control-sm" name="email_to" value="{{ $emailTo }}" {{ $emailTo ? 'readonly' : '' }} required>
+    </div>
+    <div class="col-md-12 form-group">
+        <label>Subject</label>
+        <input type="text" class="form-control form-control-sm" name="email_subject" value="Invoice# {{ $invoiceNumber }}">
+    </div>
+    <div class="col-md-12 form-group">
+        <label>Message</label>
+        <textarea name="email_message" rows="5" class="form-control">Hi {{ $employee->name ?? 'there' }},
+Please find attached invoice with this email.
+
+Regards,
+{{ config('app.name') }}
+</textarea>
+    </div>
+    <button type="submit" class="btn btn-primary float-right">Send Email</button>
+</form>

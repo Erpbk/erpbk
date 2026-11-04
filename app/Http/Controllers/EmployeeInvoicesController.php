@@ -2,18 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\EmployeeInvoiceExport;
+use App\Helpers\Account;
 use App\Http\Requests\CreateEmployeeInvoicesRequest;
 use App\Http\Requests\UpdateEmployeeInvoicesRequest;
 use App\Imports\ImportEmployeeInvoice;
+use App\Models\Accounts;
+use App\Models\Banks;
 use App\Models\Employee;
 use App\Models\EmployeeInvoices;
 use App\Models\Items;
 use App\Models\Payment;
 use App\Models\Transactions;
+use App\Models\Vouchers;
 use App\Repositories\EmployeeInvoicesRepository;
+use App\Services\Email\CompanyEmailBrandingService;
+use App\Services\Email\UserEmailService;
 use App\Services\EmployeeInvoice\EmployeeInvoiceViewDataBuilder;
-use App\Traits\GlobalPagination;
+use App\Support\EmployeeVoucherPermissions;
 use App\Support\InvoicePdf;
+use App\Support\ResourceLinks;
+use App\Traits\GlobalPagination;
 use Carbon\Carbon;
 use Flash;
 use Illuminate\Http\Request;
@@ -30,21 +39,152 @@ class EmployeeInvoicesController extends AppBaseController
     public function __construct(EmployeeInvoicesRepository $employeeInvoicesRepo)
     {
         $this->employeeInvoicesRepository = $employeeInvoicesRepo;
-        $this->middleware('permission:employees_invoice_view')->only('index', 'show', 'download');
+        $this->middleware('permission:employees_invoice_view')->only('index', 'show', 'download', 'export', 'sendEmail');
         $this->middleware('permission:employees_invoice_create')->only('create', 'store', 'importForm', 'import');
         $this->middleware('permission:employees_invoice_edit')->only('edit', 'update', 'markAsSettled');
         $this->middleware('permission:employees_invoice_delete')->only('destroy', 'bulkDelete');
+        $this->middleware('permission:employees_payments_create')->only('markAsPaid');
     }
 
     public function index(Request $request)
     {
         $paginationParams = $this->getPaginationParams($request, $this->getDefaultPerPage());
-        $query = EmployeeInvoices::query()
+        $query = $this->filteredEmployeeInvoicesQuery($request);
+        $stats = $this->buildIndexStats($request, $query);
+
+        $data = $this->applyPagination(clone $query, $paginationParams);
+        if (method_exists($data, 'withQueryString')) {
+            $data->withQueryString();
+        }
+        $data->load(['employee.branch', 'items']);
+
+        $invoiceBuilder = app(EmployeeInvoiceViewDataBuilder::class);
+        $pageRows = method_exists($data, 'items') ? collect($data->items()) : collect($data);
+        $invoiceBuilder->preloadOutstandingSummaries($pageRows);
+
+        if ($request->ajax()) {
+            $tableHtml = view('employee_invoices.table', ['data' => $data])->render();
+            $paginationHtml = view('components.riders-demo-pagination', [
+                'paginator' => $data,
+                'entityLabel' => 'invoices',
+            ])->render();
+
+            return response()->json([
+                'success' => true,
+                'html' => $tableHtml,
+                'pagination' => $paginationHtml,
+                'stats' => $stats,
+                'tableData' => $tableHtml,
+                'paginationLinks' => $paginationHtml,
+            ]);
+        }
+
+        return view('employee_invoices.index', [
+            'data' => $data,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * Export employee invoices for the active index filters (no pagination).
+     */
+    public function export(Request $request)
+    {
+        $invoices = $this->filteredEmployeeInvoicesQuery($request)
             ->with(['employee', 'items'])
-            ->orderBy('billing_month', 'desc');
+            ->get();
+
+        app(EmployeeInvoiceViewDataBuilder::class)->preloadOutstandingSummaries($invoices);
+
+        $monthSuffix = $request->filled('billing_month')
+            ? Carbon::parse($request->billing_month)->format('Y_m')
+            : 'all';
+        $filename = 'employee_invoices_'.$monthSuffix.'_'.now()->format('Y_m_d_His').'.xlsx';
+
+        return Excel::download(new EmployeeInvoiceExport($invoices), $filename);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\EmployeeInvoices>  $query
+     * @return array<string, mixed>
+     */
+    protected function buildIndexStats(Request $request, $query): array
+    {
+        $statsQuery = clone $query;
+
+        $invoiceCount = (int) (clone $statsQuery)->count();
+        $paidCount = (int) (clone $statsQuery)->where('status', 1)->count();
+        $partialCount = (int) (clone $statsQuery)->where('status', 3)->count();
+        $unpaidCount = (int) (clone $statsQuery)->where(function ($q) {
+            $q->whereNull('status')->orWhereNotIn('status', [1, 3]);
+        })->count();
+        $totalInvoiceAmount = round((float) (clone $statsQuery)->sum('total_amount'), 2);
+
+        $zoneLabel = 'All';
+        if ($request->filled('zone')) {
+            $zoneLabel = (string) $request->input('zone');
+        }
+
+        $billingMonthLabel = 'All Months';
+        if ($request->filled('billing_month')) {
+            $billingMonthLabel = Carbon::parse($request->billing_month)->format('M Y');
+        }
+
+        $moneyRows = (clone $statsQuery)->with(['employee', 'items'])->get();
+        app(EmployeeInvoiceViewDataBuilder::class)->preloadOutstandingSummaries($moneyRows);
+
+        $payable = 0.0;
+        $paidAmount = 0.0;
+        $balance = 0.0;
+        $unpaidDue = 0.0;
+        $partialDue = 0.0;
+        foreach ($moneyRows as $invoice) {
+            $payable += (float) $invoice->final_amount;
+            $paidAmount += (float) $invoice->paid_amount;
+            $rowBalance = (float) $invoice->balance;
+            $balance += $rowBalance;
+            $statusKey = $invoice->paymentStatusKey();
+            if ($statusKey === 'partial') {
+                $partialDue += $rowBalance;
+            } elseif ($statusKey !== 'paid') {
+                $unpaidDue += $rowBalance;
+            }
+        }
+
+        return [
+            'invoice_count' => $invoiceCount,
+            'paid_count' => $paidCount,
+            'partial_count' => $partialCount,
+            'unpaid_count' => $unpaidCount,
+            'total_invoice_amount' => $totalInvoiceAmount,
+            'project_label' => $zoneLabel,
+            'billing_month_label' => $billingMonthLabel,
+            'total_payable_salary' => round($payable, 2),
+            'paid_amount' => round($paidAmount, 2),
+            'balance' => round($unpaidDue > 0 ? $unpaidDue : $balance, 2),
+            'partial_due' => round($partialDue, 2),
+            'money_available' => true,
+        ];
+    }
+
+    /**
+     * Shared listing/export query with the same filters as the index page.
+     */
+    protected function filteredEmployeeInvoicesQuery(Request $request)
+    {
+        $query = EmployeeInvoices::query()
+            ->orderBy('billing_month', 'desc')
+            ->orderBy('status', 'asc');
 
         if ($request->filled('id')) {
-            $query->where('id', 'like', '%'.$request->id.'%');
+            $rawId = trim((string) $request->input('id'));
+            if (preg_match('/^(?:EMP[_-]?INV-?)?0*(\d+)$/i', $rawId, $matches)) {
+                $query->where('id', (int) $matches[1]);
+            } elseif (preg_match('/(\d+)/', $rawId, $matches)) {
+                $query->where('id', (int) $matches[1]);
+            } else {
+                $query->where('id', 'like', '%'.$rawId.'%');
+            }
         }
         if ($request->filled('employee_id')) {
             $query->where('employee_id', $request->employee_id);
@@ -61,7 +201,18 @@ class EmployeeInvoicesController extends AppBaseController
             $query->where('performance', $request->performance);
         }
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $status = $request->input('status');
+            if ($status === 'paid' || $status === '1' || $status === 1) {
+                $query->where('status', 1);
+            } elseif ($status === 'partial' || $status === '3' || $status === 3) {
+                $query->where('status', 3);
+            } elseif ($status === 'unpaid' || $status === '0' || $status === 0) {
+                $query->where(function ($q) {
+                    $q->whereNull('status')->orWhereNotIn('status', [1, 3]);
+                });
+            } else {
+                $query->where('status', $status);
+            }
         }
         if ($request->filled('quick_search')) {
             $search = trim((string) $request->input('quick_search'));
@@ -76,34 +227,13 @@ class EmployeeInvoicesController extends AppBaseController
                             ->orWhere('employee_id', 'like', '%'.$search.'%');
                     });
 
-                if (preg_match('/^(?:EINV-?)?0*(\d+)$/i', $search, $matches)) {
+                if (preg_match('/^(?:EMP[_-]?INV-?)?0*(\d+)$/i', $search, $matches)) {
                     $q->orWhere('employee_invoices.id', (int) $matches[1]);
                 }
             });
         }
 
-        $data = $this->applyPagination($query, $paginationParams);
-
-        $billingMonth = $request->filled('billing_month')
-            ? Carbon::parse($request->billing_month)
-            : now();
-
-        $currentMonthTotal = EmployeeInvoices::whereYear('billing_month', $billingMonth->year)
-            ->whereMonth('billing_month', $billingMonth->month)
-            ->sum('total_amount');
-
-        if ($request->ajax()) {
-            $tableData = view('employee_invoices.table', compact('data', 'currentMonthTotal'))->render();
-            $paginationLinks = $data->links('components.global-pagination')->render();
-
-            return response()->json([
-                'tableData' => $tableData,
-                'paginationLinks' => $paginationLinks,
-                'currentMonthTotal' => number_format($currentMonthTotal, 1),
-            ]);
-        }
-
-        return view('employee_invoices.index', compact('data', 'currentMonthTotal'));
+        return $query;
     }
 
     public function create()
@@ -191,9 +321,14 @@ class EmployeeInvoicesController extends AppBaseController
             return redirect(route('employeeInvoices.index'));
         }
 
+        $builder = app(EmployeeInvoiceViewDataBuilder::class);
+
         return array_merge(
-            app(EmployeeInvoiceViewDataBuilder::class)->build($employeeInvoice),
-            ['employeeInvoice' => $employeeInvoice]
+            $builder->build($employeeInvoice),
+            [
+                'employeeInvoice' => $employeeInvoice,
+                'paymentVouchers' => $builder->paymentVouchersForInvoice($employeeInvoice),
+            ]
         );
     }
 
@@ -357,6 +492,324 @@ class EmployeeInvoicesController extends AppBaseController
         }
 
         return view('employee_invoices.mark_as_settled', compact('invoice', 'outstanding', 'needsReason'));
+    }
+
+    /**
+     * Mark a single invoice as paid via Payment + PV ledger (not RI).
+     */
+    public function markAsPaid(Request $request, $company_slug, $id)
+    {
+        if ($request->isMethod('post')) {
+            EmployeeVoucherPermissions::authorize('PAY', 'create');
+
+            $rules = [
+                'bank_account_id' => 'required|exists:accounts,id',
+                'payment_amount' => 'required|numeric|min:0.01',
+            ];
+            $message = [
+                'bank_account_id.required' => 'Bank account is required',
+                'bank_account_id.exists' => 'Selected bank account does not exist',
+                'payment_amount.required' => 'Payment amount is required',
+                'payment_amount.numeric' => 'Payment amount must be a valid number',
+                'payment_amount.min' => 'Payment amount must be at least 0.01',
+            ];
+
+            $this->validate($request, $rules, $message);
+
+            try {
+                DB::beginTransaction();
+
+                $invoice = EmployeeInvoices::with(['employee.account', 'items'])->find($id);
+                if (! $invoice) {
+                    Flash::error('Employee invoice not found.');
+
+                    return redirect()->back();
+                }
+
+                if ((int) $invoice->status === 1) {
+                    Flash::error('Invoice is already marked as paid.');
+
+                    return redirect()->back();
+                }
+
+                $employee = $invoice->employee;
+                if (! $employee || ! $employee->account_id) {
+                    Flash::error('Employee account not found.');
+
+                    return redirect()->back();
+                }
+
+                $paymentAmount = (float) $request->input('payment_amount', 0);
+                $outstanding = app(EmployeeInvoiceViewDataBuilder::class)->outstandingAmountsForStatus($invoice);
+                $dueAmount = max((float) ($outstanding['balance'] ?? 0), 0);
+                if ($paymentAmount <= 0 || $paymentAmount > $dueAmount + 0.01) {
+                    Flash::error('Payment amount must be greater than 0 and not exceed the remaining invoice due amount.');
+
+                    return redirect()->back()->withInput();
+                }
+
+                $bankAccountId = (int) $request->input('bank_account_id');
+                $bank = Banks::where('account_id', $bankAccountId)->first();
+                if (! $bank) {
+                    Flash::error('Selected bank account is not linked to a bank record.');
+
+                    return redirect()->back()->withInput();
+                }
+
+                $payeeAccountId = (int) $employee->account_id;
+                $billingMonth = date('Y-m-01', strtotime((string) $invoice->billing_month));
+                $paymentDate = now()->format('Y-m-d');
+                $invoiceNumber = $invoice->invoice_number;
+                $description = 'Manual payment for Employee Invoice #'.$invoice->id
+                    .($invoice->descriptions ? ' - '.$invoice->descriptions : '');
+
+                $payment = Payment::create([
+                    'reference' => $invoiceNumber,
+                    'amount_type' => 'Online',
+                    'bank_id' => $bank->id,
+                    'payee_account_id' => $payeeAccountId,
+                    'date_of_payment' => $paymentDate,
+                    'date_of_invoice' => $invoice->inv_date
+                        ? Carbon::parse($invoice->inv_date)->format('Y-m-d')
+                        : $paymentDate,
+                    'billing_month' => $billingMonth,
+                    'amount' => $paymentAmount,
+                    'bank_charges' => 0,
+                    'bank_charges_account' => null,
+                    'description' => $description,
+                    'payment_kind' => 'salary_payment',
+                    'branch_id' => Accounts::where('id', $payeeAccountId)->value('branch_id'),
+                    'created_by' => Auth::id(),
+                ]);
+
+                $partialAmount = $invoice->partial_paid_amount ?? [];
+                $partialAmount[$payment->id] = $paymentAmount;
+                $balanceBefore = (float) $outstanding['balance'];
+                $invoice->update([
+                    'status' => $paymentAmount >= ($balanceBefore - 0.01) ? 1 : 3,
+                    'partial_paid_amount' => $partialAmount,
+                    'updated_by' => Auth::id(),
+                ]);
+                $this->refreshEmployeeInvoiceStatuses(collect([$invoice]));
+
+                $paymentAmounts = [(int) $invoice->id => $paymentAmount];
+                $payment->resource_links = ResourceLinks::build(
+                    'employee',
+                    [(int) $invoice->id],
+                    $paymentAmounts,
+                    collect([$invoice]),
+                    null,
+                    ResourceLinks::SOURCE_PAYMENT_FORM
+                );
+                $payment->save();
+
+                $transCode = Account::trans_code();
+                $this->postManualPaymentLedgerEntries(
+                    $transCode,
+                    $paymentDate,
+                    (int) $payment->id,
+                    $bankAccountId,
+                    $payeeAccountId,
+                    $paymentAmount,
+                    $billingMonth,
+                    $payment->branch_id ? (int) $payment->branch_id : null,
+                    $description
+                );
+
+                $voucher = Vouchers::create([
+                    'trans_date' => $paymentDate,
+                    'trans_code' => $transCode,
+                    'reference_number' => $invoiceNumber,
+                    'billing_month' => $billingMonth,
+                    'payment_from' => $bankAccountId,
+                    'amount' => $paymentAmount,
+                    'voucher_type' => 'PV',
+                    'remarks' => 'Salary Payment',
+                    'ref_id' => $payment->id,
+                    'Created_By' => Auth::id(),
+                    'status' => 1,
+                    'branch_id' => $payment->branch_id,
+                ]);
+
+                $payment->voucher_id = $voucher->id;
+                $payment->save();
+
+                DB::commit();
+                Flash::success('Invoice payment recorded successfully.');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Flash::error('Error recording invoice payment: '.$e->getMessage());
+            }
+
+            return redirect()->back();
+        }
+
+        $invoice = EmployeeInvoices::with(['employee', 'items'])->find($id);
+        if (! $invoice) {
+            Flash::error('Employee invoice not found.');
+
+            return redirect()->back();
+        }
+
+        if ((int) $invoice->status === 1) {
+            Flash::error('Invoice is already marked as paid.');
+
+            return redirect()->back();
+        }
+
+        $outstanding = app(EmployeeInvoiceViewDataBuilder::class)->outstandingAmounts($invoice);
+        $netBalance = round((float) ($outstanding['balance'] ?? 0), 2);
+        if ($netBalance <= 0.01) {
+            Flash::warning('Net payable is zero or negative after deductions. Use Mark Settled (no payment) instead of recording a bank payment.');
+
+            return redirect()->route('employeeInvoices.index');
+        }
+
+        $bankAccounts = Accounts::bankAccountsDropdown();
+
+        return view('employee_invoices.mark_as_paid', compact('invoice', 'bankAccounts', 'outstanding'));
+    }
+
+    public function sendEmail($company_slug, $id, Request $request)
+    {
+        $invoice = EmployeeInvoices::with(['employee'])->findOrFail($id);
+
+        if ($request->isMethod('post')) {
+            $user = Auth::user();
+            $emailService = app(UserEmailService::class);
+            $smtpPrep = $emailService->prepareCompanySmtp($user);
+            if (! $smtpPrep['ready']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $smtpPrep['message'],
+                ], $smtpPrep['status'] ?? 422);
+            }
+            $fromEmail = $smtpPrep['from_email'];
+            $fromName = $smtpPrep['from_name'];
+
+            $toEmail = $request->input('email_to');
+            if (! is_string($toEmail) || trim($toEmail) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employee invoice email address is missing.',
+                ], 422);
+            }
+            $toEmail = trim($toEmail);
+
+            $subject = is_string($request->input('email_subject')) && trim($request->input('email_subject')) !== ''
+                ? trim($request->input('email_subject'))
+                : 'Employee Invoice';
+
+            $brandingService = app(CompanyEmailBrandingService::class);
+            $data = $brandingService->mergeIntoMailData([
+                'html' => $request->input('email_message'),
+            ]);
+
+            $invoice->load([
+                'items',
+                'employee' => function ($query) {
+                    $query->withTrashed()->with(['department', 'account']);
+                },
+            ]);
+
+            $builder = app(EmployeeInvoiceViewDataBuilder::class);
+            $invoiceNumber = $invoice->invoice_number;
+            $pdf = InvoicePdf::make(
+                'employee_invoices.show',
+                array_merge(
+                    $builder->build($invoice),
+                    [
+                        'employeeInvoice' => $invoice,
+                        'paymentVouchers' => $builder->paymentVouchersForInvoice($invoice),
+                    ]
+                )
+            );
+
+            $brandingService->sendBrandedEmail('emails.general', $data, function ($message) use ($toEmail, $pdf, $fromEmail, $fromName, $subject, $invoiceNumber) {
+                $message->to([$toEmail]);
+                $message->from($fromEmail, $fromName);
+                $message->replyTo($fromEmail, $fromName);
+                $message->subject($subject);
+                $message->attachData($pdf->output(), 'Employee-Invoice-'.$invoiceNumber.'.pdf');
+                $message->priority(3);
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Email sent successfully.',
+            ]);
+        }
+
+        return view('employee_invoices.send_email', compact('invoice'));
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection|iterable  $invoices
+     */
+    private function refreshEmployeeInvoiceStatuses($invoices): void
+    {
+        $builder = app(EmployeeInvoiceViewDataBuilder::class);
+        foreach (collect($invoices) as $fresh) {
+            if (! $fresh instanceof EmployeeInvoices) {
+                continue;
+            }
+            $fresh->clearOutstandingSummary();
+            $amounts = $builder->outstandingAmountsForStatus($fresh);
+            $balance = (float) ($amounts['balance'] ?? 0);
+            $paid = (float) ($amounts['paid_amount'] ?? 0);
+            if ($balance <= 0.01) {
+                $fresh->status = 1;
+            } elseif ($paid >= 0.01) {
+                $fresh->status = 3;
+            } else {
+                $fresh->status = 0;
+            }
+            $fresh->updated_by = Auth::id();
+            $fresh->save();
+        }
+    }
+
+    /**
+     * PV ledger lines (mirrors PaymentController::postPaymentLedgerEntries).
+     */
+    private function postManualPaymentLedgerEntries(
+        int $transCode,
+        string $date,
+        int $paymentId,
+        int $payingAccountId,
+        int $payeeAccountId,
+        float $paymentAmount,
+        string $billingMonth,
+        ?int $branchId,
+        string $desc
+    ): void {
+        $paymentAmount = round($paymentAmount, 2);
+
+        Transactions::create([
+            'trans_code' => $transCode,
+            'trans_date' => $date,
+            'reference_id' => $paymentId,
+            'reference_type' => 'PV',
+            'account_id' => $payeeAccountId,
+            'credit' => 0,
+            'debit' => $paymentAmount,
+            'billing_month' => $billingMonth,
+            'branch_id' => $branchId,
+            'narration' => $desc,
+        ]);
+
+        Transactions::create([
+            'trans_code' => $transCode,
+            'trans_date' => $date,
+            'reference_id' => $paymentId,
+            'reference_type' => 'PV',
+            'account_id' => $payingAccountId,
+            'credit' => $paymentAmount,
+            'debit' => 0,
+            'billing_month' => $billingMonth,
+            'narration' => $desc,
+            'branch_id' => $branchId,
+        ]);
     }
 
     /**

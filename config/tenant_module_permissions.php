@@ -35,10 +35,25 @@ return [
                 'Employee',
                 'Attendance',
                 'Invoice',
-                'Payments',
+                [
+                    'name' => 'Payments',
+                    'extra_actions' => ['upload', 'approve', 'reject'],
+                ],
                 'Document',
                 'Ledger',
                 'Voucher',
+                [
+                    'name' => 'Penalty Voucher',
+                    'extra_actions' => ['upload', 'approve', 'reject'],
+                ],
+                [
+                    'name' => 'Incentive Voucher',
+                    'extra_actions' => ['upload', 'approve', 'reject'],
+                ],
+                [
+                    'name' => 'Advance Loan Voucher',
+                    'extra_actions' => ['upload', 'approve', 'reject'],
+                ],
             ],
         ],
 

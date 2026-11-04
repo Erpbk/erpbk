@@ -76,6 +76,7 @@ class User extends Authenticatable
     'password' => 'hashed',
     'branch_ids' => 'array',
     'favorite_rider_ids' => 'array',
+    'favorite_employee_ids' => 'array',
   ];
 
   public function company()

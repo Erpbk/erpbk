@@ -32,7 +32,7 @@
             <div class="col-sm-6"><h1>Import Employee Invoices</h1></div>
             <div class="col-sm-6">
                 <div class="d-flex justify-content-end">
-                    <a class="btn btn-primary" href="{{ route('employeeInvoices.index') }}">Back to Invoices</a>
+                    <a class="btn btn-primary" href="{{ safe_route('employeeInvoices.index', [], 'employeeInvoices') }}">Back to Invoices</a>
                 </div>
             </div>
         </div>
@@ -42,7 +42,7 @@
 <div class="content px-3">
     <div class="card">
         <div class="card-body">
-            <form id="employeeInvoiceImportForm" action="{{ route('employeeInvoices.import') }}" method="POST" enctype="multipart/form-data">
+            <form id="employeeInvoiceImportForm" action="{{ safe_route('employeeInvoices.import', [], 'employeeInvoices/import') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="row">
                     <div class="col-md-4">
@@ -317,7 +317,7 @@
                     }
                     html += '</div>';
                     html += '<div class="text-center">'
-                        + '<a href="{{ route('employeeInvoices.index') }}" class="btn btn-primary">Back to Invoices</a>'
+                        + '<a href="{{ safe_route('employeeInvoices.index', [], 'employeeInvoices') }}" class="btn btn-primary">Back to Invoices</a>'
                         + '</div>';
                 }
 
@@ -332,7 +332,7 @@
                 // Only redirect when every row imported cleanly.
                 if (skipped === 0 && !skippedLog.length) {
                     setTimeout(function () {
-                        window.location.href = "{{ route('employeeInvoices.index') }}";
+                        window.location.href = "{{ safe_route('employeeInvoices.index', [], 'employeeInvoices') }}";
                     }, 1500);
                 }
             },

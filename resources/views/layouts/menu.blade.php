@@ -106,10 +106,16 @@ $homeLink = $isAdminLogin
     @endcan
     @if(\App\Support\CompanyModuleVisibility::enabled('attendance'))
     @can('employees_attendance_view')
-    <li class="menu-item {{ (Route::is('attendance.summary') && request('user_type', 'employee') === 'employee') || (Route::is('attendance.index') && request('ref_type') === 'employee') ? 'active' : '' }}">
+    <li class="menu-item {{ Route::is('attendance.summary') && request('user_type', 'employee') === 'employee' ? 'active' : '' }}">
       <a href="{{ route('attendance.summary', ['user_type' => 'employee']) }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'attendance_summary'])
         {{ $menuLabels['attendance_summary'] ?? 'Attendance' }}
+      </a>
+    </li>
+    <li class="menu-item {{ Route::is('attendance.index') && request('ref_type', 'employee') === 'employee' ? 'active' : '' }}">
+      <a href="{{ route('attendance.index', ['ref_type' => 'employee']) }}" class="menu-link">
+        @include('layouts.partials.module_menu_icon', ['key' => 'attendance_report'])
+        {{ $menuLabels['attendance_report'] ?? 'Attendance Report' }}
       </a>
     </li>
     @endcan
@@ -126,7 +132,7 @@ $homeLink = $isAdminLogin
     <li class="menu-item {{ Route::is('employee.payment') ? 'active' : '' }}">
       <a href="{{ route('employee.payment') }}" class="menu-link">
         @include('layouts.partials.module_menu_icon', ['key' => 'payments'])
-        <div>{{ $menuLabels['payments_sent'] ?? 'Payments Sent' }}</div>
+        <div>{{ $menuLabels['payments_sent'] ?? 'Payment Out Sent' }}</div>
       </a>
     </li>
     @endcan

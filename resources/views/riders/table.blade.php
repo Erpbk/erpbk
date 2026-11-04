@@ -39,7 +39,7 @@ $ajaxFragment = $ajaxFragment ?? false;
          @case('name')
          <td class="name text-start">
             <button type="button" class="rl-star{{ $isFav ? ' on' : '' }}" data-fav="{{ $r->id }}" aria-label="{{ $isFav ? 'Remove from' : 'Add to' }} favorites">★</button>
-            <a href="{{ route('riders.show', $r->id) }}">{{ $r->name }}</a>
+            <a href="{{ safe_route('riders.show', ['rider' => $r->id], 'riders/{id}') }}">{{ $r->name }}</a>
             @include('delete_requests._pending_badge', ['model' => $r])
          </td>
          @break

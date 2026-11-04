@@ -7,6 +7,9 @@ use App\Helpers\General;
 use App\Models\EmployeeInvoices;
 use App\Models\Payment;
 use App\Models\Transactions;
+use App\Models\Vouchers;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 use App\Services\Agreements\AgreementPdfBranding;
 use App\Support\CompanyContext;
 use App\Support\ResourceLinks;
@@ -282,6 +285,100 @@ class EmployeeInvoiceViewDataBuilder
             'items_total' => $items_total,
             'invoiceNumber' => $employeeInvoice->invoice_number,
         ];
+    }
+
+    /**
+     * Payment vouchers (PV / PAY) recorded against this employee invoice.
+     *
+     * @return Collection<int, Vouchers>
+     */
+    public function paymentVouchersForInvoice(EmployeeInvoices $employeeInvoice, ?int $accountId = null): Collection
+    {
+        $accountId = $accountId
+            ?? ($employeeInvoice->employee?->account_id ? (int) $employeeInvoice->employee->account_id : null);
+
+        $invoiceId = (int) $employeeInvoice->id;
+        $patterns = array_values(array_filter([
+            $employeeInvoice->invoice_number ?? null,
+            'Employee Invoice #'.$invoiceId,
+            'Invoice #'.$invoiceId,
+            'EMP_INV'.str_pad((string) $invoiceId, 5, '0', STR_PAD_LEFT),
+        ]));
+
+        $transCodes = Transactions::query()
+            ->where('reference_type', 'EmployeeInvoice')
+            ->where('reference_id', $invoiceId)
+            ->when($accountId, fn ($q) => $q->where('account_id', $accountId))
+            ->distinct()
+            ->pluck('trans_code')
+            ->filter()
+            ->values();
+
+        $voucherIdsFromPayments = collect();
+        if ($accountId) {
+            $voucherIdsFromPayments = Payment::query()
+                ->where('payee_account_id', $accountId)
+                ->whereNotNull('voucher_id')
+                ->where(function ($q) use ($patterns, $invoiceId) {
+                    ResourceLinks::whereContainsInvoiceId($q, $invoiceId);
+                    foreach ($patterns as $pattern) {
+                        $q->orWhere('reference', 'like', '%'.$pattern.'%')
+                            ->orWhere('description', 'like', '%'.$pattern.'%');
+                    }
+                })
+                ->pluck('voucher_id')
+                ->filter()
+                ->values();
+        }
+
+        if ($transCodes->isEmpty() && $voucherIdsFromPayments->isEmpty() && $patterns === []) {
+            return collect();
+        }
+
+        return Vouchers::query()
+            ->where(function ($q) use ($transCodes, $voucherIdsFromPayments, $patterns, $invoiceId) {
+                if ($transCodes->isNotEmpty()) {
+                    $q->orWhereIn('trans_code', $transCodes);
+                }
+                if ($voucherIdsFromPayments->isNotEmpty()) {
+                    $q->orWhereIn('id', $voucherIdsFromPayments);
+                }
+                $q->orWhere(function ($inner) use ($patterns, $invoiceId) {
+                    $inner->whereIn('voucher_type', ['PV', 'PAY'])
+                        ->where(function ($text) use ($patterns, $invoiceId) {
+                            $text->where('remarks', 'like', '%Employee Invoice #'.$invoiceId.'%')
+                                ->orWhere('remarks', 'like', '%Invoice #'.$invoiceId.'%');
+                            foreach ($patterns as $pattern) {
+                                $text->orWhere('reference_number', 'like', '%'.$pattern.'%')
+                                    ->orWhere('remarks', 'like', '%'.$pattern.'%');
+                            }
+                        });
+                });
+            })
+            ->orderByDesc('trans_date')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('id')
+            ->values();
+    }
+
+    /**
+     * Prefetch outstanding summaries for listing/export pages.
+     *
+     * @param  iterable<int, EmployeeInvoices>  $invoices
+     */
+    public function preloadOutstandingSummaries($invoices): void
+    {
+        $models = collect($invoices)->filter(fn ($invoice) => $invoice instanceof EmployeeInvoices)->values();
+        if ($models->isEmpty()) {
+            return;
+        }
+
+        $collection = $invoices instanceof EloquentCollection
+            ? $invoices->filter(fn ($invoice) => $invoice instanceof EmployeeInvoices)->values()
+            : new EloquentCollection($models->all());
+        $collection->loadMissing(['employee', 'items']);
+        $this->applySequentialOutstanding($collection);
     }
 
     /**

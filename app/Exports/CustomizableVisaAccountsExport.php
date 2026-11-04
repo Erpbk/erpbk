@@ -190,18 +190,32 @@ class CustomizableVisaAccountsExport extends DefaultValueBinder implements FromC
             $nextUnpaidLabel = trim(($nextUnpaid->visa_status ?? '—') . ' (' . $amount . ')');
         }
 
-        $expiryLabel = '—';
-        $urgent = $expenses
-            ->filter(fn ($row) => ! empty($row->expiry_date))
+        $expiryThreshold = now()->addDays(10)->startOfDay();
+        $expiryParts = $expenses
+            ->filter(function ($row) use ($expiryThreshold) {
+                if (empty($row->expiry_date)) {
+                    return false;
+                }
+                try {
+                    return \Carbon\Carbon::parse($row->expiry_date)->startOfDay()->lte($expiryThreshold);
+                } catch (\Throwable $e) {
+                    return false;
+                }
+            })
             ->sortBy(fn ($row) => (string) $row->expiry_date)
-            ->first();
-        if ($urgent && ! empty($urgent->expiry_date)) {
-            try {
-                $expiryLabel = ($urgent->visa_status ?? '—') . ' (' . \Carbon\Carbon::parse($urgent->expiry_date)->format('d M Y') . ')';
-            } catch (\Throwable $e) {
-                $expiryLabel = (string) ($urgent->visa_status ?? '—');
-            }
-        }
+            ->map(function ($row) {
+                try {
+                    $when = \Carbon\Carbon::parse($row->expiry_date)->format('d M Y');
+                } catch (\Throwable $e) {
+                    return null;
+                }
+
+                return trim(($row->visa_status ?? '—') . ' ' . $when);
+            })
+            ->filter()
+            ->values()
+            ->all();
+        $expiryLabel = $expiryParts !== [] ? implode(' | ', $expiryParts) : '—';
 
         return [
             'person_id' => $isEmployee

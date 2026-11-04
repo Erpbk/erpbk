@@ -878,11 +878,11 @@ class VisaexpenseController extends AppBaseController
     }
 
     /**
-     * Earliest visa expense with expiry_date on or before today + $withinDays (inclusive), per expense account on this page.
-     * Same account linkage as {@see mapNextUnpaidVisaExpensesForPage()}.
+     * Visa expenses with expiry_date on or before today + $withinDays (inclusive), per expense account on this page.
+     * Returns all matching documents per account (soonest first). Same account linkage as {@see mapNextUnpaidVisaExpensesForPage()}.
      *
      * @param  \Illuminate\Contracts\Pagination\Paginator|\Illuminate\Support\Collection|array  $paginatorOrCollection
-     * @return array<int, \App\Models\visa_expenses>
+     * @return array<int, list<\App\Models\visa_expenses>>
      */
     private function mapUrgentVisaExpiryForPage($paginatorOrCollection, int $withinDays = 10): array
     {
@@ -951,10 +951,10 @@ class VisaexpenseController extends AppBaseController
                     $eaId = $riderCategoryToEaId[$key];
                 }
             }
-            if ($eaId === null || isset($byEaId[$eaId])) {
+            if ($eaId === null) {
                 continue;
             }
-            $byEaId[$eaId] = $ve;
+            $byEaId[$eaId][] = $ve;
         }
 
         return $byEaId;

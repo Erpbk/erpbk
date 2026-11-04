@@ -14,6 +14,36 @@
       line-height: 1.2;
       font-variant-numeric: tabular-nums;
    }
+   .visa-expiry-list {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: stretch;
+      min-width: 0;
+      max-width: 100%;
+      text-decoration: none;
+      color: inherit;
+   }
+   .visa-expiry-row {
+      display: block;
+      padding: .28rem .15rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: .8rem;
+      line-height: 1.25;
+      color: #1e293b;
+   }
+   .visa-expiry-row + .visa-expiry-row {
+      border-top: 1px solid #e2e8f0;
+   }
+   .visa-expiry-row .visa-expiry-status {
+      font-weight: 600;
+   }
+   .visa-expiry-row .visa-expiry-date {
+      font-weight: 700;
+      color: #b91c1c;
+      font-variant-numeric: tabular-nums;
+   }
    .riders-list-demo .rl-tbox tr.rl-fav-row > td {
       background: #fffbeb;
    }
@@ -156,7 +186,9 @@ foreach ($pageAccounts as $pageAccount) {
             ->orderBy('id', 'asc')
             ->first();
       }
-      $urgentExpiry = $urgentVisaExpiryByAccountId[$r->id] ?? null;
+      $urgentExpiryItems = collect($urgentVisaExpiryByAccountId[$r->id] ?? [])
+         ->filter(fn ($ve) => ! empty($ve->expiry_date))
+         ->values();
 
       $nextWhen = '';
       if ($nextUnpaid) {
@@ -165,12 +197,6 @@ foreach ($pageAccounts as $pageAccount) {
                ? \Carbon\Carbon::parse($nextUnpaid->date)->format('d M Y')
                : (!empty($nextUnpaid->billing_month) ? \Carbon\Carbon::parse($nextUnpaid->billing_month)->format('M-Y') : '');
          } catch (\Throwable $e) { $nextWhen = ''; }
-      }
-
-      $urgentExpiryWhen = '';
-      if ($urgentExpiry && !empty($urgentExpiry->expiry_date)) {
-         try { $urgentExpiryWhen = \Carbon\Carbon::parse($urgentExpiry->expiry_date)->format('d M Y'); }
-         catch (\Throwable $e) { $urgentExpiryWhen = ''; }
       }
 
       $overviewUrl = $isEmployeeAccount
@@ -217,10 +243,21 @@ foreach ($pageAccounts as $pageAccount) {
             @endif
          </td>
          <td class="align-middle">
-            @if($urgentExpiry && $urgentExpiryWhen !== '')
-            <a href="{{ $latestAccountUrl }}" class="visa-status-stack" title="Visa document expiry within 10 days or overdue">
-               <span class="badge bg-label-primary">{{ $urgentExpiry->visa_status ?? '—' }}</span>
-               <span class="visa-status-amount">{{ $urgentExpiryWhen }}</span>
+            @if($urgentExpiryItems->isNotEmpty())
+            <a href="{{ $latestAccountUrl }}" class="visa-expiry-list" title="Visa documents expired or expiring within 10 days">
+               @foreach($urgentExpiryItems as $urgentExpiry)
+               @php
+                  $urgentExpiryWhen = '';
+                  try { $urgentExpiryWhen = \Carbon\Carbon::parse($urgentExpiry->expiry_date)->format('d M Y'); }
+                  catch (\Throwable $e) { $urgentExpiryWhen = ''; }
+               @endphp
+               @if($urgentExpiryWhen !== '')
+               <span class="visa-expiry-row">
+                  <span class="visa-expiry-status">{{ $urgentExpiry->visa_status ?? '—' }}</span>
+                  <span class="visa-expiry-date">{{ $urgentExpiryWhen }}</span>
+               </span>
+               @endif
+               @endforeach
             </a>
             @else
             <span class="text-muted">—</span>

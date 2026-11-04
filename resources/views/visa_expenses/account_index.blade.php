@@ -863,13 +863,19 @@
       if (a) return { text: (a.textContent || '').trim() || '-', href: a.href };
       return { text: (clone.textContent || '').replace(/\s+/g, ' ').trim() || '-', href: null };
     }
-    if (col.key === 'next_unpaid' || col.key === 'expiry') {
+    if (col.key === 'next_unpaid') {
       const badge = td.querySelector('.badge');
       const amount = td.querySelector('.visa-status-amount');
       const parts = [];
       if (badge) parts.push((badge.textContent || '').trim());
       if (amount) parts.push((amount.textContent || '').trim());
       if (parts.length) return { text: parts.join(' · '), href: td.querySelector('a[href]')?.href || null };
+    }
+    if (col.key === 'expiry') {
+      const rows = Array.from(td.querySelectorAll('.visa-expiry-row'))
+        .map(el => (el.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+      if (rows.length) return { text: rows.join(' | '), href: td.querySelector('a[href]')?.href || null };
     }
     if (col.key === 'status' || col.key === 'wps' || col.key === 'category') {
       const badge = td.querySelector('.badge');
